@@ -1,12 +1,14 @@
-Fixes #
+# Fixes #
 
-## Proposed Changes
+  - < the issue solved by this PR >
+
+## Proposed Changes ##
 
   -
   -
   -
-  
-## Checklist
+
+## Checklist ##
 
 - [ ] Related Issue created
 - [ ] Tests covering new change
