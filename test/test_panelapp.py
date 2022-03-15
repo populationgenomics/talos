@@ -76,6 +76,22 @@ def test_panel_activities(
     assert result == version
 
 
+def test_activities_empty_endpoint(requests_mock):
+    """
+    query returns an empty list, version should default to None
+    :param requests_mock:
+    """
+    requests_mock.register_uri(
+        'GET',
+        ACTIVITIES.format(panel_id='137'),
+        json=[],
+    )
+    assert (
+        get_previous_version(panel_id='137', since=datetime(year=1970, month=1, day=1))
+        is None
+    )
+
+
 def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
 
     """

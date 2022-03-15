@@ -217,8 +217,13 @@ def main(panel_id: str, out_path: str, date: Optional[str] = None):
 
         early_version = get_previous_version(panel_id=panel_id, since=since_datetime)
 
+        if early_version is None:
+            logging.info(
+                'No prior panel version could be found using the date "%s"', date
+            )
+
         # only continue if the versions are different
-        if early_version != panel_dict['panel_metadata'].get('current_version'):
+        elif early_version != panel_dict['panel_metadata'].get('current_version'):
             logging.info('Previous panel version: %s', early_version)
             logging.info('Previous version date: %s', date)
             get_panel_changes(
