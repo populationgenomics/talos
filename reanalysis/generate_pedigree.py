@@ -6,11 +6,12 @@ additional (optional) argument will remove all family associations
 
 
 from typing import Dict, List
+import logging
+import click
 from sample_metadata.apis import FamilyApi, ParticipantApi
 
-import click
 
-
+# the keys provided by the SM API, in the order to write in output
 PED_KEYS = [
     'family_id',
     'individual_id',
@@ -87,15 +88,30 @@ def get_pedigree_for_project(project: str) -> List[Dict[str, str]]:
 
 def ext_to_int_sample_map(project: str) -> Dict[str, str]:
     """
-    fetches the mapping dictionary, so external IDs can be
-    translated to the corresponding CPG ID
+    fetches the participant-sample mapping, so external IDs can be translated
+    to the corresponding CPG ID
+
+    This endpoint returns a list of tuples, each containing a participant ID
+    and corresponding sample ID
+
+    This originally had an expectation of a 1:1 participant:sample relationship
+    that will not hold in general, as numerous samples have multiple samples
+
+    for each participant, create a list of all possible samples
+
     :param project:
     :return: the mapping dictionary
     """
 
-    return ParticipantApi().get_external_participant_id_to_internal_sample_id(
+    sample_map = {}
+    for (
+        participant,
+        sample,
+    ) in ParticipantApi().get_external_participant_id_to_internal_sample_id(
         project=project
-    )
+    ):
+        sample_map.setdefault(participant, []).append(sample)
+    return sample_map
 
 
 @click.command()
@@ -122,19 +138,24 @@ def main(project: str, singles: bool, output: str):
     """
 
     # get the list of all pedigree members as list of dictionaries
+    logging.info('Pulling all pedigree members')
     pedigree_dicts = get_pedigree_for_project(project=project)
 
     # endpoint gives list of lists e.g. [['A1234567_proband', 'CPG12341']]
+    logging.info('pulling internal-external sample mapping')
     sample_to_cpg_dict = ext_to_int_sample_map(project=project)
 
+    logging.info('updating pedigree sample IDs to internal')
     clean_pedigree = get_clean_pedigree(
         pedigree_dicts=pedigree_dicts,
         sample_to_cpg_dict=sample_to_cpg_dict,
         singles=singles,
     )
 
+    logging.info('writing new PED file to "%s"', output)
     write_pedigree(clean_pedigree, output)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     main()  # pylint: disable=E1120

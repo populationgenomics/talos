@@ -81,6 +81,7 @@ def test_ext_to_int_sample_map(
         payload = json.load(handle)
         map_mock.return_value = payload
         result = ext_to_int_sample_map(project=PROJECT)
+        assert isinstance(result, dict)
         assert result == payload
 
 
