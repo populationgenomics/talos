@@ -1,0 +1,13 @@
+// https://github.com/DavidAnson/markdownlint#optionsconfig
+// Disabling some rules here as we find them too restrictive.
+{
+  "default": true,            // Include all rules by defauls
+  "line-length": false,       // To allow working with soft wraps in editors
+  "no-inline-html": {         // Sometimes we need to use <img> html tags in GitHub markdown,
+                              // as it doesn't allow setting the image size with markdown tags
+    "allowed_elements": ["details", "img"]
+  },
+  "ul-indent": false,          // To allow indenting the whole list to distinguish it visually
+  "no-multiple-blanks": false  // To allow multiple blank lines between a header and
+                               // the previous paragraph
+}

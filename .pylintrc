@@ -1,0 +1,38 @@
+[MESSAGES CONTROL]
+# We disable the following inspections:
+# 1. f-string-without-interpolation (we allow f-strings that don't do any
+#    formatting for consistent looks and for future safety)
+# 2. inherit-non-class ("Inheriting 'NamedTuple', which is not a class" false
+#    positive, see: https://github.com/PyCQA/pylint/issues/3876)
+# 3. too-few-public-methods (produces false positives)
+# 4. inspections incompatible with Black (see
+     https://github.com/psf/black/blob/master/docs/compatible_configs.md#why-those-options-above-2):
+#    C0330: Wrong hanging indentation before block (add 4 spaces)
+#    C0326: Bad whitespace
+# 5. fixme (left 'TODO' lines)
+# 6. logging-fstring-interpolation (forbids f-strings in logging functions)
+# 7. missing-function-docstring (Missing function or method docstring)
+# 8. The following require installing the python modules imported in the source code.
+#    Add these if you don't want to include all dependencies into the dev environment:
+#    import-error ("Unable to import")
+#    no-member
+#    c-extension-no-member
+
+disable=f-string-without-interpolation,inherit-non-class,too-few-public-methods,C0330,C0326,fixme,logging-fstring-interpolation,E0401,E1101,I1101
+
+# Overriding variable name patterns to allow short 1- or 2-letter variables
+attr-rgx=[a-z_][a-z0-9_]{0,30}$
+argument-rgx=[a-z_][a-z0-9_]{0,30}$
+variable-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Maximum number of characters on a single line. Default for black, see:
+# https://black.readthedocs.io/en/stable/the_black_code_style.html#line-length
+max-line-length=88
+
+[DESIGN]
+# Maximum number of locals for function / method body
+max-locals=25
+# Maximum number of arguments for function / method
+max-args=10
+# Maximum number of statements in function / method body
+max-statements=100
