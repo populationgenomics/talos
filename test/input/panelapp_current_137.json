@@ -1,0 +1,94 @@
+{
+  "id": 137,
+  "name": "Mendeliome",
+  "status": "public",
+  "version": "0.11088",
+  "version_created": "2022-03-01T20:33:56.901400Z",
+  "genes": [
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00ABCD"
+            }
+          }
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "ABCD",
+      "confidence_level": "3",
+      "mode_of_inheritance": "BIALLELIC"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00EFGH"
+            }
+          }
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "EFGH",
+      "confidence_level": "3",
+      "mode_of_inheritance": "MONOALLELIC"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00IJKL"
+            }
+          }
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "IJKL",
+      "confidence_level": "3",
+      "mode_of_inheritance": "BOTH"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "RNU12",
+      "confidence_level": "3",
+      "mode_of_inheritance": "SPECIFIC"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00SKIP"
+            }
+          }
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "SKIP",
+      "confidence_level": "1",
+      "mode_of_inheritance": "Neither"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00SKIP2"
+            }
+          }
+        }
+      },
+      "entity_type": "not_gene",
+      "entity_name": "SKIP2",
+      "confidence_level": "3",
+      "mode_of_inheritance": "Mystery"
+    }
+  ]
+}

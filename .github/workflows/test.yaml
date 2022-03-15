@@ -18,5 +18,5 @@ jobs:
     - name: Install packages
       run: pip install -r requirements-dev.txt
 
-    - name: pre-commit
-      run: pre-commit run --all-files
+    - name: test
+      run: PYTHONPATH="." pytest -n auto .

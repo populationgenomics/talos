@@ -1,0 +1,33 @@
+{
+ "panel_metadata": {
+  "current_version": "0.11088"
+ },
+ "ENSG00ABCD": {
+  "symbol": "ABCD",
+  "moi": "BIALLELIC",
+  "new": false,
+  "changed": false,
+  "old_moi": null
+ },
+ "ENSG00EFGH": {
+  "symbol": "EFGH",
+  "moi": "MONOALLELIC",
+  "new": false,
+  "changed": false,
+  "old_moi": null
+ },
+ "ENSG00IJKL": {
+  "symbol": "IJKL",
+  "moi": "BOTH",
+  "new": false,
+  "changed": false,
+  "old_moi": null
+ },
+ "ENSG00000276027": {
+  "symbol": "RNU12",
+  "moi": "SPECIFIC",
+  "new": false,
+  "changed": false,
+  "old_moi": null
+ }
+}
