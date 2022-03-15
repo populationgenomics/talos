@@ -5,4 +5,5 @@ pydot==1.4.2
 pytest==7.0.1
 pytest-cov==3.0.0
 tabulate==0.8.9
-pytest-xdist
+pytest-xdist==2.5.0
+requests==2.27.1
