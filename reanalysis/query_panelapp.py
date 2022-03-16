@@ -19,9 +19,10 @@ Write all output to a JSON dictionary
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Set
 import json
 
+from google.cloud import storage
 import requests
 
 import click
@@ -32,6 +33,49 @@ PANELAPP_ROOT = 'https://panelapp.agha.umccr.org/api/v1'
 PANEL_ROOT = f'{PANELAPP_ROOT}/panels'
 PANEL_CONTENT = f'{PANEL_ROOT}/{{panel_id}}'
 ACTIVITIES = f'{PANEL_CONTENT}/activities'
+
+
+def get_gcp_blob(bucket_path: str) -> storage.blob:
+    """
+    take a GCP bucket path to a file, read into a blob object
+    :param bucket_path:
+    :return: a blob representing the data
+    """
+
+    # split the full path to get the bucket and file path
+    bucket = bucket_path.replace('gs://', '').split('/')[0]
+    path = bucket_path.replace('gs://', '').split('/', maxsplit=1)[1]
+
+    # create a client
+    g_client = storage.Client()
+
+    # obtain the blob of the data
+    return g_client.get_bucket(bucket).get_blob(path)
+
+
+def parse_gene_list(path_to_list: str) -> Set[str]:
+    """
+    parses a file (GCP or local), extracting a set of genes
+    required format: clean data, one per line, gene name only
+    :param path_to_list:
+    :return:
+    """
+    gene_list = set()
+    if path_to_list.startswith('gs://'):
+        # handle as a GCP file
+        handle = get_gcp_blob(path_to_list)
+        for line in handle:
+            gene_name = line.rstrip()
+            if gene_name != '':
+                gene_list.add(gene_name)
+    else:
+        with open(path_to_list, 'r', encoding='utf-8') as handle:
+            for line in handle:
+                gene_name = line.rstrip()
+                if gene_name != '':
+                    gene_list.add(gene_name)
+
+    return gene_list
 
 
 def get_json_response(url: str) -> Union[List[Dict[str, str]], Dict[str, Any]]:
@@ -78,16 +122,15 @@ def get_previous_version(panel_id: str, since: datetime) -> str:
 
 
 def get_panel_green(
-    reference_genome: Optional[str] = 'GRch38',
     panel_id: str = '137',
     version: Optional[str] = None,
 ) -> Dict[str, Dict[str, Union[str, bool]]]:
     """
-    Takes a panel number, and pulls all details from PanelApp
-    :param reference_genome: GRch37 or GRch38
+    Takes a panel number, and pulls all GRCh38 gene details from PanelApp
+    For each gene, keep the MOI, symbol, ENSG (where present)
+
     :param panel_id: defaults to the PanelAppAU Mendeliome
     :param version:
-    :return:
     """
 
     # prepare the query URL
@@ -122,7 +165,7 @@ def get_panel_green(
         # for some reason the build is capitalised oddly in panelapp
         # at least one entry doesn't have an ENSG annotation
         for build, content in gene['gene_data']['ensembl_genes'].items():
-            if build.lower() == reference_genome.lower():
+            if build.lower() == 'grch38':
                 # the ensembl version may alter over time, but will be singular
                 ensg = content[list(content.keys())[0]]['ensembl_id']
 
@@ -156,13 +199,13 @@ def get_panel_changes(
     :param previous_version:
     :param panel_id:
     :param latest_content:
-    :return:
+    :return: None, updates object in place
     """
 
     # get the full content for the specified panel version
     previous_content = get_panel_green(panel_id=panel_id, version=previous_version)
-    # iterate over the latest content
-    # skip over the metadata keys
+
+    # iterate over the latest content,skipping over the metadata keys
     for gene_ensg in [
         ensg for ensg in latest_content.keys() if ensg != 'panel_metadata'
     ]:
@@ -184,6 +227,24 @@ def get_panel_changes(
                 latest_content[gene_ensg]['old_moi'] = prev_moi
 
 
+def gene_list_differences(
+    latest_content: Dict[str, Dict[str, Union[str, bool]]], previous_genes: Set[str]
+):
+    """
+    takes a gene list representing prior data,
+    identifies genes as 'new' where absent in that reference data
+
+    :param latest_content:
+    :param previous_genes:
+    :return: None, updates object in place
+    """
+    for gene_ensg in [
+        ensg for ensg in latest_content.keys() if ensg != 'panel_metadata'
+    ]:
+        if gene_ensg not in previous_genes:
+            latest_content[gene_ensg]['new'] = True
+
+
 @click.command()
 @click.option('--id', 'panel_id', default='137', help='ID to use in panelapp')
 @click.option('--out', 'out_path', help='path to write resulting JSON to')
@@ -191,7 +252,13 @@ def get_panel_changes(
     '--date',
     help='identify panel differences between this date and now (YYYY-MM-DD)',
 )
-def main(panel_id: str, out_path: str, date: Optional[str] = None):
+@click.option('--gene_list', help='pointer to a file, containing a prior gene list')
+def main(
+    panel_id: str,
+    out_path: str,
+    date: Optional[str] = None,
+    gene_list: Optional[str] = None,
+):
     """
     takes a panel ID and a date
     finds all latest panel data from the API
@@ -203,27 +270,30 @@ def main(panel_id: str, out_path: str, date: Optional[str] = None):
     :param panel_id:
     :param out_path: path to write a JSON object out to
     :param date: string to parse as a Datetime
+    :param gene_list: alternative to prior data, give a strict gene list file
     :return:
     """
+
+    if gene_list is not None and date is not None:
+        raise ValueError("Only one of [Date/GeneList] can be specified per run")
 
     # get latest panel data
     panel_dict = get_panel_green(panel_id=panel_id)
 
+    if gene_list is not None:
+        gene_list_contents = parse_gene_list(gene_list)
+        gene_list_differences(panel_dict, gene_list_contents)
+
     # migrate more of this into a method to test
     if date is not None:
-        since_datetime = datetime.strptime(date, '%Y-%m-%d')
+        since_datetime = datetime.strptime(date, "%Y-%m-%d")
         if since_datetime > datetime.today():
             raise ValueError(f'The specified date {date} cannot be in the future')
 
         early_version = get_previous_version(panel_id=panel_id, since=since_datetime)
 
-        if early_version is None:
-            logging.info(
-                'No prior panel version could be found using the date "%s"', date
-            )
-
         # only continue if the versions are different
-        elif early_version != panel_dict['panel_metadata'].get('current_version'):
+        if early_version != panel_dict["panel_metadata"].get('current_version'):
             logging.info('Previous panel version: %s', early_version)
             logging.info('Previous version date: %s', date)
             get_panel_changes(
