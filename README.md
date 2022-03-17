@@ -1,7 +1,7 @@
-# CPG Python Template
+# Genome-wide Variant Prioritisation (MVP)
 
-Template repository based on the [CPG team-docs](https://github.com/populationgenomics/team-docs/blob/main/new_repository.md) content.
+Code Repository for the Rare Disease variant prioritisation pipeline
 
-This contains python and markdown linting configuration, and a github linting action
+Currently being ported over from [a prior repository](https://github.com/populationgenomics/rare-disease/tree/initial_content)
 
-There is no setup.py or conda packaging content (e.g. bump2version)
+review [design docs](design_docs) for component descriptions
