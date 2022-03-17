@@ -2,14 +2,12 @@
 
 
 """
-PanelApp Parser for Reanalysis
+PanelApp Parser for Reanalysis project
 
 Takes a panel ID
 For the latest content, pulls Symbol, ENSG, and MOI
-    (MOI is simplified from PanelApp enum)
 
-Optionally user can provide a date in the past
-Identify the highest panel version prior to that date
+Optionally user can provide a panel version number in the past
 Pull all details from the earlier version
 Store all discrepancies between earlier and current
 
@@ -17,22 +15,17 @@ Write all output to a JSON dictionary
 """
 
 
-import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, Set
+import logging
 import json
-
-from google.cloud import storage
 import requests
 
 import click
+from google.cloud import storage
 
 
 # panelapp URL constants
-PANELAPP_ROOT = 'https://panelapp.agha.umccr.org/api/v1'
-PANEL_ROOT = f'{PANELAPP_ROOT}/panels'
-PANEL_CONTENT = f'{PANEL_ROOT}/{{panel_id}}'
-ACTIVITIES = f'{PANEL_CONTENT}/activities'
+PANEL_CONTENT = 'https://panelapp.agha.umccr.org/api/v1/{panel_id}'
 
 
 def get_gcp_blob(bucket_path: str) -> storage.blob:
@@ -43,7 +36,7 @@ def get_gcp_blob(bucket_path: str) -> storage.blob:
     """
 
     # split the full path to get the bucket and file path
-bucket, path = bucket_path.removeprefix('gs://').split('/', maxsplit=1)
+    bucket, path = bucket_path.removeprefix('gs://').split('/', maxsplit=1)
 
     # create a client
     g_client = storage.Client()
@@ -87,37 +80,6 @@ def get_json_response(url: str) -> Union[List[Dict[str, str]], Dict[str, Any]]:
     response = requests.get(url, headers={'Accept': 'application/json'})
     response.raise_for_status()
     return response.json()
-
-
-def get_previous_version(panel_id: str, since: datetime) -> str:
-    """
-    work through the list of panel updates in reverse (earliest -> latest)
-    return the first panel version after the threshold date
-    If we don't find any, return the latest version
-
-    Note: Django dates include Hours and Minutes, so any Django date from
-    the same day as a 'YYYY-MM-DD' date will be 'greater than'
-    for the purposes of a value comparison
-
-    revisit the exact implementation
-    consider replacement with a panel version (instead of date)
-
-    :param panel_id: panel ID to use
-    :param since: date of the
-    :return:
-    """
-
-    activity_list = get_json_response(url=ACTIVITIES.format(panel_id=panel_id))
-    entry_version = None
-    for entry in reversed(activity_list):
-        # take the panel version
-        entry_version = entry.get('panel_version')
-        # uses the django datestamp format
-        entry_date = datetime.strptime(entry.get('created'), '%Y-%m-%dT%H:%M:%S.%fz')
-
-        if entry_date >= since:
-            return entry_version
-    return entry_version
 
 
 def get_panel_green(
@@ -248,33 +210,31 @@ def gene_list_differences(
 @click.option('--id', 'panel_id', default='137', help='ID to use in panelapp')
 @click.option('--out', 'out_path', help='path to write resulting JSON to')
 @click.option(
-    '--date',
-    help='identify panel differences between this date and now (YYYY-MM-DD)',
+    '--previous',
+    help='identify panel differences between current version and this previous version',
 )
 @click.option('--gene_list', help='pointer to a file, containing a prior gene list')
 def main(
     panel_id: str,
     out_path: str,
-    date: Optional[str] = None,
+    previous: Optional[str] = None,
     gene_list: Optional[str] = None,
 ):
     """
-    takes a panel ID and a date
+    takes a panel ID
     finds all latest panel data from the API
-    uses activities endpoint for highest panel version prior to _date_
-    retrieves panel data at that version
-    compares, and records all panel differences
+    optionally also takes a prior version argument, records all panel differences
         - new genes
         - altered MOI
     :param panel_id:
     :param out_path: path to write a JSON object out to
-    :param date: string to parse as a Datetime
+    :param previous: prior panel version to compare to
     :param gene_list: alternative to prior data, give a strict gene list file
     :return:
     """
 
-    if gene_list is not None and date is not None:
-        raise ValueError("Only one of [Date/GeneList] can be specified per run")
+    if gene_list is not None and previous is not None:
+        raise ValueError('Only one of [Date/GeneList] can be specified per run')
 
     # get latest panel data
     panel_dict = get_panel_green(panel_id=panel_id)
@@ -284,24 +244,16 @@ def main(
         gene_list_differences(panel_dict, gene_list_contents)
 
     # migrate more of this into a method to test
-    if date is not None:
-        since_datetime = datetime.strptime(date, "%Y-%m-%d")
-        if since_datetime > datetime.today():
-            raise ValueError(f'The specified date {date} cannot be in the future')
-
-        early_version = get_previous_version(panel_id=panel_id, since=since_datetime)
-
+    if previous is not None:
         # only continue if the versions are different
-        if early_version != panel_dict["panel_metadata"].get('current_version'):
-            logging.info('Previous panel version: %s', early_version)
-            logging.info('Previous version date: %s', date)
+        if previous != panel_dict['panel_metadata'].get('current_version'):
+            logging.info('Previous panel version: %s', previous)
             get_panel_changes(
-                previous_version=early_version,
+                previous_version=previous,
                 panel_id=panel_id,
                 latest_content=panel_dict,
             )
-            panel_dict['panel_metadata']['previous_version'] = early_version
-            panel_dict['panel_metadata']['previous_date'] = date
+            panel_dict['panel_metadata']['previous_version'] = previous
 
     logging.info('Writing output JSON file to %s', out_path)
     with open(out_path, 'w', encoding='utf-8') as handle:
