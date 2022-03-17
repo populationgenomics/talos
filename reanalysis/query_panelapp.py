@@ -43,8 +43,7 @@ def get_gcp_blob(bucket_path: str) -> storage.blob:
     """
 
     # split the full path to get the bucket and file path
-    bucket = bucket_path.replace('gs://', '').split('/')[0]
-    path = bucket_path.replace('gs://', '').split('/', maxsplit=1)[1]
+bucket, path = bucket_path.removeprefix('gs://').split('/', maxsplit=1)
 
     # create a client
     g_client = storage.Client()
