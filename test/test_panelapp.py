@@ -11,7 +11,6 @@ from reanalysis.query_panelapp import (
     get_json_response,
     get_panel_green,
     get_panel_changes,
-    PANEL_CONTENT,
 )
 
 PWD = os.path.dirname(__file__)
@@ -33,13 +32,13 @@ def fixture_fake_panelapp(requests_mock):
     with open(PANELAPP_LATEST, 'r', encoding='utf-8') as handle:
         requests_mock.register_uri(
             'GET',
-            PANEL_CONTENT.format(panel_id='137'),
+            'https://panelapp.agha.umccr.org/api/v1/137',
             json=json.load(handle),
         )
     with open(PANELAPP_OLDER, 'r', encoding='utf-8') as handle:
         requests_mock.register_uri(
             'GET',
-            f'{PANEL_CONTENT.format(panel_id="137")}?version={OLD_VERSION}',
+            f'https://panelapp.agha.umccr.org/api/v1/137?version={OLD_VERSION}',
             complete_qs=True,
             json=json.load(handle),
         )
@@ -79,6 +78,6 @@ def test_get_json_response(fake_panelapp):  # pylint: disable=unused-argument
     :param fake_panelapp:
     :return:
     """
-    result = get_json_response(PANEL_CONTENT.format(panel_id='137'))
+    result = get_json_response('https://panelapp.agha.umccr.org/api/v1/137')
     with open(PANELAPP_LATEST, 'r', encoding='utf-8') as handle:
         assert result == json.load(handle)

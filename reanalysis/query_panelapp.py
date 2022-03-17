@@ -24,26 +24,22 @@ from cloudpathlib import CloudPath
 
 import click
 
-# panelapp URL constants
-PANEL_CONTENT = 'https://panelapp.agha.umccr.org/api/v1/{panel_id}'
-
 
 def parse_gene_list(path_to_list: str) -> Set[str]:
     """
     parses a file (GCP or local), extracting a set of genes
     required format: clean data, one per line, gene name only
     :param path_to_list:
-    :return:
     """
     if path_to_list.startswith('gs://'):
         # handle as a cloud file
-        handle = CloudPath(path_to_list)
+        lines = CloudPath(path_to_list).open(newline='\n').readlines()
 
     else:
+        with open(path_to_list, 'r', encoding='utf-8') as handle:
+            lines = handle.readlines()
 
-        handle = open(path_to_list, 'r', encoding='utf-8')  # pylint: disable=R1732
-
-    return {line.rstrip() for line in handle if line.rstrip() != ''}
+    return {line.rstrip() for line in lines if line.rstrip() != ''}
 
 
 def get_json_response(url: str) -> Union[List[Dict[str, str]], Dict[str, Any]]:
@@ -71,7 +67,7 @@ def get_panel_green(
     """
 
     # prepare the query URL
-    panel_app_genes_url = PANEL_CONTENT.format(panel_id=panel_id)
+    panel_app_genes_url = f'https://panelapp.agha.umccr.org/api/v1/{panel_id}'
     if version is not None:
         panel_app_genes_url += f'?version={version}'
 
