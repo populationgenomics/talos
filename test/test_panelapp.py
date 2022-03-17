@@ -11,6 +11,7 @@ from reanalysis.query_panelapp import (
     get_json_response,
     get_panel_green,
     get_panel_changes,
+    parse_gene_list,
 )
 
 PWD = os.path.dirname(__file__)
@@ -19,6 +20,7 @@ PANELAPP_LATEST = os.path.join(INPUT, 'panelapp_current_137.json')
 PANELAPP_OLDER = os.path.join(INPUT, 'panelapp_older_137.json')
 LATEST_EXPECTED = os.path.join(INPUT, 'panel_green_latest_expected.json')
 CHANGES_EXPECTED = os.path.join(INPUT, 'panel_changes_expected.json')
+FAKE_GENE_LIST = os.path.join(INPUT, 'fake_gene_list.txt')
 OLD_VERSION = 'old'
 
 
@@ -81,3 +83,12 @@ def test_get_json_response(fake_panelapp):  # pylint: disable=unused-argument
     result = get_json_response('https://panelapp.agha.umccr.org/api/v1/137')
     with open(PANELAPP_LATEST, 'r', encoding='utf-8') as handle:
         assert result == json.load(handle)
+
+
+def test_parse_local_gene_list():
+    """
+    test parsing of a local file
+    :return:
+    """
+    found_genes = parse_gene_list(FAKE_GENE_LIST)
+    assert found_genes == {'foo bar', 'foo', 'bar'}
