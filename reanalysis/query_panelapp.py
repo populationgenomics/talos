@@ -20,29 +20,12 @@ import logging
 import json
 import requests
 
-import click
-from google.cloud import storage
+from cloudpathlib import CloudPath
 
+import click
 
 # panelapp URL constants
 PANEL_CONTENT = 'https://panelapp.agha.umccr.org/api/v1/{panel_id}'
-
-
-def get_gcp_blob(bucket_path: str) -> storage.blob:
-    """
-    take a GCP bucket path to a file, read into a blob object
-    :param bucket_path:
-    :return: a blob representing the data
-    """
-
-    # split the full path to get the bucket and file path
-    bucket, path = bucket_path.removeprefix('gs://').split('/', maxsplit=1)
-
-    # create a client
-    g_client = storage.Client()
-
-    # obtain the blob of the data
-    return g_client.get_bucket(bucket).get_blob(path)
 
 
 def parse_gene_list(path_to_list: str) -> Set[str]:
@@ -52,22 +35,15 @@ def parse_gene_list(path_to_list: str) -> Set[str]:
     :param path_to_list:
     :return:
     """
-    gene_list = set()
     if path_to_list.startswith('gs://'):
-        # handle as a GCP file
-        handle = get_gcp_blob(path_to_list)
-        for line in handle:
-            gene_name = line.rstrip()
-            if gene_name != '':
-                gene_list.add(gene_name)
-    else:
-        with open(path_to_list, 'r', encoding='utf-8') as handle:
-            for line in handle:
-                gene_name = line.rstrip()
-                if gene_name != '':
-                    gene_list.add(gene_name)
+        # handle as a cloud file
+        handle = CloudPath(path_to_list)
 
-    return gene_list
+    else:
+
+        handle = open(path_to_list, 'r', encoding='utf-8')  # pylint: disable=R1732
+
+    return {line.rstrip() for line in handle if line.rstrip() != ''}
 
 
 def get_json_response(url: str) -> Union[List[Dict[str, str]], Dict[str, Any]]:
