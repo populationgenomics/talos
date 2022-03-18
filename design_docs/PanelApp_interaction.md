@@ -19,7 +19,7 @@ the ENSG
 One key use case for this application is to chart the differences in gene list(s) over time. This script provides
 two key ways to do this:
 
-1. Provide a prior version date as a command line argument. If this is done, the script will parse the Mendeliome's
+1. Provide a prior version as a command line argument. If this is done, the script will parse the Mendeliome's
 content at the indicated version. Using this as comparison data, the 'latest' data is annotated with whether the
 gene is newly green, or if the MOI has changed.
 2. Provide a path to a gene list file. This should contain a single gene symbol per line, and the 'latest' data will
