@@ -22,12 +22,5 @@
   "new": false,
   "changed": false,
   "old_moi": null
- },
- "ENSG00000276027": {
-  "symbol": "RNU12",
-  "moi": "SPECIFIC",
-  "new": false,
-  "changed": false,
-  "old_moi": null
  }
 }

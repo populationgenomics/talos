@@ -8,6 +8,7 @@ import os
 import pytest
 
 from reanalysis.query_panelapp import (
+    gene_list_differences,
     get_json_response,
     get_panel_green,
     get_panel_changes,
@@ -56,6 +57,20 @@ def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
     result = get_panel_green(panel_id='137')
     with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
         assert result == json.load(handle)
+
+
+def test_gene_list_changes():
+    """
+    check that a gene list can be used to update
+    :return:
+    """
+
+    with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
+        latest = json.load(handle)
+        new_genes = {'ENSG00ABCD'}
+        gene_list_differences(latest, new_genes)
+        assert not latest['ENSG00ABCD']['new']
+        assert latest['ENSG00IJKL']['new']
 
 
 def test_get_panel_changes(fake_panelapp):  # pylint: disable=unused-argument
