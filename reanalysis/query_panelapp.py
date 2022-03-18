@@ -15,7 +15,7 @@ Write all output to a JSON dictionary
 """
 
 
-from typing import Any, Dict, List, Optional, Union, Set
+from typing import Any, Dict, Optional, Union, Set
 import logging
 import json
 import requests
@@ -23,6 +23,8 @@ import requests
 from cloudpathlib import AnyPath
 
 import click
+
+PanelData = Dict[str, Dict[str, Union[str, bool]]]
 
 
 def parse_gene_list(path_to_list: str) -> Set[str]:
@@ -38,11 +40,14 @@ def parse_gene_list(path_to_list: str) -> Set[str]:
     }
 
 
-def get_json_response(url: str) -> Union[List[Dict[str, str]], Dict[str, Any]]:
+def get_json_response(url: str) -> Dict[str, Any]:
     """
     takes a request URL, checks for healthy response, returns the JSON
+    For this purpose we only expect a dictionary return
+    List use-case (activities endpoint) no longer supported
+
     :param url:
-    :return:
+    :return: python object from JSON response
     """
 
     response = requests.get(url, headers={'Accept': 'application/json'})
@@ -59,7 +64,7 @@ def get_panel_green(
     For each gene, keep the MOI, symbol, ENSG (where present)
 
     :param panel_id: defaults to the PanelAppAU Mendeliome
-    :param version:
+    :param version: optional, where specified the version is added to the query
     """
 
     # prepare the query URL
@@ -118,7 +123,7 @@ def get_panel_green(
 def get_panel_changes(
     previous_version: str,
     panel_id: str,
-    latest_content: Dict[str, Dict[str, Union[str, bool]]],
+    latest_content: PanelData,
 ):
     """
     take the latest panel content, and compare with a previous version
@@ -156,9 +161,7 @@ def get_panel_changes(
                 latest_content[gene_ensg]['old_moi'] = prev_moi
 
 
-def gene_list_differences(
-    latest_content: Dict[str, Dict[str, Union[str, bool]]], previous_genes: Set[str]
-):
+def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
     """
     takes a gene list representing prior data,
     identifies genes as 'new' where absent in that reference data
