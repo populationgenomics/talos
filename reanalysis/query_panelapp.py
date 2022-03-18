@@ -177,9 +177,28 @@ def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
             latest_content[gene_ensg]['new'] = True
 
 
+def write_output_json(output_path: str, object_to_write: Any):
+    """
+    writes object to a json file
+    AnyPath provides platform abstraction
+
+    :param output_path:
+    :param object_to_write:=
+    """
+
+    logging.info('Writing output JSON file to %s', output_path)
+    out_route = AnyPath(output_path)
+
+    if out_route.exists():
+        logging.info('Output path "%s" exists, will be overwritten')
+
+    serialised_obj = json.dumps(object_to_write, indent=True, default=str)
+    out_route.write_text(serialised_obj)
+
+
 @click.command()
-@click.option('--id', 'panel_id', default='137', help='ID to use in panelapp')
-@click.option('--out', 'out_path', help='path to write resulting JSON to')
+@click.option('--panel_id', default='137', help='ID to use in panelapp')
+@click.option('--out_path', help='path to write resulting JSON to')
 @click.option(
     '--previous_version',
     help='identify panel differences between current version and this previous version',
@@ -219,18 +238,15 @@ def main(
         # only continue if the versions are different
         if previous_version != panel_dict['panel_metadata'].get('current_version'):
             logging.info('Previous panel version: %s', previous_version)
+            panel_dict['panel_metadata']['previous_version'] = previous_version
             get_panel_changes(
                 previous_version=previous_version,
                 panel_id=panel_id,
                 latest_content=panel_dict,
             )
-            panel_dict['panel_metadata']['previous_version'] = previous_version
 
-    logging.info('Writing output JSON file to %s', out_path)
-    with open(out_path, 'w', encoding='utf-8') as handle:
-        json.dump(panel_dict, handle, indent=True, default=str)
+    write_output_json(output_path=out_path, object_to_write=panel_dict)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     main()  # pylint: disable=E1120

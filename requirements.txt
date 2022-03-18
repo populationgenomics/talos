@@ -1,4 +1,5 @@
-click==7.1.2
+analysis-runner==2.14.0
+click==8.0.4
 cloudpathlib[azure,gs]==0.7.0
 cpg-utils==2.5.1
 cyvcf2==0.30.14
