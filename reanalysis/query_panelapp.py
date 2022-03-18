@@ -103,9 +103,9 @@ def get_panel_green(
                 # the ensembl version may alter over time, but will be singular
                 ensg = content[list(content.keys())[0]]['ensembl_id']
 
-        # this appears to be missing in latest panel version
-        if symbol == 'RNU12' and ensg is None:
-            ensg = 'ENSG00000276027'
+        if ensg is None:
+            logging.info(f'Gene "{symbol} lacks an ENSG ID, so it is being excluded')
+            continue
 
         # save the entity into the final dictionary
         # include fields to recognise altered gene data
