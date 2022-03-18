@@ -20,7 +20,7 @@ import logging
 import json
 import requests
 
-from cloudpathlib import CloudPath
+from cloudpathlib import AnyPath
 
 import click
 
@@ -31,15 +31,11 @@ def parse_gene_list(path_to_list: str) -> Set[str]:
     required format: clean data, one per line, gene name only
     :param path_to_list:
     """
-    if path_to_list.startswith('gs://'):
-        # handle as a cloud file
-        lines = CloudPath(path_to_list).open(newline='\n').readlines()
-
-    else:
-        with open(path_to_list, 'r', encoding='utf-8') as handle:
-            lines = handle.readlines()
-
-    return {line.rstrip() for line in lines if line.rstrip() != ''}
+    return {
+        line.rstrip()
+        for line in open(AnyPath(path_to_list), 'r', encoding='utf-8')
+        if line.rstrip() != ''
+    }
 
 
 def get_json_response(url: str) -> Union[List[Dict[str, str]], Dict[str, Any]]:
