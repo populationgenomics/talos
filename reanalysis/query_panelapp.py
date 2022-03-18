@@ -181,14 +181,14 @@ def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
 @click.option('--id', 'panel_id', default='137', help='ID to use in panelapp')
 @click.option('--out', 'out_path', help='path to write resulting JSON to')
 @click.option(
-    '--previous',
+    '--previous_version',
     help='identify panel differences between current version and this previous version',
 )
 @click.option('--gene_list', help='pointer to a file, containing a prior gene list')
 def main(
     panel_id: str,
     out_path: str,
-    previous: Optional[str] = None,
+    previous_version: Optional[str] = None,
     gene_list: Optional[str] = None,
 ):
     """
@@ -199,12 +199,12 @@ def main(
         - altered MOI
     :param panel_id:
     :param out_path: path to write a JSON object out to
-    :param previous: prior panel version to compare to
+    :param previous_version: prior panel version to compare to
     :param gene_list: alternative to prior data, give a strict gene list file
     :return:
     """
 
-    if gene_list is not None and previous is not None:
+    if gene_list is not None and previous_version is not None:
         raise ValueError('Only one of [Date/GeneList] can be specified per run')
 
     # get latest panel data
@@ -215,16 +215,16 @@ def main(
         gene_list_differences(panel_dict, gene_list_contents)
 
     # migrate more of this into a method to test
-    if previous is not None:
+    if previous_version is not None:
         # only continue if the versions are different
-        if previous != panel_dict['panel_metadata'].get('current_version'):
-            logging.info('Previous panel version: %s', previous)
+        if previous_version != panel_dict['panel_metadata'].get('current_version'):
+            logging.info('Previous panel version: %s', previous_version)
             get_panel_changes(
-                previous_version=previous,
+                previous_version=previous_version,
                 panel_id=panel_id,
                 latest_content=panel_dict,
             )
-            panel_dict['panel_metadata']['previous_version'] = previous
+            panel_dict['panel_metadata']['previous_version'] = previous_version
 
     logging.info('Writing output JSON file to %s', out_path)
     with open(out_path, 'w', encoding='utf-8') as handle:
