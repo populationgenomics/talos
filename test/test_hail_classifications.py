@@ -6,9 +6,11 @@ simulate the
 """
 import json
 import os
-import hail as hl
+from unittest.mock import MagicMock
 
+import hail as hl
 from hail.utils.java import FatalError
+
 import pytest
 import pandas as pd
 
@@ -18,6 +20,13 @@ from reanalysis.hail_filter_and_classify import (
     annotate_class_3,
     annotate_class_4,
     green_and_new_from_panelapp,
+    filter_matrix_by_ac,
+    filter_matrix_by_variant_attributes,
+    filter_rows_for_rare,
+    filter_benign,
+    filter_to_green_genes_and_split,
+    filter_by_consequence,
+    filter_to_classified,
 )
 
 
@@ -39,6 +48,7 @@ class4_keys = [
     'gerp',
     'eigen',
 ]
+
 class_conf = {
     'critical_csq': ['frameshift_variant'],
     'in_silico': {
@@ -257,6 +267,8 @@ def test_class_4_assignment(values, classified, hail_matrix):
 def test_green_and_new_from_panelapp():
     """
     check that the set expressions from panelapp data are correct
+    this is collection of ENSG names from panelapp
+    2 set expressions, one for all genes, one for new genes only
     :return:
     """
     with open(PANELAPP_FILE, 'r', encoding='utf-8') as handle:
@@ -274,3 +286,190 @@ def test_green_and_new_from_panelapp():
             'ENSG00IJKL',
         ]
         assert list(new_expression.collect()[0]) == ['ENSG00EFGH']
+
+
+# I don't want a test fixture vcf with 70+ samples, so this is a pure Mock test
+def test_filter_matrix_by_ac_small():
+    """
+    check the ac filter is not triggered
+    """
+    conf = {'min_samples_to_ac_filter': 10, 'ac_filter_percentage': 10}
+    matrix_mock = MagicMock()
+    # below threshold value
+    matrix_mock.count_cols.return_value = 7
+    mt = filter_matrix_by_ac(matrix_data=matrix_mock, config=conf)
+    assert mt.filter_rows.call_count == 0
+
+
+def test_filter_matrix_by_ac_large():
+    """
+    check the ac filter is triggered
+    """
+    conf = {'min_samples_to_ac_filter': 1, 'ac_filter_percentage': 10}
+    # above threshold value
+    matrix_mock = MagicMock()
+    matrix_mock.count_cols.return_value = 10
+    matrix_mock.info.AC = 1
+    matrix_mock.info.AN = 1
+    matrix_mock.filter_rows.return_value = matrix_mock
+    mt = filter_matrix_by_ac(matrix_data=matrix_mock, config=conf)
+    assert mt.filter_rows.call_count == 1
+
+
+@pytest.mark.parametrize(
+    'filters,alleles,length',
+    [
+        (hl.empty_array(hl.tstr), hl.literal(['A', 'C']), 1),
+        (hl.empty_array(hl.tstr), hl.literal(['A', '*']), 0),
+        (hl.empty_array(hl.tstr), hl.literal(['A', 'C', 'G']), 0),
+        (hl.literal(['fail']), hl.literal(['A', 'C']), 0),
+    ],
+)
+def test_filter_matrix_by_variant_attributes(filters, alleles, length, hail_matrix):
+    """
+    input 'values' are filters & alleles
+    check the ac filter is triggered
+    """
+    # to add new alleles, we need to scrub alleles from the key fields
+    hail_matrix = hail_matrix.key_rows_by('locus')
+    anno_matrix = hail_matrix.annotate_rows(
+        filters=filters,
+        alleles=alleles,
+    )
+
+    anno_matrix = filter_matrix_by_variant_attributes(anno_matrix)
+    assert anno_matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'exac,gnomad,length',
+    [
+        (0, 0, 1),
+        (1.0, 0, 0),
+        (0.04, 0.04, 1),
+    ],
+)
+def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
+    """
+
+    :param hail_matrix:
+    :return:
+    """
+    conf = {'af_semi_rare': 0.05}
+    anno_matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(
+            exac_af=exac,
+            gnomad_af=gnomad,
+        )
+    )
+    matrix = filter_rows_for_rare(anno_matrix, conf)
+    assert matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'clinvar,stars,length',
+    [
+        ('not_benign', 0, 1),
+        ('not_benign', 1, 0),
+        ('sth_else', 1, 1),
+        ('', 3, 1),
+    ],
+)
+def test_filter_benign(clinvar, stars, length, hail_matrix):
+    """
+
+    :param hail_matrix:
+    :return:
+    """
+    anno_matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(
+            clinvar_sig=clinvar,
+            clinvar_stars=stars,
+        )
+    )
+    matrix = filter_benign(anno_matrix)
+    assert matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'gene_ids,length',
+    [
+        ({'not_green'}, 0),
+        ({'green'}, 1),
+        ({'gene'}, 1),
+        ({'gene', 'not_green'}, 1),
+        ({'green', 'gene'}, 2),
+    ],
+)
+def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
+    """
+
+    :param hail_matrix:
+    :return:
+    """
+    green_genes = hl.literal({'green', 'gene'})
+    anno_matrix = hail_matrix.annotate_rows(geneIds=hl.literal(gene_ids))
+    matrix = filter_to_green_genes_and_split(anno_matrix, green_genes)
+    assert matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'gene_ids,gene_id,consequences,biotype,mane_select,length',
+    [
+        ('green', 'green', 'frameshift_variant', 'protein_coding', '', 1),
+        ('green', 'green', 'frameshift_variant', '', 'NM_relevant', 1),
+        ('mis', 'match', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
+        ('green', 'green', 'frameshift_variant', '', '', 0),
+    ],
+)
+def test_filter_by_consequence(
+    gene_ids, gene_id, consequences, biotype, mane_select, length, hail_matrix
+):
+    """
+
+    :param hail_matrix:
+    :return:
+    """
+    conf = {'useless_csq': ['synonymous']}
+    anno_matrix = hail_matrix.annotate_rows(
+        geneIds=gene_ids,
+        vep=hl.Struct(
+            transcript_consequences=hl.array(
+                [
+                    hl.Struct(
+                        consequence_terms=hl.set([consequences]),
+                        biotype=biotype,
+                        gene_id=gene_id,
+                        mane_select=mane_select,
+                    )
+                ]
+            ),
+        ),
+    )
+    matrix = filter_by_consequence(anno_matrix, conf)
+    assert matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'one,two,three,four,length',
+    [
+        (0, 0, 0, 0, 0),
+        (0, 1, 0, 0, 1),
+        (0, 0, 1, 0, 1),
+        (0, 0, 0, 1, 1),
+        (0, 1, 1, 0, 1),
+        (1, 0, 0, 1, 1),
+    ],
+)
+def test_filter_to_classified(one, two, three, four, length, hail_matrix):
+    """
+
+    :param hail_matrix:
+    """
+    anno_matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(
+            Class1=one, Class2=two, Class3=three, Class4=four
+        )
+    )
+    matrix = filter_to_classified(anno_matrix)
+    assert matrix.count_rows() == length

@@ -204,7 +204,7 @@ def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
     )
 
 
-def hard_filter_before_annotation(
+def filter_matrix_by_ac(
     matrix_data: hl.MatrixTable, config: Dict[str, Any]
 ) -> hl.MatrixTable:
     """
@@ -221,6 +221,15 @@ def hard_filter_before_annotation(
         matrix_data = matrix_data.filter_rows(
             matrix_data.info.AC <= matrix_data.info.AN // config['ac_filter_percentage']
         )
+    return matrix_data
+
+
+def filter_matrix_by_variant_attributes(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    filter MT to rows with normalised, high quality variants
+    :param matrix_data:
+    :return:
+    """
 
     # hard filter for quality; assuming data is well normalised in pipeline
     matrix_data = matrix_data.filter_rows(
@@ -247,37 +256,48 @@ def annotate_using_vep(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
     return hl.vep(matrix_data, config='file:///vep_data/vep-gcloud.json')
 
 
-def filter_mt_rows(
-    matrix: hl.MatrixTable, config: Dict[str, Any], green_genes: hl.SetExpression
+def filter_rows_for_rare(
+    matrix: hl.MatrixTable, config: Dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    - remove common variants
-    - reduce the 'geneIds' set to contain only green genes
-    - reduce the per-row transcript consequences to those specific to the geneIds
-    - reduce the rows to ones where there are remaining tx consequences
-
-    CHANGE: also filter out variants with a high HOM count in one/many pop freq DBs?
+    run the rare filter, using Gnomad & exac
     :param matrix:
-    :param config: dictionary content relating to hail
-    :param green_genes: a setExpression of green genes
-    :return: reduced matrix
+    :param config:
+    :return:
     """
-
     # exac and gnomad must be below threshold or missing
     # if missing they were previously replaced with 0.0
     # could also extend this filter to include max gnomad Homs
-    matrix = matrix.filter_rows(
+    return matrix.filter_rows(
         (matrix.info.exac_af < config['af_semi_rare'])
         & (matrix.info.gnomad_af < config['af_semi_rare'])
     )
 
+
+def filter_benign(matrix: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    filter out benign variants, where clinvar is confident
+    :param matrix:
+    :return:
+    """
     # remove all clinvar benign, decent level of support
     benign = hl.str('benign')
-    matrix = matrix.filter_rows(
+    return matrix.filter_rows(
         (matrix.info.clinvar_sig.lower().contains(benign))
         & (matrix.info.clinvar_stars > 0),
         keep=False,
     )
+
+
+def filter_to_green_genes_and_split(
+    matrix: hl.MatrixTable, green_genes: hl.SetExpression
+) -> hl.MatrixTable:
+    """
+    reduces geneIds set to green only, then splits
+    :param matrix:
+    :param green_genes:
+    :return:
+    """
 
     # remove any rows with no genic annotation at all
     # do this here as set intersections with Missing will fail
@@ -288,7 +308,20 @@ def filter_mt_rows(
 
     # split to form a separate row for each green gene
     # this transforms the 'geneIds' field from a set to a string
-    matrix = matrix.explode_rows(matrix.geneIds)
+    return matrix.explode_rows(matrix.geneIds)
+
+
+def filter_by_consequence(
+    matrix: hl.MatrixTable, config: Dict[str, Any]
+) -> hl.MatrixTable:
+    """
+    - reduce the per-row transcript consequences to those specific to the geneIds
+    - reduce the rows to ones where there are remaining tx consequences
+
+    :param matrix:
+    :param config: dictionary content relating to hail
+    :return: reduced matrix
+    """
 
     # identify consequences to discard from the config
     useless_csq = hl.set(config['useless_csq'])
@@ -308,9 +341,7 @@ def filter_mt_rows(
     )
 
     # filter out all rows with no remaining consequences
-    matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) > 0)
-
-    return matrix
+    return matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) > 0)
 
 
 def vep_struct_to_csq(
@@ -581,7 +612,8 @@ def main(
 
         # hard filter entries in the MT prior to annotation
         logging.info('Hard filtering variants')
-        matrix = hard_filter_before_annotation(matrix_data=matrix, config=hail_config)
+        matrix = filter_matrix_by_ac(matrix_data=matrix, config=hail_config)
+        matrix = filter_matrix_by_variant_attributes(matrix_data=matrix)
 
         # re-annotate using VEP
         logging.info('Annotating variants')
@@ -597,9 +629,12 @@ def main(
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
-    matrix = filter_mt_rows(
-        matrix=matrix, config=hail_config, green_genes=green_expression
+    matrix = filter_rows_for_rare(matrix=matrix, config=hail_config)
+    matrix = filter_benign(matrix=matrix)
+    matrix = filter_to_green_genes_and_split(
+        matrix=matrix, green_genes=green_expression
     )
+    matrix = filter_by_consequence(matrix=matrix, config=hail_config)
 
     logging.info('Repartition to 50 fragments following Gene ID filter')
     matrix = matrix.repartition(50, shuffle=False)
