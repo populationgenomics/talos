@@ -1,5 +1,5 @@
 """
-Similar to hail_classifier.py script, but no exploding
+Read, filter, annotate, classify, and write Genetic data
 - read VCF into MT
 - read PanelApp data through GCP client
 - hard-filter (FILTERS, AC)
@@ -7,11 +7,14 @@ Similar to hail_classifier.py script, but no exploding
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - consequence filter
-- remove all rows with no interesting GREEN consequences
+- remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
 - annotate with classes 1, 2, 3, and 4
 - remove all un-classified variants
 - write as VCF
+
+This doesn't include applying inheritance pattern filters
+Classifications here are treated as unconfirmed
 """
 
 from typing import Any, Dict, Optional, Tuple
@@ -39,16 +42,15 @@ PATHOGENIC = hl.str('pathogenic')
 
 def annotate_class_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
-    applies the Class1 flag where appropriate
+    applies the Class1 annotation (1 or 0) as appropriate
     semi-rare in Gnomad
     at least one Clinvar star
     either Pathogenic or Likely_pathogenic in Clinvar
-    Assign 1 or 0, depending on presence
 
     Didn't handle 'Pathogenic/Likely_pathogenic'
     Changing to 'contains pathogenic and not conflicting'
     :param matrix:
-    :return:
+    :return: same Matrix, with additional field per variant
     """
 
     return matrix.annotate_rows(
@@ -81,7 +83,7 @@ def annotate_class_2(
     :param matrix:
     :param config:
     :param new_genes: the new genes in this panelapp content
-    :return:
+    :return: same Matrix, with additional field per variant
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
@@ -228,9 +230,7 @@ def hard_filter_before_annotation(
         & (hl.len(matrix_data.alleles) == 2)
         & (matrix_data.alleles[1] != '*')
     )
-
-    # throw in a repartition here (annotate even chunks in parallel)
-    return matrix_data.repartition(150, shuffle=False)
+    return matrix_data
 
 
 def annotate_using_vep(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
@@ -239,6 +239,9 @@ def annotate_using_vep(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
     :param matrix_data:
     :return:
     """
+
+    # throw in a repartition here (annotate even chunks in parallel)
+    matrix_data = matrix_data.repartition(150, shuffle=False)
 
     # VEP 105 annotations
     return hl.vep(matrix_data, config='file:///vep_data/vep-gcloud.json')
@@ -268,8 +271,6 @@ def filter_mt_rows(
         & (matrix.info.gnomad_af < config['af_semi_rare'])
     )
 
-    logging.info('Removed common, size: %d', matrix.count_rows())
-
     # remove all clinvar benign, decent level of support
     benign = hl.str('benign')
     matrix = matrix.filter_rows(
@@ -277,12 +278,10 @@ def filter_mt_rows(
         & (matrix.info.clinvar_stars > 0),
         keep=False,
     )
-    logging.info('Removed benign, size: %d', matrix.count_rows())
 
     # remove any rows with no genic annotation at all
     # do this here as set intersections with Missing will fail
     matrix = matrix.filter_rows(hl.is_missing(matrix.geneIds), keep=False)
-    logging.info('Removed non-genic, size: %d', matrix.count_rows())
 
     # replace the default list of green IDs with a reduced set
     matrix = matrix.annotate_rows(geneIds=green_genes.intersection(matrix.geneIds))
@@ -308,12 +307,8 @@ def filter_mt_rows(
         )
     )
 
-    logging.info('Repartition to 50 fragments following Gene ID filter')
-    matrix = matrix.repartition(50, shuffle=False)
-
     # filter out all rows with no remaining consequences
     matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) > 0)
-    logging.info('Removed inconsequential, size: %d', matrix.count_rows())
 
     return matrix
 
@@ -577,18 +572,16 @@ def main(
     if AnyPath(mt_out.rstrip('/') + '/').exists():
         logging.info('Loading annotated MT from "%s"', mt_out)
         matrix = hl.read_matrix_table(mt_out)
-        logging.info('Loaded annotated MT, size: %d', matrix.count_rows())
+        logging.debug('Loaded annotated MT, size: %d', matrix.count_rows())
 
     else:
         logging.info('Loading MT from "%s"', mt_path)
-        # load MT in
         matrix = hl.read_matrix_table(mt_path)
-        logging.info('Loaded new MT, size: %d', matrix.count_rows())
+        logging.debug('Loaded new MT, size: %d', matrix.count_rows())
 
         # hard filter entries in the MT prior to annotation
         logging.info('Hard filtering variants')
         matrix = hard_filter_before_annotation(matrix_data=matrix, config=hail_config)
-        logging.info('After hard filters, size: %d', matrix.count_rows())
 
         # re-annotate using VEP
         logging.info('Annotating variants')
@@ -599,11 +592,6 @@ def main(
             matrix.write(mt_out, overwrite=True)
 
     # pull annotations into info and update if missing
-    # conditional logic in hail seems difficult without negation
-    # e.g. filter out rows where X == Y, unless X is missing
-    # replacement with default values seems necessary
-    # i.e. filters were failing, missing clinvar data was failing
-    # test for 'discard rows where clinvar == benign'
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
@@ -612,7 +600,9 @@ def main(
     matrix = filter_mt_rows(
         matrix=matrix, config=hail_config, green_genes=green_expression
     )
-    logging.info('After row filters, size: %d', matrix.count_rows())
+
+    logging.info('Repartition to 50 fragments following Gene ID filter')
+    matrix = matrix.repartition(50, shuffle=False)
 
     # add Classes to the MT
     logging.info('Applying classes to variant consequences')
@@ -624,7 +614,6 @@ def main(
     # filter to class-annotated only prior to export
     logging.info('Filter variants to leave only classified')
     matrix = filter_to_classified(matrix)
-    logging.info('Reduce to Classified, size: %d', matrix.count_rows())
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)

@@ -69,7 +69,7 @@ def set_job_resources(job: Union[hb.batch.job.BashJob, hb.batch.job.Job]):
 
 def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.Job:
     """
-    sets up the hail dataproc stage
+    sets up the hail-VEP105 dataproc environment
     :param batch:
     :param matrix:
     :param config:
@@ -128,17 +128,15 @@ def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.J
 )
 def main(
     matrix_path: str,
-    ped_file: str,
     config_json: str,
     panelapp_version: Optional[str],
     panel_genes: Optional[str],
-):  # pylint: disable=too-many-locals,unused-argument
+):
 
     """
     main method, which runs the full reanalysis process
 
     :param matrix_path:
-    :param ped_file:
     :param config_json:
     :param panelapp_version:
     :param panel_genes:
@@ -165,6 +163,7 @@ def main(
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
+    # no need to launch in a separate batch, minimal dependencies
     panelapp_main(
         panel_id='137',
         out_path=PANELAPP_JSON_OUT,
@@ -175,9 +174,10 @@ def main(
     # ----------------------- #
     # run hail classification #
     # ----------------------- #
+
+    # only run if the output VCF doesn't already exist
     if not AnyPath(HAIL_VCF_OUT).exists():
-        # pylint: disable=unused-variable
-        hail_job = handle_hail_job(
+        handle_hail_job(
             batch=batch,
             matrix=matrix_path,
             config=config_json,

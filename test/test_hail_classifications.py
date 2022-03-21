@@ -4,7 +4,7 @@ unit testing collection for the hail MT methods
 aim - reconstruct some fields into a struct
 simulate the
 """
-
+import json
 import os
 import hail as hl
 
@@ -17,6 +17,7 @@ from reanalysis.hail_filter_and_classify import (
     annotate_class_2,
     annotate_class_3,
     annotate_class_4,
+    green_and_new_from_panelapp,
 )
 
 
@@ -25,6 +26,7 @@ INPUT = os.path.join(PWD, 'input')
 
 # contains a single variant at chr1:1, with minimal info
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
+PANELAPP_FILE = os.path.join(INPUT, 'panel_changes_expected.json')
 
 class1_keys = ['locus', 'clinvar_sig', 'clinvar_stars']
 class2_keys = ['locus', 'clinvar_sig', 'cadd', 'revel', 'geneIds', 'consequence_terms']
@@ -250,3 +252,25 @@ def test_class_4_assignment(values, classified, hail_matrix):
 
     anno_matrix = annotate_class_4(anno_matrix, config=class_conf.get('in_silico'))
     assert anno_matrix.info.Class4.collect() == [classified]
+
+
+def test_green_and_new_from_panelapp():
+    """
+    check that the set expressions from panelapp data are correct
+    :return:
+    """
+    with open(PANELAPP_FILE, 'r', encoding='utf-8') as handle:
+        panelapp_data = json.load(handle)
+        green_expression, new_expression = green_and_new_from_panelapp(panelapp_data)
+
+        # check types
+        assert isinstance(green_expression, hl.SetExpression)
+        assert isinstance(new_expression, hl.SetExpression)
+
+        # check content by collecting
+        assert sorted(list(green_expression.collect()[0])) == [
+            'ENSG00ABCD',
+            'ENSG00EFGH',
+            'ENSG00IJKL',
+        ]
+        assert list(new_expression.collect()[0]) == ['ENSG00EFGH']
