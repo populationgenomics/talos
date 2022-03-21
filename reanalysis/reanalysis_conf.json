@@ -1,0 +1,91 @@
+{
+    "moi_tests": {
+        "description": "thresholds for different filters during the MOI checks",
+        "gnomad_dominant": 0.001,
+        "gnomad_max_homs_dominant": 1,
+        "gnomad_max_homs_recessive": 10,
+        "gnomad_max_ac_dominant": 100,
+        "class_2_new_only": true
+    },
+    "variant_object": {
+        "description": "variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated",
+        "csq_string": "Allele|Consequence|SYMBOL|Gene|Feature|MANE_select|BIOTYPE|EXON|HGVSc|HGVSp|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|ALLELE_NUM|VARIANT_CLASS|TSL|APPRIS|CCDS|ENSP|SWISSPROT|TREMBL|UNIPARC|GENE_PHENO|SIFT|PolyPhen|LoF|LoF_filter|LoF_flags",
+        "var_info_keep": [
+            "AC",
+            "AN",
+            "cadd",
+            "clinvar_sig",
+            "clinvar_stars",
+            "eigen_phred",
+            "exac_af",
+            "exac_ac_hemi",
+            "exac_ac_het",
+            "exac_ac_hom",
+            "fathmm",
+            "gerp_rs",
+            "gnomad_ac",
+            "gnomad_af",
+            "gnomad_an",
+            "gnomad_cov",
+            "gnomad_hom",
+            "gnomad_ex_ac",
+            "gnomad_ex_af",
+            "gnomad_ex_an",
+            "gnomad_ex_cov",
+            "gnomad_ex_hom",
+            "metasvm",
+            "mutationtaster",
+            "phast_cons",
+            "revel",
+            "slivar_comphet",
+            "splice_ai_csq",
+            "splice_ai_delta"
+        ]
+    },
+    "hail": {
+        "description": "variables for the hail operations, including CSQ sets and filter thresholds",
+        "af_semi_rare": 0.01,
+        "min_samples_to_ac_filter": 70,
+        "ac_filter_percentage": 8,
+        "ref_genome": "GRCh38",
+        "useless_csq": [
+            "upstream_gene_variant",
+            "downstream_gene_variant",
+            "intron_variant",
+            "mature_miRNA_variant",
+            "non_coding_transcript_variant",
+            "3_prime_UTR_variant",
+            "5_prime_UTR_variant",
+            "non_coding_transcript_exon_variant",
+            "NMD_transcript_variant"
+        ],
+        "critical_csq": [
+            "frameshift_variant",
+            "splice_acceptor_variant",
+            "splice_donor_variant",
+            "start_lost",
+            "stop_gained",
+            "stop_lost",
+            "transcript_ablation"
+        ],
+        "in_silico": {
+            "cadd": 28.0,
+            "revel": 0.4,
+            "polyphen": 0.85,
+            "sift": 0.05,
+            "gerp": 1.0,
+            "eigen": 0.25
+        }
+    },
+    "output": {
+        "description": "variables affecting how the final HTML report appears",
+        "seqr_lookup": "gs://cpg-acute-care-test/reanalysis/parsed_seqr.json",
+        "colours": {
+            "red_consequence": "#C70039",
+            "1": "#C70039",
+            "2": "#FF5733",
+            "3": "#FFA533",
+            "4": "#33E8FF"
+        }
+    }
+}
