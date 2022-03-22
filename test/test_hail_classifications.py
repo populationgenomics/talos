@@ -1,15 +1,12 @@
 """
 unit testing collection for the hail MT methods
-
-aim - reconstruct some fields into a struct
-simulate the
 """
+
 import json
 import os
 from unittest.mock import MagicMock
 
 import hail as hl
-from hail.utils.java import FatalError
 
 import pytest
 import pandas as pd
@@ -62,19 +59,6 @@ class_conf = {
 }
 
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
-
-
-@pytest.fixture(name='hail_matrix')
-def fixture_hail_matrix():
-    """
-    loads the single variant as a matrix table
-    :return:
-    """
-    try:
-        hl.init(default_reference='GRCh38')
-    except FatalError:
-        print('failure - hail already initiated')
-    return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
 
 
 @pytest.mark.parametrize(
