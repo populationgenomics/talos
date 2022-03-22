@@ -48,10 +48,8 @@ RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_classificatio
 
 def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
     """
-    take a GCP bucket path to a JSON file, read into an object
-    this loop can read config files, or data
+    take a path to a JSON file, read into an object
     :param bucket_path:
-    :return:
     """
     with open(AnyPath(bucket_path), encoding='utf-8') as handle:
         return json.load(handle)
