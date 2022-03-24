@@ -2,7 +2,7 @@
 
 This stage of the workflow uses hail query to load, annotate, and apply provisional categories to variants.
 
-[hail_filter_and_classify.py](../reanalysis/hail_filter_and_categorise.py)
+[hail_filter_and_categorise.py](../reanalysis/hail_filter_and_categorise.py)
 
 ## Stage Details
 
@@ -66,7 +66,7 @@ If this process is opened up in future so that VCFs or alignment data is used, t
 
 8. Sweep over the whole MatrixTable, and calculate all compound-het pairings for each sample
    * Combines a gene-grouped aggregation with a sample-level heterozygous aggregation
-   * This is post-filtered to remove any class 4 only pairings
+   * This is post-filtered to remove any category-4 only pairings
    * Note, this doesn't currently consider phase
    * Export the JSON output to a GCP bucket path
 

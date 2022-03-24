@@ -712,7 +712,7 @@ def main(
         )
 
     else:
-        logging.info('Loading MT from "%s"', mt_path)
+        logging.info(f'Loading MT from "{mt_path}"')
         matrix = hl.read_matrix_table(mt_path)
         logging.debug(f'Loaded pre-annotation MT, size: {matrix.count_rows()}')
 
@@ -790,7 +790,7 @@ def main(
     logging.info('comp-het data written to cloud')
 
     # write the results to a VCF path
-    logging.info('Write variants out to "%s"', out_vcf)
+    logging.info(f'Write variants out to "{out_vcf}"')
     write_matrix_to_vcf(matrix=matrix, output_path=out_vcf)
 
 
