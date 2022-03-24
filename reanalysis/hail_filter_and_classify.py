@@ -182,21 +182,19 @@ def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
                     (
                         matrix.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
-                            < config.get('sift')
+                            <= config.get('sift')
                         )
                     )
                     & (
                         matrix.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
-                            > config.get('polyphen')
+                            >= config.get('polyphen')
                         )
                     )
                     & (
                         (matrix.info.mutationtaster.contains('D'))
                         | (matrix.info.mutationtaster == 'missing')
                     )
-                    & (matrix.info.gerp_rs >= config.get('gerp'))
-                    & (matrix.info.eigen_phred > config.get('eigen'))
                 ),
                 ONE_INT,
                 MISSING_INT,
@@ -317,7 +315,7 @@ def filter_matrix_by_ac(
     # if we reach the sample threshold, filter on AC
     if matrix_data.count_cols() >= config['min_samples_to_ac_filter']:
         matrix_data = matrix_data.filter_rows(
-            matrix_data.info.AC <= matrix_data.info.AN // config['ac_filter_percentage']
+            matrix_data.info.AC / matrix_data.info.AN < config['ac_threshold']
         )
     return matrix_data
 
@@ -325,6 +323,8 @@ def filter_matrix_by_ac(
 def filter_matrix_by_variant_attributes(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with normalised, high quality variants
+    failure conditions are:
+        -
     :param matrix_data:
     :return:
     """
@@ -375,8 +375,8 @@ def filter_rows_for_rare(
 def filter_benign(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter out benign variants, where clinvar is confident
+    not worth running this filter separately
     :param matrix:
-    :return:
     """
     # remove all clinvar benign, decent level of support
     benign = hl.str('benign')
@@ -394,7 +394,6 @@ def filter_to_green_genes_and_split(
     reduces geneIds set to green only, then splits
     :param matrix:
     :param green_genes:
-    :return:
     """
 
     # remove any rows with no genic annotation at all
@@ -465,6 +464,7 @@ def vep_struct_to_csq(
     def get_csq_from_struct(
         element: hl.expr.StructExpression, feature_type: str
     ) -> hl.expr.StringExpression:
+
         # Most fields are 1-1, just lowercase
         fields = dict(element)
 
@@ -681,7 +681,7 @@ def main(
         config_dict = json.load(handle)
 
     # find the config area specific to hail operations
-    hail_config = config_dict.get('hail')
+    hail_config = config_dict.get('filter')
 
     # read the parsed panelapp data
     logging.info('Reading PanelApp data from "%s"', panelapp_path)
