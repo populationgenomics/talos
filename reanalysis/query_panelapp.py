@@ -190,7 +190,7 @@ def write_output_json(output_path: str, object_to_write: Any):
     out_route = AnyPath(output_path)
 
     if out_route.exists():
-        logging.info('Output path "%s" exists, will be overwritten')
+        logging.info('Output path "%s" exists, will be overwritten', output_path)
 
     serialised_obj = json.dumps(object_to_write, indent=True, default=str)
     out_route.write_text(serialised_obj)

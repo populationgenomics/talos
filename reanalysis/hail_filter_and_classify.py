@@ -771,8 +771,8 @@ def main(
     out_json = f'{out_vcf.split(".", maxsplit=1)[0]}.json'
 
     # and write the comp-het JSON file
-    with open(AnyPath(out_json), 'w', encoding='utf-8') as handle:
-        json.dump(comp_het_details, handle, default=str, indent=True)
+    serialised_obj = json.dumps(comp_het_details, indent=True, default=str)
+    AnyPath(out_json).write_text(serialised_obj)
 
     logging.info('comp-het data written to cloud')
 
