@@ -64,4 +64,10 @@ If this process is opened up in future so that VCFs or alignment data is used, t
 
 7. Concatenate all per-transcript consequences remaining after filters into a single VEP-style `CSQ` field
 
-8. Write the Variants out as a VCF
+8. Sweep over the whole MatrixTable, and calculate all compound-het pairings for each sample
+   * Combines a gene-grouped aggregation with a sample-level heterozygous aggregation
+   * This is post-filtered to remove any class 4 only pairings
+   * Note, this doesn't currently consider phase
+   * Export the JSON output to a GCP bucket path
+
+9. Write the Variants out as a VCF

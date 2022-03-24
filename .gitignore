@@ -1,5 +1,8 @@
 # Python codebase default gitignore (github template)
 
+# hail logs
+hail*.log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

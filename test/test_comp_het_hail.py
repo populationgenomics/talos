@@ -5,6 +5,7 @@ input is
 2-sample VCF containing 7 dummy variants, all het,
 3 in one gene (both samples het for all)
 2 in a second gene (only one sample het)
+2 in a third gene, but both flagged as c4 only (only one sample het)
 
 | Gene  |  Locus   | C4_only | Sample1 | Sample2 |
 | Gene1 | chr1:1   |    0    |    X    |    X    |
