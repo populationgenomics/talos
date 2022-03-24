@@ -18,6 +18,7 @@ Classifications here are treated as unconfirmed
 """
 
 from typing import Any, Dict, Optional, Tuple
+from itertools import permutations
 import json
 import logging
 import sys
@@ -204,6 +205,105 @@ def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
     )
 
 
+def annotate_class_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    applies a flagto all variants with only Class4 flags applied
+    this becomes relevant when we are looking at variants eligible for
+    compound het analysis
+
+    :param matrix:
+    """
+
+    return matrix.annotate_rows(
+        info=matrix.info.annotate(
+            class_4_only=hl.if_else(
+                (matrix.info.Class1 == 0)
+                & (matrix.info.Class2 == 0)
+                & (matrix.info.Class3 == 0)
+                & (matrix.info.Class4 == 1),
+                ONE_INT,
+                MISSING_INT,
+            )
+        )
+    )
+
+
+def transform_variant_string(locus_details: hl.Struct) -> str:
+    """
+    takes an object
+    Struct(
+        locus=Locus(
+            contig='chr1',
+            position=10,
+            reference_genome='GRCh38'
+        ),
+        alleles=['GC', 'G'],
+        class_4_only=0
+    )
+
+    transform into simplified 1-10-GC-G
+    drop the class_4_only attribute
+    :param locus_details:
+    :return:
+    """
+    return '-'.join(
+        [
+            locus_details.locus.contig.replace('chr', ''),
+            str(locus_details.locus.position),
+            *locus_details.alleles,
+        ]
+    )
+
+
+def extract_comp_het_details(matrix: hl.MatrixTable):
+    """
+    takes the matrix table, and finds compound-hets per sample
+    based on the gene name only
+
+    :param matrix:
+    """
+
+    # set a new group of values as the key, so that we can collect on them easily
+    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.class_4_only)
+    ch_matrix = ch_matrix.annotate_cols(
+        hets=hl.agg.group_by(
+            ch_matrix.info.gene_id,
+            hl.agg.filter(ch_matrix.GT.is_het(), hl.agg.collect(ch_matrix.row_key)),
+        )
+    )
+
+    # extract those possible compound het pairs out as a non-Hail structure
+    compound_hets = {}
+
+    # iterate over the hail table rows
+    # find all variant pair permutations which aren't both class 4
+    for row in ch_matrix.select_cols('hets').col.collect():
+
+        # prepare a summary dict for this sample
+        sample_dict = {}
+
+        # iterate over all the `gene: [var1, var2]` structures
+        for gene, variants in dict(row.hets).items():
+
+            # assess each possible variant pairing
+            for var1, var2 in permutations(variants, 2):
+
+                # skip if both are class 4 only - not valuable pairing
+                if var1.class_4_only == 1 and var2.class_4_only == 1:
+                    continue
+
+                # pair the string transformation
+                sample_dict.setdefault(gene, []).append(
+                    [transform_variant_string(var1), transform_variant_string(var2)]
+                )
+
+        # if we found comp hets, add the content for this sample
+        if len(sample_dict) > 0:
+            compound_hets[row.s] = sample_dict
+
+    return compound_hets
+
+
 def filter_matrix_by_ac(
     matrix_data: hl.MatrixTable, config: Dict[str, Any]
 ) -> hl.MatrixTable:
@@ -211,7 +311,7 @@ def filter_matrix_by_ac(
 
     :param matrix_data:
     :param config:
-    :return:
+    :return: reduced MatrixTable
     """
 
     # count the samples in the VCF, and use to decide whether to implement
@@ -608,7 +708,7 @@ def main(
     else:
         logging.info('Loading MT from "%s"', mt_path)
         matrix = hl.read_matrix_table(mt_path)
-        logging.debug('Loaded new MT, size: %d', matrix.count_rows())
+        logging.debug('Loaded pre-annotation MT, size: %d', matrix.count_rows())
 
         # hard filter entries in the MT prior to annotation
         logging.info('Hard filtering variants')
@@ -650,6 +750,9 @@ def main(
     logging.info('Filter variants to leave only classified')
     matrix = filter_to_classified(matrix)
 
+    # add an additional annotation, if the variant is Class4 only
+    matrix = annotate_class_4_only(matrix)
+
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     matrix = matrix.annotate_rows(
@@ -660,6 +763,18 @@ def main(
             gene_id=matrix.geneIds,
         )
     )
+
+    # parse out the compound het details (after pulling gene_id above)
+    comp_het_details = extract_comp_het_details(matrix=matrix)
+
+    # transform the vcf output path into a json path
+    out_json = f'{out_vcf.split(".", maxsplit=1)[0]}.json'
+
+    # and write the comp-het JSON file
+    with open(AnyPath(out_json), 'w', encoding='utf-8') as handle:
+        json.dump(comp_het_details, handle, default=str, indent=True)
+
+    logging.info('comp-het data written to cloud')
 
     # write the results to a VCF path
     logging.info('Write variants out to "%s"', out_vcf)

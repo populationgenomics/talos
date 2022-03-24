@@ -24,6 +24,7 @@ from reanalysis.hail_filter_and_classify import (
     filter_to_green_genes_and_split,
     filter_by_consequence,
     filter_to_classified,
+    annotate_class_4_only,
 )
 
 
@@ -457,3 +458,28 @@ def test_filter_to_classified(one, two, three, four, length, hail_matrix):
     )
     matrix = filter_to_classified(anno_matrix)
     assert matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'one,two,three,four,flag',
+    [
+        (0, 0, 0, 0, 0),
+        (0, 1, 0, 0, 0),
+        (0, 0, 1, 0, 0),
+        (0, 0, 0, 1, 1),
+        (0, 1, 1, 0, 0),
+        (1, 0, 0, 1, 0),
+    ],
+)
+def test_c4_only_tag(one, two, three, four, flag, hail_matrix):
+    """
+
+    :param hail_matrix:
+    """
+    anno_matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(
+            Class1=one, Class2=two, Class3=three, Class4=four
+        )
+    )
+    matrix = annotate_class_4_only(anno_matrix)
+    assert matrix.info.class_4_only.collect() == [flag]
