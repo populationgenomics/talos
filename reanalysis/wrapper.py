@@ -25,7 +25,7 @@ import hailtop.batch as hb
 from analysis_runner import dataproc
 from cpg_utils.hail import init_query_service, output_path
 
-from reanalysis.query_panelapp import main as panelapp_main
+from query_panelapp import main as panelapp_main
 
 
 DEFAULT_IMAGE = os.getenv('CPG_DRIVER_IMAGE')
@@ -112,15 +112,15 @@ def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.J
 def handle_reheader_job(
     batch: hb.Batch,
     local_vcf: str,
-    prior_job: hb.batch.job,
     config_dict: Dict[str, Any],
-) -> hb.batch.job:
+    prior_job: Optional[hb.batch.job.BashJob] = None,
+) -> hb.batch.job.BashJob:
     """
     runs the bcftools re-header process
     :param batch:
     :param local_vcf:
-    :param prior_job:
     :param config_dict:
+    :param prior_job:
     :return:
     """
 
@@ -128,7 +128,8 @@ def handle_reheader_job(
     set_job_resources(bcft_job)
     bcft_job.image(BCFTOOLS_IMAGE)
 
-    bcft_job.depends_on(prior_job)
+    if prior_job is not None:
+        bcft_job.depends_on(prior_job)
 
     bcft_job.declare_resource_group(
         vcf={'vcf': '{root}.vcf.bgz', 'vcf.tbi': '{root}.vcf.bgz.tbi'}
@@ -166,7 +167,7 @@ def handle_reheader_job(
 )
 @click.option(
     '--panelapp_version',
-    help='panelapp version for comparison with earlier version',
+    help='panelapp current comparison with this earlier version',
     required=False,
 )
 @click.option(
@@ -249,11 +250,18 @@ def main(
     # --------------------------------- #
     # bcftools re-headering of hail VCF #
     # --------------------------------- #
+
+    # this is no longer explicitly required...
+    # it was required to run slivar: geneId, consequences, and transcript
+    # if we can avoid using slivar for comp-hets, this isn't required
+    # when extracting the consequences in python we can use the config string
+    # this would mean the VCF is mostly useless when separated from the
+    # config file... retain for now at least
     bcftools_job = handle_reheader_job(
         batch=batch,
         local_vcf=hail_output_in_batch['vcf'],
-        prior_job=prior_job,
         config_dict=config_dict,
+        prior_job=prior_job,
     )
 
     batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
