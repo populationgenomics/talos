@@ -4,6 +4,8 @@
 """
 PanelApp Parser for Reanalysis project
 
+No longer runs a click interface
+
 Takes a panel ID
 For the latest content, pulls Symbol, ENSG, and MOI
 
@@ -22,22 +24,18 @@ import requests
 
 from cloudpathlib import AnyPath
 
-import click
 
 PanelData = Dict[str, Dict[str, Union[str, bool]]]
 
 
 def parse_gene_list(path_to_list: str) -> Set[str]:
     """
-    parses a file (GCP or local), extracting a set of genes
-    required format: clean data, one per line, gene name only
+    parses a json file (GCP or local), extracting a set of genes
+    required format: a json list of strings
     :param path_to_list:
     """
-    return {
-        line.rstrip()
-        for line in open(AnyPath(path_to_list), 'r', encoding='utf-8')
-        if line.rstrip() != ''
-    }
+    with open(AnyPath(path_to_list), encoding='utf-8') as handle:
+        return set(json.load(handle))
 
 
 def get_json_response(url: str) -> Dict[str, Any]:
@@ -68,7 +66,7 @@ def get_panel_green(
     """
 
     # prepare the query URL
-    panel_app_genes_url = f'https://panelapp.agha.umccr.org/api/v1/{panel_id}'
+    panel_app_genes_url = f'https://panelapp.agha.umccr.org/api/v1/panels/{panel_id}'
     if version is not None:
         panel_app_genes_url += f'?version={version}'
 
@@ -196,14 +194,6 @@ def write_output_json(output_path: str, object_to_write: Any):
     out_route.write_text(serialised_obj)
 
 
-@click.command()
-@click.option('--panel_id', default='137', help='ID to use in panelapp')
-@click.option('--out_path', help='path to write resulting JSON to')
-@click.option(
-    '--previous_version',
-    help='identify panel differences between current version and this previous version',
-)
-@click.option('--gene_list', help='pointer to a file, containing a prior gene list')
 def main(
     panel_id: str,
     out_path: str,
@@ -246,7 +236,3 @@ def main(
             )
 
     write_output_json(output_path=out_path, object_to_write=panel_dict)
-
-
-if __name__ == '__main__':
-    main()  # pylint: disable=E1120

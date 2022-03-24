@@ -207,7 +207,7 @@ def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
 
 def annotate_class_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
-    applies a flagto all variants with only Class4 flags applied
+    applies a flag to all variants with only Class4 flags applied
     this becomes relevant when we are looking at variants eligible for
     compound het analysis
 
@@ -215,15 +215,13 @@ def annotate_class_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     return matrix.annotate_rows(
-        info=matrix.info.annotate(
-            class_4_only=hl.if_else(
-                (matrix.info.Class1 == 0)
-                & (matrix.info.Class2 == 0)
-                & (matrix.info.Class3 == 0)
-                & (matrix.info.Class4 == 1),
-                ONE_INT,
-                MISSING_INT,
-            )
+        class_4_only=hl.if_else(
+            (matrix.info.Class1 == 0)
+            & (matrix.info.Class2 == 0)
+            & (matrix.info.Class3 == 0)
+            & (matrix.info.Class4 == 1),
+            ONE_INT,
+            MISSING_INT,
         )
     )
 
