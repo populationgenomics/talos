@@ -35,10 +35,17 @@ INPUT = os.path.join(PWD, 'input')
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 PANELAPP_FILE = os.path.join(INPUT, 'panel_changes_expected.json')
 
-class1_keys = ['locus', 'clinvar_sig', 'clinvar_stars']
-class2_keys = ['locus', 'clinvar_sig', 'cadd', 'revel', 'geneIds', 'consequence_terms']
-class3_keys = ['locus', 'clinvar_sig', 'lof', 'consequence_terms']
-class4_keys = [
+category_1_keys = ['locus', 'clinvar_sig', 'clinvar_stars']
+category_2_keys = [
+    'locus',
+    'clinvar_sig',
+    'cadd',
+    'revel',
+    'geneIds',
+    'consequence_terms',
+]
+category_3_keys = ['locus', 'clinvar_sig', 'lof', 'consequence_terms']
+category_4_keys = [
     'locus',
     'cadd',
     'revel',
@@ -47,7 +54,7 @@ class4_keys = [
     'eigen',
 ]
 
-class_conf = {
+category_conf = {
     'critical_csq': ['frameshift_variant'],
     'in_silico': {
         'cadd': 28.0,
@@ -82,7 +89,7 @@ def test_class_1_assignment(values, classified, hail_matrix):
     :param hail_matrix:
     """
     # cast the input as a dictionary
-    row_dict = dict(zip(class1_keys, values))
+    row_dict = dict(zip(category_1_keys, values))
 
     # create a single row dataframe using the input
     dataframe = pd.DataFrame(row_dict, index=[0])
@@ -96,7 +103,7 @@ def test_class_1_assignment(values, classified, hail_matrix):
     )
 
     anno_matrix = annotate_category_1(anno_matrix)
-    assert anno_matrix.info.Class1.collect() == [classified]
+    assert anno_matrix.info.Category1.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -123,7 +130,7 @@ def test_class_2_assignment(values, classified, hail_matrix):
 
     csq = values.pop()
     # cast the input as a dictionary
-    row_dict = dict(zip(class2_keys, values))
+    row_dict = dict(zip(category_2_keys, values))
 
     # create a single row dataframe using the input
     dataframe = pd.DataFrame(row_dict, index=[0])
@@ -144,9 +151,9 @@ def test_class_2_assignment(values, classified, hail_matrix):
     )
 
     anno_matrix = annotate_category_2(
-        anno_matrix, config=class_conf, new_genes=hl.set(['GREEN'])
+        anno_matrix, config=category_conf, new_genes=hl.set(['GREEN'])
     )
-    assert anno_matrix.info.Class2.collect() == [classified]
+    assert anno_matrix.info.Category2.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -170,7 +177,7 @@ def test_class_3_assignment(values, classified, hail_matrix):
     csq = values.pop()
     lof = values.pop()
     # cast the input as a dictionary
-    row_dict = dict(zip(class3_keys, values))
+    row_dict = dict(zip(category_3_keys, values))
 
     # create a single row dataframe using the input
     dataframe = pd.DataFrame(row_dict, index=[0])
@@ -192,8 +199,8 @@ def test_class_3_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_3(anno_matrix, config=class_conf)
-    assert anno_matrix.info.Class3.collect() == [classified]
+    anno_matrix = annotate_category_3(anno_matrix, config=category_conf)
+    assert anno_matrix.info.Category3.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -219,7 +226,7 @@ def test_class_4_assignment(values, classified, hail_matrix):
     polyphen = values.pop()
     sift = values.pop()
     # cast the input as a dictionary
-    row_dict = dict(zip(class4_keys, values))
+    row_dict = dict(zip(category_4_keys, values))
 
     # create a single row dataframe using the input
     dataframe = pd.DataFrame(row_dict, index=[0])
@@ -245,8 +252,10 @@ def test_class_4_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_4(anno_matrix, config=class_conf.get('in_silico'))
-    assert anno_matrix.info.Class4.collect() == [classified]
+    anno_matrix = annotate_category_4(
+        anno_matrix, config=category_conf.get('in_silico')
+    )
+    assert anno_matrix.info.Category4.collect() == [classified]
 
 
 def test_green_and_new_from_panelapp():
@@ -290,7 +299,7 @@ def test_filter_matrix_by_ac_large():
     """
     check the ac filter is triggered
     """
-    conf = {'min_samples_to_ac_filter': 1, 'ac_filter_percentage': 10}
+    conf = {'min_samples_to_ac_filter': 1, 'ac_threshold': 0.1}
     # above threshold value
     matrix_mock = MagicMock()
     matrix_mock.count_cols.return_value = 10
@@ -453,7 +462,7 @@ def test_filter_to_classified(one, two, three, four, length, hail_matrix):
     """
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            Class1=one, Class2=two, Class3=three, Class4=four
+            Category1=one, Category2=two, Category3=three, Category4=four
         )
     )
     matrix = filter_to_categorised(anno_matrix)
@@ -478,8 +487,8 @@ def test_c4_only_tag(one, two, three, four, flag, hail_matrix):
     """
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            Class1=one, Class2=two, Class3=three, Class4=four
+            Category1=one, Category2=two, Category3=three, Category4=four
         )
     )
     matrix = annotate_category_4_only(anno_matrix)
-    assert matrix.info.class_4_only.collect() == [flag]
+    assert matrix.category_4_only.collect() == [flag]

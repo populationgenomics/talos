@@ -217,7 +217,7 @@ def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     return matrix.annotate_rows(
-        class_4_only=hl.if_else(
+        category_4_only=hl.if_else(
             (matrix.info.Category1 == 0)
             & (matrix.info.Category2 == 0)
             & (matrix.info.Category3 == 0)
