@@ -78,7 +78,9 @@ def get_panel_green(
 
     # pop the version in logging if not manually defined
     if version is None:
-        logging.info('Current panel version: %s', panel_version)
+        logging.info(
+            f'Current panel version: {panel_version}',
+        )
 
     gene_dict = {'panel_metadata': {'current_version': panel_version}}
 
@@ -184,11 +186,11 @@ def write_output_json(output_path: str, object_to_write: Any):
     :param object_to_write:=
     """
 
-    logging.info('Writing output JSON file to %s', output_path)
+    logging.info(f'Writing output JSON file to {output_path}')
     out_route = AnyPath(output_path)
 
     if out_route.exists():
-        logging.info('Output path "%s" exists, will be overwritten', output_path)
+        logging.info(f'Output path "{output_path}" exists, will be overwritten')
 
     serialised_obj = json.dumps(object_to_write, indent=True, default=str)
     out_route.write_text(serialised_obj)
@@ -203,9 +205,12 @@ def main(
     """
     takes a panel ID
     finds all latest panel data from the API
-    optionally also takes a prior version argument, records all panel differences
+    optionally take a prior version argument, records all panel differences
         - new genes
         - altered MOI
+    optionally take a reference to a JSON gene list, records all genes:
+        - green in current panelapp
+        - absent in provided gene list
     :param panel_id:
     :param out_path: path to write a JSON object out to
     :param previous_version: prior panel version to compare to
@@ -227,7 +232,7 @@ def main(
     if previous_version is not None:
         # only continue if the versions are different
         if previous_version != panel_dict['panel_metadata'].get('current_version'):
-            logging.info('Previous panel version: %s', previous_version)
+            logging.info(f'Previous panel version: {previous_version}')
             panel_dict['panel_metadata']['previous_version'] = previous_version
             get_panel_changes(
                 previous_version=previous_version,
