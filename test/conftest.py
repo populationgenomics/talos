@@ -14,6 +14,7 @@ INPUT = os.path.join(PWD, 'input')
 
 # contains a single variant at chr1:1, with minimal info
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
+HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
 
 
 @pytest.fixture(name='hail_matrix')
@@ -27,6 +28,19 @@ def fixture_hail_matrix():
     except FatalError:
         print('failure - hail already initiated')
     return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+
+
+@pytest.fixture(name='hail_comp_het')
+def fixture_hail_matrix_comp_het():
+    """
+    loads the single variant as a matrix table
+    :return:
+    """
+    try:
+        hl.init(default_reference='GRCh38')
+    except FatalError:
+        print('failure - hail already initiated')
+    return hl.import_vcf(HAIL_MULTI_SAM, reference_genome='GRCh38')
 
 
 @pytest.fixture(name='cleanup', scope='session', autouse=True)
