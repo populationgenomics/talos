@@ -33,11 +33,11 @@ assert DEFAULT_IMAGE
 
 # static paths to write outputs
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
-HAIL_VCF_OUT = output_path('hail_classified.vcf.bgz')
+HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_comp_het.json')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
 CONFIG_OUT = output_path('config_used.json')
-REHEADERED_OUT = output_path('hail_classes_reheadered.vcf.bgz')
+REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 
 # location of the Slivar Docker image
 AR_REPO = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
@@ -45,8 +45,8 @@ BCFTOOLS_TAG = 'bcftools:1.10.2--h4f4756c_2'
 BCFTOOLS_IMAGE = f'{AR_REPO}/{BCFTOOLS_TAG}'
 
 # local script references
-HAIL_SCRIPT = os.path.join(os.path.dirname(__file__), 'hail_filter_and_classify.py')
-RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_classifications.py')
+HAIL_SCRIPT = os.path.join(os.path.dirname(__file__), 'hail_filter_and_categorise.py')
+RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 DATAPROC_SETUP_SCRIPTS = [
     'gs://cpg-reference/hail_dataproc/install_common.sh',
     'gs://cpg-reference/vep/vep-GRCh38.sh',  # install & configure VEP 105
@@ -229,7 +229,7 @@ def main(
     )
 
     # ----------------------- #
-    # run hail classification #
+    # run hail categorisation #
     # ----------------------- #
     # permit continuity if the hail job isn't required
     prior_job = None

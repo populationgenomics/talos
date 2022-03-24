@@ -9,12 +9,12 @@ Read, filter, annotate, classify, and write Genetic data
 - consequence filter
 - remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
-- annotate with classes 1, 2, 3, and 4
-- remove all un-classified variants
+- annotate with categories 1, 2, 3, and 4
+- remove all un-categorised variants
 - write as VCF
 
 This doesn't include applying inheritance pattern filters
-Classifications here are treated as unconfirmed
+Categories applied here are treated as unconfirmed
 """
 
 from typing import Any, Dict, Optional, Tuple
@@ -41,9 +41,9 @@ LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
 
-def annotate_class_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
-    applies the Class1 annotation (1 or 0) as appropriate
+    applies the Category1 annotation (1 or 0) as appropriate
     semi-rare in Gnomad
     at least one Clinvar star
     either Pathogenic or Likely_pathogenic in Clinvar
@@ -56,7 +56,7 @@ def annotate_class_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Class1=hl.if_else(
+            Category1=hl.if_else(
                 (matrix.info.clinvar_stars > 0)
                 & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
                 & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING)),
@@ -67,7 +67,7 @@ def annotate_class_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_class_2(
+def annotate_category_2(
     matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
@@ -78,7 +78,7 @@ def annotate_class_2(
     - High in silico consequence
 
     New update! this is now restricted to the NEW genes only
-    This means that these are now confident Class2, and we
+    This means that these are now confident Category2, and we
     only have a MOI test remaining
 
     :param matrix:
@@ -91,7 +91,7 @@ def annotate_class_2(
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Class2=hl.if_else(
+            Category2=hl.if_else(
                 (new_genes.contains(matrix.geneIds))
                 & (
                     (
@@ -117,9 +117,11 @@ def annotate_class_2(
     )
 
 
-def annotate_class_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.MatrixTable:
+def annotate_category_3(
+    matrix: hl.MatrixTable, config: Dict[str, Any]
+) -> hl.MatrixTable:
     """
-    applies the Class3 flag where appropriate
+    applies the Category3 flag where appropriate
     - Critical protein consequence on at least one transcript
     - rare in Gnomad
     - either predicted NMD or
@@ -133,7 +135,7 @@ def annotate_class_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Class3=hl.if_else(
+            Category3=hl.if_else(
                 (
                     matrix.vep.transcript_consequences.any(
                         lambda x: hl.len(
@@ -159,7 +161,9 @@ def annotate_class_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
     )
 
 
-def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.MatrixTable:
+def annotate_category_4(
+    matrix: hl.MatrixTable, config: Dict[str, Any]
+) -> hl.MatrixTable:
     """
     Class based on in silico annotations
     - rare in Gnomad, and
@@ -173,7 +177,7 @@ def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Class4=hl.if_else(
+            Category4=hl.if_else(
                 (
                     (matrix.info.cadd > config.get('cadd'))
                     & (matrix.info.revel > config.get('revel'))
@@ -203,9 +207,9 @@ def annotate_class_4(matrix: hl.MatrixTable, config: Dict[str, Any]) -> hl.Matri
     )
 
 
-def annotate_class_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
-    applies a flag to all variants with only Class4 flags applied
+    applies a flag to all variants with only Category4 flags applied
     this becomes relevant when we are looking at variants eligible for
     compound het analysis
 
@@ -214,10 +218,10 @@ def annotate_class_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         class_4_only=hl.if_else(
-            (matrix.info.Class1 == 0)
-            & (matrix.info.Class2 == 0)
-            & (matrix.info.Class3 == 0)
-            & (matrix.info.Class4 == 1),
+            (matrix.info.Category1 == 0)
+            & (matrix.info.Category2 == 0)
+            & (matrix.info.Category3 == 0)
+            & (matrix.info.Category4 == 1),
             ONE_INT,
             MISSING_INT,
         )
@@ -596,17 +600,17 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def filter_to_classified(matrix: hl.MatrixTable) -> hl.MatrixTable:
+def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     Filter to rows tagged with a class
     :param matrix:
-    :return: input matrix, minus rows without Classes applied
+    :return: input matrix, minus rows without Categories applied
     """
     return matrix.filter_rows(
-        (matrix.info.Class1 == 1)
-        | (matrix.info.Class2 == 1)
-        | (matrix.info.Class3 == 1)
-        | (matrix.info.Class4 == 1)
+        (matrix.info.Category1 == 1)
+        | (matrix.info.Category2 == 1)
+        | (matrix.info.Category3 == 1)
+        | (matrix.info.Category4 == 1)
     )
 
 
@@ -635,11 +639,11 @@ def green_and_new_from_panelapp(
 
     # take all the green genes, remove the metadata
     green_genes = set(panel_data.keys()) - {'panel_metadata'}
-    logging.info('Extracted %d green genes', len(green_genes))
+    logging.info(f'Extracted {len(green_genes)} green genes')
     green_gene_set_expression = hl.literal(green_genes)
 
     new_genes = {gene for gene in green_genes if panel_data[gene].get('new')}
-    logging.info('Extracted %d NEW genes', len(new_genes))
+    logging.info(f'Extracted {len(new_genes)} NEW genes')
     new_gene_set_expression = hl.literal(new_genes)
 
     return green_gene_set_expression, new_gene_set_expression
@@ -676,7 +680,7 @@ def main(
     """
 
     # get the run configuration JSON
-    logging.info('Reading config dict from "%s"', config_path)
+    logging.info(f'Reading config dict from "{config_path}"')
     with open(AnyPath(config_path), encoding='utf-8') as handle:
         config_dict = json.load(handle)
 
@@ -684,7 +688,7 @@ def main(
     hail_config = config_dict.get('filter')
 
     # read the parsed panelapp data
-    logging.info('Reading PanelApp data from "%s"', panelapp_path)
+    logging.info(f'Reading PanelApp data from "{panelapp_path}"')
     with open(AnyPath(panelapp_path), encoding='utf-8') as handle:
         panelapp = json.load(handle)
 
@@ -692,26 +696,31 @@ def main(
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
 
     logging.info(
-        'Starting Hail with reference genome "%s"', hail_config.get('ref_genome')
+        f'Starting Hail with reference genome "{hail_config.get("ref_genome")}"'
     )
     # initiate Hail with the specified reference
     hl.init(default_reference=hail_config.get('ref_genome'), quiet=True)
 
     # if we already generated the annotated output, load instead
     if AnyPath(mt_out.rstrip('/') + '/').exists():
-        logging.info('Loading annotated MT from "%s"', mt_out)
+        logging.info(
+            f'Loading annotated MT from "{mt_out}"',
+        )
         matrix = hl.read_matrix_table(mt_out)
-        logging.debug('Loaded annotated MT, size: %d', matrix.count_rows())
+        logging.debug(
+            f'Loaded annotated MT, size: {matrix.count_rows()}',
+        )
 
     else:
         logging.info('Loading MT from "%s"', mt_path)
         matrix = hl.read_matrix_table(mt_path)
-        logging.debug('Loaded pre-annotation MT, size: %d', matrix.count_rows())
+        logging.debug(f'Loaded pre-annotation MT, size: {matrix.count_rows()}')
 
         # hard filter entries in the MT prior to annotation
         logging.info('Hard filtering variants')
         matrix = filter_matrix_by_ac(matrix_data=matrix, config=hail_config)
         matrix = filter_matrix_by_variant_attributes(matrix_data=matrix)
+        logging.info(f'Post-Hard filtering size: {matrix.count_rows()}')
 
         # re-annotate using VEP
         logging.info('Annotating variants')
@@ -728,28 +737,34 @@ def main(
     # filter on row annotations
     logging.info('Filtering Variant rows')
     matrix = filter_rows_for_rare(matrix=matrix, config=hail_config)
+    logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
     matrix = filter_benign(matrix=matrix)
+    logging.info(f'Variants remaining after Benign filter: {matrix.count_rows()}')
     matrix = filter_to_green_genes_and_split(
         matrix=matrix, green_genes=green_expression
     )
+    logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
     matrix = filter_by_consequence(matrix=matrix, config=hail_config)
+    logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
+    # choose some logical way of repartitioning
     logging.info('Repartition to 50 fragments following Gene ID filter')
-    matrix = matrix.repartition(50, shuffle=False)
+    matrix = matrix.repartition(50, shuffle=True)
 
     # add Classes to the MT
     logging.info('Applying classes to variant consequences')
-    matrix = annotate_class_1(matrix)
-    matrix = annotate_class_2(matrix, hail_config, new_expression)
-    matrix = annotate_class_3(matrix, hail_config)
-    matrix = annotate_class_4(matrix, hail_config['in_silico'])
+    matrix = annotate_category_1(matrix)
+    matrix = annotate_category_2(matrix, hail_config, new_expression)
+    matrix = annotate_category_3(matrix, hail_config)
+    matrix = annotate_category_4(matrix, hail_config['in_silico'])
 
     # filter to class-annotated only prior to export
     logging.info('Filter variants to leave only classified')
-    matrix = filter_to_classified(matrix)
+    matrix = filter_to_categorised(matrix)
+    logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
-    # add an additional annotation, if the variant is Class4 only
-    matrix = annotate_class_4_only(matrix)
+    # add an additional annotation, if the variant is Category4 only
+    matrix = annotate_category_4_only(matrix)
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)

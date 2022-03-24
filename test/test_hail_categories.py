@@ -11,11 +11,11 @@ import hail as hl
 import pytest
 import pandas as pd
 
-from reanalysis.hail_filter_and_classify import (
-    annotate_class_1,
-    annotate_class_2,
-    annotate_class_3,
-    annotate_class_4,
+from reanalysis.hail_filter_and_categorise import (
+    annotate_category_1,
+    annotate_category_2,
+    annotate_category_3,
+    annotate_category_4,
     green_and_new_from_panelapp,
     filter_matrix_by_ac,
     filter_matrix_by_variant_attributes,
@@ -23,8 +23,8 @@ from reanalysis.hail_filter_and_classify import (
     filter_benign,
     filter_to_green_genes_and_split,
     filter_by_consequence,
-    filter_to_classified,
-    annotate_class_4_only,
+    filter_to_categorised,
+    annotate_category_4_only,
 )
 
 
@@ -95,7 +95,7 @@ def test_class_1_assignment(values, classified, hail_matrix):
         )
     )
 
-    anno_matrix = annotate_class_1(anno_matrix)
+    anno_matrix = annotate_category_1(anno_matrix)
     assert anno_matrix.info.Class1.collect() == [classified]
 
 
@@ -143,7 +143,7 @@ def test_class_2_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_class_2(
+    anno_matrix = annotate_category_2(
         anno_matrix, config=class_conf, new_genes=hl.set(['GREEN'])
     )
     assert anno_matrix.info.Class2.collect() == [classified]
@@ -192,7 +192,7 @@ def test_class_3_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_class_3(anno_matrix, config=class_conf)
+    anno_matrix = annotate_category_3(anno_matrix, config=class_conf)
     assert anno_matrix.info.Class3.collect() == [classified]
 
 
@@ -245,7 +245,7 @@ def test_class_4_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_class_4(anno_matrix, config=class_conf.get('in_silico'))
+    anno_matrix = annotate_category_4(anno_matrix, config=class_conf.get('in_silico'))
     assert anno_matrix.info.Class4.collect() == [classified]
 
 
@@ -456,7 +456,7 @@ def test_filter_to_classified(one, two, three, four, length, hail_matrix):
             Class1=one, Class2=two, Class3=three, Class4=four
         )
     )
-    matrix = filter_to_classified(anno_matrix)
+    matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
 
 
@@ -481,5 +481,5 @@ def test_c4_only_tag(one, two, three, four, flag, hail_matrix):
             Class1=one, Class2=two, Class3=three, Class4=four
         )
     )
-    matrix = annotate_class_4_only(anno_matrix)
+    matrix = annotate_category_4_only(anno_matrix)
     assert matrix.info.class_4_only.collect() == [flag]

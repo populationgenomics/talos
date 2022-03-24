@@ -1,4 +1,4 @@
-# Configuration
+# Configuration File
 
 The configuration file is a segmented JSON file, containing groups of key: value pairs.
 
@@ -31,7 +31,7 @@ This section relates to the variant filtration and categorisation process, curre
 * ref_genome - ref_genome
 * useless_csq - list of VEP consequences filtered out prior to classification steps
 * critical_csq - list of VEP consequences treated as high priority/high impact
-* in_silico - separate sub-group, thresholds to apply for each *in silico* tool
+* in_silico - separate sub-group, thresholds to apply for each *in silico* tool. These parameters are taken from [work by *Pejaver et al.*](https://www.biorxiv.org/content/10.1101/2022.03.17.484479v1)
 
 ## `output`
 
