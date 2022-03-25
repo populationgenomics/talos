@@ -4,14 +4,17 @@
 """
 PanelApp Parser for Reanalysis project
 
-No longer runs a click interface
+runs an optional click interface
 
 Takes a panel ID
-For the latest content, pulls Symbol, ENSG, and MOI
+Pulls latest 'green' content; Symbol, ENSG, and MOI
 
 Optionally user can provide a panel version number in the past
 Pull all details from the earlier version
-Store all discrepancies between earlier and current
+Annotate all discrepancies between earlier and current
+
+Optionally user can provide path to a JSON gene list
+Annotate all genes in current panel and not the gene list
 
 Write all output to a JSON dictionary
 """
@@ -20,6 +23,8 @@ Write all output to a JSON dictionary
 from typing import Any, Dict, Optional, Union, Set
 import logging
 import json
+from argparse import ArgumentParser
+
 import requests
 
 from cloudpathlib import AnyPath
@@ -241,3 +246,37 @@ def main(
             )
 
     write_output_json(output_path=out_path, object_to_write=panel_dict)
+
+
+if __name__ == '__main__':
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--panel_id',
+        default='137',
+        required=False,
+        type=str,
+        help='The Mendeliome panel number to use',
+    )
+    parser.add_argument(
+        '--out_path', type=str, required=True, help='Path to write output JSON to'
+    )
+    parser.add_argument(
+        '--previous_version',
+        type=str,
+        required=False,
+        help='If a prior Mendeliome panel version is being used as a comparison point',
+    )
+    parser.add_argument(
+        '--gene_list',
+        type=str,
+        required=False,
+        help='If a gene list is being used as a comparison ',
+    )
+    args = parser.parse_args()
+    main(
+        panel_id=args.panel_id,
+        out_path=args.out_path,
+        previous_version=args.previous_version,
+        gene_list=args.gene_list,
+    )

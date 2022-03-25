@@ -324,22 +324,49 @@ def filter_matrix_by_ac(
     return matrix_data
 
 
-def filter_matrix_by_variant_attributes(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
+def filter_matrix_by_variant_attributes(
+    matrix_data: hl.MatrixTable, vqsr_run: Optional[bool] = True
+) -> hl.MatrixTable:
     """
     filter MT to rows with normalised, high quality variants
-    failure conditions are:
-        -
+    failure conditions applied are dependent on whether VQSR was run
+    if VQSR - allow for filters to be empty, PASS, or VQSR with a PASS category assigned
+    if not - require the variant filters to be PASS
     :param matrix_data:
+    :param vqsr_run: if True, we
     :return:
     """
+    pass_literal = hl.literal('PASS')
+    pass_set = hl.literal({pass_literal})
+    vqsr_literal = hl.literal('VQSR')
+    vqsr_set = hl.literal({vqsr_literal})
 
-    # hard filter for quality; assuming data is well normalised in pipeline
+    if vqsr_run:
+
+        # hard filter for quality; assuming data is well normalised in pipeline
+        matrix_data = matrix_data.filter_rows(
+            (
+                (matrix_data.filters.length() == 0)
+                | (matrix_data.filters == pass_set)
+                | (
+                    (matrix_data.filters == vqsr_set)
+                    & (matrix_data.info.AS_FilterStatus)
+                )
+            )
+        )
+
+    # otherwise strictly enforce FILTERS==PASS
+    else:
+        matrix_data = matrix_data.filter_rows(matrix_data.filters == pass_set)
+
+    # normalised variants check
+    # prior to annotation, variants in the MatrixTable representation are removed where:
+    # - more than two alleles are present (ref and alt)
+    #   - prior to annotation, the variant data must be decomposed to split all alt.
+    #     alleles onto a separate row, with the corresponding sample genotypes
+    # - alternate allele called is missing (*)
     matrix_data = matrix_data.filter_rows(
-        (
-            matrix_data.filters.length() == 0
-        )  # clarify with FILTER='PASS' & GATK SNP tranches
-        & (hl.len(matrix_data.alleles) == 2)
-        & (matrix_data.alleles[1] != '*')
+        (hl.len(matrix_data.alleles) == 2) & (matrix_data.alleles[1] != '*')
     )
     return matrix_data
 
