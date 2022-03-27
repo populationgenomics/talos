@@ -329,17 +329,19 @@ def filter_matrix_by_variant_attributes(
 ) -> hl.MatrixTable:
     """
     filter MT to rows with normalised, high quality variants
-    failure conditions applied are dependent on whether VQSR was run
+    Note - when reading data into a MatrixTable, the Filters column is modified
+    - split into a set of all filters
+    - PASS is removed
+    i.e. an empty set is equal to PASS in a VCF
+
+    filter conditions applied are dependent on whether VQSR was run
     if VQSR - allow for filters to be empty, PASS, or VQSR with a PASS category assigned
-    if not - require the variant filters to be PASS
+    if not - require the variant filters to be empty
     :param matrix_data:
     :param vqsr_run: if True, we
     :return:
     """
-    pass_literal = hl.literal('PASS')
-    pass_set = hl.literal({pass_literal})
-    vqsr_literal = hl.literal('VQSR')
-    vqsr_set = hl.literal({vqsr_literal})
+    vqsr_set = hl.literal({'VQSR'})
 
     if vqsr_run:
 
@@ -347,7 +349,6 @@ def filter_matrix_by_variant_attributes(
         matrix_data = matrix_data.filter_rows(
             (
                 (matrix_data.filters.length() == 0)
-                | (matrix_data.filters == pass_set)
                 | (
                     (matrix_data.filters == vqsr_set)
                     & (matrix_data.info.AS_FilterStatus)
@@ -357,7 +358,7 @@ def filter_matrix_by_variant_attributes(
 
     # otherwise strictly enforce FILTERS==PASS
     else:
-        matrix_data = matrix_data.filter_rows(matrix_data.filters == pass_set)
+        matrix_data = matrix_data.filter_rows(matrix_data.filters.length() == 0)
 
     # normalised variants check
     # prior to annotation, variants in the MatrixTable representation are removed where:
@@ -377,9 +378,6 @@ def annotate_using_vep(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
     :param matrix_data:
     :return:
     """
-
-    # throw in a repartition here (annotate even chunks in parallel)
-    matrix_data = matrix_data.repartition(150, shuffle=False)
 
     # VEP 105 annotations
     return hl.vep(matrix_data, config='file:///vep_data/vep-gcloud.json')
@@ -676,6 +674,41 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, new_gene_set_expression
 
 
+def informed_repartition(
+    matrix: hl.MatrixTable, post_annotation: bool, temporary_path: str
+):
+    """
+    uses an estimate of row size to inform the repartitioning of a MT
+    aiming for a target partition size of ~10MB
+    post-annotation rows are estimated at ~5kB
+        - a recursive sys.getsizeof-like guess suggested ~140 Bytes :/
+        - writing a row to text was closer to 20kB :/
+    pre-annotation rows are assumed to be substantially smaller
+    throwing 400k rows into pre-annotation blocks, 150k into post
+
+    Kat's thread:
+    https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
+
+    :param matrix:
+    :param post_annotation:
+    :param temporary_path:
+    :return: repartitioned matrix
+    """
+
+    # calculate partitions, falling back to 1 partition if size is too small
+    current_rows = matrix.count_rows()
+    if post_annotation:
+        partitions = current_rows // 400000 or 1
+    else:
+        partitions = current_rows // 150000 or 1
+
+    # repartition with the specified # partitions
+    matrix.repartition(n_partitions=partitions, shuffle=True)
+
+    # a quick write to a temp path, and a read from the same
+    return matrix.checkpoint(temporary_path, overwrite=True)
+
+
 @click.command()
 @click.option('--mt', 'mt_path', help='path to the matrix table to ingest')
 @click.option('--pap', 'panelapp_path', help='bucket path containing panelapp JSON')
@@ -687,23 +720,35 @@ def green_and_new_from_panelapp(
     required=False,
     default=None,
 )
+@click.option(
+    '--mt_tmp',
+    help='path to write a temporary table during repartition',
+    required=False,
+    default=None,
+)
 def main(
     mt_path: str,
     panelapp_path: str,
     config_path: str,
     out_vcf: str,
     mt_out: Optional[str] = None,
+    mt_tmp: Optional[str] = None,
 ):
     """
     Read the MT from disk
     Do filtering and class annotation
     Export as a VCF
 
+    trial:
+    repartition estimate - each row is approx 7kb post annotation,
+    to make a 10MB partition this is ~130k rows
+
     :param mt_path: path to the MT directory
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
     :param out_vcf: path to write the VCF out to
     :param mt_out:
+    :param mt_tmp:
     """
 
     # get the run configuration JSON
@@ -748,6 +793,7 @@ def main(
         matrix = filter_matrix_by_ac(matrix_data=matrix, config=hail_config)
         matrix = filter_matrix_by_variant_attributes(matrix_data=matrix)
         logging.info(f'Post-Hard filtering size: {matrix.count_rows()}')
+        informed_repartition(matrix, post_annotation=False, temporary_path=mt_tmp)
 
         # re-annotate using VEP
         logging.info('Annotating variants')
@@ -775,8 +821,8 @@ def main(
     logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
     # choose some logical way of repartitioning
-    logging.info('Repartition to 50 fragments following Gene ID filter')
-    matrix = matrix.repartition(50, shuffle=True)
+    logging.info('Repartition fragments following Gene ID filter')
+    informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
 
     # add Classes to the MT
     logging.info('Applying classes to variant consequences')

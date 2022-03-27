@@ -38,6 +38,7 @@ COMP_HET_JSON = output_path('hail_comp_het.json')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
 CONFIG_OUT = output_path('config_used.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
+MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
 
 # location of the Slivar Docker image
 AR_REPO = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
@@ -50,7 +51,6 @@ RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py
 DATAPROC_SETUP_SCRIPTS = [
     'gs://cpg-reference/hail_dataproc/install_common.sh',
     'gs://cpg-reference/vep/vep-GRCh38.sh',  # install & configure VEP 105
-    'gs://cpg-acute-care-test/reanalysis/install_cloudpathlib.sh',
 ]
 
 
@@ -90,6 +90,7 @@ def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.J
         f'--config {config} '
         f'--output {HAIL_VCF_OUT} '
         f'--mt_out {MT_OUT_PATH}'
+        f'--mt_tmp {MT_TMP}'
     )
     hail_job = dataproc.hail_dataproc_job(
         batch=batch,
