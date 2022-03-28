@@ -17,8 +17,9 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from itertools import permutations
+from functools import cache
 import json
 import logging
 import sys
@@ -228,6 +229,7 @@ def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+@cache
 def transform_variant_string(locus_details: hl.Struct) -> str:
     """
     takes an object
@@ -255,10 +257,20 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
     )
 
 
-def extract_comp_het_details(matrix: hl.MatrixTable):
+def extract_comp_het_details(
+    matrix: hl.MatrixTable,
+) -> Dict[str, Dict[str, Dict[str, List[str]]]]:
     """
     takes the matrix table, and finds compound-hets per sample
     based on the gene name only
+
+    return format is a nested dictionary:
+    Sample:
+        Gene:
+            Var1: [Var2, VarN],
+            ..
+        ..
+    ..
 
     :param matrix:
     """
@@ -293,9 +305,9 @@ def extract_comp_het_details(matrix: hl.MatrixTable):
                     continue
 
                 # pair the string transformation
-                sample_dict.setdefault(gene, []).append(
-                    [transform_variant_string(var1), transform_variant_string(var2)]
-                )
+                sample_dict.setdefault(gene, {}).setdefault(
+                    transform_variant_string(var1), []
+                ).append(transform_variant_string(var2))
 
         # if we found comp hets, add the content for this sample
         if len(sample_dict) > 0:
@@ -335,13 +347,14 @@ def filter_matrix_by_variant_attributes(
     i.e. an empty set is equal to PASS in a VCF
 
     filter conditions applied are dependent on whether VQSR was run
-    if VQSR - allow for filters to be empty, PASS, or VQSR with a PASS category assigned
+    if VQSR - allow for empty filters, or VQSR with AS_FS=PASS
     if not - require the variant filters to be empty
     :param matrix_data:
     :param vqsr_run: if True, we
     :return:
     """
     vqsr_set = hl.literal({'VQSR'})
+    pass_string = hl.literal('PASS')
 
     if vqsr_run:
 
@@ -351,12 +364,12 @@ def filter_matrix_by_variant_attributes(
                 (matrix_data.filters.length() == 0)
                 | (
                     (matrix_data.filters == vqsr_set)
-                    & (matrix_data.info.AS_FilterStatus)
+                    & (matrix_data.info.AS_FilterStatus == pass_string)
                 )
             )
         )
 
-    # otherwise strictly enforce FILTERS==PASS
+    # otherwise strictly enforce FILTERS==PASS, i.e. empty set
     else:
         matrix_data = matrix_data.filter_rows(matrix_data.filters.length() == 0)
 

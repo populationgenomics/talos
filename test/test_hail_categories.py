@@ -311,24 +311,36 @@ def test_filter_matrix_by_ac_large():
 
 
 @pytest.mark.parametrize(
-    'filters,alleles,length',
+    'filters,alleles,as_filt,length',
     [
-        (hl.empty_array(hl.tstr), hl.literal(['A', 'C']), 1),
-        (hl.empty_array(hl.tstr), hl.literal(['A', '*']), 0),
-        (hl.empty_array(hl.tstr), hl.literal(['A', 'C', 'G']), 0),
-        (hl.literal(['fail']), hl.literal(['A', 'C']), 0),
+        (hl.empty_set(hl.tstr), hl.literal(['A', 'C']), '', 1),
+        (hl.empty_set(hl.tstr), hl.literal(['A', '*']), '', 0),
+        (hl.empty_set(hl.tstr), hl.literal(['A', 'C', 'G']), '', 0),
+        (hl.literal({'fail'}), hl.literal(['A', 'C']), '', 0),
+        (hl.literal({'VQSR'}), hl.literal(['A', 'C']), 'PASS', 1),
     ],
 )
-def test_filter_matrix_by_variant_attributes(filters, alleles, length, hail_matrix):
+def test_filter_matrix_by_variant_attributes(
+    filters, alleles, as_filt, length, hail_matrix
+):
     """
-    input 'values' are filters & alleles
-    check the ac filter is triggered
+    input 'values' are filters, alleles, and the as_fs annotation
+    - this AS_FilterStatus attribute is a result from VQSR application
+    - accepting filter=VQSR and AS_FS=PASS
+
+    :param filters:
+    :param alleles:
+    :param as_filt:
+    :param length:
+    :param hail_matrix:
+    :return:
     """
     # to add new alleles, we need to scrub alleles from the key fields
     hail_matrix = hail_matrix.key_rows_by('locus')
     anno_matrix = hail_matrix.annotate_rows(
         filters=filters,
         alleles=alleles,
+        info=hail_matrix.info.annotate(AS_FilterStatus=as_filt),
     )
 
     anno_matrix = filter_matrix_by_variant_attributes(anno_matrix)
