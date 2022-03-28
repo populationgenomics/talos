@@ -367,6 +367,8 @@ def extract_comp_het_details(
             # assess each possible variant pairing
             for var1, var2 in permutations(variants, 2):
 
+                print(var1, var2)
+
                 # skip if both are class 4 only - not valuable pairing
                 if var1.class_4_only == 1 and var2.class_4_only == 1:
                     continue
