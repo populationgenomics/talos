@@ -23,7 +23,7 @@ from cloudpathlib import AnyPath
 import hailtop.batch as hb
 
 from analysis_runner import dataproc
-from cpg_utils.hail import init_query_service, output_path
+from cpg_utils.hail import output_path
 
 from query_panelapp import main as panelapp_main
 
@@ -81,15 +81,14 @@ def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.J
     :param config:
     :return:
     """
-    init_query_service()
 
     script = (
         f'{HAIL_SCRIPT} '
-        f'--mt {matrix} '
-        f'--pap {PANELAPP_JSON_OUT} '
-        f'--config {config} '
-        f'--output {HAIL_VCF_OUT} '
-        f'--mt_out {MT_OUT_PATH}'
+        f'--mt_path {matrix} '
+        f'--panelapp_path {PANELAPP_JSON_OUT} '
+        f'--config_path {config} '
+        f'--out_vcf {HAIL_VCF_OUT} '
+        f'--mt_out {MT_OUT_PATH} '
         f'--mt_tmp {MT_TMP}'
     )
     hail_job = dataproc.hail_dataproc_job(
