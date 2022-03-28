@@ -19,7 +19,6 @@ Categories applied here are treated as unconfirmed
 
 from typing import Any, Dict, List, Optional, Tuple
 from itertools import permutations
-from functools import cache
 import json
 import logging
 import sys
@@ -229,7 +228,6 @@ def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-@cache
 def transform_variant_string(locus_details: hl.Struct) -> str:
     """
     takes an object
@@ -299,6 +297,8 @@ def extract_comp_het_details(
 
             # assess each possible variant pairing
             for var1, var2 in permutations(variants, 2):
+
+                print(var1, var2)
 
                 # skip if both are class 4 only - not valuable pairing
                 if var1.class_4_only == 1 and var2.class_4_only == 1:

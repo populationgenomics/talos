@@ -69,16 +69,13 @@ def test_comp_hets(hail_comp_het):
     # may need to go through and sort/set the lists for comparison
     expected = {
         'SAMPLE': {
-            'Gene1': [
-                ['1-1-GC-G', '1-21-GC-G'],
-                ['1-1-GC-G', '1-41-GC-G'],
-                ['1-21-GC-G', '1-1-GC-G'],
-                ['1-21-GC-G', '1-41-GC-G'],
-                ['1-41-GC-G', '1-1-GC-G'],
-                ['1-41-GC-G', '1-21-GC-G'],
-            ],
-            'Gene2': [['1-91-GC-G', '1-921-GC-G'], ['1-921-GC-G', '1-91-GC-G']],
+            'Gene1': {
+                '1-1-GC-G': ['1-21-GC-G', '1-41-GC-G'],
+                '1-21-GC-G': ['1-1-GC-G', '1-41-GC-G'],
+                '1-41-GC-G': ['1-1-GC-G', '1-21-GC-G'],
+            },
+            'Gene2': {'1-91-GC-G': ['1-921-GC-G'], '1-921-GC-G': ['1-91-GC-G']},
         },
-        'SAMPLE2': {'Gene1': [['1-1-GC-G', '1-21-GC-G'], ['1-21-GC-G', '1-1-GC-G']]},
+        'SAMPLE2': {'Gene1': {'1-1-GC-G': ['1-21-GC-G'], '1-21-GC-G': ['1-1-GC-G']}},
     }
     assert ch_results == expected
