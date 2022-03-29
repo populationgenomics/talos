@@ -22,8 +22,8 @@ from itertools import permutations
 import json
 import logging
 import sys
+from argparse import ArgumentParser
 
-import click
 import hail as hl
 
 from cloudpathlib import AnyPath
@@ -207,6 +207,101 @@ def annotate_category_4(
     )
 
 
+def annotate_all_categories(
+    matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
+) -> hl.MatrixTable:
+    """
+    combines all current classification logic into one event
+    :param matrix:
+    :param config:
+    :param new_genes:
+    :return:
+    """
+    critical_consequences = hl.set(config.get('critical_csq'))
+
+    return matrix.annotate_rows(
+        info=matrix.info.annotate(
+            Category1=hl.if_else(
+                (matrix.info.clinvar_stars > 0)
+                & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING)),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            Category2=hl.if_else(
+                (new_genes.contains(matrix.geneIds))
+                & (
+                    (
+                        matrix.vep.transcript_consequences.any(
+                            lambda x: hl.len(
+                                critical_consequences.intersection(
+                                    hl.set(x.consequence_terms)
+                                )
+                            )
+                            > 0
+                        )
+                    )
+                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    | (
+                        (matrix.info.cadd > config['in_silico']['cadd'])
+                        | (matrix.info.revel > config['in_silico']['revel'])
+                    )
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            Category3=hl.if_else(
+                (
+                    matrix.vep.transcript_consequences.any(
+                        lambda x: hl.len(
+                            critical_consequences.intersection(
+                                hl.set(x.consequence_terms)
+                            )
+                        )
+                        > 0
+                    )
+                )
+                & (
+                    (
+                        matrix.vep.transcript_consequences.any(
+                            lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))
+                        )
+                    )
+                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            Category4=hl.if_else(
+                (
+                    (matrix.info.cadd > config['in_silico'].get('cadd'))
+                    & (matrix.info.revel > config['in_silico'].get('revel'))
+                )
+                | (
+                    (
+                        matrix.vep.transcript_consequences.any(
+                            lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
+                            <= config['in_silico'].get('sift')
+                        )
+                    )
+                    & (
+                        matrix.vep.transcript_consequences.any(
+                            lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
+                            >= config['in_silico'].get('polyphen')
+                        )
+                    )
+                    & (
+                        (matrix.info.mutationtaster.contains('D'))
+                        | (matrix.info.mutationtaster == 'missing')
+                    )
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
+        )
+    )
+
+
 def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies a flag to all variants with only Category4 flags applied
@@ -298,8 +393,6 @@ def extract_comp_het_details(
             # assess each possible variant pairing
             for var1, var2 in permutations(variants, 2):
 
-                print(var1, var2)
-
                 # skip if both are class 4 only - not valuable pairing
                 if var1.class_4_only == 1 and var2.class_4_only == 1:
                     continue
@@ -314,86 +407,6 @@ def extract_comp_het_details(
             compound_hets[row.s] = sample_dict
 
     return compound_hets
-
-
-def filter_matrix_by_ac(
-    matrix_data: hl.MatrixTable, config: Dict[str, Any]
-) -> hl.MatrixTable:
-    """
-
-    :param matrix_data:
-    :param config:
-    :return: reduced MatrixTable
-    """
-
-    # count the samples in the VCF, and use to decide whether to implement
-    # 'common within this joint call' as a filter
-    # if we reach the sample threshold, filter on AC
-    if matrix_data.count_cols() >= config['min_samples_to_ac_filter']:
-        matrix_data = matrix_data.filter_rows(
-            matrix_data.info.AC / matrix_data.info.AN < config['ac_threshold']
-        )
-    return matrix_data
-
-
-def filter_matrix_by_variant_attributes(
-    matrix_data: hl.MatrixTable, vqsr_run: Optional[bool] = True
-) -> hl.MatrixTable:
-    """
-    filter MT to rows with normalised, high quality variants
-    Note - when reading data into a MatrixTable, the Filters column is modified
-    - split into a set of all filters
-    - PASS is removed
-    i.e. an empty set is equal to PASS in a VCF
-
-    filter conditions applied are dependent on whether VQSR was run
-    if VQSR - allow for empty filters, or VQSR with AS_FS=PASS
-    if not - require the variant filters to be empty
-    :param matrix_data:
-    :param vqsr_run: if True, we
-    :return:
-    """
-    vqsr_set = hl.literal({'VQSR'})
-    pass_string = hl.literal('PASS')
-
-    if vqsr_run:
-
-        # hard filter for quality; assuming data is well normalised in pipeline
-        matrix_data = matrix_data.filter_rows(
-            (
-                (matrix_data.filters.length() == 0)
-                | (
-                    (matrix_data.filters == vqsr_set)
-                    & (matrix_data.info.AS_FilterStatus == pass_string)
-                )
-            )
-        )
-
-    # otherwise strictly enforce FILTERS==PASS, i.e. empty set
-    else:
-        matrix_data = matrix_data.filter_rows(matrix_data.filters.length() == 0)
-
-    # normalised variants check
-    # prior to annotation, variants in the MatrixTable representation are removed where:
-    # - more than two alleles are present (ref and alt)
-    #   - prior to annotation, the variant data must be decomposed to split all alt.
-    #     alleles onto a separate row, with the corresponding sample genotypes
-    # - alternate allele called is missing (*)
-    matrix_data = matrix_data.filter_rows(
-        (hl.len(matrix_data.alleles) == 2) & (matrix_data.alleles[1] != '*')
-    )
-    return matrix_data
-
-
-def annotate_using_vep(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    runs VEP annotation on the MT
-    :param matrix_data:
-    :return:
-    """
-
-    # VEP 105 annotations
-    return hl.vep(matrix_data, config='file:///vep_data/vep-gcloud.json')
 
 
 def filter_rows_for_rare(
@@ -414,17 +427,21 @@ def filter_rows_for_rare(
     )
 
 
-def filter_benign(matrix: hl.MatrixTable) -> hl.MatrixTable:
+def filter_benign_or_non_genic(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter out benign variants, where clinvar is confident
     not worth running this filter separately
     :param matrix:
     """
+    # remove any rows with no genic annotation at all
     # remove all clinvar benign, decent level of support
     benign = hl.str('benign')
     return matrix.filter_rows(
-        (matrix.info.clinvar_sig.lower().contains(benign))
-        & (matrix.info.clinvar_stars > 0),
+        (
+            (matrix.info.clinvar_sig.lower().contains(benign))
+            & (matrix.info.clinvar_stars > 0)
+        )
+        | (hl.is_missing(matrix.geneIds)),
         keep=False,
     )
 
@@ -437,10 +454,6 @@ def filter_to_green_genes_and_split(
     :param matrix:
     :param green_genes:
     """
-
-    # remove any rows with no genic annotation at all
-    # do this here as set intersections with Missing will fail
-    matrix = matrix.filter_rows(hl.is_missing(matrix.geneIds), keep=False)
 
     # replace the default list of green IDs with a reduced set
     matrix = matrix.annotate_rows(geneIds=green_genes.intersection(matrix.geneIds))
@@ -697,7 +710,7 @@ def informed_repartition(
         - a recursive sys.getsizeof-like guess suggested ~140 Bytes :/
         - writing a row to text was closer to 20kB :/
     pre-annotation rows are assumed to be substantially smaller
-    throwing 400k rows into pre-annotation blocks, 150k into post
+    throwing 200k rows into pre-annotation blocks, 100k into post
 
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
@@ -711,9 +724,9 @@ def informed_repartition(
     # calculate partitions, falling back to 1 partition if size is too small
     current_rows = matrix.count_rows()
     if post_annotation:
-        partitions = current_rows // 400000 or 1
+        partitions = current_rows // 200000 or 1
     else:
-        partitions = current_rows // 150000 or 1
+        partitions = current_rows // 100000 or 1
 
     # repartition with the specified # partitions
     matrix.repartition(n_partitions=partitions, shuffle=True)
@@ -722,29 +735,11 @@ def informed_repartition(
     return matrix.checkpoint(temporary_path, overwrite=True)
 
 
-@click.command()
-@click.option('--mt', 'mt_path', help='path to the matrix table to ingest')
-@click.option('--pap', 'panelapp_path', help='bucket path containing panelapp JSON')
-@click.option('--config', 'config_path', help='path to a config dict')
-@click.option('--output', 'out_vcf', help='VCF path to export results')
-@click.option(
-    '--mt_out',
-    help='path to export annotated MT to',
-    required=False,
-    default=None,
-)
-@click.option(
-    '--mt_tmp',
-    help='path to write a temporary table during repartition',
-    required=False,
-    default=None,
-)
 def main(
-    mt_path: str,
+    mt_input: str,
     panelapp_path: str,
     config_path: str,
     out_vcf: str,
-    mt_out: Optional[str] = None,
     mt_tmp: Optional[str] = None,
 ):
     """
@@ -752,15 +747,10 @@ def main(
     Do filtering and class annotation
     Export as a VCF
 
-    trial:
-    repartition estimate - each row is approx 7kb post annotation,
-    to make a 10MB partition this is ~130k rows
-
-    :param mt_path: path to the MT directory
+    :param mt_input: path to the MT directory
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
     :param out_vcf: path to write the VCF out to
-    :param mt_out:
     :param mt_tmp:
     """
 
@@ -787,34 +777,13 @@ def main(
     hl.init(default_reference=hail_config.get('ref_genome'), quiet=True)
 
     # if we already generated the annotated output, load instead
-    if AnyPath(mt_out.rstrip('/') + '/').exists():
-        logging.info(
-            f'Loading annotated MT from "{mt_out}"',
-        )
-        matrix = hl.read_matrix_table(mt_out)
-        logging.debug(
-            f'Loaded annotated MT, size: {matrix.count_rows()}',
-        )
+    if not AnyPath(mt_input.rstrip('/') + '/').exists():
+        raise Exception(f'Input MatrixTable doesn\'t exist: {mt_input}')
 
-    else:
-        logging.info(f'Loading MT from "{mt_path}"')
-        matrix = hl.read_matrix_table(mt_path)
-        logging.debug(f'Loaded pre-annotation MT, size: {matrix.count_rows()}')
-
-        # hard filter entries in the MT prior to annotation
-        logging.info('Hard filtering variants')
-        matrix = filter_matrix_by_ac(matrix_data=matrix, config=hail_config)
-        matrix = filter_matrix_by_variant_attributes(matrix_data=matrix)
-        logging.info(f'Post-Hard filtering size: {matrix.count_rows()}')
-        informed_repartition(matrix, post_annotation=False, temporary_path=mt_tmp)
-
-        # re-annotate using VEP
-        logging.info('Annotating variants')
-        matrix = annotate_using_vep(matrix_data=matrix)
-
-        # if a path is provided, dump the MT
-        if mt_out is not None:
-            matrix.write(mt_out, overwrite=True)
+    matrix = hl.read_matrix_table(mt_input)
+    logging.debug(
+        f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
+    )
 
     # pull annotations into info and update if missing
     logging.info('Pulling VEP annotations into INFO field')
@@ -824,7 +793,7 @@ def main(
     logging.info('Filtering Variant rows')
     matrix = filter_rows_for_rare(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
-    matrix = filter_benign(matrix=matrix)
+    matrix = filter_benign_or_non_genic(matrix=matrix)
     logging.info(f'Variants remaining after Benign filter: {matrix.count_rows()}')
     matrix = filter_to_green_genes_and_split(
         matrix=matrix, green_genes=green_expression
@@ -835,14 +804,15 @@ def main(
 
     # choose some logical way of repartitioning
     logging.info('Repartition fragments following Gene ID filter')
-    informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
+    # informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
+    print(f'running blind repartition, would use "{mt_tmp}"')
+    matrix = matrix.repartition(n_partitions=50, shuffle=True)
 
     # add Classes to the MT
     logging.info('Applying classes to variant consequences')
-    matrix = annotate_category_1(matrix)
-    matrix = annotate_category_2(matrix, hail_config, new_expression)
-    matrix = annotate_category_3(matrix, hail_config)
-    matrix = annotate_category_4(matrix, hail_config['in_silico'])
+    matrix = annotate_all_categories(
+        matrix, config=hail_config, new_genes=new_expression
+    )
 
     # filter to class-annotated only prior to export
     logging.info('Filter variants to leave only classified')
@@ -850,8 +820,6 @@ def main(
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
     # add an additional annotation, if the variant is Category4 only
-    matrix = annotate_category_4_only(matrix)
-
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     matrix = matrix.annotate_rows(
@@ -860,7 +828,15 @@ def main(
                 matrix.vep, csq_fields=config_dict['variant_object'].get('csq_string')
             ),
             gene_id=matrix.geneIds,
-        )
+        ),
+        category_4_only=hl.if_else(
+            (matrix.info.Category1 == 0)
+            & (matrix.info.Category2 == 0)
+            & (matrix.info.Category3 == 0)
+            & (matrix.info.Category4 == 1),
+            ONE_INT,
+            MISSING_INT,
+        ),
     )
 
     # parse out the compound het details (after pulling gene_id above)
@@ -884,7 +860,43 @@ if __name__ == '__main__':
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%M-%d %H:%M:%S',
+        datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--mt_input',
+        required=True,
+        help='path to the matrix table to ingest',
+    )
+    parser.add_argument(
+        '--panelapp_path',
+        type=str,
+        required=True,
+        help='bucket path containing panelapp JSON',
+    )
+    parser.add_argument(
+        '--config_path',
+        type=str,
+        required=False,
+        help='If a gene list is being used as a comparison ',
+    )
+    parser.add_argument(
+        '--out_vcf', type=str, required=True, help='VCF path to export results'
+    )
+    parser.add_argument(
+        '--mt_tmp',
+        required=False,
+        default=None,
+        help='path to a temporary write location',
+    )
+    args = parser.parse_args()
+
+    main(
+        mt_input=args.mt_input,
+        panelapp_path=args.panelapp_path,
+        config_path=args.config_path,
+        out_vcf=args.out_vcf,
+        mt_tmp=args.mt_tmp,
+    )

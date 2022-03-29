@@ -26,6 +26,7 @@ from analysis_runner import dataproc
 from cpg_utils.hail import init_query_service, output_path
 
 from query_panelapp import main as panelapp_main
+from hail_filter_and_categorise import main as category_main
 
 
 DEFAULT_IMAGE = os.getenv('CPG_DRIVER_IMAGE')
@@ -46,7 +47,8 @@ BCFTOOLS_TAG = 'bcftools:1.10.2--h4f4756c_2'
 BCFTOOLS_IMAGE = f'{AR_REPO}/{BCFTOOLS_TAG}'
 
 # local script references
-HAIL_SCRIPT = os.path.join(os.path.dirname(__file__), 'hail_filter_and_categorise.py')
+HAIL_DATAPROC = os.path.join(os.path.dirname(__file__), 'hail_vep_annotation.py')
+HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_categorise.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 DATAPROC_SETUP_SCRIPTS = [
     'gs://cpg-reference/hail_dataproc/install_common.sh',
@@ -73,7 +75,9 @@ def set_job_resources(job: Union[hb.batch.job.BashJob, hb.batch.job.Job]):
     job.storage('20G')
 
 
-def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.Job:
+def handle_hail_annotation(
+    batch: hb.Batch, matrix: str, config: str
+) -> hb.batch.job.Job:
     """
     sets up the hail-VEP105 dataproc environment
     :param batch:
@@ -81,16 +85,11 @@ def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.J
     :param config:
     :return:
     """
-    init_query_service()
-
     script = (
-        f'{HAIL_SCRIPT} '
-        f'--mt {matrix} '
-        f'--pap {PANELAPP_JSON_OUT} '
-        f'--config {config} '
-        f'--output {HAIL_VCF_OUT} '
-        f'--mt_out {MT_OUT_PATH}'
-        f'--mt_tmp {MT_TMP}'
+        f'{HAIL_DATAPROC} '
+        f'--mt_inpath {matrix} '
+        f'--config_path {config} '
+        f'--mt_outpath {MT_OUT_PATH}'
     )
     hail_job = dataproc.hail_dataproc_job(
         batch=batch,
@@ -106,8 +105,25 @@ def handle_hail_job(batch: hb.Batch, matrix: str, config: str) -> hb.batch.job.J
         cluster_name='hail_reanalysis_stage',
     )
     set_job_resources(hail_job)
-
     return hail_job
+
+
+def handle_hail_filtering(config: str):
+    """
+    hail-query backend version of the filtering implementation
+    use the init query service instead of running inside dataproc
+
+    :param config: can this be used as a dict if already loaded?
+    :return:
+    """
+    init_query_service()
+    category_main(
+        mt_input=MT_OUT_PATH,
+        mt_tmp=MT_TMP,
+        config_path=config,
+        panelapp_path=PANELAPP_JSON_OUT,
+        out_vcf=HAIL_VCF_OUT,
+    )
 
 
 def handle_reheader_job(
@@ -176,13 +192,11 @@ def handle_reheader_job(
     help='location of a Gene list for use in analysis',
     required=False,
 )
-@click.option('--ped', 'ped_file', help='ped file for this analysis')
 def main(
     matrix_path: str,
     config_json: str,
     panelapp_version: Optional[str],
     panel_genes: Optional[str],
-    ped_file: str,
 ):
     """
     main method, which runs the full reanalysis process
@@ -191,7 +205,7 @@ def main(
     :param config_json:
     :param panelapp_version:
     :param panel_genes:
-    :param ped_file:
+    # :param ped_file:
     """
 
     logging.info('Starting the reanalysis batch')
@@ -203,20 +217,10 @@ def main(
         bucket=os.getenv('HAIL_BUCKET'),
     )
 
-    # create a hail batch
-    batch = hb.Batch(
-        name='run_reanalysis', backend=service_backend, cancel_after_n_failures=1
-    )
-
     # read ped and config files as a local batch resource
     # satisfy pylint until we use this in code
-    print(ped_file)
+    # print(ped_file)
     # ped_in_batch = batch.read_input(ped_file)
-
-    conf_in_batch = batch.read_input(config_json)
-
-    # save a copy of the config file into the output location
-    batch.write_output(conf_in_batch, CONFIG_OUT)
 
     # -------------------------------- #
     # query panelapp for panel details #
@@ -237,20 +241,36 @@ def main(
 
     # only run if the output VCF doesn't already exist
     if not AnyPath(HAIL_VCF_OUT).exists():
-        prior_job = handle_hail_job(
-            batch=batch,
-            matrix=matrix_path,
-            config=config_json,
-        )
 
-    # copy the Hail output file into the remaining batch jobs
-    hail_output_in_batch = batch.read_input_group(
-        **{'vcf': HAIL_VCF_OUT, 'vcf.tbi': HAIL_VCF_OUT + '.tbi'}
-    )
+        # do we need to run the full annotation stage?
+        if not AnyPath(MT_OUT_PATH.rstrip('/') + '/').exists():
+            # create a hail batch
+            annotation_batch = hb.Batch(
+                name='run_VEP (reanalysis)',
+                backend=service_backend,
+                cancel_after_n_failures=1,
+            )
+            prior_job = handle_hail_annotation(
+                batch=annotation_batch,
+                matrix=matrix_path,
+                config=config_json,
+            )
+            annotation_batch.run(wait=True)
+
+        handle_hail_filtering(config=config_json)
 
     # --------------------------------- #
     # bcftools re-headering of hail VCF #
     # --------------------------------- #
+    reheader_batch = hb.Batch(
+        name='run_BCFTools (re-header)',
+        backend=service_backend,
+        cancel_after_n_failures=1,
+    )
+    # copy the Hail output file into the remaining batch jobs
+    hail_output_in_batch = reheader_batch.read_input_group(
+        **{'vcf': HAIL_VCF_OUT, 'vcf.tbi': HAIL_VCF_OUT + '.tbi'}
+    )
 
     # this is no longer explicitly required...
     # it was required to run slivar: geneId, consequences, and transcript
@@ -259,23 +279,21 @@ def main(
     # this would mean the VCF is mostly useless when separated from the
     # config file... retain for now at least
     bcftools_job = handle_reheader_job(
-        batch=batch,
+        batch=reheader_batch,
         local_vcf=hail_output_in_batch['vcf'],
         config_dict=config_dict,
         prior_job=prior_job,
     )
-
-    batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
-
+    reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
     # run the batch, and wait, so that the result metadata updates
-    batch.run(wait=False)
+    reheader_batch.run(wait=True)
 
 
 if __name__ == '__main__':
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%M-%d %H:%M:%S',
+        datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
     main()  # pylint: disable=E1120
