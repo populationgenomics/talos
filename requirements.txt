@@ -1,9 +1,9 @@
-click==7.1.2
+click==8.0.4
 cloudpathlib[azure,gs]==0.7.0
-cpg-utils==2.5.1
+cpg-utils==3.0.0
 cyvcf2==0.30.14
 dill==0.3.4
-google-cloud-storage==1.25.0
-hail==0.2.90
+hail==0.2.91
+Jinja2==3.0.3
 pandas==1.3.5
 requests==2.25.1

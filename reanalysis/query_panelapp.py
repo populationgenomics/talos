@@ -4,12 +4,17 @@
 """
 PanelApp Parser for Reanalysis project
 
+runs an optional click interface
+
 Takes a panel ID
-For the latest content, pulls Symbol, ENSG, and MOI
+Pulls latest 'green' content; Symbol, ENSG, and MOI
 
 Optionally user can provide a panel version number in the past
 Pull all details from the earlier version
-Store all discrepancies between earlier and current
+Annotate all discrepancies between earlier and current
+
+Optionally user can provide path to a JSON gene list
+Annotate all genes in current panel and not the gene list
 
 Write all output to a JSON dictionary
 """
@@ -18,26 +23,24 @@ Write all output to a JSON dictionary
 from typing import Any, Dict, Optional, Union, Set
 import logging
 import json
+from argparse import ArgumentParser
+
 import requests
 
 from cloudpathlib import AnyPath
 
-import click
 
 PanelData = Dict[str, Dict[str, Union[str, bool]]]
 
 
 def parse_gene_list(path_to_list: str) -> Set[str]:
     """
-    parses a file (GCP or local), extracting a set of genes
-    required format: clean data, one per line, gene name only
+    parses a json file (GCP or local), extracting a set of genes
+    required format: a json list of strings
     :param path_to_list:
     """
-    return {
-        line.rstrip()
-        for line in open(AnyPath(path_to_list), 'r', encoding='utf-8')
-        if line.rstrip() != ''
-    }
+    with open(AnyPath(path_to_list), encoding='utf-8') as handle:
+        return set(json.load(handle))
 
 
 def get_json_response(url: str) -> Dict[str, Any]:
@@ -68,7 +71,7 @@ def get_panel_green(
     """
 
     # prepare the query URL
-    panel_app_genes_url = f'https://panelapp.agha.umccr.org/api/v1/{panel_id}'
+    panel_app_genes_url = f'https://panelapp.agha.umccr.org/api/v1/panels/{panel_id}'
     if version is not None:
         panel_app_genes_url += f'?version={version}'
 
@@ -80,7 +83,9 @@ def get_panel_green(
 
     # pop the version in logging if not manually defined
     if version is None:
-        logging.info('Current panel version: %s', panel_version)
+        logging.info(
+            f'Current panel version: {panel_version}',
+        )
 
     gene_dict = {'panel_metadata': {'current_version': panel_version}}
 
@@ -177,14 +182,25 @@ def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
             latest_content[gene_ensg]['new'] = True
 
 
-@click.command()
-@click.option('--id', 'panel_id', default='137', help='ID to use in panelapp')
-@click.option('--out', 'out_path', help='path to write resulting JSON to')
-@click.option(
-    '--previous_version',
-    help='identify panel differences between current version and this previous version',
-)
-@click.option('--gene_list', help='pointer to a file, containing a prior gene list')
+def write_output_json(output_path: str, object_to_write: Any):
+    """
+    writes object to a json file
+    AnyPath provides platform abstraction
+
+    :param output_path:
+    :param object_to_write:=
+    """
+
+    logging.info(f'Writing output JSON file to {output_path}')
+    out_route = AnyPath(output_path)
+
+    if out_route.exists():
+        logging.info(f'Output path "{output_path}" exists, will be overwritten')
+
+    serialised_obj = json.dumps(object_to_write, indent=True, default=str)
+    out_route.write_text(serialised_obj)
+
+
 def main(
     panel_id: str,
     out_path: str,
@@ -194,9 +210,12 @@ def main(
     """
     takes a panel ID
     finds all latest panel data from the API
-    optionally also takes a prior version argument, records all panel differences
+    optionally take a prior version argument, records all panel differences
         - new genes
         - altered MOI
+    optionally take a reference to a JSON gene list, records all genes:
+        - green in current panelapp
+        - absent in provided gene list
     :param panel_id:
     :param out_path: path to write a JSON object out to
     :param previous_version: prior panel version to compare to
@@ -218,19 +237,46 @@ def main(
     if previous_version is not None:
         # only continue if the versions are different
         if previous_version != panel_dict['panel_metadata'].get('current_version'):
-            logging.info('Previous panel version: %s', previous_version)
+            logging.info(f'Previous panel version: {previous_version}')
+            panel_dict['panel_metadata']['previous_version'] = previous_version
             get_panel_changes(
                 previous_version=previous_version,
                 panel_id=panel_id,
                 latest_content=panel_dict,
             )
-            panel_dict['panel_metadata']['previous_version'] = previous_version
 
-    logging.info('Writing output JSON file to %s', out_path)
-    with open(out_path, 'w', encoding='utf-8') as handle:
-        json.dump(panel_dict, handle, indent=True, default=str)
+    write_output_json(output_path=out_path, object_to_write=panel_dict)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--panel_id',
+        default='137',
+        required=False,
+        type=str,
+        help='The Mendeliome panel number to use',
+    )
+    parser.add_argument(
+        '--out_path', type=str, required=True, help='Path to write output JSON to'
+    )
+    parser.add_argument(
+        '--previous_version',
+        type=str,
+        required=False,
+        help='If a prior Mendeliome panel version is being used as a comparison point',
+    )
+    parser.add_argument(
+        '--gene_list',
+        type=str,
+        required=False,
+        help='If a gene list is being used as a comparison ',
+    )
+    args = parser.parse_args()
+    main(
+        panel_id=args.panel_id,
+        out_path=args.out_path,
+        previous_version=args.previous_version,
+        gene_list=args.gene_list,
+    )
