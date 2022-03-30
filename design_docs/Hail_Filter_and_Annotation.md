@@ -6,14 +6,25 @@ This stage of the workflow uses hail query to load, annotate, and apply provisio
 
 ## Stage Details
 
-Runs within a Hail Batch, as a Hail Query runtime. For now, due to functional constraints, the process runs inside
-DataProc on GCP. We are aiming to split the HailQuery/VEP annotation stage from this infrastructure requirement soon.
+Runs within a Hail Batch, as a Hail Query runtime.
+
+---
+
+### Note
+
+For now, due to limitations of the annotation process, we are reliant on an annotated MatrixTable being provided
+as input. Substantial amounts of code and input data would have to be provided for this to work independently from
+the CPG pipeline environment, so in the interest of first merging an end-to-end product, then improving, the annotation
+phase has been extracted.
+
+Please ignore statements below concerning the running of VEP/Dataproc, as they have been (temporarily) removed
+
+---
 
 This stage takes a Hail MatrixTable representation of a VCF as input, applies VEP annotation, and adds provisional
 category tags. Flow chart representations of the logic for pre-and post annotation filters are shown below
 
 ![Pre-Annotation Filters](images/hail_pre_filter.png)
-Annotation with VEP is between these two stages
 
 ![Post-Annotation Filters](images/hail_categories.png)
 Criteria for selection into the 4 variant categories

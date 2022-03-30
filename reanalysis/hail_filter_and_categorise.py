@@ -41,6 +41,75 @@ LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
 
+def filter_matrix_by_ac(
+    matrix_data: hl.MatrixTable, config: Dict[str, Any]
+) -> hl.MatrixTable:
+    """
+
+    :param matrix_data:
+    :param config:
+    :return: reduced MatrixTable
+    """
+
+    # count the samples in the VCF, and use to decide whether to implement
+    # 'common within this joint call' as a filter
+    # if we reach the sample threshold, filter on AC
+    if matrix_data.count_cols() >= config['min_samples_to_ac_filter']:
+        matrix_data = matrix_data.filter_rows(
+            matrix_data.info.AC / matrix_data.info.AN < config['ac_threshold']
+        )
+    return matrix_data
+
+
+def filter_matrix_by_variant_attributes(
+    matrix_data: hl.MatrixTable, vqsr_run: Optional[bool] = True
+) -> hl.MatrixTable:
+    """
+    filter MT to rows with normalised, high quality variants
+    Note - when reading data into a MatrixTable, the Filters column is modified
+    - split into a set of all filters
+    - PASS is removed
+    i.e. an empty set is equal to PASS in a VCF
+
+    filter conditions applied are dependent on whether VQSR was run
+    if VQSR - allow for empty filters, or VQSR with AS_FS=PASS
+    if not - require the variant filters to be empty
+    :param matrix_data:
+    :param vqsr_run: if True, we
+    :return:
+    """
+    vqsr_set = hl.literal({'VQSR'})
+    pass_string = hl.literal('PASS')
+
+    if vqsr_run:
+
+        # hard filter for quality; assuming data is well normalised in pipeline
+        matrix_data = matrix_data.filter_rows(
+            (
+                (matrix_data.filters.length() == 0)
+                | (
+                    (matrix_data.filters == vqsr_set)
+                    & (matrix_data.info.AS_FilterStatus == pass_string)
+                )
+            )
+        )
+
+    # otherwise strictly enforce FILTERS==PASS, i.e. empty set
+    else:
+        matrix_data = matrix_data.filter_rows(matrix_data.filters.length() == 0)
+
+    # normalised variants check
+    # prior to annotation, variants in the MatrixTable representation are removed where:
+    # - more than two alleles are present (ref and alt)
+    #   - prior to annotation, the variant data must be decomposed to split all alt.
+    #     alleles onto a separate row, with the corresponding sample genotypes
+    # - alternate allele called is missing (*)
+    matrix_data = matrix_data.filter_rows(
+        (hl.len(matrix_data.alleles) == 2) & (matrix_data.alleles[1] != '*')
+    )
+    return matrix_data
+
+
 def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the Category1 annotation (1 or 0) as appropriate
@@ -179,101 +248,6 @@ def annotate_category_4(
         info=matrix.info.annotate(
             Category4=hl.if_else(
                 (
-                    (matrix.info.cadd > config.get('cadd'))
-                    & (matrix.info.revel > config.get('revel'))
-                )
-                | (
-                    (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
-                            <= config.get('sift')
-                        )
-                    )
-                    & (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
-                            >= config.get('polyphen')
-                        )
-                    )
-                    & (
-                        (matrix.info.mutationtaster.contains('D'))
-                        | (matrix.info.mutationtaster == 'missing')
-                    )
-                ),
-                ONE_INT,
-                MISSING_INT,
-            )
-        )
-    )
-
-
-def annotate_all_categories(
-    matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
-) -> hl.MatrixTable:
-    """
-    combines all current classification logic into one event
-    :param matrix:
-    :param config:
-    :param new_genes:
-    :return:
-    """
-    critical_consequences = hl.set(config.get('critical_csq'))
-
-    return matrix.annotate_rows(
-        info=matrix.info.annotate(
-            Category1=hl.if_else(
-                (matrix.info.clinvar_stars > 0)
-                & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
-                & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING)),
-                ONE_INT,
-                MISSING_INT,
-            ),
-            Category2=hl.if_else(
-                (new_genes.contains(matrix.geneIds))
-                & (
-                    (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: hl.len(
-                                critical_consequences.intersection(
-                                    hl.set(x.consequence_terms)
-                                )
-                            )
-                            > 0
-                        )
-                    )
-                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
-                    | (
-                        (matrix.info.cadd > config['in_silico']['cadd'])
-                        | (matrix.info.revel > config['in_silico']['revel'])
-                    )
-                ),
-                ONE_INT,
-                MISSING_INT,
-            ),
-            Category3=hl.if_else(
-                (
-                    matrix.vep.transcript_consequences.any(
-                        lambda x: hl.len(
-                            critical_consequences.intersection(
-                                hl.set(x.consequence_terms)
-                            )
-                        )
-                        > 0
-                    )
-                )
-                & (
-                    (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))
-                        )
-                    )
-                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
-                ),
-                ONE_INT,
-                MISSING_INT,
-            ),
-            Category4=hl.if_else(
-                (
                     (matrix.info.cadd > config['in_silico'].get('cadd'))
                     & (matrix.info.revel > config['in_silico'].get('revel'))
                 )
@@ -297,7 +271,7 @@ def annotate_all_categories(
                 ),
                 ONE_INT,
                 MISSING_INT,
-            ),
+            )
         )
     )
 
@@ -785,6 +759,10 @@ def main(
         f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
     )
 
+    # running global quality filter steps
+    matrix = filter_matrix_by_ac(matrix_data=matrix, config=hail_config)
+    matrix = filter_matrix_by_variant_attributes(matrix_data=matrix)
+
     # pull annotations into info and update if missing
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
@@ -809,10 +787,11 @@ def main(
     matrix = matrix.repartition(n_partitions=50, shuffle=True)
 
     # add Classes to the MT
-    logging.info('Applying classes to variant consequences')
-    matrix = annotate_all_categories(
-        matrix, config=hail_config, new_genes=new_expression
-    )
+    logging.info('Applying categories to variant consequences')
+    matrix = annotate_category_1(matrix)
+    matrix = annotate_category_2(matrix, hail_config, new_expression)
+    matrix = annotate_category_3(matrix, hail_config)
+    matrix = annotate_category_4(matrix, hail_config)
 
     # filter to class-annotated only prior to export
     logging.info('Filter variants to leave only classified')

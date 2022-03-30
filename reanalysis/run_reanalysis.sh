@@ -11,7 +11,7 @@ analysis-runner \
   --description "run reanalysis draft" \
   -o "reanalysis/${PAP_DATE}" \
   --access-level test \
-  reanalysis/reanalysis_wrapper.py \
+  reanalysis/wrapper.py \
     --config_json gs://cpg-acute-care-test/reanalysis/reanalysis_conf.json \
     --matrix gs://cpg-acute-care-main/mt/acute-care.mt \
     --panel_genes gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json

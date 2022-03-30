@@ -6,8 +6,7 @@ wrapper for reanalysis process
 
 currently still reliant on a dataproc cluster for the Hail-VEP runtime environment
 
-working to remove call out to Slivar,
-compound-het calculations moving to Hail
+compound-het calculations moving to Hail, removing the call to Clinvar
 """
 
 
@@ -22,8 +21,7 @@ import click
 from cloudpathlib import AnyPath
 import hailtop.batch as hb
 
-from analysis_runner import dataproc
-from cpg_utils.hail import init_query_service, output_path
+from cpg_utils.hail import init_batch, output_path
 
 from query_panelapp import main as panelapp_main
 from hail_filter_and_categorise import main as category_main
@@ -36,7 +34,6 @@ assert DEFAULT_IMAGE
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_comp_het.json')
-MT_OUT_PATH = output_path('hail_105_ac.mt')
 CONFIG_OUT = output_path('config_used.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
@@ -47,7 +44,6 @@ BCFTOOLS_TAG = 'bcftools:1.10.2--h4f4756c_2'
 BCFTOOLS_IMAGE = f'{AR_REPO}/{BCFTOOLS_TAG}'
 
 # local script references
-HAIL_DATAPROC = os.path.join(os.path.dirname(__file__), 'hail_vep_annotation.py')
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_categorise.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 DATAPROC_SETUP_SCRIPTS = [
@@ -75,50 +71,18 @@ def set_job_resources(job: Union[hb.batch.job.BashJob, hb.batch.job.Job]):
     job.storage('20G')
 
 
-def handle_hail_annotation(
-    batch: hb.Batch, matrix: str, config: str
-) -> hb.batch.job.Job:
-    """
-    sets up the hail-VEP105 dataproc environment
-    :param batch:
-    :param matrix:
-    :param config:
-    :return:
-    """
-    script = (
-        f'{HAIL_DATAPROC} '
-        f'--mt_inpath {matrix} '
-        f'--config_path {config} '
-        f'--mt_outpath {MT_OUT_PATH}'
-    )
-    hail_job = dataproc.hail_dataproc_job(
-        batch=batch,
-        worker_machine_type='n1-highmem-8',
-        worker_boot_disk_size=200,
-        secondary_worker_boot_disk_size=200,
-        script=script,
-        max_age='8h',
-        init=DATAPROC_SETUP_SCRIPTS,
-        job_name='run hail reanalysis stage',
-        num_secondary_workers=10,
-        num_workers=2,
-        cluster_name='hail_reanalysis_stage',
-    )
-    set_job_resources(hail_job)
-    return hail_job
-
-
-def handle_hail_filtering(config: str):
+def handle_hail_filtering(matrix_path: str, config: str):
     """
     hail-query backend version of the filtering implementation
     use the init query service instead of running inside dataproc
 
+    :param matrix_path: path to annotated matrix table
     :param config: can this be used as a dict if already loaded?
     :return:
     """
-    init_query_service()
+    init_batch()
     category_main(
-        mt_input=MT_OUT_PATH,
+        mt_input=matrix_path,
         mt_tmp=MT_TMP,
         config_path=config,
         panelapp_path=PANELAPP_JSON_OUT,
@@ -201,7 +165,7 @@ def main(
     """
     main method, which runs the full reanalysis process
 
-    :param matrix_path:
+    :param matrix_path: annotated input matrix table
     :param config_json:
     :param panelapp_version:
     :param panel_genes:
@@ -243,21 +207,14 @@ def main(
     if not AnyPath(HAIL_VCF_OUT).exists():
 
         # do we need to run the full annotation stage?
-        if not AnyPath(MT_OUT_PATH.rstrip('/') + '/').exists():
-            # create a hail batch
-            annotation_batch = hb.Batch(
-                name='run_VEP (reanalysis)',
-                backend=service_backend,
-                cancel_after_n_failures=1,
+        if not AnyPath(matrix_path.rstrip('/') + '/').exists():
+            raise Exception(
+                f'Currently this process demands an annotated '
+                f'MatrixTable. The provided path "{matrix_path}" '
+                f'does not exist or is inaccessible'
             )
-            prior_job = handle_hail_annotation(
-                batch=annotation_batch,
-                matrix=matrix_path,
-                config=config_json,
-            )
-            annotation_batch.run(wait=True)
 
-        handle_hail_filtering(config=config_json)
+        handle_hail_filtering(matrix_path=matrix_path, config=config_json)
 
     # --------------------------------- #
     # bcftools re-headering of hail VCF #
@@ -285,6 +242,7 @@ def main(
         prior_job=prior_job,
     )
     reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
+
     # run the batch, and wait, so that the result metadata updates
     reheader_batch.run(wait=True)
 
