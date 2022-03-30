@@ -2,11 +2,17 @@
 
 
 """
-wrapper for reanalysis process
+Entrypoint for the interpretation pipeline process, runs the end-to-end
+pipeline stages either directly or via Hail Batch(es)
+ - Data extraction from PanelApp
+ - Filtering and Annotation of variant data
+ - Re-headering of resultant VCF
 
-currently still reliant on a dataproc cluster for the Hail-VEP runtime environment
+Steps are run only where the specified output does not exist
+i.e. the full path to the output file is crucial, and forcing steps to
+re-run currently requires the deletion of previous outputs
 
-compound-het calculations moving to Hail, removing the call to Clinvar
+compound-het calculations moved to Hail, removed requirement for Slivar stage
 """
 
 
@@ -21,14 +27,11 @@ import click
 from cloudpathlib import AnyPath
 import hailtop.batch as hb
 
-from cpg_utils.hail import init_batch, output_path
+from cpg_utils.hail import init_batch, output_path, remote_tmpdir
 
 from query_panelapp import main as panelapp_main
 from hail_filter_and_categorise import main as category_main
 
-
-DEFAULT_IMAGE = os.getenv('CPG_DRIVER_IMAGE')
-assert DEFAULT_IMAGE
 
 # static paths to write outputs
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
@@ -38,7 +41,7 @@ CONFIG_OUT = output_path('config_used.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
 
-# location of the Slivar Docker image
+# location of the CPG BCFTools image
 AR_REPO = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
 BCFTOOLS_TAG = 'bcftools:1.10.2--h4f4756c_2'
 BCFTOOLS_IMAGE = f'{AR_REPO}/{BCFTOOLS_TAG}'
@@ -178,7 +181,7 @@ def main(
 
     service_backend = hb.ServiceBackend(
         billing_project=os.getenv('HAIL_BILLING_PROJECT'),
-        bucket=os.getenv('HAIL_BUCKET'),
+        remote_tmpdir=remote_tmpdir(),
     )
 
     # read ped and config files as a local batch resource

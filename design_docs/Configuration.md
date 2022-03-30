@@ -13,7 +13,7 @@ settings
 * gnomad_dominant - the max gnomad population AF permitted for Mono-allelic disease
 * gnomad_max_homs_dominant - max number of Homs in Gnomad for Mono-allelic disease
 * gnomad_max_homs_recessive - max number of Homs in Gnomad for Bi-allelic disease
-* gnomad_max_homs_recessive - max number of variants in Gnomad for Mono-allelic disease
+* gnomad_max_ac_dominant - max number of variants in Gnomad for Mono-allelic disease
 * category_2_new_only - analysis flag, if True the category 2 check will only consider where a gene is new in the PanelApp data (i.e. the more granular check of green genes with update MOI is not done)
 
 ## `variant_object`
@@ -30,8 +30,6 @@ CSQ_STRING is used in 3 separate places:
 3. in downstream analysis to digest the CSQ content
 
 * csq_string - |-delimited series of values, describing the content in the CSQ field
-* var_info_keep - values from the VCF variant INFO field which will be kept. This will be replaced with more generic
-logic, so that the fields don't need to be enumerated in config, which feels brittle.
 
 ## `filter`
 
@@ -40,7 +38,7 @@ default settings are primarily based on a clinical-team provided specification, 
 
 * af_semi_rare - a minimum AF threshold to be applied to all variants
 * min_samples_to_ac_filter - minimum number of samples in the joint-call in order to apply common-in-cohort filter
-* ac_threshold - where the joint-call filter is applied, remove all variants more common than this in the callset
+* ac_threshold - where the joint-call filter is applied, remove all variants where the joint-call AC/AD (variant calls/total alleles) is above this value (default cut-off is AC >= 10%)
 * ref_genome - ref_genome
 * useless_csq - list of VEP consequences filtered out prior to classification steps
 * critical_csq - list of VEP consequences treated as high priority/high impact
@@ -51,4 +49,4 @@ default settings are primarily based on a clinical-team provided specification, 
 This section relates to the rubbish HTML document created as output. To be discontinued ASAP
 
 * seqr_lookup - location of a cache file containing the CPG_ID: SEQR_family_ID mapping
-* colours - Hex codes for text colours in the final HTML document
+* colors - Hex codes for text colours in the final HTML document
