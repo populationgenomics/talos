@@ -20,7 +20,7 @@ repos:
     args: ['--config', '.markdownlint.json']
 
 - repo: https://github.com/ambv/black
-  rev: 20.8b1
+  rev: 22.3.0
   hooks:
   - id: black
 
