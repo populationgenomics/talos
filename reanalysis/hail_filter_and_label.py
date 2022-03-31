@@ -308,11 +308,11 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
             reference_genome='GRCh38'
         ),
         alleles=['GC', 'G'],
-        class_4_only=0
+        category_4_only=0
     )
 
     transform into simplified 1-10-GC-G
-    drop the class_4_only attribute
+    drop the category_4_only attribute
     :param locus_details:
     :return:
     """
@@ -344,7 +344,7 @@ def extract_comp_het_details(
     """
 
     # set a new group of values as the key, so that we can collect on them easily
-    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.class_4_only)
+    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.category_4_only)
     ch_matrix = ch_matrix.annotate_cols(
         hets=hl.agg.group_by(
             ch_matrix.info.gene_id,
@@ -371,7 +371,7 @@ def extract_comp_het_details(
                 print(var1, var2)
 
                 # skip if both are class 4 only - not valuable pairing
-                if var1.class_4_only == 1 and var2.class_4_only == 1:
+                if var1.category_4_only == 1 and var2.category_4_only == 1:
                     continue
 
                 # pair the string transformation
