@@ -790,9 +790,9 @@ def main(
     # choose some logical way of repartitioning
     logging.info('Repartition fragments following Gene ID filter')
     # informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
-    print(f'running blind repartition; 50 partitions on {matrix.count_rows()} rows')
-    matrix = matrix.repartition(n_partitions=50, shuffle=True)
-    matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+    # print(f'running blind repartition; 50 partitions on {matrix.count_rows()} rows')
+    # matrix = matrix.repartition(n_partitions=50, shuffle=True)
+    # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
 
     # add Classes to the MT
     logging.info('Applying categories to variant consequences')
