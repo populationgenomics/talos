@@ -7,13 +7,22 @@ which may be shared across reanalysis components
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass, is_dataclass
 from csv import DictReader
-from functools import cache
 import json
 import re
+import sys
 
 import cyvcf2
 from cloudpathlib import AnyPath
 from cyvcf2 import Variant
+
+# modify how to import cache based on the system python
+v_info = sys.version_info
+if v_info.major != 3:
+    raise Exception('Come on, use Python3')
+if v_info.minor < 9:
+    from functools import lru_cache as cache
+else:
+    from functools import cache
 
 # sample: gene: variant: [partner_variant, ...]
 CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]

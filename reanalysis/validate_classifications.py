@@ -16,13 +16,14 @@ import json
 import logging
 from argparse import ArgumentParser
 from typing import Any, Dict, List, Union
-from functools import cache
+
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
     AnalysisVariant,
+    cache,
     canonical_contigs_from_vcf,
     CompHetDict,
     CustomEncoder,

@@ -98,23 +98,18 @@ def handle_reheader_job(
     batch: hb.Batch,
     local_vcf: str,
     config_dict: Dict[str, Any],
-    prior_job: Optional[hb.batch.job.BashJob] = None,
 ) -> hb.batch.job.BashJob:
     """
     runs the bcftools re-header process
     :param batch:
     :param local_vcf:
     :param config_dict:
-    :param prior_job:
     :return:
     """
 
     bcft_job = batch.new_job(name='bcftools_reheader_stage')
     set_job_resources(bcft_job)
     bcft_job.image(BCFTOOLS_IMAGE)
-
-    if prior_job is not None:
-        bcft_job.depends_on(prior_job)
 
     bcft_job.declare_resource_group(
         vcf={'vcf': '{root}.vcf.bgz', 'vcf.tbi': '{root}.vcf.bgz.tbi'}
@@ -201,13 +196,14 @@ def main(
     # ----------------------- #
     # run hail categorisation #
     # ----------------------- #
-    # permit continuity if the hail job isn't required
-    prior_job = None
 
     # only run if the output VCF doesn't already exist
     if not AnyPath(REHEADERED_OUT).exists():
+        logging.info('The Reheadered VCF doesn\'t exist; regenerating')
 
         if not AnyPath(HAIL_VCF_OUT).exists():
+            logging.info('The Categorised VCF doesn\'t exist; regenerating')
+
             # do we need to run the full annotation stage?
             if not AnyPath(matrix_path.rstrip('/') + '/').exists():
                 raise Exception(
@@ -241,7 +237,6 @@ def main(
             batch=reheader_batch,
             local_vcf=hail_output_in_batch['vcf'],
             config_dict=config_dict,
-            prior_job=prior_job,
         )
         reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
         # run the batch, and wait, so that the result metadata updates
