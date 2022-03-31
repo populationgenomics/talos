@@ -177,7 +177,7 @@ def handle_reheader_job(
     set_job_resources(bcft_job, image=BCFTOOLS_IMAGE, prior_job=prior_job)
 
     bcft_job.declare_resource_group(
-        vcf={'vcf': '{root}.vcf.bgz', 'vcf.tbi': '{root}.vcf.bgz.tbi'}
+        vcf={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'}
     )
 
     # reheader the VCF using BCFtools and sed
@@ -195,8 +195,8 @@ def handle_reheader_job(
         'set -ex; '
         f'bcftools view -h {local_vcf} | sed \'s/'
         f'{desc}">/{desc}{new_format}">/\' > new_header; '
-        f'{b_rh} -h new_header --threads 4 -o {bcft_job.vcf["vcf"]} {local_vcf}; '
-        f'tabix {bcft_job.vcf["vcf"]}; '
+        f'{b_rh} -h new_header --threads 4 -o {bcft_job.vcf["vcf.bgz"]} {local_vcf}; '
+        f'tabix {bcft_job.vcf["vcf.bgz"]}; '
     )
     return bcft_job
 
