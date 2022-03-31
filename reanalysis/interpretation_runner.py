@@ -221,7 +221,7 @@ def handle_results_job(
     results_job = batch.new_job(name='finalise_results')
     set_job_resources(results_job, git=True, prior_job=prior_job)
     results_command = (
-        'pip install -y cyvcf2==0.30.14 && '
+        'pip install cyvcf2==0.30.14 && '
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
         f'--comp_het {comp_het} '
