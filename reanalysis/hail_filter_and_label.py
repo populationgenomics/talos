@@ -731,6 +731,8 @@ def main(
     :param mt_tmp:
     """
 
+    print(mt_tmp)
+
     # initiate Hail with default reference
     init_batch()
 
@@ -771,8 +773,8 @@ def main(
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
-    # checkpoint after applying all these operations
-    matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+    # # checkpoint after applying all these operations
+    # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
@@ -790,8 +792,8 @@ def main(
     # choose some logical way of repartitioning
     logging.info('Repartition fragments following Gene ID filter')
     # informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
-    # print(f'running blind repartition; 50 partitions on {matrix.count_rows()} rows')
-    # matrix = matrix.repartition(n_partitions=50, shuffle=True)
+    print(f'running blind repartition; 50 partitions on {matrix.count_rows()} rows')
+    matrix = matrix.repartition(n_partitions=50, shuffle=True)
     # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
 
     # add Classes to the MT
