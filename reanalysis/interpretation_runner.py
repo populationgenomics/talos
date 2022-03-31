@@ -40,6 +40,7 @@ PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_comp_het.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
+REHEADERED_PREFIX = output_path('hail_categories_reheadered')
 MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
 RESULTS_JSON = output_path('summary_results.json')
 
@@ -299,10 +300,14 @@ def main(
     # ----------------------- #
     # only run if the output VCF doesn't already exist
     if not AnyPath(REHEADERED_OUT).exists():
-        logging.info('The Reheadered VCF doesn\'t exist; regenerating')
+        logging.info(
+            f'The Reheadered VCF "{REHEADERED_OUT}" doesn\'t exist; regenerating'
+        )
 
         if not AnyPath(HAIL_VCF_OUT).exists():
-            logging.info('The Categorised VCF doesn\'t exist; regenerating')
+            logging.info(
+                f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating'
+            )
 
             # do we need to run the full annotation stage?
             if not AnyPath(matrix_path.rstrip('/') + '/').exists():
@@ -324,7 +329,7 @@ def main(
         # --------------------------------- #
         # copy the labelled output file into the remaining batch jobs
         hail_output_in_batch = batch.read_input_group(
-            **{'vcf': HAIL_VCF_OUT, 'vcf.tbi': HAIL_VCF_OUT + '.tbi'}
+            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
         )
 
         # this is no longer explicitly required...
@@ -336,7 +341,7 @@ def main(
             config_dict=config_dict,
             prior_job=prior_job,
         )
-        batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
+        batch.write_output(bcftools_job.vcf, REHEADERED_PREFIX)
         reheadered_vcf_in_batch = bcftools_job.vcf['vcf']
 
     # if it exists remotely, read into a batch
