@@ -337,19 +337,19 @@ def main(
         # keeping in to ensure the VCF can be interpreted without the config
         bcftools_job = handle_reheader_job(
             batch=batch,
-            local_vcf=hail_output_in_batch['vcf'],
+            local_vcf=hail_output_in_batch['vcf.bgz'],
             config_dict=config_dict,
             prior_job=prior_job,
         )
         batch.write_output(bcftools_job.vcf, REHEADERED_PREFIX)
-        reheadered_vcf_in_batch = bcftools_job.vcf['vcf']
+        reheadered_vcf_in_batch = bcftools_job.vcf['vcf.bgz']
 
     # if it exists remotely, read into a batch
     else:
         vcf_in_batch = batch.read_input_group(
-            **{'vcf': REHEADERED_OUT, 'vcf.tbi': REHEADERED_OUT + '.tbi'}
+            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
         )
-        reheadered_vcf_in_batch = vcf_in_batch['vcf']
+        reheadered_vcf_in_batch = vcf_in_batch['vcf.bgz']
 
     # use compound-hets and labelled VCF to identify plausibly pathogenic
     # variants where the MOI is viable compared to the PanelApp expectation
