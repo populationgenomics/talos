@@ -187,11 +187,6 @@ def main(
         remote_tmpdir=remote_tmpdir(),
     )
 
-    # read ped and config files as a local batch resource
-    # satisfy pylint until we use this in code
-    # print(ped_file)
-    # ped_in_batch = batch.read_input(ped_file)
-
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
@@ -210,59 +205,59 @@ def main(
     prior_job = None
 
     # only run if the output VCF doesn't already exist
-    if not AnyPath(HAIL_VCF_OUT).exists():
+    if not AnyPath(REHEADERED_OUT).exists():
 
-        # do we need to run the full annotation stage?
-        if not AnyPath(matrix_path.rstrip('/') + '/').exists():
-            raise Exception(
-                f'Currently this process demands an annotated '
-                f'MatrixTable. The provided path "{matrix_path}" '
-                f'does not exist or is inaccessible'
-            )
+        if not AnyPath(HAIL_VCF_OUT).exists():
+            # do we need to run the full annotation stage?
+            if not AnyPath(matrix_path.rstrip('/') + '/').exists():
+                raise Exception(
+                    f'Currently this process demands an annotated '
+                    f'MatrixTable. The provided path "{matrix_path}" '
+                    f'does not exist or is inaccessible'
+                )
 
-        handle_hail_filtering(matrix_path=matrix_path, config=config_json)
+            handle_hail_filtering(matrix_path=matrix_path, config=config_json)
 
-    # --------------------------------- #
-    # bcftools re-headering of hail VCF #
-    # --------------------------------- #
-    reheader_batch = hb.Batch(
-        name='run_BCFTools (re-header)',
-        backend=service_backend,
-        cancel_after_n_failures=1,
-    )
-    # copy the Hail output file into the remaining batch jobs
-    hail_output_in_batch = reheader_batch.read_input_group(
-        **{'vcf': HAIL_VCF_OUT, 'vcf.tbi': HAIL_VCF_OUT + '.tbi'}
-    )
+        # --------------------------------- #
+        # bcftools re-headering of hail VCF #
+        # --------------------------------- #
+        reheader_batch = hb.Batch(
+            name='run_BCFTools (re-header)',
+            backend=service_backend,
+            cancel_after_n_failures=1,
+        )
+        # copy the Hail output file into the remaining batch jobs
+        hail_output_in_batch = reheader_batch.read_input_group(
+            **{'vcf': HAIL_VCF_OUT, 'vcf.tbi': HAIL_VCF_OUT + '.tbi'}
+        )
 
-    # this is no longer explicitly required...
-    # it was required to run slivar: geneId, consequences, and transcript
-    # if we can avoid using slivar for comp-hets, this isn't required
-    # when extracting the consequences in python we can use the config string
-    # this would mean the VCF is mostly useless when separated from the
-    # config file... retain for now at least
-    bcftools_job = handle_reheader_job(
-        batch=reheader_batch,
-        local_vcf=hail_output_in_batch['vcf'],
-        config_dict=config_dict,
-        prior_job=prior_job,
-    )
-    reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
+        # this is no longer explicitly required...
+        # it was required to run slivar: geneId, consequences, and transcript
+        # if we can avoid using slivar for comp-hets, this isn't required
+        # when extracting the consequences in python we can use the config string
+        # this would mean the VCF is mostly useless when separated from the
+        # config file... retain for now at least
+        bcftools_job = handle_reheader_job(
+            batch=reheader_batch,
+            local_vcf=hail_output_in_batch['vcf'],
+            config_dict=config_dict,
+            prior_job=prior_job,
+        )
+        reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
+        # run the batch, and wait, so that the result metadata updates
+        reheader_batch.run(wait=True)
 
     # now utilise the compound-hets and categorised variant VCF to identify
     # plausibly pathogenic variants where the MOI is viable compared to the
     # PanelApp expectation
     validate_main(
-        class_vcf=HAIL_VCF_OUT,
+        class_vcf=REHEADERED_OUT,
         comp_het=COMP_HET_JSON,
         config_path=config_dict,
         out_json=RESULTS_JSON,
         panelapp=PANELAPP_JSON_OUT,
         pedigree=pedigree,
     )
-
-    # run the batch, and wait, so that the result metadata updates
-    reheader_batch.run(wait=True)
 
 
 if __name__ == '__main__':
