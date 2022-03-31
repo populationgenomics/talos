@@ -787,8 +787,9 @@ def main(
     # choose some logical way of repartitioning
     logging.info('Repartition fragments following Gene ID filter')
     # informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
-    print(f'running blind repartition, would use "{mt_tmp}"')
+    print(f'running blind repartition; 50 partitions on {matrix.count_rows()} rows')
     matrix = matrix.repartition(n_partitions=50, shuffle=True)
+    matrix = matrix.checkpoint(mt_tmp, overwrite=True)
 
     # add Classes to the MT
     logging.info('Applying categories to variant consequences')
@@ -801,6 +802,11 @@ def main(
     logging.info('Filter variants to leave only classified')
     matrix = filter_to_categorised(matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
+
+    # another little repartition after heavy filtering
+    print(f'running blind repartition; 20 partitions on {matrix.count_rows()} rows')
+    matrix = matrix.repartition(n_partitions=20, shuffle=True)
+    matrix = matrix.checkpoint(mt_tmp, overwrite=True)
 
     # add an additional annotation, if the variant is Category4 only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
