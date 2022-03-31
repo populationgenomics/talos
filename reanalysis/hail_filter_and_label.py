@@ -806,10 +806,10 @@ def main(
     matrix = filter_to_categorised(matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
-    # another little repartition after heavy filtering
-    print(f'running blind repartition; 20 partitions on {matrix.count_rows()} rows')
-    matrix = matrix.repartition(n_partitions=20, shuffle=True)
-    matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+    # # another little repartition after heavy filtering
+    # print(f'running blind repartition; 20 partitions on {matrix.count_rows()} rows')
+    # matrix = matrix.repartition(n_partitions=20, shuffle=True)
+    # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
 
     # add an additional annotation, if the variant is Category4 only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
