@@ -731,6 +731,9 @@ def main(
     :param mt_tmp:
     """
 
+    # initiate Hail with default reference
+    init_batch()
+
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
     with open(AnyPath(config_path), encoding='utf-8') as handle:
@@ -750,8 +753,6 @@ def main(
     logging.info(
         f'Starting Hail with reference genome "{hail_config.get("ref_genome")}"'
     )
-    # initiate Hail with the specified reference
-    hl.init(default_reference=hail_config.get('ref_genome'), quiet=True)
 
     # if we already generated the annotated output, load instead
     if not AnyPath(mt_input.rstrip('/') + '/').exists():
@@ -874,7 +875,6 @@ if __name__ == '__main__':
         help='path to a temporary write location',
     )
     args = parser.parse_args()
-    init_batch()
     main(
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
