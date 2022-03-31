@@ -27,6 +27,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cloudpathlib import AnyPath
+from cpg_utils.hail import init_batch
 
 
 # set some Hail constants
@@ -873,7 +874,7 @@ if __name__ == '__main__':
         help='path to a temporary write location',
     )
     args = parser.parse_args()
-
+    init_batch()
     main(
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,

@@ -236,7 +236,7 @@ def clean_initial_results(
 
 
 def main(
-    class_vcf: str,
+    labelled_vcf: str,
     comp_het: str,
     config_path: Union[str, Dict[str, Any]],
     out_json: str,
@@ -268,7 +268,7 @@ def main(
             we need to check the presence/absence of a pair of variants in unaffected
             family members
 
-    :param class_vcf:
+    :param labelled_vcf:
     :param comp_het:
     :param config_path:
     :param out_json:
@@ -305,7 +305,7 @@ def main(
 
     # find classification events
     results = apply_moi_to_variants(
-        classified_variant_source=class_vcf,
+        classified_variant_source=labelled_vcf,
         moi_lookup=moi_lookup,
         panelapp_data=panelapp_data,
         config=config_dict,
@@ -335,7 +335,7 @@ if __name__ == '__main__':
     parser.add_argument('--out_json', help='Path to write JSON results to')
     args = parser.parse_args()
     main(
-        class_vcf=args.class_vcf,
+        labelled_vcf=args.class_vcf,
         comp_het=args.comp_het,
         config_path=args.config_path,
         out_json=args.out_json,

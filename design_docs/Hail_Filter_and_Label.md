@@ -2,7 +2,7 @@
 
 This stage of the workflow uses hail query to load, annotate, and apply provisional categories to variants.
 
-[hail_filter_and_categorise.py](../reanalysis/hail_filter_and_categorise.py)
+[hail_filter_and_categorise.py](../reanalysis/hail_filter_and_label.py)
 
 ## Stage Details
 

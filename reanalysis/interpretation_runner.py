@@ -27,11 +27,12 @@ import click
 from cloudpathlib import AnyPath
 import hailtop.batch as hb
 
-from cpg_utils.hail import init_batch, output_path, remote_tmpdir
-
-from query_panelapp import main as panelapp_main
-from hail_filter_and_categorise import main as category_main
-from validate_classifications import main as validate_main
+from analysis_runner.git import (
+    prepare_git_job,
+    get_repo_name_from_current_directory,
+    get_git_commit_ref_of_current_repository,
+)
+from cpg_utils.hail import image_path, output_path, remote_tmpdir
 
 
 # static paths to write outputs
@@ -42,13 +43,14 @@ REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
 RESULTS_JSON = output_path('summary_results.json')
 
-# location of the CPG BCFTools image - to be removed with new cpg-utils package
-AR_REPO = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
-BCFTOOLS_TAG = 'bcftools:1.10.2--h4f4756c_2'
-BCFTOOLS_IMAGE = f'{AR_REPO}/{BCFTOOLS_TAG}'
+# location of the CPG BCFTools image
+BCFTOOLS_IMAGE = image_path('bcftools:1.10.2--h4f4756c_2')
+DEFAULT_IMAGE = os.getenv('CPG_DRIVER_IMAGE')
+assert DEFAULT_IMAGE
 
 # local script references
-HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_categorise.py')
+HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
+QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 DATAPROC_SETUP_SCRIPTS = [
     'gs://cpg-reference/hail_dataproc/install_common.sh',
@@ -65,51 +67,113 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
         return json.load(handle)
 
 
-def set_job_resources(job: Union[hb.batch.job.BashJob, hb.batch.job.Job]):
+def set_job_resources(
+    job: Union[hb.batch.job.BashJob, hb.batch.job.Job],
+    git=False,
+    image: Optional[str] = None,
+    prior_job: Optional[hb.batch.job.Job] = None,
+):
     """
     applied resources to the job
-    :param job: apply resources to _this_ job
+    :param job:
+    :param git:
+    :param image:
+    :param prior_job:
     """
     job.cpu(2)
     job.memory('standard')
     job.storage('20G')
+    if prior_job is not None:
+        job.depends_on(prior_job)
+
+    job.image(image or DEFAULT_IMAGE)
+    if git:
+        # copy the relevant scripts into a Driver container instance
+        prepare_git_job(
+            job=job,
+            repo_name=get_repo_name_from_current_directory(),
+            commit=get_git_commit_ref_of_current_repository(),
+        )
 
 
-def handle_hail_filtering(matrix_path: str, config: str):
+def handle_panelapp_job(
+    batch: hb.Batch,
+    gene_list: Optional[str],
+    prev_version: Optional[str],
+    prior_job: Optional[hb.batch.job.Job] = None,
+) -> hb.batch.job.Job:
+    """
+
+    :param batch:
+    :param gene_list:
+    :param prev_version:
+    :param prior_job:
+    """
+    panelapp_job = batch.new_job(name='query panelapp')
+    set_job_resources(panelapp_job, git=True, prior_job=prior_job)
+    panelapp_command = (
+        f'python3 {QUERY_PANELAPP} --panel_id 137 --out_path {PANELAPP_JSON_OUT} '
+    )
+    if gene_list is not None:
+        panelapp_command += f'--gene_list {gene_list} '
+    elif prev_version is not None:
+        panelapp_command += f'--previous_version {prev_version} '
+
+    logging.info(f'PanelApp Command: {panelapp_command}')
+    panelapp_job.command(panelapp_command)
+    return panelapp_job
+
+
+def handle_hail_filtering(
+    batch: hb.Batch,
+    matrix_path: str,
+    config: str,
+    prior_job: Optional[hb.batch.job.Job] = None,
+) -> hb.batch.job.BashJob:
     """
     hail-query backend version of the filtering implementation
     use the init query service instead of running inside dataproc
 
+    :param batch:
     :param matrix_path: path to annotated matrix table
-    :param config: can this be used as a dict if already loaded?
+    :param config:
+    :param prior_job:
     :return:
     """
-    init_batch()
-    category_main(
-        mt_input=matrix_path,
-        mt_tmp=MT_TMP,
-        config_path=config,
-        panelapp_path=PANELAPP_JSON_OUT,
-        out_vcf=HAIL_VCF_OUT,
+
+    labelling_job = batch.new_job(name='query panelapp')
+    set_job_resources(labelling_job, git=True, prior_job=prior_job)
+    labelling_command = (
+        f'python3 {HAIL_FILTER} '
+        f'--mt_input {matrix_path} '
+        f'--panelapp_path {PANELAPP_JSON_OUT} '
+        f'--config_path {config} '
+        f'--out_vcf {HAIL_VCF_OUT} '
+        f'--mt_tmp {MT_TMP}'
     )
+
+    logging.info(f'PanelApp Command: {labelling_command}')
+    labelling_job.command(labelling_command)
+    return labelling_job
 
 
 def handle_reheader_job(
     batch: hb.Batch,
     local_vcf: str,
     config_dict: Dict[str, Any],
+    prior_job: Optional[hb.batch.job.Job] = None,
 ) -> hb.batch.job.BashJob:
     """
     runs the bcftools re-header process
     :param batch:
     :param local_vcf:
     :param config_dict:
+    :param prior_job:
     :return:
     """
 
     bcft_job = batch.new_job(name='bcftools_reheader_stage')
-    set_job_resources(bcft_job)
-    bcft_job.image(BCFTOOLS_IMAGE)
+    set_job_resources(bcft_job, image=BCFTOOLS_IMAGE, prior_job=prior_job)
 
     bcft_job.declare_resource_group(
         vcf={'vcf': '{root}.vcf.bgz', 'vcf.tbi': '{root}.vcf.bgz.tbi'}
@@ -134,6 +198,41 @@ def handle_reheader_job(
         f'tabix {bcft_job.vcf["vcf"]}; '
     )
     return bcft_job
+
+
+def handle_results_job(
+    batch: hb.Batch,
+    config: str,
+    comp_het: str,
+    reheadered_vcf: str,
+    pedigree: str,
+    prior_job: Optional[hb.batch.job.Job] = None,
+) -> hb.batch.job.Job:
+    """
+
+    :param batch:
+    :param config:
+    :param comp_het:
+    :param reheadered_vcf:
+    :param pedigree:
+    :param prior_job:
+    :return:
+    """
+    results_job = batch.new_job(name='finalise_results')
+    set_job_resources(results_job, git=True, prior_job=prior_job)
+    results_command = (
+        'pip install -y cyvcf2==0.30.14 && '
+        f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
+        f'--config_path {config} '
+        f'--comp_het {comp_het} '
+        f'--class_vcf {reheadered_vcf} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--pedigree {pedigree} '
+        f'--out_json {RESULTS_JSON} '
+    )
+    logging.info(f'Results command: {results_command}')
+    results_job.command(results_command)
+    return results_job
 
 
 @click.command()
@@ -181,22 +280,23 @@ def main(
         billing_project=os.getenv('HAIL_BILLING_PROJECT'),
         remote_tmpdir=remote_tmpdir(),
     )
+    batch = hb.Batch(
+        name='run reanalysis (AIP)',
+        backend=service_backend,
+        cancel_after_n_failures=1,
+    )
 
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
     # no need to launch in a separate batch, minimal dependencies
-    panelapp_main(
-        panel_id='137',
-        out_path=PANELAPP_JSON_OUT,
-        previous_version=panelapp_version,
-        gene_list=panel_genes,
+    prior_job = handle_panelapp_job(
+        batch=batch, gene_list=panel_genes, prev_version=panelapp_version
     )
 
     # ----------------------- #
     # run hail categorisation #
     # ----------------------- #
-
     # only run if the output VCF doesn't already exist
     if not AnyPath(REHEADERED_OUT).exists():
         logging.info('The Reheadered VCF doesn\'t exist; regenerating')
@@ -212,47 +312,51 @@ def main(
                     f'does not exist or is inaccessible'
                 )
 
-            handle_hail_filtering(matrix_path=matrix_path, config=config_json)
+            prior_job = handle_hail_filtering(
+                batch=batch,
+                matrix_path=matrix_path,
+                config=config_json,
+                prior_job=prior_job,
+            )
 
         # --------------------------------- #
         # bcftools re-headering of hail VCF #
         # --------------------------------- #
-        reheader_batch = hb.Batch(
-            name='run_BCFTools (re-header)',
-            backend=service_backend,
-            cancel_after_n_failures=1,
-        )
-        # copy the Hail output file into the remaining batch jobs
-        hail_output_in_batch = reheader_batch.read_input_group(
+        # copy the labelled output file into the remaining batch jobs
+        hail_output_in_batch = batch.read_input_group(
             **{'vcf': HAIL_VCF_OUT, 'vcf.tbi': HAIL_VCF_OUT + '.tbi'}
         )
 
         # this is no longer explicitly required...
         # it was required to run slivar: geneId, consequences, and transcript
-        # if we can avoid using slivar for comp-hets, this isn't required
-        # when extracting the consequences in python we can use the config string
-        # this would mean the VCF is mostly useless when separated from the
-        # config file... retain for now at least
+        # keeping in to ensure the VCF can be interpreted without the config
         bcftools_job = handle_reheader_job(
-            batch=reheader_batch,
+            batch=batch,
             local_vcf=hail_output_in_batch['vcf'],
             config_dict=config_dict,
+            prior_job=prior_job,
         )
-        reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
-        # run the batch, and wait, so that the result metadata updates
-        reheader_batch.run(wait=True)
+        batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
+        reheadered_vcf_in_batch = bcftools_job.vcf['vcf']
 
-    # now utilise the compound-hets and categorised variant VCF to identify
-    # plausibly pathogenic variants where the MOI is viable compared to the
-    # PanelApp expectation
-    validate_main(
-        class_vcf=REHEADERED_OUT,
+    # if it exists remotely, read into a batch
+    else:
+        vcf_in_batch = batch.read_input_group(
+            **{'vcf': REHEADERED_OUT, 'vcf.tbi': REHEADERED_OUT + '.tbi'}
+        )
+        reheadered_vcf_in_batch = vcf_in_batch['vcf']
+
+    # use compound-hets and labelled VCF to identify plausibly pathogenic
+    # variants where the MOI is viable compared to the PanelApp expectation
+    _results_job = handle_results_job(
+        batch=batch,
+        config=config_json,
         comp_het=COMP_HET_JSON,
-        config_path=config_dict,
-        out_json=RESULTS_JSON,
-        panelapp=PANELAPP_JSON_OUT,
+        reheadered_vcf=reheadered_vcf_in_batch,
         pedigree=pedigree,
+        prior_job=prior_job,
     )
+    batch.run(wait=False)
 
 
 if __name__ == '__main__':

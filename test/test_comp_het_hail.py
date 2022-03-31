@@ -22,7 +22,7 @@ all variants are GC>G
 import hail as hl
 import pandas as pd
 
-from reanalysis.hail_filter_and_categorise import extract_comp_het_details
+from reanalysis.hail_filter_and_label import extract_comp_het_details
 
 
 def test_comp_hets(hail_comp_het):
