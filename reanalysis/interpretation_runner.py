@@ -32,7 +32,7 @@ from analysis_runner.git import (
     get_repo_name_from_current_directory,
     get_git_commit_ref_of_current_repository,
 )
-from cpg_utils.hail import image_path, output_path, remote_tmpdir
+from cpg_utils.hail import copy_common_env, image_path, output_path, remote_tmpdir
 
 
 # static paths to write outputs
@@ -142,7 +142,7 @@ def handle_hail_filtering(
     :return:
     """
 
-    labelling_job = batch.new_job(name='query panelapp')
+    labelling_job = batch.new_job(name='hail filtering')
     set_job_resources(labelling_job, git=True, prior_job=prior_job)
     labelling_command = (
         f'python3 {HAIL_FILTER} '
@@ -155,6 +155,7 @@ def handle_hail_filtering(
 
     logging.info(f'PanelApp Command: {labelling_command}')
     labelling_job.command(labelling_command)
+    copy_common_env(labelling_job)
     return labelling_job
 
 
