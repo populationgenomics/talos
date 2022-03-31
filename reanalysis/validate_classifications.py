@@ -1,15 +1,22 @@
 """
 runs between classification and publishing results
-takes 2 VCFs: classes and compound hets
+takes a number of inputs:
+    - Classified VCF
+    - JSON describing the present compound-het pairs
+    - PanelApp data
+
 reads in all compound het pairs
 reads in all panelapp details
-for each variant in each participant, check MOI
+for each variant in each participant, check MOI in affected
+participants relative to the MOI described in PanelApp
 """
+
+
 import json
 import logging
+from argparse import ArgumentParser
 from typing import Any, Dict, List, Union
 from functools import cache
-import click
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 
@@ -41,12 +48,11 @@ def set_up_inheritance_filters(
 
     {MOI_string: MOI_runner (with a .run() method)}
 
-    The MOI_runner class will use the provided MOI string to
-    select which filters will be appropriate
+    The MOI_runner uses a MOI string to select appropriate filters
 
     All logic regarding how MOI is applied, and which MOIs to
     apply to which PanelApp MOI descriptions is partitioned off into
-    the MOI class. All we need here is a Run() method, that returns
+    the MOI classes. All we need here is a Run() method, that returns
     either a list of results, or an empty list
 
     for every variant, we can then do a simple lookup using this
@@ -175,6 +181,10 @@ def apply_moi_to_variants(
             if variant.class_4_only or not variant.is_classified:
                 continue
 
+            # we've decided to run MOI tests on this variant
+            # - find the simplified version of the MOI string
+            # - use it to get the appropriate MOI model
+            # - run the variant, and append relevant classification(s) to the results
             results.extend(
                 moi_lookup[get_simple_moi(panelapp_data[gene].get('moi'))].run(
                     principal_var=variant, ensg=gene
@@ -224,23 +234,13 @@ def clean_initial_results(
     return clean_results
 
 
-@click.command()
-@click.option('--config_path', help='Path to a config JSON file')
-@click.option(
-    '--class_vcf',
-    help='VCF from Hail with variant categories and VEP annotations',
-)
-@click.option('--comp_het', help='JSON containing all comp-het pairings')
-@click.option('--pedigree', help='Pedigree file')
-@click.option('--panelapp', help='PanelApp JSON file')
-@click.option('--out_json', help='Write the analysis results in JSON form')
 def main(
-    config_path: str,
     class_vcf: str,
     comp_het: str,
-    pedigree: str,
-    panelapp: str,
+    config_path: Union[str, Dict[str, Any]],
     out_json: str,
+    panelapp: str,
+    pedigree: str,
 ):
     """
     All VCFs in use at this point will be small
@@ -260,17 +260,19 @@ def main(
 
     these come with incrementing memory footprints...
 
-    preference is for #2; process an entire contig together
+    preference is for #2; process an entire contig together (note, still heavily
+    filtered, so low variant numbers expected)
         - we can look-up the partner variant's attributes in future if we want
         - this will be required when we do familial checks, e.g. for a compound het,
-            we need the pair of variants to be absent in unaffected family members
+            we need to check the presence/absence of a pair of variants in unaffected
+            family members
 
-    :param config_path:
     :param class_vcf:
     :param comp_het:
-    :param pedigree:
-    :param panelapp:
+    :param config_path:
     :param out_json:
+    :param panelapp:
+    :param pedigree:
     """
 
     # parse the pedigree from the file
@@ -280,7 +282,14 @@ def main(
     panelapp_data = read_json_dict_from_path(panelapp)
 
     # get the runtime configuration
-    config_dict = read_json_dict_from_path(config_path)
+    if isinstance(config_path, dict):
+        config_dict = config_path
+    elif isinstance(config_path, str):
+        config_dict = read_json_dict_from_path(config_path)
+    else:
+        raise Exception(
+            f'What is the conf path then?? "{config_path}": {type(config_path)}'
+        )
 
     # find all the Compound Hets from C-H JSON
     comp_het_digest: CompHetDict = read_json_dict_from_path(comp_het)
@@ -312,4 +321,23 @@ def main(
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    main()  # pylint: disable=E1120
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--class_vcf', help='Path to VCF resulting from category labelling process'
+    )
+    parser.add_argument(
+        '--comp_het', help='JSON file containing all compound het variants'
+    )
+    parser.add_argument('--config_path', help='path to the runtime JSON config')
+    parser.add_argument('--pedigree', help='Path to joint-call PED file')
+    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
+    parser.add_argument('--out_json', help='Path to write JSON results to')
+    args = parser.parse_args()
+    main(
+        class_vcf=args.class_vcf,
+        comp_het=args.comp_het,
+        config_path=args.config_path,
+        out_json=args.out_json,
+        panelapp=args.panelapp,
+        pedigree=args.pedigree,
+    )

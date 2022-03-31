@@ -31,17 +31,18 @@ from cpg_utils.hail import init_batch, output_path, remote_tmpdir
 
 from query_panelapp import main as panelapp_main
 from hail_filter_and_categorise import main as category_main
+from validate_classifications import main as validate_main
 
 
 # static paths to write outputs
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_comp_het.json')
-CONFIG_OUT = output_path('config_used.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
+RESULTS_JSON = output_path('summary_results.json')
 
-# location of the CPG BCFTools image
+# location of the CPG BCFTools image - to be removed with new cpg-utils package
 AR_REPO = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
 BCFTOOLS_TAG = 'bcftools:1.10.2--h4f4756c_2'
 BCFTOOLS_IMAGE = f'{AR_REPO}/{BCFTOOLS_TAG}'
@@ -159,11 +160,13 @@ def handle_reheader_job(
     help='location of a Gene list for use in analysis',
     required=False,
 )
+@click.option('--pedigree', help='location of a PED file')
 def main(
     matrix_path: str,
     config_json: str,
     panelapp_version: Optional[str],
     panel_genes: Optional[str],
+    pedigree: str,
 ):
     """
     main method, which runs the full reanalysis process
@@ -172,7 +175,7 @@ def main(
     :param config_json:
     :param panelapp_version:
     :param panel_genes:
-    # :param ped_file:
+    :param pedigree:
     """
 
     logging.info('Starting the reanalysis batch')
@@ -245,6 +248,18 @@ def main(
         prior_job=prior_job,
     )
     reheader_batch.write_output(bcftools_job.vcf, REHEADERED_OUT)
+
+    # now utilise the compound-hets and categorised variant VCF to identify
+    # plausibly pathogenic variants where the MOI is viable compared to the
+    # PanelApp expectation
+    validate_main(
+        class_vcf=HAIL_VCF_OUT,
+        comp_het=COMP_HET_JSON,
+        config_path=config_dict,
+        out_json=RESULTS_JSON,
+        panelapp=PANELAPP_JSON_OUT,
+        pedigree=pedigree,
+    )
 
     # run the batch, and wait, so that the result metadata updates
     reheader_batch.run(wait=True)

@@ -65,7 +65,7 @@ If this process is opened up in future so that VCFs or alignment data is used, t
    * Consequences unlikely to be impactful or on non-protein-coding transcripts are removed
      * ... followed by removal of any variants with no remaining consequences
 
-5. Apply custom category annotations, as defined in the flowchart above
+5. Apply custom category labels, as defined in the flowchart above
    * All these annotations are provisional, as mode-of-inheritance confirmation is not in Hail (yet)
    * Confirmation of categories is done in a downstream stage
 

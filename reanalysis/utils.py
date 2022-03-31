@@ -20,9 +20,9 @@ CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
 InfoDict = Dict[str, Union[str, Dict[str, str]]]
 PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
 
-COMP_HET_VALUES = ['sample', 'gene', 'id', 'chrom', 'pos', 'ref', 'alt']
-VARIANT_STRING_TEMPLATE = '{}-{}-{}-{}'
-COMP_HET_TEMPLATE = f'{VARIANT_STRING_TEMPLATE}-{{}}'
+COMP_HET_VALUES: List[str] = ['sample', 'gene', 'id', 'chrom', 'pos', 'ref', 'alt']
+VARIANT_STRING_TEMPLATE: str = '{}-{}-{}-{}'
+COMP_HET_TEMPLATE: str = f'{VARIANT_STRING_TEMPLATE}-{{}}'
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -32,9 +32,6 @@ HOMALT: int = 3
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
 
-# contig matching regex
-contig_re = re.compile(r'^(chr)?[1-9XYMT]{1,2}$')
-
 
 def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
     """
@@ -43,6 +40,9 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
     :param reader:
     :return:
     """
+
+    # contig matching regex - remove all HLA/decoy/unknown
+    contig_re = re.compile(r'^(chr)?[1-9XYMT]{1,2}$')
 
     return {
         contig['ID']
@@ -61,39 +61,42 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
 
 
 @cache
-def get_simple_moi(moi: str) -> str:
+def get_simple_moi(panel_app_moi: str) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a reduced
     range of cases which can be easily implemented in RD analysis
     This is required to reduce the complexity of an MVP
     Could become a strict enumeration
 
-    Biallelic: [all, panelapp, moi, equal, to, biallelic]
+    {
+        Biallelic: [all, panelapp, moi, equal, to, biallelic],
+        Monoallelic: [all MOI to be interpreted as monoallelic]
+    }
 
-    :param moi: full PanelApp string
+    :param panel_app_moi: full PanelApp string
     :return: a simplified representation
     """
 
     # default to considering both. NOTE! Many genes have Unknown MOI!
-    panel_app_moi = 'Mono_And_Biallelic'
-    if moi is None or moi == 'Unknown':
+    simple_moi = 'Mono_And_Biallelic'
+    if panel_app_moi is None or panel_app_moi == 'Unknown':
         # exit iteration, all simple moi considered
-        return panel_app_moi
+        return simple_moi
 
     # ideal for match-case, coming to a python 3.10 near you!
-    if moi.startswith('BIALLELIC'):
-        panel_app_moi = 'Biallelic'
-    if moi.startswith('BOTH'):
-        panel_app_moi = 'Mono_And_Biallelic'
-    if moi.startswith('MONO'):
-        panel_app_moi = 'Monoallelic'
-    if moi.startswith('X-LINKED'):
-        if 'biallelic' in moi:
-            panel_app_moi = 'Hemi_Bi_In_Female'
+    if panel_app_moi.startswith('BIALLELIC'):
+        simple_moi = 'Biallelic'
+    if panel_app_moi.startswith('BOTH'):
+        simple_moi = 'Mono_And_Biallelic'
+    if panel_app_moi.startswith('MONO'):
+        simple_moi = 'Monoallelic'
+    if panel_app_moi.startswith('X-LINKED'):
+        if 'biallelic' in panel_app_moi:
+            simple_moi = 'Hemi_Bi_In_Female'
         else:
-            panel_app_moi = 'Hemi_Mono_In_Female'
+            simple_moi = 'Hemi_Mono_In_Female'
 
-    return panel_app_moi
+    return simple_moi
 
 
 @dataclass
