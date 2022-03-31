@@ -771,6 +771,9 @@ def main(
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
+    # checkpoint after applying all these operations
+    matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+
     # filter on row annotations
     logging.info('Filtering Variant rows')
     matrix = filter_rows_for_rare(matrix=matrix, config=hail_config)
