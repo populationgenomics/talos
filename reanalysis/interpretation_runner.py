@@ -41,6 +41,7 @@ HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_comp_het.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
+MT_OUT_PATH = output_path('hail_105_ac.mt')
 MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
 RESULTS_JSON = output_path('summary_results.json')
 
@@ -238,9 +239,7 @@ def handle_results_job(
 
 
 @click.command()
-@click.option(
-    '--matrix', 'matrix_path', help='variant matrix table to analyse', required=True
-)
+@click.option('--matrix_path', help='variant matrix table to analyse', required=True)
 @click.option(
     '--config_json',
     help='dictionary of runtime settings',
