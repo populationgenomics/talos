@@ -419,7 +419,7 @@ class XDominant(BaseMoi):
         """
         classifications = []
 
-        if principal_var.coords.chrom != 'x':
+        if principal_var.coords.chrom.lower() != 'x':
             logging.error(
                 f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
             )

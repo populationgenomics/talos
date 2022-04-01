@@ -246,10 +246,10 @@ class AnalysisVariant:  # pylint: disable=too-many-instance-attributes
         )
 
         # set the class attributes
-        self.class_1: bool = var.INFO.get('Class1') == 1
-        self.class_2: bool = var.INFO.get('Class2') == 1
-        self.class_3: bool = var.INFO.get('Class3') == 1
-        self.class_4: bool = var.INFO.get('Class4') == 1
+        self.category_1: bool = var.INFO.get('Category1') == 1
+        self.category_2: bool = var.INFO.get('Category2') == 1
+        self.category_3: bool = var.INFO.get('Category3') == 1
+        self.category_4: bool = var.INFO.get('Category4') == 1
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
@@ -265,19 +265,19 @@ class AnalysisVariant:  # pylint: disable=too-many-instance-attributes
         check that the variant has at least one assigned class
         :return:
         """
-        return any([self.class_1, self.class_2, self.class_3, self.class_4])
+        return any([self.category_1, self.category_2, self.category_3, self.category_4])
 
     @property
-    def class_4_only(self) -> bool:
+    def category_4_only(self) -> bool:
         """
         checks that the variant was only class 4
         :return:
         """
-        return self.class_4 and not any(
+        return self.category_4 and not any(
             [
-                self.class_1,
-                self.class_2,
-                self.class_3,
+                self.category_1,
+                self.category_2,
+                self.category_3,
             ]
         )
 

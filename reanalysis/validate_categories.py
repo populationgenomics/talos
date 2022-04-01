@@ -149,6 +149,8 @@ def apply_moi_to_variants(
             )
             contig_variants[analysis_var.coords.string_format] = analysis_var
 
+        logging.info(f'Contig {contig} contained {len(contig_variants)} variants')
+
         # NOTE - if we want details from both sides of a compound het in the
         # MOI check or report details, this lookup gives us a way to access that data
         # For now just iterate over the individual variants
@@ -171,13 +173,13 @@ def apply_moi_to_variants(
             # -
             # if the gene isn't 'new' in PanelApp, remove Class2 flag
             # in future expand to the 'if MOI has changed' logic
-            if variant.class_2 and not panel_gene_data.get('new', False):
-                variant.class_2 = False
+            if variant.category_2 and not panel_gene_data.get('new', False):
+                variant.category_2 = False
 
             # we never use a C4-only variant as a principal variant
             # and we don't consider a variant with no assigned classes
             #   - no classes shouldn't have reached this point
-            if variant.class_4_only or not variant.is_classified:
+            if variant.category_4_only or not variant.is_classified:
                 continue
 
             # we've decided to run MOI tests on this variant
@@ -322,7 +324,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     parser = ArgumentParser()
     parser.add_argument(
-        '--class_vcf', help='Path to VCF resulting from category labelling process'
+        '--labelled_vcf', help='Path to VCF resulting from category labelling process'
     )
     parser.add_argument(
         '--comp_het', help='JSON file containing all compound het variants'
@@ -333,7 +335,7 @@ if __name__ == '__main__':
     parser.add_argument('--out_json', help='Path to write JSON results to')
     args = parser.parse_args()
     main(
-        labelled_vcf=args.class_vcf,
+        labelled_vcf=args.labelled_vcf,
         comp_het=args.comp_het,
         config_path=args.config_path,
         out_json=args.out_json,
