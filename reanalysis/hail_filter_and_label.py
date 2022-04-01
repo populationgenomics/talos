@@ -718,7 +718,11 @@ def informed_repartition(
         temporary_path, overwrite=True
     )
     matrix = hl.read_matrix_table(temporary_path)
-    hl.current_backend().fs.rmtree(tmp_2)
+
+    # # this doesn't seem to work - maybe it needs a more manual deletion
+    # # AnyPath unlink?
+    # hl.current_backend().fs.rmtree(tmp_2)
+
     return matrix
 
     # # repartition with the specified # partitions
