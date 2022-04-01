@@ -3,7 +3,7 @@
 set -ex
 
 # set the date, or provide a default
-PAP_DATE=${1:-"2020-01-01"}
+PAP_DATE=${1:-"2021-09-03"}
 
 # run
 analysis-runner \

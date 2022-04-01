@@ -129,7 +129,7 @@ def parse_ped_simple(ped: str) -> Dict[str, PedPerson]:
     """
 
     ped_dict: Dict[str, PedPerson] = {}
-    with open(ped, 'r', encoding='utf-8') as handle:
+    with open(AnyPath(ped), 'r', encoding='utf-8') as handle:
         for line in DictReader(handle, delimiter='\t'):
 
             # slot in the sample ID and two Booleans
