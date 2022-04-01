@@ -714,7 +714,9 @@ def informed_repartition(
         partitions = current_rows // 100000 or 1
 
     matrix.checkpoint(tmp_2)
-    hl.read_matrix_table(tmp_2, _n_partitions=partitions).write(temporary_path)
+    hl.read_matrix_table(tmp_2, _n_partitions=partitions).write(
+        temporary_path, overwrite=True
+    )
     matrix = hl.read_matrix_table(temporary_path)
     hl.current_backend().fs.rmtree(tmp_2)
     return matrix
