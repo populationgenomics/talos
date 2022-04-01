@@ -228,7 +228,7 @@ def handle_results_job(
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
         f'--comp_het {comp_het} '
-        f'--class_vcf {reheadered_vcf} '
+        f'--labelled_vcf {reheadered_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {RESULTS_JSON} '
