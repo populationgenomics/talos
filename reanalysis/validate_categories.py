@@ -23,7 +23,6 @@ from cyvcf2 import VCFReader
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
     AnalysisVariant,
-    cache,
     canonical_contigs_from_vcf,
     CompHetDict,
     CustomEncoder,
@@ -95,7 +94,6 @@ def set_up_inheritance_filters(
     return moi_dictionary
 
 
-@cache
 def get_moi_from_panelapp(
     panelapp_data: PanelAppDict, gene_name: str
 ) -> Union[Dict[str, str], None]:
