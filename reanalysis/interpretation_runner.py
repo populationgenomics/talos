@@ -38,7 +38,7 @@ from cpg_utils.hail import copy_common_env, image_path, output_path, remote_tmpd
 # static paths to write outputs
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
-COMP_HET_JSON = output_path('hail_comp_het.json')
+COMP_HET_JSON = output_path('hail_categorised.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
