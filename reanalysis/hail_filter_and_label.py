@@ -678,7 +678,10 @@ def green_and_new_from_panelapp(
 
 
 def informed_repartition(
-    matrix: hl.MatrixTable, post_annotation: bool, temporary_path: str
+    matrix: hl.MatrixTable,
+    temporary_path: str,
+    post_annotation: Optional[bool] = None,
+    tiny: Optional[bool] = None,
 ):
     """
     uses an estimate of row size to inform the repartitioning of a MT
@@ -693,23 +696,34 @@ def informed_repartition(
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
 
     :param matrix:
-    :param post_annotation:
     :param temporary_path:
+    :param post_annotation:
+    :param tiny:
     :return: repartitioned matrix
     """
+
+    tmp_2 = temporary_path + '_2'
 
     # calculate partitions, falling back to 1 partition if size is too small
     current_rows = matrix.count_rows()
     if post_annotation:
         partitions = current_rows // 200000 or 1
+    elif tiny:
+        partitions = 10
     else:
         partitions = current_rows // 100000 or 1
 
-    # repartition with the specified # partitions
-    matrix.repartition(n_partitions=partitions, shuffle=True)
+    matrix.checkpoint(tmp_2)
+    hl.read_matrix_table(tmp_2, _n_partitions=partitions).write(temporary_path)
+    matrix = hl.read_matrix_table(temporary_path)
+    hl.current_backend().fs.rmtree(tmp_2)
+    return matrix
 
-    # a quick write to a temp path, and a read from the same
-    return matrix.checkpoint(temporary_path, overwrite=True)
+    # # repartition with the specified # partitions
+    # matrix.repartition(n_partitions=partitions, shuffle=True)
+    #
+    # # a quick write to a temp path, and a read from the same
+    # return matrix.checkpoint(temporary_path, overwrite=True)
 
 
 def main(
@@ -730,8 +744,6 @@ def main(
     :param out_vcf: path to write the VCF out to
     :param mt_tmp:
     """
-
-    print(mt_tmp)
 
     # initiate Hail with default reference
     init_batch()
@@ -774,7 +786,9 @@ def main(
     matrix = extract_annotations(matrix)
 
     # # checkpoint after applying all these operations
-    # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+    matrix = informed_repartition(
+        matrix=matrix, temporary_path=mt_tmp, post_annotation=True
+    )
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
@@ -788,6 +802,8 @@ def main(
     logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
     matrix = filter_by_consequence(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
+
+    matrix = informed_repartition(matrix=matrix, temporary_path=mt_tmp, tiny=True)
 
     # choose some logical way of repartitioning
     # logging.info('Repartition fragments following Gene ID filter')
