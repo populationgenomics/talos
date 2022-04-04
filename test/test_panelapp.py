@@ -67,8 +67,8 @@ def test_gene_list_changes():
 
     with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
         latest = json.load(handle)
-        new_genes = {'ENSG00ABCD'}
-        gene_list_differences(latest, new_genes)
+        previous_genes = {'ENSG00ABCD'}
+        gene_list_differences(latest, previous_genes)
         assert not latest['ENSG00ABCD']['new']
         assert latest['ENSG00IJKL']['new']
 

@@ -178,11 +178,13 @@ def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
     :return: None, updates object in place
     """
     new_genes = 0
-    for gene_content in [
-        content for ensg, content in latest_content.items() if ensg != 'panel_metadata'
+    for ensg, content in [
+        (ensg, content)
+        for ensg, content in latest_content.items()
+        if ensg != 'panel_metadata'
     ]:
-        if gene_content['symbol'] not in previous_genes:
-            gene_content['new'] = True
+        if ensg not in previous_genes:
+            content['new'] = True
             new_genes += 1
     logging.info(f'{new_genes} genes were not present in the gene list')
 
