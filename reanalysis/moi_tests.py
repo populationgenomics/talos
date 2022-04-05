@@ -27,7 +27,7 @@ import logging
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-from reanalysis.utils import AnalysisVariant, CompHetDict, PedPerson, ReportedVariant
+from reanalysis.utils import AbstractVariant, CompHetDict, PedPerson, ReportedVariant
 
 
 # config keys to use for dominant MOI tests
@@ -182,7 +182,7 @@ class BaseMoi:
     @abstractmethod
     def run(
         self,
-        principal_var: AnalysisVariant,
+        principal_var: AbstractVariant,
         ensg: str,
     ) -> List[ReportedVariant]:
         """
@@ -247,7 +247,7 @@ class DominantAutosomal(BaseMoi):
 
     def run(
         self,
-        principal_var: AnalysisVariant,
+        principal_var: AbstractVariant,
         ensg: str,
     ) -> List[ReportedVariant]:
         """
@@ -311,7 +311,7 @@ class RecessiveAutosomal(BaseMoi):
 
     def run(
         self,
-        principal_var: AnalysisVariant,
+        principal_var: AbstractVariant,
         ensg: str,
     ) -> List[ReportedVariant]:
         """
@@ -407,7 +407,7 @@ class XDominant(BaseMoi):
 
     def run(
         self,
-        principal_var: AnalysisVariant,
+        principal_var: AbstractVariant,
         ensg: str,
     ) -> List[ReportedVariant]:
         """
@@ -500,7 +500,7 @@ class XRecessive(BaseMoi):
 
     def run(
         self,
-        principal_var: AnalysisVariant,
+        principal_var: AbstractVariant,
         ensg: str,
     ) -> List[ReportedVariant]:
         """
@@ -614,7 +614,7 @@ class YHemi(BaseMoi):
 
     def run(
         self,
-        principal_var: AnalysisVariant,
+        principal_var: AbstractVariant,
         ensg: str,
     ) -> List[ReportedVariant]:
         """

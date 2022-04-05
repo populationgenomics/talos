@@ -22,7 +22,7 @@ from cyvcf2 import VCFReader
 
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
-    AnalysisVariant,
+    AbstractVariant,
     canonical_contigs_from_vcf,
     CompHetDict,
     CustomEncoder,
@@ -144,7 +144,7 @@ def apply_moi_to_variants(
         # iterate over all variants on this contig and store by unique key
         # if contig has no variants, prints an error and returns []
         for each_variant in variant_source(contig):
-            analysis_var = AnalysisVariant(
+            analysis_var = AbstractVariant(
                 each_variant, samples=vcf_samples, config=config
             )
             contig_variants[analysis_var.coords.string_format] = analysis_var

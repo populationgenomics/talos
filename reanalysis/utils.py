@@ -230,7 +230,7 @@ class Coordinates:
 
 
 @dataclass
-class AnalysisVariant:  # pylint: disable=too-many-instance-attributes
+class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     """
     create a bespoke variant class
     pull all content out of the cyvcf2 object
@@ -282,23 +282,23 @@ class AnalysisVariant:  # pylint: disable=too-many-instance-attributes
         )
 
     @property
-    def class_ints(self) -> List[int]:
+    def category_ints(self) -> List[int]:
         """
         get a list of ints representing the classes present on this variant
         for each numerical class, append that number if the class is present
         """
         return [
             integer
-            for integer, class_bool in enumerate(
+            for integer, category_bool in enumerate(
                 [
-                    self.class_1,
-                    self.class_2,
-                    self.class_3,
-                    self.class_4,
+                    self.category_1,
+                    self.category_2,
+                    self.category_3,
+                    self.category_4,
                 ],
                 1,
             )
-            if class_bool
+            if category_bool
         ]
 
 
@@ -313,7 +313,7 @@ class ReportedVariant:
 
     sample: str
     gene: str
-    var_data: AnalysisVariant
+    var_data: AbstractVariant
     reasons: Set[str]
     supported: bool
     support_vars: Optional[List[str]] = None
