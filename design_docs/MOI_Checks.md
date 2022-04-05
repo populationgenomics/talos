@@ -30,16 +30,18 @@ Static Objects:
 
 Dynamic Objects: AbstractVariant
 
-Each variant in turn is read from the source (VCF) and cast in a custom Class representation. This is for a couple of
-reasons:
+Each variant in turn is read from the source (VCF) and cast in a custom AbstractVariant Class representation. This is
+for a couple of reasons:
 
 1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly different
-representation. This normalises all parsing to a common class, and allows for different sources/parsers to generate a
+representation. This normalises all logic to a common class, and allows for different sources/parsers to generate a
 common format.
 2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to issues
-3. with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily.
+with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so async/await
+structure can be added in at any level.
 
-Read through the VCF, and for each variant create an AbstractVariant representation. This holds the following details:
+We open and read through the VCF, and for each variant create an AbstractVariant representation. This holds the
+following details:
 
 1. A Coordinate object (CHR, POS, REF, ALT)
 2. The INFO content as a flat `key:value` Dictionary
@@ -64,6 +66,7 @@ derivatives each define a single Mode of Inheritance e.g.
 
 - DominantAutosomal - requires a variant to be exceptionally rare, and homozygotes to be absent from population
 databases. All samples with a heterozygous variant call are passed as fitting with the MOI
+
 - XRecessive - Male samples are passed so long as the AF is below a stringent threshold, Female samples must be
 Homozygous or supported in a compound-het
 
@@ -73,11 +76,13 @@ allows multiple filters to be applied for a given MOI string e.g.
 - "BOTH monoallelic and biallelic, autosomal or pseudoautosomal" from PanelApp is easy to interpret as
 2 filters, monoallelic, and biallelic
 - "X-LINKED: hemizygous mutation in males, biallelic mutations in females" for male samples we call a
-DominantMOI alrogithm, for females we call a Recessive Algorithm
+DominantMOI filter, for females we call a Recessive filter
 
 The usage paradigm is:
 
 1. Create an instance of the `MoiRunner`, passing a target MOI string and some configuration parameters
-2. During the setup, the MOI string is used to determine which filters are applied to a filter list
-3. The `MoiRunner` implements a `.run()` method, which takes a single variant and passes through each variant in turn
-4. The result of `.run()` is a list of valid modes of inheritance, each including details of the variant(s), and samples
+2. During the setup, the MOI string is used to determine which filters to add into the filter list
+3. The `MoiRunner` implements a `.run()` method, which takes a single variant and passes through each filter in turn
+4. Where a variant passes all conditions within a filter class, a 'result' object is created
+5. The result of `.run()` is a list of valid modes of inheritance (results), each including details of the variant(s),
+and samples
