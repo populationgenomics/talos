@@ -814,6 +814,9 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
         ),
     )
 
+    # write to MT
+    matrix.write(f'{out_vcf}.mt', overwrite=True)
+
     # parse out the compound het details (after pulling gene_id above)
     comp_het_details = extract_comp_het_details(matrix=matrix)
 
