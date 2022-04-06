@@ -343,6 +343,8 @@ def extract_comp_het_details(
     :param matrix:
     """
 
+    logging.info('Extracting out the compound-het variant pairs')
+
     # set a new group of values as the key, so that we can collect on them easily
     ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.category_4_only)
     ch_matrix = ch_matrix.annotate_cols(
@@ -354,6 +356,8 @@ def extract_comp_het_details(
 
     # extract those possible compound het pairs out as a non-Hail structure
     compound_hets = {}
+
+    logging.info('Collecting all variant pairs')
 
     # iterate over the hail table rows
     # find all variant pair permutations which aren't both class 4
@@ -367,8 +371,6 @@ def extract_comp_het_details(
 
             # assess each possible variant pairing
             for var1, var2 in permutations(variants, 2):
-
-                print(var1, var2)
 
                 # skip if both are class 4 only - not valuable pairing
                 if var1.category_4_only == 1 and var2.category_4_only == 1:
