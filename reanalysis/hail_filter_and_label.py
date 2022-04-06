@@ -721,9 +721,8 @@ def informed_repartition(
     )
     matrix = hl.read_matrix_table(temporary_path)
 
-    # # this doesn't seem to work - maybe it needs a more manual deletion
-    # # AnyPath unlink?
-    # hl.current_backend().fs.rmtree(tmp_2)
+    # delete the full directory tree
+    AnyPath(tmp_2).rmtree()
 
     return matrix
 
