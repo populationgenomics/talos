@@ -752,6 +752,8 @@ def main(
     :param mt_tmp:
     """
 
+    print(mt_tmp)
+
     # initiate Hail with upgraded driver spec.
     init_batch(
         driver_cores=8,
@@ -796,9 +798,10 @@ def main(
     matrix = extract_annotations(matrix)
 
     # # checkpoint after applying all these operations
-    matrix = informed_repartition(
-        matrix=matrix, temporary_path=mt_tmp, post_annotation=True
-    )
+    # matrix = informed_repartition(
+    #     matrix=matrix, temporary_path=mt_tmp, post_annotation=True
+    # )
+    matrix.repartition(n_partitions=200, shuffle=True)
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
@@ -813,7 +816,8 @@ def main(
     matrix = filter_by_consequence(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
-    matrix = informed_repartition(matrix=matrix, temporary_path=mt_tmp, tiny=True)
+    # matrix = informed_repartition(matrix=matrix, temporary_path=mt_tmp, tiny=True)
+    matrix.repartition(n_partitions=70, shuffle=True)
 
     # choose some logical way of repartitioning
     # logging.info('Repartition fragments following Gene ID filter')
