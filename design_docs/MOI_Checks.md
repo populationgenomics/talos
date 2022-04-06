@@ -39,6 +39,7 @@ common format.
 2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to issues
 with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so async/await
 structure can be added in at any level.
+3. Making an abstract object from simple types will lead to simpler unit testing.
 
 We open and read through the VCF, and for each variant create an AbstractVariant representation. This holds the
 following details:
@@ -84,5 +85,5 @@ The usage paradigm is:
 2. During the setup, the MOI string is used to determine which filters to add into the filter list
 3. The `MoiRunner` implements a `.run()` method, which takes a single variant and passes through each filter in turn
 4. Where a variant passes all conditions within a filter class, a 'result' object is created
-5. The result of `.run()` is a list of valid modes of inheritance (results), each including details of the variant(s),
-and samples
+5. The result of `.run()` is a list of valid modes of inheritance (ReportedVariant), each including details of the
+variant(s), and samples

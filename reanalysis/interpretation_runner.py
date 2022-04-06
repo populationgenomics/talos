@@ -74,6 +74,7 @@ def set_job_resources(
     git=False,
     image: Optional[str] = None,
     prior_job: Optional[hb.batch.job.Job] = None,
+    memory: str = 'standard',
 ):
     """
     applied resources to the job
@@ -81,14 +82,14 @@ def set_job_resources(
     :param git:
     :param image:
     :param prior_job:
+    :param memory:
     """
-    job.cpu(2)
-    job.memory('standard')
-    job.storage('20G')
+    # apply all settings
+    job.cpu(2).image(image or DEFAULT_IMAGE).memory(memory).storage('20G')
+
     if prior_job is not None:
         job.depends_on(prior_job)
 
-    job.image(image or DEFAULT_IMAGE)
     if git:
         # copy the relevant scripts into a Driver container instance
         prepare_git_job(
@@ -144,7 +145,7 @@ def handle_hail_filtering(
     """
 
     labelling_job = batch.new_job(name='hail filtering')
-    set_job_resources(labelling_job, git=True, prior_job=prior_job)
+    set_job_resources(labelling_job, git=True, prior_job=prior_job, memory='16Gi')
     labelling_command = (
         f'python3 {HAIL_FILTER} '
         f'--mt_input {matrix_path} '

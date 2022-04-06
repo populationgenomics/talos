@@ -2,8 +2,6 @@
 A number of classes, each representing one Mode of Inheritance
 One class (MoiRunner) to run all the appropriate MOIs on a variant
 
-Conceptually borrowing from the Genomics England tiering approach
-
 Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant,
 e.g. if the MOI is Dominant, we may also be interested in Recessive (?)
@@ -40,7 +38,7 @@ INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom', 'exac_ac_hom'}
 
 def check_for_second_hit(
     first_variant: str, comp_hets: CompHetDict, sample: str, gene: str
-) -> Tuple[bool, Optional[List[str]]]:
+) -> Tuple[bool, List[str]]:
     """
     checks for a second hit partner in this gene
 
@@ -54,21 +52,20 @@ def check_for_second_hit(
     :return:
     """
 
-    response = False, None
+    response = False, []
 
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
         return response
     sample_dict = comp_hets.get(sample)
 
-    # check if this sample-gene combo has any variants listed
-    if gene not in sample_dict:
-        return response
+    # check if this sample-gene combination has listed variants
+    if gene in sample_dict:
 
-    # check if this variant has any listed partners in this gene
-    gene_dict = sample_dict.get(gene)
-    if first_variant in gene_dict:
-        response = True, gene_dict.get(first_variant)
+        # check if this variant has any listed partners in this gene
+        gene_dict = sample_dict.get(gene)
+        if first_variant in gene_dict:
+            response = True, gene_dict.get(first_variant)
 
     return response
 
