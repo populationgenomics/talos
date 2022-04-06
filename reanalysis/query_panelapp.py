@@ -239,7 +239,6 @@ def main(
         logging.info(f'A Gene_List was selected: {gene_list}')
         gene_list_contents = parse_gene_list(gene_list)
         logging.info(f'Length of gene list: {len(gene_list_contents)}')
-        logging.info(gene_list_contents)
         gene_list_differences(panel_dict, gene_list_contents)
 
     # migrate more of this into a method to test
