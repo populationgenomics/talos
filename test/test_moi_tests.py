@@ -3,7 +3,9 @@ pytests relating to the MOI filters
 """
 
 import pytest
-from reanalysis.moi_tests import check_for_second_hit
+from reanalysis.moi_tests import check_for_second_hit  # , MOIRunner
+
+# from reanalysis.utils import PedPerson
 
 
 @pytest.mark.parametrize(
@@ -44,3 +46,10 @@ def test_check_second_hit(first, comp_hets, sample, gene, truth, values):
     assert check_for_second_hit(
         first_variant=first, comp_hets=comp_hets, sample=sample, gene=gene
     ) == (truth, values)
+
+
+def test_moi_runner():
+    """
+
+    :return:
+    """

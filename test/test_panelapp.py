@@ -61,13 +61,13 @@ def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
 
 def test_gene_list_changes():
     """
-    check that a gene list can be used to update
+    check usage of a gene list
     :return:
     """
 
     with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
         latest = json.load(handle)
-        previous_genes = {'ENSG00ABCD'}
+        previous_genes = {'ABCD'}
         gene_list_differences(latest, previous_genes)
         assert not latest['ENSG00ABCD']['new']
         assert latest['ENSG00IJKL']['new']
