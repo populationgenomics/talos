@@ -330,7 +330,7 @@ def main(
         # --------------------------------- #
         # copy the labelled output file into the remaining batch jobs
         hail_output_in_batch = batch.read_input_group(
-            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
+            **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
         )
 
         # this is no longer explicitly required...
@@ -348,7 +348,7 @@ def main(
     # if it exists remotely, read into a batch
     else:
         vcf_in_batch = batch.read_input_group(
-            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
+            **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
         )
         reheadered_vcf_in_batch = vcf_in_batch['vcf.bgz']
 
