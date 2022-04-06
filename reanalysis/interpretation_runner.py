@@ -42,7 +42,6 @@ COMP_HET_JSON = output_path('hail_categorised.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
-MT_TMP = output_path('tmp_hail_table.mt', category='tmp')
 RESULTS_JSON = output_path('summary_results.json')
 
 # location of the CPG BCFTools image
@@ -152,7 +151,6 @@ def handle_hail_filtering(
         f'--panelapp_path {PANELAPP_JSON_OUT} '
         f'--config_path {config} '
         f'--out_vcf {HAIL_VCF_OUT} '
-        f'--mt_tmp {MT_TMP}'
     )
 
     logging.info(f'PanelApp Command: {labelling_command}')

@@ -679,67 +679,30 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, new_gene_set_expression
 
 
-def informed_repartition(
-    matrix: hl.MatrixTable,
-    temporary_path: str,
-    post_annotation: Optional[bool] = None,
-    tiny: Optional[bool] = None,
-):
+def informed_repartition(matrix: hl.MatrixTable):
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
     post-annotation rows are estimated at ~5kB
         - a recursive sys.getsizeof-like guess suggested ~140 Bytes :/
-        - writing a row to text was closer to 20kB :/
-    pre-annotation rows are assumed to be substantially smaller
-    throwing 200k rows into pre-annotation blocks, 100k into post
+        - writing a row to text was closer to 20kB
 
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
 
     :param matrix:
-    :param temporary_path:
-    :param post_annotation:
-    :param tiny:
     :return: repartitioned matrix
     """
 
-    tmp_2 = temporary_path + '_2'
-
     # calculate partitions, falling back to 1 partition if size is too small
     current_rows = matrix.count_rows()
-    if post_annotation:
-        partitions = current_rows // 200000 or 1
-    elif tiny:
-        partitions = 10
-    else:
-        partitions = current_rows // 100000 or 1
+    partitions = current_rows // 200000 or 1
 
-    matrix.checkpoint(tmp_2, overwrite=True)
-    hl.read_matrix_table(tmp_2, _n_partitions=partitions).write(
-        temporary_path, overwrite=True
-    )
-    matrix = hl.read_matrix_table(temporary_path)
-
-    # delete the full directory tree
-    AnyPath(tmp_2).rmtree()
-
-    return matrix
-
-    # # repartition with the specified # partitions
-    # matrix.repartition(n_partitions=partitions, shuffle=True)
-    #
-    # # a quick write to a temp path, and a read from the same
-    # return matrix.checkpoint(temporary_path, overwrite=True)
+    logging.info(f'Re-partitioning {current_rows} into {partitions} partitions')
+    return matrix.repartition(n_partitions=partitions, shuffle=True)
 
 
-def main(
-    mt_input: str,
-    panelapp_path: str,
-    config_path: str,
-    out_vcf: str,
-    mt_tmp: Optional[str] = None,
-):
+def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     """
     Read the MT from disk
     Do filtering and class annotation
@@ -749,10 +712,7 @@ def main(
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
     :param out_vcf: path to write the VCF out to
-    :param mt_tmp:
     """
-
-    print(mt_tmp)
 
     # initiate Hail with upgraded driver spec.
     init_batch(
@@ -798,10 +758,7 @@ def main(
     matrix = extract_annotations(matrix)
 
     # # checkpoint after applying all these operations
-    # matrix = informed_repartition(
-    #     matrix=matrix, temporary_path=mt_tmp, post_annotation=True
-    # )
-    matrix.repartition(n_partitions=200, shuffle=True)
+    matrix = informed_repartition(matrix=matrix)
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
@@ -816,15 +773,8 @@ def main(
     matrix = filter_by_consequence(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
-    # matrix = informed_repartition(matrix=matrix, temporary_path=mt_tmp, tiny=True)
-    matrix.repartition(n_partitions=70, shuffle=True)
-
-    # choose some logical way of repartitioning
-    # logging.info('Repartition fragments following Gene ID filter')
-    # informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
-    # print(f'running blind repartition; 50 partitions on {matrix.count_rows()} rows')
-    # matrix = matrix.repartition(n_partitions=50, shuffle=True)
-    # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+    logging.info('Repartitioning after consequence filtration')
+    matrix = informed_repartition(matrix=matrix)
 
     # add Classes to the MT
     logging.info('Applying categories to variant consequences')
@@ -838,10 +788,8 @@ def main(
     matrix = filter_to_categorised(matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
-    # # another little repartition after heavy filtering
-    # print(f'running blind repartition; 20 partitions on {matrix.count_rows()} rows')
-    # matrix = matrix.repartition(n_partitions=20, shuffle=True)
-    # matrix = matrix.checkpoint(mt_tmp, overwrite=True)
+    # another little repartition after heavy filtering
+    matrix = informed_repartition(matrix=matrix)
 
     # add an additional annotation, if the variant is Category4 only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
@@ -909,17 +857,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--out_vcf', type=str, required=True, help='VCF path to export results'
     )
-    parser.add_argument(
-        '--mt_tmp',
-        required=False,
-        default=None,
-        help='path to a temporary write location',
-    )
     args = parser.parse_args()
     main(
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
         config_path=args.config_path,
         out_vcf=args.out_vcf,
-        mt_tmp=args.mt_tmp,
     )
