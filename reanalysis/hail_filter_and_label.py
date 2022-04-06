@@ -753,8 +753,11 @@ def main(
     :param mt_tmp:
     """
 
-    # initiate Hail with default reference
-    init_batch()
+    # initiate Hail with upgraded driver spec.
+    init_batch(
+        driver_cores=8,
+        driver_memory='highmem',
+    )
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
