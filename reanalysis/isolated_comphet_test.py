@@ -153,5 +153,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         mt_in=args.mt_input,
-        out_json=args.out_vcf,
+        out_json=args.out_json,
     )
