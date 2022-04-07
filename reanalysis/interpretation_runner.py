@@ -53,10 +53,6 @@ assert DEFAULT_IMAGE
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
 QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
-DATAPROC_SETUP_SCRIPTS = [
-    'gs://cpg-reference/hail_dataproc/install_common.sh',
-    'gs://cpg-reference/vep/vep-GRCh38.sh',  # install & configure VEP 105
-]
 
 
 def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
