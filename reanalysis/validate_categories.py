@@ -22,10 +22,10 @@ from cyvcf2 import VCFReader
 
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
-    AbstractVariant,
     canonical_contigs_from_vcf,
     CompHetDict,
     CustomEncoder,
+    gather_gene_dict_from_contig,
     get_simple_moi,
     parse_ped_simple,
     PanelAppDict,
@@ -130,67 +130,55 @@ def apply_moi_to_variants(
 
     results = []
 
+    # open the VCF using a cyvcf2 reader
     variant_source = VCFReader(classified_variant_source)
-    vcf_samples = variant_source.samples
 
     # split here - process each contig separately
     # once the variants are parsed into plain dicts (pickle-able)
     # we could run the MOI tests in parallel
     for contig in canonical_contigs_from_vcf(variant_source):
 
-        # a dict to allow lookup of variants on this whole chromosome
-        contig_variants = {}
-
-        # iterate over all variants on this contig and store by unique key
-        # if contig has no variants, prints an error and returns []
-        for each_variant in variant_source(contig):
-            analysis_var = AbstractVariant(
-                each_variant, samples=vcf_samples, config=config
-            )
-            contig_variants[analysis_var.coords.string_format] = analysis_var
-
-        logging.info(f'Contig {contig} contained {len(contig_variants)} variants')
+        # assemble gene: {var1, var2
+        contig_dict = gather_gene_dict_from_contig(
+            contig=contig, variant_source=variant_source, config=config
+        )
 
         # NOTE - if we want details from both sides of a compound het in the
         # MOI check or report details, this lookup gives us a way to access that data
         # For now just iterate over the individual variants
-        # crawl through all the results
-        for variant in contig_variants.values():
-
-            # each variant assoc. a single gene
-            gene = variant.info.get('gene_id')
+        for gene, variants in contig_dict.items():
 
             # extract the panel data specific to this gene, with cache
+            # extract once per gene, not once per variant
             panel_gene_data = get_moi_from_panelapp(panelapp_data, gene)
+            simple_moi = get_simple_moi(panelapp_data[gene].get('moi'))
 
             # variant appears to be in a red gene
             if panel_gene_data is None:
                 logging.error(f'How did this gene creep in? {gene}')
                 continue
 
-            # initial implementation: we only accept class2 when the gene is New
-            # for now this is covered in Hail, so this confirmation is redundant
-            # -
-            # if the gene isn't 'new' in PanelApp, remove Class2 flag
-            # in future expand to the 'if MOI has changed' logic
-            if variant.category_2 and not panel_gene_data.get('new', False):
-                variant.category_2 = False
+            for variant in variants:
 
-            # we never use a C4-only variant as a principal variant
-            # and we don't consider a variant with no assigned classes
-            #   - no classes shouldn't have reached this point
-            if variant.category_4_only or not variant.is_classified:
-                continue
+                # if the gene isn't 'new' in PanelApp, remove Class2 flag
+                # in future expand to the 'if MOI has changed' logic
+                if variant.category_2 and not panel_gene_data.get('new', False):
+                    variant.category_2 = False
 
-            # we've decided to run MOI tests on this variant
-            # - find the simplified version of the MOI string
-            # - use it to get the appropriate MOI model
-            # - run the variant, and append relevant classification(s) to the results
-            results.extend(
-                moi_lookup[get_simple_moi(panelapp_data[gene].get('moi'))].run(
-                    principal_var=variant, ensg=gene
+                # we never use a C4-only variant as a principal variant
+                # and we don't consider a variant with no assigned classes
+                #   - no classes shouldn't have reached this point
+                if variant.category_4_only or not variant.is_classified:
+                    continue
+
+                # this variant is a candidate for MOI checks
+                # - find the simplified MOI string
+                # - use to get appropriate MOI model
+                # - run variant, append relevant classification(s) to the results
+
+                results.extend(
+                    moi_lookup[simple_moi].run(principal_var=variant, ensg=gene)
                 )
-            )
 
     return results
 
@@ -244,8 +232,8 @@ def main(
     pedigree: str,
 ):
     """
-    All VCFs in use at this point will be small
-    These have been pre-filtered to retain only a small number of classified variants
+    VCFs used here should be small
+    These have been pre-filtered to retain only a small number of candidate variants
     holding all the variants in memory should not be a challenge, no matter how large
     the cohort; if the variant number is large, the classes should be refined
     We expect approximately linear scaling with participants in the joint call

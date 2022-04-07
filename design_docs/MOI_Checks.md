@@ -8,6 +8,11 @@ PanelApp suggested Mode Of Inheritance for the corresponding gene.
 For each participant, we compile a list of variants where the inheritance model matches the PanelApp MOI. This can be
 Monogenic Autosomal, Hemizygous, Biallelic, or as a pair of variants forming a likely Compound-Het.
 
+## Expectation
+
+We anticipate that the number of variants in the VCF will scale roughly linearly with the number of included
+families.
+
 ## Logic
 
 This process uses two types of object - static reference objects, and the variant objects parsed directly from the VCF.
@@ -57,6 +62,68 @@ The AbstractVariant has a few internal methods
  - `category_ints`: returns an ordered list of integers for each True boolean
    - i.e. if a variant is True for category 2 and 4, the return will be `[2, 4]`
 
+Based on rough calculations, each AbstractVariant consumes approximately 2.5KB, forming a smaller memory footprint than
+the same variant call in the VCF. There are a number of design factors that limit the size of the variants:
+
+ - any variants not on Green genes are discarded
+ - any transcripts not MANE or protein_coding are discarded
+ - any remaining consequences which are unlikely to be relevant are discarded
+
+## Variant Gathering
+
+The Variant gathering strategy observed in this application is:
+
+ - parse the VCF header to obtain all chromosome names
+ - for each contig in turn, extract all variants & create an Abstract representation of each
+ - group variants by gene ID
+   - each variant contains exactly one gene annotation, from an earlier MT split
+   - each gene can be processed separately, allowing a comp-het workaround
+ - once all variants on a contig are extracted, iterate over variants grouped by gene
+
+Justification:
+
+1. Grouping variants by gene is a fallback for the compound-het process, which is currently causing problems, allowing
+all possibly comp-het variants to be loaded together and evaluated
+2. Use of the AbstractVariant structure means each variant can be pickled, so each group can be processed in parallel
+(Cyvcf2 and pyvcf objects can't be pickled directly)
+3. Allows us to collect the panelapp details once per gene, instead of once per variant; minor efficiency gain
+4. Gathering all variants relevant to an MOI test means that when generating the results, we can access all attributes
+of the relevant variants for presentation, e.g. instead of just variant coordinates for the variant pair, we can show
+the exact consequence(s) that led to category labelling
+
+## Compound-Heterozygous checks
+
+Currently the compound-het checks are done in Hail, resulting in a simple result format:
+
+```json
+{
+    "sample": {
+        "gene": {
+            "chr-pos-ref-alt": ["chr-pos2-ref-alt", "chr-pos3-ref-alt", "..."]
+        },
+        "gene2": {
+            "chr-pos-ref-alt": ["chr-pos2-ref-alt", "chr-pos3-ref-alt", "..."]
+        }
+    }
+}
+```
+
+This is a highly condensed representation, and doesn't hold any annotations from the relevant variants. It simply
+contains information to state that the named sample(s) have co-located variants within the same gene.
+
+At this stage, compound-het checking simply takes a variant read from the VCF, and for the given sample, gene, and
+position, checks if a paired variant was found. If so, the 2nd var coordinates are logged as 'supporting' the 'primary'
+variant.
+
+Post MVP it will make sense to load more logic here, e.g.
+
+ - for a compound het in a proband, we must also check that the same pair doesn't occur in an unaffected parent (
+currently possible, but not implemented)
+ - for 2 compound het variants, it is important to check that they were not in phase (where possible to determine during
+variant calling)
+
+These checks will require loading the full variant-representation pair, so that genotypes can be checked in more detail.
+To do this, collecting all the variants together and iterating over in gene-groups suitable provides granularity.
 
 ## MOI Tests
 
