@@ -175,10 +175,7 @@ def apply_moi_to_variants(
                 # - find the simplified MOI string
                 # - use to get appropriate MOI model
                 # - run variant, append relevant classification(s) to the results
-
-                results.extend(
-                    moi_lookup[simple_moi].run(principal_var=variant, ensg=gene)
-                )
+                results.extend(moi_lookup[simple_moi].run(principal_var=variant))
 
     return results
 

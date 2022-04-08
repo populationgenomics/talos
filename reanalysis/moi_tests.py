@@ -132,18 +132,15 @@ class MOIRunner:
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
-    def run(self, principal_var, ensg: str) -> List[ReportedVariant]:
+    def run(self, principal_var) -> List[ReportedVariant]:
         """
         run method - triggers each relevant inheritance model
         :param principal_var: the variant we are focused on
-        :param ensg: the specific gene ID we're looking at
-            this can be pulled from the annotations, but could be required
-            if we stop splitting out each consequence into a new VCF row
         :return:
         """
         moi_matched = []
         for model in self.filter_list:
-            moi_matched.extend(model.run(principal_var=principal_var, ensg=ensg))
+            moi_matched.extend(model.run(principal_var=principal_var))
         return moi_matched
 
     def send_it(self):
@@ -180,12 +177,10 @@ class BaseMoi:
     def run(
         self,
         principal_var: AbstractVariant,
-        ensg: str,
     ) -> List[ReportedVariant]:
         """
         run all applicable inheritance patterns and finds good fits
         :param principal_var:
-        :param ensg:
         :return:
         """
 
@@ -242,17 +237,12 @@ class DominantAutosomal(BaseMoi):
             pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
         )
 
-    def run(
-        self,
-        principal_var: AbstractVariant,
-        ensg: str,
-    ) -> List[ReportedVariant]:
+    def run(self, principal_var: AbstractVariant) -> List[ReportedVariant]:
         """
         simplest
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
-        :param ensg:
         :return:
         """
 
@@ -280,7 +270,7 @@ class DominantAutosomal(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=ensg,
+                    gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={self.applied_moi},
                     supported=False,
@@ -292,7 +282,8 @@ class DominantAutosomal(BaseMoi):
 
 class RecessiveAutosomal(BaseMoi):
     """
-    pass
+    inheritance test class for Recessive inheritance
+    requires single hom variant, or compound het
     """
 
     def __init__(
@@ -308,26 +299,22 @@ class RecessiveAutosomal(BaseMoi):
             pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=comp_het
         )
 
-    def run(
-        self,
-        principal_var: AbstractVariant,
-        ensg: str,
-    ) -> List[ReportedVariant]:
+    def run(self, principal_var: AbstractVariant) -> List[ReportedVariant]:
         """
         valid if present as hom, or compound het
         counts as being phased if a compound het is split between parents
         Clarify if we want to consider a homozygous variant as 2 hets
         :param principal_var:
-        :param ensg:
         :return:
         """
 
         classifications = []
 
-        # remove from analysis if too many homs are present in population databases
+        # remove if too many homs are present in population databases
+        # no stricter AF here - if we choose to, we can apply while labelling
         if any(
             {
-                principal_var.info.get(hom_key) >= self.hom_threshold
+                principal_var.info.get(hom_key, 0) >= self.hom_threshold
                 for hom_key in INFO_HOMS
             }
         ):
@@ -342,7 +329,7 @@ class RecessiveAutosomal(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=ensg,
+                    gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={f'{self.applied_moi} Homozygous'},
                     supported=False,
@@ -358,13 +345,13 @@ class RecessiveAutosomal(BaseMoi):
                 first_variant=principal_var.coords.string_format,
                 comp_hets=self.comp_het,
                 sample=sample_id,
-                gene=ensg,
+                gene=principal_var.info.get('gene_id'),
             )
             if passes:
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
-                        gene=ensg,
+                        gene=principal_var.info.get('gene_id'),
                         var_data=principal_var,
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=passes,
@@ -407,61 +394,46 @@ class XDominant(BaseMoi):
     def run(
         self,
         principal_var: AbstractVariant,
-        ensg: str,
     ) -> List[ReportedVariant]:
         """
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
-        :param ensg:
         :return:
         """
         classifications = []
 
         if principal_var.coords.chrom.lower() != 'x':
-            logging.error(
+            raise Exception(
                 f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
             )
 
         # more stringent Pop.Freq checks for dominant
         if (
-            principal_var.info.get('gnomad_af') >= self.ad_threshold
+            principal_var.info.get('gnomad_af', 0) > self.ad_threshold
             or any(
                 {
-                    principal_var.info.get(hom_key) >= self.hom_threshold
+                    principal_var.info.get(hom_key, 0) > self.hom_threshold
                     for hom_key in INFO_HOMS
                 }
             )
-            or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+            or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
         ):
             return classifications
-
-        # due to legacy caller issues, we expect wrongly called HOM Males
-        # X-relevant, we separate out male and females
-        males = [
-            sam
-            for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if self.pedigree.get(sam).male
-        ]
-
-        het_females = [
-            sam for sam in principal_var.het_samples if not self.pedigree.get(sam).male
-        ]
 
         # dominant doesn't care about support
         # for all the samples which are affected
         # (assumption that probands are affected)
-        for sample_id in males + het_females:
-            if self.pedigree.get(sample_id).male:
-                reason = f'{self.applied_moi} Male'
-            else:
-                reason = f'{self.applied_moi} Female'
+        for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=ensg,
+                    gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
-                    reasons={reason},
+                    reasons={
+                        f'{self.applied_moi} '
+                        f'{"Male" if self.pedigree.get(sample_id).male else "Female"}'
+                    },
                     supported=False,
                 )
             )
@@ -497,24 +469,24 @@ class XRecessive(BaseMoi):
             pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=comp_het
         )
 
-    def run(
-        self,
-        principal_var: AbstractVariant,
-        ensg: str,
-    ) -> List[ReportedVariant]:
+    def run(self, principal_var: AbstractVariant) -> List[ReportedVariant]:
         """
 
         :param principal_var:
-        :param ensg:
         :return:
         """
+
+        if principal_var.coords.chrom.lower() != 'x':
+            raise Exception(
+                f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
+            )
 
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
         if any(
             {
-                principal_var.info.get(hom_key) >= self.hom_dom_threshold
+                principal_var.info.get(hom_key, 0) >= self.hom_dom_threshold
                 for hom_key in INFO_HOMS
             }
         ):
@@ -543,13 +515,13 @@ class XRecessive(BaseMoi):
                 first_variant=principal_var.coords.string_format,
                 comp_hets=self.comp_het,
                 sample=sample_id,
-                gene=ensg,
+                gene=principal_var.info.get('gene_id'),
             )
             if passes:
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
-                        gene=ensg,
+                        gene=principal_var.info.get('gene_id'),
                         var_data=principal_var,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=passes,
@@ -560,7 +532,7 @@ class XRecessive(BaseMoi):
         # remove from analysis if too many homs are present in population databases
         if any(
             {
-                principal_var.info.get(hom_key) >= self.hom_rec_threshold
+                principal_var.info.get(hom_key, 0) >= self.hom_rec_threshold
                 for hom_key in INFO_HOMS
             }
         ):
@@ -576,7 +548,7 @@ class XRecessive(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=ensg,
+                    gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={reason},
                     supported=False,
@@ -617,12 +589,10 @@ class YHemi(BaseMoi):
     def run(
         self,
         principal_var: AbstractVariant,
-        ensg: str,
     ) -> List[ReportedVariant]:
         """
         flag calls on Y which are Hom (maybe ok?) or female (bit weird)
         :param principal_var:
-        :param ensg:
         :return:
         """
         classifications = []
@@ -646,7 +616,7 @@ class YHemi(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=ensg,
+                    gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={self.applied_moi},
                     supported=False,
