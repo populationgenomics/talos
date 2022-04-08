@@ -288,20 +288,41 @@ def test_recessive_autosomal_hom_fails(info):
     assert not rec.run(failing_variant)
 
 
-def test_x_dominant_male_het_passes():
+def test_x_dominant_female_and_male_het_passes():
     """
     check that a male is accepted as a het
     :return:
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={}, het_samples={'male'}, hom_samples=set(), coords=x_coords
+        info={}, het_samples={'female', 'male'}, hom_samples=set(), coords=x_coords
     )
-    male_ped = {'male': PedPerson('male', True, True)}
-    x_dom = XDominant(pedigree=male_ped, config=MOI_CONF)
+    ped = {
+        'female': PedPerson('female', False, True),
+        'male': PedPerson('male', True, True),
+    }
+    x_dom = XDominant(pedigree=ped, config=MOI_CONF)
+    results = x_dom.run(passing_variant)
+
+    assert len(results) == 2
+    reasons = sorted([result.reasons.pop() for result in results])
+    assert reasons == ['X_Dominant Female', 'X_Dominant Male']
+
+
+def test_x_dominant_female_hom_passes():
+    """
+    check that a male is accepted as a het
+    :return:
+    """
+    x_coords = Coordinates('x', 1, 'A', 'C')
+    passing_variant = SimpleVariant(
+        info={}, hom_samples={'female'}, het_samples=set(), coords=x_coords
+    )
+    female_ped = {'female': PedPerson('female', False, True)}
+    x_dom = XDominant(pedigree=female_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant Male'}
+    assert results[0].reasons == {'X_Dominant Female'}
 
 
 def test_x_dominant_male_hom_passes():
@@ -335,38 +356,6 @@ def test_x_moi_on_non_x_fails():
         x_dom.run(y_variant)
 
 
-def test_x_dominant_female_het_passes():
-    """
-    check that a male is accepted as a het
-    :return:
-    """
-    x_coords = Coordinates('x', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, het_samples={'female'}, hom_samples=set(), coords=x_coords
-    )
-    female_ped = {'female': PedPerson('female', False, True)}
-    x_dom = XDominant(pedigree=female_ped, config=MOI_CONF)
-    results = x_dom.run(passing_variant)
-    assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant Female'}
-
-
-def test_x_dominant_female_hom_passes():
-    """
-    check that a male is accepted as a het
-    :return:
-    """
-    x_coords = Coordinates('x', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, hom_samples={'female'}, het_samples=set(), coords=x_coords
-    )
-    female_ped = {'female': PedPerson('female', False, True)}
-    x_dom = XDominant(pedigree=female_ped, config=MOI_CONF)
-    results = x_dom.run(passing_variant)
-    assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant Female'}
-
-
 @pytest.mark.parametrize(
     'info',
     [
@@ -391,6 +380,28 @@ def test_x_dominant_info_fails(info):
     assert not x_dom.run(passing_variant)
 
 
+def test_x_recessive_male_and_female_hom_passes():
+    """
+
+    :return:
+    """
+
+    x_coords = Coordinates('x', 1, 'A', 'C')
+    passing_variant = SimpleVariant(
+        info={}, hom_samples={'female', 'male'}, het_samples=set(), coords=x_coords
+    )
+    ped = {
+        'female': PedPerson('female', False, True),
+        'male': PedPerson('male', True, True),
+    }
+    x_rec = XRecessive(pedigree=ped, config=MOI_CONF, comp_het={})
+    results = x_rec.run(passing_variant)
+    assert len(results) == 2
+
+    reasons = sorted([result.reasons.pop() for result in results])
+    assert reasons == ['X_Recessive Female', 'X_Recessive Male']
+
+
 def test_x_recessive_male_het_passes():
     """
 
@@ -399,22 +410,6 @@ def test_x_recessive_male_het_passes():
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
         info={}, het_samples={'male'}, hom_samples=set(), coords=x_coords
-    )
-    male_ped = {'male': PedPerson('male', True, True)}
-    x_rec = XRecessive(pedigree=male_ped, config=MOI_CONF, comp_het={})
-    results = x_rec.run(passing_variant)
-    assert len(results) == 1
-    assert results[0].reasons == {'X_Recessive Male'}
-
-
-def test_x_recessive_male_hom_passes():
-    """
-
-    :return:
-    """
-    x_coords = Coordinates('x', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, hom_samples={'male'}, het_samples=set(), coords=x_coords
     )
     male_ped = {'male': PedPerson('male', True, True)}
     x_rec = XRecessive(pedigree=male_ped, config=MOI_CONF, comp_het={})
@@ -474,18 +469,4 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch):
     assert not x_rec.run(passing_variant)
 
 
-def test_x_recessive_female_hom_passes():
-    """
-
-    :return:
-    """
-
-    x_coords = Coordinates('x', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, hom_samples={'female'}, het_samples=set(), coords=x_coords
-    )
-    female_ped = {'female': PedPerson('female', False, True)}
-    x_rec = XRecessive(pedigree=female_ped, config=MOI_CONF, comp_het={})
-    results = x_rec.run(passing_variant)
-    assert len(results) == 1
-    assert results[0].reasons == {'X_Recessive Female'}
+# some consolidation of these classes here
