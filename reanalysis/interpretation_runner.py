@@ -27,12 +27,18 @@ import click
 from cloudpathlib import AnyPath
 import hailtop.batch as hb
 
-from analysis_runner.git import (
+from cpg_utils.git import (
     prepare_git_job,
     get_repo_name_from_current_directory,
     get_git_commit_ref_of_current_repository,
 )
-from cpg_utils.hail import copy_common_env, image_path, output_path, remote_tmpdir
+from cpg_utils.hail import (
+    authenticate_cloud_credentials_in_job,
+    copy_common_env,
+    image_path,
+    output_path,
+    remote_tmpdir,
+)
 
 
 # static paths to write outputs
@@ -86,9 +92,11 @@ def set_job_resources(
         job.depends_on(prior_job)
 
     if git:
+        authenticate_cloud_credentials_in_job(job)
         # copy the relevant scripts into a Driver container instance
         prepare_git_job(
             job=job,
+            organisation='populationgenomics',
             repo_name=get_repo_name_from_current_directory(),
             commit=get_git_commit_ref_of_current_repository(),
         )
