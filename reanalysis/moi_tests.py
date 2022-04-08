@@ -167,7 +167,7 @@ class BaseMoi:
         comp_het: Optional[CompHetDict],
     ):
         """
-        maybe constants in the base class
+        base class
         """
         if applied_moi is None:
             raise Exception('An applied MOI needs to reach the Base Class')
@@ -260,20 +260,22 @@ class DominantAutosomal(BaseMoi):
 
         # more stringent Pop.Freq checks for dominant
         if (
-            principal_var.info.get('gnomad_af') >= self.ad_threshold
+            principal_var.info.get('gnomad_af', 0) > self.ad_threshold
             or any(
                 {
-                    principal_var.info.get(hom_key) >= self.hom_threshold
+                    principal_var.info.get(hom_key, 0) > self.hom_threshold
                     for hom_key in INFO_HOMS
                 }
             )
-            or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+            or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
         ):
             return classifications
 
         # autosomal dominant doesn't require support
         for sample_id in [
-            sam for sam in principal_var.het_samples if self.is_affected(sam)
+            sam
+            for sam in principal_var.het_samples.union(principal_var.hom_samples)
+            if self.is_affected(sam)
         ]:
             classifications.append(
                 ReportedVariant(
