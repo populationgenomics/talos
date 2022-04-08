@@ -1,17 +1,22 @@
 # MOI Checks
 
-Following the labelling and VCF reheadering process, we have a heavily filtered VCF file containing all the required
+Following the labelling and VCF re-headering, we have a heavily filtered VCF file containing all the required
 labels and annotations, accompanied by a JSON file describing all the Compound-Het variant pairs. Combining this
 information with the pedigree, we can iterate through each of the variants, and check if the evidence supports the
 PanelApp suggested Mode Of Inheritance for the corresponding gene.
 
-For each participant, we compile a list of variants where the inheritance model matches the PanelApp MOI. This can be
-Monogenic Autosomal, Hemizygous, Biallelic, or as a pair of variants forming a likely Compound-Het.
+For each participant, we compile a list of variants where the inheritance model matches the PanelApp MOI, e.g.
 
-## Expectation
+- Variants in Monoallelic genes must pass additional population frequency filters
+- Biallelic variants must be Homozygous or supported by a 'second-hit'
+- X-Hemizygous variants must be monoallelic in males, and biallelic in females
 
-We anticipate that the number of variants in the VCF will scale roughly linearly with the number of included
-families.
+## Extensions post MVP
+
+1. Enable partially penetrant disease/affection-status
+2. Familial inheritance checks using a supplied pedigree file
+
+---
 
 ## Logic
 
@@ -30,8 +35,8 @@ Static Objects:
   - When we are assessing each variant, we may choose to apply thresholds (e.f. MAF, frequency in a joint call). These
   may change with each run, so we take those parameters from a central configuration file
 - PanelApp data: associates genes with evidenced inheritance patterns
-  - For each 'green' (high evidence) gene, this documents the inheritance pattern to be applied, and whether we should
-  consider the gene as 'new' (since a given date, or specific gene list).
+  - For each 'green' (high evidence) gene contains inheritance pattern to be applied & if the gene as 'new'
+(since a given date, or specific gene list).
 
 Dynamic Objects: AbstractVariant
 

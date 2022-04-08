@@ -97,7 +97,7 @@ class MOIRunner:
 
         # for unknown, we catch all possible options?
         # should we be doing both checks for Monoallelic?
-        if target_moi in ['Monoallelic']:
+        if target_moi == 'Monoallelic':
             self.filter_list = [
                 DominantAutosomal(pedigree=pedigree, config=config),
             ]
@@ -589,6 +589,9 @@ class YHemi(BaseMoi):
     otherwise treat as AD
     not expecting to use this
     """
+
+    def __name__(self):
+        return self.__name__()
 
     def __init__(
         self,
