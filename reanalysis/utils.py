@@ -6,7 +6,6 @@ which may be shared across reanalysis components
 
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass, is_dataclass
-from csv import DictReader
 from functools import cache
 import json
 import logging
@@ -42,19 +41,6 @@ HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
-
-
-@dataclass
-class PedPerson:
-    """
-    holds attributes about a single PED file entry
-    this will need to be enhanced for family analysis
-    a prototype already exists in the prototype folder
-    """
-
-    sample: str
-    male: bool
-    affected: bool
 
 
 @dataclass
@@ -268,24 +254,6 @@ def get_simple_moi(panel_app_moi: str) -> str:
             simple_moi = 'Hemi_Mono_In_Female'
 
     return simple_moi
-
-
-def parse_ped_simple(ped: str) -> Dict[str, PedPerson]:
-    """
-    take individual attributes - sample ID, sex, affected
-    :param ped: path to the ped file
-    :return:
-    """
-
-    ped_dict: Dict[str, PedPerson] = {}
-    with open(AnyPath(ped), 'r', encoding='utf-8') as handle:
-        for line in DictReader(handle, delimiter='\t'):
-
-            # slot in the sample ID and two Booleans
-            ped_dict[line['Individual ID']] = PedPerson(
-                line['Individual ID'], line['Sex'] == '1', line['Affected'] == '2'
-            )
-    return ped_dict
 
 
 def get_non_ref_samples(

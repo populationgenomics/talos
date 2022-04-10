@@ -21,15 +21,14 @@ from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 
 from reanalysis.moi_tests import MOIRunner
+from reanalysis.pedigree import PedigreeParser
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
     CompHetDict,
     CustomEncoder,
     gather_gene_dict_from_contig,
     get_simple_moi,
-    parse_ped_simple,
     PanelAppDict,
-    PedPerson,
     read_json_dict_from_path,
     ReportedVariant,
 )
@@ -38,7 +37,7 @@ from reanalysis.utils import (
 def set_up_inheritance_filters(
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
     config: Dict[str, Any],
-    pedigree: Dict[str, PedPerson],
+    pedigree: PedigreeParser,
     comp_het_lookup: CompHetDict,
 ) -> Dict[str, MOIRunner]:
     """
@@ -262,7 +261,7 @@ def main(
     """
 
     # parse the pedigree from the file
-    pedigree_digest = parse_ped_simple(pedigree)
+    pedigree_digest = PedigreeParser(pedigree)
 
     # parse panelapp data from dict
     panelapp_data = read_json_dict_from_path(panelapp)

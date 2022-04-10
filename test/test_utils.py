@@ -13,8 +13,6 @@ from reanalysis.utils import (
     get_non_ref_samples,
     get_simple_moi,
     read_json_dict_from_path,
-    parse_ped_simple,
-    PedPerson,
 )
 
 
@@ -57,36 +55,6 @@ def test_get_simple_moi(string: str, expected: str):
     :return:
     """
     assert get_simple_moi(string) == expected
-
-
-def test_pedperson():
-    """
-    ummm... no methods here, not much to test
-    :return:
-    """
-    test_person = PedPerson('sam', True, False)
-    assert test_person.sample == 'sam'
-    assert test_person.male
-    assert not test_person.affected
-
-
-def test_parse_ped_simple(tmp_path):
-    """
-    write then read
-    :param tmp_path:
-    :return:
-    """
-    tsv = tmp_path / 'test.tsv'
-    with open(tsv, 'w', encoding='utf-8') as handle:
-        handle.write('Individual ID\tSex\tAffected\n')
-        handle.write('bill\t2\t1\n')
-        handle.write('ted\t1\t2\n')
-
-    results = parse_ped_simple(str(tsv))
-    assert results == {
-        'bill': PedPerson('bill', False, False),
-        'ted': PedPerson('ted', True, True),
-    }
 
 
 def test_get_non_ref_samples():

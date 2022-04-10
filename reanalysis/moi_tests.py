@@ -25,7 +25,8 @@ import logging
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-from reanalysis.utils import AbstractVariant, CompHetDict, PedPerson, ReportedVariant
+from reanalysis.pedigree import PedigreeParser
+from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant
 
 
 # config keys to use for dominant MOI tests
@@ -77,7 +78,7 @@ class MOIRunner:
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         target_moi: str,
         config: Dict[str, Any],
         comp_het_lookup: CompHetDict,
@@ -158,7 +159,7 @@ class BaseMoi:
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         config: Dict[str, Any],
         applied_moi: str,
         comp_het: Optional[CompHetDict],
@@ -190,7 +191,7 @@ class BaseMoi:
         :param sample_id:
         :return:
         """
-        if self.pedigree.get(sample_id).affected:
+        if self.pedigree.participants[sample_id].details.affected:
             return True
         return False
 
@@ -220,7 +221,7 @@ class DominantAutosomal(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         config: Dict[str, Any],
         applied_moi: str = 'Autosomal Dominant',
     ):
@@ -288,7 +289,7 @@ class RecessiveAutosomal(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         config: Dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'Autosomal Recessive',
@@ -374,7 +375,7 @@ class XDominant(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         config: Dict[str, Any],
         applied_moi: str = 'X_Dominant',
     ):
@@ -425,15 +426,17 @@ class XDominant(BaseMoi):
         # for all the samples which are affected
         # (assumption that probands are affected)
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
+            sex = (
+                'Female'
+                if self.pedigree.participants[sample_id].details.is_female
+                else 'Male'
+            )
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
-                    reasons={
-                        f'{self.applied_moi} '
-                        f'{"Male" if self.pedigree.get(sample_id).male else "Female"}'
-                    },
+                    reasons={f'{self.applied_moi} {sex}'},
                     supported=False,
                 )
             )
@@ -448,7 +451,7 @@ class XRecessive(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         config: Dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'X_Recessive',
@@ -496,16 +499,20 @@ class XRecessive(BaseMoi):
         males = [
             sam
             for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if self.pedigree.get(sam).male
+            if not self.pedigree.participants[sam].details.is_female
         ]
 
         # get female calls in 2 categories
         het_females = [
-            sam for sam in principal_var.het_samples if not self.pedigree.get(sam).male
+            sam
+            for sam in principal_var.het_samples
+            if self.pedigree.participants[sam].details.is_female
         ]
 
         hom_females = [
-            sam for sam in principal_var.hom_samples if not self.pedigree.get(sam).male
+            sam
+            for sam in principal_var.hom_samples
+            if self.pedigree.participants[sam].details.is_female
         ]
 
         # if het females are present, try and find support
@@ -541,7 +548,7 @@ class XRecessive(BaseMoi):
         # find all het males and hom females
         # assumption that the sample can only be hom if female?
         for sample_id in males + hom_females:
-            if self.pedigree.get(sample_id).male:
+            if not self.pedigree.participants[sample_id].details.is_female:
                 reason = f'{self.applied_moi} Male'
             else:
                 reason = f'{self.applied_moi} Female'
@@ -569,7 +576,7 @@ class YHemi(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: PedigreeParser,
         config: Dict[str, Any],
         applied_moi: str = 'Y_Hemi',
     ):
@@ -611,7 +618,7 @@ class YHemi(BaseMoi):
 
         # we don't expect any confident Y calls in females
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
-            if not self.pedigree.get(sample_id).male:
+            if self.pedigree.participants[sample_id].details.is_female:
                 logging.error(f'Sample {sample_id} is a female with call on Y')
             classifications.append(
                 ReportedVariant(
