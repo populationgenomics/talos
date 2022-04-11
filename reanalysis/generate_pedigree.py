@@ -110,7 +110,7 @@ def ext_to_int_sample_map(project: str) -> Dict[str, str]:
     ) in ParticipantApi().get_external_participant_id_to_internal_sample_id(
         project=project
     ):
-        sample_map.setdefault(participant, []).append(sample)
+        sample_map[participant] = sample
     return sample_map
 
 
