@@ -696,7 +696,7 @@ def informed_repartition(matrix: hl.MatrixTable):
 
     # calculate partitions, falling back to 100 partitions if size is too small
     current_rows = matrix.count_rows()
-    partitions = current_rows // 200000 or 50
+    partitions = current_rows // 200000 or 1
 
     if partitions > current_rows:
         partitions = 1
