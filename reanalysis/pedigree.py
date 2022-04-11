@@ -3,11 +3,13 @@ class implementing bidirectional pedigree methods
 
 1. Get the raw participant data, indexed by sample ID
 2. Cast the pedigree members as objects,
-    including immediate relationships
+    including immediate relationships upwards
+    i.e. if the participant has parents, make those objects and
+    assign them as the mother/father of this node
 3. Assign children to members where appropriate
 """
 
-from typing import Dict, List, Type
+from typing import Dict, List, Optional, Set, Type
 from dataclasses import dataclass
 from csv import DictReader
 from cloudpathlib import AnyPath
@@ -46,14 +48,14 @@ class Participant:
     dataclass representing a person within a family
     Type['Participant'] has to be used in order to have
     a self-referential class...
-
-    Maybe that's a sign that it shouldn't be used...
     """
 
     details: PedEntry
-    mother: Type['Participant']
-    father: Type['Participant']
+    mother: Optional[Type['Participant']]
+    father: Optional[Type['Participant']]
     children: List[Type['Participant']]
+    affected_parents: Set[str]
+    unaffected_parents: Set[str]
 
 
 PED_KEYS = [
@@ -82,7 +84,7 @@ class PedigreeParser:
             self.populate_participants(sample_id=sample_id)
         self.apply_children()
 
-        # no need for this object, but small memory footprint
+        # no need for this object, but small memory footprint so who cares
         # del self.ped_dict
 
     @staticmethod
@@ -119,16 +121,36 @@ class PedigreeParser:
         if sample_id in self.participants:
             return
 
+        # create two sets for this participant - all parent sample_ids which are
+        # affected and unaffected. This prevents recalculating this list during every
+        # MOI test later on
+        affected_parents = set()
+        unaffected_parents = set()
+
         ped_sample = self.ped_dict.get(sample_id)
-        if ped_sample.father is not None and ped_sample.father not in self.participants:
-            self.populate_participants(ped_sample.father)
-        if ped_sample.mother is not None and ped_sample.mother not in self.participants:
-            self.populate_participants(ped_sample.mother)
+        if ped_sample.father is not None:
+            if ped_sample.father not in self.participants:
+                self.populate_participants(ped_sample.father)
+            if self.ped_dict.get(ped_sample.father).affected:
+                affected_parents.add(ped_sample.father)
+            else:
+                unaffected_parents.add(ped_sample.father)
+
+        if ped_sample.mother is not None:
+            if ped_sample.mother not in self.participants:
+                self.populate_participants(ped_sample.mother)
+            if self.ped_dict.get(ped_sample.mother).affected:
+                affected_parents.add(ped_sample.mother)
+            else:
+                unaffected_parents.add(ped_sample.mother)
+
         self.participants[sample_id] = Participant(
             details=ped_sample,
             mother=self.participants.get(ped_sample.mother),
             father=self.participants.get(ped_sample.father),
             children=[],
+            affected_parents=affected_parents,
+            unaffected_parents=unaffected_parents,
         )
 
     def apply_children(self):

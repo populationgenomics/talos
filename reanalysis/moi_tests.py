@@ -195,23 +195,6 @@ class BaseMoi:
             return True
         return False
 
-    # not implemented for singleton analysis
-    # def get_affected_parents(self, sample_id: str) -> Set[str]:
-    #     """
-    #     for this sample, find any affected parents
-    #     port this back into the Participant object?!
-    #     prevent re-computation... but really only make that more complex if necessary
-    #     :param sample_id:
-    #     :return:
-    #     """
-    #     participant = self.pedigree.get(sample_id)
-    #
-    #     return {
-    #         parent.details.sample_id
-    #         for parent in [participant.mother, participant.father]
-    #         if parent is not None and parent.details.affected
-    #     }
-
 
 class DominantAutosomal(BaseMoi):
     """
@@ -268,6 +251,10 @@ class DominantAutosomal(BaseMoi):
             for sam in principal_var.het_samples.union(principal_var.hom_samples)
             if self.is_affected(sam)
         ]:
+
+            # add a check that this participant doesn't have unaffected
+            # parents/relatives with same variant
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
