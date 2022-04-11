@@ -717,11 +717,8 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     :param out_vcf: path to write the VCF out to
     """
 
-    # initiate Hail with upgraded driver spec.
-    init_batch(
-        driver_cores=8,
-        driver_memory='highmem',
-    )
+    # initiate Hail with defined driver spec.
+    init_batch()
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
