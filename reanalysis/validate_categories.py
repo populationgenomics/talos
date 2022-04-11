@@ -24,12 +24,12 @@ from reanalysis.moi_tests import MOIRunner
 from reanalysis.pedigree import PedigreeParser
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
-    CompHetDict,
-    CustomEncoder,
     gather_gene_dict_from_contig,
     get_simple_moi,
-    PanelAppDict,
     read_json_dict_from_path,
+    CompHetDict,
+    CustomEncoder,
+    PanelAppDict,
     ReportedVariant,
 )
 
@@ -157,7 +157,7 @@ def apply_moi_to_variants(
                 logging.error(f'How did this gene creep in? {gene}')
                 continue
 
-            for variant in variants:
+            for variant in variants.values():
 
                 # if the gene isn't 'new' in PanelApp, remove Class2 flag
                 # in future expand to the 'if MOI has changed' logic
@@ -174,7 +174,11 @@ def apply_moi_to_variants(
                 # - find the simplified MOI string
                 # - use to get appropriate MOI model
                 # - run variant, append relevant classification(s) to the results
-                results.extend(moi_lookup[simple_moi].run(principal_var=variant))
+                results.extend(
+                    moi_lookup[simple_moi].run(
+                        principal_var=variant, gene_lookup=variants
+                    )
+                )
 
     return results
 

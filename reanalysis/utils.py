@@ -173,12 +173,15 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str, variant_source: cyvcf2.VCFReader, config: Dict[str, Any]
-) -> Dict[str, Set[AbstractVariant]]:
+) -> Dict[str, Dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
     {
-        gene: {var1, var2},
+        gene: {
+            var1_as_string: var1,
+            var2_as_string: var2,
+        },
         ...
     }
     :param contig: contig name from header (canonical_contigs_from_vcf)
@@ -200,8 +203,10 @@ def gather_gene_dict_from_contig(
         # update the variant count
         contig_variants += 1
 
-        # update the gene index
-        contig_dict.setdefault(abs_var.info.get('gene_id'), []).append(abs_var)
+        # update the gene index dictionary
+        contig_dict.setdefault(abs_var.info.get('gene_id'), {})[
+            abs_var.coords.string_format
+        ] = abs_var
 
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
