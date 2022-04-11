@@ -21,6 +21,6 @@ two key ways to do this:
 
 1. Provide a prior version as a command line argument. If this is done, the script will parse the Mendeliome's
 content at the indicated version. Using this as comparison data, the 'latest' data is annotated with whether the
-gene is newly green, or if the MOI has changed.
-2. Provide a path to a gene list file. This should contain a single gene symbol per line, and the 'latest' data will
-be annotated with 'new' if the PanelApp gene doesn't appear in the provided gene list
+gene is newly green, or if the MOI has changed (new and previous both present).
+2. Provide a path to a gene list file. This will be a JSON file containing a single list of Strings. the 'latest'
+data will be annotated with `new=True` if the PanelApp gene doesn't appear in the provided gene list

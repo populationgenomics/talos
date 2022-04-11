@@ -22,7 +22,7 @@ all variants are GC>G
 import hail as hl
 import pandas as pd
 
-from reanalysis.hail_filter_and_categorise import extract_comp_het_details
+from reanalysis.hail_filter_and_label import extract_comp_het_details
 
 
 def test_comp_hets(hail_comp_het):
@@ -36,7 +36,7 @@ def test_comp_hets(hail_comp_het):
     """
 
     # define annotations as a list of lists
-    annotation_cols = ['locus', 'gene_id', 'class_4_only']
+    annotation_cols = ['locus', 'gene_id', 'category_4_only']
     annotations = [
         [hl.Locus(contig='chr1', position=1, reference_genome='GRCh38'), 'Gene1', 0],
         [hl.Locus(contig='chr1', position=21, reference_genome='GRCh38'), 'Gene1', 0],
@@ -57,7 +57,7 @@ def test_comp_hets(hail_comp_het):
 
     # apply those annotations to the VCF content
     hail_comp_het = hail_comp_het.annotate_rows(
-        class_4_only=anno_table[hail_comp_het.locus].class_4_only,
+        category_4_only=anno_table[hail_comp_het.locus].category_4_only,
         info=hail_comp_het.info.annotate(
             gene_id=anno_table[hail_comp_het.locus].gene_id
         ),

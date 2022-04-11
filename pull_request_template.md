@@ -1,14 +1,14 @@
-# Fixes #
+# Fixes
 
   - < the issue solved by this PR >
 
-## Proposed Changes ##
+## Proposed Changes
 
   -
   -
   -
 
-## Checklist ##
+## Checklist
 
 - [ ] Related Issue created
 - [ ] Tests covering new change

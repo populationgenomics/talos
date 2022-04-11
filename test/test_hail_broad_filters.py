@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 import hail as hl
 
-from reanalysis.hail_filter_and_categorise import (
+from reanalysis.hail_filter_and_label import (
     filter_matrix_by_ac,
     filter_matrix_by_variant_attributes,
 )

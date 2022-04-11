@@ -23,10 +23,11 @@ Write all output to a JSON dictionary
 from typing import Any, Dict, Optional, Union, Set
 import logging
 import json
+import sys
+
 from argparse import ArgumentParser
 
 import requests
-
 from cloudpathlib import AnyPath
 
 
@@ -39,6 +40,7 @@ def parse_gene_list(path_to_list: str) -> Set[str]:
     required format: a json list of strings
     :param path_to_list:
     """
+    logging.info(f'Loading gene list from {path_to_list}')
     with open(AnyPath(path_to_list), encoding='utf-8') as handle:
         return set(json.load(handle))
 
@@ -175,11 +177,14 @@ def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
     :param previous_genes:
     :return: None, updates object in place
     """
-    for gene_ensg in [
-        ensg for ensg in latest_content.keys() if ensg != 'panel_metadata'
+    new_genes = 0
+    for content in [
+        content for ensg, content in latest_content.items() if ensg != 'panel_metadata'
     ]:
-        if gene_ensg not in previous_genes:
-            latest_content[gene_ensg]['new'] = True
+        if content['symbol'] not in previous_genes:
+            content['new'] = True
+            new_genes += 1
+    logging.info(f'{new_genes} genes were not present in the gene list')
 
 
 def write_output_json(output_path: str, object_to_write: Any):
@@ -223,6 +228,7 @@ def main(
     :return:
     """
 
+    logging.info('Starting PanelApp Query Stage')
     if gene_list is not None and previous_version is not None:
         raise ValueError('Only one of [Date/GeneList] can be specified per run')
 
@@ -230,7 +236,9 @@ def main(
     panel_dict = get_panel_green(panel_id=panel_id)
 
     if gene_list is not None:
+        logging.info(f'A Gene_List was selected: {gene_list}')
         gene_list_contents = parse_gene_list(gene_list)
+        logging.info(f'Length of gene list: {len(gene_list_contents)}')
         gene_list_differences(panel_dict, gene_list_contents)
 
     # migrate more of this into a method to test
@@ -249,6 +257,12 @@ def main(
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
 
     parser = ArgumentParser()
     parser.add_argument(

@@ -27,6 +27,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cloudpathlib import AnyPath
+from cpg_utils.hail import init_batch
 
 
 # set some Hail constants
@@ -307,11 +308,11 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
             reference_genome='GRCh38'
         ),
         alleles=['GC', 'G'],
-        class_4_only=0
+        category_4_only=0
     )
 
     transform into simplified 1-10-GC-G
-    drop the class_4_only attribute
+    drop the category_4_only attribute
     :param locus_details:
     :return:
     """
@@ -342,8 +343,10 @@ def extract_comp_het_details(
     :param matrix:
     """
 
+    logging.info('Extracting out the compound-het variant pairs')
+
     # set a new group of values as the key, so that we can collect on them easily
-    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.class_4_only)
+    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.category_4_only)
     ch_matrix = ch_matrix.annotate_cols(
         hets=hl.agg.group_by(
             ch_matrix.info.gene_id,
@@ -353,6 +356,8 @@ def extract_comp_het_details(
 
     # extract those possible compound het pairs out as a non-Hail structure
     compound_hets = {}
+
+    logging.info('Collecting all variant pairs')
 
     # iterate over the hail table rows
     # find all variant pair permutations which aren't both class 4
@@ -368,7 +373,7 @@ def extract_comp_het_details(
             for var1, var2 in permutations(variants, 2):
 
                 # skip if both are class 4 only - not valuable pairing
-                if var1.class_4_only == 1 and var2.class_4_only == 1:
+                if var1.category_4_only == 1 and var2.category_4_only == 1:
                     continue
 
                 # pair the string transformation
@@ -674,48 +679,30 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, new_gene_set_expression
 
 
-def informed_repartition(
-    matrix: hl.MatrixTable, post_annotation: bool, temporary_path: str
-):
+def informed_repartition(matrix: hl.MatrixTable):
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
     post-annotation rows are estimated at ~5kB
         - a recursive sys.getsizeof-like guess suggested ~140 Bytes :/
-        - writing a row to text was closer to 20kB :/
-    pre-annotation rows are assumed to be substantially smaller
-    throwing 200k rows into pre-annotation blocks, 100k into post
+        - writing a row to text was closer to 20kB
 
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
 
     :param matrix:
-    :param post_annotation:
-    :param temporary_path:
     :return: repartitioned matrix
     """
 
     # calculate partitions, falling back to 1 partition if size is too small
     current_rows = matrix.count_rows()
-    if post_annotation:
-        partitions = current_rows // 200000 or 1
-    else:
-        partitions = current_rows // 100000 or 1
+    partitions = current_rows // 200000 or 1
 
-    # repartition with the specified # partitions
-    matrix.repartition(n_partitions=partitions, shuffle=True)
-
-    # a quick write to a temp path, and a read from the same
-    return matrix.checkpoint(temporary_path, overwrite=True)
+    logging.info(f'Re-partitioning {current_rows} into {partitions} partitions')
+    return matrix.repartition(n_partitions=partitions, shuffle=True)
 
 
-def main(
-    mt_input: str,
-    panelapp_path: str,
-    config_path: str,
-    out_vcf: str,
-    mt_tmp: Optional[str] = None,
-):
+def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     """
     Read the MT from disk
     Do filtering and class annotation
@@ -725,8 +712,10 @@ def main(
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
     :param out_vcf: path to write the VCF out to
-    :param mt_tmp:
     """
+
+    # initiate Hail with defined driver spec.
+    init_batch()
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
@@ -747,8 +736,6 @@ def main(
     logging.info(
         f'Starting Hail with reference genome "{hail_config.get("ref_genome")}"'
     )
-    # initiate Hail with the specified reference
-    hl.init(default_reference=hail_config.get('ref_genome'), quiet=True)
 
     # if we already generated the annotated output, load instead
     if not AnyPath(mt_input.rstrip('/') + '/').exists():
@@ -767,6 +754,9 @@ def main(
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
+    # # checkpoint after applying all these operations
+    matrix = informed_repartition(matrix=matrix)
+
     # filter on row annotations
     logging.info('Filtering Variant rows')
     matrix = filter_rows_for_rare(matrix=matrix, config=hail_config)
@@ -780,11 +770,8 @@ def main(
     matrix = filter_by_consequence(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
-    # choose some logical way of repartitioning
-    logging.info('Repartition fragments following Gene ID filter')
-    # informed_repartition(matrix, post_annotation=True, temporary_path=mt_tmp)
-    print(f'running blind repartition, would use "{mt_tmp}"')
-    matrix = matrix.repartition(n_partitions=50, shuffle=True)
+    logging.info('Repartitioning after consequence filtration')
+    matrix = informed_repartition(matrix=matrix)
 
     # add Classes to the MT
     logging.info('Applying categories to variant consequences')
@@ -797,6 +784,9 @@ def main(
     logging.info('Filter variants to leave only classified')
     matrix = filter_to_categorised(matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
+
+    # another little repartition after heavy filtering
+    matrix = informed_repartition(matrix=matrix)
 
     # add an additional annotation, if the variant is Category4 only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
@@ -817,6 +807,9 @@ def main(
             MISSING_INT,
         ),
     )
+
+    # write to MT
+    matrix.write(f'{out_vcf}.mt', overwrite=True)
 
     # parse out the compound het details (after pulling gene_id above)
     comp_het_details = extract_comp_het_details(matrix=matrix)
@@ -864,18 +857,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--out_vcf', type=str, required=True, help='VCF path to export results'
     )
-    parser.add_argument(
-        '--mt_tmp',
-        required=False,
-        default=None,
-        help='path to a temporary write location',
-    )
     args = parser.parse_args()
-
     main(
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
         config_path=args.config_path,
         out_vcf=args.out_vcf,
-        mt_tmp=args.mt_tmp,
     )

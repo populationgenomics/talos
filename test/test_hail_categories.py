@@ -9,7 +9,7 @@ import pytest
 import hail as hl
 import pandas as pd
 
-from reanalysis.hail_filter_and_categorise import (
+from reanalysis.hail_filter_and_label import (
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,

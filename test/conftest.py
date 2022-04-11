@@ -48,6 +48,7 @@ def fixture_hail_cleanup():
     """
     a fixture to clean up hail log files
     irrelevant in CI, a right pain for local testing
+    auto-use + session + immediate yield means this is the last method call
     :return:
     """
     # yield something to suspend
