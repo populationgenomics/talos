@@ -332,7 +332,7 @@ def main(
         # --------------------------------- #
         # copy the labelled output file into the remaining batch jobs
         hail_output_in_batch = batch.read_input_group(
-            **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
+            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
         )
 
         # this is no longer explicitly required...
