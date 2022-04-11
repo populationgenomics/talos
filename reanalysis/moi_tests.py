@@ -23,7 +23,7 @@ a singleton
 
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from reanalysis.pedigree import PedigreeParser
 from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant
@@ -195,6 +195,92 @@ class BaseMoi:
             return True
         return False
 
+    def check_familial_inheritance(
+        self,
+        sample_id: str,
+        called_variants: Set[str],
+        checked_samples: Optional[Set[str]] = None,
+        complete_penetrance: bool = True,
+    ) -> Tuple[bool, Set[str]]:
+        """
+        sex-agnostic check for dominant inheritance
+        designed to be called recursively, this method will take a single sample
+        as a starting point and check that the MOI is viable across the whole family
+        *we are assuming complete penetrance with this version*
+
+        - start with this sample, check they have the variant and are affected
+        - check for any children, run the same check for them
+        - check for any parents and run the same check
+
+        At each stage, append the sample ID of all checked samples so we don't repeat
+        One broken check will fail the variant for the whole family
+
+        Return False if a participant fails tests, True if all checked (so far) are ok
+        :param sample_id:
+        :param called_variants: the set of sample_ids with calls to check
+        :param checked_samples: list of samples checked so far, no repeats
+        :param complete_penetrance: if True, (force affected=has variant call)
+
+        NOTE: this called_variants pool is prepared before calling this method.
+        If we only want to check hom calls, only send hom calls. If we are checking for
+        dominant conditions, we would bundle hom and het calls into this set
+        :return:
+        """
+
+        # allow for missing 'checked samples' set on first call
+        if checked_samples is None:
+            checked_samples = set()
+
+        # make sure we don't re-check this sample
+        checked_samples.add(sample_id)
+
+        # initial value
+        variant_passing: bool = True
+
+        # complete & incomplete penetrance - affected samples must have the variant
+        # complete penetrance requires participants to be affected if they have the var
+        # if any of these combinations occur, fail the family
+        if (
+            self.pedigree.participants[sample_id].details.affected
+            and sample_id not in called_variants
+        ) or (
+            sample_id in called_variants
+            and complete_penetrance
+            and not self.pedigree.participants[sample_id].details.affected
+        ):
+            # fail
+            return False, checked_samples
+
+        # now run the same check with parents and children - walk the pedigree
+        this_participant = self.pedigree.participants[sample_id]
+
+        # iterate over whole immediate family in one loop
+        for other_member in this_participant.children + [
+            this_participant.mother,
+            this_participant.father,
+        ]:
+            # parents could be None, and member could be checked already
+            if (
+                other_member is None
+                or other_member.details.sample_id in checked_samples
+            ):
+                # go to next family member
+                continue
+
+            # give + take the updated list of checked members each time
+            variant_passing, checked_samples = self.check_familial_inheritance(
+                called_variants=called_variants,
+                sample_id=other_member.details.sample_id,
+                checked_samples=checked_samples,
+                complete_penetrance=complete_penetrance,
+            )
+
+            # cascade upwards on failure (exit loop)
+            if not variant_passing:
+                return variant_passing, checked_samples
+
+        return variant_passing, checked_samples
+
 
 class DominantAutosomal(BaseMoi):
     """
@@ -245,15 +331,21 @@ class DominantAutosomal(BaseMoi):
         ):
             return classifications
 
-        # autosomal dominant doesn't require support
+        # autosomal dominant doesn't require support, but consider het and hom
+        samples_with_this_variant = principal_var.het_samples.union(
+            principal_var.hom_samples
+        )
         for sample_id in [
-            sam
-            for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if self.is_affected(sam)
+            sam for sam in samples_with_this_variant if self.is_affected(sam)
         ]:
 
-            # add a check that this participant doesn't have unaffected
-            # parents/relatives with same variant
+            # check if this is a possible candidate for dominant inheritance
+            passes_family_checks, _samples = self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=samples_with_this_variant
+            )
+
+            if not passes_family_checks:
+                continue
 
             classifications.append(
                 ReportedVariant(
@@ -313,7 +405,14 @@ class RecessiveAutosomal(BaseMoi):
             sam for sam in principal_var.hom_samples if self.is_affected(sam)
         ]:
 
-            # # check for either parent being unaffected - skip this sample
+            # check if this is a possible candidate for homozygous inheritance
+            passes_family_checks, _samples = self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=principal_var.hom_samples
+            )
+
+            if not passes_family_checks:
+                continue
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -335,6 +434,9 @@ class RecessiveAutosomal(BaseMoi):
                 sample=sample_id,
                 gene=principal_var.info.get('gene_id'),
             )
+
+            # FIXME requires a new test here! - check variant pairs in the family
+
             if passes:
                 classifications.append(
                     ReportedVariant(
@@ -409,10 +511,22 @@ class XDominant(BaseMoi):
         ):
             return classifications
 
-        # dominant doesn't care about support
-        # for all the samples which are affected
-        # (assumption that probands are affected)
-        for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
+        # all samples which have a variant call
+        samples_with_this_variant = principal_var.het_samples.union(
+            principal_var.hom_samples
+        )
+
+        for sample_id in samples_with_this_variant:
+
+            # check if this is a candidate for dominant inheritance
+            passes_family_checks, _samples = self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=samples_with_this_variant
+            )
+
+            if not passes_family_checks:
+                continue
+
+            # passed inheritance test, create the record
             sex = (
                 'Female'
                 if self.pedigree.participants[sample_id].details.is_female
@@ -483,24 +597,25 @@ class XRecessive(BaseMoi):
             return classifications
 
         # X-relevant, we separate out male and females
-        males = [
+        # combine het and hom here, we don't trust the variant callers
+        males = {
             sam
             for sam in principal_var.het_samples.union(principal_var.hom_samples)
             if not self.pedigree.participants[sam].details.is_female
-        ]
+        }
 
         # get female calls in 2 categories
-        het_females = [
+        het_females = {
             sam
             for sam in principal_var.het_samples
             if self.pedigree.participants[sam].details.is_female
-        ]
+        }
 
-        hom_females = [
+        hom_females = {
             sam
             for sam in principal_var.hom_samples
             if self.pedigree.participants[sam].details.is_female
-        ]
+        }
 
         # if het females are present, try and find support
         for sample_id in het_females:
@@ -534,7 +649,17 @@ class XRecessive(BaseMoi):
 
         # find all het males and hom females
         # assumption that the sample can only be hom if female?
-        for sample_id in males + hom_females:
+        samples_to_check = males.union(hom_females)
+        for sample_id in samples_to_check:
+
+            # check if this is a possible candidate for homozygous inheritance
+            passes_family_checks, _samples = self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=samples_to_check
+            )
+
+            if not passes_family_checks:
+                continue
+
             if not self.pedigree.participants[sample_id].details.is_female:
                 reason = f'{self.applied_moi} Male'
             else:
@@ -618,3 +743,6 @@ class YHemi(BaseMoi):
             )
 
         return classifications
+
+
+# create a DeNovo category

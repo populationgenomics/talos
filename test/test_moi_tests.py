@@ -458,3 +458,138 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch):
     )
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
     assert not x_rec.run(passing_variant)
+
+
+# trio male, mother_1, father_1; only 'male' is affected
+def test_check_familial_inheritance_simple():
+    """
+    test the check_familial_inheritance method
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='male', called_variants={'male'}
+    )
+    assert result
+    assert samples == {'male', 'mother_1', 'father_1'}
+
+
+def test_check_familial_inheritance_mother_fail():
+    """
+    test the check_familial_inheritance method
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='male', called_variants={'male', 'mother_1'}
+    )
+    assert not result
+    assert 'male' in samples
+    assert 'mother_1' in samples
+
+
+def test_check_familial_inheritance_mother_passes():
+    """
+    test the check_familial_inheritance method
+    mother in variant calls, but partial penetrance
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='male',
+        called_variants={'male', 'mother_1'},
+        complete_penetrance=False,
+    )
+    assert result
+    assert samples == {'male', 'mother_1', 'father_1'}
+
+
+def test_check_familial_inheritance_father_fail():
+    """
+    test the check_familial_inheritance method
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='male', called_variants={'male', 'father_1'}
+    )
+    assert not result
+    assert 'male' in samples
+    assert 'father_1' in samples
+
+
+def test_check_familial_inheritance_father_passes():
+    """
+    test the check_familial_inheritance method
+    father in variant calls, but partial penetrance
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='male',
+        called_variants={'male', 'father_1'},
+        complete_penetrance=False,
+    )
+    assert result
+    assert samples == {'male', 'mother_1', 'father_1'}
+
+
+def test_check_familial_inheritance_top_down():
+    """
+    test the check_familial_inheritance method
+    father in variant calls, but partial penetrance
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='father_1',
+        called_variants={'male', 'father_1'},
+        complete_penetrance=False,
+    )
+    assert result
+    assert samples == {'male', 'mother_1', 'father_1'}
+
+
+def test_check_familial_inheritance_no_calls():
+    """
+    test the check_familial_inheritance method where there are no calls
+    will fail as affected proband not in calls
+    :return:
+    """
+
+    base_moi = BaseMoi(
+        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+    )
+
+    result, samples = base_moi.check_familial_inheritance(
+        sample_id='male',
+        called_variants=set(),
+        complete_penetrance=False,
+    )
+    # should fail immediately
+    assert samples == {'male'}
+    assert not result
