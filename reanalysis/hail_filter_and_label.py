@@ -694,7 +694,7 @@ def informed_repartition(matrix: hl.MatrixTable):
     :return: repartitioned matrix
     """
 
-    # calculate partitions, falling back to 100 partitions if size is too small
+    # calculate partitions, falling back to 1 partition if size is too small
     current_rows = matrix.count_rows()
     partitions = current_rows // 200000 or 1
 
