@@ -25,7 +25,8 @@ import logging
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Set
 
-from reanalysis.pedigree import PedigreeParser
+from peddy.peddy import Ped
+
 from reanalysis.utils import (
     AbstractVariant,
     CompHetDict,
@@ -82,7 +83,7 @@ class MOIRunner:
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         target_moi: str,
         config: Dict[str, Any],
         comp_het_lookup: CompHetDict,
@@ -168,7 +169,7 @@ class BaseMoi:
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str,
         comp_het: Optional[CompHetDict],
@@ -190,19 +191,9 @@ class BaseMoi:
         """
         run all applicable inheritance patterns and finds good fits
         :param principal_var:
-        :param gene_lookup:
+        :param gene_lookup: dictionary of all variants in this gene
         :return:
         """
-
-    def is_affected(self, sample_id: str) -> bool:
-        """
-        take a sample ID and check if they are affected
-        :param sample_id:
-        :return:
-        """
-        if self.pedigree.participants[sample_id].details.affected:
-            return True
-        return False
 
     def check_familial_inheritance(
         self,
@@ -235,26 +226,20 @@ class BaseMoi:
         :return:
         """
 
-        # get the family ID for this test
-        family_id = self.pedigree.participants[sample_id].details.family
-
         # initial value
         variant_passing: bool = True
 
         # iterate through all family members, no interested in directionality
         # of relationships at the moment
-        for member in self.pedigree.families[family_id]:
+        for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
 
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (
-                member.details.affected
-                and member.details.sample_id not in called_variants
-            ) or (
-                member.details.sample_id in called_variants
+            if (member.affected and member.sample_id not in called_variants) or (
+                member.sample_id in called_variants
                 and complete_penetrance
-                and not member.details.affected
+                and not member.affected
             ):
                 # fail
                 return False
@@ -291,27 +276,24 @@ class BaseMoi:
         :return:
         """
 
-        # get the family ID for this test
-        family_id = self.pedigree.participants[sample_id].details.family
-
         # initial value
         variant_passing: bool = True
 
         # iterate through all family members, no interested in directionality
         # of relationships at the moment
-        for member in self.pedigree.families[family_id]:
+        for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
 
             # one value to store the check that this sample has _this_ comp-het
             sample_comp_het = (
-                member.details.sample_id in called_variants_1
-                and member.details.sample_id in called_variants_2
+                member.sample_id in called_variants_1
+                and member.sample_id in called_variants_2
             )
 
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (member.details.affected and not sample_comp_het) or (
-                sample_comp_het and complete_penetrance and not member.details.affected
+            if (member.affected and not sample_comp_het) or (
+                sample_comp_het and complete_penetrance and not member.affected
             ):
                 # fail
                 return False
@@ -327,7 +309,7 @@ class DominantAutosomal(BaseMoi):
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'Autosomal Dominant',
     ):
@@ -376,7 +358,7 @@ class DominantAutosomal(BaseMoi):
             principal_var.hom_samples
         )
         for sample_id in [
-            sam for sam in samples_with_this_variant if self.is_affected(sam)
+            sam for sam in samples_with_this_variant if self.pedigree[sam].affected
         ]:
 
             # check if this is a candidate for dominant inheritance
@@ -406,7 +388,7 @@ class RecessiveAutosomal(BaseMoi):
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         config: Dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'Autosomal Recessive',
@@ -443,7 +425,7 @@ class RecessiveAutosomal(BaseMoi):
 
         # homozygous is relevant directly
         for sample_id in [
-            sam for sam in principal_var.hom_samples if self.is_affected(sam)
+            sam for sam in principal_var.hom_samples if self.pedigree[sam].affected
         ]:
 
             # check if this is a possible candidate for homozygous inheritance
@@ -464,7 +446,7 @@ class RecessiveAutosomal(BaseMoi):
 
         # if hets are present, try and find support
         for sample_id in [
-            sam for sam in principal_var.het_samples if self.is_affected(sam)
+            sam for sam in principal_var.het_samples if self.pedigree[sam].affected
         ]:
 
             for partner in check_for_second_hit(
@@ -508,7 +490,7 @@ class XDominant(BaseMoi):
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'X_Dominant',
     ):
@@ -569,17 +551,15 @@ class XDominant(BaseMoi):
                 continue
 
             # passed inheritance test, create the record
-            sex = (
-                'Female'
-                if self.pedigree.participants[sample_id].details.is_female
-                else 'Male'
-            )
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
-                    reasons={f'{self.applied_moi} {sex}'},
+                    reasons={
+                        f'{self.applied_moi} '
+                        f'{self.pedigree[sample_id].sex.capitalize()}'
+                    },
                     supported=False,
                 )
             )
@@ -594,7 +574,7 @@ class XRecessive(BaseMoi):
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         config: Dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'X_Recessive',
@@ -646,19 +626,19 @@ class XRecessive(BaseMoi):
         males = {
             sam
             for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if not self.pedigree.participants[sam].details.is_female
+            if self.pedigree[sam].sex == 'male'
         }
 
         # split female calls into 2 categories
         het_females = {
             sam
             for sam in principal_var.het_samples
-            if self.pedigree.participants[sam].details.is_female
+            if self.pedigree[sam].sex == 'female'
         }
         hom_females = {
             sam
             for sam in principal_var.hom_samples
-            if self.pedigree.participants[sam].details.is_female
+            if self.pedigree[sam].sex == 'female'
         }
 
         # if het females are present, try and find support
@@ -676,7 +656,7 @@ class XRecessive(BaseMoi):
                 het_females_partner = {
                     sam
                     for sam in gene_lookup[partner].het_samples
-                    if self.pedigree.participants[sam].details.is_female
+                    if self.pedigree[sample_id].sex == 'female'
                 }
                 if not self.check_familial_comp_het(
                     sample_id=sample_id,
@@ -716,16 +696,15 @@ class XRecessive(BaseMoi):
             ):
                 continue
 
-            if not self.pedigree.participants[sample_id].details.is_female:
-                reason = f'{self.applied_moi} Male'
-            else:
-                reason = f'{self.applied_moi} Female'
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
-                    reasons={reason},
+                    reasons={
+                        f'{self.applied_moi} '
+                        f'{self.pedigree[sample_id].sex.capitalize()}'
+                    },
                     supported=False,
                 )
             )
@@ -744,7 +723,7 @@ class YHemi(BaseMoi):
 
     def __init__(
         self,
-        pedigree: PedigreeParser,
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'Y_Hemi',
     ):
@@ -786,7 +765,7 @@ class YHemi(BaseMoi):
 
         # we don't expect any confident Y calls in females
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
-            if self.pedigree.participants[sample_id].details.is_female:
+            if self.pedigree[sample_id].sex == 'female':
                 logging.error(f'Sample {sample_id} is a female with call on Y')
             classifications.append(
                 ReportedVariant(

@@ -19,9 +19,9 @@ from typing import Any, Dict, List, Union
 
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
+from peddy.peddy import Ped
 
 from reanalysis.moi_tests import MOIRunner
-from reanalysis.pedigree import PedigreeParser
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
     gather_gene_dict_from_contig,
@@ -37,7 +37,7 @@ from reanalysis.utils import (
 def set_up_inheritance_filters(
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
     config: Dict[str, Any],
-    pedigree: PedigreeParser,
+    pedigree: Ped,
     comp_het_lookup: CompHetDict,
 ) -> Dict[str, MOIRunner]:
     """
@@ -265,7 +265,7 @@ def main(
     """
 
     # parse the pedigree from the file
-    pedigree_digest = PedigreeParser(pedigree)
+    pedigree_digest = Ped(pedigree)
 
     # parse panelapp data from dict
     panelapp_data = read_json_dict_from_path(panelapp)
@@ -280,15 +280,12 @@ def main(
             f'What is the conf path then?? "{config_path}": {type(config_path)}'
         )
 
-    # find all the Compound Hets from C-H JSON
-    comp_het_digest: CompHetDict = read_json_dict_from_path(comp_het)
-
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
         panelapp_data=panelapp_data,
         pedigree=pedigree_digest,
         config=config_dict,
-        comp_het_lookup=comp_het_digest,
+        comp_het_lookup=read_json_dict_from_path(comp_het),
     )
 
     # find classification events

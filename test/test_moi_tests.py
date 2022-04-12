@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Set
 import os
 
 from unittest import mock
+from peddy.peddy import Ped
 
 import pytest
 from reanalysis.moi_tests import (
@@ -24,7 +25,6 @@ from reanalysis.moi_tests import (
     XDominant,
     XRecessive,
 )
-from reanalysis.pedigree import PedigreeParser
 
 from reanalysis.utils import Coordinates
 
@@ -41,7 +41,7 @@ MOI_CONF = {
 }
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
-TINY_PEDIGREE = PedigreeParser(PED_FILE)
+TINY_PEDIGREE = Ped(PED_FILE)
 TINY_CONFIG = {'male': 'male'}
 TINY_COMP_HET = {}
 
@@ -133,18 +133,6 @@ def test_moi_runner(moi_string: str, filters: List[str]):
     # and the instantiated objects don't have a __name__
     for filter1, filter2 in zip(test_runner.filter_list, filters):
         assert str(filter1.__class__).__contains__(filter2)
-
-
-def test_base_moi():
-    """
-    test class for the MOI base methods
-    :return:
-    """
-
-    base = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='male', comp_het={}
-    )
-    assert base.is_affected('male')
 
 
 def test_dominant_autosomal_passes():

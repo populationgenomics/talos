@@ -27,8 +27,8 @@ variant to decide whether we include it in the final report.
 
 Static Objects:
 
-- Comp-Het mapping: a lookup object of `Var_1: Var_2` for all variant pairs
-  - When each variant is assessed, we check if the variant fits with the expected MOI alone. If
+- Comp-Het mapping: a lookup object of the strings `Var_1: [Var_2, Var_3, ...]` for all variant pairs
+  - As each variant is assessed, we first check if the variant fits with the expected MOI alone. If
   the variant alone doesn't pass the relevant MOI test, we can then check if it was seen as a compound-het with a
   `second hit`. If this is the case then we can report the variant pair as a plausible variant combination.
 - Configuration File: used throughout the pipeline, this contains all runtime settings
@@ -36,7 +36,15 @@ Static Objects:
   may change with each run, so we take those parameters from a central configuration file
 - PanelApp data: associates genes with evidenced inheritance patterns
   - For each 'green' (high evidence) gene contains inheritance pattern to be applied & if the gene as 'new'
-(since a given date, or specific gene list).
+  (since a given date, or specific gene list).
+- Gene Lookup: a dictionary of all variants in this gene, indexed on `chr-pos-ref-alt` representation
+  - When we check the partner variants of a compound-het, we also need to check whether or not other family members
+  also have this same compound het pair. To do that, we must be able to reach the representation of the variant. For
+  this purpose we pass a collection of variants to the `MOI.run()` method, so that we can access the MOI for all vars
+  being considered. We could also do this same test using the comp-het dictionary, but there are other reasons to group
+  variants by gene (parsing variants as a gene group is a logical level for parallelisation, as all X-variant impacts
+  will be covered by grouping at this level) so this logic feels more versatile. Note: parsing variants as a gene-group
+  removes need for separately gathering a compound-het dictionary
 
 Dynamic Objects: AbstractVariant
 
@@ -116,6 +124,7 @@ Currently the compound-het checks are done in Hail, resulting in a simple result
 This is a highly condensed representation, and doesn't hold any annotations from the relevant variants. It simply
 contains information to state that the named sample(s) have co-located variants within the same gene.
 
+Compound-het checks are triggered once we find  consists of parsing the above format to
 At this stage, compound-het checking simply takes a variant read from the VCF, and for the given sample, gene, and
 position, checks if a paired variant was found. If so, the 2nd var coordinates are logged as 'supporting' the 'primary'
 variant.
