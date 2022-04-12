@@ -49,3 +49,15 @@ def test_ped_parsing():
     assert parsed.participants['female'].mother.details.sample_id == 'mother_2'
     assert parsed.participants['father_2'].children[0].details.sample_id == 'female'
     assert parsed.participants['female'].unaffected_parents == {'father_2', 'mother_2'}
+
+    assert set(parsed.families.keys()) == {'family_1', 'family_2'}
+    assert {mem.details.sample_id for mem in parsed.families['family_1']} == {
+        'male',
+        'father_1',
+        'mother_1',
+    }
+    assert {mem.details.sample_id for mem in parsed.families['family_2']} == {
+        'female',
+        'father_2',
+        'mother_2',
+    }
