@@ -264,8 +264,10 @@ def main(
     :param pedigree:
     """
 
-    # parse the pedigree from the file
-    pedigree_digest = Ped(pedigree)
+    # parse the pedigree from the file (via write to temp)
+    with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
+        handle.write(AnyPath(pedigree).read_text())
+    pedigree_digest = Ped('i_am_a_temporary.ped')
 
     # parse panelapp data from dict
     panelapp_data = read_json_dict_from_path(panelapp)
