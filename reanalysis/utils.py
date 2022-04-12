@@ -6,7 +6,8 @@ which may be shared across reanalysis components
 
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass, is_dataclass
-from functools import cache
+
+# from functools import cache
 import json
 import logging
 import re
@@ -222,7 +223,7 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
         return json.load(handle)
 
 
-@cache
+# @cache
 def get_simple_moi(panel_app_moi: str) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a reduced
