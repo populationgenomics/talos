@@ -23,7 +23,7 @@ a singleton
 
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 from reanalysis.pedigree import PedigreeParser
 from reanalysis.utils import (
@@ -208,26 +208,21 @@ class BaseMoi:
         self,
         sample_id: str,
         called_variants: Set[str],
-        checked_samples: Optional[Set[str]] = None,
         complete_penetrance: bool = True,
-    ) -> Tuple[bool, Set[str]]:
+    ) -> bool:
         """
         sex-agnostic check for single variant inheritance
         designed to be called recursively, this method will take a single sample
         as a starting point and check that the MOI is viable across the whole family
         *we are assuming complete penetrance with this version*
 
-        - start with this sample, check they have the variant and are affected
-        - check for any children, run the same check for them
-        - check for any parents and run the same check
-
-        At each stage, append the sample ID of all checked samples so we don't repeat
-        One broken check will fail the variant for the whole family
+        - find the family ID from this sample
+        - iterate through all family members, and check that MOI holds for all
 
         Return False if a participant fails tests, True if all checked (so far) are ok
+
         :param sample_id:
-        :param called_variants: the set of sample_ids with calls to check
-        :param checked_samples: list of samples checked so far, no repeats
+        :param called_variants: the set of sample_ids which have this variant
         :param complete_penetrance: if True, (force affected==has variant call)
 
         NOTE: this called_variants pool is prepared before calling this method.
@@ -240,153 +235,88 @@ class BaseMoi:
         :return:
         """
 
-        # allow for missing 'checked samples' set on first call
-        if checked_samples is None:
-            checked_samples = set()
-
-        # make sure we don't re-check this sample
-        checked_samples.add(sample_id)
+        # get the family ID for this test
+        family_id = self.pedigree.participants[sample_id].details.family
 
         # initial value
         variant_passing: bool = True
 
-        # complete & incomplete penetrance - affected samples must have the variant
-        # complete penetrance requires participants to be affected if they have the var
-        # if any of these combinations occur, fail the family
-        if (
-            self.pedigree.participants[sample_id].details.affected
-            and sample_id not in called_variants
-        ) or (
-            sample_id in called_variants
-            and complete_penetrance
-            and not self.pedigree.participants[sample_id].details.affected
-        ):
-            # fail
-            return False, checked_samples
+        # iterate through all family members, no interested in directionality
+        # of relationships at the moment
+        for member in self.pedigree.families[family_id]:
 
-        # now run the same check with parents and children - walk the pedigree
-        this_participant = self.pedigree.participants[sample_id]
-
-        # iterate over whole immediate family in one loop
-        for other_member in this_participant.children + [
-            this_participant.mother,
-            this_participant.father,
-        ]:
-            # parents could be None, and any member could be checked already
+            # complete & incomplete penetrance - affected samples must have the variant
+            # complete pen. requires participants to be affected if they have the var
+            # if any of these combinations occur, fail the family
             if (
-                other_member is None
-                or other_member.details.sample_id in checked_samples
+                member.details.affected
+                and member.details.sample_id not in called_variants
+            ) or (
+                member.details.sample_id in called_variants
+                and complete_penetrance
+                and not member.details.affected
             ):
-                # go to next family member
-                continue
+                # fail
+                return False
 
-            # give + take the updated list of checked members each time
-            variant_passing, checked_samples = self.check_familial_inheritance(
-                called_variants=called_variants,
-                sample_id=other_member.details.sample_id,
-                checked_samples=checked_samples,
-                complete_penetrance=complete_penetrance,
-            )
-
-            # cascade upwards on failure (exit loop)
-            if not variant_passing:
-                return variant_passing, checked_samples
-
-        return variant_passing, checked_samples
+        return variant_passing
 
     def check_familial_comp_het(
         self,
         sample_id: str,
         called_variants_1: Set[str],
         called_variants_2: Set[str],
-        checked_samples: Optional[Set[str]] = None,
         complete_penetrance: bool = True,
-    ) -> Tuple[bool, Set[str]]:
+    ) -> bool:
         """
         compound_het check, requires 2 pools of variant calls
         called_variants_1 & called_variants_2 are the relevant variant calls from
         2 different variants. We evaluate the sample as 'having this variant pair'
         if the sample ID appears in both call groups
 
-        designed to be called recursively, this method will take a single sample
-        as a starting point and check that the MOI is viable across the whole family
-        *we are assuming complete penetrance with this version*
-
-        - start with this sample, check they have the variant and are affected
-        - check for any children, run the same check for them
-        - check for any parents and run the same check
+        - find the family ID from this sample
+        - iterate through all family members, and check that MOI holds for all
+        - this MOI test requires the participant to have both variant calls in order
+          to 'have this variant'
 
         At each stage, append the sample ID of all checked samples so we don't repeat
         One broken check will fail the variant for the whole family
 
-        Return False if a participant fails tests, True if all checked (so far) are ok
+        Return False if a participant fails tests, True if all members pass
+
         :param sample_id:
         :param called_variants_1: called samples for variant 1
         :param called_variants_2: called samples for variant 2
-        :param checked_samples: list of samples checked so far, no repeats
         :param complete_penetrance: if True, (force affected==has variant call)
         :return:
         """
 
-        # allow for missing 'checked samples' set on first call
-        if checked_samples is None:
-            checked_samples = set()
-
-        # make sure we don't re-check this sample
-        checked_samples.add(sample_id)
+        # get the family ID for this test
+        family_id = self.pedigree.participants[sample_id].details.family
 
         # initial value
         variant_passing: bool = True
 
-        # one value to store the check that this sample has _this_ comp-het
-        sample_comp_het = (
-            sample_id in called_variants_1 and sample_id in called_variants_2
-        )
+        # iterate through all family members, no interested in directionality
+        # of relationships at the moment
+        for member in self.pedigree.families[family_id]:
 
-        # complete & incomplete penetrance - affected samples must have the variant
-        # complete penetrance requires participants to be affected if they have the var
-        # if any of these combinations occur, fail the family
-        if (
-            self.pedigree.participants[sample_id].details.affected
-            and not sample_comp_het
-        ) or (
-            sample_comp_het
-            and complete_penetrance
-            and not self.pedigree.participants[sample_id].details.affected
-        ):
-            # fail
-            return False, checked_samples
-
-        # now run the same check with parents and children - walk the pedigree
-        this_participant = self.pedigree.participants[sample_id]
-
-        # iterate over whole immediate family in one loop
-        for other_member in this_participant.children + [
-            this_participant.mother,
-            this_participant.father,
-        ]:
-            # parents could be None, and any member could be checked already
-            if (
-                other_member is None
-                or other_member.details.sample_id in checked_samples
-            ):
-                # go to next family member
-                continue
-
-            # give + take the updated list of checked members each time
-            variant_passing, checked_samples = self.check_familial_comp_het(
-                called_variants_1=called_variants_1,
-                called_variants_2=called_variants_2,
-                sample_id=other_member.details.sample_id,
-                checked_samples=checked_samples,
-                complete_penetrance=complete_penetrance,
+            # one value to store the check that this sample has _this_ comp-het
+            sample_comp_het = (
+                member.details.sample_id in called_variants_1
+                and member.details.sample_id in called_variants_2
             )
 
-            # cascade upwards on failure (exit loop)
-            if not variant_passing:
-                return variant_passing, checked_samples
+            # complete & incomplete penetrance - affected samples must have the variant
+            # complete pen. requires participants to be affected if they have the var
+            # if any of these combinations occur, fail the family
+            if (member.details.affected and not sample_comp_het) or (
+                sample_comp_het and complete_penetrance and not member.details.affected
+            ):
+                # fail
+                return False
 
-        return variant_passing, checked_samples
+        return variant_passing
 
 
 class DominantAutosomal(BaseMoi):
@@ -449,12 +379,10 @@ class DominantAutosomal(BaseMoi):
             sam for sam in samples_with_this_variant if self.is_affected(sam)
         ]:
 
-            # check if this is a possible candidate for dominant inheritance
-            passes_family_checks, _samples = self.check_familial_inheritance(
+            # check if this is a candidate for dominant inheritance
+            if not self.check_familial_inheritance(
                 sample_id=sample_id, called_variants=samples_with_this_variant
-            )
-
-            if not passes_family_checks:
+            ):
                 continue
 
             classifications.append(
@@ -519,11 +447,9 @@ class RecessiveAutosomal(BaseMoi):
         ]:
 
             # check if this is a possible candidate for homozygous inheritance
-            passes_family_checks, _samples = self.check_familial_inheritance(
+            if not self.check_familial_inheritance(
                 sample_id=sample_id, called_variants=principal_var.hom_samples
-            )
-
-            if not passes_family_checks:
+            ):
                 continue
 
             classifications.append(
@@ -549,13 +475,11 @@ class RecessiveAutosomal(BaseMoi):
             ):
 
                 # check if this is a candidate for comp-het inheritance
-                passes_family_checks, _samples = self.check_familial_comp_het(
+                if not self.check_familial_comp_het(
                     sample_id=sample_id,
                     called_variants_1=principal_var.het_samples,
                     called_variants_2=gene_lookup[partner].het_samples,
-                )
-
-                if not passes_family_checks:
+                ):
                     continue
 
                 classifications.append(
@@ -639,11 +563,9 @@ class XDominant(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # check if this is a candidate for dominant inheritance
-            passes_family_checks, _samples = self.check_familial_inheritance(
+            if not self.check_familial_inheritance(
                 sample_id=sample_id, called_variants=samples_with_this_variant
-            )
-
-            if not passes_family_checks:
+            ):
                 continue
 
             # passed inheritance test, create the record
@@ -750,18 +672,17 @@ class XRecessive(BaseMoi):
             ):
 
                 # check if this is a candidate for comp-het inheritance
+                # get all female het calls on the paired variant
                 het_females_partner = {
                     sam
                     for sam in gene_lookup[partner].het_samples
                     if self.pedigree.participants[sam].details.is_female
                 }
-                passes_family_checks, _samples = self.check_familial_comp_het(
+                if not self.check_familial_comp_het(
                     sample_id=sample_id,
                     called_variants_1=principal_var.het_samples,
                     called_variants_2=het_females_partner,
-                )
-
-                if not passes_family_checks:
+                ):
                     continue
 
                 classifications.append(
@@ -790,11 +711,9 @@ class XRecessive(BaseMoi):
         for sample_id in samples_to_check:
 
             # check if this is a possible candidate for homozygous inheritance
-            passes_family_checks, _samples = self.check_familial_inheritance(
+            if not self.check_familial_inheritance(
                 sample_id=sample_id, called_variants=samples_to_check
-            )
-
-            if not passes_family_checks:
+            ):
                 continue
 
             if not self.pedigree.participants[sample_id].details.is_female:

@@ -565,11 +565,10 @@ def test_check_familial_inheritance_simple():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='male', called_variants={'male'}
     )
     assert result
-    assert samples == {'male', 'mother_1', 'father_1'}
 
 
 def test_check_familial_inheritance_mother_fail():
@@ -582,12 +581,10 @@ def test_check_familial_inheritance_mother_fail():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='male', called_variants={'male', 'mother_1'}
     )
     assert not result
-    assert 'male' in samples
-    assert 'mother_1' in samples
 
 
 def test_check_familial_inheritance_mother_passes():
@@ -601,13 +598,12 @@ def test_check_familial_inheritance_mother_passes():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='male',
         called_variants={'male', 'mother_1'},
         complete_penetrance=False,
     )
     assert result
-    assert samples == {'male', 'mother_1', 'father_1'}
 
 
 def test_check_familial_inheritance_father_fail():
@@ -620,12 +616,10 @@ def test_check_familial_inheritance_father_fail():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='male', called_variants={'male', 'father_1'}
     )
     assert not result
-    assert 'male' in samples
-    assert 'father_1' in samples
 
 
 def test_check_familial_inheritance_father_passes():
@@ -639,13 +633,12 @@ def test_check_familial_inheritance_father_passes():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='male',
         called_variants={'male', 'father_1'},
         complete_penetrance=False,
     )
     assert result
-    assert samples == {'male', 'mother_1', 'father_1'}
 
 
 def test_check_familial_inheritance_top_down():
@@ -659,13 +652,12 @@ def test_check_familial_inheritance_top_down():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='father_1',
         called_variants={'male', 'father_1'},
         complete_penetrance=False,
     )
     assert result
-    assert samples == {'male', 'mother_1', 'father_1'}
 
 
 def test_check_familial_inheritance_no_calls():
@@ -679,11 +671,10 @@ def test_check_familial_inheritance_no_calls():
         pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
-    result, samples = base_moi.check_familial_inheritance(
+    result = base_moi.check_familial_inheritance(
         sample_id='male',
         called_variants=set(),
         complete_penetrance=False,
     )
     # should fail immediately
-    assert samples == {'male'}
     assert not result

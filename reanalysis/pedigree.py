@@ -83,6 +83,9 @@ class PedigreeParser:
         for sample_id in self.ped_dict.keys():
             self.populate_participants(sample_id=sample_id)
         self.apply_children()
+        self.families: Dict[
+            str, List[Participant]
+        ] = self.add_complete_participants_to_families()
 
         # no need for this object, but small memory footprint so who cares
         # del self.ped_dict
@@ -168,3 +171,15 @@ class PedigreeParser:
             # repeat for mother
             if participant.mother is not None:
                 participant.mother.children.append(participant)
+
+    def add_complete_participants_to_families(self) -> Dict[str, List[Participant]]:
+        """
+        now that the members are completely populated, add to family groups
+        this allows for un-linked members of the same family without having
+        dummy participants, e.g. siblings without parents in PED
+        :return: participants added to family-keyed lists
+        """
+        families: Dict[str, List[Participant]] = {}
+        for party in self.participants.values():
+            families.setdefault(party.details.family, []).append(party)
+        return families
