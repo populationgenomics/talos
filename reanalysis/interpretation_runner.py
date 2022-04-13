@@ -240,6 +240,7 @@ def handle_results_job(
         f'--pedigree {pedigree} '
         f'--out_json {RESULTS_JSON}  &&'
         f'PYTHONPATH=$(pwd) python3 {HTML_SCRIPT} '
+        f'--results {RESULTS_JSON} '
         f'--config_path {config} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '

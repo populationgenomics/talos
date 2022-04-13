@@ -365,11 +365,19 @@ class HTMLBuilder:
 if __name__ == '__main__':
 
     parser = ArgumentParser()
-    parser.add_argument('--results', help='Path to JSON containing analysis results')
-    parser.add_argument('--config_path', help='path to the runtime JSON config')
-    parser.add_argument('--pedigree', help='Path to joint-call PED file')
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--out_path', help='Path to write JSON results to')
+    parser.add_argument(
+        '--results', help='Path to JSON containing analysis results', required=True
+    )
+    parser.add_argument(
+        '--config_path', help='path to the runtime JSON config', required=True
+    )
+    parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
+    parser.add_argument(
+        '--panelapp', help='Path to JSON file of PanelApp data', required=True
+    )
+    parser.add_argument(
+        '--out_path', help='Path to write JSON results to', required=True
+    )
     args = parser.parse_args()
 
     html_generator = HTMLBuilder(
