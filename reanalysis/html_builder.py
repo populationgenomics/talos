@@ -54,7 +54,7 @@ def string_format_coords(coords: Dict[str, Any]):
     forms a string representation
     chr-pos-ref-alt
     """
-    return f'{coords["chrom"]}{coords["pos"]}-{coords["ref"]}-{coords["alt"]}'
+    return f'{coords["chrom"]}-{coords["pos"]}-{coords["ref"]}-{coords["alt"]}'
 
 
 class HTMLBuilder:
