@@ -7,7 +7,6 @@ which may be shared across reanalysis components
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass, is_dataclass
 
-# from functools import cache
 import json
 import logging
 import re
@@ -29,8 +28,6 @@ from cyvcf2 import Variant
 # gene: string, e.g. ENSG012345
 # variant: string, chr-pos-ref-alt
 CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
-
-InfoDict = Dict[str, Union[str, Dict[str, str]]]
 PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
 
 COMP_HET_VALUES: List[str] = ['sample', 'gene', 'id', 'chrom', 'pos', 'ref', 'alt']
@@ -92,7 +89,10 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             variant=var, samples=samples
         )
 
-        self.info: InfoDict = extract_info(variant=var, config=config)
+        self.info: Dict[str, str] = extract_info(variant=var)
+        self.transcript_consequences: List[Dict[str, str]] = extract_csq(
+            variant=var, config=config
+        )
 
     @property
     def is_classified(self) -> bool:
@@ -223,7 +223,6 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
         return json.load(handle)
 
 
-# @cache
 def get_simple_moi(panel_app_moi: str) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a reduced
@@ -300,36 +299,45 @@ def get_non_ref_samples(
     return het_samples, hom_samples
 
 
-def extract_info(variant: Variant, config: InfoDict):
+def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
+    """
+    specifically handle extraction of the CSQ list
+    :param variant:
+    :param config:
+    :return:
+    """
+
+    # config region concerning variant objects
+    object_conf = config.get('variant_object')
+    csq_string = object_conf.get('csq_string')
+
+    # pull the CSQ content, and the format to decode it
+    csq_contents = variant.INFO.get('CSQ')
+
+    # break mono-CSQ-string into components
+    csq_categories = list(map(str.lower, csq_string.split('|')))
+
+    # iterate over all consequences, and make each into a dict
+    return [
+        dict(zip(csq_categories, each_csq.split('|')))
+        for each_csq in csq_contents.split(',')
+    ]
+
+
+def extract_info(variant: Variant):
     """
     creates an INFO dict by pulling content from the variant info
     keeps a list of dictionaries for each transcript_consequence
     :param variant:
-    :param config:
     :return:
     """
 
     # choose some values to exclude, and keep everything else
     exclusions = {'CSQ', 'Class1', 'Class2', 'Class3', 'Class4'}
 
-    # config region concerning variant objects
-    object_conf = config.get('variant_object')
-
     # grab the basic information from INFO
     info_dict = {x.lower(): y for x, y in variant.INFO if x not in exclusions}
 
-    # pull the CSQ content, and the format to decode it
-    csq_contents = variant.INFO.get('CSQ')
-    csq_string = object_conf.get('csq_string')
-
-    # break mono-CSQ-string into components
-    csq_categories = list(map(str.lower, csq_string.split('|')))
-
-    # iterate over all consequences, and make each into a dict
-    info_dict['transcript_consequences'] = [
-        dict(zip(csq_categories, each_csq.split('|')))
-        for each_csq in csq_contents.split(',')
-    ]
     return info_dict
 
 
