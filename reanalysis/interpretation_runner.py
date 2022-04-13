@@ -61,7 +61,7 @@ assert DEFAULT_IMAGE
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
 QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
-HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py.py')
+HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
 
 
 def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
