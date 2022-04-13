@@ -2,13 +2,13 @@
 Methods for taking the final output and generating static report content
 """
 
-from typing import List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 from argparse import ArgumentParser
 from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
-from reanalysis.utils import ReportedVariant, read_json_dict_from_path
+from reanalysis.utils import read_json_dict_from_path
 
 
 SEQR_TEMPLATE = (
@@ -27,6 +27,34 @@ PANELAPP_TEMPLATE = (
 
 STRONG_STRING = '<strong>{content}</strong>'
 COLOUR_STRING = '<span style="color: {colour}">{content}</span>'
+
+
+def numerical_categories(var_data: Dict[str, Any]) -> List[str]:
+    """
+    get a list of ints representing the classes present on this variant
+    for each numerical class, append that number if the class is present
+    """
+    return [
+        str(integer)
+        for integer, category_bool in enumerate(
+            [
+                var_data['category_1'],
+                var_data['category_2'],
+                var_data['category_3'],
+                var_data['category_4'],
+            ],
+            1,
+        )
+        if category_bool
+    ]
+
+
+def string_format_coords(coords: Dict[str, Any]):
+    """
+    forms a string representation
+    chr-pos-ref-alt
+    """
+    return f'{coords["chrom"]}{coords["pos"]}-{coords["ref"]}-{coords["alt"]}'
 
 
 class HTMLBuilder:
@@ -113,18 +141,18 @@ class HTMLBuilder:
             # iterate over the variants
             for variant in sample_variants.values():
 
+                var_string = string_format_coords(variant['var_data']['coords'])
+
                 # find all classes associated with this variant
                 # for each class, add to corresponding list and set
-                for category_value in list(map(str, variant.var_data.category_ints)):
+                for category_value in numerical_categories(variant['var_data']):
                     if category_value == '4':
                         continue
                     sample_count[category_value] += 1
-                    category_strings[category_value].add(
-                        variant.var_data.coords.string_format
-                    )
+                    category_strings[category_value].add(var_string)
 
                 # update the set of all unique variants
-                category_strings['all'].add(variant.var_data.coords.string_format)
+                category_strings['all'].add(var_string)
 
             # update the global lists with per-sample counts
             for key, value in sample_count.items():
@@ -219,7 +247,7 @@ class HTMLBuilder:
 
         return ', '.join(csq_strings)
 
-    def get_csq_details(self, variant: ReportedVariant) -> Tuple[str, str]:
+    def get_csq_details(self, variant: Dict[str, Any]) -> Tuple[str, str]:
         """
         populates a single string of all relevant consequences
         UPDATE - take MANE into account
@@ -230,7 +258,7 @@ class HTMLBuilder:
         mane_csq = set()
 
         # iterate over all consequences, special care for MANE
-        for each_csq in variant.var_data.transcript_consequences:
+        for each_csq in variant['var_data']['transcript_consequences']:
             row_csq = set(each_csq['consequence'].split('&'))
 
             # record the transcript ID(s), and CSQ(s)
@@ -260,16 +288,16 @@ class HTMLBuilder:
             for variant in variants.values():
 
                 # pull out the string representation
-                var_string = variant.var_data.coords.string_format
+                var_string = string_format_coords(variant['var_data']['coords'])
 
                 # find list of all int categories assigned
-                variant_category_ints = variant.var_data.category_ints
+                variant_category_ints = numerical_categories(variant['var_data'])
 
-                if 2 in variant_category_ints:
-                    category_2_genes.add(variant.gene)
+                if '2' in variant_category_ints:
+                    category_2_genes.add(variant['gene'])
 
                 csq_string, mane_string = self.get_csq_details(variant)
-                candidate_dictionaries.setdefault(variant.sample, []).append(
+                candidate_dictionaries.setdefault(variant['sample'], []).append(
                     {
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
@@ -283,24 +311,24 @@ class HTMLBuilder:
                             )
                         ),
                         'symbol': PANELAPP_TEMPLATE.format(
-                            symbol=self.panelapp.get(variant.gene).get('symbol')
+                            symbol=self.panelapp[variant['gene']]['symbol']
                         ),
                         'csq': csq_string,
                         'mane_select': mane_string,
                         'gnomad': GNOMAD_TEMPLATE.format(
                             variant=var_string,
-                            value=float(variant.var_data.info.get('gnomad_af')),
+                            value=float(variant['var_data']['info']['gnomad_af']),
                         ),
-                        'gnomad_AC': variant.var_data.info.get('gnomad_ac'),
-                        'exac:hom': variant.var_data.info.get('exac_ac_hom'),
-                        'g_exome:hom': variant.var_data.info.get('gnomad_ex_hom'),
-                        'g_genome:hom': variant.var_data.info.get('gnomad_hom'),
-                        'MOIs': ','.join(variant.reasons),
+                        'gnomad_AC': variant['var_data']['info']['gnomad_ac'],
+                        'exac:hom': variant['var_data']['info']['exac_ac_hom'],
+                        'g_exome:hom': variant['var_data']['info']['gnomad_ex_hom'],
+                        'g_genome:hom': variant['var_data']['info']['gnomad_hom'],
+                        'MOIs': ','.join(variant['reasons']),
                         'support': self.make_seqr_link(
                             var_string=var_string,
                             sample=sample,
                         )
-                        if variant.supported
+                        if variant['supported']
                         else 'N/A',
                     }
                 )
