@@ -78,6 +78,9 @@ class HTMLBuilder:
         """
         self.results = read_json_dict_from_path(results_dict)
         self.config = read_json_dict_from_path(config)['output']
+        self.external_map = (
+            read_json_dict_from_path(self.config['external_lookup']) or {}
+        )
 
         # use the config file to select the relevant CPG to Seqr ID JSON file
         # need to find correct exception type here
@@ -110,6 +113,7 @@ class HTMLBuilder:
     ) -> Tuple[str, List[str]]:  # pylint: disable=too-many-locals
         """
         run the numbers across all variant categories
+        :param external_id_lookup:
         :return:
         """
 
@@ -122,7 +126,9 @@ class HTMLBuilder:
             if not sample.affected:
                 continue
             if sample.sample_id not in self.results.keys():
-                samples_with_no_variants.append(sample.sample_id)
+                samples_with_no_variants.append(
+                    self.external_map.get(sample.sample_id, sample.sample_id)
+                )
 
                 # update all indices; 0 variants for this sample
                 for category_list in category_count.values():
@@ -214,7 +220,9 @@ class HTMLBuilder:
         html_lines.append('<br/>Any red "csq" don\'t appear on a MANE transcript<br/>')
 
         for sample, table in html_tables.items():
-            html_lines.append(fr'<h3>Sample: {sample}</h3>')
+            html_lines.append(
+                fr'<h3>Sample: {self.external_map.get(sample, sample)}</h3>'
+            )
             html_lines.append(table)
         html_lines.append('\n</body>')
 
@@ -239,6 +247,7 @@ class HTMLBuilder:
             # bold, in Black
             if csq in mane_csq:
                 csq_strings.append(STRONG_STRING.format(content=csq))
+
             # bold, and red
             else:
                 csq_strings.append(
