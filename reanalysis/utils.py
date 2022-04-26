@@ -61,7 +61,7 @@ class Coordinates:
         forms a string representation
         chr-pos-ref-alt
         """
-        return f'{self.chrom}{self.pos}-{self.ref}-{self.alt}'
+        return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
 
 @dataclass
@@ -163,7 +163,7 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
     """
 
     # contig matching regex - remove all HLA/decoy/unknown
-    contig_re = re.compile(r'^(chr)?[1-9XYMT]{1,2}$')
+    contig_re = re.compile(r'^(chr)?[0-9XYMT]{1,2}$')
 
     return {
         contig['ID']
