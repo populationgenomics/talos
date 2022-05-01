@@ -113,7 +113,6 @@ class HTMLBuilder:
     ) -> Tuple[str, List[str]]:  # pylint: disable=too-many-locals
         """
         run the numbers across all variant categories
-        :param external_id_lookup:
         :return:
         """
 
@@ -353,6 +352,13 @@ class HTMLBuilder:
         """
         takes all class 2 variants, and documents the panel changes
         this is either a new entity, or an altered MOI
+
+        Redraft this completely to take into account changes to Cat. 2
+          - only for 'new' genes relative to a reference point
+          - therefore no changed MOI
+          - potentially a high number of genes
+            - bootstrap in an extensible table?
+
         :param category_2_variants:
         :return:
         """
