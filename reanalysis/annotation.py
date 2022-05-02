@@ -60,7 +60,7 @@ def vep_jobs(  # pylint: disable=too-many-arguments
     Runs VEP on provided VCF. Writes a VCF into `out_path` by default,
     unless `out_path` ends with ".ht", in which case writes a Hail table.
     """
-    to_hail_table = out_path and str(out_path).rstrip('/').endswith('.ht')
+    to_hail_table = out_path and out_path.suffix == '.ht'
     if not to_hail_table:
         assert str(out_path).endswith('.vcf.gz'), out_path
 
