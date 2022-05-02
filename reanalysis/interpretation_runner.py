@@ -29,10 +29,11 @@ import hailtop.batch as hb
 
 from cpg_utils.git import (
     prepare_git_job,
-    get_repo_name_from_current_directory,
     get_git_commit_ref_of_current_repository,
+    get_organisation_name_from_current_directory,
+    get_repo_name_from_current_directory,
 )
-from cpg_utils.hail import (
+from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     image_path,
@@ -99,7 +100,7 @@ def set_job_resources(
         # copy the relevant scripts into a Driver container instance
         prepare_git_job(
             job=job,
-            organisation='populationgenomics',
+            organisation=get_organisation_name_from_current_directory(),
             repo_name=get_repo_name_from_current_directory(),
             commit=get_git_commit_ref_of_current_repository(),
         )
