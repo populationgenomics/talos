@@ -301,10 +301,10 @@ def main(
     # remove duplicate variants
     cleaned_results = clean_initial_results(results)
 
-    # dump the JSON-results to a file, serialised & with AnyPath
+    # dump the JSON-results to an AnyPath route
     # use the custom-encoder to print sets and DataClasses
-    serialised = json.dumps(cleaned_results, cls=CustomEncoder, indent=4)
-    AnyPath(out_json).write_text(serialised)
+    with AnyPath(out_json).open('w') as fh:
+        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4, default=str)
 
 
 if __name__ == '__main__':
