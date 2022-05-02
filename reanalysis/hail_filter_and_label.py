@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cloudpathlib import AnyPath
-from cpg_utils.hail import init_batch
+from cpg_utils.hail_batch import init_batch
 
 
 # set some Hail constants
@@ -818,8 +818,8 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     out_json = f'{out_vcf.split(".", maxsplit=1)[0]}.json'
 
     # and write the comp-het JSON file
-    serialised_obj = json.dumps(comp_het_details, indent=True, default=str)
-    AnyPath(out_json).write_text(serialised_obj)
+    with AnyPath(out_json).open('w') as handle:
+        json.dump(comp_het_details, handle, indent=True, default=str)
 
     logging.info('comp-het data written to cloud')
 
