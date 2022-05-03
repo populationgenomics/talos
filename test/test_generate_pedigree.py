@@ -11,7 +11,7 @@ import os
 
 from reanalysis.generate_pedigree import (
     ext_to_int_sample_map,
-    get_clean_pedigree,
+    get_fat_pedigree,
     get_pedigree_for_project,
 )
 
@@ -23,9 +23,9 @@ JSON_PED = os.path.join(INPUT, 'mock_pedigree.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
 
 SAMPLE_TO_CPG = {
-    'sam1': 'cpg1',
-    'sam2': 'cpg2',
-    'sam3': 'cpg3',
+    'sam1': ['cpg1'],
+    'sam2': ['cpg2'],
+    'sam3': ['cpg3'],
 }
 DIRTY_PED = [
     {
@@ -82,7 +82,12 @@ def test_ext_to_int_sample_map(
         map_mock.return_value = payload
         result = ext_to_int_sample_map(project=PROJECT)
         assert isinstance(result, dict)
-        assert result == payload
+        assert result == {
+            'FAM1_father': ['CPG11'],
+            'FAM1_mother': ['CPG12'],
+            'FAM1_proband': ['CPG13'],
+            'FAM2_proband': ['CPG41'],
+        }
 
 
 def test_get_clean_pedigree():
@@ -90,17 +95,18 @@ def test_get_clean_pedigree():
 
     :return:
     """
-    cleaned = get_clean_pedigree(
+    cleaned = get_fat_pedigree(
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
         singles=False,
+        plink=False,
     )
     assert cleaned == [
         {
             'family_id': 'FAM1',
-            'individual_id': 'cpg1',
-            'paternal_id': 'cpg2',
-            'maternal_id': 'cpg3',
+            'individual_id': ['cpg1'],
+            'paternal_id': ['cpg2'],
+            'maternal_id': ['cpg3'],
             'sex': 1,
             'affected': 1,
         }
@@ -112,17 +118,41 @@ def test_get_clean_pedigree_singles():
 
     :return:
     """
-    cleaned = get_clean_pedigree(
+    cleaned = get_fat_pedigree(
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
         singles=True,
+        plink=False,
     )
     assert cleaned == [
         {
-            'family_id': 'cpg1',
-            'individual_id': 'cpg1',
-            'paternal_id': '',
-            'maternal_id': '',
+            'family_id': '1',
+            'individual_id': ['cpg1'],
+            'paternal_id': [''],
+            'maternal_id': [''],
+            'sex': 1,
+            'affected': 1,
+        }
+    ]
+
+
+def test_get_clean_pedigree_singles_plink():
+    """
+
+    :return:
+    """
+    cleaned = get_fat_pedigree(
+        pedigree_dicts=deepcopy(DIRTY_PED),
+        sample_to_cpg_dict=SAMPLE_TO_CPG,
+        singles=True,
+        plink=True,
+    )
+    assert cleaned == [
+        {
+            'family_id': '1',
+            'individual_id': ['cpg1'],
+            'paternal_id': ['0'],
+            'maternal_id': ['0'],
             'sex': 1,
             'affected': 1,
         }
