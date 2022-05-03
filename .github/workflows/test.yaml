@@ -2,7 +2,7 @@ name: CI
 on: [push]
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -16,7 +16,9 @@ jobs:
         python-version: '3.10'
 
     - name: Install packages
-      run: pip install -r requirements-dev.txt
+      run: |
+        pip install -r requirements-dev.txt
+        pip install -r requirements.txt
 
-    - name: pre-commit
-      run: pre-commit run --all-files
+    - name: test
+      run: PYTHONPATH="." pytest -n auto .

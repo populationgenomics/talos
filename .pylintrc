@@ -36,3 +36,5 @@ max-locals=25
 max-args=10
 # Maximum number of statements in function / method body
 max-statements=100
+# Minimum lines number of a similarity.
+min-similarity-lines=10
