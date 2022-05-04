@@ -389,13 +389,13 @@ def test_filter_by_consequence(
 @pytest.mark.parametrize(
     'one,two,three,four,support,length',
     [
-        (0, 0, 0, 0, 0, 0),
-        (0, 1, 0, 0, 0, 1),
-        (0, 0, 1, 0, 0, 1),
-        (0, 0, 0, 1, 0, 1),
-        (0, 0, 0, 0, 1, 1),
-        (0, 1, 1, 0, 0, 1),
-        (1, 0, 0, 1, 0, 1),
+        (0, 0, 0, '', 0, 0),
+        (0, 1, 0, '', 0, 1),
+        (0, 0, 1, '', 0, 1),
+        (0, 0, 0, '', 1, 1),
+        (0, 0, 0, 'not_blank', 0, 1),
+        (0, 1, 1, '', 0, 1),
+        (1, 0, 0, '', 1, 1),
     ],
 )
 def test_filter_to_classified(one, two, three, four, support, length, hail_matrix):
@@ -409,7 +409,7 @@ def test_filter_to_classified(one, two, three, four, support, length, hail_matri
             Category2=two,
             Category3=three,
             Category4=four,
-            CategorySupprt=support,
+            CategorySupport=support,
         )
     )
     matrix = filter_to_categorised(anno_matrix)

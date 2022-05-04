@@ -138,6 +138,9 @@ class MOIRunner:
         elif target_moi == 'Y_Chrom_Variant':
             self.filter_list = [YHemi(pedigree=pedigree, config=config)]
 
+        elif target_moi == 'De_Novo':
+            self.filter_list = [DeNovo(pedigree=pedigree, config=config)]
+
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
@@ -459,6 +462,14 @@ class RecessiveAutosomal(BaseMoi):
                 gene=principal_var.info.get('gene_id'),
             ):
 
+                # allow for de novo check, not just a simple flag
+                partner_variant = gene_lookup[partner]
+                if partner_variant.category_4 and not partner_variant.sample_de_novo(
+                    sample_id
+                ):
+                    if not partner_variant.category_1_2_3:
+                        continue
+
                 # check if this is a candidate for comp-het inheritance
                 if not self.check_familial_comp_het(
                     sample_id=sample_id,
@@ -654,6 +665,14 @@ class XRecessive(BaseMoi):
                 gene=principal_var.info.get('gene_id'),
             ):
 
+                # allow for de novo check, not just a simple flag
+                partner_variant = gene_lookup[partner]
+                if partner_variant.category_4 and not partner_variant.sample_de_novo(
+                    sample_id
+                ):
+                    if not partner_variant.category_1_2_3:
+                        continue
+
                 # check if this is a candidate for comp-het inheritance
                 # get all female het calls on the paired variant
                 het_females_partner = {
@@ -795,7 +814,7 @@ class DeNovo(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'De_Novo',
     ):
@@ -813,14 +832,16 @@ class DeNovo(BaseMoi):
         )
 
     def run(
-        self,
-        principal_var: AbstractVariant,
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
     ) -> List[ReportedVariant]:
         """
         double check the de novo events, and issue ReportedVariants
         :param principal_var:
+        :param gene_lookup:
         :return:
         """
+        _unused = gene_lookup
+
         classifications = []
 
         # more stringent Pop.Freq checks for dominant

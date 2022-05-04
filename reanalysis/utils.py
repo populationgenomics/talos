@@ -102,6 +102,21 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.info: InfoDict = extract_info(variant=var, config=config)
 
     @property
+    def category_1_2_3(self) -> bool:
+        """
+        check that the variant has at least one assigned class
+        supporting category is considered here
+        :return:
+        """
+        return any(
+            [
+                self.category_1,
+                self.category_2,
+                self.category_3,
+            ]
+        )
+
+    @property
     def is_classified(self) -> bool:
         """
         check that the variant has at least one assigned class
@@ -133,30 +148,30 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             ]
         )
 
-    @property
-    def category_ints(self) -> List[int]:
+    def category_ints(self, sample: str) -> List[str]:
         """
         get a list of ints representing the classes present on this variant
-        for each numerical class, append that number if the class is present
+        for each category, append that number if the class is present
 
-        INVALID - rewrite
         - support is not an int
         - de novo on a per-sample basis
         """
-        return [
-            integer
-            for integer, category_bool in enumerate(
-                [
-                    self.category_1,
-                    self.category_2,
-                    self.category_3,
-                    self.category_4,
-                    self.category_support,
-                ],
-                1,
-            )
-            if category_bool
-        ]
+        categories = []
+
+        # for the first 3 categories, append the value if flag is present
+        for index, cat in enumerate(
+            [self.category_1, self.category_2, self.category_3], 1
+        ):
+            if cat:
+                categories.append(str(index))
+
+        if self.sample_de_novo(sample_id=sample):
+            categories.append('de_novo')
+
+        if self.category_support:
+            categories.append('in_silico')
+
+        return categories
 
     def sample_de_novo(self, sample_id: str) -> bool:
         """
@@ -205,7 +220,10 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 
 
 def gather_gene_dict_from_contig(
-    contig: str, variant_source: cyvcf2.VCFReader, config: Dict[str, Any]
+    contig: str,
+    variant_source: cyvcf2.VCFReader,
+    config: Dict[str, Any],
+    panelapp_data: PanelAppDict,
 ) -> Dict[str, Dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -220,6 +238,7 @@ def gather_gene_dict_from_contig(
     :param contig: contig name from header (canonical_contigs_from_vcf)
     :param variant_source: VCF reader instance
     :param config: configuration file
+    :param panelapp_data:
     :return: populated lookup dict
     """
     # a dict to allow lookup of variants on this whole chromosome
@@ -232,6 +251,23 @@ def gather_gene_dict_from_contig(
         abs_var = AbstractVariant(
             var=variant, samples=variant_source.samples, config=config
         )
+
+        # do category 2 'new' test
+        # if the gene isn't 'new' in PanelApp, remove Class2 flag
+        if abs_var.category_2:
+            # implement the c2 check
+            gene_id = abs_var.info.get('gene_id')
+            gene_data = panelapp_data.get(gene_id, False)
+            if not gene_data:
+                continue
+
+            # is the gene 'new'? if not, skip
+            if not gene_data.get('new', False):
+                variant.category_2 = False
+
+        # if unclassified, skip the whole variant
+        if not abs_var.is_classified:
+            continue
 
         # update the variant count
         contig_variants += 1

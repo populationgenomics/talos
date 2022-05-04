@@ -58,6 +58,37 @@ class SimpleVariant:
     coords: Coordinates
 
 
+@dataclass
+class RecessiveSimpleVariant:
+    """
+    a fake version of AbstractVariant
+    """
+
+    info: Dict[str, Any]
+    het_samples: Set[str]
+    hom_samples: Set[str]
+    coords: Coordinates
+    category_4: List[str]
+    # add category default
+    category_1: bool = True
+
+    def sample_de_novo(self, sample):
+        """
+        pass
+        :param sample:
+        :return:
+        """
+        return sample in self.category_4
+
+    @property
+    def category_1_2_3(self):
+        """
+        mock method
+        :return:
+        """
+        return self.category_1
+
+
 @pytest.mark.parametrize(
     'first,comp_hets,sample,gene,values',
     (
@@ -205,13 +236,17 @@ def test_recessive_autosomal_hom_passes():
     we accept a homozygous variant as a Recessive
     """
 
-    failing_variant = SimpleVariant(
-        info={}, het_samples=set(), hom_samples={'male'}, coords=TEST_COORDS
+    passing_variant = RecessiveSimpleVariant(
+        info={},
+        het_samples=set(),
+        hom_samples={'male'},
+        coords=TEST_COORDS,
+        category_4=[],
     )
     rec = RecessiveAutosomal(
         pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
-    results = rec.run(failing_variant, gene_lookup={})
+    results = rec.run(passing_variant, gene_lookup={})
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
 
@@ -227,11 +262,19 @@ def test_recessive_autosomal_comp_het_male_passes(second_hit: mock.Mock):
     :return:
     """
 
-    passing_variant = SimpleVariant(
-        info={}, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
+    passing_variant = RecessiveSimpleVariant(
+        info={},
+        het_samples={'male'},
+        hom_samples=set(),
+        coords=TEST_COORDS,
+        category_4=[],
     )
-    passing_variant2 = SimpleVariant(
-        info={}, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS2
+    passing_variant2 = RecessiveSimpleVariant(
+        info={},
+        het_samples={'male'},
+        hom_samples=set(),
+        coords=TEST_COORDS2,
+        category_4=[],
     )
     second_hit.return_value = [TEST_COORDS2.string_format]
     gene_var_dict = {TEST_COORDS2.string_format: passing_variant2}
@@ -254,11 +297,19 @@ def test_recessive_autosomal_comp_het_female_passes(second_hit: mock.Mock):
     :return:
     """
 
-    passing_variant = SimpleVariant(
-        info={}, het_samples={'female'}, hom_samples=set(), coords=TEST_COORDS
+    passing_variant = RecessiveSimpleVariant(
+        info={},
+        het_samples={'female'},
+        hom_samples=set(),
+        coords=TEST_COORDS,
+        category_4=[],
     )
-    passing_variant2 = SimpleVariant(
-        info={}, het_samples={'female'}, hom_samples=set(), coords=TEST_COORDS2
+    passing_variant2 = RecessiveSimpleVariant(
+        info={},
+        het_samples={'female'},
+        hom_samples=set(),
+        coords=TEST_COORDS2,
+        category_4=[],
     )
     second_hit.return_value = [TEST_COORDS2.string_format]
     gene_var_dict = {TEST_COORDS2.string_format: passing_variant2}
@@ -302,11 +353,19 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(second_hit: mock.Mock
     :return:
     """
 
-    failing_variant = SimpleVariant(
-        info={}, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
+    failing_variant = RecessiveSimpleVariant(
+        info={},
+        het_samples={'male'},
+        hom_samples=set(),
+        coords=TEST_COORDS,
+        category_4=[],
     )
-    failing_variant2 = SimpleVariant(
-        info={}, het_samples={'female'}, hom_samples=set(), coords=TEST_COORDS2
+    failing_variant2 = RecessiveSimpleVariant(
+        info={},
+        het_samples={'female'},
+        hom_samples=set(),
+        coords=TEST_COORDS2,
+        category_4=[],
     )
     second_hit.return_value = [TEST_COORDS2.string_format]
     gene_var_dict = {TEST_COORDS2.string_format: failing_variant2}
@@ -431,8 +490,12 @@ def test_x_recessive_male_and_female_hom_passes():
     """
 
     x_coords = Coordinates('x', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, hom_samples={'female', 'male'}, het_samples=set(), coords=x_coords
+    passing_variant = RecessiveSimpleVariant(
+        info={},
+        hom_samples={'female', 'male'},
+        het_samples=set(),
+        coords=x_coords,
+        category_4=[],
     )
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
     results = x_rec.run(passing_variant, gene_lookup={})
@@ -448,8 +511,8 @@ def test_x_recessive_male_het_passes():
     :return:
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, het_samples={'male'}, hom_samples=set(), coords=x_coords
+    passing_variant = RecessiveSimpleVariant(
+        info={}, het_samples={'male'}, hom_samples=set(), coords=x_coords, category_4=[]
     )
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
     results = x_rec.run(passing_variant, gene_lookup={})
@@ -463,8 +526,8 @@ def test_x_recessive_y_variant_fails():
     :return:
     """
     y_coords = Coordinates('y', 1, 'A', 'C')
-    passing_variant = SimpleVariant(
-        info={}, hom_samples={'male'}, het_samples=set(), coords=y_coords
+    passing_variant = RecessiveSimpleVariant(
+        info={}, hom_samples={'male'}, het_samples=set(), coords=y_coords, category_4=[]
     )
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
     with pytest.raises(Exception):
@@ -479,17 +542,19 @@ def test_x_recessive_female_het_passes(second_hit: mock.patch):
     """
 
     second_hit.return_value = ['x-2-A-C']
-    passing_variant = SimpleVariant(
+    passing_variant = RecessiveSimpleVariant(
         info={},
         het_samples={'female'},
         hom_samples=set(),
         coords=Coordinates('x', 1, 'A', 'C'),
+        category_4=['female'],
     )
-    passing_variant_2 = SimpleVariant(
+    passing_variant_2 = RecessiveSimpleVariant(
         info={},
         het_samples={'female'},
         hom_samples=set(),
         coords=Coordinates('x', 2, 'A', 'C'),
+        category_4=['female'],
     )
     gene_dict = {'x-2-A-C': passing_variant_2}
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
@@ -506,17 +571,19 @@ def test_x_recessive_female_het_fails(second_hit: mock.patch):
     """
 
     second_hit.return_value = ['x-2-A-C']
-    passing_variant = SimpleVariant(
+    passing_variant = RecessiveSimpleVariant(
         info={},
         het_samples={'female'},
         hom_samples=set(),
         coords=Coordinates('x', 1, 'A', 'C'),
+        category_4=['male'],
     )
-    passing_variant_2 = SimpleVariant(
+    passing_variant_2 = RecessiveSimpleVariant(
         info={},
         het_samples={'male'},
         hom_samples=set(),
         coords=Coordinates('x', 2, 'A', 'C'),
+        category_4=['male'],
     )
     gene_dict = {'x-2-A-C': passing_variant_2}
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
@@ -532,11 +599,12 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch):
     """
 
     second_hit.return_value = []
-    passing_variant = SimpleVariant(
+    passing_variant = RecessiveSimpleVariant(
         info={},
         het_samples={'female'},
         hom_samples=set(),
         coords=Coordinates('x', 1, 'A', 'C'),
+        category_4=[],
     )
     x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
     assert not x_rec.run(passing_variant, gene_lookup={})

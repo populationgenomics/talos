@@ -385,7 +385,7 @@ def extract_comp_het_details(
     logging.info('Extracting out the compound-het variant pairs')
 
     # set a new group of values as the key, so that we can collect on them easily
-    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.category_4_only)
+    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.support_only)
     ch_matrix = ch_matrix.annotate_cols(
         hets=hl.agg.group_by(
             ch_matrix.info.gene_id,
@@ -411,7 +411,7 @@ def extract_comp_het_details(
             # assess each possible variant pairing
             for var1, var2 in permutations(variants, 2):
 
-                # skip if both are class 4 only - not valuable pairing
+                # skip if both are support only - not a valuable pairing
                 if var1.support_only == 1 and var2.support_only == 1:
                     continue
 
@@ -679,7 +679,7 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
         (matrix.info.Category1 == 1)
         | (matrix.info.Category2 == 1)
         | (matrix.info.Category3 == 1)
-        | (matrix.info.Category4 == 1)
+        | (matrix.info.Category4 != '')
         | (matrix.info.CategorySupport == 1)
     )
 

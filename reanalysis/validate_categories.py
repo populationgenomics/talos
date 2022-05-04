@@ -90,6 +90,14 @@ def set_up_inheritance_filters(
                 comp_het_lookup=comp_het_lookup,
             )
 
+    # manually add in the de novo wrapper
+    moi_dictionary['de_novo'] = MOIRunner(
+        pedigree=pedigree,
+        target_moi='De_Novo',
+        config=config['moi_tests'],
+        comp_het_lookup=comp_het_lookup,
+    )
+
     return moi_dictionary
 
 
@@ -139,7 +147,10 @@ def apply_moi_to_variants(
 
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
-            contig=contig, variant_source=variant_source, config=config
+            contig=contig,
+            variant_source=variant_source,
+            config=config,
+            panelapp_data=panelapp_data,
         )
 
         # NOTE - if we want details from both sides of a compound het in the
@@ -162,28 +173,24 @@ def apply_moi_to_variants(
                 # de novo check first
                 if variant.category_4 is not None:
                     # create a result for each entry
-                    pass
-
-                # if the gene isn't 'new' in PanelApp, remove Class2 flag
-                # in future expand to the 'if MOI has changed' logic
-                if variant.category_2 and not panel_gene_data.get('new', False):
-                    variant.category_2 = False
-
-                # we never use a C4-only variant as a principal variant
-                # and we don't consider a variant with no assigned classes
-                #   - no classes shouldn't have reached this point
-                if variant.support_only or not variant.is_classified:
-                    continue
-
-                # this variant is a candidate for MOI checks
-                # - find the simplified MOI string
-                # - use to get appropriate MOI model
-                # - run variant, append relevant classification(s) to the results
-                results.extend(
-                    moi_lookup[simple_moi].run(
-                        principal_var=variant, gene_lookup=variants
+                    results.extend(
+                        moi_lookup['de_novo'].run(
+                            principal_var=variant, gene_lookup=variants
+                        )
                     )
-                )
+
+                # if this variant is category 1, 2, or 3, evaluate is as a 'primary'
+                if variant.category_1_2_3:
+
+                    # this variant is a candidate for MOI checks
+                    # - find the simplified MOI string
+                    # - use to get appropriate MOI model
+                    # - run variant, append relevant classification(s) to the results
+                    results.extend(
+                        moi_lookup[simple_moi].run(
+                            principal_var=variant, gene_lookup=variants
+                        )
+                    )
 
     return results
 
