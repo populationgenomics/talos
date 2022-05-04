@@ -13,14 +13,13 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,
-    annotate_category_4,
+    annotate_category_support,
     green_and_new_from_panelapp,
     filter_rows_for_rare,
     filter_benign_or_non_genic,
     filter_to_green_genes_and_split,
     filter_by_consequence,
     filter_to_categorised,
-    annotate_category_4_only,
 )
 
 
@@ -248,8 +247,8 @@ def test_class_4_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_4(anno_matrix, config=category_conf)
-    assert anno_matrix.info.Category4.collect() == [classified]
+    anno_matrix = annotate_category_support(anno_matrix, config=category_conf)
+    assert anno_matrix.info.CategorySupport.collect() == [classified]
 
 
 def test_green_and_new_from_panelapp():
@@ -388,50 +387,30 @@ def test_filter_by_consequence(
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,length',
+    'one,two,three,four,support,length',
     [
-        (0, 0, 0, 0, 0),
-        (0, 1, 0, 0, 1),
-        (0, 0, 1, 0, 1),
-        (0, 0, 0, 1, 1),
-        (0, 1, 1, 0, 1),
-        (1, 0, 0, 1, 1),
+        (0, 0, 0, 0, 0, 0),
+        (0, 1, 0, 0, 0, 1),
+        (0, 0, 1, 0, 0, 1),
+        (0, 0, 0, 1, 0, 1),
+        (0, 0, 0, 0, 1, 1),
+        (0, 1, 1, 0, 0, 1),
+        (1, 0, 0, 1, 0, 1),
     ],
 )
-def test_filter_to_classified(one, two, three, four, length, hail_matrix):
+def test_filter_to_classified(one, two, three, four, support, length, hail_matrix):
     """
 
     :param hail_matrix:
     """
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            Category1=one, Category2=two, Category3=three, Category4=four
+            Category1=one,
+            Category2=two,
+            Category3=three,
+            Category4=four,
+            CategorySupprt=support,
         )
     )
     matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
-
-
-@pytest.mark.parametrize(
-    'one,two,three,four,flag',
-    [
-        (0, 0, 0, 0, 0),
-        (0, 1, 0, 0, 0),
-        (0, 0, 1, 0, 0),
-        (0, 0, 0, 1, 1),
-        (0, 1, 1, 0, 0),
-        (1, 0, 0, 1, 0),
-    ],
-)
-def test_c4_only_tag(one, two, three, four, flag, hail_matrix):
-    """
-
-    :param hail_matrix:
-    """
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            Category1=one, Category2=two, Category3=three, Category4=four
-        )
-    )
-    matrix = annotate_category_4_only(anno_matrix)
-    assert matrix.category_4_only.collect() == [flag]

@@ -48,6 +48,9 @@ def check_for_second_hit(
     """
     checks for a second hit partner in this gene
 
+    - needs to check that if the variants are C4, they are confirmed to
+      have de novo MOI - this applies to both variants in a pair
+
     DOES NOT CURRENTLY CHECK VARIANT PHASE
     DOES NOT CURRENTLY CHECK PARENT GENOTYPES
 
@@ -780,4 +783,62 @@ class YHemi(BaseMoi):
         return classifications
 
 
-# create a DeNovo category?
+class DeNovo(BaseMoi):
+    """
+    different model entirely, within the same framework
+    this application delegates finding de novo events to Hail
+    here we are codifying the results from Hail into ReportedVariants
+    """
+
+    def __name__(self):
+        return self.__name__()
+
+    def __init__(
+        self,
+        pedigree: Dict[str, PedPerson],
+        config: Dict[str, Any],
+        applied_moi: str = 'De_Novo',
+    ):
+        """
+
+        :param pedigree:
+        :param config:
+        :param applied_moi:
+        """
+
+        self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
+        self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
+        super().__init__(
+            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
+        )
+
+    def run(
+        self,
+        principal_var: AbstractVariant,
+    ) -> List[ReportedVariant]:
+        """
+        double check the de novo events, and issue ReportedVariants
+        :param principal_var:
+        :return:
+        """
+        classifications = []
+
+        # more stringent Pop.Freq checks for dominant
+        if (
+            principal_var.info.get('gnomad_af') >= self.ad_threshold
+            or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+        ):
+            return classifications
+
+        for sample_id in principal_var.category_4:
+            classifications.append(
+                ReportedVariant(
+                    sample=sample_id,
+                    gene=principal_var.info.get('gene_id'),
+                    var_data=principal_var,
+                    reasons={self.applied_moi},
+                    supported=False,
+                )
+            )
+
+        return classifications

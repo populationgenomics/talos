@@ -137,7 +137,7 @@ def apply_moi_to_variants(
     # we could run the MOI tests in parallel
     for contig in canonical_contigs_from_vcf(variant_source):
 
-        # assemble gene: {var1, var2
+        # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
             contig=contig, variant_source=variant_source, config=config
         )
@@ -159,6 +159,11 @@ def apply_moi_to_variants(
 
             for variant in variants.values():
 
+                # de novo check first
+                if variant.category_4 is not None:
+                    # create a result for each entry
+                    pass
+
                 # if the gene isn't 'new' in PanelApp, remove Class2 flag
                 # in future expand to the 'if MOI has changed' logic
                 if variant.category_2 and not panel_gene_data.get('new', False):
@@ -167,7 +172,7 @@ def apply_moi_to_variants(
                 # we never use a C4-only variant as a principal variant
                 # and we don't consider a variant with no assigned classes
                 #   - no classes shouldn't have reached this point
-                if variant.category_4_only or not variant.is_classified:
+                if variant.support_only or not variant.is_classified:
                     continue
 
                 # this variant is a candidate for MOI checks

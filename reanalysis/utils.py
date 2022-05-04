@@ -84,7 +84,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.category_1: bool = var.INFO.get('Category1') == 1
         self.category_2: bool = var.INFO.get('Category2') == 1
         self.category_3: bool = var.INFO.get('Category3') == 1
-        self.category_4: bool = var.INFO.get('Category4') == 1
+
+        # de novo class is not an integer - list of strings or empty list
+        self.category_4: List[str] = (
+            var.INFO.get('Category4').split(',')
+            if var.INFO.get('Category4') != ''
+            else []
+        )
+        self.category_support: bool = var.INFO.get('CategorySupport') == 1
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
@@ -98,21 +105,31 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def is_classified(self) -> bool:
         """
         check that the variant has at least one assigned class
+        supporting category is considered here
         :return:
         """
-        return any([self.category_1, self.category_2, self.category_3, self.category_4])
-
-    @property
-    def category_4_only(self) -> bool:
-        """
-        checks that the variant was only class 4
-        :return:
-        """
-        return self.category_4 and not any(
+        return any(
             [
                 self.category_1,
                 self.category_2,
                 self.category_3,
+                self.category_4,
+                self.category_support,
+            ]
+        )
+
+    @property
+    def support_only(self) -> bool:
+        """
+        checks that the variant was only class 4
+        :return:
+        """
+        return self.category_support and not any(
+            [
+                self.category_1,
+                self.category_2,
+                self.category_3,
+                self.category_4,
             ]
         )
 
@@ -121,6 +138,10 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         get a list of ints representing the classes present on this variant
         for each numerical class, append that number if the class is present
+
+        INVALID - rewrite
+        - support is not an int
+        - de novo on a per-sample basis
         """
         return [
             integer
@@ -130,11 +151,22 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                     self.category_2,
                     self.category_3,
                     self.category_4,
+                    self.category_support,
                 ],
                 1,
             )
             if category_bool
         ]
+
+    def sample_de_novo(self, sample_id: str) -> bool:
+        """
+        takes a specific sample ID, to check if the sample has a de novo call
+
+        :param sample_id:
+        :return:
+        """
+
+        return sample_id in self.category_4
 
 
 @dataclass
@@ -310,7 +342,15 @@ def extract_info(variant: Variant, config: InfoDict):
     """
 
     # choose some values to exclude, and keep everything else
-    exclusions = {'CSQ', 'Class1', 'Class2', 'Class3', 'Class4'}
+    exclusions = {
+        'CSQ',
+        'Category1',
+        'Category2',
+        'Category3',
+        'Category4',
+        'CategorySupport',
+        'support_only',
+    }
 
     # config region concerning variant objects
     object_conf = config.get('variant_object')

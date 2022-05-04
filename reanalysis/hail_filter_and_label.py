@@ -9,7 +9,7 @@ Read, filter, annotate, classify, and write Genetic data
 - consequence filter
 - remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 2, 3, and 4
+- annotate with categories 1, 2, 3, 4, and Support (in silico)
 - remove all un-categorised variants
 - write as VCF
 
@@ -232,14 +232,74 @@ def annotate_category_3(
 
 
 def annotate_category_4(
+    matrix: hl.MatrixTable, plink_family_file: str
+) -> hl.MatrixTable:
+    """
+    Category based on de novo MOI
+    This category shifts the emphasis from the variant annotations to the MOI
+    within family structures.
+    Having a low consequence-barrier to entry could mean that this category generates
+    a huge number of variants, so saving the MOI evaluation until later would create a
+    cumbersome output
+    Instead, we are leveraging the inbuilt hl.de_novo functionality to:
+    - identify all likely de novo inherited variation
+    - collect samples for each variant (expect n=1 per de novo call, but not guaranteed)
+    - compress list of proband IDs as a String
+    - apply string back to the MatrixTable as a 'flag', or '0' if missing
+
+    :param matrix:
+    :param plink_family_file: path to a pedigree in PLINK format
+    :return:
+    """
+
+    # read pedigree from the specified file
+    pedigree = hl.Pedigree.read(plink_family_file)
+
+    # identify likely de novo calls
+    # use the AFs already embedded in the MT as the prior population frequencies
+    dn_table = hl.de_novo(
+        matrix, pedigree, pop_frequency_prior=matrix.gnomad_genomes.AF
+    )
+    dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
+
+    # re-key the table by locus,alleles, removing the sampleID from the compound key
+    dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
+
+    # we only require the key (locus, alleles) and the sample ID
+    # select to remove other fields, then collect per-key into Array of Structs
+    dn_table = dn_table.select(dn_table.id).collect_by_key()
+
+    # collect all sample IDs per locus, and squash into a String Array
+    # delimit to compress that Array into single Strings
+    dn_table = dn_table.annotate(
+        values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
+    ).show()
+
+    # annotate those values as a flag, or '0' where missing
+    return matrix.annotate_rows(
+        info=matrix.info.annotate(
+            Category4=hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)
+        )
+    )
+
+
+def annotate_category_support(
     matrix: hl.MatrixTable, config: Dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    Class based on in silico annotations
+    Background class based on in silico annotations
     - rare in Gnomad, and
     - CADD & REVEL above threshold (switched to consensus), or
     - Massive cross-tool consensus
     - polyphen and sift are evaluated per-consequence
+
+    The intention is that this class will never be the sole reason to treat a variant
+    as interesting, but can be used as a broader class with a lower barrier to entry
+    The purpose of this is to have a more permissive set of variants which can be used
+    to find second-hits in the case of Compound-Hets.
+
+    This support category can be expanded to encompass other scenarios that qualify
+    variants as 'of second-hit interest only'
     :param matrix:
     :param config:
     :return:
@@ -247,7 +307,7 @@ def annotate_category_4(
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Category4=hl.if_else(
+            CategorySupport=hl.if_else(
                 (
                     (matrix.info.cadd > config['in_silico'].get('cadd'))
                     & (matrix.info.revel > config['in_silico'].get('revel'))
@@ -273,27 +333,6 @@ def annotate_category_4(
                 ONE_INT,
                 MISSING_INT,
             )
-        )
-    )
-
-
-def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    applies a flag to all variants with only Category4 flags applied
-    this becomes relevant when we are looking at variants eligible for
-    compound het analysis
-
-    :param matrix:
-    """
-
-    return matrix.annotate_rows(
-        category_4_only=hl.if_else(
-            (matrix.info.Category1 == 0)
-            & (matrix.info.Category2 == 0)
-            & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 1),
-            ONE_INT,
-            MISSING_INT,
         )
     )
 
@@ -373,7 +412,7 @@ def extract_comp_het_details(
             for var1, var2 in permutations(variants, 2):
 
                 # skip if both are class 4 only - not valuable pairing
-                if var1.category_4_only == 1 and var2.category_4_only == 1:
+                if var1.support_only == 1 and var2.support_only == 1:
                     continue
 
                 # pair the string transformation
@@ -641,6 +680,7 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
         | (matrix.info.Category2 == 1)
         | (matrix.info.Category3 == 1)
         | (matrix.info.Category4 == 1)
+        | (matrix.info.CategorySupport == 1)
     )
 
 
@@ -702,7 +742,9 @@ def informed_repartition(matrix: hl.MatrixTable):
     return matrix.repartition(n_partitions=partitions, shuffle=True)
 
 
-def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
+def main(
+    mt_input: str, panelapp_path: str, config_path: str, plink_file: str, out_vcf: str
+):
     """
     Read the MT from disk
     Do filtering and class annotation
@@ -711,6 +753,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     :param mt_input: path to the MT directory
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
+    :param plink_file: pedigree filepath in PLINK format
     :param out_vcf: path to write the VCF out to
     """
 
@@ -778,7 +821,8 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     matrix = annotate_category_1(matrix)
     matrix = annotate_category_2(matrix, hail_config, new_expression)
     matrix = annotate_category_3(matrix, hail_config)
-    matrix = annotate_category_4(matrix, hail_config)
+    matrix = annotate_category_4(matrix, plink_family_file=plink_file)
+    matrix = annotate_category_support(matrix, hail_config)
 
     # filter to class-annotated only prior to export
     logging.info('Filter variants to leave only classified')
@@ -788,7 +832,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     # another little repartition after heavy filtering
     matrix = informed_repartition(matrix=matrix)
 
-    # add an additional annotation, if the variant is Category4 only
+    # add an additional annotation, if the variant is Support only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     matrix = matrix.annotate_rows(
@@ -798,11 +842,12 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
             ),
             gene_id=matrix.geneIds,
         ),
-        category_4_only=hl.if_else(
+        support_only=hl.if_else(
             (matrix.info.Category1 == 0)
             & (matrix.info.Category2 == 0)
             & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 1),
+            & (matrix.info.Category4 == 0)
+            & (matrix.info.CategorySupport == 1),
             ONE_INT,
             MISSING_INT,
         ),
@@ -855,6 +900,9 @@ if __name__ == '__main__':
         help='If a gene list is being used as a comparison ',
     )
     parser.add_argument(
+        '--plink_file', type=str, required=True, help='Family Pedigree in PLINK format'
+    )
+    parser.add_argument(
         '--out_vcf', type=str, required=True, help='VCF path to export results'
     )
     args = parser.parse_args()
@@ -862,5 +910,6 @@ if __name__ == '__main__':
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
         config_path=args.config_path,
+        plink_file=args.plink_file,
         out_vcf=args.out_vcf,
     )
