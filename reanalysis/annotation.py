@@ -67,7 +67,6 @@ def vep_jobs(  # pylint: disable=too-many-arguments
     if out_path and cpg_pipe_utils.can_reuse(out_path, overwrite):
         return [b.new_job('VEP [reuse]', job_attrs)]
 
-    scatter_count = scatter_count or RefData.number_of_vep_intervals
     jobs: list[Job] = []
     intervals_j, intervals = split_intervals.get_intervals(
         b=b,

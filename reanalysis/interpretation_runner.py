@@ -75,6 +75,7 @@ RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py
 HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
 MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
 
+# create a default RefData object, root bucket to be customisable in future
 runtime_ref_data = RefData(bucket=CloudPath('gs://cpg-reference'))
 
 
@@ -145,18 +146,17 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
 def annotate_vcf(
     input_vcf: str,
     batch: hb.Batch,
-    config: Dict[str, Any],
     seq_type: Optional[SequencingType] = SequencingType.GENOME,
 ) -> List[hb.batch.job.Job]:
     """
     takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
 
-    TBD - should this be separated out into a script, or should be continue in this
-    same runtime? The jobs are scheduled into
+    should this be separated out into a script and run end2end, or should we
+    continue in this same runtime? These jobs are scheduled into this batch with
+    appropriate dependencies, so keeping this structure seems valid
 
     :param input_vcf:
     :param batch:
-    :param config:
     :param seq_type:
     :return:
     """
@@ -170,9 +170,7 @@ def annotate_vcf(
         tmp_bucket=AnyPath(VEP_STAGE_TMP),
         out_path=AnyPath(VEP_HT_TMP),
         overwrite=True,
-        scatter_count=config.get('vep_intervals_num'),
         sequencing_type=seq_type,
-        intervals_path=config.get('intervals_path'),
         job_attrs={},
     )
 
@@ -429,8 +427,9 @@ def main(
     # now we do the annotation, unless it already exists
     annotated_path = CloudPath(ANNOTATED_MT)
     if not annotated_path.exists():
-        # need to repeat the annotation phase
-        annotation_jobs = annotate_vcf(input_path, batch=batch, config=config_dict)
+        # need to run the annotation phase
+        # uses default values from RefData
+        annotation_jobs = annotate_vcf(input_path, batch=batch)
 
         # take the last job in this batch, and use for future dependencies
         prior_job = annotation_jobs[-1]
