@@ -178,7 +178,7 @@ inheritance test.
 is Homozygous, we permit unaffected members to be heterozygous. Similarly, for compound-het inheritance, unaffected
 participants may have either variant but not both.
 
-Code has also been written to enable Complete and Incomplete penetrance models to be used. For the Complete penetrance
+Complete and Incomplete penetrance modes are available in this module. For the Complete penetrance
 inheritance model:
 
 - all affected individuals must have the same variant
