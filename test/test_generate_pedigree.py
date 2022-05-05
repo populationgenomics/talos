@@ -47,7 +47,7 @@ DIRTY_PED = [
 ]
 
 
-@patch('reanalysis.pedigree_from_sample_metadata.FamilyApi.get_pedigree')
+@patch('helpers.pedigree_from_sample_metadata.FamilyApi.get_pedigree')
 def test_get_pedigree_for_project(
     get_ped_patch,
 ):
@@ -65,7 +65,7 @@ def test_get_pedigree_for_project(
 
 
 @patch(
-    'reanalysis.pedigree_from_sample_metadata.ParticipantApi.'
+    'helpers.pedigree_from_sample_metadata.ParticipantApi.'
     'get_external_participant_id_to_internal_sample_id'
 )
 def test_ext_to_int_sample_map(
