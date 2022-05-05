@@ -129,15 +129,11 @@ At this stage, compound-het checking simply takes a variant read from the VCF, a
 position, checks if a paired variant was found. If so, the 2nd var coordinates are logged as 'supporting' the 'primary'
 variant.
 
-Post MVP it will make sense to load more logic here, e.g.
+When evaluating a biallelic MOI, we are able to consider the presence of a compound-het within the family group. See the
+Family Checks section below for implementation detail.
 
- - for a compound het in a proband, we must also check that the same pair doesn't occur in an unaffected parent (
-currently possible, but not implemented)
- - for 2 compound het variants, it is important to check that they were not in phase (where possible to determine during
-variant calling)
-
-These checks will require loading the full variant-representation pair, so that genotypes can be checked in more detail.
-To do this, collecting all the variants together and iterating over in gene-groups suitable provides granularity.
+Post MVP it will make sense to check that compounded variants are not in phase (where possible to determine during
+variant calling).
 
 ## MOI Tests
 
@@ -168,3 +164,31 @@ The usage paradigm is:
 4. Where a variant passes all conditions within a filter class, a 'result' object is created
 5. The result of `.run()` is a list of valid modes of inheritance (ReportedVariant), each including details of the
 variant(s), and samples
+
+### Family Checks
+
+Instead of a tree-traverse of families, the method used in family checks here is to represent each family as a flat pool
+of participants. The inheritance rules are applied unilaterally to every member of a family group, rather than in a
+directional manner, e.g. when considering each candidate variant:
+
+- for a monoallelic variant, inherited with complete penetrance, we enforce a unilateral rule - every person with the
+variant must also be affected. If this rule is violated for any individual member, the variant does not pass the
+inheritance test.
+- for a biallelic variant pair, all participants with the variant pair must also be affected. If the variant considered
+is Homozygous, we permit unaffected members to be heterozygous. Similarly, for compound-het inheritance, unaffected
+participants may have either variant but not both.
+
+Code has also been written to enable Complete and Incomplete penetrance models to be used. For the Complete penetrance
+inheritance model:
+
+- all affected individuals must have the same variant
+- unaffected members cannot have the variant
+
+The alternative is Incomplete penetrance:
+
+- all affected members must have the candidate variant
+- unaffected members may still have the same variant
+
+A situation not permitted under either model is when some, but not all, affected members have a candidate variant.
+That would be plausible under a situation of multiple underlying diseases within a single family, but as the application
+doesn't currently permit providing family or member-specific disease data, this is assumed not to be the case.
