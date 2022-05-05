@@ -202,8 +202,8 @@ def write_output_json(output_path: str, object_to_write: Any):
     if out_route.exists():
         logging.info(f'Output path "{output_path}" exists, will be overwritten')
 
-    serialised_obj = json.dumps(object_to_write, indent=True, default=str)
-    out_route.write_text(serialised_obj)
+    with out_route.open('w') as fh:
+        json.dump(object_to_write, fh, indent=4, default=str)
 
 
 def main(

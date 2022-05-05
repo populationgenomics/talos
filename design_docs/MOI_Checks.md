@@ -27,8 +27,8 @@ variant to decide whether we include it in the final report.
 
 Static Objects:
 
-- Comp-Het mapping: a lookup object of `Var_1: Var_2` for all variant pairs
-  - When each variant is assessed, we check if the variant fits with the expected MOI alone. If
+- Comp-Het mapping: a lookup object of the strings `Var_1: [Var_2, Var_3, ...]` for all variant pairs
+  - As each variant is assessed, we first check if the variant fits with the expected MOI alone. If
   the variant alone doesn't pass the relevant MOI test, we can then check if it was seen as a compound-het with a
   `second hit`. If this is the case then we can report the variant pair as a plausible variant combination.
 - Configuration File: used throughout the pipeline, this contains all runtime settings
@@ -36,7 +36,15 @@ Static Objects:
   may change with each run, so we take those parameters from a central configuration file
 - PanelApp data: associates genes with evidenced inheritance patterns
   - For each 'green' (high evidence) gene contains inheritance pattern to be applied & if the gene as 'new'
-(since a given date, or specific gene list).
+  (since a given date, or specific gene list).
+- Gene Lookup: a dictionary of all variants in this gene, indexed on `chr-pos-ref-alt` representation
+  - When we check the partner variants of a compound-het, we also need to check whether or not other family members
+  also have this same compound het pair. To do that, we must be able to reach the representation of the variant. For
+  this purpose we pass a collection of variants to the `MOI.run()` method, so that we can access the MOI for all vars
+  being considered. We could also do this same test using the comp-het dictionary, but there are other reasons to group
+  variants by gene (parsing variants as a gene group is a logical level for parallelisation, as all X-variant impacts
+  will be covered by grouping at this level) so this logic feels more versatile. Note: parsing variants as a gene-group
+  removes need for separately gathering a compound-het dictionary
 
 Dynamic Objects: AbstractVariant
 
@@ -116,19 +124,16 @@ Currently the compound-het checks are done in Hail, resulting in a simple result
 This is a highly condensed representation, and doesn't hold any annotations from the relevant variants. It simply
 contains information to state that the named sample(s) have co-located variants within the same gene.
 
+Compound-het checks are triggered once we find  consists of parsing the above format to
 At this stage, compound-het checking simply takes a variant read from the VCF, and for the given sample, gene, and
 position, checks if a paired variant was found. If so, the 2nd var coordinates are logged as 'supporting' the 'primary'
 variant.
 
-Post MVP it will make sense to load more logic here, e.g.
+When evaluating a biallelic MOI, we are able to consider the presence of a compound-het within the family group. See the
+Family Checks section below for implementation detail.
 
- - for a compound het in a proband, we must also check that the same pair doesn't occur in an unaffected parent (
-currently possible, but not implemented)
- - for 2 compound het variants, it is important to check that they were not in phase (where possible to determine during
-variant calling)
-
-These checks will require loading the full variant-representation pair, so that genotypes can be checked in more detail.
-To do this, collecting all the variants together and iterating over in gene-groups suitable provides granularity.
+Post MVP it will make sense to check that compounded variants are not in phase (where possible to determine during
+variant calling).
 
 ## MOI Tests
 
@@ -159,3 +164,31 @@ The usage paradigm is:
 4. Where a variant passes all conditions within a filter class, a 'result' object is created
 5. The result of `.run()` is a list of valid modes of inheritance (ReportedVariant), each including details of the
 variant(s), and samples
+
+### Family Checks
+
+Instead of tree-traversal within families, MOI checks represent each family as a flat pool
+of participants. The inheritance rules are applied unilaterally to every member of a family group, rather than in a
+directional manner, e.g. when considering each candidate variant:
+
+- for a monoallelic variant, inherited with complete penetrance, we enforce a unilateral rule - every person with the
+variant must also be affected. If this rule is violated for any individual member, the variant does not pass the
+inheritance test.
+- for a biallelic variant pair, all participants with the variant pair must also be affected. If the variant considered
+is Homozygous, we permit unaffected members to be heterozygous. Similarly, for compound-het inheritance, unaffected
+participants may have either variant but not both.
+
+Complete and Incomplete penetrance modes are available in this module. For the Complete penetrance
+inheritance model:
+
+- all affected individuals must have the same variant
+- unaffected members cannot have the variant
+
+The alternative is Incomplete penetrance:
+
+- all affected members must have the candidate variant
+- unaffected members may still have the same variant
+
+A situation not permitted under either model is when some, but not all, affected members have a candidate variant.
+That would be plausible under a situation of multiple underlying diseases within a single family, but as the application
+doesn't currently permit providing family or member-specific disease data, this is assumed not to be the case.

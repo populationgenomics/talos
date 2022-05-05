@@ -6,8 +6,7 @@ which may be shared across reanalysis components
 
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass, is_dataclass
-from csv import DictReader
-from functools import cache
+
 import json
 import logging
 import re
@@ -45,19 +44,6 @@ BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
 
 
 @dataclass
-class PedPerson:
-    """
-    holds attributes about a single PED file entry
-    this will need to be enhanced for family analysis
-    a prototype already exists in the prototype folder
-    """
-
-    sample: str
-    male: bool
-    affected: bool
-
-
-@dataclass
 class Coordinates:
     """
     a home for the positional variant attributes
@@ -74,7 +60,7 @@ class Coordinates:
         forms a string representation
         chr-pos-ref-alt
         """
-        return f'{self.chrom}{self.pos}-{self.ref}-{self.alt}'
+        return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
 
 @dataclass
@@ -176,7 +162,7 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
     """
 
     # contig matching regex - remove all HLA/decoy/unknown
-    contig_re = re.compile(r'^(chr)?[1-9XYMT]{1,2}$')
+    contig_re = re.compile(r'^(chr)?[0-9XYMT]{1,2}$')
 
     return {
         contig['ID']
@@ -187,12 +173,15 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str, variant_source: cyvcf2.VCFReader, config: Dict[str, Any]
-) -> Dict[str, Set[AbstractVariant]]:
+) -> Dict[str, Dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
     {
-        gene: {var1, var2},
+        gene: {
+            var1_as_string: var1,
+            var2_as_string: var2,
+        },
         ...
     }
     :param contig: contig name from header (canonical_contigs_from_vcf)
@@ -214,8 +203,10 @@ def gather_gene_dict_from_contig(
         # update the variant count
         contig_variants += 1
 
-        # update the gene index
-        contig_dict.setdefault(abs_var.info.get('gene_id'), []).append(abs_var)
+        # update the gene index dictionary
+        contig_dict.setdefault(abs_var.info.get('gene_id'), {})[
+            abs_var.coords.string_format
+        ] = abs_var
 
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
@@ -231,7 +222,6 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
         return json.load(handle)
 
 
-@cache
 def get_simple_moi(panel_app_moi: str) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a reduced
@@ -268,24 +258,6 @@ def get_simple_moi(panel_app_moi: str) -> str:
             simple_moi = 'Hemi_Mono_In_Female'
 
     return simple_moi
-
-
-def parse_ped_simple(ped: str) -> Dict[str, PedPerson]:
-    """
-    take individual attributes - sample ID, sex, affected
-    :param ped: path to the ped file
-    :return:
-    """
-
-    ped_dict: Dict[str, PedPerson] = {}
-    with open(AnyPath(ped), 'r', encoding='utf-8') as handle:
-        for line in DictReader(handle, delimiter='\t'):
-
-            # slot in the sample ID and two Booleans
-            ped_dict[line['Individual ID']] = PedPerson(
-                line['Individual ID'], line['Sex'] == '1', line['Affected'] == '2'
-            )
-    return ped_dict
 
 
 def get_non_ref_samples(

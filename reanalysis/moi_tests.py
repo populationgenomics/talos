@@ -23,9 +23,15 @@ a singleton
 
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set
 
-from reanalysis.utils import AbstractVariant, CompHetDict, PedPerson, ReportedVariant
+from peddy.peddy import Ped
+
+from reanalysis.utils import (
+    AbstractVariant,
+    CompHetDict,
+    ReportedVariant,
+)
 
 
 # config keys to use for dominant MOI tests
@@ -38,7 +44,7 @@ INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom', 'exac_ac_hom'}
 
 def check_for_second_hit(
     first_variant: str, comp_hets: CompHetDict, sample: str, gene: str
-) -> Tuple[bool, List[str]]:
+) -> List[str]:
     """
     checks for a second hit partner in this gene
 
@@ -52,7 +58,7 @@ def check_for_second_hit(
     :return:
     """
 
-    response = False, []
+    response = []
 
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
@@ -65,7 +71,7 @@ def check_for_second_hit(
         # check if this variant has any listed partners in this gene
         gene_dict = sample_dict.get(gene)
         if first_variant in gene_dict:
-            response = True, gene_dict.get(first_variant)
+            response = gene_dict.get(first_variant)
 
     return response
 
@@ -77,7 +83,7 @@ class MOIRunner:
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         target_moi: str,
         config: Dict[str, Any],
         comp_het_lookup: CompHetDict,
@@ -132,15 +138,20 @@ class MOIRunner:
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
-    def run(self, principal_var) -> List[ReportedVariant]:
+    def run(
+        self, principal_var, gene_lookup: Dict[str, AbstractVariant]
+    ) -> List[ReportedVariant]:
         """
         run method - triggers each relevant inheritance model
         :param principal_var: the variant we are focused on
+        :param gene_lookup: all variants in the gene, indexed on chr-pos-ref-alt
         :return:
         """
         moi_matched = []
         for model in self.filter_list:
-            moi_matched.extend(model.run(principal_var=principal_var))
+            moi_matched.extend(
+                model.run(principal_var=principal_var, gene_lookup=gene_lookup)
+            )
         return moi_matched
 
     def send_it(self):
@@ -158,7 +169,7 @@ class BaseMoi:
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str,
         comp_het: Optional[CompHetDict],
@@ -175,41 +186,116 @@ class BaseMoi:
 
     @abstractmethod
     def run(
-        self,
-        principal_var: AbstractVariant,
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
     ) -> List[ReportedVariant]:
         """
         run all applicable inheritance patterns and finds good fits
         :param principal_var:
+        :param gene_lookup: dictionary of all variants in this gene
         :return:
         """
 
-    def is_affected(self, sample_id: str) -> bool:
+    def check_familial_inheritance(
+        self,
+        sample_id: str,
+        called_variants: Set[str],
+        complete_penetrance: bool = True,
+    ) -> bool:
         """
-        take a sample ID and check if they are affected
+        sex-agnostic check for single variant inheritance
+        designed to be called recursively, this method will take a single sample
+        as a starting point and check that the MOI is viable across the whole family
+        *we are assuming complete penetrance with this version*
+
+        - find the family ID from this sample
+        - iterate through all family members, and check that MOI holds for all
+
+        Return False if a participant fails tests, True if all checked (so far) are ok
+
         :param sample_id:
+        :param called_variants: the set of sample_ids which have this variant
+        :param complete_penetrance: if True, (force affected==has variant call)
+
+        NOTE: this called_variants pool is prepared before calling this method.
+        If we only want to check hom calls, only send hom calls. If we are checking for
+        dominant conditions, we would bundle hom and het calls into this set
+
+        This check should work for both autosomal & sex chromosomes...
+        for X-chrom biallelic, send female Homs, and all male variants
+        For autosomal biallelic send male and female Homs
         :return:
         """
-        if self.pedigree.get(sample_id).affected:
-            return True
-        return False
 
-    # not implemented for singleton analysis
-    # def get_affected_parents(self, sample_id: str) -> Set[str]:
-    #     """
-    #     for this sample, find any affected parents
-    #     port this back into the Participant object?!
-    #     prevent re-computation... but really only make that more complex if necessary
-    #     :param sample_id:
-    #     :return:
-    #     """
-    #     participant = self.pedigree.get(sample_id)
-    #
-    #     return {
-    #         parent.details.sample_id
-    #         for parent in [participant.mother, participant.father]
-    #         if parent is not None and parent.details.affected
-    #     }
+        # initial value
+        variant_passing: bool = True
+
+        # iterate through all family members, no interested in directionality
+        # of relationships at the moment
+        for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
+
+            # complete & incomplete penetrance - affected samples must have the variant
+            # complete pen. requires participants to be affected if they have the var
+            # if any of these combinations occur, fail the family
+            if (member.affected and member.sample_id not in called_variants) or (
+                member.sample_id in called_variants
+                and complete_penetrance
+                and not member.affected
+            ):
+                # fail
+                return False
+
+        return variant_passing
+
+    def check_familial_comp_het(
+        self,
+        sample_id: str,
+        called_variants_1: Set[str],
+        called_variants_2: Set[str],
+        complete_penetrance: bool = True,
+    ) -> bool:
+        """
+        compound_het check, requires 2 pools of variant calls
+        called_variants_1 & called_variants_2 are the relevant variant calls from
+        2 different variants. We evaluate the sample as 'having this variant pair'
+        if the sample ID appears in both call groups
+
+        - find the family ID from this sample
+        - iterate through all family members, and check that MOI holds for all
+        - this MOI test requires the participant to have both variant calls in order
+          to 'have this variant'
+
+        At each stage, append the sample ID of all checked samples so we don't repeat
+        One broken check will fail the variant for the whole family
+
+        Return False if a participant fails tests, True if all members pass
+
+        :param sample_id:
+        :param called_variants_1: called samples for variant 1
+        :param called_variants_2: called samples for variant 2
+        :param complete_penetrance: if True, (force affected==has variant call)
+        :return:
+        """
+
+        # iterate through all family members, no interested in directionality
+        # of relationships at the moment
+        for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
+
+            # one value to store the check that this sample has _this_ comp-het
+            sample_comp_het = (
+                member.sample_id in called_variants_1
+                and member.sample_id in called_variants_2
+            )
+
+            # complete & incomplete penetrance - affected samples must have the variant
+            # complete pen. requires participants to be affected if they have the var
+            # if any of these combinations occur, fail the family
+            if (member.affected and not sample_comp_het) or (
+                sample_comp_het and complete_penetrance and not member.affected
+            ):
+                # fail
+                return False
+
+        return True
 
 
 class DominantAutosomal(BaseMoi):
@@ -220,7 +306,7 @@ class DominantAutosomal(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'Autosomal Dominant',
     ):
@@ -237,12 +323,15 @@ class DominantAutosomal(BaseMoi):
             pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
         )
 
-    def run(self, principal_var: AbstractVariant) -> List[ReportedVariant]:
+    def run(
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
+    ) -> List[ReportedVariant]:
         """
         simplest
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
+        :param gene_lookup:
         :return:
         """
 
@@ -261,12 +350,20 @@ class DominantAutosomal(BaseMoi):
         ):
             return classifications
 
-        # autosomal dominant doesn't require support
+        # autosomal dominant doesn't require support, but consider het and hom
+        samples_with_this_variant = principal_var.het_samples.union(
+            principal_var.hom_samples
+        )
         for sample_id in [
-            sam
-            for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if self.is_affected(sam)
+            sam for sam in samples_with_this_variant if self.pedigree[sam].affected
         ]:
+
+            # check if this is a candidate for dominant inheritance
+            if not self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=samples_with_this_variant
+            ):
+                continue
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -288,7 +385,7 @@ class RecessiveAutosomal(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'Autosomal Recessive',
@@ -299,12 +396,15 @@ class RecessiveAutosomal(BaseMoi):
             pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=comp_het
         )
 
-    def run(self, principal_var: AbstractVariant) -> List[ReportedVariant]:
+    def run(
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
+    ) -> List[ReportedVariant]:
         """
         valid if present as hom, or compound het
         counts as being phased if a compound het is split between parents
         Clarify if we want to consider a homozygous variant as 2 hets
         :param principal_var:
+        :param gene_lookup:
         :return:
         """
 
@@ -322,10 +422,15 @@ class RecessiveAutosomal(BaseMoi):
 
         # homozygous is relevant directly
         for sample_id in [
-            sam for sam in principal_var.hom_samples if self.is_affected(sam)
+            sam for sam in principal_var.hom_samples if self.pedigree[sam].affected
         ]:
 
-            # # check for either parent being unaffected - skip this sample
+            # check if this is a possible candidate for homozygous inheritance
+            if not self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=principal_var.hom_samples
+            ):
+                continue
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -338,24 +443,32 @@ class RecessiveAutosomal(BaseMoi):
 
         # if hets are present, try and find support
         for sample_id in [
-            sam for sam in principal_var.het_samples if self.is_affected(sam)
+            sam for sam in principal_var.het_samples if self.pedigree[sam].affected
         ]:
 
-            passes, partners = check_for_second_hit(
+            for partner in check_for_second_hit(
                 first_variant=principal_var.coords.string_format,
                 comp_hets=self.comp_het,
                 sample=sample_id,
                 gene=principal_var.info.get('gene_id'),
-            )
-            if passes:
+            ):
+
+                # check if this is a candidate for comp-het inheritance
+                if not self.check_familial_comp_het(
+                    sample_id=sample_id,
+                    called_variants_1=principal_var.het_samples,
+                    called_variants_2=gene_lookup[partner].het_samples,
+                ):
+                    continue
+
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
                         gene=principal_var.info.get('gene_id'),
                         var_data=principal_var,
                         reasons={f'{self.applied_moi} Compound-Het'},
-                        supported=passes,
-                        support_vars=partners,
+                        supported=True,
+                        support_vars=[partner],
                     )
                 )
 
@@ -374,7 +487,7 @@ class XDominant(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'X_Dominant',
     ):
@@ -392,13 +505,13 @@ class XDominant(BaseMoi):
         )
 
     def run(
-        self,
-        principal_var: AbstractVariant,
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
     ) -> List[ReportedVariant]:
         """
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
+        :param gene_lookup:
         :return:
         """
         classifications = []
@@ -421,10 +534,20 @@ class XDominant(BaseMoi):
         ):
             return classifications
 
-        # dominant doesn't care about support
-        # for all the samples which are affected
-        # (assumption that probands are affected)
-        for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
+        # all samples which have a variant call
+        samples_with_this_variant = principal_var.het_samples.union(
+            principal_var.hom_samples
+        )
+
+        for sample_id in samples_with_this_variant:
+
+            # check if this is a candidate for dominant inheritance
+            if not self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=samples_with_this_variant
+            ):
+                continue
+
+            # passed inheritance test, create the record
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -432,7 +555,7 @@ class XDominant(BaseMoi):
                     var_data=principal_var,
                     reasons={
                         f'{self.applied_moi} '
-                        f'{"Male" if self.pedigree.get(sample_id).male else "Female"}'
+                        f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
                     supported=False,
                 )
@@ -448,7 +571,7 @@ class XRecessive(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'X_Recessive',
@@ -469,10 +592,13 @@ class XRecessive(BaseMoi):
             pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=comp_het
         )
 
-    def run(self, principal_var: AbstractVariant) -> List[ReportedVariant]:
+    def run(
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
+    ) -> List[ReportedVariant]:
         """
 
         :param principal_var:
+        :param gene_lookup:
         :return:
         """
 
@@ -493,39 +619,57 @@ class XRecessive(BaseMoi):
             return classifications
 
         # X-relevant, we separate out male and females
-        males = [
+        # combine het and hom here, we don't trust the variant callers
+        males = {
             sam
             for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if self.pedigree.get(sam).male
-        ]
+            if self.pedigree[sam].sex == 'male'
+        }
 
-        # get female calls in 2 categories
-        het_females = [
-            sam for sam in principal_var.het_samples if not self.pedigree.get(sam).male
-        ]
-
-        hom_females = [
-            sam for sam in principal_var.hom_samples if not self.pedigree.get(sam).male
-        ]
+        # split female calls into 2 categories
+        het_females = {
+            sam
+            for sam in principal_var.het_samples
+            if self.pedigree[sam].sex == 'female'
+        }
+        hom_females = {
+            sam
+            for sam in principal_var.hom_samples
+            if self.pedigree[sam].sex == 'female'
+        }
 
         # if het females are present, try and find support
         for sample_id in het_females:
 
-            passes, partners = check_for_second_hit(
+            for partner in check_for_second_hit(
                 first_variant=principal_var.coords.string_format,
                 comp_hets=self.comp_het,
                 sample=sample_id,
                 gene=principal_var.info.get('gene_id'),
-            )
-            if passes:
+            ):
+
+                # check if this is a candidate for comp-het inheritance
+                # get all female het calls on the paired variant
+                het_females_partner = {
+                    sam
+                    for sam in gene_lookup[partner].het_samples
+                    if self.pedigree[sample_id].sex == 'female'
+                }
+                if not self.check_familial_comp_het(
+                    sample_id=sample_id,
+                    called_variants_1=principal_var.het_samples,
+                    called_variants_2=het_females_partner,
+                ):
+                    continue
+
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
                         gene=principal_var.info.get('gene_id'),
                         var_data=principal_var,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
-                        supported=passes,
-                        support_vars=partners,
+                        supported=True,
+                        support_vars=[partner],
                     )
                 )
 
@@ -540,17 +684,24 @@ class XRecessive(BaseMoi):
 
         # find all het males and hom females
         # assumption that the sample can only be hom if female?
-        for sample_id in males + hom_females:
-            if self.pedigree.get(sample_id).male:
-                reason = f'{self.applied_moi} Male'
-            else:
-                reason = f'{self.applied_moi} Female'
+        samples_to_check = males.union(hom_females)
+        for sample_id in samples_to_check:
+
+            # check if this is a possible candidate for homozygous inheritance
+            if not self.check_familial_inheritance(
+                sample_id=sample_id, called_variants=samples_to_check
+            ):
+                continue
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
-                    reasons={reason},
+                    reasons={
+                        f'{self.applied_moi} '
+                        f'{self.pedigree[sample_id].sex.capitalize()}'
+                    },
                     supported=False,
                 )
             )
@@ -569,7 +720,7 @@ class YHemi(BaseMoi):
 
     def __init__(
         self,
-        pedigree: Dict[str, PedPerson],
+        pedigree: Ped,
         config: Dict[str, Any],
         applied_moi: str = 'Y_Hemi',
     ):
@@ -587,12 +738,12 @@ class YHemi(BaseMoi):
         )
 
     def run(
-        self,
-        principal_var: AbstractVariant,
+        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
     ) -> List[ReportedVariant]:
         """
         flag calls on Y which are Hom (maybe ok?) or female (bit weird)
         :param principal_var:
+        :param gene_lookup:
         :return:
         """
         classifications = []
@@ -611,7 +762,7 @@ class YHemi(BaseMoi):
 
         # we don't expect any confident Y calls in females
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
-            if not self.pedigree.get(sample_id).male:
+            if self.pedigree[sample_id].sex == 'female':
                 logging.error(f'Sample {sample_id} is a female with call on Y')
             classifications.append(
                 ReportedVariant(
@@ -624,3 +775,6 @@ class YHemi(BaseMoi):
             )
 
         return classifications
+
+
+# create a DeNovo category?
