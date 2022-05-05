@@ -1,9 +1,10 @@
 click==8.0.4
 cloudpathlib[azure,gs]==0.7.0
-cpg-utils==3.3.1
+cpg-utils==4.0.0
 cyvcf2==0.30.14
 dill==0.3.4
 hail==0.2.93
 Jinja2==3.0.3
 pandas==1.3.5
+peddy==0.4.8
 requests==2.25.1

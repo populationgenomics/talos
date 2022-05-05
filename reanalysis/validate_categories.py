@@ -19,18 +19,17 @@ from typing import Any, Dict, List, Union
 
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
+from peddy.peddy import Ped
 
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
-    CompHetDict,
-    CustomEncoder,
     gather_gene_dict_from_contig,
     get_simple_moi,
-    parse_ped_simple,
-    PanelAppDict,
-    PedPerson,
     read_json_dict_from_path,
+    CompHetDict,
+    CustomEncoder,
+    PanelAppDict,
     ReportedVariant,
 )
 
@@ -38,7 +37,7 @@ from reanalysis.utils import (
 def set_up_inheritance_filters(
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
     config: Dict[str, Any],
-    pedigree: Dict[str, PedPerson],
+    pedigree: Ped,
     comp_het_lookup: CompHetDict,
 ) -> Dict[str, MOIRunner]:
     """
@@ -148,7 +147,7 @@ def apply_moi_to_variants(
         # For now just iterate over the individual variants
         for gene, variants in contig_dict.items():
 
-            # extract the panel data specific to this gene, with cache
+            # extract the panel data specific to this gene
             # extract once per gene, not once per variant
             panel_gene_data = get_moi_from_panelapp(panelapp_data, gene)
             simple_moi = get_simple_moi(panelapp_data[gene].get('moi'))
@@ -158,7 +157,7 @@ def apply_moi_to_variants(
                 logging.error(f'How did this gene creep in? {gene}')
                 continue
 
-            for variant in variants:
+            for variant in variants.values():
 
                 # if the gene isn't 'new' in PanelApp, remove Class2 flag
                 # in future expand to the 'if MOI has changed' logic
@@ -175,7 +174,11 @@ def apply_moi_to_variants(
                 # - find the simplified MOI string
                 # - use to get appropriate MOI model
                 # - run variant, append relevant classification(s) to the results
-                results.extend(moi_lookup[simple_moi].run(principal_var=variant))
+                results.extend(
+                    moi_lookup[simple_moi].run(
+                        principal_var=variant, gene_lookup=variants
+                    )
+                )
 
     return results
 
@@ -261,8 +264,10 @@ def main(
     :param pedigree:
     """
 
-    # parse the pedigree from the file
-    pedigree_digest = parse_ped_simple(pedigree)
+    # parse the pedigree from the file (via write to temp)
+    with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
+        handle.write(AnyPath(pedigree).read_text())
+    pedigree_digest = Ped('i_am_a_temporary.ped')
 
     # parse panelapp data from dict
     panelapp_data = read_json_dict_from_path(panelapp)
@@ -277,15 +282,12 @@ def main(
             f'What is the conf path then?? "{config_path}": {type(config_path)}'
         )
 
-    # find all the Compound Hets from C-H JSON
-    comp_het_digest: CompHetDict = read_json_dict_from_path(comp_het)
-
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
         panelapp_data=panelapp_data,
         pedigree=pedigree_digest,
         config=config_dict,
-        comp_het_lookup=comp_het_digest,
+        comp_het_lookup=read_json_dict_from_path(comp_het),
     )
 
     # find classification events
@@ -299,10 +301,10 @@ def main(
     # remove duplicate variants
     cleaned_results = clean_initial_results(results)
 
-    # dump the JSON-results to a file, serialised & with AnyPath
+    # dump the JSON-results to an AnyPath route
     # use the custom-encoder to print sets and DataClasses
-    serialised = json.dumps(cleaned_results, cls=CustomEncoder, indent=4)
-    AnyPath(out_json).write_text(serialised)
+    with AnyPath(out_json).open('w') as fh:
+        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4, default=str)
 
 
 if __name__ == '__main__':
