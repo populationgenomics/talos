@@ -4,7 +4,8 @@ optional argument will remove all family associations
     - family structure removal enforces singleton structure during this MVP
 optional argument will replace missing parents with '0' to be valid PLINK structure
 """
-import json
+
+
 from typing import Dict, List, Union
 from itertools import product
 import logging
@@ -138,21 +139,6 @@ def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
     return sample_map
 
 
-def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, str]:
-    """
-
-    :param mapping_digest: created by ext_to_int_sample_map
-    :return:
-    """
-
-    reverse_lookup = {}
-    for participant, samples in mapping_digest.items():
-        for sample in samples:
-            reverse_lookup[sample] = participant
-
-    return reverse_lookup
-
-
 @click.command()
 @click.option(
     '--project',
@@ -168,11 +154,11 @@ def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, s
     '--plink',
     default=False,
     is_flag=True,
-    help='make a plink format file (default is .ped)',
+    help='make a plink format file',
 )
 @click.option(
     '--output',
-    help='prefix for writing all outputs to',
+    help='write the new PED file here',
 )
 def main(project: str, singles: bool, plink: bool, output: str):
     """
@@ -192,11 +178,6 @@ def main(project: str, singles: bool, plink: bool, output: str):
     logging.info('pulling internal-external sample mapping')
     sample_to_cpg_dict = ext_to_int_sample_map(project=project)
 
-    # store a way of reversing this lookup in future
-    reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
-    with open(f'{output}_reversed.json', 'w', encoding='utf-8') as handle:
-        json.dump(reverse_lookup, handle, indent=4)
-
     logging.info('updating pedigree sample IDs to internal')
     fat_pedigree = get_fat_pedigree(
         pedigree_dicts=pedigree_dicts,
@@ -205,9 +186,8 @@ def main(project: str, singles: bool, plink: bool, output: str):
         plink=plink,
     )
 
-    pedigree_output_path = f'{output}_pedigree.{"fam" if plink else "ped"}'
-    logging.info('writing new PED file to "%s"', pedigree_output_path)
-    write_fat_pedigree(fat_pedigree, pedigree_output_path)
+    logging.info('writing new PED file to "%s"', output)
+    write_fat_pedigree(fat_pedigree, output)
 
 
 if __name__ == '__main__':
