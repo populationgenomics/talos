@@ -32,7 +32,7 @@ from cpg_utils.git import (
     get_repo_name_from_current_directory,
     get_git_commit_ref_of_current_repository,
 )
-from cpg_utils.hail import (
+from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     image_path,

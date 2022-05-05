@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cloudpathlib import AnyPath
-from cpg_utils.hail import init_batch
+from cpg_utils.hail_batch import init_batch
 
 
 # set some Hail constants
