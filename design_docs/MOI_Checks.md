@@ -167,7 +167,7 @@ variant(s), and samples
 
 ### Family Checks
 
-Instead of a tree-traverse of families, the method used in family checks here is to represent each family as a flat pool
+Instead of tree-traversal within families, MOI checks represent each family as a flat pool
 of participants. The inheritance rules are applied unilaterally to every member of a family group, rather than in a
 directional manner, e.g. when considering each candidate variant:
 
