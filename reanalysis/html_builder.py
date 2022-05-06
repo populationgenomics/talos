@@ -353,14 +353,9 @@ class HTMLBuilder:
 
     def category_2_table(self, category_2_variants: Set[str]) -> str:
         """
-        takes all Cat. 2 variants, and documents the panel changes
-        this is either a new entity, or an altered MOI
-
-        Redraft this completely to take into account changes to Cat. 2
-          - only for 'new' genes relative to a reference point
-          - therefore no changed MOI
-          - potentially a high number of genes
-            - bootstrap in an extensible table?
+        takes all Cat. 2 variants, and documents relevant genes
+        cat. 2 is now 'new genes', not 'new, or altered MOI'
+        table altered to account for this changed purpose
 
         :param category_2_variants:
         :return:
@@ -368,13 +363,6 @@ class HTMLBuilder:
         current_key = (
             f'MOI in v{self.panelapp["panel_metadata"].get("current_version")}'
         )
-        previous_key = (
-            f'MOI in v{self.panelapp["panel_metadata"].get("previous_version")}'
-        )
-
-        # if we don't have version differences, don't do anything
-        if previous_key is None:
-            return ''
 
         gene_dicts = []
         for gene in category_2_variants:
@@ -383,9 +371,6 @@ class HTMLBuilder:
                 {
                     'gene': gene,
                     'symbol': PANELAPP_TEMPLATE.format(symbol=gene_data.get('symbol')),
-                    previous_key: 'Gene Not Present'
-                    if gene_data.get('new')
-                    else gene_data.get('old_moi'),
                     current_key: gene_data.get('moi'),
                 }
             )
