@@ -50,6 +50,7 @@ REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
 RESULTS_JSON = output_path('summary_results.json')
+WEB_HTML = output_path('summary_output.html', 'web')
 
 # location of the CPG BCFTools image
 BCFTOOLS_IMAGE = image_path('bcftools:1.10.2--h4f4756c_2')
@@ -60,6 +61,7 @@ assert DEFAULT_IMAGE
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
 QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
+HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
 
 
 def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
@@ -227,6 +229,9 @@ def handle_results_job(
     """
     results_job = batch.new_job(name='finalise_results')
     set_job_resources(results_job, git=True, prior_job=prior_job)
+
+    # matched dependencies between results generation and presentation
+    # (peddy)
     results_command = (
         'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
@@ -235,7 +240,13 @@ def handle_results_job(
         f'--labelled_vcf {reheadered_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {RESULTS_JSON} '
+        f'--out_json {RESULTS_JSON}   &&'
+        f'PYTHONPATH=$(pwd) python3 {HTML_SCRIPT} '
+        f'--results {RESULTS_JSON} '
+        f'--config_path {config} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--pedigree {pedigree} '
+        f'--out_path {WEB_HTML}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)

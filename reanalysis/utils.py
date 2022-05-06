@@ -13,6 +13,7 @@ import re
 
 import cyvcf2
 from cloudpathlib import AnyPath
+from cloudpathlib.exceptions import AnyPathTypeError
 from cyvcf2 import Variant
 
 
@@ -218,8 +219,17 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
     take a path to a JSON file, read into an object
     :param bucket_path:
     """
-    with open(AnyPath(bucket_path), encoding='utf-8') as handle:
-        return json.load(handle)
+    try:
+        with open(AnyPath(bucket_path), encoding='utf-8') as handle:
+            return json.load(handle)
+    except FileNotFoundError as fnf_error:
+        logging.error(f'No file could be found on the specified path "{bucket_path}"')
+        raise AttributeError from fnf_error
+    except AnyPathTypeError as apt_error:
+        logging.error(
+            f'AnyPpath could not be constructed from the supplied path "{bucket_path}"'
+        )
+        raise AttributeError from apt_error
 
 
 def get_simple_moi(panel_app_moi: str) -> str:
