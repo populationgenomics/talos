@@ -708,7 +708,7 @@ def reduce_remaining_fields(matrix: hl.MatrixTable) -> hl.MatrixTable:
     :param matrix:
     :return:
     """
-    row_fields_used = {'rsid', 'info', 'filters', 'qual'}
+    row_fields_used = {'rsid', 'info', 'filters', 'qual', 'support_only'}
 
     fields_dropped = []
     for f in matrix.globals:
