@@ -252,6 +252,8 @@ def annotate_category_4(
     :return:
     """
 
+    logging.info('running de novo search')
+
     # read pedigree from the specified file
     pedigree = hl.Pedigree.read(plink_family_file)
 
@@ -275,7 +277,10 @@ def annotate_category_4(
         values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
     )
 
-    # annotate those values as a flag, or '0' where missing
+    # log the number of variants found this way
+    logging.info(f'{dn_table.count()} variants showed de novo inheritance')
+
+    # annotate those values as a flag if relevant, else 'missing'
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category4=hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)
@@ -679,7 +684,7 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
         (matrix.info.Category1 == 1)
         | (matrix.info.Category2 == 1)
         | (matrix.info.Category3 == 1)
-        | (matrix.info.Category4 != '')
+        | (matrix.info.Category4 != 'missing')
         | (matrix.info.CategorySupport == 1)
     )
 
