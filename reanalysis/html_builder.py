@@ -31,8 +31,8 @@ COLOR_STRING = '<span style="color: {color}">{content}</span>'
 
 def numerical_categories(var_data: Dict[str, Any]) -> List[str]:
     """
-    get a list of ints representing the classes present on this variant
-    for each numerical class, append that number if the class is present
+    get a list of ints representing the categories present on this variant
+    for each numerical category, append that number if the cat. is present
     """
     return [
         str(integer)
@@ -142,7 +142,7 @@ class HTMLBuilder:
             # how many variants were attached to this sample?
             category_count['all'].append(len(sample_variants))
 
-            # create a per-sample object to track variants for each class
+            # create a per-sample object to track variants for each category
             sample_count = {'1': 0, '2': 0, '3': 0}
 
             # iterate over the variants
@@ -150,8 +150,8 @@ class HTMLBuilder:
 
                 var_string = string_format_coords(variant['var_data']['coords'])
 
-                # find all classes associated with this variant
-                # for each class, add to corresponding list and set
+                # find all categories associated with this variant
+                # for each category, add to corresponding list and set
                 for category_value in numerical_categories(variant['var_data']):
                     if category_value == '4':
                         continue
@@ -175,9 +175,9 @@ class HTMLBuilder:
             }
             for title, key in [
                 ('Total', 'all'),
-                ('Class1', '1'),
-                ('Class2', '2'),
-                ('Class3', '3'),
+                ('Cat1', '1'),
+                ('Cat2', '2'),
+                ('Cat3', '3'),
             ]
         ]
 
@@ -188,28 +188,28 @@ class HTMLBuilder:
 
     def write_html(self, output_path: str):
         """
-        uses the class objects to create the HTML tables
+        uses the results to create the HTML tables
         writes all content to the output path
         """
 
-        summary_table, zero_classified_samples = self.get_summary_stats()
+        summary_table, zero_categorised_samples = self.get_summary_stats()
         html_tables, category_2_genes = self.create_html_tables()
         category_2_table = self.category_2_table(category_2_genes)
 
         html_lines = [
             '<head>\n</head>\n<body>\n',
-            '<h3>MOI changes used for Class 2</h3>',
+            '<h3>MOI changes used for Cat.2</h3>',
             category_2_table,
             '<br/>',
-            f'<h3>Samples without Classified Variants '
-            f'({len(zero_classified_samples)})</h3>',
+            f'<h3>Samples without Categorised Variants '
+            f'({len(zero_categorised_samples)})</h3>',
         ]
 
-        if len(zero_classified_samples) > 0:
-            html_lines.append(f'<h5>{", ".join(zero_classified_samples)}</h3>')
+        if len(zero_categorised_samples) > 0:
+            html_lines.append(f'<h5>{", ".join(zero_categorised_samples)}</h3>')
         html_lines.append('<br/>')
 
-        html_lines.append('<h3>Per-Class summary</h3>')
+        html_lines.append('<h3>Per-Category summary</h3>')
         html_lines.append(summary_table)
         html_lines.append('<br/>')
 
@@ -312,7 +312,7 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'classes': ', '.join(
+                        'categories': ', '.join(
                             list(
                                 map(
                                     lambda x: self.colors[str(x)],
@@ -352,7 +352,7 @@ class HTMLBuilder:
 
     def category_2_table(self, category_2_variants: Set[str]) -> str:
         """
-        takes all class 2 variants, and documents the panel changes
+        takes all Cat. 2 variants, and documents the panel changes
         this is either a new entity, or an altered MOI
 
         Redraft this completely to take into account changes to Cat. 2
