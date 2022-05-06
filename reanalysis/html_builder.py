@@ -126,7 +126,11 @@ class HTMLBuilder:
         for sample in self.pedigree.samples():
             if not sample.affected:
                 continue
-            if sample.sample_id not in self.results.keys():
+
+            # get variants for this sample
+            sample_variants = self.results.get(sample.sample_id)
+
+            if len(sample_variants) == 0:
                 samples_with_no_variants.append(
                     self.external_map.get(sample.sample_id, sample.sample_id)
                 )
@@ -135,9 +139,6 @@ class HTMLBuilder:
                 for category_list in category_count.values():
                     category_list.append(0)
                 continue
-
-            # get variants for this sample
-            sample_variants = self.results.get(sample.sample_id)
 
             # how many variants were attached to this sample?
             category_count['all'].append(len(sample_variants))

@@ -30,7 +30,7 @@ def test_read_json():
     :return:
     """
     assert read_json_dict_from_path(JSON_STUB) == {'key': 'value'}
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(AttributeError):
         read_json_dict_from_path('not_a_real_path')
 
 
