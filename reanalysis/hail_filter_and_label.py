@@ -245,7 +245,7 @@ def annotate_category_4(
     - identify all likely de novo inherited variation
     - collect samples for each variant (expect n=1 per de novo call, but not guaranteed)
     - compress list of proband IDs as a String
-    - apply string back to the MatrixTable as a 'flag', or '0' if missing
+    - apply string back to the MatrixTable, else 'missing' if missing
 
     :param matrix:
     :param plink_family_file: path to a pedigree in PLINK format
@@ -846,7 +846,7 @@ def main(
             (matrix.info.Category1 == 0)
             & (matrix.info.Category2 == 0)
             & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 0)
+            & (matrix.info.Category4 == 'missing')
             & (matrix.info.CategorySupport == 1),
             ONE_INT,
             MISSING_INT,

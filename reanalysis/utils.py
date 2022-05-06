@@ -87,7 +87,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # de novo class is not an integer - list of strings or empty list
         self.category_4: List[str] = (
             var.INFO.get('Category4').split(',')
-            if var.INFO.get('Category4') != ''
+            if var.INFO.get('Category4') != 'missing'
             else []
         )
         self.category_support: bool = var.INFO.get('CategorySupport') == 1
