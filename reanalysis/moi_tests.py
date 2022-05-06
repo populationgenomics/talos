@@ -232,9 +232,6 @@ class BaseMoi:
         :return:
         """
 
-        # initial value
-        variant_passing: bool = True
-
         # iterate through all family members, no interested in directionality
         # of relationships at the moment
         for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
@@ -250,7 +247,7 @@ class BaseMoi:
                 # fail
                 return False
 
-        return variant_passing
+        return True
 
     def check_familial_comp_het(
         self,
@@ -282,9 +279,6 @@ class BaseMoi:
         :return:
         """
 
-        # initial value
-        variant_passing: bool = True
-
         # iterate through all family members, no interested in directionality
         # of relationships at the moment
         for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
@@ -304,7 +298,7 @@ class BaseMoi:
                 # fail
                 return False
 
-        return variant_passing
+        return True
 
 
 class DominantAutosomal(BaseMoi):

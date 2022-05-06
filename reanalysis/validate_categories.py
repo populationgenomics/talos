@@ -158,7 +158,7 @@ def apply_moi_to_variants(
         # For now just iterate over the individual variants
         for gene, variants in contig_dict.items():
 
-            # extract the panel data specific to this gene, with cache
+            # extract the panel data specific to this gene
             # extract once per gene, not once per variant
             panel_gene_data = get_moi_from_panelapp(panelapp_data, gene)
             simple_moi = get_simple_moi(panelapp_data[gene].get('moi'))
