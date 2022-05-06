@@ -861,6 +861,12 @@ def main(
     # write to MT
     matrix.write(f'{out_vcf}.mt', overwrite=True)
 
+    matrix_rows = matrix.count_rows()
+    logging.info(f'remaining rows prior to dumping data: {matrix_rows}')
+
+    # explicitly re-read from written path
+    matrix = hl.read_matrix_table(f'{out_vcf}.mt', _n_partitions=matrix_rows // 1000)
+
     # parse out the compound het details (after pulling gene_id above)
     comp_het_details = extract_comp_het_details(matrix=matrix)
 
