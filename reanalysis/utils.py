@@ -230,6 +230,9 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
             f'AnyPpath could not be constructed from the supplied path "{bucket_path}"'
         )
         raise AttributeError from apt_error
+    except BaseException as be:
+        logging.error(f'Unknown exception when opening JSON path "{bucket_path}')
+        raise AttributeError from be
 
 
 def get_simple_moi(panel_app_moi: str) -> str:
