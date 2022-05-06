@@ -273,7 +273,7 @@ def annotate_category_4(
     # delimit to compress that Array into single Strings
     dn_table = dn_table.annotate(
         values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
-    ).show()
+    )
 
     # annotate those values as a flag, or '0' where missing
     return matrix.annotate_rows(
