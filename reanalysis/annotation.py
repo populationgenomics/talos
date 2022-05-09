@@ -37,9 +37,9 @@ def apply_annotations(
     overwrite: bool = False,
     genome_build: str = 'GRCh38',
     sequencing_type: str = 'WGS',
+    checkpoints_bucket=None,
     ref_ht_path=None,
     clinvar_ht_path=None,
-    checkpoints_bucket=None,
 ):
     """
     Hail Query function to convert VCF to a MatrixTable, and add annotations
