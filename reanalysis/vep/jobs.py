@@ -132,7 +132,7 @@ def get_intervals(
     intervals_path: Optional[CloudPath] = None,
     cache_bucket: Optional[CloudPath] = None,
     sequencing_type: SequencingType = SequencingType.GENOME,
-    job_attrs: dict | None = None,
+    job_attrs: Optional[dict] = None,
     samtools_image: str = 'picard_samtools:v0',
 ) -> tuple[Job, list[hb.Resource]]:
     """
