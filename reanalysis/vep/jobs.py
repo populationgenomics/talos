@@ -175,7 +175,7 @@ def get_intervals(
     )
 
     j.image(image_path(samtools_image))
-    j.memory('12Gi')
+    j.memory('16Gi')
     j.cpu(4)
 
     break_bands_at_multiples_of = {
@@ -227,6 +227,7 @@ def subset_vcf(
     job_name = 'Subset VCF'
     j = b.new_job(job_name, job_attrs)
     j.image(image_path('gatk:4.2.6.1'))
+    j.memory('16Gi')
     j.cpu(2)
 
     j.declare_resource_group(
@@ -279,6 +280,7 @@ def gather_vcfs(
             }
         )
 
+    j.memory('16Gi')
     j.cpu(16)
     if gvcf_count:
         j.storage((1 if site_only else 2) * gvcf_count)
