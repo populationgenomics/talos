@@ -425,6 +425,12 @@ def main(
         # uses default values from RefData
         annotation_jobs = annotate_vcf(input_path, batch=batch)
 
+        # if the conversion to VCF job exists, assign as a dependency
+        # for all annotation jobs
+        if prior_job:
+            for job in annotation_jobs:
+                job.depends_on(prior_job)
+
         # take the last job in this batch, and use for future dependencies
         prior_job = annotation_jobs[-1]
 
