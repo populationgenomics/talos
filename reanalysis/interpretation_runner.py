@@ -250,7 +250,7 @@ def vqsr_reheader(
     :return:
     """
 
-    reheader = batch.new_job(name='bcftools_reheader_stage')
+    reheader = batch.new_job(name='add_vqsr_into_header')
     set_job_resources(reheader, image=BCFTOOLS_IMAGE, prior_job=prior_job)
 
     reheader.declare_resource_group(
@@ -265,6 +265,7 @@ def vqsr_reheader(
         f'echo {newline} >> hdr;'
         f'bcftools view -h {vcf} | tail -3 >> hdr;'
         f'bcftools reheader -h hdr --threads 4 -o {reheader.vcf["vcf.bgz"]} {vcf};'
+        f'tabix {reheader.vcf["vcf.bgz"]}'
     )
     return reheader
 
@@ -455,16 +456,18 @@ def main(
     # Hail doesn't export a header line for VQSR AFAIK
 
     # copy the input VCF file into batch
-    vcf_in_batch = batch.read_input_group(
+    needs_vqsr_line = batch.read_input_group(
         **{'vcf.bgz': input_path, 'vcf.bgz.tbi': input_path + '.tbi'}
     )
 
     # add ID field for VQSR
     header_job = vqsr_reheader(
         batch=batch,
-        vcf=vcf_in_batch['vcf.bgz'],
+        vcf=needs_vqsr_line['vcf.bgz'],
         prior_job=prior_job,
     )
+
+    # write this file back out to GCP
     batch.write_output(header_job.vcf, VQSR_ID_PREFIX)
     input_path = f'{VQSR_ID_PREFIX}.vcf.bgz'
     prior_job = header_job
@@ -545,10 +548,10 @@ def main(
 
     # if it exists remotely, read into a batch
     else:
-        vcf_in_batch = batch.read_input_group(
+        needs_vqsr_line = batch.read_input_group(
             **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
         )
-        reheadered_vcf_in_batch = vcf_in_batch['vcf.bgz']
+        reheadered_vcf_in_batch = needs_vqsr_line['vcf.bgz']
 
     # use compound-hets and labelled VCF to identify plausibly pathogenic
     # variants where the MOI is viable compared to the PanelApp expectation
