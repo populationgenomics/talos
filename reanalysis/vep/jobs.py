@@ -134,7 +134,7 @@ def get_intervals(
     sequencing_type: SequencingType = SequencingType.GENOME,
     job_attrs: Optional[dict] = None,
     samtools_image: str = 'picard_samtools:v0',
-) -> tuple[Job, list[hb.Resource]]:
+) -> Tuple[Job, List[hb.Resource]]:
     """
     Add a job that split genome into partitions for variant calling parallelisation.
 
@@ -309,7 +309,7 @@ def gather_vcfs(
 
 def gather_vep_json_to_ht(
     b: Batch,
-    vep_results_paths: list[CloudPath],
+    vep_results_paths: List[CloudPath],
     hail_billing_project: str,
     hail_bucket: CloudPath,
     out_path: CloudPath,
