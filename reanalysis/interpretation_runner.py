@@ -24,6 +24,8 @@ from pathlib import Path
 import os
 import sys
 
+from shlex import quote
+
 import click
 from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
@@ -262,7 +264,7 @@ def vqsr_reheader(
     reheader.command(
         'set -ex;'
         f'bcftools view -h {vcf} | head -2 > hdr;'
-        f'echo {newline} >> hdr;'
+        f'echo {quote(newline)} >> hdr;'
         f'bcftools view -h {vcf} | tail -3 >> hdr;'
         f'bcftools reheader -h hdr --threads 4 -o {reheader.vcf["vcf.bgz"]} {vcf};'
         f'tabix {reheader.vcf["vcf.bgz"]}'
