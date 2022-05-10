@@ -175,6 +175,7 @@ def get_intervals(
     )
 
     j.image(image_path(samtools_image))
+    j.memory('12Gi')
     j.cpu(4)
 
     break_bands_at_multiples_of = {
