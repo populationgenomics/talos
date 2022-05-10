@@ -226,7 +226,7 @@ def subset_vcf(
     job_name = 'Subset VCF'
     j = b.new_job(job_name, job_attrs)
     j.image(image_path('gatk:4.2.6.1'))
-    j.ncpu(2)
+    j.cpu(2)
 
     j.declare_resource_group(
         output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
@@ -278,7 +278,7 @@ def gather_vcfs(
             }
         )
 
-    j.ncpu(16)
+    j.cpu(16)
     if gvcf_count:
         j.storage((1 if site_only else 2) * gvcf_count)
 
@@ -353,7 +353,7 @@ def vep_one(
 
     j.image(image_path('vep:105'))
     j.storage('50G')
-    j.ncpu(16)
+    j.cpu(16)
 
     if not isinstance(vcf, hb.Resource):
         vcf = b.read_input(str(vcf))
