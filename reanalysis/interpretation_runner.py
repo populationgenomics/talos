@@ -133,6 +133,7 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
         f'--output {INPUT_AS_VCF}'
     )
     logging.info(f'Command used to convert MT: {job_cmd}')
+    copy_common_env(mt_to_vcf_job)
     mt_to_vcf_job.command(job_cmd)
     return mt_to_vcf_job
 
