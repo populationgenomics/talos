@@ -13,6 +13,6 @@ analysis-runner \
   --access-level test \
   reanalysis/interpretation_runner.py \
     --config_json gs://cpg-acute-care-test/reanalysis/reanalysis_conf.json \
-    --matrix_path gs://cpg-acute-care-test/reanalysis/${PAP_DATE}/hail_105_ac.mt/ \
+    --input_path gs://cpg-acute-care-test/reanalysis/${PAP_DATE}/hail_105_ac.mt/ \
     --panel_genes gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json \
     --pedigree gs://cpg-acute-care-test/reanalysis/acute-care-plink.fam

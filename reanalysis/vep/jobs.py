@@ -83,7 +83,7 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             b,
             vcf=vcf,
             interval=intervals[idx],
-            job_attrs=(job_attrs or {}) | dict(part=f'{idx + 1}/{scatter_count}'),
+            job_attrs=job_attrs or dict(part=f'{idx + 1}/{scatter_count}'),
         )
         jobs.append(subset_j)
         if to_hail_table:
@@ -96,7 +96,7 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             vcf=subset_j.output_vcf['vcf.gz'],
             out_format='json' if to_hail_table else 'vcf',
             out_path=part_path,
-            job_attrs=(job_attrs or {}) | dict(part=f'{idx + 1}/{scatter_count}'),
+            job_attrs=job_attrs or dict(part=f'{idx + 1}/{scatter_count}'),
             overwrite=overwrite,
         )
         jobs.append(j)
@@ -154,7 +154,7 @@ def get_intervals(
     that, but Hail Batch is not dynamic and have to expect certain number of output
     files.
     """
-    job_attrs = (job_attrs or {}) | dict(tool='picard_IntervalListTools')
+    job_attrs = job_attrs or dict(tool='picard_IntervalListTools')
     j = b.new_job(f'Make {scatter_count} intervals', job_attrs)
 
     if cache_bucket:
