@@ -385,7 +385,7 @@ def main(
     :param pedigree:
     """
 
-    if not AnyPath(input_path.rstrip('/') + '/').exists():
+    if not AnyPath(input_path).exists():
         raise Exception(
             f'The provided path "{input_path}" does not exist or is inaccessible'
         )
