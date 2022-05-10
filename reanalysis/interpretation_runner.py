@@ -467,6 +467,7 @@ def main(
     )
     batch.write_output(header_job.vcf, VQSR_ID_PREFIX)
     input_path = f'{VQSR_ID_PREFIX}.vcf.bgz'
+    prior_job = header_job
 
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
