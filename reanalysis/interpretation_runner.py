@@ -28,9 +28,6 @@ import click
 from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
 
-from cpg_pipes.types import SequencingType
-from cpg_pipes.refdata import RefData
-
 from cpg_utils.git import (
     prepare_git_job,
     get_git_commit_ref_of_current_repository,
@@ -45,7 +42,7 @@ from cpg_utils.hail_batch import (
     remote_tmpdir,
 )
 
-from reanalysis.vep.jobs import vep_jobs
+from reanalysis.vep.jobs import vep_jobs, SequencingType
 
 
 # static paths to write outputs
@@ -74,9 +71,6 @@ QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
 MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
-
-# create a default RefData object, root bucket to be customisable in future
-runtime_ref_data = RefData(bucket=CloudPath('gs://cpg-reference'))
 
 
 def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
