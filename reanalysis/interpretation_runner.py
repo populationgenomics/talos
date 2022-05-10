@@ -50,6 +50,7 @@ PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_categorised.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
+VQSR_ID_PREFIX = output_path('vqsr_line_in_header')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
 RESULTS_JSON = output_path('summary_results.json')
@@ -236,6 +237,38 @@ def handle_hail_filtering(
     return labelling_job
 
 
+def vqsr_reheader(
+    batch: hb.Batch,
+    vcf: str,
+    prior_job: Optional[hb.batch.job.Job] = None,
+) -> hb.batch.job.Job:
+    """
+    add VQSR line into VCF header
+    :param batch:
+    :param vcf:
+    :param prior_job:
+    :return:
+    """
+
+    reheader = batch.new_job(name='bcftools_reheader_stage')
+    set_job_resources(reheader, image=BCFTOOLS_IMAGE, prior_job=prior_job)
+
+    reheader.declare_resource_group(
+        vcf={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'}
+    )
+
+    newline = '##FILTER=<ID=PASS,Description="All filters passed">'
+
+    reheader.command(
+        'set -ex;'
+        f'bcftools view -h {vcf} | head -2 > hdr;'
+        f'echo {newline} >> hdr;'
+        f'bcftools view -h {vcf} | tail -3 >> hdr;'
+        f'bcftools reheader -h hdr --threads 4 -o {reheader.vcf["vcf.bgz"]} {vcf};'
+    )
+    return reheader
+
+
 def handle_reheader_job(
     batch: hb.Batch,
     local_vcf: str,
@@ -416,6 +449,25 @@ def main(
         prior_job = mt_to_vcf(batch=batch, input_file=input_path)
         input_path = INPUT_AS_VCF
 
+    # ----------------------------- #
+    # Add VQSR Header line into VCF #
+    # ----------------------------- #
+    # Hail doesn't export a header line for VQSR AFAIK
+
+    # copy the input VCF file into batch
+    vcf_in_batch = batch.read_input_group(
+        **{'vcf.bgz': input_path, 'vcf.bgz.tbi': input_path + '.tbi'}
+    )
+
+    # add ID field for VQSR
+    header_job = vqsr_reheader(
+        batch=batch,
+        vcf=vcf_in_batch['vcf.bgz'],
+        prior_job=prior_job,
+    )
+    batch.write_output(header_job.vcf, VQSR_ID_PREFIX)
+    input_path = f'{VQSR_ID_PREFIX}.vcf.bgz'
+
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
     # ------------------------------------- #
@@ -438,75 +490,75 @@ def main(
     # hold for linter
     _do_nothing = prior_job, config_dict, panelapp_version, panel_genes, pedigree
 
-    # # -------------------------------- #
-    # # query panelapp for panel details #
-    # # -------------------------------- #
-    # # no need to launch in a separate batch, minimal dependencies
-    # prior_job = handle_panelapp_job(
-    #     batch=batch,
-    #     gene_list=panel_genes,
-    #     prev_version=panelapp_version,
-    #     prior_job=prior_job,
-    # )
-    #
-    # # ----------------------- #
-    # # run hail categorisation #
-    # # ----------------------- #
-    # # only run if the output VCF doesn't already exist
-    # if not AnyPath(REHEADERED_OUT).exists():
-    #     logging.info(
-    #         f'The Reheadered VCF "{REHEADERED_OUT}" doesn\'t exist; regenerating'
-    #     )
-    #
-    #     if not AnyPath(HAIL_VCF_OUT).exists():
-    #         logging.info(
-    #             f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating'
-    #         )
-    #
-    #         prior_job = handle_hail_filtering(
-    #             batch=batch,
-    #             matrix_path=input_path,
-    #             config=config_json,
-    #             prior_job=prior_job,
-    #         )
-    #
-    #     # --------------------------------- #
-    #     # bcftools re-headering of hail VCF #
-    #     # --------------------------------- #
-    #     # copy the labelled output file into the remaining batch jobs
-    #     hail_output_in_batch = batch.read_input_group(
-    #         **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
-    #     )
-    #
-    #     # this is no longer explicitly required...
-    #     # it was required to run slivar: geneId, consequences, and transcript
-    #     # keeping in to ensure the VCF can be interpreted without the config
-    #     bcftools_job = handle_reheader_job(
-    #         batch=batch,
-    #         local_vcf=hail_output_in_batch['vcf.bgz'],
-    #         config_dict=config_dict,
-    #         prior_job=prior_job,
-    #     )
-    #     batch.write_output(bcftools_job.vcf, REHEADERED_PREFIX)
-    #     reheadered_vcf_in_batch = bcftools_job.vcf['vcf.bgz']
-    #
-    # # if it exists remotely, read into a batch
-    # else:
-    #     vcf_in_batch = batch.read_input_group(
-    #         **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
-    #     )
-    #     reheadered_vcf_in_batch = vcf_in_batch['vcf.bgz']
-    #
-    # # use compound-hets and labelled VCF to identify plausibly pathogenic
-    # # variants where the MOI is viable compared to the PanelApp expectation
-    # _results_job = handle_results_job(
-    #     batch=batch,
-    #     config=config_json,
-    #     comp_het=COMP_HET_JSON,
-    #     reheadered_vcf=reheadered_vcf_in_batch,
-    #     pedigree=pedigree,
-    #     prior_job=prior_job,
-    # )
+    # -------------------------------- #
+    # query panelapp for panel details #
+    # -------------------------------- #
+    # no need to launch in a separate batch, minimal dependencies
+    prior_job = handle_panelapp_job(
+        batch=batch,
+        gene_list=panel_genes,
+        prev_version=panelapp_version,
+        prior_job=prior_job,
+    )
+
+    # ----------------------- #
+    # run hail categorisation #
+    # ----------------------- #
+    # only run if the output VCF doesn't already exist
+    if not AnyPath(REHEADERED_OUT).exists():
+        logging.info(
+            f'The Reheadered VCF "{REHEADERED_OUT}" doesn\'t exist; regenerating'
+        )
+
+        if not AnyPath(HAIL_VCF_OUT).exists():
+            logging.info(
+                f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating'
+            )
+
+            prior_job = handle_hail_filtering(
+                batch=batch,
+                matrix_path=input_path,
+                config=config_json,
+                prior_job=prior_job,
+            )
+
+        # --------------------------------- #
+        # bcftools re-headering of hail VCF #
+        # --------------------------------- #
+        # copy the labelled output file into the remaining batch jobs
+        hail_output_in_batch = batch.read_input_group(
+            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
+        )
+
+        # this is no longer explicitly required...
+        # it was required to run slivar: geneId, consequences, and transcript
+        # keeping in to ensure the VCF can be interpreted without the config
+        bcftools_job = handle_reheader_job(
+            batch=batch,
+            local_vcf=hail_output_in_batch['vcf.bgz'],
+            config_dict=config_dict,
+            prior_job=prior_job,
+        )
+        batch.write_output(bcftools_job.vcf, REHEADERED_PREFIX)
+        reheadered_vcf_in_batch = bcftools_job.vcf['vcf.bgz']
+
+    # if it exists remotely, read into a batch
+    else:
+        vcf_in_batch = batch.read_input_group(
+            **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
+        )
+        reheadered_vcf_in_batch = vcf_in_batch['vcf.bgz']
+
+    # use compound-hets and labelled VCF to identify plausibly pathogenic
+    # variants where the MOI is viable compared to the PanelApp expectation
+    _results_job = handle_results_job(
+        batch=batch,
+        config=config_json,
+        comp_het=COMP_HET_JSON,
+        reheadered_vcf=reheadered_vcf_in_batch,
+        pedigree=pedigree,
+        prior_job=prior_job,
+    )
     batch.run(wait=False)
 
 
