@@ -42,7 +42,7 @@ from cpg_utils.hail_batch import (
     remote_tmpdir,
 )
 
-from .vep.jobs import vep_jobs, SequencingType
+from vep.jobs import vep_jobs, SequencingType
 
 
 # static paths to write outputs
