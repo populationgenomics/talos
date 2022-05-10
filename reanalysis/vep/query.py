@@ -75,9 +75,7 @@ def vep_json_to_ht(vep_results_paths, out_path):
         json_schema = json_schema.replace(k, v)
 
     schema = hl.dtype(json_schema)
-    ht = hl.import_table(
-        vep_results_paths, no_header=True, types={'f0': schema}
-    )
+    ht = hl.import_table(vep_results_paths, no_header=True, types={'f0': schema})
     ht = ht.transmute(vep=ht.f0)
     # Can't use ht.vep.start for start because it can be modified by VEP (e.g. it
     # happens for indels). So instead parsing POS from the original VCF line stored
