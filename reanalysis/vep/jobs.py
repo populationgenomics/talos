@@ -338,7 +338,7 @@ def gather_vep_json_to_ht(
 def vep_one(
     b: Batch,
     vcf: Union[CloudPath, hb.Resource],
-    out_path: Optional[CloudPath, None] = None,
+    out_path: Optional[CloudPath] = None,
     out_format: Literal['vcf', 'json'] = 'vcf',
     job_attrs: Optional[Dict] = None,
     overwrite: bool = False,
