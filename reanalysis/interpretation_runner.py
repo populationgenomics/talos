@@ -254,6 +254,8 @@ def vqsr_reheader(
 
     reheader = batch.new_job(name='add_vqsr_into_header')
     set_job_resources(reheader, image=BCFTOOLS_IMAGE, prior_job=prior_job)
+    reheader.storage('50G')
+    reheader.memory('16G')
 
     reheader.declare_resource_group(
         vcf={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'}
@@ -262,11 +264,11 @@ def vqsr_reheader(
     newline = '##FILTER=<ID=PASS,Description="All filters passed">'
 
     reheader.command(
-        'set -ex;'
-        f'bcftools view -h {vcf} | head -2 > hdr;'
-        f'echo {quote(newline)} >> hdr;'
-        f'bcftools view -h {vcf} | tail -3 >> hdr;'
-        f'bcftools reheader -h hdr --threads 4 -o {reheader.vcf["vcf.bgz"]} {vcf};'
+        'set -ex;  '
+        f'bcftools view -h {vcf} | head -2 > hdr; '
+        f'echo {quote(newline)} >> hdr; '
+        f'bcftools view -h {vcf} | tail -3 >> hdr; '
+        f'bcftools reheader -h hdr --threads 2 -o {reheader.vcf["vcf.bgz"]} {vcf}; '
         f'tabix {reheader.vcf["vcf.bgz"]}'
     )
     return reheader
