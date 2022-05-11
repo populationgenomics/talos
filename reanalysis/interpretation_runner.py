@@ -130,13 +130,13 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     set_job_resources(mt_to_vcf_job, git=True, auth=True)
 
     additional_header = 'gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt'
-    header = batch.read_input(path=additional_header)
+    # header = batch.read_input(path=additional_header)
 
     job_cmd = (
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
         f'--input {input_file} '
         f'--output {INPUT_AS_VCF} '
-        f'--additional_header {header}'
+        f'--additional_header {additional_header}'
     )
     logging.info(f'Command used to convert MT: {job_cmd}')
     copy_common_env(mt_to_vcf_job)
