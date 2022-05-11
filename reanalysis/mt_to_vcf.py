@@ -1,10 +1,22 @@
 """
-takes an input file, works out the format, and
+Takes an input MT, and extracts a VCF-format representation.
+
+This is currently required as the end-to-end CPG pipeline doesn't currently
+store intermediate files. To simulate workflows running on VCF files, we
+have to regenerate a VCF representation from a MT.
+
+Optional argument allows the specification of an 'additional header' file
+When Hail extracts a VCF from a MT, it doesn't contain any custom field
+definitions, e.g. 'VQSR' as a Filter field. This argument allows us to
+specify additional lines which are required to make the final output valid
+within the VCF specification
 """
 
 from typing import Optional
 from argparse import ArgumentParser
 import os
+import sys
+
 import hail as hl
 from cpg_utils.hail_batch import init_batch
 
@@ -19,9 +31,12 @@ def main(input_mt: str, output_path: str, additional_header: Optional[str] = Non
     """
     init_batch()
 
-    # double check for existence, and set to None if not
-    if additional_header is None or not os.path.exists(additional_header):
-        additional_header = None
+    # check for existence, fail is specified and absent
+    if additional_header is not None:
+        if not os.path.exists(additional_header):
+            print(f'header file does not exist: {additional_header}')
+            additional_header = None
+            sys.exit()
 
     matrix = hl.read_matrix_table(input_mt)
 
@@ -49,4 +64,8 @@ if __name__ == '__main__':
         default=None,
     )
     args = parser.parse_args()
-    main(input_mt=args.input, output_path=args.output)
+    main(
+        input_mt=args.input,
+        output_path=args.output,
+        additional_header=args.additional_header,
+    )
