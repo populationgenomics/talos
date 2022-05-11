@@ -79,6 +79,18 @@ def vep_jobs(  # pylint: disable=too-many-arguments
 
     # Splitting variant calling by intervals
     for idx in range(scatter_count):
+
+        # find the eventual output path if appropriate
+        if to_hail_table:
+            part_path = parts_bucket / f'part{idx + 1}.json_list'
+        else:
+            part_path = None
+
+        # here we assume that if the eventual path exists, the subset and
+        # annotation were both done and can be re-used
+        if part_path and part_path.exists() and not overwrite:
+            continue
+
         subset_j = subset_vcf(
             b,
             vcf=vcf,
@@ -86,10 +98,6 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             job_attrs=job_attrs or dict(part=f'{idx + 1}/{scatter_count}'),
         )
         jobs.append(subset_j)
-        if to_hail_table:
-            part_path = parts_bucket / f'part{idx + 1}.json_list'
-        else:
-            part_path = None
         # noinspection PyTypeChecker
         j = vep_one(
             b,
