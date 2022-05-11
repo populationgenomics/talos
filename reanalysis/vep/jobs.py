@@ -396,6 +396,7 @@ def vep_one(
         'conservation_file': f'{vep_dir}/loftee.sql',
     }
 
+    authenticate_cloud_credentials_in_job(j)
     cmd = f"""\
     ls {vep_dir}
     ls {vep_dir}/vep
@@ -420,9 +421,8 @@ def vep_one(
     if out_format == 'vcf':
         cmd += f'tabix -p vcf {output}'
 
-    cmd += f'; sleep{randint(15, 150)}'
+    cmd += f' && sleep{randint(15, 150)}'
 
-    authenticate_cloud_credentials_in_job(j)
     j.command(cmd)
     if out_path:
         b.write_output(j.output, str(out_path).replace('.vcf.gz', ''))
