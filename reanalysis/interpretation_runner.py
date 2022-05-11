@@ -130,7 +130,7 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
     set_job_resources(mt_to_vcf_job, git=True, auth=True)
-    newline = '##FILTER=<ID=PASS,Description="All filters passed">'
+    newline = '##FILTER=<ID=VQSR,Description="VQSR triggered">'
 
     job_cmd = (
         f'echo {quote(newline)} > head_file.txt; '
