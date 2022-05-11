@@ -24,8 +24,6 @@ from pathlib import Path
 import os
 import sys
 
-from shlex import quote
-
 import click
 from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
@@ -130,14 +128,15 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
     set_job_resources(mt_to_vcf_job, git=True, auth=True)
-    newline = '##FILTER=<ID=VQSR,Description="VQSR triggered">'
+
+    additional_header = 'gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt'
+    header = batch.read_input(path=additional_header)
 
     job_cmd = (
-        f'echo {quote(newline)} > $(pwd)/head_file.txt; '
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
         f'--input {input_file} '
         f'--output {INPUT_AS_VCF} '
-        f'--additional_header $(pwd)/head_file.txt'
+        f'--additional_header {header}'
     )
     logging.info(f'Command used to convert MT: {job_cmd}')
     copy_common_env(mt_to_vcf_job)
