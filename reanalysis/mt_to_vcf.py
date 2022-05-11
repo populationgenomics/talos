@@ -41,5 +41,12 @@ if __name__ == '__main__':
         help='input MatrixTable path',
     )
     parser.add_argument('--output', type=str, help='path to write VCF out to')
+    parser.add_argument(
+        '--additional_header',
+        type=str,
+        help='path to file containing any additional header lines',
+        required=False,
+        default=None,
+    )
     args = parser.parse_args()
     main(input_mt=args.input, output_path=args.output)
