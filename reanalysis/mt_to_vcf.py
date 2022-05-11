@@ -38,6 +38,9 @@ def main(input_mt: str, output_path: str, additional_header: Optional[str] = Non
             additional_header = None
             sys.exit()
 
+    with open(additional_header, encoding='utf-8') as handle:
+        print(handle.readlines())
+
     matrix = hl.read_matrix_table(input_mt)
 
     hl.export_vcf(

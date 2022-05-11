@@ -133,11 +133,11 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     newline = '##FILTER=<ID=VQSR,Description="VQSR triggered">'
 
     job_cmd = (
-        f'echo {quote(newline)} > head_file.txt; '
+        f'echo {quote(newline)} > $(pwd)/head_file.txt; '
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
         f'--input {input_file} '
         f'--output {INPUT_AS_VCF} '
-        f'--additional_header head_file.txt'
+        f'--additional_header $(pwd)/head_file.txt'
     )
     logging.info(f'Command used to convert MT: {job_cmd}')
     copy_common_env(mt_to_vcf_job)
