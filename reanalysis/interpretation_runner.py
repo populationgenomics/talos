@@ -130,10 +130,14 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
     set_job_resources(mt_to_vcf_job, git=True, auth=True)
+    newline = '##FILTER=<ID=PASS,Description="All filters passed">'
+
     job_cmd = (
+        f'echo {quote(newline)} > head_file.txt'
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
         f'--input {input_file} '
-        f'--output {INPUT_AS_VCF}'
+        f'--output {INPUT_AS_VCF} '
+        f'--additional_header head_file.txt'
     )
     logging.info(f'Command used to convert MT: {job_cmd}')
     copy_common_env(mt_to_vcf_job)
@@ -237,41 +241,6 @@ def handle_hail_filtering(
     labelling_job.command(labelling_command)
     copy_common_env(labelling_job)
     return labelling_job
-
-
-def vqsr_reheader(
-    batch: hb.Batch,
-    vcf: str,
-    prior_job: Optional[hb.batch.job.Job] = None,
-) -> hb.batch.job.Job:
-    """
-    add VQSR line into VCF header
-    :param batch:
-    :param vcf:
-    :param prior_job:
-    :return:
-    """
-
-    reheader = batch.new_job(name='add_vqsr_into_header')
-    set_job_resources(reheader, image=BCFTOOLS_IMAGE, prior_job=prior_job)
-    reheader.storage('50G')
-    reheader.memory('16G')
-
-    reheader.declare_resource_group(
-        vcf={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'}
-    )
-
-    newline = '##FILTER=<ID=PASS,Description="All filters passed">'
-
-    reheader.command(
-        'set -ex;  '
-        f'bcftools view -h {vcf} | head -2 > hdr; '
-        f'echo {quote(newline)} >> hdr; '
-        f'bcftools view -h {vcf} | tail -3 >> hdr; '
-        f'bcftools reheader -h hdr --threads 2 -o {reheader.vcf["vcf.bgz"]} {vcf}; '
-        f'tabix {reheader.vcf["vcf.bgz"]}'
-    )
-    return reheader
 
 
 def handle_reheader_job(
@@ -453,28 +422,6 @@ def main(
         # then we must decompose into a VCF prior to annotation!
         prior_job = mt_to_vcf(batch=batch, input_file=input_path)
         input_path = INPUT_AS_VCF
-
-    # ----------------------------- #
-    # Add VQSR Header line into VCF #
-    # ----------------------------- #
-    # Hail doesn't export a header line for VQSR AFAIK
-
-    # copy the input VCF file into batch
-    needs_vqsr_line = batch.read_input_group(
-        **{'vcf.bgz': input_path, 'vcf.bgz.tbi': input_path + '.tbi'}
-    )
-
-    # add ID field for VQSR
-    header_job = vqsr_reheader(
-        batch=batch,
-        vcf=needs_vqsr_line['vcf.bgz'],
-        prior_job=prior_job,
-    )
-
-    # write this file back out to GCP
-    batch.write_output(header_job.vcf, VQSR_ID_PREFIX)
-    input_path = f'{VQSR_ID_PREFIX}.vcf.bgz'
-    prior_job = header_job
 
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
