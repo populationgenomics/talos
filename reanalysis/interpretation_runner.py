@@ -50,7 +50,6 @@ PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_categorised.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
-VQSR_ID_PREFIX = output_path('vqsr_line_in_header')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
 MT_OUT_PATH = output_path('hail_105_ac.mt')
 RESULTS_JSON = output_path('summary_results.json')
@@ -169,7 +168,7 @@ def annotate_vcf(
         hail_bucket=AnyPath(remote_tmpdir()),
         tmp_bucket=AnyPath(VEP_STAGE_TMP),
         out_path=AnyPath(VEP_HT_TMP),
-        overwrite=True,
+        overwrite=False,  # don't re-run annotation on completed chunks
         sequencing_type=seq_type,
         job_attrs={},
     )
@@ -439,9 +438,6 @@ def main(
 
         # take the last job in this batch, and use for future dependencies
         prior_job = annotation_jobs[-1]
-
-    # hold for linter
-    _do_nothing = prior_job, config_dict, panelapp_version, panel_genes, pedigree
 
     # -------------------------------- #
     # query panelapp for panel details #
