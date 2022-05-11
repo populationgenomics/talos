@@ -133,7 +133,7 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     newline = '##FILTER=<ID=PASS,Description="All filters passed">'
 
     job_cmd = (
-        f'echo {quote(newline)} > head_file.txt'
+        f'echo {quote(newline)} > head_file.txt; '
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
         f'--input {input_file} '
         f'--output {INPUT_AS_VCF} '
