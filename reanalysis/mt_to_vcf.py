@@ -14,8 +14,6 @@ within the VCF specification
 
 from typing import Optional
 from argparse import ArgumentParser
-import os
-import sys
 
 import hail as hl
 from cpg_utils.hail_batch import init_batch
@@ -31,15 +29,15 @@ def main(input_mt: str, output_path: str, additional_header: Optional[str] = Non
     """
     init_batch()
 
-    # check for existence, fail is specified and absent
-    if additional_header is not None:
-        if not os.path.exists(additional_header):
-            print(f'header file does not exist: {additional_header}')
-            additional_header = None
-            sys.exit()
-
-    with open(additional_header, encoding='utf-8') as handle:
-        print(handle.readlines())
+    # # check for existence, fail is specified and absent
+    # if additional_header is not None:
+    #     if not os.path.exists(additional_header):
+    #         print(f'header file does not exist: {additional_header}')
+    #         additional_header = None
+    #         sys.exit()
+    #
+    # with open(additional_header, encoding='utf-8') as handle:
+    #     print(handle.readlines())
 
     matrix = hl.read_matrix_table(input_mt)
 
