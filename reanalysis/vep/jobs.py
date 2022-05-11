@@ -419,9 +419,9 @@ def vep_one(
     --plugin LoF,{','.join(f'{k}:{v}' for k, v in loftee_conf.items())}
     """
     if out_format == 'vcf':
-        cmd += f'tabix -p vcf {output}'
+        cmd += f'tabix -p vcf {output} '
 
-    cmd += f' && sleep{randint(15, 150)}'
+    cmd += f'sleep{randint(15, 150)}'
 
     j.command(cmd)
     if out_path:
