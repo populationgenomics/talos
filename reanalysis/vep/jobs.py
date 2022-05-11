@@ -88,7 +88,10 @@ def vep_jobs(  # pylint: disable=too-many-arguments
 
         # here we assume that if the eventual path exists, the subset and
         # annotation were both done and can be re-used
+        # the subset-vcf is not persisted, so we can skip either both jobs,
+        # or neither
         if part_path and part_path.exists() and not overwrite:
+            part_files.append(part_path)
             continue
 
         subset_j = subset_vcf(
