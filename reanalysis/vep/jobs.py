@@ -239,9 +239,10 @@ def subset_vcf(
     output_vcf_path: Optional[CloudPath] = None,
 ) -> Job:
     """
-    Subset VCF to provided intervals.
+    Subset VCF to provided intervals, and drop sample/genotype
+    information (e.g. outputs sites-only VCF).
     """
-    job_name = 'Subset VCF'
+    job_name = 'VEP: subset VCF'
     j = b.new_job(job_name, job_attrs)
     j.image(image_path('gatk:4.2.6.1'))
     j.memory('16Gi')
@@ -265,7 +266,12 @@ def subset_vcf(
     -R {fasta_resource.base} \\
     -V {vcf['vcf.gz']} \\
     -L {interval} \\
-    -O {j.output_vcf['vcf.gz']}
+    -O /io/batch/tmp.vcf.gz
+
+    gatk MakeSitesOnlyVcf \\
+    -I /io/batch/tmp.vcf.gz \\
+    -O {j.output_vcf['vcf.gz']} \\
+    --CREATE_INDEX
     """
     j.command(cmd)
     if output_vcf_path:
