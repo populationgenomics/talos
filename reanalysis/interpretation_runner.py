@@ -406,7 +406,7 @@ def main(
         name='run reanalysis (AIP)',
         backend=service_backend,
         cancel_after_n_failures=1,
-        default_timeout=3200,
+        default_timeout=6000,
     )
 
     # set a first job in this batch

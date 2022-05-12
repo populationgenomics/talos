@@ -1,13 +1,21 @@
 """
 tests for the annotation module
+
+pytest in GitHub can't read the GS paths - needs local data
+or mocking?
 """
 
 
 import string
 import time
+import os
 from random import choices
 import hail as hl
 from reanalysis.annotation import apply_annotations
+
+
+PWD = os.path.dirname(__file__)
+INPUT = os.path.join(PWD, 'input')
 
 
 def timestamp():
@@ -34,13 +42,17 @@ def test_apply_annotations(monkeypatch):
         f'gs://cpg-fewgenomes-test/unittest/inputs/chr20/'
         f'joint-called-{INTERVAL}.vcf.gz'
     )
-    vep_ht_path = f'gs://cpg-fewgenomes-test/unittest/inputs/chr20/vep/{INTERVAL}.ht'
+    vep_ht_path = (
+        f'gs://cpg-fewgenomes-test/unittest/inputs/chr20/vep/chr20-5111495-5111607.ht'
+    )
     out_mt_path = f'{TMP_BUCKET}/cohort-{INTERVAL}.mt'
     apply_annotations(
         vcf_path=vcf_path,
         vep_ht_path=vep_ht_path,
         out_mt_path=str(out_mt_path),
         checkpoints_bucket=f'{TMP_BUCKET}/checkpoints',
+        clinvar_ht_path='gs://cpg-seqr-reference-data/GRCh38/clinvar/'
+        'clinvar.GRCh38.2020-06-15.ht/',
     )
     # Testing
     mt = hl.read_matrix_table(str(out_mt_path))
