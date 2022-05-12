@@ -39,10 +39,12 @@ from cpg_utils.hail_batch import (
     copy_common_env,
     image_path,
     output_path,
+    query_command,
     remote_tmpdir,
 )
 
 from vep.jobs import vep_jobs, SequencingType
+from reanalysis import annotation
 
 
 # static paths to write outputs
@@ -172,6 +174,32 @@ def annotate_vcf(
         sequencing_type=seq_type,
         job_attrs={},
     )
+
+
+def annotated_mt_from_ht_and_vcf(
+    input_vcf: str,
+    batch: hb.Batch,
+    job_attrs: Optional[dict] = None,
+) -> hb.batch.job.Job:
+    """
+    apply the HT of annotations to the VCF, save as MT
+    :return:
+    """
+    apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
+    apply_anno_job.image(os.getenv('CPG_DRIVER_IMAGE'))
+    cmd = query_command(
+        annotation,
+        annotation.apply_annotations.__name__,
+        input_vcf,
+        VEP_HT_TMP,
+        ANNOTATED_MT,
+        setup_gcp=True,
+        hail_billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        hail_bucket=str(remote_tmpdir()),
+        default_reference='GRCh38',
+    )
+    apply_anno_job.command(cmd)
+    return apply_anno_job
 
 
 def handle_panelapp_job(
@@ -437,8 +465,14 @@ def main(
             for job in annotation_jobs:
                 job.depends_on(prior_job)
 
+        # apply annotations
+        anno_job = annotated_mt_from_ht_and_vcf(
+            input_vcf=input_path, batch=batch, job_attrs={}
+        )
+        anno_job.depends_on(*annotation_jobs)
+
         # take the last job in this batch, and use for future dependencies
-        prior_job = annotation_jobs[-1]
+        prior_job = anno_job
 
     # -------------------------------- #
     # query panelapp for panel details #
@@ -467,7 +501,7 @@ def main(
 
             prior_job = handle_hail_filtering(
                 batch=batch,
-                matrix_path=input_path,
+                matrix_path=ANNOTATED_MT,
                 config=config_json,
                 prior_job=prior_job,
             )

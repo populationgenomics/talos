@@ -117,6 +117,11 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             part_files.append(j.output['vcf.gz'])
 
     if to_hail_table:
+
+        # if already generated, don't regen
+        if out_path and CloudPath(out_path).exists() and not overwrite:
+            return jobs
+
         gather_j = gather_vep_json_to_ht(
             b=b,
             vep_results_paths=part_files,
