@@ -44,7 +44,7 @@ from cpg_utils.hail_batch import (
 )
 
 from vep.jobs import vep_jobs, SequencingType
-from reanalysis import annotation
+from . import annotation
 
 
 # static paths to write outputs
