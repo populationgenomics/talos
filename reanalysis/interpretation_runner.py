@@ -208,7 +208,7 @@ def handle_panelapp_job(
 
 def handle_hail_filtering(
     batch: hb.Batch,
-    matrix_path: str,
+    matrix_path: AnyPath,
     config: str,
     prior_job: Optional[hb.batch.job.Job] = None,
 ) -> hb.batch.job.BashJob:
@@ -461,7 +461,7 @@ def main(
 
             prior_job = handle_hail_filtering(
                 batch=batch,
-                matrix_path=input_path,
+                matrix_path=annotated_path,
                 config=config_json,
                 prior_job=prior_job,
             )
