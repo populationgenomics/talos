@@ -86,7 +86,4 @@ def vep_json_to_ht(vep_results_paths, out_path):
     ht = ht.annotate(locus=hl.locus(chrom, start))
     ht = ht.key_by(ht.locus)
 
-    # drop the huge input field?
-    ht = ht.drop(ht.vep.input)
-
     ht.write(str(out_path), overwrite=True)
