@@ -21,4 +21,4 @@ jobs:
         pip install -r requirements.txt
 
     - name: test
-      run: PYTHONPATH="." pytest -n auto .
+      run: PYTHONPATH="." pytest -n auto -m "not gcp" .

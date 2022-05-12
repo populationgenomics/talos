@@ -11,6 +11,8 @@ import time
 import os
 from random import choices
 import hail as hl
+import pytest
+
 from reanalysis.annotation import apply_annotations
 
 
@@ -32,6 +34,7 @@ TMP_BUCKET = (
 INTERVAL = 'chr20-5111495-5111607'
 
 
+@pytest.mark.gcp
 def test_apply_annotations(monkeypatch):
     """
     Test annotation.apply_annotations: convert VCF to a MatrixTable,
