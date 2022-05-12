@@ -5,7 +5,6 @@ Hail Batch jobs to run VEP on a VCF in parallel.
 import logging
 import os
 from enum import Enum
-from random import randint
 from typing import Literal, Optional, Union, Dict, Tuple, List
 
 from cloudpathlib import CloudPath
@@ -420,8 +419,6 @@ def vep_one(
     """
     if out_format == 'vcf':
         cmd += f'tabix -p vcf {output} '
-
-    cmd += f'sleep{randint(15, 150)}'
 
     j.command(cmd)
     if out_path:
