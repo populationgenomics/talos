@@ -346,7 +346,7 @@ def gather_vep_json_to_ht(
         setup_gcp=True,
         hail_billing_project=hail_billing_project,
         hail_bucket=str(hail_bucket),
-        default_reference='hg38',
+        default_reference='GRCh38',
     )
     j.command(cmd)
     return j
