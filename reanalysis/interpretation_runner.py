@@ -197,6 +197,7 @@ def annotated_mt_from_ht_and_vcf(
         hail_billing_project=os.getenv('HAIL_BILLING_PROJECT'),
         hail_bucket=str(remote_tmpdir()),
         default_reference='GRCh38',
+        packages=['seqr-loader==1.2.5'],
     )
     apply_anno_job.command(cmd)
     return apply_anno_job

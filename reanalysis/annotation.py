@@ -10,22 +10,6 @@ import hail as hl
 
 from cpg_utils.hail_batch import reference_path
 
-from hail_scripts.computed_fields.variant_id import (
-    get_expr_for_contig,
-    get_expr_for_variant_id,
-    get_expr_for_variant_ids,
-    get_expr_for_xpos,
-)
-
-# custom imports to reduce line lengths
-from hail_scripts.computed_fields.vep import (
-    get_expr_for_vep_sorted_transcript_consequences_array as vep_array,
-    get_expr_for_vep_transcript_ids_set as vep_set,
-    get_expr_for_worst_transcript_consequence_annotations_struct as worst_csq,
-    get_expr_for_vep_consequence_terms_set as vep_csq_set,
-    get_expr_for_vep_gene_ids_set as vep_gene_id_set,
-    get_expr_for_vep_protein_domains_set_from_sorted as vep_prot,
-)
 
 logger = logging.getLogger(__file__)
 
@@ -45,6 +29,25 @@ def apply_annotations(
     Hail Query function to convert VCF to a MatrixTable, and add annotations
     based on reference data: VEP, ClinVar, etc.
     """
+    # pylint: disable=C0415
+    from hail_scripts.computed_fields.variant_id import (
+        get_expr_for_contig,
+        get_expr_for_variant_id,
+        get_expr_for_variant_ids,
+        get_expr_for_xpos,
+    )
+
+    # custom imports to reduce line lengths
+    # pylint disable:C0415
+    from hail_scripts.computed_fields.vep import (
+        get_expr_for_vep_sorted_transcript_consequences_array as vep_array,
+        get_expr_for_vep_transcript_ids_set as vep_set,
+        get_expr_for_worst_transcript_consequence_annotations_struct as worst_csq,
+        get_expr_for_vep_consequence_terms_set as vep_csq_set,
+        get_expr_for_vep_gene_ids_set as vep_gene_id_set,
+        get_expr_for_vep_protein_domains_set_from_sorted as vep_prot,
+    )
+
     # path gs://cpg-reference/seqr/all_reference_data/combined_reference_data_grch38.ht/
     ref_ht_path = ref_ht_path or reference_path(
         'seqr/all_reference_data/combined_reference_data_grch38.ht'
