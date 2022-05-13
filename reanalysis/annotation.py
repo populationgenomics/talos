@@ -9,6 +9,7 @@ import logging
 import hail as hl
 
 from cpg_utils.hail_batch import reference_path
+from cloudpathlib import AnyPath
 
 
 logger = logging.getLogger(__file__)
@@ -55,6 +56,9 @@ def apply_annotations(
 
     # path gs://cpg-seqr-reference-data/GRCh38/clinvar/clinvar.GRCh38.2020-06-15.ht/
     clinvar_ht_path = clinvar_ht_path or reference_path('seqr/v0-1/clinvar.GRCh38.ht')
+
+    assert AnyPath(str(clinvar_ht_path)).exists(), f'{clinvar_ht_path} unavailable'
+    assert AnyPath(str(ref_ht_path)).exists(), f'{ref_ht_path} unavailable'
 
     def _checkpoint(t: hl.Table, filename: str):
         """
