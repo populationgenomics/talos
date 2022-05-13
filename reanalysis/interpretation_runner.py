@@ -16,15 +16,16 @@ compound-het calculations moved to Hail, removed requirement for Slivar stage
 """
 
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import json
 import logging
+from pathlib import Path
 import os
 import sys
 
 import click
-from cloudpathlib import AnyPath
+from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
 
 from cpg_utils.git import (
@@ -38,8 +39,12 @@ from cpg_utils.hail_batch import (
     copy_common_env,
     image_path,
     output_path,
+    query_command,
     remote_tmpdir,
 )
+
+from vep.jobs import vep_jobs, SequencingType
+import annotation
 
 
 # static paths to write outputs
@@ -48,8 +53,11 @@ HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 COMP_HET_JSON = output_path('hail_categorised.json')
 REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
 REHEADERED_PREFIX = output_path('hail_categories_reheadered')
-MT_OUT_PATH = output_path('hail_105_ac.mt')
 RESULTS_JSON = output_path('summary_results.json')
+INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
+ANNOTATED_MT = output_path('annotated_variants.mt')
+VEP_STAGE_TMP = output_path('vep_temp', 'tmp')
+VEP_HT_TMP = output_path('vep_annotations.ht', 'tmp')
 
 # location of the CPG BCFTools image
 BCFTOOLS_IMAGE = image_path('bcftools:1.10.2--h4f4756c_2')
@@ -60,6 +68,7 @@ assert DEFAULT_IMAGE
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
 QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
+MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
 
 
 def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
@@ -72,7 +81,8 @@ def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
 
 
 def set_job_resources(
-    job: Union[hb.batch.job.BashJob, hb.batch.job.Job],
+    job: hb.batch.job.Job,
+    auth=False,
     git=False,
     image: Optional[str] = None,
     prior_job: Optional[hb.batch.job.Job] = None,
@@ -81,7 +91,8 @@ def set_job_resources(
     """
     applied resources to the job
     :param job:
-    :param git:
+    :param auth: if true, authenticate gcloud in this container
+    :param git: if true, pull this repository into container
     :param image:
     :param prior_job:
     :param memory:
@@ -92,8 +103,10 @@ def set_job_resources(
     if prior_job is not None:
         job.depends_on(prior_job)
 
-    if git:
+    if auth:
         authenticate_cloud_credentials_in_job(job)
+
+    if git:
         # copy the relevant scripts into a Driver container instance
         prepare_git_job(
             job=job,
@@ -101,6 +114,92 @@ def set_job_resources(
             repo_name=get_repo_name_from_current_directory(),
             commit=get_git_commit_ref_of_current_repository(),
         )
+
+
+def mt_to_vcf(batch: hb.Batch, input_file: str):
+    """
+    takes a MT and converts to VCF
+    :param batch:
+    :param input_file:
+    :return:
+    """
+    mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
+    set_job_resources(mt_to_vcf_job, git=True, auth=True)
+
+    additional_header = 'gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt'
+
+    job_cmd = (
+        f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
+        f'--input {input_file} '
+        f'--output {INPUT_AS_VCF} '
+        f'--additional_header {additional_header}'
+    )
+    logging.info(f'Command used to convert MT: {job_cmd}')
+    copy_common_env(mt_to_vcf_job)
+    mt_to_vcf_job.command(job_cmd)
+    return mt_to_vcf_job
+
+
+def annotate_vcf(
+    input_vcf: str,
+    batch: hb.Batch,
+    seq_type: Optional[SequencingType] = SequencingType.GENOME,
+) -> List[hb.batch.job.Job]:
+    """
+    takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
+
+    should this be separated out into a script and run end2end, or should we
+    continue in this same runtime? These jobs are scheduled into this batch with
+    appropriate dependencies, so keeping this structure seems valid
+
+    :param input_vcf:
+    :param batch:
+    :param seq_type:
+    :return:
+    """
+
+    # generate the jobs which run VEP & collect the results
+    return vep_jobs(
+        b=batch,
+        vcf_path=AnyPath(input_vcf),
+        hail_billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        hail_bucket=AnyPath(remote_tmpdir()),
+        tmp_bucket=AnyPath(VEP_STAGE_TMP),
+        out_path=AnyPath(VEP_HT_TMP),
+        overwrite=False,  # don't re-run annotation on completed chunks
+        sequencing_type=seq_type,
+        job_attrs={},
+    )
+
+
+def annotated_mt_from_ht_and_vcf(
+    input_vcf: str,
+    batch: hb.Batch,
+    job_attrs: Optional[dict] = None,
+) -> hb.batch.job.Job:
+    """
+    apply the HT of annotations to the VCF, save as MT
+    :return:
+    """
+    apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
+
+    copy_common_env(apply_anno_job)
+    apply_anno_job.image(os.getenv('CPG_DRIVER_IMAGE'))
+
+    cmd = query_command(
+        annotation,
+        annotation.apply_annotations.__name__,
+        input_vcf,
+        VEP_HT_TMP,
+        ANNOTATED_MT,
+        setup_gcp=True,
+        hail_billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        hail_bucket=str(remote_tmpdir()),
+        default_reference='GRCh38',
+        packages=['seqr-loader==1.2.5'],
+    )
+    apply_anno_job.command(cmd)
+    return apply_anno_job
 
 
 def handle_panelapp_job(
@@ -117,7 +216,7 @@ def handle_panelapp_job(
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
-    set_job_resources(panelapp_job, git=True, prior_job=prior_job)
+    set_job_resources(panelapp_job, auth=True, git=True, prior_job=prior_job)
     panelapp_command = (
         f'python3 {QUERY_PANELAPP} --panel_id 137 --out_path {PANELAPP_JSON_OUT} '
     )
@@ -125,6 +224,9 @@ def handle_panelapp_job(
         panelapp_command += f'--gene_list {gene_list} '
     elif prev_version is not None:
         panelapp_command += f'--previous_version {prev_version} '
+
+    if prior_job is not None:
+        panelapp_job.depends_on(prior_job)
 
     logging.info(f'PanelApp Command: {panelapp_command}')
     panelapp_job.command(panelapp_command)
@@ -149,7 +251,9 @@ def handle_hail_filtering(
     """
 
     labelling_job = batch.new_job(name='hail filtering')
-    set_job_resources(labelling_job, git=True, prior_job=prior_job, memory='16Gi')
+    set_job_resources(
+        labelling_job, auth=True, git=True, prior_job=prior_job, memory='16Gi'
+    )
     labelling_command = (
         f'python3 {HAIL_FILTER} '
         f'--mt_input {matrix_path} '
@@ -216,6 +320,7 @@ def handle_results_job(
     prior_job: Optional[hb.batch.job.Job] = None,
 ) -> hb.batch.job.Job:
     """
+    one container to run the MOI checks, and the presentation
 
     :param batch:
     :param config:
@@ -226,7 +331,7 @@ def handle_results_job(
     :return:
     """
     results_job = batch.new_job(name='finalise_results')
-    set_job_resources(results_job, git=True, prior_job=prior_job)
+    set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
     results_command = (
         'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
@@ -235,15 +340,44 @@ def handle_results_job(
         f'--labelled_vcf {reheadered_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {RESULTS_JSON} '
+        f'--out_json {RESULTS_JSON}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
     return results_job
 
 
+def file_is_vcf(file_path: str) -> bool:
+    """
+    return True if the file path represents a VCF
+
+    :param file_path:
+    :return:
+    """
+
+    # convert the path to a pathlib.Path
+    pl_filepath = Path(file_path)
+
+    # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
+    extensions = pl_filepath.suffixes
+
+    assert len(extensions) > 0, 'cannot identify input type from extensions'
+
+    # identify MatrixTables
+    if extensions[-1] == '.mt':
+        return False
+
+    # identify "definitely not VCF"s
+    if '.vcf' not in extensions:
+        raise Exception('file cannot be definitively typed as a VCF or a MT')
+
+    return True
+
+
 @click.command()
-@click.option('--matrix_path', help='variant matrix table to analyse', required=True)
+@click.option(
+    '--input_path', help='variant matrix table or VCF to analyse', required=True
+)
 @click.option(
     '--config_json',
     help='dictionary of runtime settings',
@@ -261,7 +395,7 @@ def handle_results_job(
 )
 @click.option('--pedigree', help='location of a PED file')
 def main(
-    matrix_path: str,
+    input_path: str,
     config_json: str,
     panelapp_version: Optional[str],
     panel_genes: Optional[str],
@@ -270,12 +404,17 @@ def main(
     """
     main method, which runs the full reanalysis process
 
-    :param matrix_path: annotated input matrix table
+    :param input_path: annotated input matrix table or VCF
     :param config_json:
     :param panelapp_version:
     :param panel_genes:
     :param pedigree:
     """
+
+    if not AnyPath(input_path).exists():
+        raise Exception(
+            f'The provided path "{input_path}" does not exist or is inaccessible'
+        )
 
     logging.info('Starting the reanalysis batch')
 
@@ -289,14 +428,55 @@ def main(
         name='run reanalysis (AIP)',
         backend=service_backend,
         cancel_after_n_failures=1,
+        default_timeout=6000,
     )
+
+    # set a first job in this batch
+    prior_job = None
+
+    # -------------------------- #
+    # Convert MT to a VCF format #
+    # -------------------------- #
+    # determine the input type
+    if not file_is_vcf(input_path):
+        # then we must decompose into a VCF prior to annotation!
+        prior_job = mt_to_vcf(batch=batch, input_file=input_path)
+        input_path = INPUT_AS_VCF
+
+    # ------------------------------------- #
+    # split the VCF, and annotate using VEP #
+    # ------------------------------------- #
+    # now we do the annotation, unless it already exists
+    annotated_path = CloudPath(ANNOTATED_MT)
+    if not annotated_path.exists():
+        # need to run the annotation phase
+        # uses default values from RefData
+        annotation_jobs = annotate_vcf(input_path, batch=batch)
+
+        # if the conversion to VCF job exists, assign as a dependency
+        # for all annotation jobs
+        if prior_job:
+            for job in annotation_jobs:
+                job.depends_on(prior_job)
+
+        # apply annotations
+        anno_job = annotated_mt_from_ht_and_vcf(
+            input_vcf=input_path, batch=batch, job_attrs={}
+        )
+        anno_job.depends_on(*annotation_jobs)
+
+        # take the last job in this batch, and use for future dependencies
+        prior_job = anno_job
 
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
     # no need to launch in a separate batch, minimal dependencies
     prior_job = handle_panelapp_job(
-        batch=batch, gene_list=panel_genes, prev_version=panelapp_version
+        batch=batch,
+        gene_list=panel_genes,
+        prev_version=panelapp_version,
+        prior_job=prior_job,
     )
 
     # ----------------------- #
@@ -313,17 +493,9 @@ def main(
                 f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating'
             )
 
-            # do we need to run the full annotation stage?
-            if not AnyPath(matrix_path.rstrip('/') + '/').exists():
-                raise Exception(
-                    f'Currently this process demands an annotated '
-                    f'MatrixTable. The provided path "{matrix_path}" '
-                    f'does not exist or is inaccessible'
-                )
-
             prior_job = handle_hail_filtering(
                 batch=batch,
-                matrix_path=matrix_path,
+                matrix_path=ANNOTATED_MT,
                 config=config_json,
                 prior_job=prior_job,
             )
@@ -350,10 +522,10 @@ def main(
 
     # if it exists remotely, read into a batch
     else:
-        vcf_in_batch = batch.read_input_group(
+        needs_vqsr_line = batch.read_input_group(
             **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
         )
-        reheadered_vcf_in_batch = vcf_in_batch['vcf.bgz']
+        reheadered_vcf_in_batch = needs_vqsr_line['vcf.bgz']
 
     # use compound-hets and labelled VCF to identify plausibly pathogenic
     # variants where the MOI is viable compared to the PanelApp expectation
