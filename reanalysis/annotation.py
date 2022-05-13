@@ -50,13 +50,11 @@ def apply_annotations(
 
     # path gs://cpg-reference/seqr/all_reference_data/combined_reference_data_grch38.ht/
     ref_ht_path = ref_ht_path or reference_path(
-        'v0-1/combined_reference_data_grch38-2.0.4.ht'
+        '/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht/'
     )
 
     # path gs://cpg-seqr-reference-data/GRCh38/clinvar/clinvar.GRCh38.2020-06-15.ht/
-    clinvar_ht_path = clinvar_ht_path or reference_path(
-        'seqr/v0-1/clinvar.GRCh38.ht'
-    )
+    clinvar_ht_path = clinvar_ht_path or reference_path('seqr/v0-1/clinvar.GRCh38.ht')
 
     def _checkpoint(t: hl.Table, filename: str):
         """
