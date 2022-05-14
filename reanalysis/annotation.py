@@ -49,13 +49,11 @@ def apply_annotations(
         get_expr_for_vep_protein_domains_set_from_sorted as vep_prot,
     )
 
-    # path gs://cpg-reference/seqr/all_reference_data/combined_reference_data_grch38.ht/
     ref_ht_path = ref_ht_path or reference_path(
-        '/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht/'
+        'seqr/v0-1/combined_reference_data_grch38-2.0.4.ht/'
     )
 
-    # path gs://cpg-seqr-reference-data/GRCh38/clinvar/clinvar.GRCh38.2020-06-15.ht/
-    clinvar_ht_path = clinvar_ht_path or reference_path('seqr/v0-1/clinvar.GRCh38.ht')
+    clinvar_ht_path = clinvar_ht_path or reference_path('seqr/v0-1/clinvar.GRCh38.ht/')
 
     assert AnyPath(str(clinvar_ht_path)).exists(), f'{clinvar_ht_path} unavailable'
     assert AnyPath(str(ref_ht_path)).exists(), f'{ref_ht_path} unavailable'
