@@ -55,8 +55,8 @@ def apply_annotations(
 
     clinvar_ht_path = clinvar_ht_path or reference_path('seqr/v0-1/clinvar.GRCh38.ht/')
 
-    assert AnyPath(str(clinvar_ht_path)).exists(), f'{clinvar_ht_path} unavailable'
-    assert AnyPath(str(ref_ht_path)).exists(), f'{ref_ht_path} unavailable'
+    assert AnyPath(clinvar_ht_path).exists(), f'{clinvar_ht_path} unavailable'
+    assert AnyPath(ref_ht_path).exists(), f'{ref_ht_path} unavailable'
 
     def _checkpoint(t: hl.Table, filename: str):
         """
