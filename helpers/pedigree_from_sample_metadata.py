@@ -6,10 +6,14 @@ optional argument will replace missing parents with '0' to be valid PLINK struct
 """
 
 
-from typing import Dict, List, Union
+from collections import defaultdict
 from itertools import product
+import json
 import logging
+from typing import Dict, List, Union
+
 import click
+
 from sample_metadata.apis import FamilyApi, ParticipantApi
 
 
@@ -24,64 +28,73 @@ PED_KEYS = [
 ]
 
 
-def get_fat_pedigree(
+def get_ped_with_permutations(
     pedigree_dicts: List[Dict[str, Union[str, List[str]]]],
     sample_to_cpg_dict: Dict[str, List[str]],
-    singles: bool,
-    plink: bool,
+    make_singletons: bool,
+    plink_format: bool,
 ) -> List[Dict[str, List[str]]]:
     """
-    swaps sample IDs for the internal CPG values
-    optionally make all members unrelated singletons
-    optionally substitute missing member IDs for '0'
+    Take the pedigree entry representations from the pedigree endpoint
+    translates sample IDs of all members to CPG values
+    sample IDs are replaced with lists, containing all permutations
+    where multiple samples exist
 
     :param pedigree_dicts:
     :param sample_to_cpg_dict:
-    :param singles:
-    :param plink:
+    :param make_singletons: make all members unrelated singletons
+    :param plink_format: substitute missing member IDs for '0'
     :return:
     """
 
     new_entries = []
+    failures: List[str] = []
 
     for counter, ped_entry in enumerate(pedigree_dicts, 1):
 
         if ped_entry['individual_id'] not in sample_to_cpg_dict:
-            continue
+            failures.append(ped_entry['individual_id'])
 
         # update the sample IDs
         ped_entry['individual_id'] = sample_to_cpg_dict[ped_entry['individual_id']]
 
         # remove parents and assign an individual sample ID
-        if singles:
-            ped_entry['paternal_id'] = ['0' if plink else '']
-            ped_entry['maternal_id'] = ['0' if plink else '']
+        if make_singletons:
+            ped_entry['paternal_id'] = ['0' if plink_format else '']
+            ped_entry['maternal_id'] = ['0' if plink_format else '']
             ped_entry['family_id'] = str(counter)
 
         else:
             ped_entry['paternal_id'] = sample_to_cpg_dict.get(
-                ped_entry['paternal_id'], ['0' if plink else '']
+                ped_entry['paternal_id'], ['0' if plink_format else '']
             )
             ped_entry['maternal_id'] = sample_to_cpg_dict.get(
-                ped_entry['maternal_id'], ['0' if plink else '']
+                ped_entry['maternal_id'], ['0' if plink_format else '']
             )
 
         new_entries.append(ped_entry)
 
+    if failures:
+        raise Exception(
+            f'Samples were available from the Pedigree endpoint, '
+            f'but no ID translation was available: {",".join(failures)}'
+        )
     return new_entries
 
 
-def write_fat_pedigree(fat_pedigree: List[Dict[str, List[str]]], output: str):
+def write_ped_with_permutations(
+    ped_with_permutations: List[Dict[str, List[str]]], output: str
+):
     """
     take the pedigree data, and write out as a correctly formatted PED file
     this permits the situation where we have multiple possible samples per individual
 
-    :param fat_pedigree: the PED content with sample lists
+    :param ped_with_permutations: the PED content with sample lists
     :param output: file location to create
     """
     with open(output, 'w', encoding='utf-8') as handle:
         handle.write('\t'.join(PED_KEYS) + '\n')
-        for entry in fat_pedigree:
+        for entry in ped_with_permutations:
             for sample, mother, father in product(
                 entry['individual_id'], entry['paternal_id'], entry['maternal_id']
             ):
@@ -128,15 +141,28 @@ def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
     :return: the mapping dictionary
     """
 
-    sample_map = {}
+    sample_map = defaultdict(list)
     for (
         participant,
         sample,
     ) in ParticipantApi().get_external_participant_id_to_internal_sample_id(
         project=project
     ):
-        sample_map.setdefault(participant, []).append(sample)
+        sample_map[participant].append(sample)
     return sample_map
+
+
+def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, str]:
+    """
+    :param mapping_digest: created by ext_to_int_sample_map
+    :return:
+    """
+
+    return {
+        sample: participant
+        for participant, samples in mapping_digest.items()
+        for sample in samples
+    }
 
 
 @click.command()
@@ -145,7 +171,7 @@ def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
     help='the name of the project to use in API queries',
 )
 @click.option(
-    '--singles',
+    '--singletons',
     default=False,
     is_flag=True,
     help='remake the pedigree as singletons',
@@ -154,17 +180,17 @@ def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
     '--plink',
     default=False,
     is_flag=True,
-    help='make a plink format file',
+    help='make a plink format file (.fam, .ped is the default)',
 )
 @click.option(
     '--output',
-    help='write the new PED file here',
+    help='prefix for writing all outputs to',
 )
-def main(project: str, singles: bool, plink: bool, output: str):
+def main(project: str, singletons: bool, plink: bool, output: str):
     """
 
     :param project: may be able to retrieve this from the environment
-    :param singles: whether to split the pedigree(s) into singletons
+    :param singletons: whether to split the pedigree(s) into singletons
     :param plink: whether to write the file as PLINK.fam format
     :param output: path to write new PED file
     """
@@ -178,16 +204,22 @@ def main(project: str, singles: bool, plink: bool, output: str):
     logging.info('pulling internal-external sample mapping')
     sample_to_cpg_dict = ext_to_int_sample_map(project=project)
 
+    # store a way of reversing this lookup in future
+    reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
+    with open(f'{output}_reversed.json', 'w', encoding='utf-8') as handle:
+        json.dump(reverse_lookup, handle, indent=4)
+
     logging.info('updating pedigree sample IDs to internal')
-    fat_pedigree = get_fat_pedigree(
+    ped_with_permutations = get_ped_with_permutations(
         pedigree_dicts=pedigree_dicts,
         sample_to_cpg_dict=sample_to_cpg_dict,
-        singles=singles,
-        plink=plink,
+        make_singletons=singletons,
+        plink_format=plink,
     )
 
-    logging.info('writing new PED file to "%s"', output)
-    write_fat_pedigree(fat_pedigree, output)
+    pedigree_output_path = f'{output}_pedigree.{"fam" if plink else "ped"}'
+    logging.info('writing new PED file to "%s"', pedigree_output_path)
+    write_ped_with_permutations(ped_with_permutations, pedigree_output_path)
 
 
 if __name__ == '__main__':

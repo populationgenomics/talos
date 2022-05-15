@@ -9,10 +9,11 @@ from unittest.mock import patch
 import json
 import os
 
+import pytest
+
 from helpers.pedigree_from_sample_metadata import (
     ext_to_int_sample_map,
-    get_fat_pedigree,
-    get_pedigree_for_project,
+    get_ped_with_permutations,
 )
 
 
@@ -35,37 +36,12 @@ DIRTY_PED = [
         'maternal_id': 'sam3',
         'sex': 1,
         'affected': 1,
-    },
-    {
-        'family_id': 'FAMX',
-        'individual_id': 'samx',
-        'paternal_id': 'samy',
-        'maternal_id': 'samz',
-        'sex': 1,
-        'affected': 1,
-    },
+    }
 ]
 
 
-@patch('reanalysis.pedigree_from_sample_metadata.FamilyApi.get_pedigree')
-def test_get_pedigree_for_project(
-    get_ped_patch,
-):
-    """
-
-    :param get_ped_patch:
-    :return:
-    """
-
-    with open(JSON_PED, 'r', encoding='utf-8') as handle:
-        payload = json.load(handle)
-        get_ped_patch.return_value = payload
-        result = get_pedigree_for_project(project=PROJECT)
-        assert result == payload
-
-
 @patch(
-    'reanalysis.pedigree_from_sample_metadata.ParticipantApi.'
+    'helpers.pedigree_from_sample_metadata.ParticipantApi.'
     'get_external_participant_id_to_internal_sample_id'
 )
 def test_ext_to_int_sample_map(
@@ -79,15 +55,32 @@ def test_ext_to_int_sample_map(
 
     with open(LOOKUP_PED, 'r', encoding='utf-8') as handle:
         payload = json.load(handle)
-        map_mock.return_value = payload
-        result = ext_to_int_sample_map(project=PROJECT)
-        assert isinstance(result, dict)
-        assert result == {
-            'FAM1_father': ['CPG11'],
-            'FAM1_mother': ['CPG12'],
-            'FAM1_proband': ['CPG13'],
-            'FAM2_proband': ['CPG41'],
-        }
+
+    map_mock.return_value = payload
+    result = ext_to_int_sample_map(project=PROJECT)
+    assert isinstance(result, dict)
+    assert result == {
+        'FAM1_father': ['CPG11'],
+        'FAM1_mother': ['CPG12'],
+        'FAM1_proband': ['CPG13'],
+        'FAM2_proband': ['CPG41'],
+    }
+
+
+def test_get_clean_pedigree_fails():
+    """
+
+    :return:
+    """
+    ped = [{'individual_id': 'plink'}]
+
+    with pytest.raises(Exception):
+        get_ped_with_permutations(
+            pedigree_dicts=ped,
+            sample_to_cpg_dict={},
+            make_singletons=False,
+            plink_format=False,
+        )
 
 
 def test_get_clean_pedigree():
@@ -95,11 +88,11 @@ def test_get_clean_pedigree():
 
     :return:
     """
-    cleaned = get_fat_pedigree(
+    cleaned = get_ped_with_permutations(
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
-        singles=False,
-        plink=False,
+        make_singletons=False,
+        plink_format=False,
     )
     assert cleaned == [
         {
@@ -118,11 +111,11 @@ def test_get_clean_pedigree_singles():
 
     :return:
     """
-    cleaned = get_fat_pedigree(
+    cleaned = get_ped_with_permutations(
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
-        singles=True,
-        plink=False,
+        make_singletons=True,
+        plink_format=False,
     )
     assert cleaned == [
         {
@@ -141,11 +134,11 @@ def test_get_clean_pedigree_singles_plink():
 
     :return:
     """
-    cleaned = get_fat_pedigree(
+    cleaned = get_ped_with_permutations(
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
-        singles=True,
-        plink=True,
+        make_singletons=True,
+        plink_format=True,
     )
     assert cleaned == [
         {
