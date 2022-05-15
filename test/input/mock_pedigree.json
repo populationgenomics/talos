@@ -1,0 +1,34 @@
+[
+  {
+    "family_id": "FAM1",
+    "individual_id": "FAM1_father",
+    "paternal_id": "",
+    "maternal_id": "",
+    "sex": 1,
+    "affected": 1
+  },
+  {
+    "family_id": "FAM1",
+    "individual_id": "FAM1_mother",
+    "paternal_id": "",
+    "maternal_id": "",
+    "sex": 2,
+    "affected": 1
+  },
+  {
+    "family_id": "FAM1",
+    "individual_id": "FAM1_proband",
+    "paternal_id": "FAM1_father",
+    "maternal_id": "FAM1_mother",
+    "sex": 1,
+    "affected": 2
+  },
+  {
+    "family_id": "FAM2",
+    "individual_id": "FAM2_proband",
+    "paternal_id": "",
+    "maternal_id": "",
+    "sex": 1,
+    "affected": 2
+  }
+]
