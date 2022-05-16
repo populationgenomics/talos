@@ -702,25 +702,6 @@ def write_matrix_to_vcf(matrix: hl.MatrixTable, output_path: str):
     )
 
 
-def reduce_remaining_fields(matrix: hl.MatrixTable) -> hl.MatrixTable:
-    """
-
-    :param matrix:
-    :return:
-    """
-    row_fields_used = {'rsid', 'info', 'filters', 'qual', 'support_only'}
-
-    fields_dropped = []
-    for f in matrix.globals:
-        fields_dropped.append((f, 'global'))
-    for f in matrix.col_value:
-        fields_dropped.append((f, 'column'))
-    for f in matrix.row_value:
-        if f not in row_fields_used:
-            fields_dropped.append((f, 'row'))
-    return matrix.drop(*(f for f, _ in fields_dropped))
-
-
 def green_and_new_from_panelapp(
     panel_data: Dict[str, Dict[str, str]]
 ) -> Tuple[hl.SetExpression, hl.SetExpression]:
@@ -876,16 +857,6 @@ def main(
             MISSING_INT,
         ),
     )
-
-    # write to MT
-    matrix.write(f'{out_vcf}.mt', overwrite=True)
-
-    matrix_rows = matrix.count_rows()
-    logging.info(f'remaining rows prior to dumping data: {matrix_rows}')
-
-    # explicitly re-read from written path
-    matrix = hl.read_matrix_table(f'{out_vcf}.mt', _n_partitions=matrix_rows // 1000)
-    matrix = reduce_remaining_fields(matrix)
 
     # parse out the compound het details (after pulling gene_id above)
     comp_het_details = extract_comp_het_details(matrix=matrix)
