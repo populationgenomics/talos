@@ -782,7 +782,7 @@ def main(
     """
 
     # initiate Hail with defined driver spec.
-    init_batch()
+    init_batch(driver_cores=8, driver_memory='highmem')
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
