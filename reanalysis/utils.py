@@ -98,7 +98,10 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             variant=var, samples=samples
         )
 
-        self.info: InfoDict = extract_info(variant=var, config=config)
+        self.info: Dict[str, str] = extract_info(variant=var)
+        self.transcript_consequences: List[Dict[str, str]] = extract_csq(
+            variant=var, config=config
+        )
 
     @property
     def category_1_2_3(self) -> bool:
@@ -366,45 +369,52 @@ def get_non_ref_samples(
     return het_samples, hom_samples
 
 
-def extract_info(variant: Variant, config: InfoDict):
+def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
+    """
+    specifically handle extraction of the CSQ list
+    :param variant:
+    :param config:
+    :return:
+    """
+
+    # config region concerning variant objects
+    object_conf = config.get('variant_object')
+    csq_string = object_conf.get('csq_string')
+
+    # pull the CSQ content, and the format to decode it
+    csq_contents = variant.INFO.get('CSQ')
+
+    # break mono-CSQ-string into components
+    csq_categories = list(map(str.lower, csq_string.split('|')))
+
+    # iterate over all consequences, and make each into a dict
+    return [
+        dict(zip(csq_categories, each_csq.split('|')))
+        for each_csq in csq_contents.split(',')
+    ]
+
+
+def extract_info(variant: Variant):
     """
     creates an INFO dict by pulling content from the variant info
     keeps a list of dictionaries for each transcript_consequence
     :param variant:
-    :param config:
     :return:
     """
 
     # choose some values to exclude, and keep everything else
     exclusions = {
         'CSQ',
-        'Category1',
-        'Category2',
-        'Category3',
-        'Category4',
+        'Class1',
+        'Class2',
+        'Class3',
+        'Class4',
         'CategorySupport',
         'support_only',
     }
 
-    # config region concerning variant objects
-    object_conf = config.get('variant_object')
-
     # grab the basic information from INFO
-    info_dict = {x.lower(): y for x, y in variant.INFO if x not in exclusions}
-
-    # pull the CSQ content, and the format to decode it
-    csq_contents = variant.INFO.get('CSQ')
-    csq_string = object_conf.get('csq_string')
-
-    # break mono-CSQ-string into components
-    csq_categories = list(map(str.lower, csq_string.split('|')))
-
-    # iterate over all consequences, and make each into a dict
-    info_dict['transcript_consequences'] = [
-        dict(zip(csq_categories, each_csq.split('|')))
-        for each_csq in csq_contents.split(',')
-    ]
-    return info_dict
+    return {x.lower(): y for x, y in variant.INFO if x not in exclusions}
 
 
 class CustomEncoder(json.JSONEncoder):
