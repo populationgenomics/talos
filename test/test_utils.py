@@ -19,9 +19,6 @@ from reanalysis.utils import (
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 JSON_STUB = os.path.join(INPUT, 'json_example.json')
-COMP_HET = os.path.join(INPUT, 'comp_het.vcf.bgz')
-SINGLE_VAR = os.path.join(INPUT, 'single_hail.vcf.bgz')
-PANELAPP_LATEST = os.path.join(INPUT, 'panelapp_current_137.json')
 
 
 def test_read_json():

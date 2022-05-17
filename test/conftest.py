@@ -15,6 +15,8 @@ INPUT = os.path.join(PWD, 'input')
 # contains a single variant at chr1:1, with minimal info
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
+DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
+DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
 
 
 @pytest.fixture(name='hail_matrix')
@@ -28,6 +30,19 @@ def fixture_hail_matrix():
     except FatalError:
         print('failure - hail already initiated')
     return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+
+
+@pytest.fixture(name='de_novo_matrix')
+def fixture_de_novo_matrix():
+    """
+    loads the single variant, trio VCF, as a matrix table
+    :return:
+    """
+    try:
+        hl.init(default_reference='GRCh38')
+    except FatalError:
+        print('failure - hail already initiated')
+    return hl.import_vcf(DE_NOVO_TRIO, reference_genome='GRCh38')
 
 
 @pytest.fixture(name='hail_comp_het')

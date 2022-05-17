@@ -17,10 +17,6 @@ from reanalysis.hail_filter_and_label import (
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
-# contains a single variant at chr1:1, with minimal info
-HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
-PANELAPP_FILE = os.path.join(INPUT, 'panel_changes_expected.json')
-
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 

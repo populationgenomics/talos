@@ -259,9 +259,7 @@ def annotate_category_4(
 
     # identify likely de novo calls
     # use the AFs already embedded in the MT as the prior population frequencies
-    dn_table = hl.de_novo(
-        matrix, pedigree, pop_frequency_prior=matrix.gnomad_genomes.AF
-    )
+    dn_table = hl.de_novo(matrix, pedigree, pop_frequency_prior=matrix.info.gnomad_af)
     dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
