@@ -39,20 +39,12 @@ def numerical_categories(var_data: Dict[str, Any], sample: str) -> List[str]:
     strings = [
         category
         for category in ['1', '2', '3', 'support']
-        if var_data[f'category_{category}']
+        if var_data.get(f'category_{category}', False)
     ]
-    if sample in var_data['category_4']:
+    if sample in var_data.get('category_4', []):
         strings.append('de_novo')
 
     return strings
-
-
-def string_format_coords(coords: Dict[str, Any]):
-    """
-    forms a string representation
-    chr-pos-ref-alt
-    """
-    return f'{coords["chrom"]}-{coords["pos"]}-{coords["ref"]}-{coords["alt"]}'
 
 
 def set_up_colors():
