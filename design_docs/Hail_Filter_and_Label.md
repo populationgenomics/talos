@@ -27,7 +27,9 @@ category tags. Flow chart representations of the logic for pre-and post annotati
 ![Pre-Annotation Filters](images/hail_pre_filter.png)
 
 ![Post-Annotation Filters](images/hail_categories.png)
-Criteria for selection into the 4 variant categories
+Criteria for selection into the 4 variant categories (note, in the current solution, the pink (4th) category has been
+split into 2 distinct functions. _de novo_ is `category_4`, and _in silico_ is `category_support`, reflecting that it
+has more uncertain analytical value, and is not treated as informative in isolation)
 
 ---
 
@@ -66,8 +68,9 @@ If this process is opened up in future so that VCFs or alignment data is used, t
      * ... followed by removal of any variants with no remaining consequences
 
 5. Apply custom category labels, as defined in the flowchart above
-   * All these annotations are provisional, as mode-of-inheritance confirmation is not in Hail (yet)
-   * Confirmation of categories is done in a downstream stage
+   * All these annotations are provisional, as mode-of-inheritance confirmation is not in Hail, confirmation of
+   categories is done in a downstream stage
+       * _De Novo_ is an outlier here, as the _de novo_ test is conducted in full within Hail
 
 6. Remove any variants with no successful categories applied
    * We treat categorised variants as an in-group. When we later consider compound-hets & modes of inheritance, we only consider variants with at least one category
