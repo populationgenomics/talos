@@ -26,9 +26,12 @@ The Pedigree data pulled directly from the SM-API contains all members and relat
 of the participants' external identifiers (PID). This can't be matched up with the VCF contents, as in
 sequence data files processing is instead done in the context of the Sample IDs (SID).
 
-To complicate things, there is no guarantee of a 1:1 relationship between participants and samples (e.g.
-replacement samples, but also Genome and Exome library preparations would be considered separate sequences
-derived from the same physical sample).
+There is no guarantee of a 1:1 relationship between participants and sequences:
+
+- a participant may have multiple separate samples, e.g. replacements, or for a time-series analysis
+- each physical sample may be processed into a number of different sequence datasets (e.g. Illumina/Nanopore,
+Exome/Genome)
+
 To overcome any potential ambiguity, this process uses the following steps:
 
 - obtain the Pedigree data with external identifiers
