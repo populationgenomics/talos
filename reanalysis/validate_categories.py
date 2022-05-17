@@ -119,7 +119,7 @@ def get_moi_from_panelapp(
 
 # pylint: disable=too-many-locals
 def apply_moi_to_variants(
-    classified_variant_source: str,
+    variant_source: VCFReader,
     moi_lookup: Dict[str, MOIRunner],
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
     config: Dict[str, Any],
@@ -137,9 +137,6 @@ def apply_moi_to_variants(
     """
 
     results = []
-
-    # open the VCF using a cyvcf2 reader
-    variant_source = VCFReader(classified_variant_source)
 
     # split here - process each contig separately
     # once the variants are parsed into plain dicts (pickle-able)
@@ -197,13 +194,14 @@ def apply_moi_to_variants(
 
 
 def clean_initial_results(
-    result_list: List[ReportedVariant],
+    result_list: List[ReportedVariant], samples: List[str]
 ) -> Dict[str, Dict[str, ReportedVariant]]:
     """
     Possibility 1 variant can be classified multiple ways
     This cleans those to unique for final report
     Join all possible classes for the condensed variants
     :param result_list:
+    :param samples: all samples from the VCF
     """
 
     clean_results = defaultdict(dict)
@@ -229,6 +227,19 @@ def clean_initial_results(
         clean_results[each_instance.sample][
             var_uid
         ].reasons = variant_object.reasons.union(each_instance.reasons)
+
+    # create empty index if a sample has 0 variants
+    # as well as categorised variants, we want an explicit record of samples in this
+    # joint-call, but had no results.
+    # the PED could have more samples than a joint call, due to sub-setting or QC.
+    # When presenting results, we want all samples with negative findings, without
+    # returning to both VCF and PED files, and running an intersection
+    # this may not apply to all situations, removing a sample during the pipeline due
+    # to withdrawl, QC, or other reasons is possible, in which case parsing only the
+    # PED would list that sample incorrectly as a negative finding
+    for sample in samples:
+        if sample not in clean_results:
+            clean_results[sample] = {}
 
     return clean_results
 
@@ -300,16 +311,19 @@ def main(
         comp_het_lookup=read_json_dict_from_path(comp_het),
     )
 
+    # open the VCF using a cyvcf2 reader
+    vcf_opened = VCFReader(labelled_vcf)
+
     # find classification events
     results = apply_moi_to_variants(
-        classified_variant_source=labelled_vcf,
+        variant_source=vcf_opened,
         moi_lookup=moi_lookup,
         panelapp_data=panelapp_data,
         config=config_dict,
     )
 
     # remove duplicate variants
-    cleaned_results = clean_initial_results(results)
+    cleaned_results = clean_initial_results(results, samples=vcf_opened.samples)
 
     # dump results using the custom-encoder to transform sets & DataClasses
     with AnyPath(out_json).open('w') as fh:
