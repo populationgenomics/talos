@@ -404,17 +404,17 @@ def extract_info(variant: Variant):
 
     # choose some values to exclude, and keep everything else
     exclusions = {
-        'CSQ',
-        'Class1',
-        'Class2',
-        'Class3',
-        'Class4',
-        'CategorySupport',
+        'csq',
+        'category1',
+        'category2',
+        'category3',
+        'category4',
+        'categorysupport',
         'support_only',
     }
 
     # grab the basic information from INFO
-    return {x.lower(): y for x, y in variant.INFO if x not in exclusions}
+    return {x.lower(): y for x, y in variant.INFO if x.lower() not in exclusions}
 
 
 class CustomEncoder(json.JSONEncoder):

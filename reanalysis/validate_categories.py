@@ -15,6 +15,7 @@ participants relative to the MOI described in PanelApp
 import json
 import logging
 from argparse import ArgumentParser
+from collections import defaultdict
 from typing import Any, Dict, List, Union
 
 from cloudpathlib import AnyPath
@@ -205,7 +206,7 @@ def clean_initial_results(
     :param result_list:
     """
 
-    clean_results: Dict[str, Dict[str, ReportedVariant]] = {}
+    clean_results = defaultdict(dict)
 
     for each_instance in result_list:
         support_id = (
@@ -219,12 +220,8 @@ def clean_initial_results(
             f'{support_id}'
         )
 
-        # create a section for this sample if it doesn't exist
-        if each_instance.sample not in clean_results:
-            clean_results[each_instance.sample] = {}
-
         # get an existing object, or use the current one
-        variant_object = clean_results.setdefault(each_instance.sample, {}).setdefault(
+        variant_object = clean_results[each_instance.sample].setdefault(
             var_uid, each_instance
         )
 
@@ -232,6 +229,7 @@ def clean_initial_results(
         clean_results[each_instance.sample][
             var_uid
         ].reasons = variant_object.reasons.union(each_instance.reasons)
+
     return clean_results
 
 
