@@ -313,10 +313,9 @@ def main(
     # remove duplicate variants
     cleaned_results = clean_initial_results(results)
 
-    # dump the JSON-results to an AnyPath route
-    # use the custom-encoder to print sets and DataClasses
+    # dump results using the custom-encoder to transform sets & DataClasses
     with AnyPath(out_json).open('w') as fh:
-        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4, default=str)
+        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':
