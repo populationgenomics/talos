@@ -32,6 +32,16 @@ def fixture_hail_matrix():
     return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
 
 
+@pytest.fixture(name='trio_ped')
+def fixture_trio_ped():
+    """
+    sends the location of the Trio Pedigree (PLINK)
+    :return:
+    """
+
+    return DE_NOVO_PED
+
+
 @pytest.fixture(name='de_novo_matrix')
 def fixture_de_novo_matrix():
     """

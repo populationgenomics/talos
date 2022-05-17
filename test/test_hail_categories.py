@@ -9,8 +9,6 @@ import pytest
 import hail as hl
 import pandas as pd
 
-from conftest import DE_NOVO_PED
-
 from reanalysis.hail_filter_and_label import (
     annotate_category_1,
     annotate_category_2,
@@ -418,12 +416,12 @@ def test_filter_to_classified(one, two, three, four, support, length, hail_matri
     assert matrix.count_rows() == length
 
 
-def test_de_novo_classified(de_novo_matrix):
+def test_de_novo_classified(de_novo_matrix, trio_ped):
     """
     one successful test case, hard to repro with assigned attributes (per-entry)
     :param de_novo_matrix:
     :return:
     """
-    matrix = annotate_category_4(matrix=de_novo_matrix, plink_family_file=DE_NOVO_PED)
+    matrix = annotate_category_4(matrix=de_novo_matrix, plink_family_file=trio_ped)
     matrix.filter_rows(matrix.info.Category4 != 'missing')
     assert matrix.count_rows() == 1
