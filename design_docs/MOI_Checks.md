@@ -79,6 +79,8 @@ The AbstractVariant has a few internal methods
 - `category_ints`: returns a list of strings for each assigned category, i.e.
   - if a variant is True for category 2 and 3, the return will be `[2, 3]`
   - if a variant is True for category 2 and 4, the return will be `[2, de_novo]`
+- `sample_specific_category_check`: returns True if the specific sample is _de novo_,
+or if the variant has category 1, 2, or 3 assigned
 
 ## Variant Gathering
 

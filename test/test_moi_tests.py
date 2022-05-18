@@ -3,7 +3,7 @@ tests relating to the MOI filters
 """
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Set
 
 import os
@@ -56,6 +56,16 @@ class SimpleVariant:
     het_samples: Set[str]
     hom_samples: Set[str]
     coords: Coordinates
+    category_1: bool = True
+    category_4: List[str] = field(default_factory=list)
+
+    def sample_specific_category_check(self, sample):
+        """
+        pass
+        :param sample:
+        :return:
+        """
+        return sample in self.category_4
 
 
 @dataclass
@@ -72,6 +82,14 @@ class RecessiveSimpleVariant:
     # add category default
     category_1: bool = True
 
+    @property
+    def category_1_2_3(self):
+        """
+        mock method
+        :return:
+        """
+        return self.category_1
+
     def sample_de_novo(self, sample):
         """
         pass
@@ -80,13 +98,13 @@ class RecessiveSimpleVariant:
         """
         return sample in self.category_4
 
-    @property
-    def category_1_2_3(self):
+    def sample_specific_category_check(self, sample):
         """
-        mock method
+        pass
+        :param sample:
         :return:
         """
-        return self.category_1
+        return (sample in self.category_4) or self.category_1_2_3
 
 
 @pytest.mark.parametrize(

@@ -54,6 +54,20 @@ def check_for_second_hit(
     DOES NOT CURRENTLY CHECK VARIANT PHASE
     DOES NOT CURRENTLY CHECK PARENT GENOTYPES
 
+    Example formatting of the comp-het Dict
+    {
+        "SampleID": {
+            "GeneID": {
+                "12-52287177-T-C": [
+                    "12-52287180-TGG-T"
+                ],
+                "12-52287180-TGG-T": [
+                    "12-52287177-T-C"
+                ]
+            }
+        } ...
+    }
+
     :param first_variant: string representation of variant1
     :param comp_hets: lookup dict for compound hets
     :param sample: ID string
@@ -73,8 +87,9 @@ def check_for_second_hit(
 
         # check if this variant has any listed partners in this gene
         gene_dict = sample_dict.get(gene)
-        if first_variant in gene_dict:
-            response = gene_dict.get(first_variant)
+
+        # return any variants listed against this gene
+        return gene_dict.get(first_variant, [])
 
     return response
 
@@ -137,9 +152,6 @@ class MOIRunner:
 
         elif target_moi == 'Y_Chrom_Variant':
             self.filter_list = [YHemi(pedigree=pedigree, config=config)]
-
-        elif target_moi == 'De_Novo':
-            self.filter_list = [DeNovo(pedigree=pedigree, config=config)]
 
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
@@ -279,8 +291,7 @@ class BaseMoi:
         :return:
         """
 
-        # iterate through all family members, no interested in directionality
-        # of relationships at the moment
+        # iterate through family members, no interest in relationship directionality
         for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
 
             # one value to store the check that this sample has _this_ comp-het
@@ -361,6 +372,10 @@ class DominantAutosomal(BaseMoi):
             sam for sam in samples_with_this_variant if self.pedigree[sam].affected
         ]:
 
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
+
             # check if this is a candidate for dominant inheritance
             if not self.check_familial_inheritance(
                 sample_id=sample_id, called_variants=samples_with_this_variant
@@ -428,6 +443,11 @@ class RecessiveAutosomal(BaseMoi):
             sam for sam in principal_var.hom_samples if self.pedigree[sam].affected
         ]:
 
+            # we require this specific sample to be categorised - check Cat 4 contents
+            # this shouldn't be possible, de novo homozygous?!
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
+
             # check if this is a possible candidate for homozygous inheritance
             if not self.check_familial_inheritance(
                 sample_id=sample_id, called_variants=principal_var.hom_samples
@@ -448,7 +468,11 @@ class RecessiveAutosomal(BaseMoi):
         for sample_id in [
             sam for sam in principal_var.het_samples if self.pedigree[sam].affected
         ]:
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
 
+            # partner here is a String chr-pos-ref-alt
             for partner in check_for_second_hit(
                 first_variant=principal_var.coords.string_format,
                 comp_hets=self.comp_het,
@@ -456,13 +480,12 @@ class RecessiveAutosomal(BaseMoi):
                 gene=principal_var.info.get('gene_id'),
             ):
 
-                # allow for de novo check, not just a simple flag
+                # get the complete variant object for this potential partner
                 partner_variant = gene_lookup[partner]
-                if partner_variant.category_4 and not partner_variant.sample_de_novo(
-                    sample_id
-                ):
-                    if not partner_variant.category_1_2_3:
-                        continue
+
+                # categorised for this specific
+                if not partner_variant.sample_specific_category_check(sample_id):
+                    continue
 
                 # check if this is a candidate for comp-het inheritance
                 if not self.check_familial_comp_het(
@@ -551,6 +574,10 @@ class XDominant(BaseMoi):
         )
 
         for sample_id in samples_with_this_variant:
+
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
 
             # check if this is a candidate for dominant inheritance
             if not self.check_familial_inheritance(
@@ -652,6 +679,10 @@ class XRecessive(BaseMoi):
         # if het females are present, try and find support
         for sample_id in het_females:
 
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
+
             for partner in check_for_second_hit(
                 first_variant=principal_var.coords.string_format,
                 comp_hets=self.comp_het,
@@ -659,13 +690,10 @@ class XRecessive(BaseMoi):
                 gene=principal_var.info.get('gene_id'),
             ):
 
-                # allow for de novo check, not just a simple flag
+                # allow for de novo check
                 partner_variant = gene_lookup[partner]
-                if partner_variant.category_4 and not partner_variant.sample_de_novo(
-                    sample_id
-                ):
-                    if not partner_variant.category_1_2_3:
-                        continue
+                if not partner_variant.sample_specific_category_check(sample_id):
+                    continue
 
                 # check if this is a candidate for comp-het inheritance
                 # get all female het calls on the paired variant
@@ -705,6 +733,10 @@ class XRecessive(BaseMoi):
         # assumption that the sample can only be hom if female?
         samples_to_check = males.union(hom_females)
         for sample_id in samples_to_check:
+
+            # specific sample category check
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
 
             # check if this is a possible candidate for homozygous inheritance
             if not self.check_familial_inheritance(
@@ -781,71 +813,13 @@ class YHemi(BaseMoi):
 
         # we don't expect any confident Y calls in females
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
+
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not principal_var.sample_specific_category_check(sample_id):
+                continue
+
             if self.pedigree[sample_id].sex == 'female':
                 logging.error(f'Sample {sample_id} is a female with call on Y')
-            classifications.append(
-                ReportedVariant(
-                    sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
-                    reasons={self.applied_moi},
-                    supported=False,
-                )
-            )
-
-        return classifications
-
-
-class DeNovo(BaseMoi):
-    """
-    different model entirely, within the same framework
-    this application delegates finding de novo events to Hail
-    here we are codifying the results from Hail into ReportedVariants
-    """
-
-    def __name__(self):
-        return self.__name__()
-
-    def __init__(
-        self,
-        pedigree: Ped,
-        config: Dict[str, Any],
-        applied_moi: str = 'De_Novo',
-    ):
-        """
-
-        :param pedigree:
-        :param config:
-        :param applied_moi:
-        """
-
-        self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
-        self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
-        super().__init__(
-            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
-        )
-
-    def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
-        """
-        double check the de novo events, and issue ReportedVariants
-        :param principal_var:
-        :param gene_lookup:
-        :return:
-        """
-        _unused = gene_lookup
-
-        classifications = []
-
-        # more stringent Pop.Freq checks for dominant
-        if (
-            principal_var.info.get('gnomad_af') >= self.ad_threshold
-            or principal_var.info.get('gnomad_ac') >= self.ac_threshold
-        ):
-            return classifications
-
-        for sample_id in principal_var.category_4:
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
