@@ -32,8 +32,6 @@ CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
 InfoDict = Dict[str, Union[str, Dict[str, str]]]
 PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
 
-COMP_HET_VALUES: List[str] = ['sample', 'gene', 'id', 'chrom', 'pos', 'ref', 'alt']
-
 HOMREF: int = 0
 HETALT: int = 1
 UNKNOWN: int = 2
@@ -119,6 +117,21 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         )
 
     @property
+    def category_non_support(self) -> bool:
+        """
+        check the variant has at least one non-support category assigned
+        :return:
+        """
+        return any(
+            [
+                self.category_1,
+                self.category_2,
+                self.category_3,
+                self.category_4,
+            ]
+        )
+
+    @property
     def is_classified(self) -> bool:
         """
         check that the variant has at least one assigned class
@@ -184,6 +197,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
 
         return sample_id in self.category_4
+
+    def sample_specific_category_check(self, sample_id: str) -> bool:
+        """
+
+        :param sample_id:
+        :return:
+        """
+        return self.category_1_2_3 or self.sample_de_novo(sample_id)
 
 
 @dataclass

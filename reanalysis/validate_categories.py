@@ -91,14 +91,6 @@ def set_up_inheritance_filters(
                 comp_het_lookup=comp_het_lookup,
             )
 
-    # manually add in the de novo wrapper
-    moi_dictionary['de_novo'] = MOIRunner(
-        pedigree=pedigree,
-        target_moi='De_Novo',
-        config=config['moi_tests'],
-        comp_het_lookup=comp_het_lookup,
-    )
-
     return moi_dictionary
 
 
@@ -171,17 +163,8 @@ def apply_moi_to_variants(
 
             for variant in variants.values():
 
-                # de novo check first
-                if variant.category_4 is not None:
-                    # create a result for each entry
-                    results.extend(
-                        moi_lookup['de_novo'].run(
-                            principal_var=variant, gene_lookup=variants
-                        )
-                    )
-
-                # if this variant is category 1, 2, or 3, evaluate is as a 'primary'
-                if variant.category_1_2_3:
+                # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
+                if variant.category_non_support:
 
                     # this variant is a candidate for MOI checks
                     # - find the simplified MOI string
@@ -208,27 +191,26 @@ def clean_initial_results(
 
     clean_results = defaultdict(dict)
 
-    for each_instance in result_list:
+    for each_event in result_list:
         support_id = (
-            ','.join(sorted(each_instance.support_vars))
-            if each_instance.support_vars is not None
+            ','.join(sorted(each_event.support_vars))
+            if each_event.support_vars is not None
             else 'Unsupported'
         )
         var_uid = (
-            f'{each_instance.var_data.coords.string_format}__'
-            f'{each_instance.gene}__'
+            f'{each_event.var_data.coords.string_format}__'
+            f'{each_event.gene}__'
             f'{support_id}'
         )
 
-        # get an existing object, or use the current one
-        variant_object = clean_results[each_instance.sample].setdefault(
-            var_uid, each_instance
-        )
+        # if this variant was already found, combine the selection 'reasons'
+        if var_uid in clean_results[each_event.sample]:
+            # combine any possible reasons
+            clean_results[each_event.sample][var_uid].reasons.update(each_event.reasons)
 
-        # combine any possible reasons, and add
-        clean_results[each_instance.sample][
-            var_uid
-        ].reasons = variant_object.reasons.union(each_instance.reasons)
+        # otherwise insert this variant into the dict
+        else:
+            clean_results[each_event.sample][var_uid] = each_event
 
     return clean_results
 

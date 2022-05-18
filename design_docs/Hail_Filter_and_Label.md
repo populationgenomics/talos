@@ -70,7 +70,7 @@ If this process is opened up in future so that VCFs or alignment data is used, t
 5. Apply custom category labels, as defined in the flowchart above
    * All these annotations are provisional, as mode-of-inheritance confirmation is not in Hail, confirmation of
    categories is done in a downstream stage
-       * _De Novo_ is an outlier here, as the _de novo_ test is conducted in full within Hail
+       * _De Novo_ is an outlier here, as the _de novo_ flag is validated within Hail
 
 6. Remove any variants with no successful categories applied
    * We treat categorised variants as an in-group. When we later consider compound-hets & modes of inheritance, we only consider variants with at least one category
