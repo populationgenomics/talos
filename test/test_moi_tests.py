@@ -6,10 +6,7 @@ tests relating to the MOI filters
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Set
 
-import os
-
 from unittest import mock
-from peddy.peddy import Ped
 
 import pytest
 from reanalysis.moi_tests import (
@@ -29,10 +26,6 @@ from reanalysis.moi_tests import (
 from reanalysis.utils import Coordinates
 
 
-PWD = os.path.dirname(__file__)
-INPUT = os.path.join(PWD, 'input')
-PED_FILE = os.path.join(INPUT, 'pedfile.ped')
-
 MOI_CONF = {
     GNOMAD_REC_HOM_THRESHOLD: 2,
     GNOMAD_DOM_HOM_THRESHOLD: 1,
@@ -41,7 +34,6 @@ MOI_CONF = {
 }
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
-TINY_PEDIGREE = Ped(PED_FILE)
 TINY_CONFIG = {'male': 'male'}
 TINY_COMP_HET = {}
 
@@ -163,7 +155,7 @@ def test_check_second_hit(first, comp_hets, sample, gene, values):
         ('Y_Chrom_Variant', ['YHemi']),
     ),
 )
-def test_moi_runner(moi_string: str, filters: List[str]):
+def test_moi_runner(moi_string: str, filters: List[str], peddy_ped):
     """
 
     :param moi_string:
@@ -171,7 +163,7 @@ def test_moi_runner(moi_string: str, filters: List[str]):
     :return:
     """
     test_runner = MOIRunner(
-        pedigree=TINY_PEDIGREE,
+        pedigree=peddy_ped,
         target_moi=moi_string,
         config=TINY_CONFIG,
         comp_het_lookup=TINY_COMP_HET,
@@ -184,7 +176,7 @@ def test_moi_runner(moi_string: str, filters: List[str]):
         assert str(filter1.__class__).__contains__(filter2)
 
 
-def test_dominant_autosomal_passes():
+def test_dominant_autosomal_passes(peddy_ped):
     """
     test case for autosomal dominant
     :return:
@@ -198,7 +190,7 @@ def test_dominant_autosomal_passes():
         'exac_ac_hom': 0,
     }
 
-    dom = DominantAutosomal(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    dom = DominantAutosomal(pedigree=peddy_ped, config=MOI_CONF)
 
     # passes with heterozygous
     passing_variant = SimpleVariant(
@@ -232,14 +224,14 @@ def test_dominant_autosomal_passes():
         {'exac_ac_hom': 12},
     ],
 )
-def test_dominant_autosomal_fails(info):
+def test_dominant_autosomal_fails(info, peddy_ped):
     """
     test case for autosomal dominant
     :param info: info dict for the variant
     :return:
     """
 
-    dom = DominantAutosomal(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    dom = DominantAutosomal(pedigree=peddy_ped, config=MOI_CONF)
 
     # fails due to high af
     failing_variant = SimpleVariant(
@@ -248,7 +240,7 @@ def test_dominant_autosomal_fails(info):
     assert not dom.run(principal_var=failing_variant, gene_lookup={})
 
 
-def test_recessive_autosomal_hom_passes():
+def test_recessive_autosomal_hom_passes(peddy_ped):
     """
     check that when the info values are defaults (0)
     we accept a homozygous variant as a Recessive
@@ -262,7 +254,7 @@ def test_recessive_autosomal_hom_passes():
         category_4=[],
     )
     rec = RecessiveAutosomal(
-        pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
+        pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
     results = rec.run(passing_variant, gene_lookup={})
     assert len(results) == 1
@@ -270,7 +262,7 @@ def test_recessive_autosomal_hom_passes():
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_recessive_autosomal_comp_het_male_passes(second_hit: mock.Mock):
+def test_recessive_autosomal_comp_het_male_passes(second_hit: mock.Mock, peddy_ped):
     """
     check that when the info values are defaults (0)
     and the comp-het test is always True
@@ -297,7 +289,7 @@ def test_recessive_autosomal_comp_het_male_passes(second_hit: mock.Mock):
     second_hit.return_value = [TEST_COORDS2.string_format]
     gene_var_dict = {TEST_COORDS2.string_format: passing_variant2}
     rec = RecessiveAutosomal(
-        pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
+        pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
     results = rec.run(passing_variant, gene_lookup=gene_var_dict)
     assert len(results) == 1
@@ -305,7 +297,7 @@ def test_recessive_autosomal_comp_het_male_passes(second_hit: mock.Mock):
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_recessive_autosomal_comp_het_female_passes(second_hit: mock.Mock):
+def test_recessive_autosomal_comp_het_female_passes(second_hit: mock.Mock, peddy_ped):
     """
     check that when the info values are defaults (0)
     and the comp-het test is always True
@@ -332,7 +324,7 @@ def test_recessive_autosomal_comp_het_female_passes(second_hit: mock.Mock):
     second_hit.return_value = [TEST_COORDS2.string_format]
     gene_var_dict = {TEST_COORDS2.string_format: passing_variant2}
     rec = RecessiveAutosomal(
-        pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
+        pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
     results = rec.run(passing_variant, gene_lookup=gene_var_dict)
     assert len(results) == 1
@@ -340,7 +332,9 @@ def test_recessive_autosomal_comp_het_female_passes(second_hit: mock.Mock):
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_recessive_autosomal_comp_het_fails_no_ch_return(second_hit: mock.Mock):
+def test_recessive_autosomal_comp_het_fails_no_ch_return(
+    second_hit: mock.Mock, peddy_ped
+):
     """
     check that when the info values are defaults (0)
     and the comp-het test is always False
@@ -355,13 +349,15 @@ def test_recessive_autosomal_comp_het_fails_no_ch_return(second_hit: mock.Mock):
     )
     second_hit.return_value = []
     rec = RecessiveAutosomal(
-        pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
+        pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
     assert not rec.run(failing_variant, gene_lookup={})
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_recessive_autosomal_comp_het_fails_no_paired_call(second_hit: mock.Mock):
+def test_recessive_autosomal_comp_het_fails_no_paired_call(
+    second_hit: mock.Mock, peddy_ped
+):
     """
     check that when the info values are defaults (0)
     and the comp-het test is always False
@@ -389,7 +385,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(second_hit: mock.Mock
     gene_var_dict = {TEST_COORDS2.string_format: failing_variant2}
 
     rec = RecessiveAutosomal(
-        pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
+        pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
     assert not rec.run(failing_variant, gene_lookup=gene_var_dict)
 
@@ -402,7 +398,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(second_hit: mock.Mock
         {'exac_ac_hom': 12},
     ],
 )
-def test_recessive_autosomal_hom_fails(info):
+def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
     check that when the info values are failures
     we have no confirmed MOI
@@ -412,12 +408,12 @@ def test_recessive_autosomal_hom_fails(info):
         info=info, het_samples={'male'}, hom_samples={'male'}, coords=TEST_COORDS
     )
     rec = RecessiveAutosomal(
-        pedigree=TINY_PEDIGREE, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
+        pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1}, comp_het={}
     )
     assert not rec.run(failing_variant, gene_lookup={})
 
 
-def test_x_dominant_female_and_male_het_passes():
+def test_x_dominant_female_and_male_het_passes(peddy_ped):
     """
     check that a male is accepted as a het
     :return:
@@ -426,7 +422,7 @@ def test_x_dominant_female_and_male_het_passes():
     passing_variant = SimpleVariant(
         info={}, het_samples={'female', 'male'}, hom_samples=set(), coords=x_coords
     )
-    x_dom = XDominant(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant, gene_lookup={})
 
     assert len(results) == 2
@@ -434,7 +430,7 @@ def test_x_dominant_female_and_male_het_passes():
     assert reasons == ['X_Dominant Female', 'X_Dominant Male']
 
 
-def test_x_dominant_female_hom_passes():
+def test_x_dominant_female_hom_passes(peddy_ped):
     """
     check that a male is accepted as a het
     :return:
@@ -443,13 +439,13 @@ def test_x_dominant_female_hom_passes():
     passing_variant = SimpleVariant(
         info={}, hom_samples={'female'}, het_samples=set(), coords=x_coords
     )
-    x_dom = XDominant(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant, gene_lookup={})
     assert len(results) == 1
     assert results[0].reasons == {'X_Dominant Female'}
 
 
-def test_x_dominant_male_hom_passes():
+def test_x_dominant_male_hom_passes(peddy_ped):
     """
     check that a male is accepted as a het
     :return:
@@ -458,13 +454,13 @@ def test_x_dominant_male_hom_passes():
     passing_variant = SimpleVariant(
         info={}, hom_samples={'male'}, het_samples=set(), coords=x_coords
     )
-    x_dom = XDominant(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant, gene_lookup={})
     assert len(results) == 1
     assert results[0].reasons == {'X_Dominant Male'}
 
 
-def test_x_moi_on_non_x_fails():
+def test_x_moi_on_non_x_fails(peddy_ped):
     """
     check that a male is accepted as a het
     :return:
@@ -473,7 +469,7 @@ def test_x_moi_on_non_x_fails():
     y_variant = SimpleVariant(
         info={}, het_samples={'male'}, hom_samples=set(), coords=y_coords
     )
-    x_dom = XDominant(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     with pytest.raises(Exception):
         x_dom.run(y_variant, gene_lookup={})
 
@@ -487,7 +483,7 @@ def test_x_moi_on_non_x_fails():
         {'exac_ac_hom': 12},
     ],
 )
-def test_x_dominant_info_fails(info):
+def test_x_dominant_info_fails(info, peddy_ped):
     """
     check for info dict exclusions
     :param info:
@@ -497,11 +493,11 @@ def test_x_dominant_info_fails(info):
     passing_variant = SimpleVariant(
         info=info, hom_samples={'female'}, het_samples=set(), coords=x_coords
     )
-    x_dom = XDominant(pedigree=TINY_PEDIGREE, config=MOI_CONF)
+    x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     assert not x_dom.run(passing_variant, gene_lookup={})
 
 
-def test_x_recessive_male_and_female_hom_passes():
+def test_x_recessive_male_and_female_hom_passes(peddy_ped):
     """
 
     :return:
@@ -515,7 +511,7 @@ def test_x_recessive_male_and_female_hom_passes():
         coords=x_coords,
         category_4=[],
     )
-    x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
+    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF, comp_het={})
     results = x_rec.run(passing_variant, gene_lookup={})
     assert len(results) == 2
 
@@ -523,7 +519,7 @@ def test_x_recessive_male_and_female_hom_passes():
     assert reasons == ['X_Recessive Female', 'X_Recessive Male']
 
 
-def test_x_recessive_male_het_passes():
+def test_x_recessive_male_het_passes(peddy_ped):
     """
 
     :return:
@@ -532,13 +528,13 @@ def test_x_recessive_male_het_passes():
     passing_variant = RecessiveSimpleVariant(
         info={}, het_samples={'male'}, hom_samples=set(), coords=x_coords, category_4=[]
     )
-    x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
+    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF, comp_het={})
     results = x_rec.run(passing_variant, gene_lookup={})
     assert len(results) == 1
     assert results[0].reasons == {'X_Recessive Male'}
 
 
-def test_x_recessive_y_variant_fails():
+def test_x_recessive_y_variant_fails(peddy_ped):
     """
 
     :return:
@@ -547,13 +543,13 @@ def test_x_recessive_y_variant_fails():
     passing_variant = RecessiveSimpleVariant(
         info={}, hom_samples={'male'}, het_samples=set(), coords=y_coords, category_4=[]
     )
-    x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
+    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF, comp_het={})
     with pytest.raises(Exception):
         x_rec.run(passing_variant, gene_lookup={})
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_x_recessive_female_het_passes(second_hit: mock.patch):
+def test_x_recessive_female_het_passes(second_hit: mock.patch, peddy_ped):
     """
 
     :return:
@@ -575,14 +571,14 @@ def test_x_recessive_female_het_passes(second_hit: mock.patch):
         category_4=['female'],
     )
     gene_dict = {'x-2-A-C': passing_variant_2}
-    x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
+    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF, comp_het={})
     results = x_rec.run(passing_variant, gene_lookup=gene_dict)
     assert len(results) == 1
     assert results[0].reasons == {'X_Recessive Compound-Het Female'}
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_x_recessive_female_het_fails(second_hit: mock.patch):
+def test_x_recessive_female_het_fails(second_hit: mock.patch, peddy_ped):
     """
 
     :return:
@@ -604,13 +600,13 @@ def test_x_recessive_female_het_fails(second_hit: mock.patch):
         category_4=['male'],
     )
     gene_dict = {'x-2-A-C': passing_variant_2}
-    x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
+    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF, comp_het={})
     results = x_rec.run(passing_variant, gene_lookup=gene_dict)
     assert not results
 
 
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
-def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch):
+def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch, peddy_ped):
     """
 
     :return:
@@ -624,19 +620,19 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch):
         coords=Coordinates('x', 1, 'A', 'C'),
         category_4=[],
     )
-    x_rec = XRecessive(pedigree=TINY_PEDIGREE, config=MOI_CONF, comp_het={})
+    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF, comp_het={})
     assert not x_rec.run(passing_variant, gene_lookup={})
 
 
 # trio male, mother_1, father_1; only 'male' is affected
-def test_check_familial_inheritance_simple():
+def test_check_familial_inheritance_simple(peddy_ped):
     """
     test the check_familial_inheritance method
     :return:
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
@@ -645,14 +641,14 @@ def test_check_familial_inheritance_simple():
     assert result
 
 
-def test_check_familial_inheritance_mother_fail():
+def test_check_familial_inheritance_mother_fail(peddy_ped):
     """
     test the check_familial_inheritance method
     :return:
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
@@ -661,7 +657,7 @@ def test_check_familial_inheritance_mother_fail():
     assert not result
 
 
-def test_check_familial_inheritance_mother_passes():
+def test_check_familial_inheritance_mother_passes(peddy_ped):
     """
     test the check_familial_inheritance method
     mother in variant calls, but partial penetrance
@@ -669,7 +665,7 @@ def test_check_familial_inheritance_mother_passes():
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
@@ -680,14 +676,14 @@ def test_check_familial_inheritance_mother_passes():
     assert result
 
 
-def test_check_familial_inheritance_father_fail():
+def test_check_familial_inheritance_father_fail(peddy_ped):
     """
     test the check_familial_inheritance method
     :return:
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
@@ -696,7 +692,7 @@ def test_check_familial_inheritance_father_fail():
     assert not result
 
 
-def test_check_familial_inheritance_father_passes():
+def test_check_familial_inheritance_father_passes(peddy_ped):
     """
     test the check_familial_inheritance method
     father in variant calls, but partial penetrance
@@ -704,7 +700,7 @@ def test_check_familial_inheritance_father_passes():
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
@@ -715,7 +711,7 @@ def test_check_familial_inheritance_father_passes():
     assert result
 
 
-def test_check_familial_inheritance_top_down():
+def test_check_familial_inheritance_top_down(peddy_ped):
     """
     test the check_familial_inheritance method
     father in variant calls, but partial penetrance
@@ -723,7 +719,7 @@ def test_check_familial_inheritance_top_down():
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
@@ -734,7 +730,7 @@ def test_check_familial_inheritance_top_down():
     assert result
 
 
-def test_check_familial_inheritance_no_calls():
+def test_check_familial_inheritance_no_calls(peddy_ped):
     """
     test the check_familial_inheritance method where there are no calls
     will fail as affected proband not in calls
@@ -742,7 +738,7 @@ def test_check_familial_inheritance_no_calls():
     """
 
     base_moi = BaseMoi(
-        pedigree=TINY_PEDIGREE, config=TINY_CONFIG, applied_moi='applied', comp_het={}
+        pedigree=peddy_ped, config=TINY_CONFIG, applied_moi='applied', comp_het={}
     )
 
     result = base_moi.check_familial_inheritance(
