@@ -48,9 +48,6 @@ def check_for_second_hit(
     """
     checks for a second hit partner in this gene
 
-    - needs to check that if the variants are C4, they are confirmed to
-      have de novo MOI - this applies to both variants in a pair
-
     DOES NOT CURRENTLY CHECK VARIANT PHASE
     DOES NOT CURRENTLY CHECK PARENT GENOTYPES
 

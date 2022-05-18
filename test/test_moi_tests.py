@@ -65,7 +65,7 @@ class SimpleVariant:
         :param sample:
         :return:
         """
-        return sample in self.category_4
+        return self.category_1 or sample in self.category_4
 
 
 @dataclass
