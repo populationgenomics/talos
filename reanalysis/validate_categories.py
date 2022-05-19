@@ -30,7 +30,6 @@ from reanalysis.utils import (
     read_json_dict_from_path,
     CompHetDict,
     CustomEncoder,
-    PanelAppDict,
     ReportedVariant,
 )
 
@@ -94,21 +93,6 @@ def set_up_inheritance_filters(
     return moi_dictionary
 
 
-def get_moi_from_panelapp(
-    panelapp_data: PanelAppDict, gene_name: str
-) -> Union[Dict[str, str], None]:
-    """
-
-    :param panelapp_data:
-    :param gene_name:
-    :return:
-    """
-
-    # extract the panel data specific to this gene
-    panel_gene_data = panelapp_data.get(gene_name)
-    return panel_gene_data
-
-
 # pylint: disable=too-many-locals
 def apply_moi_to_variants(
     variant_source: VCFReader,
@@ -150,13 +134,14 @@ def apply_moi_to_variants(
 
             # extract the panel data specific to this gene
             # extract once per gene, not once per variant
-            panel_gene_data = get_moi_from_panelapp(panelapp_data, gene)
-            simple_moi = get_simple_moi(panelapp_data[gene].get('moi'))
+            panel_gene_data = panelapp_data.get(gene)
 
             # variant appears to be in a red gene
             if panel_gene_data is None:
                 logging.error(f'How did this gene creep in? {gene}')
                 continue
+
+            simple_moi = get_simple_moi(panel_gene_data.get('moi'))
 
             for variant in variants.values():
 

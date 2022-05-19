@@ -471,17 +471,18 @@ def filter_to_green_genes_and_split(
     matrix: hl.MatrixTable, green_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
-    reduces geneIds set to green only, then splits
+    splits each GeneId onto a new row, then filters any
+    rows not annotating a Green PanelApp gene
     :param matrix:
     :param green_genes:
     """
 
-    # replace the default list of green IDs with a reduced set
-    matrix = matrix.annotate_rows(geneIds=green_genes.intersection(matrix.geneIds))
-
     # split to form a separate row for each green gene
     # this transforms the 'geneIds' field from a set to a string
-    return matrix.explode_rows(matrix.geneIds)
+    matrix = matrix.explode_rows(matrix.geneIds)
+
+    # filter rows without a green gene
+    return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
 def filter_by_consequence(
