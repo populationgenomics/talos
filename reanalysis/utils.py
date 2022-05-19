@@ -247,6 +247,7 @@ def gather_gene_dict_from_contig(
     variant_source: cyvcf2.VCFReader,
     config: Dict[str, Any],
     panelapp_data: PanelAppDict,
+    blacklist: Optional[List[str]] = None,
 ) -> Dict[str, Dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -262,8 +263,13 @@ def gather_gene_dict_from_contig(
     :param variant_source: VCF reader instance
     :param config: configuration file
     :param panelapp_data:
+    :param blacklist:
     :return: populated lookup dict
     """
+
+    if blacklist is None:
+        blacklist = []
+
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
     contig_dict = {}
@@ -274,6 +280,12 @@ def gather_gene_dict_from_contig(
         abs_var = AbstractVariant(
             var=variant, samples=variant_source.samples, config=config
         )
+
+        if abs_var.coords.string_format in blacklist:
+            logging.info(
+                f'Skipping blacklisted variant: {abs_var.coords.string_format}'
+            )
+            continue
 
         # do category 2 'new' test
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
@@ -305,7 +317,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
+def read_json_from_path(bucket_path: str) -> Dict[str, Any]:
     """
     take a path to a JSON file, read into an object
     :param bucket_path:

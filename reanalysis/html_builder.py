@@ -8,7 +8,7 @@ from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
-from reanalysis.utils import read_json_dict_from_path
+from reanalysis.utils import read_json_from_path
 
 
 SEQR_TEMPLATE = (
@@ -81,21 +81,19 @@ class HTMLBuilder:
         :param config:
         :param pedigree:
         """
-        self.results = read_json_dict_from_path(results_dict)
-        self.config = read_json_dict_from_path(config)['output']
+        self.results = read_json_from_path(results_dict)
+        self.config = read_json_from_path(config)['output']
 
         # map of internal:external IDs for translation in results
-        self.external_map = (
-            read_json_dict_from_path(self.config['external_lookup']) or {}
-        )
+        self.external_map = read_json_from_path(self.config['external_lookup']) or {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
         try:
-            self.seqr = read_json_dict_from_path(self.config.get('seqr_lookup'))
+            self.seqr = read_json_from_path(self.config.get('seqr_lookup'))
         except AttributeError:
             self.seqr = {}
 
-        self.panelapp = read_json_dict_from_path(panelapp_data)
+        self.panelapp = read_json_from_path(panelapp_data)
 
         # peddy can't read cloudpaths, so create a local copy
         with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:

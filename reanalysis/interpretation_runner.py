@@ -486,13 +486,14 @@ def main(
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
-    # no need to launch in a separate batch, minimal dependencies
-    prior_job = handle_panelapp_job(
-        batch=batch,
-        gene_list=panel_genes,
-        prev_version=panelapp_version,
-        prior_job=prior_job,
-    )
+    # stop needlessly repeating the panelapp query
+    if not AnyPath(PANELAPP_JSON_OUT).exists():
+        prior_job = handle_panelapp_job(
+            batch=batch,
+            gene_list=panel_genes,
+            prev_version=panelapp_version,
+            prior_job=prior_job,
+        )
 
     # ----------------------- #
     # run hail categorisation #
