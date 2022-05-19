@@ -356,9 +356,14 @@ class HTMLBuilder:
                         'g_exome:hom': variant['var_data']['info']['gnomad_ex_hom'],
                         'g_genome:hom': variant['var_data']['info']['gnomad_hom'],
                         'MOIs': ', '.join(variant['reasons']),
-                        'support': self.make_seqr_link(
-                            var_string=var_string,
-                            sample=sample,
+                        'support': ', '.join(
+                            [
+                                self.make_seqr_link(
+                                    var_string=partner,
+                                    sample=sample,
+                                )
+                                for partner in variant['support_vars']
+                            ]
                         )
                         if variant['supported']
                         else 'N/A',
