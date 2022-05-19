@@ -91,7 +91,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # de novo category is a list of strings or empty list
         # if cohort runs as singletons, remove possibility of de novo
         if as_singletons:
-            self.category_4 = False
+            self.category_4 = []
         else:
             self.category_4: List[str] = (
                 var.INFO.get('Category4').split(',')
