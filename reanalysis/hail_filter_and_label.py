@@ -17,7 +17,7 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from itertools import permutations
 import json
 import logging
@@ -62,53 +62,34 @@ def filter_matrix_by_ac(
     return matrix_data
 
 
-def filter_matrix_by_variant_attributes(
-    matrix_data: hl.MatrixTable, vqsr_run: Optional[bool] = True
-) -> hl.MatrixTable:
+def filter_matrix_by_variant_attributes(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with normalised, high quality variants
     Note - when reading data into a MatrixTable, the Filters column is modified
     - split into a set of all filters
     - PASS is removed
     i.e. an empty set is equal to PASS in a VCF
-
-    filter conditions applied are dependent on whether VQSR was run
-    if VQSR - allow for empty filters, or VQSR with AS_FS=PASS
-    if not - require the variant filters to be empty
     :param matrix_data:
-    :param vqsr_run: if True, we
     :return:
     """
-    vqsr_set = hl.literal({'VQSR'})
-    pass_string = hl.literal('PASS')
 
-    if vqsr_run:
-
-        # hard filter for quality; assuming data is well normalised in pipeline
-        matrix_data = matrix_data.filter_rows(
-            (
-                (matrix_data.filters.length() == 0)
-                | (
-                    (matrix_data.filters == vqsr_set)
-                    & (matrix_data.info.AS_FilterStatus == pass_string)
-                )
-            )
-        )
-
-    # otherwise strictly enforce FILTERS==PASS, i.e. empty set
-    else:
-        matrix_data = matrix_data.filter_rows(matrix_data.filters.length() == 0)
-
-    # normalised variants check
-    # prior to annotation, variants in the MatrixTable representation are removed where:
-    # - more than two alleles are present (ref and alt)
-    #   - prior to annotation, the variant data must be decomposed to split all alt.
-    #     alleles onto a separate row, with the corresponding sample genotypes
-    # - alternate allele called is missing (*)
+    # filter out any quality flagged variants
+    # normalised variants check (single alt per row, no missing Alt)
     matrix_data = matrix_data.filter_rows(
-        (hl.len(matrix_data.alleles) == 2) & (matrix_data.alleles[1] != '*')
+        (matrix_data.filters.length() == 0)
+        & (hl.len(matrix_data.alleles) == 2)
+        & (matrix_data.alleles[1] != '*')
     )
-    return matrix_data
+
+    # filter variant calls by AB ratio
+    ab = matrix_data.AD[1] / hl.sum(matrix_data.AD)
+
+    # filter entries by the AB, depending on variant call
+    return matrix_data.filter_entries(
+        (matrix_data.GT.is_hom_ref() & (ab <= 0.15))
+        | (matrix_data.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
+        | (matrix_data.GT.is_hom_var() & (ab >= 0.85))
+    )
 
 
 def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
