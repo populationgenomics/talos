@@ -4,7 +4,7 @@ tests for the HTML generation script
 Not a huge number, this is not intended as a permanent solution
 """
 
-from reanalysis.html_builder import numerical_categories, set_up_colors
+from reanalysis.html_builder import numerical_categories, COLORS
 
 
 def test_numerical_categories():
@@ -25,5 +25,4 @@ def test_set_up_categories():
 
     :return:
     """
-    cols = set_up_colors()
-    assert cols['de_novo'] == '#FF0000'
+    assert COLORS['de_novo'] == '#FF0000'
