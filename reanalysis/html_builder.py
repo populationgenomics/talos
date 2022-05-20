@@ -2,19 +2,17 @@
 Methods for taking the final output and generating static report content
 """
 
-from typing import Any, Dict, List, Set, Tuple
+import logging
+
 from argparse import ArgumentParser
+from typing import Any, Dict, List, Set, Tuple
+
 from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
 from reanalysis.utils import read_json_from_path
 
-
-SEQR_TEMPLATE = (
-    '<a href="https://seqr.populationgenomics.org.au/variant_search/'
-    'variant/{variant}/family/{family}" target="_blank">{variant}</a>'
-)
 
 GNOMAD_TEMPLATE = (
     '<a href="https://gnomad.broadinstitute.org/variant/'
@@ -27,6 +25,13 @@ PANELAPP_TEMPLATE = (
 
 STRONG_STRING = '<strong>{content}</strong>'
 COLOR_STRING = '<span style="color: {color}"><strong>{content}</strong></span>'
+COLORS = {
+    '1': '#FF0000',
+    '2': '#FF9B00',
+    '3': '1B00FF',
+    'de_novo': '#FF0000',
+    'support': '#00FF08',
+}
 
 
 def numerical_categories(var_data: Dict[str, Any], sample: str) -> List[str]:
@@ -47,19 +52,57 @@ def numerical_categories(var_data: Dict[str, Any], sample: str) -> List[str]:
     return strings
 
 
-def set_up_colors():
+def color_csq(all_csq: Set[str], mane_csq: Set[str]) -> str:
     """
-    generates the dictionary of color strings
-    colours are hard coded, rather than parsed from config
+    takes the collection of all consequences, and MANE csqs
+    if a CSQ occurs on MANE, write in bold,
+    if non-MANE, write in red
+    return the concatenated string
+
+    NOTE: I really hate how I've implemented this
+    :param all_csq:
+    :param mane_csq:
+    :return: the string filling the consequence box in the HTML
+    """
+    csq_strings = []
+    for csq in all_csq:
+        # bold, in Black
+        if csq in mane_csq:
+            csq_strings.append(STRONG_STRING.format(content=csq))
+
+        # bold, and red
+        else:
+            csq_strings.append(COLOR_STRING.format(color=COLORS['1'], content=csq))
+
+    return ', '.join(csq_strings)
+
+
+def get_csq_details(variant: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    populates a single string of all relevant consequences
+    UPDATE - take MANE into account
     """
 
-    return {
-        '1': '#FF0000',
-        '2': '#FF9B00',
-        '3': '1B00FF',
-        'de_novo': '#FF0000',
-        'support': '#00FF08',
-    }
+    csq_set = set()
+    mane_transcript = set()
+    mane_csq = set()
+
+    # iterate over all consequences, special care for MANE
+    for each_csq in variant['var_data']['transcript_consequences']:
+        row_csq = set(each_csq['consequence'].split('&'))
+
+        # record the transcript ID(s), and CSQ(s)
+        # we only expect 1, but set operations are useful
+        mane_trans = each_csq.get('mane_select', '')
+        if mane_trans != '':
+            mane_csq.update(row_csq)
+            mane_transcript.add(mane_trans)
+        csq_set.update(row_csq)
+
+    # we expect one... but this would make the addition of MANE plus_clinical easy
+    mane_string = STRONG_STRING.format(content=', '.join(mane_transcript))
+
+    return color_csq(csq_set, mane_csq), mane_string
 
 
 class HTMLBuilder:
@@ -88,10 +131,20 @@ class HTMLBuilder:
         self.external_map = read_json_from_path(self.config['external_lookup']) or {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
+        self.seqr = {}
         try:
-            self.seqr = read_json_from_path(self.config.get('seqr_lookup'))
+            # update the seqr instance location
+            if self.config.get('seqr_instance'):
+                self.seqr_template = (
+                    f'<a href="{self.config.get("seqr_instance")}/variant_search/'
+                    'variant/{variant}/family/{family}" target="_blank">{variant}</a>'
+                )
+                self.seqr = read_json_from_path(self.config.get('seqr_lookup'))
         except AttributeError:
-            self.seqr = {}
+            logging.error(
+                f'Seqr ID lookup file could not be parsed from '
+                f'{self.config.get("seqr_lookup")}'
+            )
 
         self.panelapp = read_json_from_path(panelapp_data)
 
@@ -99,7 +152,6 @@ class HTMLBuilder:
         with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
             handle.write(AnyPath(pedigree).read_text())
         self.pedigree = Ped('i_am_a_temporary.ped')
-        self.colors = set_up_colors()
 
     def get_summary_stats(
         self,
@@ -249,59 +301,6 @@ class HTMLBuilder:
         # fix formatting later
         AnyPath(output_path).write_text(''.join(html_lines))
 
-    def color_csq(self, all_csq: Set[str], mane_csq: Set[str]) -> str:
-        """
-        takes the collection of all consequences, and MANE csqs
-        if a CSQ occurs on MANE, write in bold,
-        if non-MANE, write in red
-        return the concatenated string
-
-        NOTE: I really hate how I've implemented this
-        :param all_csq:
-        :param mane_csq:
-        :return: the string filling the consequence box in the HTML
-        """
-        csq_strings = []
-        for csq in all_csq:
-            # bold, in Black
-            if csq in mane_csq:
-                csq_strings.append(STRONG_STRING.format(content=csq))
-
-            # bold, and red
-            else:
-                csq_strings.append(
-                    COLOR_STRING.format(color=self.colors['1'], content=csq)
-                )
-
-        return ', '.join(csq_strings)
-
-    def get_csq_details(self, variant: Dict[str, Any]) -> Tuple[str, str]:
-        """
-        populates a single string of all relevant consequences
-        UPDATE - take MANE into account
-        """
-
-        csq_set = set()
-        mane_transcript = set()
-        mane_csq = set()
-
-        # iterate over all consequences, special care for MANE
-        for each_csq in variant['var_data']['transcript_consequences']:
-            row_csq = set(each_csq['consequence'].split('&'))
-
-            # record the transcript ID(s), and CSQ(s)
-            # we only expect 1, but set operations are useful
-            mane_trans = each_csq.get('mane_select', '')
-            if mane_trans != '':
-                mane_csq.update(row_csq)
-                mane_transcript.add(mane_trans)
-            csq_set.update(row_csq)
-
-        # we expect one... but this would make the addition of MANE plus_clinical easy
-        mane_string = STRONG_STRING.format(content=', '.join(mane_transcript))
-
-        return self.color_csq(csq_set, mane_csq), mane_string
-
     def create_html_tables(self):
         """
         make a table describing the outputs
@@ -326,7 +325,7 @@ class HTMLBuilder:
                 if '2' in variant_categories:
                     category_2_genes.add(variant['gene'])
 
-                csq_string, mane_string = self.get_csq_details(variant)
+                csq_string, mane_string = get_csq_details(variant)
                 candidate_dictionaries.setdefault(variant['sample'], []).append(
                     {
                         'variant': self.make_seqr_link(
@@ -336,7 +335,7 @@ class HTMLBuilder:
                             list(
                                 map(
                                     lambda x: COLOR_STRING.format(
-                                        color=self.colors[x], content=x
+                                        color=COLORS[x], content=x
                                     ),
                                     variant_categories,
                                 )
@@ -417,7 +416,7 @@ class HTMLBuilder:
         """
         if sample not in self.seqr:
             return var_string
-        return SEQR_TEMPLATE.format(
+        return self.seqr_template.format(
             variant=var_string,
             family=self.seqr.get(sample),
         )
