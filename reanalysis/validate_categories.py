@@ -231,6 +231,9 @@ def main(
     :param pedigree:
     """
 
+    # check if this is a singleton pedigree
+    singletons = pedigree.__contains__('singletons')
+
     # parse the pedigree from the file (via write to temp)
     with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
         handle.write(AnyPath(pedigree).read_text())
@@ -276,6 +279,7 @@ def main(
             variant_source=vcf_opened,
             config=config_dict,
             panelapp_data=panelapp_data,
+            singletons=singletons,
             blacklist=variant_blacklist,
         )
         results.extend(
