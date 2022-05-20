@@ -287,7 +287,7 @@ def gather_gene_dict_from_contig(
             )
             continue
 
-        # do category 2 'new' test
+            # do category 2 'new' test
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
         if abs_var.category_2:
             # implement the c2 check

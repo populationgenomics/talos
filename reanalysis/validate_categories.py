@@ -139,8 +139,8 @@ def apply_moi_to_variants(
                 results.extend(
                     moi_lookup[simple_moi].run(
                         principal_var=variant, gene_lookup=variants
+                        )
                     )
-                )
 
     return results
 
