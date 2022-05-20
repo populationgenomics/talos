@@ -48,16 +48,35 @@ import annotation
 
 
 # static paths to write outputs
-PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
-HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
-COMP_HET_JSON = output_path('hail_categorised.json')
-REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
-REHEADERED_PREFIX = output_path('hail_categories_reheadered')
-RESULTS_JSON = output_path('summary_results.json')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
-ANNOTATED_MT = output_path('annotated_variants.mt')
+
+# phases of annotation
 VEP_STAGE_TMP = output_path('vep_temp', 'tmp')
 VEP_HT_TMP = output_path('vep_annotations.ht', 'tmp')
+ANNOTATED_MT = output_path('annotated_variants.mt')
+
+# panelapp query results
+PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
+
+# output of labelling task in Hail
+COMP_HET_JSON = output_path('hail_categorised.json')
+HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
+
+# hail outputs with CSQ header line
+REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
+REHEADERED_PREFIX = output_path('hail_categories_reheadered')
+
+# outputs for familial and singleton analysis
+OUTPUT_DICT = {
+    'default': {
+        'web_html': output_path('summary_output.html', 'web'),
+        'results': output_path('summary_results.json'),
+    },
+    'singletons': {
+        'web_html': output_path('singleton_output.html', 'web'),
+        'results': output_path('singleton_results.json'),
+    },
+}
 
 # location of the CPG BCFTools image
 BCFTOOLS_IMAGE = image_path('bcftools:1.10.2--h4f4756c_2')
@@ -66,6 +85,7 @@ assert DEFAULT_IMAGE
 
 # local script references
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
+HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
 QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
@@ -320,6 +340,7 @@ def handle_results_job(
     comp_het: str,
     reheadered_vcf: str,
     pedigree: str,
+    analysis_index: str,
     prior_job: Optional[hb.batch.job.Job] = None,
 ) -> hb.batch.job.Job:
     """
@@ -330,9 +351,11 @@ def handle_results_job(
     :param comp_het:
     :param reheadered_vcf:
     :param pedigree:
+    :param analysis_index: whether to run singleton or familial analysis
     :param prior_job:
     :return:
     """
+
     results_job = batch.new_job(name='finalise_results')
     set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
     results_command = (
@@ -343,7 +366,13 @@ def handle_results_job(
         f'--labelled_vcf {reheadered_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {RESULTS_JSON}'
+        f'--out_json {OUTPUT_DICT[analysis_index]["results"]} && '
+        f'PYTHONPATH=$(pwd) python3 {HTML_SCRIPT} '
+        f'--results {OUTPUT_DICT[analysis_index]["results"]} '
+        f'--config_path {config} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--pedigree {pedigree} '
+        f'--out_path {OUTPUT_DICT[analysis_index]["web_html"]}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
@@ -399,6 +428,11 @@ def file_is_vcf(file_path: str) -> bool:
 @click.option(
     '--plink_file',
     help='location of a plink file for the cohort',
+    required=True,
+)
+@click.option(
+    '--singletons',
+    help='location of a plink file for the singletons',
     required=False,
 )
 def main(
@@ -407,6 +441,7 @@ def main(
     panelapp_version: Optional[str],
     panel_genes: Optional[str],
     plink_file: str,
+    singletons: Optional[str] = None,
 ):
     """
     main method, which runs the full reanalysis process
@@ -416,6 +451,7 @@ def main(
     :param panelapp_version:
     :param panel_genes:
     :param plink_file:
+    :param singletons:
     """
 
     if not AnyPath(input_path).exists():
@@ -478,13 +514,14 @@ def main(
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
-    # no need to launch in a separate batch, minimal dependencies
-    prior_job = handle_panelapp_job(
-        batch=batch,
-        gene_list=panel_genes,
-        prev_version=panelapp_version,
-        prior_job=prior_job,
-    )
+    # stop needlessly repeating the panelapp query
+    if not AnyPath(PANELAPP_JSON_OUT).exists():
+        prior_job = handle_panelapp_job(
+            batch=batch,
+            gene_list=panel_genes,
+            prev_version=panelapp_version,
+            prior_job=prior_job,
+        )
 
     # ----------------------- #
     # run hail categorisation #
@@ -535,16 +572,23 @@ def main(
         )
         reheadered_vcf_in_batch = needs_vqsr_line['vcf.bgz']
 
-    # use compound-hets and labelled VCF to identify plausibly pathogenic
-    # variants where the MOI is viable compared to the PanelApp expectation
-    _results_job = handle_results_job(
-        batch=batch,
-        config=config_json,
-        comp_het=COMP_HET_JSON,
-        reheadered_vcf=reheadered_vcf_in_batch,
-        pedigree=plink_file,
-        prior_job=prior_job,
-    )
+    analysis_rounds = [(plink_file, 'default')]
+    if singletons and AnyPath(singletons).exists():
+        analysis_rounds.append((singletons, 'singletons'))
+
+    for relationships, analysis_index in analysis_rounds:
+        logging.info(f'running analysis in {analysis_index} mode')
+        # use compound-hets and labelled VCF to identify plausibly pathogenic
+        # variants where the MOI is viable compared to the PanelApp expectation
+        _results_job = handle_results_job(
+            batch=batch,
+            config=config_json,
+            comp_het=COMP_HET_JSON,
+            reheadered_vcf=reheadered_vcf_in_batch,
+            pedigree=relationships,
+            analysis_index=analysis_index,
+            prior_job=prior_job,
+        )
     batch.run(wait=False)
 
 

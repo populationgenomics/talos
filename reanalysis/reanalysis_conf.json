@@ -50,12 +50,6 @@
         "description": "variables affecting how the final HTML report appears",
         "seqr_lookup": "gs://cpg-acute-care-test/reanalysis/parsed_seqr.json",
         "external_lookup": "gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.json",
-        "colours": {
-            "red_consequence": "#C70039",
-            "1": "#C70039",
-            "2": "#FF5733",
-            "3": "#FFA533",
-            "4": "#33E8FF"
-        }
+        "seqr_instance": "https://seqr.populationgenomics.org.au"
     }
 }

@@ -70,7 +70,13 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     or for a direct parser...
     """
 
-    def __init__(self, var: Variant, samples: List[str], config: Dict[str, Any]):
+    def __init__(
+        self,
+        var: Variant,
+        samples: List[str],
+        config: Dict[str, Any],
+        as_singletons=False,
+    ):
 
         # extract the coordinates into a separate object
         self.coords = Coordinates(
@@ -82,12 +88,17 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.category_2: bool = var.INFO.get('Category2') == 1
         self.category_3: bool = var.INFO.get('Category3') == 1
 
-        # de novo class is not an integer - list of strings or empty list
-        self.category_4: List[str] = (
-            var.INFO.get('Category4').split(',')
-            if var.INFO.get('Category4') != 'missing'
-            else []
-        )
+        # de novo category is a list of strings or empty list
+        # if cohort runs as singletons, remove possibility of de novo
+        if as_singletons:
+            self.category_4 = []
+        else:
+            self.category_4: List[str] = (
+                var.INFO.get('Category4').split(',')
+                if var.INFO.get('Category4') != 'missing'
+                else []
+            )
+
         self.category_support: bool = var.INFO.get('CategorySupport') == 1
 
         # get all zygosities once per variant
@@ -247,6 +258,8 @@ def gather_gene_dict_from_contig(
     variant_source: cyvcf2.VCFReader,
     config: Dict[str, Any],
     panelapp_data: PanelAppDict,
+    singletons: bool,
+    blacklist: Optional[List[str]] = None,
 ) -> Dict[str, Dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -262,8 +275,14 @@ def gather_gene_dict_from_contig(
     :param variant_source: VCF reader instance
     :param config: configuration file
     :param panelapp_data:
+    :param singletons:
+    :param blacklist:
     :return: populated lookup dict
     """
+
+    if blacklist is None:
+        blacklist = []
+
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
     contig_dict = {}
@@ -272,10 +291,19 @@ def gather_gene_dict_from_contig(
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
         abs_var = AbstractVariant(
-            var=variant, samples=variant_source.samples, config=config
+            var=variant,
+            samples=variant_source.samples,
+            config=config,
+            as_singletons=singletons,
         )
 
-        # do category 2 'new' test
+        if abs_var.coords.string_format in blacklist:
+            logging.info(
+                f'Skipping blacklisted variant: {abs_var.coords.string_format}'
+            )
+            continue
+
+            # do category 2 'new' test
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
         if abs_var.category_2:
             # implement the c2 check
@@ -305,7 +333,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
+def read_json_from_path(bucket_path: str) -> Dict[str, Any]:
     """
     take a path to a JSON file, read into an object
     :param bucket_path:

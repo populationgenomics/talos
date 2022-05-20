@@ -24,10 +24,11 @@ from peddy.peddy import Ped
 
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
+    AbstractVariant,
     canonical_contigs_from_vcf,
     gather_gene_dict_from_contig,
     get_simple_moi,
-    read_json_dict_from_path,
+    read_json_from_path,
     CompHetDict,
     CustomEncoder,
     ReportedVariant,
@@ -93,85 +94,66 @@ def set_up_inheritance_filters(
     return moi_dictionary
 
 
-# pylint: disable=too-many-locals
 def apply_moi_to_variants(
-    classified_variant_source: str,
+    variant_dict: Dict[str, Dict[str, AbstractVariant]],
     moi_lookup: Dict[str, MOIRunner],
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
-    config: Dict[str, Any],
 ) -> List[ReportedVariant]:
     """
-    take the variant source and list of established MOI filters
-    find all variants/compound hets for all samples which fit within
-    the PanelApp provided MOI
+    take a collection of all variants on a given contig & MOI filters
+    find all variants/compound hets which fit the PanelApp MOI
 
-    :param classified_variant_source:
+    :param variant_dict:
     :param moi_lookup:
     :param panelapp_data:
-    :param config:
     :return:
     """
 
     results = []
 
-    # open the VCF using a cyvcf2 reader
-    variant_source = VCFReader(classified_variant_source)
+    # NOTE - if we want details from both sides of a compound het in the
+    # MOI check or report details, this lookup gives us a way to access that data
+    # For now just iterate over the individual variants
+    for gene, variants in variant_dict.items():
 
-    # split here - process each contig separately
-    # once the variants are parsed into plain dicts (pickle-able)
-    # we could run the MOI tests in parallel
-    for contig in canonical_contigs_from_vcf(variant_source):
+        # extract the panel data specific to this gene
+        # extract once per gene, not once per variant
+        panel_gene_data = panelapp_data.get(gene)
 
-        # assemble {gene: [var1, var2, ..]}
-        contig_dict = gather_gene_dict_from_contig(
-            contig=contig,
-            variant_source=variant_source,
-            config=config,
-            panelapp_data=panelapp_data,
-        )
+        # variant appears to be in a red gene
+        if panel_gene_data is None:
+            logging.error(f'How did this gene creep in? {gene}')
+            continue
 
-        # NOTE - if we want details from both sides of a compound het in the
-        # MOI check or report details, this lookup gives us a way to access that data
-        # For now just iterate over the individual variants
-        for gene, variants in contig_dict.items():
+        simple_moi = get_simple_moi(panel_gene_data.get('moi'))
 
-            # extract the panel data specific to this gene
-            # extract once per gene, not once per variant
-            panel_gene_data = panelapp_data.get(gene)
+        for variant in variants.values():
 
-            # variant appears to be in a red gene
-            if panel_gene_data is None:
-                logging.error(f'How did this gene creep in? {gene}')
-                continue
+            # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
+            if variant.category_non_support:
 
-            simple_moi = get_simple_moi(panel_gene_data.get('moi'))
-
-            for variant in variants.values():
-
-                # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
-                if variant.category_non_support:
-
-                    # this variant is a candidate for MOI checks
-                    # - find the simplified MOI string
-                    # - use to get appropriate MOI model
-                    # - run variant, append relevant classification(s) to the results
-                    results.extend(
-                        moi_lookup[simple_moi].run(
-                            principal_var=variant, gene_lookup=variants
-                        )
+                # this variant is a candidate for MOI checks
+                # - find the simplified MOI string
+                # - use to get appropriate MOI model
+                # - run variant, append relevant classification(s) to the results
+                results.extend(
+                    moi_lookup[simple_moi].run(
+                        principal_var=variant, gene_lookup=variants
                     )
+                )
 
     return results
 
 
 def clean_initial_results(
-    result_list: List[ReportedVariant],
+    result_list: List[ReportedVariant], samples: List[str]
 ) -> Dict[str, Dict[str, ReportedVariant]]:
     """
     Possibility 1 variant can be classified multiple ways
     This cleans those to unique for final report
     Join all possible classes for the condensed variants
     :param result_list:
+    :param samples: all samples from the VCF
     """
 
     clean_results = defaultdict(dict)
@@ -196,6 +178,14 @@ def clean_initial_results(
         # otherwise insert this variant into the dict
         else:
             clean_results[each_event.sample][var_uid] = each_event
+
+    # Empty list for 0 variant samples; explicitly record samples in this joint-call
+    # the PED could have more samples than a joint call, due to sub-setting or QC.
+    # When presenting results, we want all samples with negative findings, without
+    # comparing both VCF and PED files
+    for sample in samples:
+        if sample not in clean_results:
+            clean_results[sample] = {}
 
     return clean_results
 
@@ -241,19 +231,22 @@ def main(
     :param pedigree:
     """
 
+    # check if this is a singleton pedigree
+    singletons = pedigree.__contains__('singletons')
+
     # parse the pedigree from the file (via write to temp)
     with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
         handle.write(AnyPath(pedigree).read_text())
     pedigree_digest = Ped('i_am_a_temporary.ped')
 
     # parse panelapp data from dict
-    panelapp_data = read_json_dict_from_path(panelapp)
+    panelapp_data = read_json_from_path(panelapp)
 
     # get the runtime configuration
     if isinstance(config_path, dict):
         config_dict = config_path
     elif isinstance(config_path, str):
-        config_dict = read_json_dict_from_path(config_path)
+        config_dict = read_json_from_path(config_path)
     else:
         raise Exception(
             f'What is the conf path then?? "{config_path}": {type(config_path)}'
@@ -264,19 +257,41 @@ def main(
         panelapp_data=panelapp_data,
         pedigree=pedigree_digest,
         config=config_dict,
-        comp_het_lookup=read_json_dict_from_path(comp_het),
+        comp_het_lookup=read_json_from_path(comp_het),
     )
 
-    # find classification events
-    results = apply_moi_to_variants(
-        classified_variant_source=labelled_vcf,
-        moi_lookup=moi_lookup,
-        panelapp_data=panelapp_data,
-        config=config_dict,
-    )
+    # open the VCF using a cyvcf2 reader
+    vcf_opened = VCFReader(labelled_vcf)
+
+    # permit a blacklist to exclude known artefacts
+    variant_blacklist = None
+    if 'variant_blacklist' in config_dict:
+        variant_blacklist = read_json_from_path(config_dict['variant_blacklist'])
+
+    results = []
+
+    # obtain a set of all contigs with variants
+    for contig in canonical_contigs_from_vcf(vcf_opened):
+
+        # assemble {gene: [var1, var2, ..]}
+        contig_dict = gather_gene_dict_from_contig(
+            contig=contig,
+            variant_source=vcf_opened,
+            config=config_dict,
+            panelapp_data=panelapp_data,
+            singletons=singletons,
+            blacklist=variant_blacklist,
+        )
+        results.extend(
+            apply_moi_to_variants(
+                variant_dict=contig_dict,
+                moi_lookup=moi_lookup,
+                panelapp_data=panelapp_data,
+            )
+        )
 
     # remove duplicate variants
-    cleaned_results = clean_initial_results(results)
+    cleaned_results = clean_initial_results(results, samples=vcf_opened.samples)
 
     # dump results using the custom-encoder to transform sets & DataClasses
     with AnyPath(out_json).open('w') as fh:

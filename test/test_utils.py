@@ -10,7 +10,7 @@ from reanalysis.utils import (
     AbstractVariant,
     get_non_ref_samples,
     get_simple_moi,
-    read_json_dict_from_path,
+    read_json_from_path,
 )
 
 
@@ -24,9 +24,9 @@ def test_read_json():
 
     :return:
     """
-    assert read_json_dict_from_path(JSON_STUB) == {'key': 'value'}
+    assert read_json_from_path(JSON_STUB) == {'key': 'value'}
     with pytest.raises(FileNotFoundError):
-        read_json_dict_from_path('not_a_real_path')
+        read_json_from_path('not_a_real_path')
 
 
 @pytest.mark.parametrize(
