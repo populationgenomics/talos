@@ -67,20 +67,20 @@ following details:
 3. Set of all samples Heterozygous at this locus
 4. Set of all samples Homozygous at this locus
 5. A Boolean for each category-label used in reanalysis
+   1. `Category_4` (_de novo_) is slightly different; this value is a list of Strings, identifying all samples which were
+   confirmed to be _de novo_ for this variant call. This doesn't preclude other non-reference samples at this site, but
+   sample ID presence in this list means all criteria of the _de novo_ test in Hail were satisfied.
 
 The AbstractVariant has a few internal methods
 
- - `is_classified`: returns True if any of the category booleans are set to True
- - `category_4_only`: returns True if only the category_4 boolean is True
- - `category_ints`: returns an ordered list of integers for each True boolean
-   - i.e. if a variant is True for category 2 and 4, the return will be `[2, 4]`
-
-Based on rough calculations, each AbstractVariant consumes approximately 2.5KB, forming a smaller memory footprint than
-the same variant call in the VCF. There are a number of design factors that limit the size of the variants:
-
- - any variants not on Green genes are discarded
- - any transcripts not MANE or protein_coding are discarded
- - any remaining consequences which are unlikely to be relevant are discarded
+- `is_classified`: returns True if any category was assigned to this variant
+- `category_1_2_3`: returns True if any of category 1, 2, or 3 were assigned
+- `support_only`: returns True if only the supporting category was assigned
+- `category_ints`: returns a list of strings for each assigned category, i.e.
+  - if a variant is True for category 2 and 3, the return will be `[2, 3]`
+  - if a variant is True for category 2 and 4, the return will be `[2, de_novo]`
+- `sample_specific_category_check`: returns True if the specific sample is _de novo_,
+or if the variant has category 1, 2, or 3 assigned
 
 ## Variant Gathering
 
@@ -192,3 +192,29 @@ The alternative is Incomplete penetrance:
 A situation not permitted under either model is when some, but not all, affected members have a candidate variant.
 That would be plausible under a situation of multiple underlying diseases within a single family, but as the application
 doesn't currently permit providing family or member-specific disease data, this is assumed not to be the case.
+
+### _De Novo_ checks
+
+Within the hail category-labelling process, we implement a
+[ported version of K. Samocha's _de novo_ filtering test](https://github.com/ksamocha/de_novo_scripts) in
+[Hail](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.de_novo). This test uses a number of factors in
+either confirming or refuting the _de novo_ call, above and beyond just checking genotype calls:
+
+- Checks the Allelic Balance and read depth of the Proband
+- Requires a strong Phred-scaled likelihood of a true call
+- Assesses the probability that the call is truly _de novo_, instead of a missed call in a parent
+
+Elements of this calculation include the naive probability of this variant being a naturally occurring variant (~1 in
+30M), and the likelihood of this variant being a missed call based on the known population frequency. Once this process
+runs the different factors are combined into a probability(_de novo_), & binned into HIGH, MEDIUM, and LOW confidences.
+For this process, we retain only the variant calls which are HIGH confidence.
+
+Where a _de novo_ variant is identified, the flag annotated is a comma-delimited list of the samples which have a passed
+the various _de novo_ tests; where no variants are _de novo_ the annotated value is the String `missing`.
+
+When the VCF is being processed, the `category_4` field is parsed by splitting on commas (if `missing`, this is an empty
+list). Where there is at least a single sample in this list, the variant is parsed using a separate `De_Novo` MOI test,
+which will generate a reported variant structure for the sample(s) which passed the Hail confirmation process.
+
+*Note*: if multiple samples have variants at a locus, Cat. 4 is only confirmed where the sample IDs are within that Cat.
+4 list, showing that they were subject to all tests relevant to _de novo_ status.

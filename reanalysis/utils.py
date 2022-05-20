@@ -28,9 +28,9 @@ from cyvcf2 import Variant
 # gene: string, e.g. ENSG012345
 # variant: string, chr-pos-ref-alt
 CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
-PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
 
-COMP_HET_VALUES: List[str] = ['sample', 'gene', 'id', 'chrom', 'pos', 'ref', 'alt']
+InfoDict = Dict[str, Union[str, Dict[str, str]]]
+PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -81,7 +81,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.category_1: bool = var.INFO.get('Category1') == 1
         self.category_2: bool = var.INFO.get('Category2') == 1
         self.category_3: bool = var.INFO.get('Category3') == 1
-        self.category_4: bool = var.INFO.get('Category4') == 1
+
+        # de novo class is not an integer - list of strings or empty list
+        self.category_4: List[str] = (
+            var.INFO.get('Category4').split(',')
+            if var.INFO.get('Category4') != 'missing'
+            else []
+        )
+        self.category_support: bool = var.INFO.get('CategorySupport') == 1
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
@@ -95,20 +102,13 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         )
 
     @property
-    def is_classified(self) -> bool:
+    def category_1_2_3(self) -> bool:
         """
         check that the variant has at least one assigned class
+        supporting category is considered here
         :return:
         """
-        return any([self.category_1, self.category_2, self.category_3, self.category_4])
-
-    @property
-    def category_4_only(self) -> bool:
-        """
-        checks that the variant was only class 4
-        :return:
-        """
-        return self.category_4 and not any(
+        return any(
             [
                 self.category_1,
                 self.category_2,
@@ -117,24 +117,94 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         )
 
     @property
-    def category_ints(self) -> List[int]:
+    def category_non_support(self) -> bool:
+        """
+        check the variant has at least one non-support category assigned
+        :return:
+        """
+        return any(
+            [
+                self.category_1,
+                self.category_2,
+                self.category_3,
+                self.category_4,
+            ]
+        )
+
+    @property
+    def is_classified(self) -> bool:
+        """
+        check that the variant has at least one assigned class
+        supporting category is considered here
+        :return:
+        """
+        return any(
+            [
+                self.category_1,
+                self.category_2,
+                self.category_3,
+                self.category_4,
+                self.category_support,
+            ]
+        )
+
+    @property
+    def support_only(self) -> bool:
+        """
+        checks that the variant was only class 4
+        :return:
+        """
+        return self.category_support and not any(
+            [
+                self.category_1,
+                self.category_2,
+                self.category_3,
+                self.category_4,
+            ]
+        )
+
+    def category_ints(self, sample: str) -> List[str]:
         """
         get a list of ints representing the classes present on this variant
-        for each numerical class, append that number if the class is present
+        for each category, append that number if the class is present
+
+        - support is not an int
+        - de novo on a per-sample basis
         """
-        return [
-            integer
-            for integer, category_bool in enumerate(
-                [
-                    self.category_1,
-                    self.category_2,
-                    self.category_3,
-                    self.category_4,
-                ],
-                1,
-            )
-            if category_bool
-        ]
+        categories = []
+
+        # for the first 3 categories, append the value if flag is present
+        for index, cat in enumerate(
+            [self.category_1, self.category_2, self.category_3], 1
+        ):
+            if cat:
+                categories.append(str(index))
+
+        if self.sample_de_novo(sample_id=sample):
+            categories.append('de_novo')
+
+        if self.category_support:
+            categories.append('in_silico')
+
+        return categories
+
+    def sample_de_novo(self, sample_id: str) -> bool:
+        """
+        takes a specific sample ID, to check if the sample has a de novo call
+
+        :param sample_id:
+        :return:
+        """
+
+        return sample_id in self.category_4
+
+    def sample_specific_category_check(self, sample_id: str) -> bool:
+        """
+
+        :param sample_id:
+        :return:
+        """
+        return self.category_1_2_3 or self.sample_de_novo(sample_id)
 
 
 @dataclass
@@ -173,7 +243,10 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 
 
 def gather_gene_dict_from_contig(
-    contig: str, variant_source: cyvcf2.VCFReader, config: Dict[str, Any]
+    contig: str,
+    variant_source: cyvcf2.VCFReader,
+    config: Dict[str, Any],
+    panelapp_data: PanelAppDict,
 ) -> Dict[str, Dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -188,6 +261,7 @@ def gather_gene_dict_from_contig(
     :param contig: contig name from header (canonical_contigs_from_vcf)
     :param variant_source: VCF reader instance
     :param config: configuration file
+    :param panelapp_data:
     :return: populated lookup dict
     """
     # a dict to allow lookup of variants on this whole chromosome
@@ -200,6 +274,23 @@ def gather_gene_dict_from_contig(
         abs_var = AbstractVariant(
             var=variant, samples=variant_source.samples, config=config
         )
+
+        # do category 2 'new' test
+        # if the gene isn't 'new' in PanelApp, remove Class2 flag
+        if abs_var.category_2:
+            # implement the c2 check
+            gene_id = abs_var.info.get('gene_id')
+            gene_data = panelapp_data.get(gene_id, False)
+            if not gene_data:
+                continue
+
+            # is the gene 'new'? if not, skip
+            if not gene_data.get('new', False):
+                variant.category_2 = False
+
+        # if unclassified, skip the whole variant
+        if not abs_var.is_classified:
+            continue
 
         # update the variant count
         contig_variants += 1
@@ -333,12 +424,18 @@ def extract_info(variant: Variant):
     """
 
     # choose some values to exclude, and keep everything else
-    exclusions = {'CSQ', 'Class1', 'Class2', 'Class3', 'Class4'}
+    exclusions = {
+        'csq',
+        'category1',
+        'category2',
+        'category3',
+        'category4',
+        'categorysupport',
+        'support_only',
+    }
 
     # grab the basic information from INFO
-    info_dict = {x.lower(): y for x, y in variant.INFO if x not in exclusions}
-
-    return info_dict
+    return {x.lower(): y for x, y in variant.INFO if x.lower() not in exclusions}
 
 
 class CustomEncoder(json.JSONEncoder):

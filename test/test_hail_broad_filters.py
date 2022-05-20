@@ -17,10 +17,6 @@ from reanalysis.hail_filter_and_label import (
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
-# contains a single variant at chr1:1, with minimal info
-HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
-PANELAPP_FILE = os.path.join(INPUT, 'panel_changes_expected.json')
-
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
@@ -53,26 +49,21 @@ def test_filter_matrix_by_ac_large():
 
 
 @pytest.mark.parametrize(
-    'filters,alleles,as_filt,length',
+    'filters,alleles,length',
     [
-        (hl.empty_set(hl.tstr), hl.literal(['A', 'C']), '', 1),
-        (hl.empty_set(hl.tstr), hl.literal(['A', '*']), '', 0),
-        (hl.empty_set(hl.tstr), hl.literal(['A', 'C', 'G']), '', 0),
-        (hl.literal({'fail'}), hl.literal(['A', 'C']), '', 0),
-        (hl.literal({'VQSR'}), hl.literal(['A', 'C']), 'PASS', 1),
+        (hl.empty_set(hl.tstr), hl.literal(['A', 'C']), 1),
+        (hl.empty_set(hl.tstr), hl.literal(['A', '*']), 0),
+        (hl.empty_set(hl.tstr), hl.literal(['A', 'C', 'G']), 0),
+        (hl.literal({'fail'}), hl.literal(['A', 'C']), 0),
+        (hl.literal({'VQSR'}), hl.literal(['A', 'C']), 0),
     ],
 )
-def test_filter_matrix_by_variant_attributes(
-    filters, alleles, as_filt, length, hail_matrix
-):
+def test_filter_matrix_by_variant_attributes(filters, alleles, length, hail_matrix):
     """
-    input 'values' are filters, alleles, and the as_fs annotation
-    - this AS_FilterStatus attribute is a result from VQSR application
-    - accepting filter=VQSR and AS_FS=PASS
+    input 'values' are filters, & alleles
 
     :param filters:
     :param alleles:
-    :param as_filt:
     :param length:
     :param hail_matrix:
     :return:
@@ -82,7 +73,6 @@ def test_filter_matrix_by_variant_attributes(
     anno_matrix = hail_matrix.annotate_rows(
         filters=filters,
         alleles=alleles,
-        info=hail_matrix.info.annotate(AS_FilterStatus=as_filt),
     )
 
     anno_matrix = filter_matrix_by_variant_attributes(anno_matrix)

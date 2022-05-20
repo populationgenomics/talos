@@ -14,13 +14,13 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_2,
     annotate_category_3,
     annotate_category_4,
+    annotate_category_support,
     green_and_new_from_panelapp,
     filter_rows_for_rare,
     filter_benign_or_non_genic,
     filter_to_green_genes_and_split,
     filter_by_consequence,
     filter_to_categorised,
-    annotate_category_4_only,
 )
 
 
@@ -28,7 +28,6 @@ PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
 # contains a single variant at chr1:1, with minimal info
-HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 PANELAPP_FILE = os.path.join(INPUT, 'panel_changes_expected.json')
 
 category_1_keys = ['locus', 'clinvar_sig', 'clinvar_stars']
@@ -41,7 +40,7 @@ category_2_keys = [
     'consequence_terms',
 ]
 category_3_keys = ['locus', 'clinvar_sig', 'lof', 'consequence_terms']
-category_4_keys = [
+support_category_keys = [
     'locus',
     'cadd',
     'revel',
@@ -212,7 +211,7 @@ def test_class_3_assignment(values, classified, hail_matrix):
         ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 0.0, 0.9], 1),
     ],
 )
-def test_class_4_assignment(values, classified, hail_matrix):
+def test_support_assignment(values, classified, hail_matrix):
     """
     :param values: value order in the class4_keys list
     :param classified: expected classification
@@ -222,7 +221,7 @@ def test_class_4_assignment(values, classified, hail_matrix):
     polyphen = values.pop()
     sift = values.pop()
     # cast the input as a dictionary
-    row_dict = dict(zip(category_4_keys, values))
+    row_dict = dict(zip(support_category_keys, values))
 
     # create a single row dataframe using the input
     dataframe = pd.DataFrame(row_dict, index=[0])
@@ -248,8 +247,8 @@ def test_class_4_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_4(anno_matrix, config=category_conf)
-    assert anno_matrix.info.Category4.collect() == [classified]
+    anno_matrix = annotate_category_support(anno_matrix, config=category_conf)
+    assert anno_matrix.info.CategorySupport.collect() == [classified]
 
 
 def test_green_and_new_from_panelapp():
@@ -388,50 +387,41 @@ def test_filter_by_consequence(
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,length',
+    'one,two,three,four,support,length',
     [
-        (0, 0, 0, 0, 0),
-        (0, 1, 0, 0, 1),
-        (0, 0, 1, 0, 1),
-        (0, 0, 0, 1, 1),
-        (0, 1, 1, 0, 1),
-        (1, 0, 0, 1, 1),
+        (0, 0, 0, 'missing', 0, 0),
+        (0, 1, 0, 'missing', 0, 1),
+        (0, 0, 1, 'missing', 0, 1),
+        (0, 0, 0, 'missing', 1, 1),
+        (0, 0, 0, 'not_blank', 0, 1),
+        (0, 1, 1, 'missing', 0, 1),
+        (1, 0, 0, 'missing', 1, 1),
     ],
 )
-def test_filter_to_classified(one, two, three, four, length, hail_matrix):
+def test_filter_to_classified(one, two, three, four, support, length, hail_matrix):
     """
 
     :param hail_matrix:
     """
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            Category1=one, Category2=two, Category3=three, Category4=four
+            Category1=one,
+            Category2=two,
+            Category3=three,
+            Category4=four,
+            CategorySupport=support,
         )
     )
     matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
 
 
-@pytest.mark.parametrize(
-    'one,two,three,four,flag',
-    [
-        (0, 0, 0, 0, 0),
-        (0, 1, 0, 0, 0),
-        (0, 0, 1, 0, 0),
-        (0, 0, 0, 1, 1),
-        (0, 1, 1, 0, 0),
-        (1, 0, 0, 1, 0),
-    ],
-)
-def test_c4_only_tag(one, two, three, four, flag, hail_matrix):
+def test_de_novo_classified(de_novo_matrix, trio_ped):
     """
-
-    :param hail_matrix:
+    one successful test case, hard to repro with assigned attributes (per-entry)
+    :param de_novo_matrix:
+    :return:
     """
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            Category1=one, Category2=two, Category3=three, Category4=four
-        )
-    )
-    matrix = annotate_category_4_only(anno_matrix)
-    assert matrix.category_4_only.collect() == [flag]
+    matrix = annotate_category_4(matrix=de_novo_matrix, plink_family_file=trio_ped)
+    matrix.filter_rows(matrix.info.Category4 != 'missing')
+    assert matrix.count_rows() == 1

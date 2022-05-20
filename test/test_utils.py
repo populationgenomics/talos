@@ -6,10 +6,8 @@ from typing import List
 import os
 import pytest
 
-# import cyvcf2
-
 from reanalysis.utils import (
-    # AnalysisVariant,
+    AbstractVariant,
     get_non_ref_samples,
     get_simple_moi,
     read_json_dict_from_path,
@@ -19,9 +17,6 @@ from reanalysis.utils import (
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 JSON_STUB = os.path.join(INPUT, 'json_example.json')
-COMP_HET = os.path.join(INPUT, 'comp_het.vcf.bgz')
-SINGLE_VAR = os.path.join(INPUT, 'single_hail.vcf.bgz')
-PANELAPP_LATEST = os.path.join(INPUT, 'panelapp_current_137.json')
 
 
 def test_read_json():
@@ -74,3 +69,28 @@ def test_get_non_ref_samples():
     het, hom = get_non_ref_samples(variant=variant, samples=samples)
     assert het == {'b', 'e'}
     assert hom == {'d'}
+
+
+def test_av_de_novo(trio_abs_variant: AbstractVariant):
+    """
+
+    :param trio_abs_variant:
+    :return:
+    """
+    assert trio_abs_variant.sample_de_novo('PROBAND')
+    assert not trio_abs_variant.sample_de_novo('FATHER')
+
+
+def test_av_categories(trio_abs_variant: AbstractVariant):
+    """
+
+    :param trio_abs_variant:
+    :return:
+    """
+    assert trio_abs_variant.category_4  # non-empty list
+    assert trio_abs_variant.category_3
+    assert not trio_abs_variant.category_2
+    assert not trio_abs_variant.category_1
+    assert trio_abs_variant.category_1_2_3
+    assert trio_abs_variant.category_non_support
+    assert trio_abs_variant.is_classified

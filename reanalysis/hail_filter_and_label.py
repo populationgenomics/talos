@@ -9,7 +9,7 @@ Read, filter, annotate, classify, and write Genetic data
 - consequence filter
 - remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 2, 3, and 4
+- annotate with categories 1, 2, 3, 4, and Support (in silico)
 - remove all un-categorised variants
 - write as VCF
 
@@ -17,7 +17,7 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from itertools import permutations
 import json
 import logging
@@ -62,53 +62,34 @@ def filter_matrix_by_ac(
     return matrix_data
 
 
-def filter_matrix_by_variant_attributes(
-    matrix_data: hl.MatrixTable, vqsr_run: Optional[bool] = True
-) -> hl.MatrixTable:
+def filter_matrix_by_variant_attributes(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with normalised, high quality variants
     Note - when reading data into a MatrixTable, the Filters column is modified
     - split into a set of all filters
     - PASS is removed
     i.e. an empty set is equal to PASS in a VCF
-
-    filter conditions applied are dependent on whether VQSR was run
-    if VQSR - allow for empty filters, or VQSR with AS_FS=PASS
-    if not - require the variant filters to be empty
     :param matrix_data:
-    :param vqsr_run: if True, we
     :return:
     """
-    vqsr_set = hl.literal({'VQSR'})
-    pass_string = hl.literal('PASS')
 
-    if vqsr_run:
-
-        # hard filter for quality; assuming data is well normalised in pipeline
-        matrix_data = matrix_data.filter_rows(
-            (
-                (matrix_data.filters.length() == 0)
-                | (
-                    (matrix_data.filters == vqsr_set)
-                    & (matrix_data.info.AS_FilterStatus == pass_string)
-                )
-            )
-        )
-
-    # otherwise strictly enforce FILTERS==PASS, i.e. empty set
-    else:
-        matrix_data = matrix_data.filter_rows(matrix_data.filters.length() == 0)
-
-    # normalised variants check
-    # prior to annotation, variants in the MatrixTable representation are removed where:
-    # - more than two alleles are present (ref and alt)
-    #   - prior to annotation, the variant data must be decomposed to split all alt.
-    #     alleles onto a separate row, with the corresponding sample genotypes
-    # - alternate allele called is missing (*)
+    # filter out any quality flagged variants
+    # normalised variants check (single alt per row, no missing Alt)
     matrix_data = matrix_data.filter_rows(
-        (hl.len(matrix_data.alleles) == 2) & (matrix_data.alleles[1] != '*')
+        (matrix_data.filters.length() == 0)
+        & (hl.len(matrix_data.alleles) == 2)
+        & (matrix_data.alleles[1] != '*')
     )
-    return matrix_data
+
+    # filter variant calls by AB ratio
+    ab = matrix_data.AD[1] / hl.sum(matrix_data.AD)
+
+    # filter entries by the AB, depending on variant call
+    return matrix_data.filter_entries(
+        (matrix_data.GT.is_hom_ref() & (ab <= 0.15))
+        | (matrix_data.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
+        | (matrix_data.GT.is_hom_var() & (ab >= 0.85))
+    )
 
 
 def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
@@ -232,14 +213,77 @@ def annotate_category_3(
 
 
 def annotate_category_4(
+    matrix: hl.MatrixTable, plink_family_file: str
+) -> hl.MatrixTable:
+    """
+    Category based on de novo MOI
+    This category shifts the emphasis from the variant annotations to the MOI
+    within family structures.
+    Having a low consequence-barrier to entry could mean that this category generates
+    a huge number of variants, so saving the MOI evaluation until later would create a
+    cumbersome output
+    Instead, we are leveraging the inbuilt hl.de_novo functionality to:
+    - identify all likely de novo inherited variation
+    - collect samples for each variant (expect n=1 per de novo call, but not guaranteed)
+    - compress list of proband IDs as a String
+    - apply string back to the MatrixTable, else 'missing' if missing
+
+    :param matrix:
+    :param plink_family_file: path to a pedigree in PLINK format
+    :return:
+    """
+
+    logging.info('running de novo search')
+
+    # read pedigree from the specified file
+    pedigree = hl.Pedigree.read(plink_family_file)
+
+    # identify likely de novo calls
+    # use the AFs already embedded in the MT as the prior population frequencies
+    dn_table = hl.de_novo(matrix, pedigree, pop_frequency_prior=matrix.info.gnomad_af)
+    dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
+
+    # re-key the table by locus,alleles, removing the sampleID from the compound key
+    dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
+
+    # we only require the key (locus, alleles) and the sample ID
+    # select to remove other fields, then collect per-key into Array of Structs
+    dn_table = dn_table.select(dn_table.id).collect_by_key()
+
+    # collect all sample IDs per locus, and squash into a String Array
+    # delimit to compress that Array into single Strings
+    dn_table = dn_table.annotate(
+        values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
+    )
+
+    # log the number of variants found this way
+    logging.info(f'{dn_table.count()} variants showed de novo inheritance')
+
+    # annotate those values as a flag if relevant, else 'missing'
+    return matrix.annotate_rows(
+        info=matrix.info.annotate(
+            Category4=hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)
+        )
+    )
+
+
+def annotate_category_support(
     matrix: hl.MatrixTable, config: Dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    Class based on in silico annotations
+    Background class based on in silico annotations
     - rare in Gnomad, and
     - CADD & REVEL above threshold (switched to consensus), or
     - Massive cross-tool consensus
     - polyphen and sift are evaluated per-consequence
+
+    The intention is that this class will never be the sole reason to treat a variant
+    as interesting, but can be used as a broader class with a lower barrier to entry
+    The purpose of this is to have a more permissive set of variants which can be used
+    to find second-hits in the case of Compound-Hets.
+
+    This support category can be expanded to encompass other scenarios that qualify
+    variants as 'of second-hit interest only'
     :param matrix:
     :param config:
     :return:
@@ -247,7 +291,7 @@ def annotate_category_4(
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Category4=hl.if_else(
+            CategorySupport=hl.if_else(
                 (
                     (matrix.info.cadd > config['in_silico'].get('cadd'))
                     & (matrix.info.revel > config['in_silico'].get('revel'))
@@ -273,27 +317,6 @@ def annotate_category_4(
                 ONE_INT,
                 MISSING_INT,
             )
-        )
-    )
-
-
-def annotate_category_4_only(matrix: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    applies a flag to all variants with only Category4 flags applied
-    this becomes relevant when we are looking at variants eligible for
-    compound het analysis
-
-    :param matrix:
-    """
-
-    return matrix.annotate_rows(
-        category_4_only=hl.if_else(
-            (matrix.info.Category1 == 0)
-            & (matrix.info.Category2 == 0)
-            & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 1),
-            ONE_INT,
-            MISSING_INT,
         )
     )
 
@@ -346,7 +369,7 @@ def extract_comp_het_details(
     logging.info('Extracting out the compound-het variant pairs')
 
     # set a new group of values as the key, so that we can collect on them easily
-    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.category_4_only)
+    ch_matrix = matrix.key_rows_by(matrix.locus, matrix.alleles, matrix.support_only)
     ch_matrix = ch_matrix.annotate_cols(
         hets=hl.agg.group_by(
             ch_matrix.info.gene_id,
@@ -372,8 +395,8 @@ def extract_comp_het_details(
             # assess each possible variant pairing
             for var1, var2 in permutations(variants, 2):
 
-                # skip if both are class 4 only - not valuable pairing
-                if var1.category_4_only == 1 and var2.category_4_only == 1:
+                # skip if both are support only - not a valuable pairing
+                if var1.support_only == 1 and var2.support_only == 1:
                     continue
 
                 # pair the string transformation
@@ -429,17 +452,18 @@ def filter_to_green_genes_and_split(
     matrix: hl.MatrixTable, green_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
-    reduces geneIds set to green only, then splits
+    splits each GeneId onto a new row, then filters any
+    rows not annotating a Green PanelApp gene
     :param matrix:
     :param green_genes:
     """
 
-    # replace the default list of green IDs with a reduced set
-    matrix = matrix.annotate_rows(geneIds=green_genes.intersection(matrix.geneIds))
-
     # split to form a separate row for each green gene
     # this transforms the 'geneIds' field from a set to a string
-    return matrix.explode_rows(matrix.geneIds)
+    matrix = matrix.explode_rows(matrix.geneIds)
+
+    # filter rows without a green gene
+    return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
 def filter_by_consequence(
@@ -640,7 +664,8 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
         (matrix.info.Category1 == 1)
         | (matrix.info.Category2 == 1)
         | (matrix.info.Category3 == 1)
-        | (matrix.info.Category4 == 1)
+        | (matrix.info.Category4 != 'missing')
+        | (matrix.info.CategorySupport == 1)
     )
 
 
@@ -702,7 +727,9 @@ def informed_repartition(matrix: hl.MatrixTable):
     return matrix.repartition(n_partitions=partitions, shuffle=True)
 
 
-def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
+def main(
+    mt_input: str, panelapp_path: str, config_path: str, plink_file: str, out_vcf: str
+):
     """
     Read the MT from disk
     Do filtering and class annotation
@@ -711,11 +738,12 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     :param mt_input: path to the MT directory
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
+    :param plink_file: pedigree filepath in PLINK format
     :param out_vcf: path to write the VCF out to
     """
 
     # initiate Hail with defined driver spec.
-    init_batch()
+    init_batch(driver_cores=8, driver_memory='highmem')
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
@@ -778,7 +806,8 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     matrix = annotate_category_1(matrix)
     matrix = annotate_category_2(matrix, hail_config, new_expression)
     matrix = annotate_category_3(matrix, hail_config)
-    matrix = annotate_category_4(matrix, hail_config)
+    matrix = annotate_category_4(matrix, plink_family_file=plink_file)
+    matrix = annotate_category_support(matrix, hail_config)
 
     # filter to class-annotated only prior to export
     logging.info('Filter variants to leave only classified')
@@ -788,7 +817,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
     # another little repartition after heavy filtering
     matrix = informed_repartition(matrix=matrix)
 
-    # add an additional annotation, if the variant is Category4 only
+    # add an additional annotation, if the variant is Support only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     matrix = matrix.annotate_rows(
@@ -798,18 +827,16 @@ def main(mt_input: str, panelapp_path: str, config_path: str, out_vcf: str):
             ),
             gene_id=matrix.geneIds,
         ),
-        category_4_only=hl.if_else(
+        support_only=hl.if_else(
             (matrix.info.Category1 == 0)
             & (matrix.info.Category2 == 0)
             & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 1),
+            & (matrix.info.Category4 == 'missing')
+            & (matrix.info.CategorySupport == 1),
             ONE_INT,
             MISSING_INT,
         ),
     )
-
-    # write to MT
-    matrix.write(f'{out_vcf}.mt', overwrite=True)
 
     # parse out the compound het details (after pulling gene_id above)
     comp_het_details = extract_comp_het_details(matrix=matrix)
@@ -855,6 +882,9 @@ if __name__ == '__main__':
         help='If a gene list is being used as a comparison ',
     )
     parser.add_argument(
+        '--plink_file', type=str, required=True, help='Family Pedigree in PLINK format'
+    )
+    parser.add_argument(
         '--out_vcf', type=str, required=True, help='VCF path to export results'
     )
     args = parser.parse_args()
@@ -862,5 +892,6 @@ if __name__ == '__main__':
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
         config_path=args.config_path,
+        plink_file=args.plink_file,
         out_vcf=args.out_vcf,
     )

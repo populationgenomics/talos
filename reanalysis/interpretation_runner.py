@@ -237,6 +237,7 @@ def handle_hail_filtering(
     batch: hb.Batch,
     matrix_path: str,
     config: str,
+    plink_file: str,
     prior_job: Optional[hb.batch.job.Job] = None,
 ) -> hb.batch.job.BashJob:
     """
@@ -246,6 +247,7 @@ def handle_hail_filtering(
     :param batch:
     :param matrix_path: path to annotated matrix table
     :param config:
+    :param plink_file:
     :param prior_job:
     :return:
     """
@@ -259,6 +261,7 @@ def handle_hail_filtering(
         f'--mt_input {matrix_path} '
         f'--panelapp_path {PANELAPP_JSON_OUT} '
         f'--config_path {config} '
+        f'--plink_file {plink_file} '
         f'--out_vcf {HAIL_VCF_OUT} '
     )
 
@@ -393,13 +396,17 @@ def file_is_vcf(file_path: str) -> bool:
     help='location of a Gene list for use in analysis',
     required=False,
 )
-@click.option('--pedigree', help='location of a PED file')
+@click.option(
+    '--plink_file',
+    help='location of a plink file for the cohort',
+    required=False,
+)
 def main(
     input_path: str,
     config_json: str,
     panelapp_version: Optional[str],
     panel_genes: Optional[str],
-    pedigree: str,
+    plink_file: str,
 ):
     """
     main method, which runs the full reanalysis process
@@ -408,7 +415,7 @@ def main(
     :param config_json:
     :param panelapp_version:
     :param panel_genes:
-    :param pedigree:
+    :param plink_file:
     """
 
     if not AnyPath(input_path).exists():
@@ -498,6 +505,7 @@ def main(
                 matrix_path=ANNOTATED_MT,
                 config=config_json,
                 prior_job=prior_job,
+                plink_file=plink_file,
             )
 
         # --------------------------------- #
@@ -534,7 +542,7 @@ def main(
         config=config_json,
         comp_het=COMP_HET_JSON,
         reheadered_vcf=reheadered_vcf_in_batch,
-        pedigree=pedigree,
+        pedigree=plink_file,
         prior_job=prior_job,
     )
     batch.run(wait=False)

@@ -15,6 +15,7 @@ participants relative to the MOI described in PanelApp
 import json
 import logging
 from argparse import ArgumentParser
+from collections import defaultdict
 from typing import Any, Dict, List, Union
 
 from cloudpathlib import AnyPath
@@ -29,7 +30,6 @@ from reanalysis.utils import (
     read_json_dict_from_path,
     CompHetDict,
     CustomEncoder,
-    PanelAppDict,
     ReportedVariant,
 )
 
@@ -93,21 +93,6 @@ def set_up_inheritance_filters(
     return moi_dictionary
 
 
-def get_moi_from_panelapp(
-    panelapp_data: PanelAppDict, gene_name: str
-) -> Union[Dict[str, str], None]:
-    """
-
-    :param panelapp_data:
-    :param gene_name:
-    :return:
-    """
-
-    # extract the panel data specific to this gene
-    panel_gene_data = panelapp_data.get(gene_name)
-    return panel_gene_data
-
-
 # pylint: disable=too-many-locals
 def apply_moi_to_variants(
     classified_variant_source: str,
@@ -137,9 +122,12 @@ def apply_moi_to_variants(
     # we could run the MOI tests in parallel
     for contig in canonical_contigs_from_vcf(variant_source):
 
-        # assemble gene: {var1, var2
+        # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
-            contig=contig, variant_source=variant_source, config=config
+            contig=contig,
+            variant_source=variant_source,
+            config=config,
+            panelapp_data=panelapp_data,
         )
 
         # NOTE - if we want details from both sides of a compound het in the
@@ -149,36 +137,29 @@ def apply_moi_to_variants(
 
             # extract the panel data specific to this gene
             # extract once per gene, not once per variant
-            panel_gene_data = get_moi_from_panelapp(panelapp_data, gene)
-            simple_moi = get_simple_moi(panelapp_data[gene].get('moi'))
+            panel_gene_data = panelapp_data.get(gene)
 
             # variant appears to be in a red gene
             if panel_gene_data is None:
                 logging.error(f'How did this gene creep in? {gene}')
                 continue
 
+            simple_moi = get_simple_moi(panel_gene_data.get('moi'))
+
             for variant in variants.values():
 
-                # if the gene isn't 'new' in PanelApp, remove Class2 flag
-                # in future expand to the 'if MOI has changed' logic
-                if variant.category_2 and not panel_gene_data.get('new', False):
-                    variant.category_2 = False
+                # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
+                if variant.category_non_support:
 
-                # we never use a C4-only variant as a principal variant
-                # and we don't consider a variant with no assigned classes
-                #   - no classes shouldn't have reached this point
-                if variant.category_4_only or not variant.is_classified:
-                    continue
-
-                # this variant is a candidate for MOI checks
-                # - find the simplified MOI string
-                # - use to get appropriate MOI model
-                # - run variant, append relevant classification(s) to the results
-                results.extend(
-                    moi_lookup[simple_moi].run(
-                        principal_var=variant, gene_lookup=variants
+                    # this variant is a candidate for MOI checks
+                    # - find the simplified MOI string
+                    # - use to get appropriate MOI model
+                    # - run variant, append relevant classification(s) to the results
+                    results.extend(
+                        moi_lookup[simple_moi].run(
+                            principal_var=variant, gene_lookup=variants
+                        )
                     )
-                )
 
     return results
 
@@ -193,33 +174,29 @@ def clean_initial_results(
     :param result_list:
     """
 
-    clean_results: Dict[str, Dict[str, ReportedVariant]] = {}
+    clean_results = defaultdict(dict)
 
-    for each_instance in result_list:
+    for each_event in result_list:
         support_id = (
-            ','.join(sorted(each_instance.support_vars))
-            if each_instance.support_vars is not None
+            ','.join(sorted(each_event.support_vars))
+            if each_event.support_vars is not None
             else 'Unsupported'
         )
         var_uid = (
-            f'{each_instance.var_data.coords.string_format}__'
-            f'{each_instance.gene}__'
+            f'{each_event.var_data.coords.string_format}__'
+            f'{each_event.gene}__'
             f'{support_id}'
         )
 
-        # create a section for this sample if it doesn't exist
-        if each_instance.sample not in clean_results:
-            clean_results[each_instance.sample] = {}
+        # if this variant was already found, combine the selection 'reasons'
+        if var_uid in clean_results[each_event.sample]:
+            # combine any possible reasons
+            clean_results[each_event.sample][var_uid].reasons.update(each_event.reasons)
 
-        # get an existing object, or use the current one
-        variant_object = clean_results.setdefault(each_instance.sample, {}).setdefault(
-            var_uid, each_instance
-        )
+        # otherwise insert this variant into the dict
+        else:
+            clean_results[each_event.sample][var_uid] = each_event
 
-        # combine any possible reasons, and add
-        clean_results[each_instance.sample][
-            var_uid
-        ].reasons = variant_object.reasons.union(each_instance.reasons)
     return clean_results
 
 
@@ -301,10 +278,9 @@ def main(
     # remove duplicate variants
     cleaned_results = clean_initial_results(results)
 
-    # dump the JSON-results to an AnyPath route
-    # use the custom-encoder to print sets and DataClasses
+    # dump results using the custom-encoder to transform sets & DataClasses
     with AnyPath(out_json).open('w') as fh:
-        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4, default=str)
+        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':
