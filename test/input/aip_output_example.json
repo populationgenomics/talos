@@ -1,0 +1,69 @@
+{
+    "SAMPLE_1": {
+        "7-93105286-T-A__ENSG00000205413__Unsupported": {
+            "sample": "SAMPLE_1",
+            "gene": "ENSG00000205413",
+            "var_data": {
+                "coords": {
+                    "chrom": "7",
+                    "pos": 93105286,
+                    "ref": "T",
+                    "alt": "A"
+                },
+                "category_1": true,
+                "category_2": false,
+                "category_3": false,
+                "category_4": [
+                    "SAMPLE_1"
+                ],
+                "category_support": false,
+                "het_samples": [
+                    "SAMPLE_1"
+                ],
+                "hom_samples": [],
+                "info": {
+                    "ac": 1,
+                    "an": 432,
+                    "exac_af": 0.0,
+                    "gnomad_af": 0.0,
+                    "gnomad_hom": 0,
+                    "splice_ai_delta": 0.0,
+                    "splice_ai_csq": "No_consequence",
+                    "revel": 0.05299999937415123,
+                    "cadd": 22.600000381469727,
+                    "clinvar_sig": "missing",
+                    "clinvar_stars": 0,
+                    "mutationtaster": "N",
+                    "fathmm": ".,T,T",
+                    "metasvm": "T",
+                    "gerp_rs": 4.340000152587891,
+                    "eigen_phred": 3.378999948501587,
+                    "gene_id": "ENSG00000205413"
+                },
+                "transcript_consequences": [
+                    {
+                        "allele": "A",
+                        "consequence": "missense_variant",
+                        "symbol": "SAMD9",
+                        "gene": "ENSG00000205413",
+                        "feature": "ENST00000379958",
+                        "mane_select": "NM_017654.4",
+                        "biotype": "protein_coding",
+                        "exon": "3/3",
+                        "hgvsc": "ENST00000379958.3:c.812A>T",
+                        "hgvsp": "ENSP00000369292.2:p.Tyr271Phe",
+                        "ensp": "ENSP00000369292",
+                        "sift": "deleterious(0.050)",
+                        "polyphen": "benign(0.406)",
+                        "lof": ""
+                    }
+                ]
+            },
+            "reasons": [
+                "Autosomal Dominant"
+            ],
+            "supported": false,
+            "support_vars": null
+        }
+    }
+}

@@ -9,12 +9,12 @@ from enum import Enum
 import logging
 import re
 import sys
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from argparse import ArgumentParser
 import hail as hl
 
-from reanalysis.interpretation_runner import read_json_dict_from_path
+from reanalysis.utils import read_json_from_path
 
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
@@ -101,14 +101,13 @@ class CommonFormatResult:
 CommonDict = Dict[str, List[CommonFormatResult]]
 
 
-def common_format_from_results(aip_results: str) -> CommonDict:
+def common_format_from_results(results_dict: Dict[str, Any]) -> CommonDict:
     """
     Parses the JSON
 
-    :param aip_results:
+    :param results_dict:
     :return:
     """
-    results_dict = read_json_dict_from_path(aip_results)
     sample_dict: CommonDict = defaultdict(list)
 
     # collect all per-sample results into a separate index
@@ -138,7 +137,8 @@ def main(results: str):
     """
 
     # normalise data formats from AIP result file
-    _result_dict = common_format_from_results(aip_results=results)
+    aip_json = read_json_from_path(results)
+    _result_dict = common_format_from_results(results_dict=aip_json)
 
 
 if __name__ == '__main__':
