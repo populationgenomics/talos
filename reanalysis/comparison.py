@@ -218,6 +218,14 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
             f'{", ".join(missing_samples)}'
         )
 
+        # for each of those missing samples, add all variants
+        for miss_sample in missing_samples:
+            discrepancies[miss_sample] = seqr_results[miss_sample]
+            logging.error(
+                f'Sample {miss_sample}: '
+                f'{len(seqr_results[miss_sample])} missing variant(s)'
+            )
+
     for sample in common_samples:
 
         # only finds discrepancies, not Matched results - revise

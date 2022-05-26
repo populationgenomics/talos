@@ -156,6 +156,8 @@ def test_find_missing_different_sample(caplog):
     }
 
     discrep = find_missing(fake_aip, fake_seqr)
-    assert len(discrep) == 0
+    assert len(discrep) == 1
+    assert len(discrep['match']) == 1
     log_records = [rec.message for rec in caplog.records]
     assert 'Samples completely missing from AIP results: match' in log_records
+    assert 'Sample match: 1 missing variant(s)' in log_records
