@@ -2,11 +2,14 @@
 test class for AIP comparisons
 """
 
+
+import logging
 from peddy import Ped
 
 from reanalysis.comparison import (
     common_format_from_results,
     common_format_from_seqr,
+    find_missing,
     find_probands,
     CommonFormatResult,
     Confidence,
@@ -83,3 +86,76 @@ def test_seqr_parser(seqr_csv_output):
     assert sample_variants == [
         CommonFormatResult('17', 10697288, 'G', 'A', [Confidence.POSSIBLE])
     ]
+
+
+def test_find_missing_matched(caplog):
+    """
+    trial the comparison process, check logged results
+    one matching variant, and one bonus AIP result
+    :param caplog:
+    :return:
+    """
+    caplog.set_level(logging.INFO)
+
+    fake_seqr = {'match': [CommonFormatResult('1', 1, 'A', 'C', [Confidence.POSSIBLE])]}
+
+    fake_aip = {
+        'match': [
+            CommonFormatResult('1', 1, 'A', 'C', [Confidence.POSSIBLE]),
+            CommonFormatResult('2', 2, 'A', 'G', [Confidence.POSSIBLE]),
+        ]
+    }
+
+    discrep = find_missing(fake_aip, fake_seqr)
+    assert len(discrep) == 0
+    log_records = [rec.message for rec in caplog.records]
+    assert 'Sample match - 1 matched variant(s)' in log_records
+    assert 'Sample match - 0 missing variant(s)' in log_records
+
+
+def test_find_missing_fails(caplog):
+    """
+    trial the comparison process, check logged results
+    one mis-matching variant
+    :param caplog:
+    :return:
+    """
+    caplog.set_level(logging.INFO)
+
+    fake_seqr = {'match': [CommonFormatResult('1', 1, 'A', 'C', [Confidence.POSSIBLE])]}
+
+    fake_aip = {
+        'match': [
+            CommonFormatResult('2', 2, 'A', 'G', [Confidence.POSSIBLE]),
+        ]
+    }
+
+    discrep = find_missing(fake_aip, fake_seqr)
+    assert len(discrep) == 1
+    assert len(discrep['match']) == 1
+    log_records = [rec.message for rec in caplog.records]
+    assert 'Sample match - 0 matched variant(s)' in log_records
+    assert 'Sample match - 1 missing variant(s)' in log_records
+
+
+def test_find_missing_different_sample(caplog):
+    """
+    trial the comparison process, check logged results
+    no common samples
+    :param caplog:
+    :return:
+    """
+    caplog.set_level(logging.INFO)
+
+    fake_seqr = {'match': [CommonFormatResult('1', 1, 'A', 'C', [Confidence.POSSIBLE])]}
+
+    fake_aip = {
+        'mismatch': [
+            CommonFormatResult('2', 2, 'A', 'G', [Confidence.POSSIBLE]),
+        ]
+    }
+
+    discrep = find_missing(fake_aip, fake_seqr)
+    assert len(discrep) == 0
+    log_records = [rec.message for rec in caplog.records]
+    assert 'Samples completely missing from AIP results: match' in log_records
