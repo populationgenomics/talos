@@ -47,7 +47,7 @@ def main(results: str, seqr: str, ped: str):
 
     # set up a batch
     service_backend = hb.ServiceBackend(
-        billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        billing_project=get_config()['hail']['billing_project'],
         remote_tmpdir=remote_tmpdir(),
     )
     batch = hb.Batch(
