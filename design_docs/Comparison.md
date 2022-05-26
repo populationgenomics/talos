@@ -6,6 +6,22 @@ to understand _why_ expected variants are missing from the final outputs. Where 
 current category/MOI assignment, this can lead us to either de-bugging faulty implementation, or to refine the design of
 parts of the algorithm.
 
+For context there are some key data sources relevant to this comparison:
+
+1. The MatrixTable (MT) containing annotated variants:
+   - This includes all variants from a joint-call, annotated with VEP and other sources. All annotations used in
+   determining whether a variant is categorised initially will be present in this data source..
+2. The Labelled Variant Call Format File (VCF):
+   - A key step of AIP is analysing the variants present in the MT, and labelling those which meet specific criteria
+   (see [relevant documentation](Hail_Filter_and_Label.md)). All variants selected into at least one relevant category
+   are retained, and the process outputs a VCF file. For comparison purposes, we understand that when the process works
+   correctly, all variants present in the MT and missing from the VCF were not selected as important.
+3. The final results JSON:
+   - After variants are selected and labelled, the next stage is Mode of Inheritance (MOI) testing. This takes external
+   sources of gene-specific information, and tests if the labelled variants segregate appropriately within families.
+   Variants present in the Labelled VCF and not in the final results are explained if the MOI for that specific gene did
+   not conform to the expected MOI.
+
 There are 3 key phases of this analysis where variants can 'drop-out', and identification of these will help undestand,
 and potentially resolve any discrepancies against the Truth dataset:
 
