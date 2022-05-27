@@ -470,11 +470,16 @@ def filter_csq_to_set(
     :param consequences:
     :return:
     """
+    print(type(matrix))
+    print(type(consequences))
+    print(matrix.describe())
     csq_mt = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: (matrix.geneIds == x.gene_id)
-                & (hl.len(consequences.intersection(x.consequence_terms)) > 0)
+                lambda x: (
+                    (matrix.geneIds == x.gene_id)
+                    & (hl.len(consequences.intersection(x.consequence_terms)) > 0)
+                )
             )
         )
     )
@@ -708,6 +713,8 @@ def check_mt(
         reasons.extend(test_cat_2(matrix=var_mt, config=config, new_genes=new_genes))
         reasons.extend(test_cat_3(matrix=var_mt, config=config))
         reasons.extend(test_cat_support(matrix=var_mt, config=config))
+
+        print(reasons)
 
         # log all reasons, even if the list is empty
         untiered[sample].append((variant, reasons))
