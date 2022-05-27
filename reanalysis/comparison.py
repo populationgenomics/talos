@@ -665,7 +665,7 @@ def check_mt(
         var_mt = find_variant_in_mt(matrix=matrix, var=variant)
 
         # check if there are remaining variant rows
-        if var_mt.count_rows():
+        if not var_mt.count_rows():
             not_in_mt[sample].append(variant)
             continue
 
@@ -676,7 +676,7 @@ def check_mt(
         reasons: list[str] = apply_variant_qc_methods(var_mt)
 
         var_mt = check_gene_is_green(matrix=var_mt, green_genes=green_genes)
-        if var_mt.count_rows() == 0:
+        if not var_mt.count_rows():
             reasons.append('Gene is not GREEN in PanelApp')
 
         # break early if we find a QC/Green Gene failure
@@ -784,7 +784,7 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
         # read in the MT
         matrix = hl.read_matrix_table(mt)
 
-        untiered, not_present = check_mt(
+        not_present, untiered = check_mt(
             matrix=matrix,
             variants=not_in_vcf,
             config=config_dict,
@@ -793,7 +793,7 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
         )
 
         logging.info(f'Untiered: {untiered}')
-        logging.info(f'Un-Classified: {not_present}')
+        logging.info(f'Missing: {not_present}')
 
 
 if __name__ == '__main__':
