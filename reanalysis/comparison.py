@@ -809,7 +809,7 @@ def main(
     logging.info(f'Missing: {json.dumps(not_present, default=str, indent=4)}')
 
     # write the output to a file as JSON
-    with AnyPath(output).open() as handle:
+    with AnyPath(output).open('w') as handle:
         json.dump(untiered, handle, default=str, indent=4)
 
 
