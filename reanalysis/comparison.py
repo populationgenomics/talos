@@ -13,14 +13,15 @@ from enum import Enum
 import logging
 import re
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from argparse import ArgumentParser
 from cloudpathlib import AnyPath
+from cyvcf2 import VCFReader
 import hail as hl
 from peddy import Ped
 
-from reanalysis.utils import read_json_from_path
+from reanalysis.utils import read_json_from_path, canonical_contigs_from_vcf
 
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
@@ -58,25 +59,37 @@ class CommonFormatResult:
         self, chrom: str, pos: int, ref: str, alt: str, confidence: List[Confidence]
     ):
         """
-
+        always normalise contig - upper case, with no CHR prefix
         :param chrom:
         :param pos:
         :param ref:
         :param alt:
         :param confidence:
         """
-        self.chr: str = chrom
+        self.chr: str = chrom.upper().strip('CHR')
         self.pos: int = pos
         self.ref: str = ref
         self.alt: str = alt
         self.confidence: List[Confidence] = confidence
 
-    def get_cyvcf2_pos(self):
+    def get_cyvcf2_pos(self, contigs: Set[str]) -> Tuple[str, str]:
         """
         get variant coordinates in string format
+        returns the coordinates for a cyvcf2 query, AND
+        the contig name, normalised to the VCF
+        :param contigs: all the contigs present in the VCF
         :return:
         """
-        return f'{self.chr}:{self.pos}-{self.pos}'
+        if self.chr in contigs:
+            string_chr = self.chr
+        else:
+            string_chr = f'chr{self.chr}'
+
+        if string_chr not in contigs:
+            raise Exception(
+                f'Contigs in this VCF not compatible with provided locus: {self}'
+            )
+        return string_chr, f'{string_chr}:{self.pos}-{self.pos}'
 
     def get_hail_pos(self) -> Tuple[hl.Locus, List[str]]:
         """
@@ -278,12 +291,56 @@ def find_probands(pedigree: Ped) -> List[str]:
     return sample_list
 
 
-def main(results: str, seqr: str, ped: str):
+def check_in_vcf(vcf_path: str, variants: CommonDict) -> Tuple[CommonDict, CommonDict]:
+    """
+    check whether each variant is present within the labelled VCF
+    split list of discrepancies into two collections;
+    - in VCF (investigate via MOI)
+    - not in VCF (investigate within MT)
+    :param vcf_path:
+    :param variants:
+    :return:
+    """
+
+    in_vcf: CommonDict = defaultdict(list)
+    not_in_vcf: CommonDict = defaultdict(list)
+
+    # open the VCF for reading (VCF needs to be localised in hail)
+    vcf_handler = VCFReader(vcf_path)
+    vcf_contigs = canonical_contigs_from_vcf(vcf_handler)
+
+    # iterate over all samples, and corresponding lists
+    for sample, var_list in variants.items():
+        for var in var_list:
+
+            # assume missing until confirmed otherwise
+            found = False
+            normalised_chrom, coordinates = var.get_cyvcf2_pos(vcf_contigs)
+            for vcf_var in vcf_handler(coordinates):
+
+                # check position and alleles
+                if (
+                    vcf_var.CHROM == normalised_chrom
+                    and vcf_var.POS == var.pos
+                    and vcf_var.REF == var.ref
+                    and vcf_var.ALT[0] == var.alt
+                ):
+                    found = True
+                    in_vcf[sample].append(var)
+                    break
+            if not found:
+                not_in_vcf[sample].append(var)
+
+    return in_vcf, not_in_vcf
+
+
+def main(results: str, seqr: str, ped: str, vcf: str):
     """
 
     :param results:
     :param seqr:
     :param ped:
+    :param vcf:
     :return:
     """
 
@@ -303,7 +360,21 @@ def main(results: str, seqr: str, ped: str):
     seqr_results = common_format_from_seqr(seqr=seqr, probands=probands)
 
     # compare the results of the two datasets
-    _discrepancies = find_missing(seqr_results=seqr_results, aip_results=result_dict)
+    discrepancies = find_missing(seqr_results=seqr_results, aip_results=result_dict)
+
+    in_vcf, not_in_vcf = check_in_vcf(vcf_path=vcf, variants=discrepancies)
+
+    # some logging content here
+    for sample in not_in_vcf:
+        logging.info(f'Sample: {sample}')
+        for variant in not_in_vcf[sample]:
+            logging.info(f'\tVariant {variant} missing from VCF')
+
+    # some logging content here
+    for sample in in_vcf:
+        logging.info(f'Sample: {sample}')
+        for variant in in_vcf[sample]:
+            logging.info(f'\tVariant {variant} requires MOI checking')
 
 
 if __name__ == '__main__':
@@ -317,5 +388,6 @@ if __name__ == '__main__':
     parser.add_argument('--results')
     parser.add_argument('--seqr')
     parser.add_argument('--ped')
+    parser.add_argument('--vcf')
     args = parser.parse_args()
-    main(results=args.results, seqr=args.seqr, ped=args.ped)
+    main(results=args.results, seqr=args.seqr, ped=args.ped, vcf=args.vcf)
