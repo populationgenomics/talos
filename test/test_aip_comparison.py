@@ -13,6 +13,7 @@ from reanalysis.comparison import (
     common_format_from_seqr,
     find_affected_samples,
     find_missing,
+    find_variant_in_mt,
     CommonFormatResult,
     Confidence,
 )
@@ -234,3 +235,43 @@ def test_missing_in_vcf_variant_pos_mismatch(single_variant_vcf_path):
     assert len(not_in_vcf) == 1
     assert not_in_vcf['SAMPLE'] == [common_var]
     assert len(in_vcf) == 0
+
+
+def test_variant_in_mt(hail_matrix):
+    """
+    check that a variant can be retrieved from a MT
+    :return:
+    """
+    query_variant = CommonFormatResult('1', 1, 'GC', 'G', [])
+    result = find_variant_in_mt(hail_matrix, query_variant)
+    assert result.count_rows() == 1
+
+
+def test_variant_in_mt_allele_mismatch(hail_matrix):
+    """
+    check that a variant can be retrieved from a MT
+    :return:
+    """
+    query_variant = CommonFormatResult('1', 1, 'A', 'T', [])
+    result = find_variant_in_mt(hail_matrix, query_variant)
+    assert result.count_rows() == 0
+
+
+def test_variant_in_mt_wrong_chrom(hail_matrix):
+    """
+    check that a variant can be retrieved from a MT
+    :return:
+    """
+    query_variant = CommonFormatResult('11', 1, 'GC', 'G', [])
+    result = find_variant_in_mt(hail_matrix, query_variant)
+    assert result.count_rows() == 0
+
+
+def test_variant_in_mt_wrong_pos(hail_matrix):
+    """
+    check that a variant can be retrieved from a MT
+    :return:
+    """
+    query_variant = CommonFormatResult('1', 100, 'GC', 'G', [])
+    result = find_variant_in_mt(hail_matrix, query_variant)
+    assert result.count_rows() == 0

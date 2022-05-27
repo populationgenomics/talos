@@ -21,6 +21,8 @@ from cyvcf2 import VCFReader
 import hail as hl
 from peddy import Ped
 
+from cpg_utils.hail_batch import init_batch
+
 from reanalysis.utils import read_json_from_path, canonical_contigs_from_vcf
 
 
@@ -134,6 +136,7 @@ class CommonFormatResult:
 
 
 CommonDict = dict[str, list[CommonFormatResult]]
+ReasonDict = dict[str, list[tuple[CommonFormatResult, list[str]]]]
 
 
 def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
@@ -225,7 +228,7 @@ def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
 def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDict:
     """
     1 way comparison - find all results present in Seqr, and missing from AIP
-    This is a check for False Negatives-
+    This is a check for False Negatives
     :param aip_results:
     :param seqr_results:
     :return:
@@ -336,13 +339,62 @@ def check_in_vcf(vcf_path: str, variants: CommonDict) -> tuple[CommonDict, Commo
     return in_vcf, not_in_vcf
 
 
-def main(results: str, seqr: str, ped: str, vcf: str):
+def find_variant_in_mt(
+    matrix: hl.MatrixTable, var: CommonFormatResult
+) -> hl.MatrixTable:
+    """
+    :param matrix:
+    :param var:
+    :return:
+    """
+    var_locus, var_alleles = var.get_hail_pos()
+    logging.info(f'Querying for {var_locus}: {var_alleles}')
+    return matrix.filter_rows(
+        (matrix.locus == var_locus) & (matrix.alleles == var_alleles)
+    )
+
+
+def check_mt(
+    matrix: hl.MatrixTable, variants: CommonDict
+) -> tuple[CommonDict, ReasonDict]:
+    """
+    for all variants provided, check which are present in the matrix table
+    export two lists; not in the MT, and in the MT
+    :param matrix:
+    :param variants:
+    :return:
+    """
+
+    not_in_mt: CommonDict = defaultdict(list)
+    untiered: ReasonDict = defaultdict(list)
+
+    for sample, variant in [
+        (sam, var) for (sam, var_list) in variants.items() for var in var_list
+    ]:
+        logging.info(f'running check for {sample}, variant {variant}')
+
+        # filter the MT to the required locus
+        var_mt = find_variant_in_mt(matrix=matrix, var=variant)
+
+        # check if there are remaining variant rows
+        if var_mt.count_rows() == 0:
+            not_in_mt[sample].append(variant)
+
+        # if it is found, but was not in the VCF, it was untiered
+        else:
+            untiered[sample].append((variant, []))
+
+    return not_in_mt, untiered
+
+
+def main(results: str, seqr: str, ped: str, vcf: str, mt: str):
     """
 
     :param results:
     :param seqr:
     :param ped:
     :param vcf:
+    :param mt:
     :return:
     """
 
@@ -378,6 +430,17 @@ def main(results: str, seqr: str, ped: str, vcf: str):
         for variant in in_vcf[sample]:
             logging.info(f'\tVariant {variant} requires MOI checking')
 
+    # if there were any variants missing from the VCF, attempt to find them in the MT
+    if len(not_in_vcf) > 0:
+
+        # if we need to check the MT, start Hail Query
+        init_batch(driver_cores=8, driver_memory='highmem')
+
+        # read in the MT
+        matrix = hl.read_matrix_table(mt)
+
+        _untiered, _not_present = check_mt(matrix, not_in_vcf)
+
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -391,5 +454,6 @@ if __name__ == '__main__':
     parser.add_argument('--seqr')
     parser.add_argument('--ped')
     parser.add_argument('--vcf')
+    parser.add_argument('--mt')
     args = parser.parse_args()
-    main(results=args.results, seqr=args.seqr, ped=args.ped, vcf=args.vcf)
+    main(results=args.results, seqr=args.seqr, ped=args.ped, vcf=args.vcf, mt=args.mt)
