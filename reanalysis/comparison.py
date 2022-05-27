@@ -478,10 +478,7 @@ def filter_csq_to_set(
     csq_mt = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: (
-                    (matrix.geneIds == x.gene_id)
-                    & (hl.len(consequences.intersection(x.consequence_terms)) > 0)
-                )
+                lambda x: hl.len(consequences.intersection(x.consequence_terms)) > 0
             )
         )
     )
