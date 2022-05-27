@@ -20,18 +20,6 @@ INPUT = os.path.join(PWD, 'input')
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
-# I don't want a test fixture vcf with 70+ samples, so this is a pure Mock test
-def test_filter_matrix_by_ac_small():
-    """
-    check the ac filter is not triggered
-    """
-    matrix_mock = MagicMock()
-    # below threshold value
-    matrix_mock.count_cols.return_value = 7
-    mt = filter_matrix_by_ac(matrix=matrix_mock)
-    assert mt.filter_rows.call_count == 0
-
-
 def test_filter_matrix_by_ac_large():
     """
     check the ac filter is triggered
