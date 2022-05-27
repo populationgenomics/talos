@@ -40,7 +40,7 @@ COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 @click.option('--mt', help='matrix table of annotated variants')
 @click.option('--config', help='configuration used in AIP')
 @click.option('--panel', help='PanelApp data used in AIP')
-@click.option('--outputs', help='where to write results to')
+@click.option('--output', help='where to write results to')
 def main(
     results: str,
     seqr: str,
