@@ -472,13 +472,12 @@ def filter_csq_to_set(
     :param consequences:
     :return:
     """
-    print(type(matrix))
-    print(type(consequences))
-    print(matrix.describe())
+    # consequence_terms is an array - cast as a set
     csq_mt = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: hl.len(consequences.intersection(x.consequence_terms)) > 0
+                lambda x: hl.len(consequences.intersection(hl.set(x.consequence_terms)))
+                > 0
             )
         )
     )
