@@ -782,13 +782,16 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
         # read in the MT
         matrix = hl.read_matrix_table(mt)
 
-        _untiered, _not_present = check_mt(
+        untiered, not_present = check_mt(
             matrix=matrix,
             variants=not_in_vcf,
             config=config_dict,
             green_genes=green_genes,
             new_genes=new_genes,
         )
+
+        logging.info(f'Untiered: {untiered}')
+        logging.info(f'Un-Classified: {not_present}')
 
 
 if __name__ == '__main__':
