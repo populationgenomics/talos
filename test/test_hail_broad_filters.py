@@ -10,7 +10,7 @@ import hail as hl
 
 from reanalysis.hail_filter_and_label import (
     filter_matrix_by_ac,
-    filter_matrix_by_variant_attributes,
+    filter_to_well_normalised,
 )
 
 
@@ -25,11 +25,10 @@ def test_filter_matrix_by_ac_small():
     """
     check the ac filter is not triggered
     """
-    conf = {'min_samples_to_ac_filter': 10, 'ac_filter_percentage': 10}
     matrix_mock = MagicMock()
     # below threshold value
     matrix_mock.count_cols.return_value = 7
-    mt = filter_matrix_by_ac(matrix_data=matrix_mock, config=conf)
+    mt = filter_matrix_by_ac(matrix=matrix_mock)
     assert mt.filter_rows.call_count == 0
 
 
@@ -37,14 +36,13 @@ def test_filter_matrix_by_ac_large():
     """
     check the ac filter is triggered
     """
-    conf = {'min_samples_to_ac_filter': 1, 'ac_threshold': 0.1}
     # above threshold value
     matrix_mock = MagicMock()
     matrix_mock.count_cols.return_value = 10
     matrix_mock.info.AC = 1
     matrix_mock.info.AN = 1
     matrix_mock.filter_rows.return_value = matrix_mock
-    mt = filter_matrix_by_ac(matrix_data=matrix_mock, config=conf)
+    mt = filter_matrix_by_ac(matrix=matrix_mock)
     assert mt.filter_rows.call_count == 1
 
 
@@ -58,7 +56,7 @@ def test_filter_matrix_by_ac_large():
         (hl.literal({'VQSR'}), hl.literal(['A', 'C']), 0),
     ],
 )
-def test_filter_matrix_by_variant_attributes(filters, alleles, length, hail_matrix):
+def test_filter_to_well_normalised(filters, alleles, length, hail_matrix):
     """
     input 'values' are filters, & alleles
 
@@ -75,5 +73,4 @@ def test_filter_matrix_by_variant_attributes(filters, alleles, length, hail_matr
         alleles=alleles,
     )
 
-    anno_matrix = filter_matrix_by_variant_attributes(anno_matrix)
-    assert anno_matrix.count_rows() == length
+    assert filter_to_well_normalised(anno_matrix).count_rows() == length

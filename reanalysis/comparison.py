@@ -23,6 +23,21 @@ from peddy import Ped
 
 from cpg_utils.hail_batch import init_batch
 
+# some default values aren't required
+# - comparison against missing will always fail?
+from reanalysis.hail_filter_and_label import (
+    extract_annotations,
+    filter_by_ab_ratio,
+    filter_matrix_by_ac,
+    filter_to_population_rare,
+    filter_by_consequence,
+    filter_to_well_normalised,
+    green_and_new_from_panelapp,
+    CONFLICTING,
+    LOFTEE_HC,
+    PATHOGENIC,
+)
+
 from reanalysis.utils import read_json_from_path, canonical_contigs_from_vcf
 
 
@@ -354,14 +369,285 @@ def find_variant_in_mt(
     )
 
 
+def check_gene_is_green(
+    matrix: hl.MatrixTable, green_genes: hl.SetExpression
+) -> hl.MatrixTable:
+    """
+    :param matrix:
+    :param green_genes:
+    :return:
+    """
+
+    return matrix.filter_rows(green_genes.contains(matrix.geneIds))
+
+
+def apply_variant_qc_methods(matrix: hl.MatrixTable) -> List[str]:
+    """
+    applies each base QC method in turn
+    :param matrix:
+    :return:
+    """
+
+    # check variant passes general checks (imported methods)
+    return [
+        failure
+        for method, failure in [
+            (filter_matrix_by_ac, 'QC: AC too high in joint call'),
+            (filter_to_well_normalised, 'QC: Variant not well normalised in MT'),
+            (filter_by_ab_ratio, 'QC: Variant fails AB ratio'),
+        ]
+        if method(matrix).count_rows() == 0
+    ]
+
+
+def test_consequences(
+    matrix: hl.MatrixTable, config: Dict[str, Any]
+) -> Tuple[hl.MatrixTable, List[str]]:
+    """
+    filter out the irrelevant consequences
+    return a fail reason if we filter everything out
+    :param matrix:
+    :param config:
+    :return:
+    """
+    matrix = filter_by_consequence(matrix, config)
+
+    if matrix.count_rows() == 0:
+        return matrix, ['QC: No variants had relevant consequences']
+    return matrix, []
+
+
+def test_population_rare(
+    matrix: hl.MatrixTable, config: Dict[str, Any]
+) -> Tuple[hl.MatrixTable, List[str]]:
+    """
+    filter out all rare variants, return fail reason if everything is removed
+    :param matrix:
+    :param config:
+    :return:
+    """
+    matrix = filter_to_population_rare(matrix, config)
+
+    if matrix.count_rows() == 0:
+        return matrix, ['AF: No variants remain after Rare filter']
+    return matrix, []
+
+
+def test_cat_1(matrix: hl.MatrixTable) -> List[str]:
+    """
+    test against all conditions of category 1
+    pretty primitive approach - apply a filter, count the rows...
+    :param matrix:
+    :return:
+    """
+    reasons = []
+    if matrix.filter_rows(matrix.info.clinvar_stars > 0).count_rows() == 0:
+        reasons.append('C1: ClinVar stars 0 or missing')
+    if (
+        matrix.filter_rows(
+            matrix.info.clinvar_sig.lower().contains(PATHOGENIC)
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C1: Not ClinVar Pathogenic')
+    if (
+        matrix.filter_rows(
+            matrix.info.clinvar_sig.lower().contains(CONFLICTING)
+        ).count_rows()
+        > 0
+    ):
+        reasons.append('C1: ClinVar rating Conflicting')
+    return reasons
+
+
+def filter_csq_to_set(
+    matrix: hl.MatrixTable, consequences: hl.SetExpression
+) -> hl.MatrixTable:
+    """
+    overwrite the transcript consequences by only retaining those which
+    have a consequence term overlapping with the supplied set
+    :param matrix:
+    :param consequences:
+    :return:
+    """
+    csq_mt = matrix.annotate_rows(
+        vep=matrix.vep.annotate(
+            transcript_consequences=matrix.vep.transcript_consequences.filter(
+                lambda x: (matrix.geneIds == x.gene_id)
+                & (hl.len(consequences.intersection(x.consequence_terms)) > 0)
+            )
+        )
+    )
+
+    # return rows which have remaining consequences
+    return csq_mt.filter_rows(hl.len(csq_mt.vep.transcript_consequences) > 0)
+
+
+def test_cadd_revel(matrix: hl.MatrixTable, config: Dict[str, Any]) -> int:
+    """
+    :param matrix:
+    :param config:
+    :return:
+    """
+    return matrix.filter_rows(
+        (matrix.info.cadd > config['in_silico']['cadd'])
+        | (matrix.info.revel > config['in_silico']['revel'])
+    ).count_rows()
+
+
+def test_cat_2(
+    matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
+) -> List[str]:
+    """
+    test against all conditions of category 2
+    :param matrix:
+    :param config:
+    :param new_genes:
+    :return:
+    """
+    reasons = []
+    if matrix.filter_rows(new_genes.contains(matrix.geneIds)).count_rows() == 0:
+        reasons.append('C2: Gene was not New in PanelApp')
+
+    # filter to high CSQ, so count_rows shows whether there were rows left
+    csq_filtered = filter_csq_to_set(
+        matrix=matrix, consequences=hl.set(config.get('critical_csq'))
+    )
+    if not csq_filtered.count_rows():
+        reasons.append('C2: No HIGH CSQs')
+
+        # stop here, nothing left to search
+        return reasons
+
+    if (
+        matrix.filter_rows(
+            matrix.info.clinvar_sig.lower().contains(PATHOGENIC)
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C2: Not ClinVar Pathogenic')
+
+    if test_cadd_revel(matrix, config) == 0:
+        reasons.append('C2: CADD & REVEL not significant')
+
+    return reasons
+
+
+def test_cat_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
+    """
+    test against all conditions of category 3
+    :param matrix:
+    :param config:
+    :return:
+    """
+    reasons: List[str] = []
+
+    # row-dependent annotation check
+    if (
+        matrix.filter_rows(
+            matrix.info.clinvar_sig.lower().contains(PATHOGENIC)
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C3: No ClinVar Pathogenic')
+
+    csq_filtered = filter_csq_to_set(
+        matrix=matrix, consequences=hl.set(config.get('critical_csq'))
+    )
+    # if there are no high consequences, no more rows to test; continue
+    if not csq_filtered.count_rows():
+        reasons.append('C3: No HIGH CSQs')
+        return reasons
+
+    # further filter to rows which aren't ruled out by LOFTEE
+    if (
+        csq_filtered.filter_rows(
+            csq_filtered.vep.transcript_consequences.any(
+                lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))
+            )
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C3: No LOFTEE High Confidence')
+
+    return reasons
+
+
+def test_cat_support(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
+    """
+    test against all conditions of support category
+    :param matrix:
+    :param config:
+    :return:
+    """
+    reasons: List[str] = []
+
+    if test_cadd_revel(matrix, config) == 0:
+        reasons.append('C3: CADD & REVEL not significant')
+    if (
+        matrix.filter_rows(
+            matrix.vep.transcript_consequences.any(
+                lambda x: x.sift_score <= config['in_silico'].get('sift')
+            )
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C3: SIFT not significant')
+
+    if (
+        matrix.filter_rows(
+            matrix.vep.transcript_consequences.any(
+                lambda x: x.polyphen_score >= config['in_silico'].get('polyphen')
+            )
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C3: PolyPhen not significant')
+    if (
+        matrix.filter_rows(
+            (matrix.info.mutationtaster.contains('D'))
+            | (matrix.info.mutationtaster == 'missing')
+        ).count_rows()
+        == 0
+    ):
+        reasons.append('C3: No significant MutationTaster')
+
+    return reasons
+
+
+def prepare_mt(matrix: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    prepare the MT (splitting by gene, moving attributes, etc.)
+    :param matrix:
+    :return:
+    """
+
+    # split out the different gene annotations onto separate rows
+    # but don't remove non-green genes yet
+    matrix = matrix.explode_rows(matrix.geneIds)
+
+    # move annotations, use original method
+    return extract_annotations(matrix)
+
+
 def check_mt(
-    matrix: hl.MatrixTable, variants: CommonDict
+    matrix: hl.MatrixTable,
+    variants: CommonDict,
+    config: Dict[str, Any],
+    green_genes: hl.SetExpression,
+    new_genes: hl.SetExpression,
 ) -> Tuple[CommonDict, ReasonDict]:
     """
     for all variants provided, check which are present in the matrix table
     export two lists; not in the MT, and in the MT
+
+    There's currently a fair bit of repetition here, simplify
+
     :param matrix:
     :param variants:
+    :param config:
+    :param green_genes:
+    :param new_genes:
     :return:
     """
 
@@ -377,17 +663,62 @@ def check_mt(
         var_mt = find_variant_in_mt(matrix=matrix, var=variant)
 
         # check if there are remaining variant rows
-        if var_mt.count_rows() == 0:
+        if var_mt.count_rows():
             not_in_mt[sample].append(variant)
+            continue
 
-        # if it is found, but was not in the VCF, it was untiered
-        else:
-            untiered[sample].append((variant, []))
+        # shift attributes in the MT, and explode on gene ID
+        var_mt = prepare_mt(var_mt)
+
+        # check for any failure reasons in the QC tests
+        reasons: List[str] = apply_variant_qc_methods(var_mt)
+
+        var_mt = check_gene_is_green(matrix=var_mt, green_genes=green_genes)
+        if var_mt.count_rows() == 0:
+            reasons.append('Gene is not GREEN in PanelApp')
+
+        # break early if we find a QC/Green Gene failure
+        if reasons:
+            untiered[sample].append((variant, reasons))
+            continue
+
+        # this splits each gene onto a separate row
+        # then filters the attached consequences accordingly
+        # so all remaining vep.transcript_consequences are relevant
+        # to the row-level geneIds
+        var_mt, csq_reason = test_consequences(var_mt, config)
+        reasons.extend(csq_reason)
+
+        # break early if we find a CSQ failure?
+        if reasons:
+            untiered[sample].append((variant, reasons))
+            continue
+
+        # remove common variants
+        var_mt, af_reason = test_population_rare(var_mt, config)
+
+        # break early if we find a CSQ failure?
+        if af_reason:
+            reasons.extend(af_reason)
+            untiered[sample].append((variant, reasons))
+            continue
+
+        # pass through the classification methods
+        reasons.extend(test_cat_1(matrix=var_mt))
+        reasons.extend(test_cat_2(matrix=var_mt, config=config, new_genes=new_genes))
+        reasons.extend(test_cat_3(matrix=var_mt, config=config))
+        reasons.extend(test_cat_support(matrix=var_mt, config=config))
+
+        # log all reasons, even if the list is empty
+        untiered[sample].append((variant, reasons))
+
+        if not reasons:
+            logging.error(f'No Fail reasons for Sample {sample}, ' f'Variant {variant}')
 
     return not_in_mt, untiered
 
 
-def main(results: str, seqr: str, ped: str, vcf: str, mt: str):
+def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, panel: str):
     """
 
     :param results:
@@ -395,6 +726,8 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str):
     :param ped:
     :param vcf:
     :param mt:
+    :param config:
+    :param panel:
     :return:
     """
 
@@ -415,7 +748,17 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str):
 
     # compare the results of the two datasets
     discrepancies = find_missing(seqr_results=seqr_results, aip_results=result_dict)
+    if not discrepancies:
+        logging.info('All variants resolved!')
+        sys.exit(0)
 
+    config_dict = read_json_from_path(config)
+
+    # load and digest panel data
+    panel_dict = read_json_from_path(panel)
+    green_genes, new_genes = green_and_new_from_panelapp(panel_dict)
+
+    # if we had discrepancies, bin into classified and misc.
     in_vcf, not_in_vcf = check_in_vcf(vcf_path=vcf, variants=discrepancies)
 
     # some logging content here
@@ -439,7 +782,13 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str):
         # read in the MT
         matrix = hl.read_matrix_table(mt)
 
-        _untiered, _not_present = check_mt(matrix, not_in_vcf)
+        _untiered, _not_present = check_mt(
+            matrix=matrix,
+            variants=not_in_vcf,
+            config=config_dict,
+            green_genes=green_genes,
+            new_genes=new_genes,
+        )
 
 
 if __name__ == '__main__':
@@ -455,5 +804,15 @@ if __name__ == '__main__':
     parser.add_argument('--ped')
     parser.add_argument('--vcf')
     parser.add_argument('--mt')
+    parser.add_argument('--config')
+    parser.add_argument('--panel')
     args = parser.parse_args()
-    main(results=args.results, seqr=args.seqr, ped=args.ped, vcf=args.vcf, mt=args.mt)
+    main(
+        results=args.results,
+        seqr=args.seqr,
+        ped=args.ped,
+        vcf=args.vcf,
+        mt=args.mt,
+        config=args.config,
+        panel=args.panel,
+    )
