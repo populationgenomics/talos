@@ -752,7 +752,8 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
         logging.info('All variants resolved!')
         sys.exit(0)
 
-    config_dict = read_json_from_path(config)
+    # retain only the 'filter' index of the config file
+    config_dict = read_json_from_path(config)['filter']
 
     # load and digest panel data
     panel_dict = read_json_from_path(panel)
