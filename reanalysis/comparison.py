@@ -98,7 +98,9 @@ class CommonFormatResult:
         get relevant values for finding a variant row within a MT
         :return:
         """
-        return hl.Locus(contig=f'chr{self.chr}', position=self.pos), [
+        return hl.Locus(
+            contig=f'chr{self.chr}', position=self.pos, reference_genome='GRCh38'
+        ), [
             self.ref,
             self.alt,
         ]

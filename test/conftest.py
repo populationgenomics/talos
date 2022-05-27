@@ -17,7 +17,6 @@ from reanalysis.utils import AbstractVariant, read_json_from_path
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
-# contains a single variant at chr1:1, with minimal info
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
 DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
