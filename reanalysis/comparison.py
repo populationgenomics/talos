@@ -6,7 +6,7 @@ This is designed to recognise flags in the format 'AIP training: Confidence'
 
 See relevant documentation for a description of the algorithm used
 """
-
+import json
 from collections import defaultdict
 from csv import DictReader
 from enum import Enum
@@ -586,7 +586,7 @@ def test_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str
     reasons: list[str] = []
 
     if test_cadd_revel(matrix, config) == 0:
-        reasons.append('C3: CADD & REVEL not significant')
+        reasons.append('Support: CADD & REVEL not significant')
     if (
         matrix.filter_rows(
             matrix.vep.transcript_consequences.any(
@@ -595,7 +595,7 @@ def test_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str
         ).count_rows()
         == 0
     ):
-        reasons.append('C3: SIFT not significant')
+        reasons.append('Support: SIFT not significant')
 
     if (
         matrix.filter_rows(
@@ -605,7 +605,7 @@ def test_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str
         ).count_rows()
         == 0
     ):
-        reasons.append('C3: PolyPhen not significant')
+        reasons.append('Support: PolyPhen not significant')
     if (
         matrix.filter_rows(
             (matrix.info.mutationtaster.contains('D'))
@@ -613,7 +613,7 @@ def test_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str
         ).count_rows()
         == 0
     ):
-        reasons.append('C3: No significant MutationTaster')
+        reasons.append('Support: No significant MutationTaster')
 
     return reasons
 
@@ -723,7 +723,16 @@ def check_mt(
     return not_in_mt, untiered
 
 
-def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, panel: str):
+def main(
+    results: str,
+    seqr: str,
+    ped: str,
+    vcf: str,
+    mt: str,
+    config: str,
+    panel: str,
+    output: str,
+):  # pylint: disable=too-many-locals
     """
 
     :param results:
@@ -733,6 +742,7 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
     :param mt:
     :param config:
     :param panel:
+    :param output:
     :return:
     """
 
@@ -780,24 +790,29 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
             logging.info(f'\tVariant {variant} requires MOI checking')
 
     # if there were any variants missing from the VCF, attempt to find them in the MT
-    if len(not_in_vcf) > 0:
+    if len(not_in_vcf) == 0:
+        sys.exit(0)
 
-        # if we need to check the MT, start Hail Query
-        init_batch(driver_cores=8, driver_memory='highmem')
+    # if we need to check the MT, start Hail Query
+    init_batch(driver_cores=8, driver_memory='highmem')
 
-        # read in the MT
-        matrix = hl.read_matrix_table(mt)
+    # read in the MT
+    matrix = hl.read_matrix_table(mt)
 
-        not_present, untiered = check_mt(
-            matrix=matrix,
-            variants=not_in_vcf,
-            config=config_dict,
-            green_genes=green_genes,
-            new_genes=new_genes,
-        )
+    not_present, untiered = check_mt(
+        matrix=matrix,
+        variants=not_in_vcf,
+        config=config_dict,
+        green_genes=green_genes,
+        new_genes=new_genes,
+    )
 
-        logging.info(f'Untiered: {untiered}')
-        logging.info(f'Missing: {not_present}')
+    logging.info(f'Untiered: {json.dumps(untiered, default=str, indent=4)}')
+    logging.info(f'Missing: {json.dumps(not_present, default=str, indent=4)}')
+
+    # write the output to a file as JSON
+    with AnyPath(output).open() as handle:
+        json.dump(untiered, handle, default=str, indent=4)
 
 
 if __name__ == '__main__':
@@ -815,6 +830,7 @@ if __name__ == '__main__':
     parser.add_argument('--mt')
     parser.add_argument('--config')
     parser.add_argument('--panel')
+    parser.add_argument('--output')
     args = parser.parse_args()
     main(
         results=args.results,
@@ -824,4 +840,5 @@ if __name__ == '__main__':
         mt=args.mt,
         config=args.config,
         panel=args.panel,
+        output=args.output,
     )

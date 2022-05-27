@@ -40,7 +40,17 @@ COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 @click.option('--mt', help='matrix table of annotated variants')
 @click.option('--config', help='configuration used in AIP')
 @click.option('--panel', help='PanelApp data used in AIP')
-def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, panel: str):
+@click.option('--outputs', help='where to write results to')
+def main(
+    results: str,
+    seqr: str,
+    ped: str,
+    vcf: str,
+    mt: str,
+    config: str,
+    panel: str,
+    output: str,
+):
     """
     main method, which runs the AIP comparison
     :param results:
@@ -50,6 +60,7 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
     :param mt:
     :param config:
     :param panel:
+    :param output:
     :return:
     """
 
@@ -102,6 +113,7 @@ def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, pane
         f'--mt {mt} '
         f'--config {config} '
         f'--panel {panel} '
+        f'--output {output} '
     )
     logging.info(f'Results command: {results_command}')
     comp_job.command(results_command)
