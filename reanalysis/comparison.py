@@ -97,7 +97,7 @@ class CommonFormatResult:
         :return:
         """
         up_chrom = chrom.upper()
-        chrom = up_chrom[up_chrom.startswith('CHR') and 3 :]
+        chrom = up_chrom[up_chrom.startswith('CHR') and 3:]
         return chrom
 
     def get_cyvcf2_pos(self, contigs: set[str]) -> tuple[str, str]:
@@ -383,23 +383,54 @@ def check_gene_is_green(
     return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
-def apply_variant_qc_methods(matrix: hl.MatrixTable) -> List[str]:
+def apply_variant_qc_methods(
+    matrix: hl.MatrixTable, config: dict[str, Any]
+) -> list[str]:
     """
     applies each base QC method in turn
     :param matrix:
+    :param config:
     :return:
     """
 
     # check variant passes general checks (imported methods)
-    return [
-        failure
-        for method, failure in [
-            (filter_matrix_by_ac, 'QC: AC too high in joint call'),
-            (filter_to_well_normalised, 'QC: Variant not well normalised in MT'),
-            (filter_by_ab_ratio, 'QC: Variant fails AB ratio'),
-        ]
-        if method(matrix).count_rows() == 0
-    ]
+    reasons: list[str] = []
+
+    # this test is only run conditionally
+    if matrix.count_cols() >= config['min_samples_to_ac_filter']:
+        if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
+            reasons.append('QC: AC too high in joint call')
+
+    if filter_to_well_normalised(matrix).count_rows() == 0:
+        reasons.append('QC: Variant not well normalised in MT')
+
+    return reasons
+
+
+def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
+    """
+
+    :param matrix:
+    :param sample_id:
+    :return:
+    """
+    reasons = []
+
+    # evaluating the AB test has to be sample ID specific
+    ab_filt_mt = filter_by_ab_ratio(matrix)
+    if len(ab_filt_mt.filter_cols(ab_filt_mt.s == sample_id).entries().collect()) == 0:
+        reasons.append('QC: Variant fails AB ratio')
+
+    return reasons
+
+
+# def apply_ab_ratio_test(matrix: hl.MatrixTable, sample: str) -> List[str]:
+#     """
+#
+#     :param matrix:
+#     :param sample:
+#     :return:
+#     """
 
 
 def test_consequences(
@@ -674,7 +705,10 @@ def check_mt(
         var_mt = prepare_mt(var_mt)
 
         # check for any failure reasons in the QC tests
-        reasons: list[str] = apply_variant_qc_methods(var_mt)
+        reasons: list[str] = apply_variant_qc_methods(var_mt, config)
+
+        # check AB ratio specific to this sample
+        reasons.extend(filter_sample_by_ab(var_mt, sample))
 
         var_mt = check_gene_is_green(matrix=var_mt, green_genes=green_genes)
         if not var_mt.count_rows():
