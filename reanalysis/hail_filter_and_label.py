@@ -56,6 +56,17 @@ def filter_matrix_by_ac(
     return matrix.filter_rows(matrix.info.AC / matrix.info.AN < ac_threshold)
 
 
+def filter_on_quality_flags(matrix: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    filter MT to rows with 0 quality filters
+    note: in Hail, PASS is represented as an empty set
+
+    :param matrix:
+    :return:
+    """
+    return matrix.filter_rows(matrix.filters.length() == 0)
+
+
 def filter_to_well_normalised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     :param matrix:
@@ -64,9 +75,7 @@ def filter_to_well_normalised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     # filter out any quality flagged variants
     # normalised variants check (single alt per row, no missing Alt)
     return matrix.filter_rows(
-        (matrix.filters.length() == 0)
-        & (hl.len(matrix.alleles) == 2)
-        & (matrix.alleles[1] != '*')
+        (hl.len(matrix.alleles) == 2) & (matrix.alleles[1] != '*')
     )
 
 
@@ -765,11 +774,15 @@ def main(
         f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
     )
 
+    # filter out quality failures
+    matrix = filter_on_quality_flags(matrix)
+
     # running global quality filter steps
     if matrix.count_cols() >= hail_config['min_samples_to_ac_filter']:
         matrix = filter_matrix_by_ac(
             matrix=matrix, ac_threshold=hail_config['ac_threshold']
         )
+
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 

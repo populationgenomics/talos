@@ -23,14 +23,13 @@ from peddy import Ped
 
 from cpg_utils.hail_batch import init_batch
 
-# some default values aren't required
-# - comparison against missing will always fail?
 from reanalysis.hail_filter_and_label import (
     extract_annotations,
     filter_by_ab_ratio,
-    filter_matrix_by_ac,
-    filter_to_population_rare,
     filter_by_consequence,
+    filter_matrix_by_ac,
+    filter_on_quality_flags,
+    filter_to_population_rare,
     filter_to_well_normalised,
     green_and_new_from_panelapp,
     CONFLICTING,
@@ -381,28 +380,42 @@ def check_gene_is_green(
     return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
-def apply_variant_qc_methods(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
-) -> List[str]:
+def run_ac_check(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
     """
-    applies each base QC method in turn
+    if there are enough samples in the joint call, run the AC test
     :param matrix:
     :param config:
     :return:
     """
 
-    # check variant passes general checks (imported methods)
-    reasons: List[str] = []
-
     # this test is only run conditionally
     if matrix.count_cols() >= config['min_samples_to_ac_filter']:
         if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
-            reasons.append('QC: AC too high in joint call')
+            return ['QC: AC too high in joint call']
+    return []
+
+
+def run_quality_flag_check(matrix: hl.MatrixTable) -> List[str]:
+    """
+    check the variant wasn't flagged by the caller/VQSR
+    :param matrix:
+    :return:
+    """
+    if filter_on_quality_flags(matrix).count_rows() == 0:
+        return ['QC: Variant has assigned quality flags']
+    return []
+
+
+def check_variant_was_normalised(matrix: hl.MatrixTable) -> List[str]:
+    """
+    checks the variant is normalised
+    :param matrix:
+    :return:
+    """
 
     if filter_to_well_normalised(matrix).count_rows() == 0:
-        reasons.append('QC: Variant not well normalised in MT')
-
-    return reasons
+        return ['QC: Variant not well normalised']
+    return []
 
 
 def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> List[str]:
@@ -420,15 +433,6 @@ def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> List[str]:
         reasons.append('QC: Variant fails AB ratio')
 
     return reasons
-
-
-# def apply_ab_ratio_test(matrix: hl.MatrixTable, sample: str) -> List[str]:
-#     """
-#
-#     :param matrix:
-#     :param sample:
-#     :return:
-#     """
 
 
 def test_consequences(
@@ -703,11 +707,13 @@ def check_mt(
         var_mt = prepare_mt(var_mt)
 
         # check for any failure reasons in the QC tests
-        reasons: List[str] = apply_variant_qc_methods(var_mt, config)
+        reasons: List[str] = []
 
-        # check AB ratio specific to this sample
+        # run all methods relating to the quality of the variant call
+        reasons.extend(run_ac_check(var_mt, config))
+        reasons.extend(run_quality_flag_check(var_mt))
+        reasons.extend(check_variant_was_normalised(var_mt))
         reasons.extend(filter_sample_by_ab(var_mt, sample))
-
         var_mt = check_gene_is_green(matrix=var_mt, green_genes=green_genes)
         if not var_mt.count_rows():
             reasons.append('Gene is not GREEN in PanelApp')

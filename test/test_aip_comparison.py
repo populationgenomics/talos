@@ -13,15 +13,16 @@ import hail as hl
 
 from reanalysis.comparison import (
     check_gene_is_green,
-    apply_variant_qc_methods,
+    check_variant_was_normalised,
     check_in_vcf,
     common_format_from_results,
     common_format_from_seqr,
     filter_sample_by_ab,
-    # filter_to_well_normalised,
     find_missing,
     find_probands,
     find_variant_in_mt,
+    run_ac_check,
+    run_quality_flag_check,
     # test_consequences,
     CommonFormatResult,
     Confidence,
@@ -290,31 +291,18 @@ def test_check_gene_is_green(gene, rows, hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'filters,alleles,ac,an,results',
+    'ac,an,results',
     [
-        (
-            None,
-            ['A', 'C'],
-            100,
-            100,
-            ['QC: AC too high in joint call'],
-        )
+        (100, 100, ['QC: AC too high in joint call']),
+        (100, 100, ['QC: AC too high in joint call']),
     ],
 )
 def test_quality_method(
-    filters: List[str],
-    alleles: List[str],
-    ac: int,
-    an: int,
-    results: List[str],
-    hail_matrix: hl.MatrixTable,
+    ac: int, an: int, results: List[str], hail_matrix: hl.MatrixTable
 ):
     """
-    required fields: filters, alleles, AC, AN
-    then some extra fluff about AB (GT and AD)
+    required fields: alleles, AC, AN
 
-    :param filters:
-    :param alleles:
     :param ac:
     :param an:
     :param results:
@@ -322,14 +310,56 @@ def test_quality_method(
     :return:
     """
     config = {'min_samples_to_ac_filter': 0, 'ac_threshold': 0.1}
+    anno_mt = hail_matrix.annotate_rows(info=hail_matrix.info.annotate(AC=ac, AN=an))
+    assert run_ac_check(anno_mt, config) == results
+
+
+@pytest.mark.parametrize(
+    'filters,results',
+    [({'FAILURE'}, ['QC: Variant has assigned quality flags']), (None, [])],
+)
+def test_run_quality_flag_check(
+    filters: List[str],
+    results: List[str],
+    hail_matrix: hl.MatrixTable,
+):
+    """
+    ronseal
+
+    :param filters:
+    :param results:
+    :param hail_matrix:
+    :return:
+    """
     if filters is None:
         filters = hl.empty_set(t=hl.tstr)
-    anno_mt = hail_matrix.annotate_rows(
-        alleles=alleles,
-        filters=filters,
-        info=hail_matrix.info.annotate(AC=ac, AN=an),
-    )
-    assert apply_variant_qc_methods(anno_mt, config) == results
+    anno_mt = hail_matrix.annotate_rows(filters=filters)
+    assert run_quality_flag_check(anno_mt) == results
+
+
+@pytest.mark.parametrize(
+    'alleles,results',
+    [
+        (['A', 'C'], []),
+        (['A', 'C', 'G'], ['QC: Variant not well normalised']),
+        (['A', '*'], ['QC: Variant not well normalised']),
+    ],
+)
+def test_variant_is_normliased(
+    alleles: List[str],
+    results: List[str],
+    hail_matrix: hl.MatrixTable,
+):
+    """
+    ronseal
+
+    :param alleles:
+    :param results:
+    :param hail_matrix:
+    :return:
+    """
+    anno_mt = hail_matrix.annotate_entries(alleles=alleles)
+    assert check_variant_was_normalised(anno_mt) == results
 
 
 @pytest.mark.parametrize(
