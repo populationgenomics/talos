@@ -75,7 +75,8 @@ def fixture_hail_matrix():
     loads the single variant as a matrix table
     :return:
     """
-    return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+    mt = hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+    return mt.key_rows_by(mt.locus)
 
 
 @pytest.fixture(name='single_variant_vcf_path')
