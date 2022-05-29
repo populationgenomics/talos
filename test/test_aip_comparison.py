@@ -23,7 +23,7 @@ from reanalysis.comparison import (
     find_variant_in_mt,
     run_ac_check,
     run_quality_flag_check,
-    # test_consequences,
+    check_consequences,
     CommonFormatResult,
     Confidence,
 )
@@ -375,7 +375,7 @@ def test_variant_is_normliased(
     :param hail_matrix:
     :return:
     """
-    anno_mt = hail_matrix.annotate_entries(alleles=alleles)
+    anno_mt = hail_matrix.annotate_rows(alleles=alleles)
     assert check_variant_was_normalised(anno_mt) == results
 
 
@@ -400,3 +400,39 @@ def test_filter_sample_by_ab(gt, ad, result, hail_matrix):
 
     anno_mt = hail_matrix.annotate_entries(AD=hl.array(ad), GT=hl.parse_call(gt))
     assert filter_sample_by_ab(anno_mt, 'SAMPLE') == result
+
+
+@pytest.mark.parametrize(
+    'gene_ids,gene_id,consequences,biotype,mane_select,length',
+    [
+        ('green', 'green', 'frameshift_variant', 'protein_coding', '', 0),
+        ('green', 'green', 'frameshift_variant', '', 'NM_relevant', 0),
+        ('mis', 'match', 'frameshift_variant', 'protein_coding', 'NM_relevant', 1),
+        ('green', 'green', 'frameshift_variant', '', '', 1),
+    ],
+)
+def test_consequence_filter(
+    gene_ids, gene_id, consequences, biotype, mane_select, length, hail_matrix
+):
+    """
+    :param hail_matrix:
+    :return:
+    """
+    conf = {'useless_csq': ['synonymous']}
+    anno_matrix = hail_matrix.annotate_rows(
+        geneIds=gene_ids,
+        vep=hl.Struct(
+            transcript_consequences=hl.array(
+                [
+                    hl.Struct(
+                        consequence_terms=hl.set([consequences]),
+                        biotype=biotype,
+                        gene_id=gene_id,
+                        mane_select=mane_select,
+                    )
+                ]
+            ),
+        ),
+    )
+    _csq_filtered_matrix, assigned_tags = check_consequences(anno_matrix, conf)
+    assert len(assigned_tags) == length
