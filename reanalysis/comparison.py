@@ -435,7 +435,7 @@ def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> List[str]:
     return reasons
 
 
-def test_consequences(
+def check_consequences(
     matrix: hl.MatrixTable, config: Dict[str, Any]
 ) -> Tuple[hl.MatrixTable, List[str]]:
     """
@@ -452,7 +452,7 @@ def test_consequences(
     return matrix, []
 
 
-def test_population_rare(
+def check_population_rare(
     matrix: hl.MatrixTable, config: Dict[str, Any]
 ) -> Tuple[hl.MatrixTable, List[str]]:
     """
@@ -468,7 +468,7 @@ def test_population_rare(
     return matrix, []
 
 
-def test_cat_1(matrix: hl.MatrixTable) -> List[str]:
+def check_cat_1(matrix: hl.MatrixTable) -> List[str]:
     """
     test against all conditions of category 1
     pretty primitive approach - apply a filter, count the rows...
@@ -519,7 +519,7 @@ def filter_csq_to_set(
     return csq_mt.filter_rows(hl.len(csq_mt.vep.transcript_consequences) > 0)
 
 
-def test_cadd_revel(matrix: hl.MatrixTable, config: Dict[str, Any]) -> int:
+def check_cadd_revel(matrix: hl.MatrixTable, config: Dict[str, Any]) -> int:
     """
     :param matrix:
     :param config:
@@ -531,7 +531,7 @@ def test_cadd_revel(matrix: hl.MatrixTable, config: Dict[str, Any]) -> int:
     ).count_rows()
 
 
-def test_cat_2(
+def check_cat_2(
     matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
 ) -> List[str]:
     """
@@ -563,13 +563,13 @@ def test_cat_2(
     ):
         reasons.append('C2: Not ClinVar Pathogenic')
 
-    if test_cadd_revel(matrix, config) == 0:
+    if check_cadd_revel(matrix, config) == 0:
         reasons.append('C2: CADD & REVEL not significant')
 
     return reasons
 
 
-def test_cat_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
+def check_cat_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
     """
     test against all conditions of category 3
     :param matrix:
@@ -609,7 +609,7 @@ def test_cat_3(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
     return reasons
 
 
-def test_cat_support(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
+def check_cat_support(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str]:
     """
     test against all conditions of support category
     :param matrix:
@@ -618,7 +618,7 @@ def test_cat_support(matrix: hl.MatrixTable, config: Dict[str, Any]) -> List[str
     """
     reasons: List[str] = []
 
-    if test_cadd_revel(matrix, config) == 0:
+    if check_cadd_revel(matrix, config) == 0:
         reasons.append('Support: CADD & REVEL not significant')
     if (
         matrix.filter_rows(
@@ -727,7 +727,7 @@ def check_mt(
         # then filters the attached consequences accordingly
         # so all remaining vep.transcript_consequences are relevant
         # to the row-level geneIds
-        var_mt, csq_reason = test_consequences(var_mt, config)
+        var_mt, csq_reason = check_consequences(var_mt, config)
         reasons.extend(csq_reason)
 
         # break early if we find a CSQ failure?
@@ -736,7 +736,7 @@ def check_mt(
             continue
 
         # remove common variants
-        var_mt, af_reason = test_population_rare(var_mt, config)
+        var_mt, af_reason = check_population_rare(var_mt, config)
 
         # break early if we find a CSQ failure?
         if af_reason:
@@ -745,10 +745,10 @@ def check_mt(
             continue
 
         # pass through the classification methods
-        reasons.extend(test_cat_1(matrix=var_mt))
-        reasons.extend(test_cat_2(matrix=var_mt, config=config, new_genes=new_genes))
-        reasons.extend(test_cat_3(matrix=var_mt, config=config))
-        reasons.extend(test_cat_support(matrix=var_mt, config=config))
+        reasons.extend(check_cat_1(matrix=var_mt))
+        reasons.extend(check_cat_2(matrix=var_mt, config=config, new_genes=new_genes))
+        reasons.extend(check_cat_3(matrix=var_mt, config=config))
+        reasons.extend(check_cat_support(matrix=var_mt, config=config))
 
         print(reasons)
 
