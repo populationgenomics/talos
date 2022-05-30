@@ -361,40 +361,15 @@ def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
     assert matrix.count_rows() == length
 
 
-@pytest.mark.parametrize(
-    'gene_ids,gene_id,consequences,biotype,mane_select,length',
-    [
-        ('green', 'green', 'frameshift_variant', 'protein_coding', '', 1),
-        ('green', 'green', 'frameshift_variant', '', 'NM_relevant', 1),
-        ('mis', 'match', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
-        ('green', 'green', 'frameshift_variant', '', '', 0),
-    ],
-)
-def test_filter_by_consequence(
-    gene_ids, gene_id, consequences, biotype, mane_select, length, hail_matrix
-):
+def test_filter_by_consequence(csq_matrix):
     """
-    :param hail_matrix:
+    :param csq_matrix:
     :return:
     """
     conf = {'useless_csq': ['synonymous']}
-    anno_matrix = hail_matrix.annotate_rows(
-        geneIds=gene_ids,
-        vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [
-                    hl.Struct(
-                        consequence_terms=hl.set([consequences]),
-                        biotype=biotype,
-                        gene_id=gene_id,
-                        mane_select=mane_select,
-                    )
-                ]
-            ),
-        ),
-    )
+    anno_matrix, row_count = csq_matrix
     matrix = filter_by_consequence(anno_matrix, conf)
-    assert matrix.count_rows() == length
+    assert matrix.count_rows() == row_count
 
 
 @pytest.mark.parametrize(

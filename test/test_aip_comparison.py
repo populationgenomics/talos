@@ -402,37 +402,12 @@ def test_filter_sample_by_ab(gt, ad, result, hail_matrix):
     assert filter_sample_by_ab(anno_mt, 'SAMPLE') == result
 
 
-@pytest.mark.parametrize(
-    'gene_ids,gene_id,consequences,biotype,mane_select,length',
-    [
-        ('green', 'green', 'frameshift_variant', 'protein_coding', '', 0),
-        ('green', 'green', 'frameshift_variant', '', 'NM_relevant', 0),
-        ('mis', 'match', 'frameshift_variant', 'protein_coding', 'NM_relevant', 1),
-        ('green', 'green', 'frameshift_variant', '', '', 1),
-    ],
-)
-def test_consequence_filter(
-    gene_ids, gene_id, consequences, biotype, mane_select, length, hail_matrix
-):
+def test_consequence_filter(csq_matrix):
     """
-    :param hail_matrix:
+    :param csq_matrix:
     :return:
     """
     conf = {'useless_csq': ['synonymous']}
-    anno_matrix = hail_matrix.annotate_rows(
-        geneIds=gene_ids,
-        vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [
-                    hl.Struct(
-                        consequence_terms=hl.set([consequences]),
-                        biotype=biotype,
-                        gene_id=gene_id,
-                        mane_select=mane_select,
-                    )
-                ]
-            ),
-        ),
-    )
+    anno_matrix, row_count = csq_matrix
     _csq_filtered_matrix, assigned_tags = check_consequences(anno_matrix, conf)
-    assert len(assigned_tags) == length
+    assert len(assigned_tags) == (1 - row_count)
