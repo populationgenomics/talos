@@ -69,7 +69,7 @@ def fixture_hail_cleanup():
         os.remove(os.path.join(parent_dir, filename))
 
 
-@pytest.fixture(name='hail_matrix')
+@pytest.fixture(name='hail_matrix', scope='session')
 def fixture_hail_matrix():
     """
     loads the single variant as a matrix table
