@@ -750,8 +750,6 @@ def check_mt(
         reasons.extend(check_cat_3(matrix=var_mt, config=config))
         reasons.extend(check_cat_support(matrix=var_mt, config=config))
 
-        print(reasons)
-
         # log all reasons, even if the list is empty
         untiered[sample].append((variant, reasons))
 
