@@ -3,7 +3,6 @@ A home for common test fixtures
 """
 
 
-import json
 import os
 import pytest
 import hail as hl
@@ -12,7 +11,7 @@ from hail.utils.java import FatalError
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
-from reanalysis.utils import AbstractVariant
+from reanalysis.utils import AbstractVariant, read_json_from_path
 
 
 PWD = os.path.dirname(__file__)
@@ -26,6 +25,7 @@ DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
 LABELLED = os.path.join(INPUT, '1_labelled_variant.vcf.bgz')
 TEST_CONF = os.path.join(INPUT, 'test_conf.json')
 PED_FILE = os.path.join(INPUT, 'pedfile.ped')
+AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
@@ -94,10 +94,7 @@ def fixture_trio_abs_variant():
     Cat. 3, and Cat. 4 for PROBAND only
     :return:
     """
-
-    with open(TEST_CONF, 'r', encoding='utf-8') as handle:
-        conf_json = json.load(handle)
-
+    conf_json = read_json_from_path(TEST_CONF)
     vcf_reader = VCFReader(LABELLED)
     cyvcf_var = next(vcf_reader)
 
@@ -120,3 +117,13 @@ def fixture_hail_matrix_comp_het():
     :return:
     """
     return hl.import_vcf(HAIL_MULTI_SAM, reference_genome='GRCh38')
+
+
+@pytest.fixture(name='output_json', scope='session')
+def fixture_output_json():
+    """
+    loads and returns the JSON of the output
+    :return:
+    """
+
+    return read_json_from_path(AIP_OUTPUT)
