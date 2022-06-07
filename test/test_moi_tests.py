@@ -173,7 +173,7 @@ def test_moi_runner(moi_string: str, filters: List[str], peddy_ped):
     # the imported (uninstantiated) objects don't have __class__
     # and the instantiated objects don't have a __name__
     for filter1, filter2 in zip(test_runner.filter_list, filters):
-        assert str(filter1.__class__).__contains__(filter2)
+        assert filter2 in str(filter1.__class__)
 
 
 def test_dominant_autosomal_passes(peddy_ped):
