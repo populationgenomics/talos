@@ -6,5 +6,6 @@
   },
   "ul-indent": false,
   "no-multiple-blanks": false,
-  "MD024": false
+  "MD024": false,
+  "MD049": false
 }

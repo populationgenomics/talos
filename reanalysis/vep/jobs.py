@@ -18,6 +18,7 @@ from cpg_utils.hail_batch import (
     reference_path,
     authenticate_cloud_credentials_in_job,
     query_command,
+    fasta_res_group,
 )
 
 from . import query
@@ -61,7 +62,7 @@ def vep_jobs(  # pylint: disable=too-many-arguments
     jobs: List[Job] = []
     intervals_j, intervals = get_intervals(
         b=b,
-        cache_bucket=reference_path('intervals')
+        cache_bucket=reference_path('intervals_prefix')
         / sequencing_type.value
         / f'{scatter_count}intervals',
         sequencing_type=sequencing_type,
@@ -149,7 +150,6 @@ def get_intervals(
     cache_bucket: Optional[CloudPath] = None,
     sequencing_type: SequencingType = SequencingType.GENOME,
     job_attrs: Optional[dict] = None,
-    samtools_image: str = 'picard_samtools:v0',
 ) -> Tuple[Job, List[hb.Resource]]:
     """
     Add a job that split genome into partitions for variant calling parallelisation.
@@ -184,13 +184,10 @@ def get_intervals(
 
     # Taking intervals file for the sequencing_type.
     intervals_path = intervals_path or reference_path(
-        {
-            SequencingType.GENOME: 'hg38/v0/wgs_calling_regions.hg38.interval_list',
-            SequencingType.EXOME: 'hg38/v0/exome_calling_regions.v1.interval_list',
-        }[sequencing_type]
+        f'broad/{sequencing_type.value}_calling_interval_lists',
     )
 
-    j.image(image_path(samtools_image))
+    j.image(image_path('picard'))
     j.memory('16Gi')
     j.storage('50G')
     j.cpu(4)
@@ -244,7 +241,7 @@ def subset_vcf(
     """
     job_name = 'VEP: subset VCF'
     j = b.new_job(job_name, job_attrs)
-    j.image(image_path('gatk:4.2.6.1'))
+    j.image(image_path('gatk'))
     j.memory('16Gi')
     j.storage('50G')
     j.cpu(2)
@@ -252,18 +249,10 @@ def subset_vcf(
     j.declare_resource_group(
         output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
     )
-    fasta_path = reference_path('hg38/v0/Homo_sapiens_assembly38.fasta')
-    fasta_resource = b.read_input_group(
-        **{
-            'base': str(fasta_path),
-            'fai': str(fasta_path) + '.fai',
-            'dict': str(fasta_path.with_suffix('.dict')),
-        }
-    )
 
     cmd = f"""
     gatk SelectVariants \\
-    -R {fasta_resource.base} \\
+    -R {fasta_res_group(b).base} \\
     -V {vcf['vcf.gz']} \\
     -L {interval} \\
     -O /io/batch/tmp.vcf.gz
@@ -294,7 +283,7 @@ def gather_vcfs(
     """
     job_name = f'Gather {len(input_vcfs)} {"site-only " if site_only else ""}VCFs'
     j = b.new_job(job_name, job_attrs)
-    j.image(image_path('gatk:4.2.6.1'))
+    j.image(image_path('gatk'))
     if out_vcf_path and out_vcf_path.exists() and not overwrite:
         j.name += ' [reuse]'
         return j, b.read_input_group(
@@ -378,7 +367,7 @@ def vep_one(
         j.name += ' [reuse]'
         return j
 
-    j.image(image_path('vep:105'))
+    j.image(image_path('vep'))
     j.storage('50G')
     j.cpu(16)
 
@@ -394,7 +383,7 @@ def vep_one(
         output = j.output
 
     # gcsfuse works only with the root bucket, without prefix:
-    base_bucket_name = reference_path('vep/GRCh38').drive
+    base_bucket_name = reference_path('vep_mount').drive
     data_mount = f'/{base_bucket_name}'
     j.cloudfuse(base_bucket_name, str(data_mount))
     vep_dir = f'{data_mount}/vep/GRCh38'
