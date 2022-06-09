@@ -17,7 +17,7 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from itertools import permutations
 import json
 import logging
@@ -43,7 +43,7 @@ PATHOGENIC = hl.str('pathogenic')
 
 
 def filter_matrix_by_ac(
-    matrix: hl.MatrixTable, ac_threshold: Optional[float] = 0.1
+    matrix: hl.MatrixTable, ac_threshold: float | 0.1
 ) -> hl.MatrixTable:
     """
     if called, this method will remove all variants in the joint call where the
@@ -124,7 +124,7 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
 
 def annotate_category_2(
-    matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
+    matrix: hl.MatrixTable, config: dict[str, Any], new_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
@@ -174,7 +174,7 @@ def annotate_category_2(
 
 
 def annotate_category_3(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     applies the Category3 flag where appropriate
@@ -273,7 +273,7 @@ def annotate_category_4(
 
 
 def annotate_category_support(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     Background class based on in silico annotations
@@ -355,7 +355,7 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
 
 def extract_comp_het_details(
     matrix: hl.MatrixTable,
-) -> Dict[str, Dict[str, Dict[str, List[str]]]]:
+) -> dict[str, dict[str, dict[str, list[str]]]]:
     """
     takes the matrix table, and finds compound-hets per sample
     based on the gene name only
@@ -417,7 +417,7 @@ def extract_comp_het_details(
 
 
 def filter_to_population_rare(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad & exac
@@ -467,7 +467,7 @@ def filter_to_green_genes_and_split(
 
 
 def filter_by_consequence(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     - reduce the per-row transcript consequences to those specific to the geneIds
@@ -683,7 +683,7 @@ def write_matrix_to_vcf(matrix: hl.MatrixTable, output_path: str):
 
 
 def green_and_new_from_panelapp(
-    panel_data: Dict[str, Dict[str, str]]
+    panel_data: dict[str, dict[str, str]]
 ) -> tuple[hl.SetExpression, hl.SetExpression]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes

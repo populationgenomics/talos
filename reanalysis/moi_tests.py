@@ -23,7 +23,7 @@ a singleton
 
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from peddy.peddy import Ped
 
@@ -44,14 +44,14 @@ INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom', 'exac_ac_hom'}
 
 def check_for_second_hit(
     first_variant: str, comp_hets: CompHetDict, sample: str, gene: str
-) -> List[str]:
+) -> list[str]:
     """
     checks for a second hit partner in this gene
 
     DOES NOT CURRENTLY CHECK VARIANT PHASE
     DOES NOT CURRENTLY CHECK PARENT GENOTYPES
 
-    Example formatting of the comp-het Dict
+    Example formatting of the comp-het dict
     {
         "SampleID": {
             "GeneID": {
@@ -100,7 +100,7 @@ class MOIRunner:
         self,
         pedigree: Ped,
         target_moi: str,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         comp_het_lookup: CompHetDict,
     ):
         """
@@ -154,8 +154,8 @@ class MOIRunner:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
     def run(
-        self, principal_var, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
         run method - triggers each relevant inheritance model
         :param principal_var: the variant we are focused on
@@ -185,7 +185,7 @@ class BaseMoi:
     def __init__(
         self,
         pedigree: Ped,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         applied_moi: str,
         comp_het: Optional[CompHetDict],
     ):
@@ -201,8 +201,8 @@ class BaseMoi:
 
     @abstractmethod
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
         run all applicable inheritance patterns and finds good fits
         :param principal_var:
@@ -213,7 +213,7 @@ class BaseMoi:
     def check_familial_inheritance(
         self,
         sample_id: str,
-        called_variants: Set[str],
+        called_variants: set[str],
         complete_penetrance: bool = True,
     ) -> bool:
         """
@@ -261,8 +261,8 @@ class BaseMoi:
     def check_familial_comp_het(
         self,
         sample_id: str,
-        called_variants_1: Set[str],
-        called_variants_2: Set[str],
+        called_variants_1: set[str],
+        called_variants_2: set[str],
         complete_penetrance: bool = True,
     ) -> bool:
         """
@@ -318,7 +318,7 @@ class DominantAutosomal(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         applied_moi: str = 'Autosomal Dominant',
     ):
         """
@@ -335,8 +335,8 @@ class DominantAutosomal(BaseMoi):
         )
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
         simplest
         if variant is present and sufficiently rare, we take it
@@ -401,7 +401,7 @@ class RecessiveAutosomal(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'Autosomal Recessive',
     ):
@@ -412,8 +412,8 @@ class RecessiveAutosomal(BaseMoi):
         )
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
         valid if present as hom, or compound het
         counts as being phased if a compound het is split between parents
@@ -519,7 +519,7 @@ class XDominant(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         applied_moi: str = 'X_Dominant',
     ):
         """
@@ -536,8 +536,8 @@ class XDominant(BaseMoi):
         )
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
         if variant is present and sufficiently rare, we take it
 
@@ -607,7 +607,7 @@ class XRecessive(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         comp_het: CompHetDict,
         applied_moi: str = 'X_Recessive',
     ):
@@ -628,8 +628,8 @@ class XRecessive(BaseMoi):
         )
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
 
         :param principal_var:
@@ -769,7 +769,7 @@ class YHemi(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         applied_moi: str = 'Y_Hemi',
     ):
         """
@@ -786,8 +786,8 @@ class YHemi(BaseMoi):
         )
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: Dict[str, AbstractVariant]
-    ) -> List[ReportedVariant]:
+        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+    ) -> list[ReportedVariant]:
         """
         flag calls on Y which are Hom (maybe ok?) or female (bit weird)
         :param principal_var:

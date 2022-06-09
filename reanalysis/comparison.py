@@ -844,11 +844,14 @@ def main(
         green_genes=green_genes,
         new_genes=new_genes,
     )
+    if untiered:
+        logging.info(f'Untiered: {json.dumps(untiered, default=str, indent=4)}')
 
-    logging.info(f'Untiered: {json.dumps(untiered, default=str, indent=4)}')
-    logging.info(f'Missing: {json.dumps(not_present, default=str, indent=4)}')
+    if not_present:
+        logging.info(f'Missing: {json.dumps(not_present, default=str, indent=4)}')
 
     # write the output to a file as JSON
+    logging.info(f'Writing output JSON to {output}')
     with AnyPath(output).open('w') as handle:
         json.dump(untiered, handle, default=str, indent=4)
 

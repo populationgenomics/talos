@@ -5,7 +5,7 @@ Methods for taking the final output and generating static report content
 import logging
 
 from argparse import ArgumentParser
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 from cloudpathlib import AnyPath
 import pandas as pd
@@ -34,7 +34,7 @@ COLORS = {
 }
 
 
-def numerical_categories(var_data: Dict[str, Any], sample: str) -> List[str]:
+def numerical_categories(var_data: dict[str, Any], sample: str) -> list[str]:
     """
     get a list of strings representing the categories present on this variant
     :param var_data:
@@ -52,7 +52,7 @@ def numerical_categories(var_data: Dict[str, Any], sample: str) -> List[str]:
     return strings
 
 
-def color_csq(all_csq: Set[str], mane_csq: Set[str]) -> str:
+def color_csq(all_csq: set[str], mane_csq: set[str]) -> str:
     """
     takes the collection of all consequences, and MANE csqs
     if a CSQ occurs on MANE, write in bold,
@@ -77,7 +77,7 @@ def color_csq(all_csq: Set[str], mane_csq: Set[str]) -> str:
     return ', '.join(csq_strings)
 
 
-def get_csq_details(variant: Dict[str, Any]) -> Tuple[str, str]:
+def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
     """
     populates a single string of all relevant consequences
     UPDATE - take MANE into account
@@ -155,7 +155,7 @@ class HTMLBuilder:
 
     def get_summary_stats(
         self,
-    ) -> Tuple[str, List[str]]:  # pylint: disable=too-many-locals
+    ) -> tuple[str, list[str]]:  # pylint: disable=too-many-locals
         """
         run the numbers across all variant categories
         :return:
@@ -376,7 +376,7 @@ class HTMLBuilder:
 
         return sample_tables, category_2_genes
 
-    def category_2_table(self, category_2_variants: Set[str]) -> str:
+    def category_2_table(self, category_2_variants: set[str]) -> str:
         """
         takes all Cat. 2 variants, and documents relevant genes
         cat. 2 is now 'new genes', not 'new, or altered MOI'
