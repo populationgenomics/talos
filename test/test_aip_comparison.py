@@ -39,6 +39,23 @@ def test_parse_aip(output_json):
     assert test_variant == parsed_var
 
 
+def test_common_format_result():
+    """
+    test on the generic object
+    :return:
+    """
+    common = CommonFormatResult('7', 93105286, 'T', 'A', [Confidence.EXPECTED])
+
+    # check that the normalisation works ok
+    assert (
+        common
+        == CommonFormatResult('chr7', 93105286, 'T', 'A', [Confidence.EXPECTED])
+        == CommonFormatResult('chR7', 93105286, 'T', 'A', [Confidence.EXPECTED])
+    )
+
+    assert common.normalise_chrom('CHRchr7') == 'CHR7'
+
+
 def test_affected_finder(trio_ped):
     """
     tests function to find probands from a Ped file
