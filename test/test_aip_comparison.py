@@ -34,7 +34,7 @@ def test_parse_aip(output_json):
     assert test_variant == parsed_var
 
 
-def test_proband_finder(trio_ped):
+def test_affected_finder(trio_ped):
     """
     tests function to find probands from a Ped file
     this trio contains PROBAND, MOTHER, and FATHER.
@@ -49,7 +49,7 @@ def test_proband_finder(trio_ped):
     assert samples == ['PROBAND']
 
 
-def test_proband_finder_with_sibling(quad_ped):
+def test_affected_finder_with_sibling(quad_ped):
     """
     tests function to find probands from a Ped file
     contains the same trio as above ^^ plus an unaffected sibling
