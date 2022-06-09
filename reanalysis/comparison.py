@@ -198,6 +198,67 @@ def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
     return sample_dict
 
 
+def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDict:
+    """
+    1 way comparison - find all results present in Seqr, and missing from AIP
+    This is a check for False Negatives-
+    :param aip_results:
+    :param seqr_results:
+    :return:
+    """
+    discrepancies: CommonDict = defaultdict(list)
+
+    # get all common samples between the two data sets
+    seqr_samples = set(seqr_results.keys())
+    aip_samples = set(aip_results.keys())
+
+    common_samples = aip_samples.intersection(seqr_samples)
+
+    missing_samples = seqr_samples - common_samples
+    if len(missing_samples) > 0:
+        logging.error(
+            f'Samples completely missing from AIP results: '
+            f'{", ".join(missing_samples)}'
+        )
+
+        # for each of those missing samples, add all variants
+        for miss_sample in missing_samples:
+            discrepancies[miss_sample] = seqr_results[miss_sample]
+            logging.error(
+                f'Sample {miss_sample}: '
+                f'{len(seqr_results[miss_sample])} missing variant(s)'
+            )
+
+    for sample in common_samples:
+
+        # only finds discrepancies, not Matched results - revise
+        sample_discrepancies = [
+            variant
+            for variant in seqr_results[sample]
+            if variant not in aip_results[sample]
+        ]
+
+        # only populate the index if missing variants found
+        if sample_discrepancies:
+            discrepancies[sample] = sample_discrepancies
+
+        # log the number of matches
+        matched = len(
+            [
+                variant
+                for variant in seqr_results[sample]
+                if variant in aip_results[sample]
+            ]
+        )
+
+        logging.info(f'Sample {sample} - {matched} matched variant(s)')
+        logging.info(
+            f'Sample {sample} - {len(sample_discrepancies)} missing variant(s)'
+        )
+
+    return discrepancies
+
+
 def find_affected_samples(pedigree: Ped) -> list[str]:
     """
     finds all affected members of the provided pedigree
@@ -219,7 +280,7 @@ def main(results: str, seqr: str, ped: str):
 
     # normalise data formats from AIP result file
     aip_json = read_json_from_path(results)
-    _result_dict = common_format_from_results(results_dict=aip_json)
+    result_dict = common_format_from_results(results_dict=aip_json)
 
     # Peddy can't read cloud paths, but we want the parsed Pedigree
     with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
@@ -230,7 +291,10 @@ def main(results: str, seqr: str, ped: str):
     affected = find_affected_samples(pedigree_digest)
 
     # parse the Seqr results table, specifically targeting variants in probands
-    _seqr_results = common_format_from_seqr(seqr=seqr, affected=affected)
+    seqr_results = common_format_from_seqr(seqr=seqr, affected=affected)
+
+    # compare the results of the two datasets
+    _discrepancies = find_missing(seqr_results=seqr_results, aip_results=result_dict)
 
 
 if __name__ == '__main__':
