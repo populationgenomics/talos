@@ -6,11 +6,11 @@
 #    positive, see: https://github.com/PyCQA/pylint/issues/3876)
 # 3. too-few-public-methods (produces false positives)
 # 4. inspections incompatible with Black (see
-#    https://github.com/psf/black/blob/master/docs/compatible_configs.md#why-those-options-above-2):
-# 5. fixme (left 'TODO' lines)
-# 6. logging-fstring-interpolation (forbids f-strings in logging functions)
-# 7. missing-function-docstring (Missing function or method docstring)
-# 8. The following require installing the python modules imported in the source code.
+     https://github.com/psf/black/blob/master/docs/compatible_configs.md#why-those-options-above-2):
+# 4. fixme (left 'TODO' lines)
+# 5. logging-fstring-interpolation (forbids f-strings in logging functions)
+# 6. missing-function-docstring (Missing function or method docstring)
+# 7. The following require installing the python modules imported in the source code.
 #    Add these if you don't want to include all dependencies into the dev environment:
 #    import-error ("Unable to import")
 #    no-member
