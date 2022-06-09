@@ -80,9 +80,8 @@ class CommonFormatResult:
         :return:
         """
         up_chrom = chrom.upper()
-        chrom = up_chrom[up_chrom.startswith('CHR') and 3:]
+        chrom = up_chrom[up_chrom.startswith('CHR') and 3 :]
         return chrom
-
 
     def get_cyvcf2_pos(self, contigs: set[str]) -> tuple[str, str]:
         """
