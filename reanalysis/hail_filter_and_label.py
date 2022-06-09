@@ -17,7 +17,7 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any
+from typing import Any, Optional
 from itertools import permutations
 import json
 import logging
@@ -43,7 +43,7 @@ PATHOGENIC = hl.str('pathogenic')
 
 
 def filter_matrix_by_ac(
-    matrix: hl.MatrixTable, ac_threshold: float | 0.1
+    matrix: hl.MatrixTable, ac_threshold: Optional[float] = 0.1
 ) -> hl.MatrixTable:
     """
     if called, this method will remove all variants in the joint call where the
