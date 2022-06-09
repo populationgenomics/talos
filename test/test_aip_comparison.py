@@ -9,8 +9,8 @@ from peddy import Ped
 from reanalysis.comparison import (
     common_format_from_results,
     common_format_from_seqr,
+    find_affected_samples,
     find_missing,
-    find_probands,
     CommonFormatResult,
     Confidence,
 )
@@ -37,7 +37,7 @@ def test_parse_aip(output_json):
     assert test_variant == parsed_var
 
 
-def test_proband_finder(trio_ped):
+def test_affected_finder(trio_ped):
     """
     tests function to find probands from a Ped file
     this trio contains PROBAND, MOTHER, and FATHER.
@@ -48,11 +48,11 @@ def test_proband_finder(trio_ped):
     """
     # digest that Ped
     ped_parsed = Ped(trio_ped)
-    probands = find_probands(ped_parsed)
-    assert probands == ['PROBAND']
+    samples = find_affected_samples(ped_parsed)
+    assert samples == ['PROBAND']
 
 
-def test_proband_finder_with_sibling(quad_ped):
+def test_affected_finder_with_sibling(quad_ped):
     """
     tests function to find probands from a Ped file
     contains the same trio as above ^^ plus an unaffected sibling
@@ -61,8 +61,8 @@ def test_proband_finder_with_sibling(quad_ped):
     """
     # digest that Ped
     ped_parsed = Ped(quad_ped)
-    probands = find_probands(ped_parsed)
-    assert probands == ['PROBAND']
+    samples = find_affected_samples(ped_parsed)
+    assert samples == ['PROBAND']
 
 
 def test_seqr_parser(seqr_csv_output):
@@ -73,7 +73,7 @@ def test_seqr_parser(seqr_csv_output):
     :return:
     """
 
-    seqr_results = common_format_from_seqr(seqr_csv_output, probands=['PROBAND'])
+    seqr_results = common_format_from_seqr(seqr_csv_output, affected=['PROBAND'])
 
     # only results for one sample
     assert len(list(seqr_results.keys())) == 1

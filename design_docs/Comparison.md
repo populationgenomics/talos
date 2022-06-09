@@ -74,16 +74,18 @@ explained the searches become progressively more specific: `which element of the
 of the Category 1 filter criteria was failed`.
 
 1. Parse both AIP and external results into a common format
-2. Compare AIP + Ext. data, find `True Positives`
+2. Compare AIP + Ext. data, find `True Positives` and discrepancies
 3. For each Discrepancy:
 
 ![ComparisonTree](images/comparison_decision_tree.png)
 
-At a more granular level, a check will run for each category, initially testing whether a category flag was applied, then testing each separate component of that category logic if not:
+At a more granular level, a check will run for each category, initially testing whether a category flag was applied,
+then testing each separate component of that category logic if not:
 
 ![CategoryTree](images/category_testing_decision_tree.png)
 
-For each failing test, a descriptive String will be generated. The collection of Strings should explain the reason for each variant avoiding categorisation, e.g.
+For each failing test, a descriptive String will be generated. The collection of Strings should explain the reason for
+each variant avoiding categorisation, e.g.
 
 ```python
 reasons = [
@@ -96,4 +98,59 @@ reasons = [
 ]
 ```
 
-The summary of all reasons will be exported, and when the comparison detects that a cateogry should have been assigned, this will be flagged for manual review.
+The summary of all reasons will be exported, and when the comparison detects that a category should have been assigned,
+this will be flagged for manual review.
+
+## Identifying Correct Participant(s)
+
+When parsing input data from both sources (Seqr, AIP JSON) there are two key elements:
+
+1. definition of the variant(s) identified
+2. sample(s) for whom each variant is thought to be causative
+
+Both of these elements are crucial, because all downstream comparisons are run on a sample-by-sample basis.
+
+Part 1) is simple - a variant can be completely defined in terms of chr-pos-ref-alt, so we can happily use that string
+to match between different datasets. We normalise the chromosome name in all cases (removing any `chr` prefix, and
+making contig names UPPERcase).
+
+Part 2) is trickier; AIP results are heirarchically organised by sample, with variants which could be causing their
+phenotype nested under sample ID. Seqr results don't have this heirarchical logic, with each row in the TSV containing
+all samples and corresponding genotypes.
+
+To handle this situation appropriately, we use the following approach:
+
+- Parse AIP data, creating a sample ID-indexed list of all variants
+- Parse Pedigree, finding all affected individuals across all families
+- Parse Seqr table:
+  - Create an object representation of each variant
+  - Find all affected samples on the row with a non-WT genotype
+  - Append the variant to each affected sample's list
+
+During an AIP run, for each categorised variant, we assess whether the MOI fits for each affected person with a variant
+at that site. This means the AIP output can contain each passing variant for each affected participant separately. As an
+equivalent, we apply each variant from a seqr row to every affected sample.
+
+The worst case scenario is that this approach adds a few extra discrepancies, but this output is for manual review, and
+that situation should be easy to spot and resolve.
+
+## Improvements
+
+The current algorithm risks running the comparison tests multiple times on the same variant (particularly if there are
+multiple affecteds in the same family). The MT-portion of the algorithm should be refined from the current comparison:
+
+### Current
+
+1. find all discrepancies for each sample
+2. find which of those discrepant variants weren't present in the VCF (un-classified in the Hail stage)
+3. for each of those discrepant variants, find all corresponding reasons
+
+Change to:
+
+1. retain steps 1 & 2
+2. Pool all unique variants across all samples
+3. Run algorithm once per variant, instead of once per sample:variant
+4. Once all variants are annotated with reasons, recover results per-sample
+
+This means that if the same variant is found in 10 families, the long-running Hail comparisons would run once, instead
+of 10 separate times.
