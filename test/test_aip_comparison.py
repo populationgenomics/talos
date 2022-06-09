@@ -4,7 +4,6 @@ test class for AIP comparisons
 
 
 import logging
-from typing import List
 
 import pytest
 from peddy import Ped
@@ -315,7 +314,7 @@ def test_check_gene_is_green(gene, rows, hail_matrix):
     ],
 )
 def test_ac_threshold(
-    ac: int, an: int, results: List[str], hail_matrix: hl.MatrixTable
+    ac: int, an: int, results: list[str], hail_matrix: hl.MatrixTable
 ):
     """
     required fields: alleles, AC, AN
@@ -336,8 +335,8 @@ def test_ac_threshold(
     [({'FAILURE'}, ['QC: Variant has assigned quality flags']), (None, [])],
 )
 def test_run_quality_flag_check(
-    filters: List[str],
-    results: List[str],
+    filters: list[str],
+    results: list[str],
     hail_matrix: hl.MatrixTable,
 ):
     """
@@ -363,8 +362,8 @@ def test_run_quality_flag_check(
     ],
 )
 def test_variant_is_normalised(
-    alleles: List[str],
-    results: List[str],
+    alleles: list[str],
+    results: list[str],
     hail_matrix: hl.MatrixTable,
 ):
     """
