@@ -4,9 +4,11 @@ test class for AIP comparisons
 
 
 import logging
+
 from peddy import Ped
 
 from reanalysis.comparison import (
+    check_in_vcf,
     common_format_from_results,
     common_format_from_seqr,
     find_affected_samples,
@@ -35,6 +37,23 @@ def test_parse_aip(output_json):
 
     test_variant = CommonFormatResult('7', 93105286, 'T', 'A', [Confidence.EXPECTED])
     assert test_variant == parsed_var
+
+
+def test_common_format_result():
+    """
+    test on the generic object
+    :return:
+    """
+    common = CommonFormatResult('7', 93105286, 'T', 'A', [Confidence.EXPECTED])
+
+    # check that the normalisation works ok
+    assert (
+        common
+        == CommonFormatResult('chr7', 93105286, 'T', 'A', [Confidence.EXPECTED])
+        == CommonFormatResult('chR7', 93105286, 'T', 'A', [Confidence.EXPECTED])
+    )
+
+    assert common.normalise_chrom('CHRchr7') == 'CHR7'
 
 
 def test_affected_finder(trio_ped):
@@ -161,3 +180,57 @@ def test_find_missing_different_sample(caplog):
     log_records = [rec.message for rec in caplog.records]
     assert 'Samples completely missing from AIP results: match' in log_records
     assert 'Sample match: 1 missing variant(s)' in log_records
+
+
+def test_missing_in_vcf(single_variant_vcf_path):
+    """
+    test method which scans VCF for a given variant
+    :return:
+    """
+    common_var = CommonFormatResult('1', 1, 'GC', 'G', [Confidence.EXPECTED])
+    variant_object = {'SAMPLE': [common_var]}
+    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    assert len(in_vcf) == 1
+    assert in_vcf['SAMPLE'] == [common_var]
+    assert len(not_in_vcf) == 0
+
+
+def test_missing_in_vcf_confidence_irrelevant(single_variant_vcf_path):
+    """
+    test method which scans VCF for a given variant
+    :return:
+    """
+    common_var = CommonFormatResult('1', 1, 'GC', 'G', [Confidence.UNLIKELY])
+    variant_object = {'SAMPLE': [common_var]}
+    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    assert len(in_vcf) == 1
+    assert in_vcf['SAMPLE'] == [common_var]
+    assert len(not_in_vcf) == 0
+
+
+def test_missing_in_vcf_allele_mismatch(single_variant_vcf_path):
+    """
+    test method which scans VCF for a given variant
+    alleles should not match
+    :return:
+    """
+    common_var = CommonFormatResult('1', 1, 'GC', 'A', [Confidence.EXPECTED])
+    variant_object = {'SAMPLE': [common_var]}
+    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    assert len(not_in_vcf) == 1
+    assert not_in_vcf['SAMPLE'] == [common_var]
+    assert len(in_vcf) == 0
+
+
+def test_missing_in_vcf_variant_pos_mismatch(single_variant_vcf_path):
+    """
+    test method which scans VCF for a given variant
+    alleles should not match
+    :return:
+    """
+    common_var = CommonFormatResult('11', 11, 'GC', 'G', [Confidence.EXPECTED])
+    variant_object = {'SAMPLE': [common_var]}
+    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    assert len(not_in_vcf) == 1
+    assert not_in_vcf['SAMPLE'] == [common_var]
+    assert len(in_vcf) == 0

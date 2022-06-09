@@ -79,6 +79,16 @@ def fixture_hail_matrix():
     return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
 
 
+@pytest.fixture(name='single_variant_vcf_path')
+def fixture_single_variant_vcf_path():
+    """
+    passes path to the single variant VCF
+    :return:
+    """
+
+    return HAIL_VCF
+
+
 @pytest.fixture(name='trio_ped')
 def fixture_trio_ped():
     """
@@ -97,6 +107,15 @@ def fixture_quad_ped():
     """
 
     return QUAD_PED
+
+
+@pytest.fixture(name='conf_json_path')
+def fixture_test_conf_path():
+    """
+    returns the path to the config JSON file
+    :return:
+    """
+    return TEST_CONF
 
 
 @pytest.fixture(name='trio_abs_variant')

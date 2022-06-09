@@ -36,12 +36,14 @@ COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 @click.option('--results', help='AIP result JSON')
 @click.option('--seqr', help='Seqr flagged variants export')
 @click.option('--ped', help='plink file for the cohort')
-def main(results: str, seqr: str, ped: str):
+@click.option('--vcf', help='labelled VCF')
+def main(results: str, seqr: str, ped: str, vcf: str):
     """
     main method, which runs the AIP comparison
     :param results:
     :param seqr:
     :param ped:
+    :param vcf:
     :return:
     """
 
@@ -79,12 +81,18 @@ def main(results: str, seqr: str, ped: str):
         commit=get_git_commit_ref_of_current_repository(),
     )
 
+    # need to localise the VCF + index
+    vcf_in_batch = batch.read_input_group(
+        **{'vcf.bgz': vcf, 'vcf.bgz.tbi': vcf + '.tbi'}
+    )
+
     results_command = (
-        'pip install peddy==0.4.8 && '
+        'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
         f'PYTHONPATH=$(pwd) python3 {COMPARISON_SCRIPT} '
         f'--results {results} '
         f'--seqr {seqr} '
         f'--ped {ped} '
+        f'--vcf {vcf_in_batch["vcf.bgz"]} '
     )
     logging.info(f'Results command: {results_command}')
     comp_job.command(results_command)
