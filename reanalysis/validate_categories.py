@@ -232,7 +232,7 @@ def main(
     """
 
     # check if this is a singleton pedigree
-    singletons = pedigree.__contains__('singletons')
+    singletons = 'singletons' in pedigree
 
     # parse the pedigree from the file (via write to temp)
     with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:

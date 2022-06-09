@@ -22,10 +22,12 @@ HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
 DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
 DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
+QUAD_PED = os.path.join(INPUT, 'trio_plus_sibling.fam')
 LABELLED = os.path.join(INPUT, '1_labelled_variant.vcf.bgz')
 TEST_CONF = os.path.join(INPUT, 'test_conf.json')
 PED_FILE = os.path.join(INPUT, 'pedfile.ped')
 AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
+SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
@@ -87,6 +89,16 @@ def fixture_trio_ped():
     return DE_NOVO_PED
 
 
+@pytest.fixture(name='quad_ped')
+def fixture_quad_ped():
+    """
+    sends the location of the Quad Pedigree (PLINK)
+    :return:
+    """
+
+    return QUAD_PED
+
+
 @pytest.fixture(name='trio_abs_variant')
 def fixture_trio_abs_variant():
     """
@@ -127,3 +139,13 @@ def fixture_output_json():
     """
 
     return read_json_from_path(AIP_OUTPUT)
+
+
+@pytest.fixture(name='seqr_csv_output', scope='session')
+def fixture_output_seqr_tsv():
+    """
+    returns the path to the TSV of Seqr variants
+    :return:
+    """
+
+    return SEQR_OUTPUT
