@@ -17,7 +17,7 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from itertools import permutations
 import json
 import logging
@@ -684,7 +684,7 @@ def write_matrix_to_vcf(matrix: hl.MatrixTable, output_path: str):
 
 def green_and_new_from_panelapp(
     panel_data: Dict[str, Dict[str, str]]
-) -> Tuple[hl.SetExpression, hl.SetExpression]:
+) -> tuple[hl.SetExpression, hl.SetExpression]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
     Also identify the subset of those genes which relate to NEW in panel
