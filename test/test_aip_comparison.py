@@ -7,7 +7,7 @@ from peddy import Ped
 from reanalysis.comparison import (
     common_format_from_results,
     common_format_from_seqr,
-    find_probands,
+    find_affected_samples,
     CommonFormatResult,
     Confidence,
 )
@@ -45,8 +45,8 @@ def test_proband_finder(trio_ped):
     """
     # digest that Ped
     ped_parsed = Ped(trio_ped)
-    probands = find_probands(ped_parsed)
-    assert probands == ['PROBAND']
+    samples = find_affected_samples(ped_parsed)
+    assert samples == ['PROBAND']
 
 
 def test_proband_finder_with_sibling(quad_ped):
@@ -58,8 +58,8 @@ def test_proband_finder_with_sibling(quad_ped):
     """
     # digest that Ped
     ped_parsed = Ped(quad_ped)
-    probands = find_probands(ped_parsed)
-    assert probands == ['PROBAND']
+    samples = find_affected_samples(ped_parsed)
+    assert samples == ['PROBAND']
 
 
 def test_seqr_parser(seqr_csv_output):
@@ -70,7 +70,7 @@ def test_seqr_parser(seqr_csv_output):
     :return:
     """
 
-    seqr_results = common_format_from_seqr(seqr_csv_output, probands=['PROBAND'])
+    seqr_results = common_format_from_seqr(seqr_csv_output, affected=['PROBAND'])
 
     # only results for one sample
     assert len(list(seqr_results.keys())) == 1

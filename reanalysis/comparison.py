@@ -13,7 +13,7 @@ from enum import Enum
 import logging
 import re
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from argparse import ArgumentParser
 from cloudpathlib import AnyPath
@@ -55,7 +55,7 @@ class CommonFormatResult:
     """
 
     def __init__(
-        self, chrom: str, pos: int, ref: str, alt: str, confidence: List[Confidence]
+        self, chrom: str, pos: int, ref: str, alt: str, confidence: list[Confidence]
     ):
         """
 
@@ -69,7 +69,7 @@ class CommonFormatResult:
         self.pos: int = pos
         self.ref: str = ref
         self.alt: str = alt
-        self.confidence: List[Confidence] = confidence
+        self.confidence: list[Confidence] = confidence
 
     def get_cyvcf2_pos(self):
         """
@@ -78,7 +78,7 @@ class CommonFormatResult:
         """
         return f'{self.chr}:{self.pos}-{self.pos}'
 
-    def get_hail_pos(self) -> Tuple[hl.Locus, List[str]]:
+    def get_hail_pos(self) -> tuple[hl.Locus, list[str]]:
         """
         get relevant values for finding a variant row within a MT
         :return:
@@ -109,10 +109,10 @@ class CommonFormatResult:
         )
 
 
-CommonDict = Dict[str, List[CommonFormatResult]]
+CommonDict = dict[str, list[CommonFormatResult]]
 
 
-def common_format_from_results(results_dict: Dict[str, Any]) -> CommonDict:
+def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
     """
     Parses the JSON
 
@@ -139,12 +139,12 @@ def common_format_from_results(results_dict: Dict[str, Any]) -> CommonDict:
     return sample_dict
 
 
-def common_format_from_seqr(seqr: str, probands: List[str]) -> CommonDict:
+def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
     """
     identify the most likely proband for each row, and create a variant object for them
 
     :param seqr:
-    :param probands:
+    :param affected:
     :return:
     """
 
@@ -154,6 +154,8 @@ def common_format_from_seqr(seqr: str, probands: List[str]) -> CommonDict:
     with AnyPath(seqr).open() as handle:
         seqr_parser = DictReader(handle, delimiter='\t')
 
+        # Each Sample ID is under a separate column heading, e.g. sample_1
+        # this is instead of proband/mother/father; no mandatory family structure
         sample_cols = [
             sample_field
             for sample_field in seqr_parser.fieldnames
@@ -173,48 +175,37 @@ def common_format_from_seqr(seqr: str, probands: List[str]) -> CommonDict:
             if len(tags) == 0:
                 continue
 
-            # seqr export currently has no notion of 'proband', so find the
-            # most likely candidate
+            # create a variant object
+            variant_obj = CommonFormatResult(
+                entry['chrom'],
+                int(entry['pos']),
+                entry['ref'],
+                entry['alt'],
+                confidence=tags,
+            )
+
+            # seqr has no notion of 'proband', so add for each affected
+            # see README for discussion
             for index, value in enumerate(sample_cols, 1):
                 if (
-                    entry[value] in probands
+                    entry[value] in affected
                     and int(entry[SAMPLE_ALT_TEMPLATE.format(index)]) > 0
                 ):
-                    sample_dict[entry[value]].append(
-                        CommonFormatResult(
-                            entry['chrom'],
-                            int(entry['pos']),
-                            entry['ref'],
-                            entry['alt'],
-                            confidence=tags,
-                        )
-                    )
+                    sample_dict[entry[value]].append(variant_obj)
 
     logging.info(f'Variants from Seqr digest: {sample_dict}')
 
     return sample_dict
 
 
-def find_probands(pedigree: Ped) -> List[str]:
+def find_affected_samples(pedigree: Ped) -> list[str]:
     """
-    finds all members of the provided pedigree who are the
-    terminal end of a pedigree, and are affected
-
-    Uses Peddy to parse the pedigree, which adds Children/Mother/Father
-    relationships to each node
+    finds all affected members of the provided pedigree
 
     :param pedigree:
     :return:
     """
-    sample_list: List[str] = []
-    for sample in pedigree.samples():
-        if not sample.affected:
-            continue
-        if sample.kids:
-            continue
-        sample_list.append(sample.sample_id)
-
-    return sample_list
+    return [sam.sample_id for sam in pedigree.samples() if sam.affected]
 
 
 def main(results: str, seqr: str, ped: str):
@@ -235,11 +226,11 @@ def main(results: str, seqr: str, ped: str):
         handle.write(AnyPath(ped).read_text())
     pedigree_digest = Ped('i_am_a_temporary.ped')
 
-    # Search for all affected roots (no further children) in the Pedigree
-    probands = find_probands(pedigree_digest)
+    # Search for all affected sample IDs in the Pedigree
+    affected = find_affected_samples(pedigree_digest)
 
     # parse the Seqr results table, specifically targeting variants in probands
-    _seqr_results = common_format_from_seqr(seqr=seqr, probands=probands)
+    _seqr_results = common_format_from_seqr(seqr=seqr, affected=affected)
 
 
 if __name__ == '__main__':
