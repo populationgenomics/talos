@@ -311,10 +311,10 @@ def test_check_gene_is_green(gene, rows, hail_matrix):
     'ac,an,results',
     [
         (100, 100, ['QC: AC too high in joint call']),
-        (100, 100, ['QC: AC too high in joint call']),
+        (1, 100, []),
     ],
 )
-def test_quality_method(
+def test_ac_threshold(
     ac: int, an: int, results: List[str], hail_matrix: hl.MatrixTable
 ):
     """
@@ -362,7 +362,7 @@ def test_run_quality_flag_check(
         (['A', '*'], ['QC: Variant not well normalised']),
     ],
 )
-def test_variant_is_normliased(
+def test_variant_is_normalised(
     alleles: List[str],
     results: List[str],
     hail_matrix: hl.MatrixTable,
