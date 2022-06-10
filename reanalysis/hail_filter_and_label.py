@@ -17,7 +17,7 @@ This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Optional
 from itertools import permutations
 import json
 import logging
@@ -43,52 +43,57 @@ PATHOGENIC = hl.str('pathogenic')
 
 
 def filter_matrix_by_ac(
-    matrix_data: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, ac_threshold: Optional[float] = 0.1
 ) -> hl.MatrixTable:
     """
+    if called, this method will remove all variants in the joint call where the
+    AlleleCount as a proportion is higher than the provided threshold
 
-    :param matrix_data:
-    :param config:
+    :param matrix:
+    :param ac_threshold:
     :return: reduced MatrixTable
     """
-
-    # count the samples in the VCF, and use to decide whether to implement
-    # 'common within this joint call' as a filter
-    # if we reach the sample threshold, filter on AC
-    if matrix_data.count_cols() >= config['min_samples_to_ac_filter']:
-        matrix_data = matrix_data.filter_rows(
-            matrix_data.info.AC / matrix_data.info.AN < config['ac_threshold']
-        )
-    return matrix_data
+    return matrix.filter_rows(matrix.info.AC / matrix.info.AN < ac_threshold)
 
 
-def filter_matrix_by_variant_attributes(matrix_data: hl.MatrixTable) -> hl.MatrixTable:
+def filter_on_quality_flags(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
-    filter MT to rows with normalised, high quality variants
-    Note - when reading data into a MatrixTable, the Filters column is modified
-    - split into a set of all filters
-    - PASS is removed
-    i.e. an empty set is equal to PASS in a VCF
-    :param matrix_data:
+    filter MT to rows with 0 quality filters
+    note: in Hail, PASS is represented as an empty set
+
+    :param matrix:
+    :return:
+    """
+    return matrix.filter_rows(matrix.filters.length() == 0)
+
+
+def filter_to_well_normalised(matrix: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    :param matrix:
+    :return:
+    """
+    # filter out any quality flagged variants
+    # normalised variants check (single alt per row, no missing Alt)
+    return matrix.filter_rows(
+        (hl.len(matrix.alleles) == 2) & (matrix.alleles[1] != '*')
+    )
+
+
+def filter_by_ab_ratio(matrix: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    filters HomRef, Het, and HomAlt by appropriate AB ratio bins
+    :param matrix:
     :return:
     """
 
-    # filter out any quality flagged variants
-    # normalised variants check (single alt per row, no missing Alt)
-    matrix_data = matrix_data.filter_rows(
-        (matrix_data.filters.length() == 0)
-        & (hl.len(matrix_data.alleles) == 2)
-        & (matrix_data.alleles[1] != '*')
-    )
-
     # filter variant calls by AB ratio
-    ab = matrix_data.AD[1] / hl.sum(matrix_data.AD)
+    ab = matrix.AD[1] / hl.sum(matrix.AD)
 
     # filter entries by the AB, depending on variant call
-    return matrix_data.filter_entries(
-        (matrix_data.GT.is_hom_ref() & (ab <= 0.15))
-        | (matrix_data.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-        | (matrix_data.GT.is_hom_var() & (ab >= 0.85))
+    return matrix.filter_entries(
+        (matrix.GT.is_hom_ref() & (ab <= 0.15))
+        | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
+        | (matrix.GT.is_hom_var() & (ab >= 0.85))
     )
 
 
@@ -119,7 +124,7 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
 
 def annotate_category_2(
-    matrix: hl.MatrixTable, config: Dict[str, Any], new_genes: hl.SetExpression
+    matrix: hl.MatrixTable, config: dict[str, Any], new_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
@@ -169,7 +174,7 @@ def annotate_category_2(
 
 
 def annotate_category_3(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     applies the Category3 flag where appropriate
@@ -268,7 +273,7 @@ def annotate_category_4(
 
 
 def annotate_category_support(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     Background class based on in silico annotations
@@ -350,7 +355,7 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
 
 def extract_comp_het_details(
     matrix: hl.MatrixTable,
-) -> Dict[str, Dict[str, Dict[str, List[str]]]]:
+) -> dict[str, dict[str, dict[str, list[str]]]]:
     """
     takes the matrix table, and finds compound-hets per sample
     based on the gene name only
@@ -411,8 +416,8 @@ def extract_comp_het_details(
     return compound_hets
 
 
-def filter_rows_for_rare(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+def filter_to_population_rare(
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad & exac
@@ -429,21 +434,16 @@ def filter_rows_for_rare(
     )
 
 
-def filter_benign_or_non_genic(matrix: hl.MatrixTable) -> hl.MatrixTable:
+def filter_benign(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter out benign variants, where clinvar is confident
-    not worth running this filter separately
     :param matrix:
+    :return:
     """
-    # remove any rows with no genic annotation at all
-    # remove all clinvar benign, decent level of support
     benign = hl.str('benign')
     return matrix.filter_rows(
-        (
-            (matrix.info.clinvar_sig.lower().contains(benign))
-            & (matrix.info.clinvar_stars > 0)
-        )
-        | (hl.is_missing(matrix.geneIds)),
+        (matrix.info.clinvar_sig.lower().contains(benign))
+        & (matrix.info.clinvar_stars > 0),
         keep=False,
     )
 
@@ -467,7 +467,7 @@ def filter_to_green_genes_and_split(
 
 
 def filter_by_consequence(
-    matrix: hl.MatrixTable, config: Dict[str, Any]
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
     - reduce the per-row transcript consequences to those specific to the geneIds
@@ -683,8 +683,8 @@ def write_matrix_to_vcf(matrix: hl.MatrixTable, output_path: str):
 
 
 def green_and_new_from_panelapp(
-    panel_data: Dict[str, Dict[str, str]]
-) -> Tuple[hl.SetExpression, hl.SetExpression]:
+    panel_data: dict[str, dict[str, str]]
+) -> tuple[hl.SetExpression, hl.SetExpression]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
     Also identify the subset of those genes which relate to NEW in panel
@@ -755,7 +755,7 @@ def main(
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from "{panelapp_path}"')
-    with open(AnyPath(panelapp_path), encoding='utf-8') as handle:
+    with AnyPath(panelapp_path).open() as handle:
         panelapp = json.load(handle)
 
     # pull green and new genes from the panelapp data
@@ -774,9 +774,17 @@ def main(
         f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
     )
 
+    # filter out quality failures
+    matrix = filter_on_quality_flags(matrix)
+
     # running global quality filter steps
-    matrix = filter_matrix_by_ac(matrix_data=matrix, config=hail_config)
-    matrix = filter_matrix_by_variant_attributes(matrix_data=matrix)
+    if matrix.count_cols() >= hail_config['min_samples_to_ac_filter']:
+        matrix = filter_matrix_by_ac(
+            matrix=matrix, ac_threshold=hail_config['ac_threshold']
+        )
+
+    matrix = filter_to_well_normalised(matrix)
+    matrix = filter_by_ab_ratio(matrix)
 
     # pull annotations into info and update if missing
     logging.info('Pulling VEP annotations into INFO field')
@@ -787,9 +795,9 @@ def main(
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
-    matrix = filter_rows_for_rare(matrix=matrix, config=hail_config)
+    matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
-    matrix = filter_benign_or_non_genic(matrix=matrix)
+    matrix = filter_benign(matrix=matrix)
     logging.info(f'Variants remaining after Benign filter: {matrix.count_rows()}')
     matrix = filter_to_green_genes_and_split(
         matrix=matrix, green_genes=green_expression

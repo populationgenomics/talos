@@ -5,15 +5,24 @@ test class for AIP comparisons
 
 import logging
 
+import pytest
 from peddy import Ped
 
+import hail as hl
+
 from reanalysis.comparison import (
+    check_gene_is_green,
+    check_variant_was_normalised,
     check_in_vcf,
     common_format_from_results,
     common_format_from_seqr,
     find_affected_samples,
+    filter_sample_by_ab,
     find_missing,
     find_variant_in_mt,
+    run_ac_check,
+    run_quality_flag_check,
+    check_consequences,
     CommonFormatResult,
     Confidence,
 )
@@ -275,3 +284,129 @@ def test_variant_in_mt_wrong_pos(hail_matrix):
     query_variant = CommonFormatResult('1', 100, 'GC', 'G', [])
     result = find_variant_in_mt(hail_matrix, query_variant)
     assert result.count_rows() == 0
+
+
+# - - - - - - - - - - - - - - - - - - - #
+# tests relating to MT category/quality #
+# - - - - - - - - - - - - - - - - - - - #
+
+
+@pytest.mark.parametrize('gene,rows', (('green', 1), ('other', 0)))
+def test_check_gene_is_green(gene, rows, hail_matrix):
+    """
+
+    :param gene:
+    :param rows:
+    :param hail_matrix:
+    :return:
+    """
+    green_genes = hl.set(['green'])
+    gene_mt = hail_matrix.annotate_rows(geneIds=gene)
+    result = check_gene_is_green(gene_mt, green_genes)
+    assert result.count_rows() == rows
+
+
+@pytest.mark.parametrize(
+    'ac,an,results',
+    [
+        (100, 100, ['QC: AC too high in joint call']),
+        (1, 100, []),
+    ],
+)
+def test_ac_threshold(
+    ac: int, an: int, results: list[str], hail_matrix: hl.MatrixTable
+):
+    """
+    required fields: alleles, AC, AN
+
+    :param ac:
+    :param an:
+    :param results:
+    :param hail_matrix:
+    :return:
+    """
+    config = {'min_samples_to_ac_filter': 0, 'ac_threshold': 0.1}
+    anno_mt = hail_matrix.annotate_rows(info=hail_matrix.info.annotate(AC=ac, AN=an))
+    assert run_ac_check(anno_mt, config) == results
+
+
+@pytest.mark.parametrize(
+    'filters,results',
+    [({'FAILURE'}, ['QC: Variant has assigned quality flags']), (None, [])],
+)
+def test_run_quality_flag_check(
+    filters: list[str],
+    results: list[str],
+    hail_matrix: hl.MatrixTable,
+):
+    """
+    ronseal
+
+    :param filters:
+    :param results:
+    :param hail_matrix:
+    :return:
+    """
+    if filters is None:
+        filters = hl.empty_set(t=hl.tstr)
+    anno_mt = hail_matrix.annotate_rows(filters=filters)
+    assert run_quality_flag_check(anno_mt) == results
+
+
+@pytest.mark.parametrize(
+    'alleles,results',
+    [
+        (['A', 'C'], []),
+        (['A', 'C', 'G'], ['QC: Variant not well normalised']),
+        (['A', '*'], ['QC: Variant not well normalised']),
+    ],
+)
+def test_variant_is_normalised(
+    alleles: list[str],
+    results: list[str],
+    hail_matrix: hl.MatrixTable,
+):
+    """
+    ronseal
+
+    :param alleles:
+    :param results:
+    :param hail_matrix:
+    :return:
+    """
+    anno_mt = hail_matrix.annotate_rows(alleles=alleles)
+    assert check_variant_was_normalised(anno_mt) == results
+
+
+@pytest.mark.parametrize(
+    'gt,ad,result',
+    [
+        ('1/0', [20, 80], ['QC: Variant fails AB ratio']),
+        ('1/0', [50, 50], []),
+        ('0/0', [80, 20], ['QC: Variant fails AB ratio']),
+        ('1/1', [80, 20], ['QC: Variant fails AB ratio']),
+        ('1|1', [80, 20], ['QC: Variant fails AB ratio']),
+    ],
+)
+def test_filter_sample_by_ab(gt, ad, result, hail_matrix):
+    """
+
+    :param gt:
+    :param ad:
+    :param result:
+    :return:
+    """
+
+    anno_mt = hail_matrix.annotate_entries(AD=hl.array(ad), GT=hl.parse_call(gt))
+    assert filter_sample_by_ab(anno_mt, 'SAMPLE') == result
+
+
+def test_consequence_filter(csq_matrix):
+    """
+    :param csq_matrix:
+    :return:
+    """
+    conf = {'useless_csq': ['synonymous']}
+    anno_matrix, row_count = csq_matrix
+    _csq_filtered_matrix, assigned_tags = check_consequences(anno_matrix, conf)
+    assert len(assigned_tags) == (1 - row_count)

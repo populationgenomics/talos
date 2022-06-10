@@ -69,13 +69,14 @@ def fixture_hail_cleanup():
         os.remove(os.path.join(parent_dir, filename))
 
 
-@pytest.fixture(name='hail_matrix')
+@pytest.fixture(name='hail_matrix', scope='session')
 def fixture_hail_matrix():
     """
     loads the single variant as a matrix table
     :return:
     """
-    return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+    mt = hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+    return mt.key_rows_by(mt.locus)
 
 
 @pytest.fixture(name='single_variant_vcf_path')
@@ -167,3 +168,43 @@ def fixture_output_seqr_tsv():
     """
 
     return SEQR_OUTPUT
+
+
+@pytest.fixture(
+    params=[
+        ('x', 'x', 'frameshift_variant', 'protein_coding', '', 1),
+        ('x', 'x', 'frameshift_variant', '', 'NM_relevant', 1),
+        ('x', 'o', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
+        ('x', 'x', 'frameshift_variant', '', '', 0),
+    ],
+    name='csq_matrix',
+    scope='session',
+)
+def fixture_csq_matrix(request, hail_matrix):
+    """
+
+    :param request: the keyword for access to fixture.params
+    :param hail_matrix:
+    :return:
+    """
+
+    gene_ids, gene_id, consequences, biotype, mane_select, row = request.param
+
+    return (
+        hail_matrix.annotate_rows(
+            geneIds=gene_ids,
+            vep=hl.Struct(
+                transcript_consequences=hl.array(
+                    [
+                        hl.Struct(
+                            consequence_terms=hl.set([consequences]),
+                            biotype=biotype,
+                            gene_id=gene_id,
+                            mane_select=mane_select,
+                        )
+                    ]
+                ),
+            ),
+        ),
+        row,
+    )

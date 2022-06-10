@@ -37,13 +37,30 @@ COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 @click.option('--seqr', help='Seqr flagged variants export')
 @click.option('--ped', help='plink file for the cohort')
 @click.option('--vcf', help='labelled VCF')
-def main(results: str, seqr: str, ped: str, vcf: str):
+@click.option('--mt', help='matrix table of annotated variants')
+@click.option('--config', help='configuration used in AIP')
+@click.option('--panel', help='PanelApp data used in AIP')
+@click.option('--output', help='where to write results to')
+def main(
+    results: str,
+    seqr: str,
+    ped: str,
+    vcf: str,
+    mt: str,
+    config: str,
+    panel: str,
+    output: str,
+):
     """
     main method, which runs the AIP comparison
     :param results:
     :param seqr:
     :param ped:
     :param vcf:
+    :param mt:
+    :param config:
+    :param panel:
+    :param output:
     :return:
     """
 
@@ -93,6 +110,10 @@ def main(results: str, seqr: str, ped: str, vcf: str):
         f'--seqr {seqr} '
         f'--ped {ped} '
         f'--vcf {vcf_in_batch["vcf.bgz"]} '
+        f'--mt {mt} '
+        f'--config {config} '
+        f'--panel {panel} '
+        f'--output {output} '
     )
     logging.info(f'Results command: {results_command}')
     comp_job.command(results_command)

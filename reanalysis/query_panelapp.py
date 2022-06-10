@@ -20,7 +20,7 @@ Write all output to a JSON dictionary
 """
 
 
-from typing import Any, Dict, Optional, Union, Set
+from typing import Any, Union
 import logging
 import json
 import sys
@@ -31,10 +31,10 @@ import requests
 from cloudpathlib import AnyPath
 
 
-PanelData = Dict[str, Dict[str, Union[str, bool]]]
+PanelData = dict[str, dict[str, Union[str, bool]]]
 
 
-def parse_gene_list(path_to_list: str) -> Set[str]:
+def parse_gene_list(path_to_list: str) -> set[str]:
     """
     parses a json file (GCP or local), extracting a set of genes
     required format: a json list of strings
@@ -45,7 +45,7 @@ def parse_gene_list(path_to_list: str) -> Set[str]:
         return set(json.load(handle))
 
 
-def get_json_response(url: str) -> Dict[str, Any]:
+def get_json_response(url: str) -> dict[str, Any]:
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
@@ -62,8 +62,8 @@ def get_json_response(url: str) -> Dict[str, Any]:
 
 def get_panel_green(
     panel_id: str = '137',
-    version: Optional[str] = None,
-) -> Dict[str, Dict[str, Union[str, bool]]]:
+    version: str | None = None,
+) -> dict[str, dict[str, Union[str, bool]]]:
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
     For each gene, keep the MOI, symbol, ENSG (where present)
@@ -168,7 +168,7 @@ def get_panel_changes(
                 latest_content[gene_ensg]['old_moi'] = prev_moi
 
 
-def gene_list_differences(latest_content: PanelData, previous_genes: Set[str]):
+def gene_list_differences(latest_content: PanelData, previous_genes: set[str]):
     """
     takes a gene list representing prior data,
     identifies genes as 'new' where absent in that reference data
@@ -209,8 +209,8 @@ def write_output_json(output_path: str, object_to_write: Any):
 def main(
     panel_id: str,
     out_path: str,
-    previous_version: Optional[str] = None,
-    gene_list: Optional[str] = None,
+    previous_version: str | None,
+    gene_list: str | None,
 ):
     """
     takes a panel ID
