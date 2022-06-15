@@ -79,7 +79,7 @@ OUTPUT_DICT = {
 }
 
 # location of the CPG BCFTools image
-BCFTOOLS_IMAGE = image_path('bcftools:1.10.2--h4f4756c_2')
+BCFTOOLS_IMAGE = image_path('bcftools')
 DEFAULT_IMAGE = os.getenv('CPG_DRIVER_IMAGE')
 assert DEFAULT_IMAGE
 

@@ -7,5 +7,6 @@
   "ul-indent": false,
   "no-multiple-blanks": false,
   "MD024": false,
-  "MD001": false
+  "MD001": false,
+  "MD049": false
 }

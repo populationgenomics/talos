@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v2.3.0
+  rev: v4.2.0
   hooks:
   - id: check-yaml
     exclude: '\.*conda/.*'
@@ -14,7 +14,7 @@ repos:
   - id: check-added-large-files
 
 - repo: https://github.com/igorshubovych/markdownlint-cli
-  rev: v0.26.0
+  rev: v0.31.1
   hooks:
   - id: markdownlint
     args: ['--config', '.markdownlint.json']
@@ -25,7 +25,7 @@ repos:
   - id: black
 
 - repo: https://gitlab.com/pycqa/flake8
-  rev: '3.8.4'
+  rev: '3.9.2'
   hooks:
   - id: flake8
     additional_dependencies: [flake8-bugbear, flake8-quotes]
