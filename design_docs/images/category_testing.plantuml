@@ -1,0 +1,13 @@
+@startuml category_testing_decision_tree
+(Was Variant Categorised) --> (Problem, check code) : yes
+(Was Variant Categorised) --> (Per Category Tests) : no
+(Per Category Tests) --> (Cat. 1)
+(Cat. 1) --> (Clinvar Pathogenic?)
+(Clinvar Pathogenic?) ---> (Resolved) : no
+(Clinvar Pathogenic?) ---> (Star Threshold met?) : yes
+(Star Threshold met?) --> (Resolved) : no
+(Star Threshold met?) --> (Bug) : yes
+(Per Category Tests) --> (Cat. 2...)
+(Per Category Tests) --> (Cat. 3...)
+(Per Category Tests) --> (Cat. 4...)
+@enduml

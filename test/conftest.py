@@ -3,7 +3,6 @@ A home for common test fixtures
 """
 
 
-import json
 import os
 import pytest
 import hail as hl
@@ -12,20 +11,22 @@ from hail.utils.java import FatalError
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
-from reanalysis.utils import AbstractVariant
+from reanalysis.utils import AbstractVariant, read_json_from_path
 
 
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
-# contains a single variant at chr1:1, with minimal info
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
 DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
 DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
+QUAD_PED = os.path.join(INPUT, 'trio_plus_sibling.fam')
 LABELLED = os.path.join(INPUT, '1_labelled_variant.vcf.bgz')
 TEST_CONF = os.path.join(INPUT, 'test_conf.json')
 PED_FILE = os.path.join(INPUT, 'pedfile.ped')
+AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
+SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
@@ -68,13 +69,24 @@ def fixture_hail_cleanup():
         os.remove(os.path.join(parent_dir, filename))
 
 
-@pytest.fixture(name='hail_matrix')
+@pytest.fixture(name='hail_matrix', scope='session')
 def fixture_hail_matrix():
     """
     loads the single variant as a matrix table
     :return:
     """
-    return hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+    mt = hl.import_vcf(HAIL_VCF, reference_genome='GRCh38')
+    return mt.key_rows_by(mt.locus)
+
+
+@pytest.fixture(name='single_variant_vcf_path')
+def fixture_single_variant_vcf_path():
+    """
+    passes path to the single variant VCF
+    :return:
+    """
+
+    return HAIL_VCF
 
 
 @pytest.fixture(name='trio_ped')
@@ -87,6 +99,25 @@ def fixture_trio_ped():
     return DE_NOVO_PED
 
 
+@pytest.fixture(name='quad_ped')
+def fixture_quad_ped():
+    """
+    sends the location of the Quad Pedigree (PLINK)
+    :return:
+    """
+
+    return QUAD_PED
+
+
+@pytest.fixture(name='conf_json_path')
+def fixture_test_conf_path():
+    """
+    returns the path to the config JSON file
+    :return:
+    """
+    return TEST_CONF
+
+
 @pytest.fixture(name='trio_abs_variant')
 def fixture_trio_abs_variant():
     """
@@ -94,10 +125,7 @@ def fixture_trio_abs_variant():
     Cat. 3, and Cat. 4 for PROBAND only
     :return:
     """
-
-    with open(TEST_CONF, 'r', encoding='utf-8') as handle:
-        conf_json = json.load(handle)
-
+    conf_json = read_json_from_path(TEST_CONF)
     vcf_reader = VCFReader(LABELLED)
     cyvcf_var = next(vcf_reader)
 
@@ -120,3 +148,63 @@ def fixture_hail_matrix_comp_het():
     :return:
     """
     return hl.import_vcf(HAIL_MULTI_SAM, reference_genome='GRCh38')
+
+
+@pytest.fixture(name='output_json', scope='session')
+def fixture_output_json():
+    """
+    loads and returns the JSON of the output
+    :return:
+    """
+
+    return read_json_from_path(AIP_OUTPUT)
+
+
+@pytest.fixture(name='seqr_csv_output', scope='session')
+def fixture_output_seqr_tsv():
+    """
+    returns the path to the TSV of Seqr variants
+    :return:
+    """
+
+    return SEQR_OUTPUT
+
+
+@pytest.fixture(
+    params=[
+        ('x', 'x', 'frameshift_variant', 'protein_coding', '', 1),
+        ('x', 'x', 'frameshift_variant', '', 'NM_relevant', 1),
+        ('x', 'o', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
+        ('x', 'x', 'frameshift_variant', '', '', 0),
+    ],
+    name='csq_matrix',
+    scope='session',
+)
+def fixture_csq_matrix(request, hail_matrix):
+    """
+
+    :param request: the keyword for access to fixture.params
+    :param hail_matrix:
+    :return:
+    """
+
+    gene_ids, gene_id, consequences, biotype, mane_select, row = request.param
+
+    return (
+        hail_matrix.annotate_rows(
+            geneIds=gene_ids,
+            vep=hl.Struct(
+                transcript_consequences=hl.array(
+                    [
+                        hl.Struct(
+                            consequence_terms=hl.set([consequences]),
+                            biotype=biotype,
+                            gene_id=gene_id,
+                            mane_select=mane_select,
+                        )
+                    ]
+                ),
+            ),
+        ),
+        row,
+    )

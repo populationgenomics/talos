@@ -3,7 +3,6 @@ test class for the utils collection
 """
 from dataclasses import dataclass
 from typing import List
-import os
 import pytest
 
 from reanalysis.utils import (
@@ -14,17 +13,14 @@ from reanalysis.utils import (
 )
 
 
-PWD = os.path.dirname(__file__)
-INPUT = os.path.join(PWD, 'input')
-JSON_STUB = os.path.join(INPUT, 'json_example.json')
-
-
-def test_read_json():
+def test_read_json(conf_json_path):
     """
 
     :return:
     """
-    assert read_json_from_path(JSON_STUB) == {'key': 'value'}
+    parsed_json = read_json_from_path(conf_json_path)
+    assert 'moi_tests' in parsed_json.keys()
+
     with pytest.raises(FileNotFoundError):
         read_json_from_path('not_a_real_path')
 

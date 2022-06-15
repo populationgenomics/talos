@@ -48,7 +48,6 @@ def fixture_fake_panelapp(requests_mock):
 
 
 def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
-
     """
     check that the default parsing delivers correct data
     :param fake_panelapp:
@@ -56,7 +55,9 @@ def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
     """
     result = get_panel_green(panel_id='137')
     with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
-        assert result == json.load(handle)
+        expected = json.load(handle)
+
+    assert result == expected
 
 
 def test_gene_list_changes():
@@ -67,10 +68,10 @@ def test_gene_list_changes():
 
     with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
         latest = json.load(handle)
-        previous_genes = {'ABCD'}
-        gene_list_differences(latest, previous_genes)
-        assert not latest['ENSG00ABCD']['new']
-        assert latest['ENSG00IJKL']['new']
+    previous_genes = {'ABCD'}
+    gene_list_differences(latest, previous_genes)
+    assert not latest['ENSG00ABCD']['new']
+    assert latest['ENSG00IJKL']['new']
 
 
 def test_get_panel_changes(fake_panelapp):  # pylint: disable=unused-argument

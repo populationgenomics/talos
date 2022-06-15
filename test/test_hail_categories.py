@@ -16,10 +16,10 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_4,
     annotate_category_support,
     green_and_new_from_panelapp,
-    filter_rows_for_rare,
-    filter_benign_or_non_genic,
-    filter_to_green_genes_and_split,
+    filter_benign,
     filter_by_consequence,
+    filter_to_population_rare,
+    filter_to_green_genes_and_split,
     filter_to_categorised,
 )
 
@@ -117,7 +117,6 @@ def test_class_1_assignment(values, classified, hail_matrix):
 def test_class_2_assignment(values, classified, hail_matrix):
     """
     the fields in the input are, respectively:
-
     :param values: locus clinvar_sig cadd revel geneIds consequence_terms
     :param classified:
     :param hail_matrix:
@@ -163,7 +162,6 @@ def test_class_2_assignment(values, classified, hail_matrix):
 def test_class_3_assignment(values, classified, hail_matrix):
     """
     the fields in the input are, respectively:
-
     :param values: locus clinvar_sig loftee consequence_terms
     :param classified:
     :param hail_matrix:
@@ -285,7 +283,6 @@ def test_green_and_new_from_panelapp():
 )
 def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
     """
-
     :param hail_matrix:
     :return:
     """
@@ -296,23 +293,21 @@ def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
             gnomad_af=gnomad,
         )
     )
-    matrix = filter_rows_for_rare(anno_matrix, conf)
+    matrix = filter_to_population_rare(anno_matrix, conf)
     assert matrix.count_rows() == length
 
 
 @pytest.mark.parametrize(
-    'clinvar,stars,gene_id,length',
+    'clinvar,stars,length',
     [
-        ('not_benign', 0, '', 1),
-        ('not_benign', 1, 'gene', 0),
-        ('sth_else', 1, 'gene', 1),
-        ('', 3, 'gene', 1),
-        ('', 3, hl.missing(t=hl.tstr), 0),
+        ('not_benign', 0, 1),
+        ('not_benign', 1, 0),
+        ('sth_else', 1, 1),
+        ('', 3, 1),
     ],
 )
-def test_filter_benign_genic(clinvar, stars, gene_id, length, hail_matrix):
+def test_filter_benign(clinvar, stars, length, hail_matrix):
     """
-
     :param hail_matrix:
     :return:
     """
@@ -320,10 +315,28 @@ def test_filter_benign_genic(clinvar, stars, gene_id, length, hail_matrix):
         info=hail_matrix.info.annotate(
             clinvar_sig=clinvar,
             clinvar_stars=stars,
-        ),
-        geneIds=gene_id,
+        )
     )
-    matrix = filter_benign_or_non_genic(anno_matrix)
+    matrix = filter_benign(anno_matrix)
+    assert matrix.count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'gene_id,length',
+    [
+        ({''}, 0),
+        ({'gene'}, 1),
+        ({hl.missing(t=hl.tstr)}, 0),
+    ],
+)
+def test_filter_genic(gene_id, length, hail_matrix):
+    """
+    :param hail_matrix:
+    :return:
+    """
+    green_genes = hl.literal({'gene'})
+    anno_matrix = hail_matrix.annotate_rows(geneIds=gene_id)
+    matrix = filter_to_green_genes_and_split(anno_matrix, green_genes=green_genes)
     assert matrix.count_rows() == length
 
 
@@ -339,8 +352,7 @@ def test_filter_benign_genic(clinvar, stars, gene_id, length, hail_matrix):
 )
 def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
     """
-
-    :param hail_matrix:
+    :param hail_matrix:x
     :return:
     """
     green_genes = hl.literal({'green', 'gene'})
@@ -349,41 +361,15 @@ def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
     assert matrix.count_rows() == length
 
 
-@pytest.mark.parametrize(
-    'gene_ids,gene_id,consequences,biotype,mane_select,length',
-    [
-        ('green', 'green', 'frameshift_variant', 'protein_coding', '', 1),
-        ('green', 'green', 'frameshift_variant', '', 'NM_relevant', 1),
-        ('mis', 'match', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
-        ('green', 'green', 'frameshift_variant', '', '', 0),
-    ],
-)
-def test_filter_by_consequence(
-    gene_ids, gene_id, consequences, biotype, mane_select, length, hail_matrix
-):
+def test_filter_by_consequence(csq_matrix):
     """
-
-    :param hail_matrix:
+    :param csq_matrix:
     :return:
     """
     conf = {'useless_csq': ['synonymous']}
-    anno_matrix = hail_matrix.annotate_rows(
-        geneIds=gene_ids,
-        vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [
-                    hl.Struct(
-                        consequence_terms=hl.set([consequences]),
-                        biotype=biotype,
-                        gene_id=gene_id,
-                        mane_select=mane_select,
-                    )
-                ]
-            ),
-        ),
-    )
+    anno_matrix, row_count = csq_matrix
     matrix = filter_by_consequence(anno_matrix, conf)
-    assert matrix.count_rows() == length
+    assert matrix.count_rows() == row_count
 
 
 @pytest.mark.parametrize(
@@ -400,7 +386,6 @@ def test_filter_by_consequence(
 )
 def test_filter_to_classified(one, two, three, four, support, length, hail_matrix):
     """
-
     :param hail_matrix:
     """
     anno_matrix = hail_matrix.annotate_rows(

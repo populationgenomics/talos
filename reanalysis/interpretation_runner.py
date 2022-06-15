@@ -18,7 +18,6 @@ compound-het calculations moved to Hail, removed requirement for Slivar stage
 
 from typing import Any, Dict, List, Optional
 
-import json
 import logging
 from pathlib import Path
 import os
@@ -43,8 +42,9 @@ from cpg_utils.hail_batch import (
     remote_tmpdir,
 )
 
-from vep.jobs import vep_jobs, SequencingType
-import annotation
+from reanalysis import annotation
+from reanalysis.utils import read_json_from_path
+from reanalysis.vep.jobs import vep_jobs, SequencingType
 
 
 # static paths to write outputs
@@ -89,15 +89,6 @@ HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
 QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
 MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
-
-
-def read_json_dict_from_path(bucket_path: str) -> Dict[str, Any]:
-    """
-    take a path to a JSON file, read into an object
-    :param bucket_path:
-    """
-    with open(AnyPath(bucket_path), encoding='utf-8') as handle:
-        return json.load(handle)
 
 
 def set_job_resources(
@@ -461,7 +452,7 @@ def main(
 
     logging.info('Starting the reanalysis batch')
 
-    config_dict = read_json_dict_from_path(config_json)
+    config_dict = read_json_from_path(config_json)
 
     service_backend = hb.ServiceBackend(
         billing_project=os.getenv('HAIL_BILLING_PROJECT'),

@@ -7,10 +7,11 @@
 #    positive, see: https://github.com/PyCQA/pylint/issues/3876)
 # 4. too-few-public-methods (produces false positives)
 # 5. fixme (left 'TODO' lines)
-# 6. import-error
-# 7. no-member
-# 8. c-extension-no-member
-disable=f-string-without-interpolation,logging-fstring-interpolation,inherit-non-class,too-few-public-methods,fixme,import-error,no-member,c-extension-no-member
+# 6. missing-function-docstring (Missing function or method docstring)
+# 7. import-error ("Unable to import")
+# 8. no-member
+# 9. c-extension-no-member
+disable=f-string-without-interpolation,logging-fstring-interpolation,inherit-non-class,too-few-public-methods,fixme,E0401,E1101,I1101
 
 # Overriding variable name patterns to allow short 1- or 2-letter variables
 attr-rgx=[a-z_][a-z0-9_]{0,30}$
