@@ -1,0 +1,8 @@
+@startuml
+start
+:Passes general filters;
+:De Novo;
+:MOI Consistent;
+:Category 4;
+stop
+@enduml
