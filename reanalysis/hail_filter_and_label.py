@@ -37,6 +37,7 @@ ONE_INT = hl.int32(1)
 MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_FLOAT_HI = hl.float64(1.0)
 
+BENIGN = hl.str('benign')
 CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
@@ -115,7 +116,8 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
             Category1=hl.if_else(
                 (matrix.info.clinvar_stars > 0)
                 & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
-                & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING)),
+                & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
+                & ~(matrix.info.clinvar_sig.lower().contains(BENIGN)),
                 ONE_INT,
                 MISSING_INT,
             )
@@ -431,20 +433,6 @@ def filter_to_population_rare(
     return matrix.filter_rows(
         (matrix.info.exac_af < config['af_semi_rare'])
         & (matrix.info.gnomad_af < config['af_semi_rare'])
-    )
-
-
-def filter_benign(matrix: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    filter out benign variants, where clinvar is confident
-    :param matrix:
-    :return:
-    """
-    benign = hl.str('benign')
-    return matrix.filter_rows(
-        (matrix.info.clinvar_sig.lower().contains(benign))
-        & (matrix.info.clinvar_stars > 0),
-        keep=False,
     )
 
 
@@ -797,8 +785,6 @@ def main(
     logging.info('Filtering Variant rows')
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
-    matrix = filter_benign(matrix=matrix)
-    logging.info(f'Variants remaining after Benign filter: {matrix.count_rows()}')
     matrix = filter_to_green_genes_and_split(
         matrix=matrix, green_genes=green_expression
     )

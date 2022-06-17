@@ -16,7 +16,6 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_4,
     annotate_category_support,
     green_and_new_from_panelapp,
-    filter_benign,
     filter_by_consequence,
     filter_to_population_rare,
     filter_to_green_genes_and_split,
@@ -72,6 +71,7 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
         ([hl_locus, 'conflicting_interpretations_of_pathogenicity', 1], 0),
         ([hl_locus, 'benign', 1], 0),
         ([hl_locus, 'pathogenic&something&else', 2], 1),
+        ([hl_locus, 'pathogenic&sbenignng&else', 2], 0),
     ],
 )
 def test_class_1_assignment(values, classified, hail_matrix):
@@ -294,30 +294,6 @@ def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
         )
     )
     matrix = filter_to_population_rare(anno_matrix, conf)
-    assert matrix.count_rows() == length
-
-
-@pytest.mark.parametrize(
-    'clinvar,stars,length',
-    [
-        ('not_benign', 0, 1),
-        ('not_benign', 1, 0),
-        ('sth_else', 1, 1),
-        ('', 3, 1),
-    ],
-)
-def test_filter_benign(clinvar, stars, length, hail_matrix):
-    """
-    :param hail_matrix:
-    :return:
-    """
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            clinvar_sig=clinvar,
-            clinvar_stars=stars,
-        )
-    )
-    matrix = filter_benign(anno_matrix)
     assert matrix.count_rows() == length
 
 
