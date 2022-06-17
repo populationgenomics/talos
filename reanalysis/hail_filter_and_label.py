@@ -1,16 +1,16 @@
 """
 Read, filter, annotate, classify, and write Genetic data
-- read VCF into MT
+- read MT
 - read PanelApp data through GCP client
 - hard-filter (FILTERS, AC)
-- annotate
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - consequence filter
 - remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
 - annotate with categories 1, 2, 3, 4, and Support (in silico)
-- remove all un-categorised variants
+- remove un-categorised variants
+- calculate compound-het pairings
 - write as VCF
 
 This doesn't include applying inheritance pattern filters
@@ -31,12 +31,11 @@ from cpg_utils.hail_batch import init_batch
 
 
 # set some Hail constants
-MISSING_STRING = hl.str('missing')
 MISSING_INT = hl.int32(0)
-ONE_INT = hl.int32(1)
 MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_FLOAT_HI = hl.float64(1.0)
-
+MISSING_STRING = hl.str('missing')
+ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
 CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
@@ -63,18 +62,15 @@ def filter_on_quality_flags(matrix: hl.MatrixTable) -> hl.MatrixTable:
     note: in Hail, PASS is represented as an empty set
 
     :param matrix:
-    :return:
     """
     return matrix.filter_rows(matrix.filters.length() == 0)
 
 
 def filter_to_well_normalised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
+    single alt per row, no missing Alt
     :param matrix:
-    :return:
     """
-    # filter out any quality flagged variants
-    # normalised variants check (single alt per row, no missing Alt)
     return matrix.filter_rows(
         (hl.len(matrix.alleles) == 2) & (matrix.alleles[1] != '*')
     )
@@ -84,13 +80,8 @@ def filter_by_ab_ratio(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filters HomRef, Het, and HomAlt by appropriate AB ratio bins
     :param matrix:
-    :return:
     """
-
-    # filter variant calls by AB ratio
     ab = matrix.AD[1] / hl.sum(matrix.AD)
-
-    # filter entries by the AB, depending on variant call
     return matrix.filter_entries(
         (matrix.GT.is_hom_ref() & (ab <= 0.15))
         | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
@@ -103,10 +94,7 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     applies the Category1 annotation (1 or 0) as appropriate
     semi-rare in Gnomad
     at least one Clinvar star
-    either Pathogenic or Likely_pathogenic in Clinvar
-
-    Didn't handle 'Pathogenic/Likely_pathogenic'
-    Changing to 'contains pathogenic and not conflicting'
+    contains pathogenic and not conflicting; doesn't contain benign
     :param matrix:
     :return: same Matrix, with additional field per variant
     """
@@ -131,13 +119,9 @@ def annotate_category_2(
     """
     - Gene is new in PanelApp
     - Rare in Gnomad, and
-    - Clinvar, or
+    - Clinvar contains pathogenic, or
     - Critical protein consequence on at least one transcript
     - High in silico consequence
-
-    New update! this is now restricted to the NEW genes only
-    This means that these are now confident Category2, and we
-    only have a MOI test remaining
 
     :param matrix:
     :param config:
@@ -270,6 +254,27 @@ def annotate_category_4(
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category4=hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)
+        )
+    )
+
+
+def annotate_category_5(
+    matrix: hl.MatrixTable, config: dict[str, Any]
+) -> hl.MatrixTable:
+    """
+
+    :param matrix:
+    :param config:
+    :return: same Matrix, with additional field per variant
+    """
+
+    return matrix.annotate_rows(
+        info=matrix.info.annotate(
+            Category5=hl.if_else(
+                matrix.info.splice_ai_delta >= config['spliceai_full'],
+                ONE_INT,
+                MISSING_INT,
+            )
         )
     )
 
@@ -436,7 +441,7 @@ def filter_to_population_rare(
     )
 
 
-def filter_to_green_genes_and_split(
+def split_rows_by_gene_and_filter_to_green(
     matrix: hl.MatrixTable, green_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
@@ -446,45 +451,25 @@ def filter_to_green_genes_and_split(
     :param green_genes:
     """
 
-    # split to form a separate row for each green gene
-    # this transforms the 'geneIds' field from a set to a string
+    # split each gene onto a separate row
+    # transforms 'geneIds' field from set to string
     matrix = matrix.explode_rows(matrix.geneIds)
 
-    # filter rows without a green gene
-    return matrix.filter_rows(green_genes.contains(matrix.geneIds))
+    # filter rows without a green gene (removes empty geneIds)
+    matrix = matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
-
-def filter_by_consequence(
-    matrix: hl.MatrixTable, config: dict[str, Any]
-) -> hl.MatrixTable:
-    """
-    - reduce the per-row transcript consequences to those specific to the geneIds
-    - reduce the rows to ones where there are remaining tx consequences
-
-    :param matrix:
-    :param config: dictionary content relating to hail
-    :return: reduced matrix
-    """
-
-    # identify consequences to discard from the config
-    useless_csq = hl.set(config['useless_csq'])
-
-    # reduce consequences to overlap with per-variant green geneIDs (pre-filtered)
-    # added another condition to state that the tx biotype needs to be protein_coding,
-    # unless the row also has an attached MANE transcript
-    # consider an extra allowance for strong Appris transcripts
+    # limit the per-row transcript consequences to those relevant to the single
+    # gene now present on each row
     matrix = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
                 lambda x: (matrix.geneIds == x.gene_id)
-                & (hl.len(hl.set(x.consequence_terms).difference(useless_csq)) > 0)
                 & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
             )
         )
     )
 
-    # filter out all rows with no remaining consequences
-    return matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) > 0)
+    return matrix
 
 
 def vep_struct_to_csq(
@@ -696,9 +681,6 @@ def informed_repartition(matrix: hl.MatrixTable):
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
-    post-annotation rows are estimated at ~5kB
-        - a recursive sys.getsizeof-like guess suggested ~140 Bytes :/
-        - writing a row to text was closer to 20kB
 
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
@@ -707,7 +689,7 @@ def informed_repartition(matrix: hl.MatrixTable):
     :return: repartitioned matrix
     """
 
-    # calculate partitions, falling back to 1 partition if size is too small
+    # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
     partitions = current_rows // 200000 or 1
 
@@ -778,29 +760,28 @@ def main(
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
-    # # checkpoint after applying all these operations
+    # checkpoint after applying all these operations
     matrix = informed_repartition(matrix=matrix)
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
-    matrix = filter_to_green_genes_and_split(
+    matrix = split_rows_by_gene_and_filter_to_green(
         matrix=matrix, green_genes=green_expression
     )
     logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
-    matrix = filter_by_consequence(matrix=matrix, config=hail_config)
-    logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
-    logging.info('Repartitioning after consequence filtration')
+    logging.info('Repartitioning after splitting and MAF filtration')
     matrix = informed_repartition(matrix=matrix)
 
     # add Classes to the MT
     logging.info('Applying categories to variant consequences')
     matrix = annotate_category_1(matrix)
-    matrix = annotate_category_2(matrix, hail_config, new_expression)
-    matrix = annotate_category_3(matrix, hail_config)
+    matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
+    matrix = annotate_category_3(matrix, config=hail_config)
     matrix = annotate_category_4(matrix, plink_family_file=plink_file)
+    matrix = annotate_category_5(matrix, config=hail_config)
     matrix = annotate_category_support(matrix, hail_config)
 
     # filter to class-annotated only prior to export

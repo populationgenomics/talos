@@ -14,11 +14,11 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_2,
     annotate_category_3,
     annotate_category_4,
+    annotate_category_5,
     annotate_category_support,
     green_and_new_from_panelapp,
-    filter_by_consequence,
     filter_to_population_rare,
-    filter_to_green_genes_and_split,
+    split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
 )
 
@@ -197,6 +197,25 @@ def test_class_3_assignment(values, classified, hail_matrix):
 
 
 @pytest.mark.parametrize(
+    'spliceai_score,flag',
+    [(0.1, 0), (0.11, 0), (0.3, 0), (0.49, 0), (0.5, 1), (0.69, 1), (0.9, 1)],
+)
+def test_category_5_assignment(spliceai_score: float, flag: int, hail_matrix):
+    """
+
+    :param hail_matrix:
+    :return:
+    """
+
+    matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(splice_ai_delta=spliceai_score)
+    )
+    conf = {'spliceai_full': 0.5}
+    matrix = annotate_category_5(matrix, conf)
+    assert matrix.info.Category5.collect() == [flag]
+
+
+@pytest.mark.parametrize(
     'values,classified',
     [
         ([hl_locus, 0.0, 0.0, 'n', 0.0, 0.0, 1.0, 0.0], 0),
@@ -298,25 +317,6 @@ def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'gene_id,length',
-    [
-        ({''}, 0),
-        ({'gene'}, 1),
-        ({hl.missing(t=hl.tstr)}, 0),
-    ],
-)
-def test_filter_genic(gene_id, length, hail_matrix):
-    """
-    :param hail_matrix:
-    :return:
-    """
-    green_genes = hl.literal({'gene'})
-    anno_matrix = hail_matrix.annotate_rows(geneIds=gene_id)
-    matrix = filter_to_green_genes_and_split(anno_matrix, green_genes=green_genes)
-    assert matrix.count_rows() == length
-
-
-@pytest.mark.parametrize(
     'gene_ids,length',
     [
         ({'not_green'}, 0),
@@ -324,6 +324,7 @@ def test_filter_genic(gene_id, length, hail_matrix):
         ({'gene'}, 1),
         ({'gene', 'not_green'}, 1),
         ({'green', 'gene'}, 2),
+        ({hl.missing(t=hl.tstr)}, 0),
     ],
 )
 def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
@@ -332,20 +333,47 @@ def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
     :return:
     """
     green_genes = hl.literal({'green', 'gene'})
-    anno_matrix = hail_matrix.annotate_rows(geneIds=hl.literal(gene_ids))
-    matrix = filter_to_green_genes_and_split(anno_matrix, green_genes)
+    anno_matrix = hail_matrix.annotate_rows(
+        geneIds=hl.literal(gene_ids),
+        vep=hl.Struct(
+            transcript_consequences=hl.array(
+                [hl.Struct(gene_id='gene', biotype='protein_coding', mane_select='')]
+            ),
+        ),
+    )
+    matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
     assert matrix.count_rows() == length
 
 
-def test_filter_by_consequence(csq_matrix):
+def test_filter_to_green_genes_and_split__consequence(hail_matrix):
     """
-    :param csq_matrix:
+
+    :param hail_matrix:
     :return:
     """
-    conf = {'useless_csq': ['synonymous']}
-    anno_matrix, row_count = csq_matrix
-    matrix = filter_by_consequence(anno_matrix, conf)
-    assert matrix.count_rows() == row_count
+
+    green_genes = hl.literal({'green'})
+    anno_matrix = hail_matrix.annotate_rows(
+        geneIds=green_genes,
+        vep=hl.Struct(
+            transcript_consequences=hl.array(
+                [
+                    hl.Struct(
+                        gene_id='green', biotype='protein_coding', mane_select=''
+                    ),
+                    hl.Struct(gene_id='green', biotype='batman', mane_select='NM_Bane'),
+                    hl.Struct(gene_id='green', biotype='non_coding', mane_select=''),
+                    hl.Struct(
+                        gene_id='NOT_GREEN', biotype='protein_coding', mane_select=''
+                    ),
+                ]
+            ),
+        ),
+    )
+    matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
+    assert matrix.count_rows() == 1
+    matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) == 2)
+    assert matrix.count_rows() == 1
 
 
 @pytest.mark.parametrize(
