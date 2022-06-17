@@ -379,14 +379,14 @@ def test_filter_to_green_genes_and_split__consequence(hail_matrix):
 @pytest.mark.parametrize(
     'one,two,three,four,five,support,length',
     [
-        (0, 0, 0, 'missing', 0, 0),
-        (0, 1, 0, 'missing', 0, 1),
-        (0, 0, 1, 'missing', 0, 1),
-        (0, 0, 0, 'missing', 1, 1),
-        (0, 0, 0, 'not_blank', 0, 1),
-        (0, 0, 0, 'missing', 1, 1),
-        (0, 1, 1, 'missing', 1, 1),
-        (1, 0, 0, 'missing', 1, 1),
+        (0, 0, 0, 'missing', 0, 0, 0),
+        (0, 1, 0, 'missing', 0, 0, 1),
+        (0, 0, 1, 'missing', 0, 0, 1),
+        (0, 0, 0, 'missing', 0, 1, 1),
+        (0, 0, 0, 'not_blank', 0, 0, 1),
+        (0, 0, 0, 'missing', 1, 0, 1),
+        (0, 1, 1, 'missing', 0, 1, 1),
+        (1, 0, 0, 'missing', 0, 1, 1),
     ],
 )
 def test_filter_to_classified(
