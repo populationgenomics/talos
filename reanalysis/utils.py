@@ -13,7 +13,6 @@ import re
 
 import cyvcf2
 from cloudpathlib import AnyPath
-from cyvcf2 import Variant
 
 
 # CompHetDict structure:
@@ -72,7 +71,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def __init__(
         self,
-        var: Variant,
+        var,
         samples: list[str],
         config: dict[str, Any],
         as_singletons=False,
@@ -387,11 +386,10 @@ def get_simple_moi(panel_app_moi: str) -> str:
     return simple_moi
 
 
-def get_non_ref_samples(
-    variant: Variant, samples: list[str]
-) -> tuple[set[str], set[str]]:
+def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
     """
     for this variant, find all samples with a call
+    variant type is cyvcf2.Variant
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
     return het, hom, and the union of het and hom
 
@@ -425,9 +423,10 @@ def get_non_ref_samples(
     return het_samples, hom_samples
 
 
-def extract_csq(variant: Variant, config: dict[str, dict[str, str]]):
+def extract_csq(variant, config: dict[str, dict[str, str]]):
     """
     specifically handle extraction of the CSQ list
+    variant type is cyvcf2.Variant
     :param variant:
     :param config:
     :return:
@@ -450,10 +449,11 @@ def extract_csq(variant: Variant, config: dict[str, dict[str, str]]):
     ]
 
 
-def extract_info(variant: Variant):
+def extract_info(variant):
     """
     creates an INFO dict by pulling content from the variant info
     keeps a list of dictionaries for each transcript_consequence
+    variant type is a cyvcf2.Variant
     :param variant:
     :return:
     """
