@@ -42,9 +42,9 @@ from cpg_utils.hail_batch import (
     remote_tmpdir,
 )
 
-from reanalysis import annotation
-from reanalysis.utils import read_json_from_path
-from reanalysis.vep.jobs import vep_jobs, SequencingType
+import annotation
+from utils import read_json_from_path
+from vep.jobs import vep_jobs, SequencingType
 
 
 # static paths to write outputs
