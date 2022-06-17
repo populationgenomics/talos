@@ -253,7 +253,6 @@ class BaseMoi:
                 and complete_penetrance
                 and not member.affected
             ):
-                # fail
                 return False
 
         return True

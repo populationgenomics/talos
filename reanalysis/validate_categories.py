@@ -16,7 +16,7 @@ import json
 import logging
 from argparse import ArgumentParser
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
@@ -36,11 +36,11 @@ from reanalysis.utils import (
 
 
 def set_up_inheritance_filters(
-    panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
-    config: Dict[str, Any],
+    panelapp_data: dict[str, dict[str, Union[str, bool]]],
+    config: dict[str, Any],
     pedigree: Ped,
     comp_het_lookup: CompHetDict,
-) -> Dict[str, MOIRunner]:
+) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -95,10 +95,10 @@ def set_up_inheritance_filters(
 
 
 def apply_moi_to_variants(
-    variant_dict: Dict[str, Dict[str, AbstractVariant]],
-    moi_lookup: Dict[str, MOIRunner],
-    panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
-) -> List[ReportedVariant]:
+    variant_dict: dict[str, dict[str, AbstractVariant]],
+    moi_lookup: dict[str, MOIRunner],
+    panelapp_data: dict[str, dict[str, Union[str, bool]]],
+) -> list[ReportedVariant]:
     """
     take a collection of all variants on a given contig & MOI filters
     find all variants/compound hets which fit the PanelApp MOI
@@ -146,8 +146,8 @@ def apply_moi_to_variants(
 
 
 def clean_initial_results(
-    result_list: List[ReportedVariant], samples: List[str]
-) -> Dict[str, Dict[str, ReportedVariant]]:
+    result_list: list[ReportedVariant], samples: list[str]
+) -> dict[str, dict[str, ReportedVariant]]:
     """
     Possibility 1 variant can be classified multiple ways
     This cleans those to unique for final report
@@ -193,7 +193,7 @@ def clean_initial_results(
 def main(
     labelled_vcf: str,
     comp_het: str,
-    config_path: Union[str, Dict[str, Any]],
+    config_path: Union[str, dict[str, Any]],
     out_json: str,
     panelapp: str,
     pedigree: str,

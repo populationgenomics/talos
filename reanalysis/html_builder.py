@@ -30,6 +30,7 @@ COLORS = {
     '2': '#FF9B00',
     '3': '1B00FF',
     'de_novo': '#FF0000',
+    '5': '#006e4e',
     'support': '#00FF08',
 }
 
@@ -43,7 +44,7 @@ def numerical_categories(var_data: dict[str, Any], sample: str) -> list[str]:
     """
     strings = [
         category
-        for category in ['1', '2', '3', 'support']
+        for category in ['1', '2', '3', 'support', '5']
         if var_data.get(f'category_{category}', False)
     ]
     if sample in var_data.get('category_4', []):
@@ -166,6 +167,7 @@ class HTMLBuilder:
             '2': [],
             '3': [],
             'de_novo': [],
+            '5': [],
             'all': [],
         }
         category_strings = {
@@ -173,6 +175,7 @@ class HTMLBuilder:
             '2': set(),
             '3': set(),
             'de_novo': set(),
+            '5': set(),
             'support': set(),
             'all': set(),
         }
@@ -204,7 +207,7 @@ class HTMLBuilder:
             )
 
             # create a per-sample object to track variants for each category
-            sample_count = {'1': 0, '2': 0, '3': 0, 'de_novo': 0}
+            sample_count = {'1': 0, '2': 0, '3': 0, 'de_novo': 0, '5': 0}
 
             # iterate over the variants
             for var_key, variant in variants.items():
@@ -242,6 +245,7 @@ class HTMLBuilder:
                 ('Cat2', '2'),
                 ('Cat3', '3'),
                 ('de_novo', 'de_novo'),
+                ('Cat5', '5'),
             ]
         ]
 

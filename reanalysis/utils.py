@@ -4,7 +4,7 @@ which may be shared across reanalysis components
 """
 
 
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Optional, Union
 from dataclasses import dataclass, is_dataclass
 
 import json
@@ -27,10 +27,10 @@ from cyvcf2 import Variant
 # sample: string, e,g, CGP12345
 # gene: string, e.g. ENSG012345
 # variant: string, chr-pos-ref-alt
-CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
+CompHetDict = dict[str, dict[str, dict[str, list[str]]]]
 
-InfoDict = Dict[str, Union[str, Dict[str, str]]]
-PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
+InfoDict = dict[str, Union[str, dict[str, str]]]
+PanelAppDict = dict[str, dict[str, Union[str, bool]]]
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -38,7 +38,7 @@ UNKNOWN: int = 2
 HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
-BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
+BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 
 
 @dataclass
@@ -73,8 +73,8 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         var: Variant,
-        samples: List[str],
-        config: Dict[str, Any],
+        samples: list[str],
+        config: dict[str, Any],
         as_singletons=False,
     ):
 
@@ -87,13 +87,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.category_1: bool = var.INFO.get('Category1') == 1
         self.category_2: bool = var.INFO.get('Category2') == 1
         self.category_3: bool = var.INFO.get('Category3') == 1
+        self.category_5: bool = var.INFO.get('Category5') == 1
 
         # de novo category is a list of strings or empty list
         # if cohort runs as singletons, remove possibility of de novo
         if as_singletons:
             self.category_4 = []
         else:
-            self.category_4: List[str] = (
+            self.category_4: list[str] = (
                 var.INFO.get('Category4').split(',')
                 if var.INFO.get('Category4') != 'missing'
                 else []
@@ -107,16 +108,15 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             variant=var, samples=samples
         )
 
-        self.info: Dict[str, str] = extract_info(variant=var)
-        self.transcript_consequences: List[Dict[str, str]] = extract_csq(
+        self.info: dict[str, str] = extract_info(variant=var)
+        self.transcript_consequences: list[dict[str, str]] = extract_csq(
             variant=var, config=config
         )
 
     @property
-    def category_1_2_3(self) -> bool:
+    def category_1_2_3_5(self) -> bool:
         """
         check that the variant has at least one assigned class
-        supporting category is considered here
         :return:
         """
         return any(
@@ -124,6 +124,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                 self.category_1,
                 self.category_2,
                 self.category_3,
+                self.category_5,
             ]
         )
 
@@ -139,6 +140,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                 self.category_2,
                 self.category_3,
                 self.category_4,
+                self.category_5,
             ]
         )
 
@@ -155,6 +157,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                 self.category_2,
                 self.category_3,
                 self.category_4,
+                self.category_5,
                 self.category_support,
             ]
         )
@@ -171,31 +174,35 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                 self.category_2,
                 self.category_3,
                 self.category_4,
+                self.category_5,
             ]
         )
 
-    def category_ints(self, sample: str) -> List[str]:
+    def category_values(self, sample: str) -> list[str]:
         """
-        get a list of ints representing the classes present on this variant
+        get a list values representing the classes present on this variant
         for each category, append that number if the class is present
 
         - support is not an int
         - de novo on a per-sample basis
         """
-        categories = []
 
-        # for the first 3 categories, append the value if flag is present
-        for index, cat in enumerate(
-            [self.category_1, self.category_2, self.category_3], 1
-        ):
-            if cat:
-                categories.append(str(index))
+        # for basic categories, append the value if flag is present
+        categories = [
+            value
+            for value, category in [
+                ('1', self.category_1),
+                ('2', self.category_2),
+                ('3', self.category_3),
+                ('5', self.category_5),
+                ('in_silico', self.category_support),
+            ]
+            if category
+        ]
 
+        # sample-specific check for de novo
         if self.sample_de_novo(sample_id=sample):
             categories.append('de_novo')
-
-        if self.category_support:
-            categories.append('in_silico')
 
         return categories
 
@@ -215,7 +222,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :param sample_id:
         :return:
         """
-        return self.category_1_2_3 or self.sample_de_novo(sample_id)
+        return self.category_1_2_3_5 or self.sample_de_novo(sample_id)
 
 
 @dataclass
@@ -230,12 +237,12 @@ class ReportedVariant:
     sample: str
     gene: str
     var_data: AbstractVariant
-    reasons: Set[str]
+    reasons: set[str]
     supported: bool
-    support_vars: Optional[List[str]] = None
+    support_vars: Optional[list[str]] = None
 
 
-def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
+def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> set[str]:
     """
     read the header fields from the VCF handle
     return a set of all 'canonical' contigs
@@ -256,11 +263,11 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source: cyvcf2.VCFReader,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     panelapp_data: PanelAppDict,
     singletons: bool,
-    blacklist: Optional[List[str]] = None,
-) -> Dict[str, Dict[str, AbstractVariant]]:
+    blacklist: Optional[list[str]] = None,
+) -> dict[str, dict[str, AbstractVariant]]:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
@@ -333,7 +340,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str) -> Dict[str, Any]:
+def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     """
     take a path to a JSON file, read into an object
     :param bucket_path:
@@ -381,8 +388,8 @@ def get_simple_moi(panel_app_moi: str) -> str:
 
 
 def get_non_ref_samples(
-    variant: Variant, samples: List[str]
-) -> Tuple[Set[str], Set[str]]:
+    variant: Variant, samples: list[str]
+) -> tuple[set[str], set[str]]:
     """
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
@@ -418,7 +425,7 @@ def get_non_ref_samples(
     return het_samples, hom_samples
 
 
-def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
+def extract_csq(variant: Variant, config: dict[str, dict[str, str]]):
     """
     specifically handle extraction of the CSQ list
     :param variant:
