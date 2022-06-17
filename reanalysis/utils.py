@@ -10,8 +10,6 @@ from dataclasses import dataclass, is_dataclass
 import json
 import logging
 import re
-
-import cyvcf2
 from cloudpathlib import AnyPath
 
 
@@ -241,8 +239,9 @@ class ReportedVariant:
     support_vars: Optional[list[str]] = None
 
 
-def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> set[str]:
+def canonical_contigs_from_vcf(reader) -> set[str]:
     """
+    reader type = cyvcf2.VCFReader
     read the header fields from the VCF handle
     return a set of all 'canonical' contigs
     :param reader:
@@ -261,7 +260,7 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str,
-    variant_source: cyvcf2.VCFReader,
+    variant_source,
     config: dict[str, Any],
     panelapp_data: PanelAppDict,
     singletons: bool,
