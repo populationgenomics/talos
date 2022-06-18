@@ -438,6 +438,10 @@ def extract_csq(variant, config: dict[str, dict[str, str]]):
     # pull the CSQ content, and the format to decode it
     csq_contents = variant.INFO.get('CSQ')
 
+    # we're now considering splice variants, which may not have consequences
+    if not csq_contents:
+        return []
+
     # break mono-CSQ-string into components
     csq_categories = list(map(str.lower, csq_string.split('|')))
 
