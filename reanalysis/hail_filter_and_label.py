@@ -219,12 +219,11 @@ def filter_by_consequence(
         config.get('critical_csq').extend(config.get('additional_consequences'))
     )
 
+    # overwrite the consequences with an intersection against a limited list
     matrix = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: (
-                    hl.len(hl.set(x.consequence_terms).intersection(consequences)) > 0
-                )
+                lambda x: hl.set(x.consequence_terms).intersection(consequences)
             )
         )
     )
