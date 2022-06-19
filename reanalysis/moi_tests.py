@@ -475,7 +475,19 @@ class RecessiveAutosomal(BaseMoi):
                 sample=sample_id,
                 gene=principal_var.info.get('gene_id'),
             ):
+                _error = """
+                there's an issue here
+                when we run in singleton-mode, we skip variants with only de novo
+                classification, as they're not viable without a supporting trio
 
+                Currently those are skipped when parsing, but aren't removed from
+                the comp-het lookup
+
+                That means we can still expect them to be in the comp-het lookup,
+                but we won't be able to find them. Hence... fail
+                """
+                if partner not in gene_lookup:
+                    continue
                 # get the complete variant object for this potential partner
                 partner_variant = gene_lookup[partner]
 
@@ -686,7 +698,9 @@ class XRecessive(BaseMoi):
                 gene=principal_var.info.get('gene_id'),
             ):
 
-                # allow for de novo check
+                # allow for de novo check, accept failure for now
+                if partner not in gene_lookup:
+                    continue
                 partner_variant = gene_lookup[partner]
                 if not partner_variant.sample_specific_category_check(sample_id):
                     continue
