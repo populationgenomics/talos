@@ -203,16 +203,49 @@ def annotate_category_3(
     )
 
 
-def annotate_category_4(
-    matrix: hl.MatrixTable, plink_family_file: str
+def filter_by_consequence(
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    Category based on de novo MOI
-    This category shifts the emphasis from the variant annotations to the MOI
-    within family structures.
-    Having a low consequence-barrier to entry could mean that this category generates
-    a huge number of variants, so saving the MOI evaluation until later would create a
-    cumbersome output
+    - reduce the per-row transcript consequences to s limited group
+    - reduce the rows to ones where there are remaining tx consequences
+    :param matrix:
+    :param config: dictionary content relating to hail
+    :return: reduced matrix
+    """
+
+    # at time of writing this is VEP HIGH + missense_variant
+    consequences = hl.set(
+        config.get('critical_csq').extend(config.get('additional_consequences'))
+    )
+
+    matrix = matrix.annotate_rows(
+        vep=matrix.vep.annotate(
+            transcript_consequences=matrix.vep.transcript_consequences.filter(
+                lambda x: (
+                    hl.len(hl.set(x.consequence_terms).intersection(consequences)) > 0
+                )
+            )
+        )
+    )
+
+    # filter out rows with no tx consequences left, and no splice cat. assignment
+    return matrix.filter_rows(
+        (hl.len(matrix.vep.transcript_consequences) > 0) & (matrix.info.Category5 == 0)
+    )
+
+
+def annotate_category_4(
+    matrix: hl.MatrixTable, config: dict[str, Any], plink_family_file: str
+) -> hl.MatrixTable:
+    """
+    Category based on de novo MOI, restricted to a group of consequences
+
+    Initial implementation didn't restrict by tx consequence, which meant we
+    found 10s of variants per sample, all intronic variants
+
+    This category focuses de novo on MOI within family structures
+
     Instead, we are leveraging the inbuilt hl.de_novo functionality to:
     - identify all likely de novo inherited variation
     - collect samples for each variant (expect n=1 per de novo call, but not guaranteed)
@@ -220,18 +253,23 @@ def annotate_category_4(
     - apply string back to the MatrixTable, else 'missing' if missing
 
     :param matrix:
+    :param config:
     :param plink_family_file: path to a pedigree in PLINK format
     :return:
     """
 
     logging.info('running de novo search')
 
+    de_novo_matrix = filter_by_consequence(matrix, config)
+
     # read pedigree from the specified file
     pedigree = hl.Pedigree.read(plink_family_file)
 
     # identify likely de novo calls
     # use the AFs already embedded in the MT as the prior population frequencies
-    dn_table = hl.de_novo(matrix, pedigree, pop_frequency_prior=matrix.info.gnomad_af)
+    dn_table = hl.de_novo(
+        de_novo_matrix, pedigree, pop_frequency_prior=de_novo_matrix.info.gnomad_af
+    )
     dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
@@ -777,12 +815,16 @@ def main(
     matrix = informed_repartition(matrix=matrix)
 
     # add Classes to the MT
+    # current logic is to apply 1, 2, 3, and 5
+    # for cat. 5 (de novo), pre-filter the variants by tx-consequential or C5==1
     logging.info('Applying categories to variant consequences')
     matrix = annotate_category_1(matrix)
     matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
     matrix = annotate_category_3(matrix, config=hail_config)
-    matrix = annotate_category_4(matrix, plink_family_file=plink_file)
     matrix = annotate_category_5(matrix, config=hail_config)
+    matrix = annotate_category_4(
+        matrix, config=hail_config, plink_family_file=plink_file
+    )
     matrix = annotate_category_support(matrix, hail_config)
 
     # filter to class-annotated only prior to export
@@ -808,6 +850,7 @@ def main(
             & (matrix.info.Category2 == 0)
             & (matrix.info.Category3 == 0)
             & (matrix.info.Category4 == 'missing')
+            & (matrix.info.Category5 == 0)
             & (matrix.info.CategorySupport == 1),
             ONE_INT,
             MISSING_INT,

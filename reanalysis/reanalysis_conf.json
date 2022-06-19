@@ -28,6 +28,9 @@
             "stop_lost",
             "transcript_ablation"
         ],
+        "additional_consequences": [
+            "missense_variant"
+        ],
         "in_silico": {
             "cadd": 28.1,
             "revel": 0.77,
