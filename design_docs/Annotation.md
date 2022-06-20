@@ -6,16 +6,17 @@ annotation directly from Hail Tables containing annotations.
 
 This process is split into a number of steps:
 
-1. If the variant (singleton, or joint call) data is provided in MatrixTable format, we revert this back to a VCF
-2. We use GATK to identify intervals across the genome, so the VCF can be evenly split and annotation tasks parallelised
-3. For each VCF interval, we spawn a separate job using CLI VEP to annotate the variant data, writing JSON output
-4. Each interval's annotations are parsed using Hail, based on the VEP schema, creating a Hail Table of annotations
-5. Once all annotation jobs are complete, interval tables are joined into one, containing all consequence annotations
-6. The original VCF is loaded into a Hail MatrixTable, and in a single loop we annotate each variant with
+1. Variant data is provided as a sites-only VCF (i.e. genotype calling from gVCF is not handled here)
+2. If the variant (singleton, or joint call) data is provided in MatrixTable format, we revert this back to a VCF
+3. We use GATK to identify intervals across the genome, so the VCF can be evenly split and annotation tasks parallelised
+4. For each VCF interval, we spawn a separate job using CLI VEP to annotate the variant data, writing JSON output
+5. Each interval's annotations are parsed using Hail, based on the VEP schema, creating a Hail Table of annotations
+6. Once all annotation jobs are complete, interval tables are joined into one, containing all consequence annotations
+7. The original VCF is loaded into a Hail MatrixTable, and in a single loop we annotate each variant with
    - population frequencies
    - variant consequences
    - clinvar records
-7. The final MatrixTable, containing all variant data and all annotations, is written as an output directory
+8. The final MatrixTable, containing all variant data and all annotations, is written as an output directory
 
 ## Inputs
 
