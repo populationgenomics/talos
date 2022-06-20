@@ -1,0 +1,14 @@
+@startuml
+start
+:Gene New*;
+split
+    :Clinvar Pathogenic;
+split again
+    :VEP HIGH CSQ;
+split again
+    :Strong Missense;
+end split
+:MOI Consistent;
+:Category 2;
+stop
+@enduml
