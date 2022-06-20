@@ -730,7 +730,7 @@ def informed_repartition(matrix: hl.MatrixTable):
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
-    partitions = current_rows // 200000 or 1
+    partitions = current_rows // 200000 or 4
 
     logging.info(f'Re-partitioning {current_rows} into {partitions} partitions')
     return matrix.repartition(n_partitions=partitions, shuffle=True)
