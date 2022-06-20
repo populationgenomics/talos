@@ -223,7 +223,9 @@ def filter_by_consequence(
     matrix = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: hl.set(x.consequence_terms).intersection(consequences)
+                lambda x: hl.len(
+                    hl.set(x.consequence_terms).intersection(consequences) > 0
+                )
             )
         )
     )
