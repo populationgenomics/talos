@@ -207,7 +207,7 @@ def filter_by_consequence(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    - reduce the per-row transcript consequences to s limited group
+    - reduce the per-row transcript consequences to a limited group
     - reduce the rows to ones where there are remaining tx consequences
     :param matrix:
     :param config: dictionary content relating to hail
@@ -215,9 +215,9 @@ def filter_by_consequence(
     """
 
     # at time of writing this is VEP HIGH + missense_variant
-    consequences = hl.set(
-        config.get('critical_csq').extend(config.get('additional_consequences'))
-    )
+    high_csq = config.get('critical_csq', [])
+    high_csq.extend(config.get('additional_consequences', []))
+    consequences = hl.set(high_csq)
 
     # overwrite the consequences with an intersection against a limited list
     matrix = matrix.annotate_rows(
