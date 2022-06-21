@@ -18,7 +18,6 @@ PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
-HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
 DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
 DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
 QUAD_PED = os.path.join(INPUT, 'trio_plus_sibling.fam')
@@ -139,15 +138,6 @@ def fixture_de_novo_matrix():
     :return:
     """
     return hl.import_vcf(DE_NOVO_TRIO, reference_genome='GRCh38')
-
-
-@pytest.fixture(name='hail_comp_het')
-def fixture_hail_matrix_comp_het():
-    """
-    loads the single variant as a matrix table
-    :return:
-    """
-    return hl.import_vcf(HAIL_MULTI_SAM, reference_genome='GRCh38')
 
 
 @pytest.fixture(name='output_json', scope='session')

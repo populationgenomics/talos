@@ -59,7 +59,6 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 
 # output of labelling task in Hail
-COMP_HET_JSON = output_path('hail_categorised.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
 # hail outputs with CSQ header line
@@ -328,7 +327,6 @@ def handle_reheader_job(
 def handle_results_job(
     batch: hb.Batch,
     config: str,
-    comp_het: str,
     reheadered_vcf: str,
     pedigree: str,
     analysis_index: str,
@@ -339,7 +337,6 @@ def handle_results_job(
 
     :param batch:
     :param config:
-    :param comp_het:
     :param reheadered_vcf:
     :param pedigree:
     :param analysis_index: whether to run singleton or familial analysis
@@ -353,7 +350,6 @@ def handle_results_job(
         'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
-        f'--comp_het {comp_het} '
         f'--labelled_vcf {reheadered_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
@@ -569,12 +565,11 @@ def main(
 
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
-        # use compound-hets and labelled VCF to identify plausibly pathogenic
+        # use labelled VCF to identify plausibly pathogenic
         # variants where the MOI is viable compared to the PanelApp expectation
         _results_job = handle_results_job(
             batch=batch,
             config=config_json,
-            comp_het=COMP_HET_JSON,
             reheadered_vcf=reheadered_vcf_in_batch,
             pedigree=relationships,
             analysis_index=analysis_index,

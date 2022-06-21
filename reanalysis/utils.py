@@ -3,9 +3,10 @@ a collection of classes and methods
 which may be shared across reanalysis components
 """
 
-
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from collections import defaultdict
 from dataclasses import dataclass, is_dataclass
+from itertools import combinations_with_replacement
 
 import json
 import logging
@@ -14,20 +15,8 @@ import re
 import cyvcf2
 from cloudpathlib import AnyPath
 from cyvcf2 import Variant
+from peddy import Ped
 
-
-# CompHetDict structure:
-# {
-#     sample: {
-#         gene: {
-#             variant: [variant, ...]
-#         }
-#     }
-# }
-# sample: string, e,g, CGP12345
-# gene: string, e.g. ENSG012345
-# variant: string, chr-pos-ref-alt
-CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
 
 InfoDict = Dict[str, Union[str, Dict[str, str]]]
 PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
@@ -39,6 +28,13 @@ HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
+
+SEX_CHROMOSOMES = {'X', 'Y'}
+
+PHASE_SET_DEFAULT = -2147483648
+
+# pylint: disable=C3001
+nested_dict = lambda: defaultdict(nested_dict)
 
 
 @dataclass
@@ -111,6 +107,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.transcript_consequences: List[Dict[str, str]] = extract_csq(
             variant=var, config=config
         )
+
+        # identify variant sets phased with this one
+        # cyvcf2 uses a default value for the phase set, skip that
+        # this is restricted to a single int for phase_set
+        self.phased = defaultdict(set)
+        for sample, phase in zip(samples, var.format('PS')):
+            if phase != PHASE_SET_DEFAULT:
+                self.phased[sample].add(phase)
 
     @property
     def category_1_2_3(self) -> bool:
@@ -218,6 +222,17 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         return self.category_1_2_3 or self.sample_de_novo(sample_id)
 
 
+# CompHetDict structure:
+# {
+#     sample: {
+#         variant_string: [variant, ...]
+#     }
+# }
+# sample: string, e,g, CGP12345
+CompHetDict = Dict[str, Dict[str, List[AbstractVariant]]]
+GeneDict = Dict[str, list[AbstractVariant]]
+
+
 @dataclass
 class ReportedVariant:
     """
@@ -260,15 +275,13 @@ def gather_gene_dict_from_contig(
     panelapp_data: PanelAppDict,
     singletons: bool,
     blacklist: Optional[List[str]] = None,
-) -> Dict[str, Dict[str, AbstractVariant]]:
+) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
     {
-        gene: {
-            var1_as_string: var1,
-            var2_as_string: var2,
-        },
+        gene1: [var1, var2],
+        gene2: [var3],
         ...
     }
     :param contig: contig name from header (canonical_contigs_from_vcf)
@@ -285,7 +298,7 @@ def gather_gene_dict_from_contig(
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
-    contig_dict = {}
+    contig_dict = defaultdict(list)
 
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
@@ -303,16 +316,13 @@ def gather_gene_dict_from_contig(
             )
             continue
 
-            # do category 2 'new' test
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
         if abs_var.category_2:
-            # implement the c2 check
             gene_id = abs_var.info.get('gene_id')
             gene_data = panelapp_data.get(gene_id, False)
             if not gene_data:
                 continue
 
-            # is the gene 'new'? if not, skip
             if not gene_data.get('new', False):
                 variant.category_2 = False
 
@@ -324,9 +334,7 @@ def gather_gene_dict_from_contig(
         contig_variants += 1
 
         # update the gene index dictionary
-        contig_dict.setdefault(abs_var.info.get('gene_id'), {})[
-            abs_var.coords.string_format
-        ] = abs_var
+        contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
@@ -487,3 +495,50 @@ class CustomEncoder(json.JSONEncoder):
         if isinstance(o, set):
             return list(o)
         return json.JSONEncoder.default(self, o)
+
+
+def find_comp_hets(var_list: list[AbstractVariant], pedigree: Ped):
+    """
+    manual implementation to find compound hets
+    variants provided in the format
+
+    [var1, var2, ..]
+
+    generate pair content in the form
+    {
+        sample: {
+            var_as_string: [partner_variant, ...]
+        }
+    }
+
+    :param var_list:
+    :param pedigree:
+    :return:
+    """
+
+    # create an empty dictionary
+    comp_het_results = nested_dict()
+
+    # use combinations_with_replacement to find all gene pairs
+    for var_1, var_2 in combinations_with_replacement(var_list, 2):
+
+        assert var_1.coords.chrom == var_2.coords.chrom
+        sex_chrom = var_1.coords.chrom in SEX_CHROMOSOMES
+
+        # iterate over any samples with a het overlap
+        for sample in var_1.het_samples.intersection(var_2.het_samples):
+            ped_sample = pedigree.samples(sample)
+
+            # don't assess male compound hets on sex chromosomes
+            if ped_sample.sex == 'male' and sex_chrom:
+                continue
+
+            # check for both variants being in the same phase set
+            if sample in var_1.phased and sample in var_2.phased:
+                if var_1.phased[sample] == var_2.phased[sample]:
+                    continue
+
+            comp_het_results[sample][var_1.coords.string_format] = var_2
+            comp_het_results[sample][var_2.coords.string_format] = var_1
+
+    return comp_het_results

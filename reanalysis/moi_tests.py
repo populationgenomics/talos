@@ -23,7 +23,7 @@ a singleton
 
 import logging
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from peddy.peddy import Ped
 
@@ -43,52 +43,34 @@ INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom', 'exac_ac_hom'}
 
 
 def check_for_second_hit(
-    first_variant: str, comp_hets: CompHetDict, sample: str, gene: str
-) -> list[str]:
+    first_variant: str, comp_hets: CompHetDict, sample: str
+) -> list[AbstractVariant]:
     """
     checks for a second hit partner in this gene
-
-    DOES NOT CURRENTLY CHECK VARIANT PHASE
-    DOES NOT CURRENTLY CHECK PARENT GENOTYPES
 
     Example formatting of the comp-het dict
     {
         "SampleID": {
-            "GeneID": {
-                "12-52287177-T-C": [
-                    "12-52287180-TGG-T"
-                ],
-                "12-52287180-TGG-T": [
-                    "12-52287177-T-C"
-                ]
-            }
+            "12-52287177-T-C": [
+                AbstractVariant(12-52287180-TGG-T)
+            ],
+            "12-52287180-TGG-T": [
+                AbstractVariant(12-52287177-T-C)
+            ]
         } ...
     }
 
     :param first_variant: string representation of variant1
     :param comp_hets: lookup dict for compound hets
     :param sample: ID string
-    :param gene: gene string
     :return:
     """
 
-    response = []
-
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
-        return response
+        return []
     sample_dict = comp_hets.get(sample)
-
-    # check if this sample-gene combination has listed variants
-    if gene in sample_dict:
-
-        # check if this variant has any listed partners in this gene
-        gene_dict = sample_dict.get(gene)
-
-        # return any variants listed against this gene
-        return gene_dict.get(first_variant, [])
-
-    return response
+    return sample_dict.get(first_variant, [])
 
 
 class MOIRunner:
@@ -96,13 +78,7 @@ class MOIRunner:
     pass
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        target_moi: str,
-        config: dict[str, Any],
-        comp_het_lookup: CompHetDict,
-    ):
+    def __init__(self, pedigree: Ped, target_moi: str, config: dict[str, Any]):
         """
         for each possible MOI, choose the appropriate filters to apply
         ran into a situation where the ID of target_moi didn't match the
@@ -113,7 +89,6 @@ class MOIRunner:
         :param pedigree:
         :param target_moi:
         :param config:
-        :param comp_het_lookup: the dictionary mapping all CH variant pairs
         """
 
         # for unknown, we catch all possible options?
@@ -125,27 +100,19 @@ class MOIRunner:
         elif target_moi in ['Mono_And_Biallelic', 'Unknown']:
             self.filter_list = [
                 DominantAutosomal(pedigree=pedigree, config=config),
-                RecessiveAutosomal(
-                    pedigree=pedigree, config=config, comp_het=comp_het_lookup
-                ),
+                RecessiveAutosomal(pedigree=pedigree, config=config),
             ]
         elif target_moi == 'Biallelic':
-            self.filter_list = [
-                RecessiveAutosomal(
-                    pedigree=pedigree, config=config, comp_het=comp_het_lookup
-                )
-            ]
+            self.filter_list = [RecessiveAutosomal(pedigree=pedigree, config=config)]
 
         elif target_moi == 'Hemi_Mono_In_Female':
             self.filter_list = [
-                XRecessive(pedigree=pedigree, config=config, comp_het=comp_het_lookup),
+                XRecessive(pedigree=pedigree, config=config),
                 XDominant(pedigree=pedigree, config=config),
             ]
 
         elif target_moi == 'Hemi_Bi_In_Female':
-            self.filter_list = [
-                XRecessive(pedigree=pedigree, config=config, comp_het=comp_het_lookup)
-            ]
+            self.filter_list = [XRecessive(pedigree=pedigree, config=config)]
 
         elif target_moi == 'Y_Chrom_Variant':
             self.filter_list = [YHemi(pedigree=pedigree, config=config)]
@@ -153,19 +120,17 @@ class MOIRunner:
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
-    def run(
-        self, principal_var, gene_lookup: dict[str, AbstractVariant]
-    ) -> list[ReportedVariant]:
+    def run(self, principal_var, comp_het: CompHetDict | None) -> list[ReportedVariant]:
         """
         run method - triggers each relevant inheritance model
         :param principal_var: the variant we are focused on
-        :param gene_lookup: all variants in the gene, indexed on chr-pos-ref-alt
+        :param comp_het:
         :return:
         """
         moi_matched = []
         for model in self.filter_list:
             moi_matched.extend(
-                model.run(principal_var=principal_var, gene_lookup=gene_lookup)
+                model.run(principal_var=principal_var, comp_het=comp_het)
             )
         return moi_matched
 
@@ -182,13 +147,7 @@ class BaseMoi:
     Definition of the MOI base class
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        config: dict[str, Any],
-        applied_moi: str,
-        comp_het: Optional[CompHetDict],
-    ):
+    def __init__(self, pedigree: Ped, config: dict[str, Any], applied_moi: str):
         """
         base class
         """
@@ -197,16 +156,15 @@ class BaseMoi:
         self.pedigree = pedigree
         self.config = config
         self.applied_moi = applied_moi
-        self.comp_het = comp_het
 
     @abstractmethod
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
     ) -> list[ReportedVariant]:
         """
         run all applicable inheritance patterns and finds good fits
         :param principal_var:
-        :param gene_lookup: dictionary of all variants in this gene
+        :param comp_het: dictionary of compound-hets
         :return:
         """
 
@@ -330,19 +288,17 @@ class DominantAutosomal(BaseMoi):
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
         self.hom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
-        super().__init__(
-            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
-        )
+        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
     ) -> list[ReportedVariant]:
         """
         simplest
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
-        :param gene_lookup:
+        :param comp_het:
         :return:
         """
 
@@ -402,24 +358,21 @@ class RecessiveAutosomal(BaseMoi):
         self,
         pedigree: Ped,
         config: dict[str, Any],
-        comp_het: CompHetDict,
         applied_moi: str = 'Autosomal Recessive',
     ):
         """ """
         self.hom_threshold = config.get(GNOMAD_REC_HOM_THRESHOLD)
-        super().__init__(
-            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=comp_het
-        )
+        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
     ) -> list[ReportedVariant]:
         """
         valid if present as hom, or compound het
         counts as being phased if a compound het is split between parents
         Clarify if we want to consider a homozygous variant as 2 hets
         :param principal_var:
-        :param gene_lookup:
+        :param comp_het:
         :return:
         """
 
@@ -469,16 +422,11 @@ class RecessiveAutosomal(BaseMoi):
             if not principal_var.sample_specific_category_check(sample_id):
                 continue
 
-            # partner here is a String chr-pos-ref-alt
-            for partner in check_for_second_hit(
+            for partner_variant in check_for_second_hit(
                 first_variant=principal_var.coords.string_format,
-                comp_hets=self.comp_het,
+                comp_hets=comp_het,
                 sample=sample_id,
-                gene=principal_var.info.get('gene_id'),
             ):
-
-                # get the complete variant object for this potential partner
-                partner_variant = gene_lookup[partner]
 
                 # categorised for this specific
                 if not partner_variant.sample_specific_category_check(sample_id):
@@ -488,7 +436,7 @@ class RecessiveAutosomal(BaseMoi):
                 if not self.check_familial_comp_het(
                     sample_id=sample_id,
                     called_variants_1=principal_var.het_samples,
-                    called_variants_2=gene_lookup[partner].het_samples,
+                    called_variants_2=partner_variant.het_samples,
                 ):
                     continue
 
@@ -499,7 +447,7 @@ class RecessiveAutosomal(BaseMoi):
                         var_data=principal_var,
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
-                        support_vars=[partner],
+                        support_vars=[partner_variant.coords.string_format],
                     )
                 )
 
@@ -517,10 +465,7 @@ class XDominant(BaseMoi):
     """
 
     def __init__(
-        self,
-        pedigree: Ped,
-        config: dict[str, Any],
-        applied_moi: str = 'X_Dominant',
+        self, pedigree: Ped, config: dict[str, Any], applied_moi: str = 'X_Dominant'
     ):
         """
         accept male hets and homs, and female hets without support
@@ -531,18 +476,16 @@ class XDominant(BaseMoi):
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
         self.hom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
-        super().__init__(
-            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
-        )
+        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
     ) -> list[ReportedVariant]:
         """
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
-        :param gene_lookup:
+        :param comp_het:
         :return:
         """
         classifications = []
@@ -608,7 +551,6 @@ class XRecessive(BaseMoi):
         self,
         pedigree: Ped,
         config: dict[str, Any],
-        comp_het: CompHetDict,
         applied_moi: str = 'X_Recessive',
     ):
         """
@@ -616,24 +558,23 @@ class XRecessive(BaseMoi):
         and take the comp-het dictionary
         :param pedigree:
         :param config:
-        :param comp_het:
         :param applied_moi:
         """
 
         self.hom_dom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
         self.hom_rec_threshold = config.get(GNOMAD_REC_HOM_THRESHOLD)
 
-        super().__init__(
-            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=comp_het
-        )
+        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None,
     ) -> list[ReportedVariant]:
         """
 
         :param principal_var:
-        :param gene_lookup:
+        :param comp_het:
         :return:
         """
 
@@ -680,15 +621,13 @@ class XRecessive(BaseMoi):
             if not principal_var.sample_specific_category_check(sample_id):
                 continue
 
-            for partner in check_for_second_hit(
+            for partner_variant in check_for_second_hit(
                 first_variant=principal_var.coords.string_format,
-                comp_hets=self.comp_het,
+                comp_hets=comp_het,
                 sample=sample_id,
-                gene=principal_var.info.get('gene_id'),
             ):
 
                 # allow for de novo check
-                partner_variant = gene_lookup[partner]
                 if not partner_variant.sample_specific_category_check(sample_id):
                     continue
 
@@ -696,7 +635,7 @@ class XRecessive(BaseMoi):
                 # get all female het calls on the paired variant
                 het_females_partner = {
                     sam
-                    for sam in gene_lookup[partner].het_samples
+                    for sam in partner_variant.het_samples
                     if self.pedigree[sample_id].sex == 'female'
                 }
                 if not self.check_familial_comp_het(
@@ -713,7 +652,7 @@ class XRecessive(BaseMoi):
                         var_data=principal_var,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
-                        support_vars=[partner],
+                        support_vars=[partner_variant.coords.string_format],
                     )
                 )
 
@@ -781,17 +720,17 @@ class YHemi(BaseMoi):
 
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
-        super().__init__(
-            pedigree=pedigree, config=config, applied_moi=applied_moi, comp_het=None
-        )
+        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, gene_lookup: dict[str, AbstractVariant]
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None,
     ) -> list[ReportedVariant]:
         """
         flag calls on Y which are Hom (maybe ok?) or female (bit weird)
         :param principal_var:
-        :param gene_lookup:
+        :param comp_het:
         :return:
         """
         classifications = []
