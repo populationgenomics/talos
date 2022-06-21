@@ -535,7 +535,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree):
 
         # iterate over any samples with a het overlap
         for sample in var_1.het_samples.intersection(var_2.het_samples):
-            ped_sample = pedigree.samples(sample)
+            ped_sample = pedigree.get(sample)
 
             # don't assess male compound hets on sex chromosomes
             if ped_sample.sex == 'male' and sex_chrom:
