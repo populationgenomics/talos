@@ -505,7 +505,7 @@ class CustomEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def find_comp_hets(var_list: list[AbstractVariant], pedigree):
+def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     """
     manual implementation to find compound hets
     variants provided in the format
@@ -525,7 +525,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree):
     """
 
     # create an empty dictionary
-    comp_het_results = nested_dict()
+    comp_het_results = defaultdict(dict)
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
@@ -546,7 +546,11 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree):
                 if var_1.phased[sample] == var_2.phased[sample]:
                     continue
 
-            comp_het_results[sample][var_1.coords.string_format] = var_2
-            comp_het_results[sample][var_2.coords.string_format] = var_1
+            comp_het_results[sample].setdefault(var_1.coords.string_format, []).append(
+                var_2
+            )
+            comp_het_results[sample].setdefault(var_2.coords.string_format, []).append(
+                var_1
+            )
 
     return comp_het_results
