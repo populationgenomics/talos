@@ -65,7 +65,6 @@ def check_for_second_hit(
     :param sample: ID string
     :return:
     """
-    print(comp_hets)
 
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
@@ -638,7 +637,6 @@ class XRecessive(BaseMoi):
                 comp_hets=comp_het,
                 sample=sample_id,
             ):
-                print(partner_variant)
 
                 # allow for de novo check
                 if not partner_variant.sample_specific_category_check(sample_id):

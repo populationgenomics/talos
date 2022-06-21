@@ -110,12 +110,24 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # identify variant sets phased with this one
         # cyvcf2 uses a default value for the phase set, skip that
         # this is restricted to a single int for phase_set
-        self.phased = defaultdict(set)
+        self.phased = defaultdict(dict)
+
         # first set the numpy.ndarray to be a list of ints
-        for sample, phase in zip(samples, map(int, var.format('PS'))):
-            # phase st
+        # the zip against ordered sample IDs
+        # this might need to store the exact genotype too
+        # i.e. 0|1 and 1|0 can be in the same phase-set
+        # but are un-phased variants
+        for sample, phase, genotype in zip(
+            samples, map(int, var.format('PS')), var.genotypes
+        ):
+            # cyvcf2.Variant holds two ints, and a bool
+            allele_1, allele_2, phased = genotype
+            if not phased:
+                continue
+            gt = f'{allele_1}|{allele_2}'
+            # phase set is a number
             if phase != PHASE_SET_DEFAULT:
-                self.phased[sample].add(phase)
+                self.phased[sample][phase] = gt
 
     def __str__(self):
         return repr(self)
@@ -399,17 +411,6 @@ def get_non_ref_samples(variant, samples: List[str]) -> Tuple[Set[str], Set[str]
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
     return het, hom, and the union of het and hom
-
-    maybe something different would be more versatile
-    e.g.
-    hets = {
-        sample: '0/1',
-    }
-    where the genotype and phased (|) vs unphased (/)
-    is determined from the variant.genotypes attribute
-    This would make it trivial for the final output to
-    have an accurate representation of the parsed GT
-    without having to regenerate the string rep.
     :param variant:
     :param samples:
     :return:
@@ -536,6 +537,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
         # iterate over any samples with a het overlap
         for sample in var_1.het_samples.intersection(var_2.het_samples):
+            phased = False
             ped_sample = pedigree.get(sample)
 
             # don't assess male compound hets on sex chromosomes
@@ -544,14 +546,24 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
             # check for both variants being in the same phase set
             if sample in var_1.phased and sample in var_2.phased:
-                if var_1.phased[sample] == var_2.phased[sample]:
-                    continue
 
-            comp_het_results[sample].setdefault(var_1.coords.string_format, []).append(
-                var_2
-            )
-            comp_het_results[sample].setdefault(var_2.coords.string_format, []).append(
-                var_1
-            )
+                # check for presence of the same phase set
+                for phase_set in [
+                    ps
+                    for ps in var_1.phased[sample].keys()
+                    if ps in var_2.phased[sample].keys()
+                ]:
+                    if (
+                        var_1.phased[sample][phase_set]
+                        == var_2.phased[sample][phase_set]
+                    ):
+                        phased = True
+            if not phased:
+                comp_het_results[sample].setdefault(
+                    var_1.coords.string_format, []
+                ).append(var_2)
+                comp_het_results[sample].setdefault(
+                    var_2.coords.string_format, []
+                ).append(var_1)
 
     return comp_het_results

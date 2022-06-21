@@ -161,7 +161,7 @@ def test_phased_dict(phased_vcf_path, conf_json_path):
     var_pair = var_dict['ENSG00000075043']
     for variant in var_pair:
         assert 'mother_1' in variant.phased
-        assert variant.phased['mother_1'] == {420}
+        assert variant.phased['mother_1'] == {420: '0|1'}
 
 
 def test_phased_comp_hets(phased_variants: list[AbstractVariant], peddy_ped):
