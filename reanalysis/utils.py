@@ -25,13 +25,8 @@ HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
-
-SEX_CHROMOSOMES = {'X', 'Y'}
-
 PHASE_SET_DEFAULT = -2147483648
-
-# pylint: disable=C3001
-nested_dict = lambda: defaultdict(nested_dict)
+X_CHROMOSOME = {'X'}
 
 
 @dataclass
@@ -529,9 +524,12 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
-
         assert var_1.coords.chrom == var_2.coords.chrom
-        sex_chrom = var_1.coords.chrom in SEX_CHROMOSOMES
+
+        if (var_1.coords == var_2.coords) or var_1.coords.chrom == 'Y':
+            continue
+
+        sex_chrom = var_1.coords.chrom in X_CHROMOSOME
 
         # iterate over any samples with a het overlap
         for sample in var_1.het_samples.intersection(var_2.het_samples):
