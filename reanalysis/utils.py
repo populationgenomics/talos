@@ -12,9 +12,7 @@ import json
 import logging
 import re
 
-import cyvcf2
 from cloudpathlib import AnyPath
-from cyvcf2 import Variant
 from peddy import Ped
 
 
@@ -68,11 +66,18 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def __init__(
         self,
-        var: Variant,
+        var,
         samples: List[str],
         config: Dict[str, Any],
         as_singletons=False,
     ):
+        """
+        var is a cyvcf2.Variant
+        :param var:
+        :param samples:
+        :param config:
+        :param as_singletons:
+        """
 
         # extract the coordinates into a separate object
         self.coords = Coordinates(
@@ -250,8 +255,9 @@ class ReportedVariant:
     support_vars: Optional[List[str]] = None
 
 
-def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
+def canonical_contigs_from_vcf(reader) -> Set[str]:
     """
+    reader is a cyvcf2.VCFReader
     read the header fields from the VCF handle
     return a set of all 'canonical' contigs
     :param reader:
@@ -270,7 +276,7 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str,
-    variant_source: cyvcf2.VCFReader,
+    variant_source,
     config: Dict[str, Any],
     panelapp_data: PanelAppDict,
     singletons: bool,
@@ -388,10 +394,9 @@ def get_simple_moi(panel_app_moi: str) -> str:
     return simple_moi
 
 
-def get_non_ref_samples(
-    variant: Variant, samples: List[str]
-) -> Tuple[Set[str], Set[str]]:
+def get_non_ref_samples(variant, samples: List[str]) -> Tuple[Set[str], Set[str]]:
     """
+    variant is a cyvcf2.Variant
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
     return het, hom, and the union of het and hom
@@ -426,8 +431,9 @@ def get_non_ref_samples(
     return het_samples, hom_samples
 
 
-def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
+def extract_csq(variant, config: Dict[str, Dict[str, str]]):
     """
+    variant is a cyvcf2.Variant
     specifically handle extraction of the CSQ list
     :param variant:
     :param config:
@@ -451,8 +457,9 @@ def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
     ]
 
 
-def extract_info(variant: Variant):
+def extract_info(variant):
     """
+    variant is a cyvcf2.Variant
     creates an INFO dict by pulling content from the variant info
     keeps a list of dictionaries for each transcript_consequence
     :param variant:
