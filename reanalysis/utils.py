@@ -116,7 +116,9 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # cyvcf2 uses a default value for the phase set, skip that
         # this is restricted to a single int for phase_set
         self.phased = defaultdict(set)
-        for sample, phase in zip(samples, var.format('PS')):
+        # first set the numpy.ndarray to be a list of ints
+        for sample, phase in zip(samples, map(int, var.format('PS'))):
+            # phase st
             if phase != PHASE_SET_DEFAULT:
                 self.phased[sample].add(phase)
 
