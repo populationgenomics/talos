@@ -65,6 +65,7 @@ def check_for_second_hit(
     :param sample: ID string
     :return:
     """
+    print(comp_hets)
 
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
@@ -120,13 +121,19 @@ class MOIRunner:
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
-    def run(self, principal_var, comp_het: CompHetDict | None) -> list[ReportedVariant]:
+    def run(
+        self, principal_var, comp_het: CompHetDict | None = None
+    ) -> list[ReportedVariant]:
         """
         run method - triggers each relevant inheritance model
         :param principal_var: the variant we are focused on
         :param comp_het:
         :return:
         """
+
+        if comp_het is None:
+            comp_het = {}
+
         moi_matched = []
         for model in self.filter_list:
             moi_matched.extend(
@@ -159,7 +166,7 @@ class BaseMoi:
 
     @abstractmethod
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
     ) -> list[ReportedVariant]:
         """
         run all applicable inheritance patterns and finds good fits
@@ -291,7 +298,7 @@ class DominantAutosomal(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
     ) -> list[ReportedVariant]:
         """
         simplest
@@ -365,7 +372,7 @@ class RecessiveAutosomal(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
     ) -> list[ReportedVariant]:
         """
         valid if present as hom, or compound het
@@ -375,6 +382,9 @@ class RecessiveAutosomal(BaseMoi):
         :param comp_het:
         :return:
         """
+
+        if comp_het is None:
+            comp_het = {}
 
         classifications = []
 
@@ -479,7 +489,7 @@ class XDominant(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
     ) -> list[ReportedVariant]:
         """
         if variant is present and sufficiently rare, we take it
@@ -488,6 +498,7 @@ class XDominant(BaseMoi):
         :param comp_het:
         :return:
         """
+
         classifications = []
 
         if principal_var.coords.chrom.lower() != 'x':
@@ -567,9 +578,7 @@ class XRecessive(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self,
-        principal_var: AbstractVariant,
-        comp_het: CompHetDict | None,
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
     ) -> list[ReportedVariant]:
         """
 
@@ -582,6 +591,9 @@ class XRecessive(BaseMoi):
             raise Exception(
                 f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
             )
+
+        if comp_het is None:
+            comp_het = {}
 
         classifications = []
 
@@ -626,6 +638,7 @@ class XRecessive(BaseMoi):
                 comp_hets=comp_het,
                 sample=sample_id,
             ):
+                print(partner_variant)
 
                 # allow for de novo check
                 if not partner_variant.sample_specific_category_check(sample_id):
@@ -723,9 +736,7 @@ class YHemi(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self,
-        principal_var: AbstractVariant,
-        comp_het: CompHetDict | None,
+        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
     ) -> list[ReportedVariant]:
         """
         flag calls on Y which are Hom (maybe ok?) or female (bit weird)

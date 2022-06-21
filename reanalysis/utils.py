@@ -117,6 +117,9 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             if phase != PHASE_SET_DEFAULT:
                 self.phased[sample].add(phase)
 
+    def __str__(self):
+        return repr(self)
+
     @property
     def category_1_2_3(self) -> bool:
         """
@@ -275,7 +278,7 @@ def gather_gene_dict_from_contig(
     variant_source,
     config: Dict[str, Any],
     panelapp_data: PanelAppDict,
-    singletons: bool,
+    singletons: bool = False,
     blacklist: Optional[List[str]] = None,
 ) -> GeneDict:
     """
