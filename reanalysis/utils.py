@@ -13,7 +13,6 @@ import logging
 import re
 
 from cloudpathlib import AnyPath
-from peddy import Ped
 
 
 InfoDict = Dict[str, Union[str, Dict[str, str]]]
@@ -504,7 +503,7 @@ class CustomEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def find_comp_hets(var_list: list[AbstractVariant], pedigree: Ped):
+def find_comp_hets(var_list: list[AbstractVariant], pedigree):
     """
     manual implementation to find compound hets
     variants provided in the format
@@ -519,7 +518,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree: Ped):
     }
 
     :param var_list:
-    :param pedigree:
+    :param pedigree: peddy.Ped
     :return:
     """
 
