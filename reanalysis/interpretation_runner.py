@@ -14,7 +14,7 @@ re-run currently requires the deletion of previous outputs
 """
 
 
-from typing import Any, Optional
+from typing import Any
 
 import logging
 from pathlib import Path
@@ -93,8 +93,8 @@ def set_job_resources(
     job: hb.batch.job.Job,
     auth=False,
     git=False,
-    image: Optional[str] = None,
-    prior_job: Optional[hb.batch.job.Job] = None,
+    image: str | None = None,
+    prior_job: hb.batch.job.Job | None = None,
     memory: str = 'standard',
 ):
     """
@@ -125,24 +125,28 @@ def set_job_resources(
         )
 
 
-def mt_to_vcf(batch: hb.Batch, input_file: str):
+def mt_to_vcf(batch: hb.Batch, input_file: str, config: dict[str, Any]):
     """
     takes a MT and converts to VCF
     :param batch:
     :param input_file:
+    :param config:
     :return:
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
     set_job_resources(mt_to_vcf_job, git=True, auth=True)
 
-    additional_header = 'gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt'
-
     job_cmd = (
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
         f'--input {input_file} '
-        f'--output {INPUT_AS_VCF} '
-        f'--additional_header {additional_header}'
+        f'--output {INPUT_AS_VCF}'
     )
+
+    # if the config has an additional header file, add argument
+    vqsr_file = config.get('vqsr_header_file')
+    if vqsr_file:
+        job_cmd += f' --additional_header {vqsr_file}'
+
     logging.info(f'Command used to convert MT: {job_cmd}')
     copy_common_env(mt_to_vcf_job)
     mt_to_vcf_job.command(job_cmd)
@@ -152,7 +156,7 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
 def annotate_vcf(
     input_vcf: str,
     batch: hb.Batch,
-    seq_type: Optional[SequencingType] = SequencingType.GENOME,
+    seq_type: SequencingType | None = SequencingType.GENOME,
 ) -> list[hb.batch.job.Job]:
     """
     takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
@@ -184,7 +188,7 @@ def annotate_vcf(
 def annotated_mt_from_ht_and_vcf(
     input_vcf: str,
     batch: hb.Batch,
-    job_attrs: Optional[dict] = None,
+    job_attrs: dict | None = None,
 ) -> hb.batch.job.Job:
     """
     apply the HT of annotations to the VCF, save as MT
@@ -213,9 +217,9 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
-    gene_list: Optional[str],
-    prev_version: Optional[str],
-    prior_job: Optional[hb.batch.job.Job] = None,
+    gene_list: str | None = None,
+    prev_version: str | None = None,
+    prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
@@ -247,7 +251,7 @@ def handle_hail_filtering(
     matrix_path: str,
     config: str,
     plink_file: str,
-    prior_job: Optional[hb.batch.job.Job] = None,
+    prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.BashJob:
     """
     hail-query backend version of the filtering implementation
@@ -280,63 +284,20 @@ def handle_hail_filtering(
     return labelling_job
 
 
-def handle_reheader_job(
-    batch: hb.Batch,
-    local_vcf: str,
-    config_dict: dict[str, Any],
-    prior_job: Optional[hb.batch.job.Job] = None,
-) -> hb.batch.job.BashJob:
-    """
-    runs the bcftools re-header process
-    :param batch:
-    :param local_vcf:
-    :param config_dict:
-    :param prior_job:
-    :return:
-    """
-
-    bcft_job = batch.new_job(name='bcftools_reheader_stage')
-    set_job_resources(bcft_job, image=BCFTOOLS_IMAGE, prior_job=prior_job)
-
-    bcft_job.declare_resource_group(
-        vcf={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'}
-    )
-
-    # reheader the VCF using BCFtools and sed
-    # replace the empty description with the full CSQ line from config
-    desc = '##INFO=<ID=CSQ,Number=.,Type=String,Description="'
-
-    # grotty string formatting to deliver the correct syntax to bcftools
-    conf_csq = config_dict['variant_object'].get('csq_string').replace('|', r'\|')
-    new_format = rf"Format: '{conf_csq}'"
-
-    # only to reduce line length
-    b_rh = 'bcftools reheader'
-
-    bcft_job.command(
-        'set -ex; '
-        f'bcftools view -h {local_vcf} | sed \'s/'
-        f'{desc}">/{desc}{new_format}">/\' > new_header; '
-        f'{b_rh} -h new_header --threads 4 -o {bcft_job.vcf["vcf.bgz"]} {local_vcf}; '
-        f'tabix {bcft_job.vcf["vcf.bgz"]}; '
-    )
-    return bcft_job
-
-
 def handle_results_job(
     batch: hb.Batch,
     config: str,
-    reheadered_vcf: str,
+    labelled_vcf: str,
     pedigree: str,
     analysis_index: str,
-    prior_job: Optional[hb.batch.job.Job] = None,
+    prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
     one container to run the MOI checks, and the presentation
 
     :param batch:
     :param config:
-    :param reheadered_vcf:
+    :param labelled_vcf:
     :param pedigree:
     :param analysis_index: whether to run singleton or familial analysis
     :param prior_job:
@@ -349,7 +310,7 @@ def handle_results_job(
         'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
-        f'--labelled_vcf {reheadered_vcf} '
+        f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {OUTPUT_DICT[analysis_index]["results"]} && '
@@ -402,6 +363,11 @@ def file_is_vcf(file_path: str) -> bool:
     default='gs://cpg-acute-care-test/reanalysis/reanalysis_conf.json',
 )
 @click.option(
+    '--plink_file',
+    help='location of a plink file for the cohort',
+    required=True,
+)
+@click.option(
     '--panelapp_version',
     help='panelapp current comparison with this earlier version',
     required=False,
@@ -412,11 +378,6 @@ def file_is_vcf(file_path: str) -> bool:
     required=False,
 )
 @click.option(
-    '--plink_file',
-    help='location of a plink file for the cohort',
-    required=True,
-)
-@click.option(
     '--singletons',
     help='location of a plink file for the singletons',
     required=False,
@@ -424,19 +385,19 @@ def file_is_vcf(file_path: str) -> bool:
 def main(
     input_path: str,
     config_json: str,
-    panelapp_version: Optional[str],
-    panel_genes: Optional[str],
     plink_file: str,
-    singletons: Optional[str] = None,
+    panelapp_version: str | None = None,
+    panel_genes: str | None = None,
+    singletons: str | None = None,
 ):
     """
     main method, which runs the full reanalysis process
 
     :param input_path: annotated input matrix table or VCF
     :param config_json:
-    :param panelapp_version:
-    :param panel_genes:
     :param plink_file:
+    :param panel_genes:
+    :param panelapp_version:
     :param singletons:
     """
 
@@ -467,24 +428,21 @@ def main(
     # -------------------------- #
     # Convert MT to a VCF format #
     # -------------------------- #
-    # determine the input type
+    # determine the input type - if MT, decompose to VCF prior to annotation
     if not file_is_vcf(input_path):
-        # then we must decompose into a VCF prior to annotation!
-        prior_job = mt_to_vcf(batch=batch, input_file=input_path)
+        prior_job = mt_to_vcf(batch=batch, input_file=input_path, config=config_dict)
         input_path = INPUT_AS_VCF
 
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
     # ------------------------------------- #
-    # now we do the annotation, unless it already exists
     annotated_path = CloudPath(ANNOTATED_MT)
     if not annotated_path.exists():
         # need to run the annotation phase
         # uses default values from RefData
         annotation_jobs = annotate_vcf(input_path, batch=batch)
 
-        # if the conversion to VCF job exists, assign as a dependency
-        # for all annotation jobs
+        # if convert-to-VCF job exists, assign as an annotation dependency
         if prior_job:
             for job in annotation_jobs:
                 job.depends_on(prior_job)
@@ -495,13 +453,12 @@ def main(
         )
         anno_job.depends_on(*annotation_jobs)
 
-        # take the last job in this batch, and use for future dependencies
+        # last job in batch used for future dependencies
         prior_job = anno_job
 
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
-    # stop needlessly repeating the panelapp query
     if not AnyPath(PANELAPP_JSON_OUT).exists():
         prior_job = handle_panelapp_job(
             batch=batch,
@@ -513,64 +470,33 @@ def main(
     # ----------------------- #
     # run hail categorisation #
     # ----------------------- #
-    # only run if the output VCF doesn't already exist
-    if not AnyPath(REHEADERED_OUT).exists():
-        logging.info(
-            f'The Reheadered VCF "{REHEADERED_OUT}" doesn\'t exist; regenerating'
-        )
-
-        if not AnyPath(HAIL_VCF_OUT).exists():
-            logging.info(
-                f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating'
-            )
-
-            prior_job = handle_hail_filtering(
-                batch=batch,
-                matrix_path=ANNOTATED_MT,
-                config=config_json,
-                prior_job=prior_job,
-                plink_file=plink_file,
-            )
-
-        # --------------------------------- #
-        # bcftools re-headering of hail VCF #
-        # --------------------------------- #
-        # copy the labelled output file into the remaining batch jobs
-        hail_output_in_batch = batch.read_input_group(
-            **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
-        )
-
-        # this is no longer explicitly required...
-        # it was required to run slivar: geneId, consequences, and transcript
-        # keeping in to ensure the VCF can be interpreted without the config
-        bcftools_job = handle_reheader_job(
+    if not AnyPath(HAIL_VCF_OUT).exists():
+        logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
+        prior_job = handle_hail_filtering(
             batch=batch,
-            local_vcf=hail_output_in_batch['vcf.bgz'],
-            config_dict=config_dict,
+            matrix_path=ANNOTATED_MT,
+            config=config_json,
             prior_job=prior_job,
+            plink_file=plink_file,
         )
-        batch.write_output(bcftools_job.vcf, REHEADERED_PREFIX)
-        reheadered_vcf_in_batch = bcftools_job.vcf['vcf.bgz']
 
-    # if it exists remotely, read into a batch
-    else:
-        needs_vqsr_line = batch.read_input_group(
-            **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
-        )
-        reheadered_vcf_in_batch = needs_vqsr_line['vcf.bgz']
+    # read that VCF into the batch as a local file
+    labelled_vcf_in_batch = batch.read_input_group(
+        **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
+    )
 
+    # for dev purposes - always run as default (family)
+    # if singleton VCF supplied, also run as singletons (using separate output paths)
     analysis_rounds = [(plink_file, 'default')]
     if singletons and AnyPath(singletons).exists():
         analysis_rounds.append((singletons, 'singletons'))
 
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
-        # use labelled VCF to identify plausibly pathogenic variants where MOI
-        # is in line with PanelApp expectation
         _results_job = handle_results_job(
             batch=batch,
             config=config_json,
-            reheadered_vcf=reheadered_vcf_in_batch,
+            labelled_vcf=labelled_vcf_in_batch['vcf.bgz'],
             pedigree=relationships,
             analysis_index=analysis_index,
             prior_job=prior_job,

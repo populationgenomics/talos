@@ -26,7 +26,6 @@ from cpg_utils.hail_batch import init_batch
 from reanalysis.hail_filter_and_label import (
     extract_annotations,
     filter_by_ab_ratio,
-    filter_by_consequence,
     filter_matrix_by_ac,
     filter_on_quality_flags,
     filter_to_population_rare,
@@ -437,23 +436,6 @@ def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
     return reasons
 
 
-def check_consequences(
-    matrix: hl.MatrixTable, config: dict[str, Any]
-) -> tuple[hl.MatrixTable, list[str]]:
-    """
-    filter out the irrelevant consequences
-    return a fail reason if we filter everything out
-    :param matrix:
-    :param config:
-    :return:
-    """
-    matrix = filter_by_consequence(matrix, config)
-
-    if matrix.count_rows() == 0:
-        return matrix, ['QC: No variants had relevant consequences']
-    return matrix, []
-
-
 def check_population_rare(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> tuple[hl.MatrixTable, list[str]]:
@@ -656,6 +638,7 @@ def check_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[st
 def prepare_mt(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     prepare the MT (splitting by gene, moving attributes, etc.)
+    replicates split_rows_by_gene_and_filter_to_green
     :param matrix:
     :return:
     """
@@ -663,6 +646,16 @@ def prepare_mt(matrix: hl.MatrixTable) -> hl.MatrixTable:
     # split out the different gene annotations onto separate rows
     # but don't remove non-green genes yet
     matrix = matrix.explode_rows(matrix.geneIds)
+
+    # csq filter to single gene per row
+    matrix = matrix.annotate_rows(
+        vep=matrix.vep.annotate(
+            transcript_consequences=matrix.vep.transcript_consequences.filter(
+                lambda x: (matrix.geneIds == x.gene_id)
+                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
+            )
+        )
+    )
 
     # move annotations, use original method
     return extract_annotations(matrix)
@@ -721,18 +714,6 @@ def check_mt(
             reasons.append('Gene is not GREEN in PanelApp')
 
         # break early if we find a QC/Green Gene failure
-        if reasons:
-            untiered[sample].append((variant, reasons))
-            continue
-
-        # this splits each gene onto a separate row
-        # then filters the attached consequences accordingly
-        # so all remaining vep.transcript_consequences are relevant
-        # to the row-level geneIds
-        var_mt, csq_reason = check_consequences(var_mt, config)
-        reasons.extend(csq_reason)
-
-        # break early if we find a CSQ failure?
         if reasons:
             untiered[sample].append((variant, reasons))
             continue

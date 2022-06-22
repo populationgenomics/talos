@@ -89,7 +89,7 @@ def test_av_categories(trio_abs_variant: AbstractVariant):
     assert trio_abs_variant.category_3
     assert not trio_abs_variant.category_2
     assert not trio_abs_variant.category_1
-    assert trio_abs_variant.category_1_2_3
+    assert trio_abs_variant.category_1_2_3_5
     assert trio_abs_variant.category_non_support
     assert trio_abs_variant.is_classified
 

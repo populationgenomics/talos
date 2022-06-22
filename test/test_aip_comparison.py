@@ -22,7 +22,6 @@ from reanalysis.comparison import (
     find_variant_in_mt,
     run_ac_check,
     run_quality_flag_check,
-    check_consequences,
     CommonFormatResult,
     Confidence,
 )
@@ -399,14 +398,3 @@ def test_filter_sample_by_ab(gt, ad, result, hail_matrix):
 
     anno_mt = hail_matrix.annotate_entries(AD=hl.array(ad), GT=hl.parse_call(gt))
     assert filter_sample_by_ab(anno_mt, 'SAMPLE') == result
-
-
-def test_consequence_filter(csq_matrix):
-    """
-    :param csq_matrix:
-    :return:
-    """
-    conf = {'useless_csq': ['synonymous']}
-    anno_matrix, row_count = csq_matrix
-    _csq_filtered_matrix, assigned_tags = check_consequences(anno_matrix, conf)
-    assert len(assigned_tags) == (1 - row_count)
