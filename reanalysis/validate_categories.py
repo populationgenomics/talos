@@ -132,9 +132,12 @@ def apply_moi_to_variants(
                 # - find the simplified MOI string
                 # - use to get appropriate MOI model
                 # - run variant, append relevant classification(s) to the results
+                # NEW - run partially penetrant analysis for Category 1 (clinvar)
                 results.extend(
                     moi_lookup[simple_moi].run(
-                        principal_var=variant, comp_het=comp_het_dict
+                        principal_var=variant,
+                        comp_het=comp_het_dict,
+                        partial_penetrance=variant.category_1,
                     )
                 )
 

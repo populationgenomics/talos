@@ -626,7 +626,7 @@ def test_check_familial_inheritance_mother_passes(peddy_ped):
     result = base_moi.check_familial_inheritance(
         sample_id='male',
         called_variants={'male', 'mother_1'},
-        complete_penetrance=False,
+        partial_penetrance=True,
     )
     assert result
 
@@ -657,7 +657,7 @@ def test_check_familial_inheritance_father_passes(peddy_ped):
     result = base_moi.check_familial_inheritance(
         sample_id='male',
         called_variants={'male', 'father_1'},
-        complete_penetrance=False,
+        partial_penetrance=True,
     )
     assert result
 
@@ -674,7 +674,7 @@ def test_check_familial_inheritance_top_down(peddy_ped):
     result = base_moi.check_familial_inheritance(
         sample_id='father_1',
         called_variants={'male', 'father_1'},
-        complete_penetrance=False,
+        partial_penetrance=True,
     )
     assert result
 
@@ -691,7 +691,7 @@ def test_check_familial_inheritance_no_calls(peddy_ped):
     result = base_moi.check_familial_inheritance(
         sample_id='male',
         called_variants=set(),
-        complete_penetrance=False,
+        partial_penetrance=True,
     )
     # should fail immediately
     assert not result
