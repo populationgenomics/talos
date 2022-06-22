@@ -45,13 +45,14 @@ and potentially resolve any discrepancies against the Truth dataset:
 Input data from both sources will be translated into a common format:
 
 ```python
+from reanalysis.comparison import CommonFormatResult
 results = {
    'sample_ID': [
-        Variant('chr', 'pos', 'ref', 'alt', 'confidence'),
-        Variant('chr', 'pos', 'ref', 'alt', 'confidence'),
+        CommonFormatResult('chr', 'pos', 'ref', 'alt', ['confidence']),
+        CommonFormatResult('chr', 'pos', 'ref', 'alt', ['confidence']),
     ],
    'sample_ID_2':[
-        Variant('chr', 'pos', 'ref', 'alt', 'confidence'),
+        CommonFormatResult('chr', 'pos', 'ref', 'alt', ['confidence']),
         ...
    ]
 }

@@ -28,6 +28,7 @@ BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 
 PHASE_SET_DEFAULT = -2147483648
 X_CHROMOSOME = {'X'}
+NON_HOM_CHROM = {'Y', 'MT', 'M'}
 
 
 @dataclass
@@ -530,7 +531,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
         assert var_1.coords.chrom == var_2.coords.chrom
 
-        if (var_1.coords == var_2.coords) or var_1.coords.chrom == 'Y':
+        if (var_1.coords == var_2.coords) or var_1.coords.chrom in NON_HOM_CHROM:
             continue
 
         sex_chrom = var_1.coords.chrom in X_CHROMOSOME
