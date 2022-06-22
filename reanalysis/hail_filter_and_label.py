@@ -5,10 +5,8 @@ Read, filter, annotate, classify, and write Genetic data
 - hard-filter (FILTERS, AC)
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
-- consequence filter
-- remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 2, 3, 4, and Support (in silico)
+- annotate with categories 1, 2, 3, 4, 5, and Support
 - remove un-categorised variants
 - calculate compound-het pairings
 - write as VCF
@@ -125,6 +123,7 @@ def annotate_category_2(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
+    logging.info(f'C2 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
@@ -177,6 +176,7 @@ def annotate_category_3(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
+    logging.info(f'C3 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -241,16 +241,16 @@ def filter_by_consequence(
     """
 
     # at time of writing this is VEP HIGH + missense_variant
-    high_csq = config.get('critical_csq', [])
-    high_csq.extend(config.get('additional_consequences', []))
-    consequences = hl.set(high_csq)
+    # update without updating the dictionary content
+    high_csq = set(config.get('critical_csq', [])).union(
+        set(config.get('additional_consequences', []))
+    )
 
     # overwrite the consequences with an intersection against a limited list
     matrix = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: hl.len(hl.set(x.consequence_terms).intersection(consequences))
-                > 0
+                lambda x: hl.len(hl.set(x.consequence_terms).intersection(high_csq)) > 0
             )
         )
     )
