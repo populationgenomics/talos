@@ -24,13 +24,13 @@ from peddy.peddy import Ped
 
 from reanalysis.moi_tests import MOIRunner
 from reanalysis.utils import (
-    AbstractVariant,
     canonical_contigs_from_vcf,
+    find_comp_hets,
     gather_gene_dict_from_contig,
     get_simple_moi,
     read_json_from_path,
-    CompHetDict,
     CustomEncoder,
+    GeneDict,
     ReportedVariant,
 )
 
@@ -39,7 +39,6 @@ def set_up_inheritance_filters(
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
     config: Dict[str, Any],
     pedigree: Ped,
-    comp_het_lookup: CompHetDict,
 ) -> Dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
@@ -64,7 +63,6 @@ def set_up_inheritance_filters(
     :param panelapp_data:
     :param config:
     :param pedigree:
-    :param comp_het_lookup:
     :return:
     """
 
@@ -85,19 +83,17 @@ def set_up_inheritance_filters(
 
             # get a MOIRunner with the relevant filters
             moi_dictionary[gene_moi] = MOIRunner(
-                pedigree=pedigree,
-                target_moi=gene_moi,
-                config=config['moi_tests'],
-                comp_het_lookup=comp_het_lookup,
+                pedigree=pedigree, target_moi=gene_moi, config=config['moi_tests']
             )
 
     return moi_dictionary
 
 
 def apply_moi_to_variants(
-    variant_dict: Dict[str, Dict[str, AbstractVariant]],
+    variant_dict: GeneDict,
     moi_lookup: Dict[str, MOIRunner],
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
+    pedigree: Ped,
 ) -> List[ReportedVariant]:
     """
     take a collection of all variants on a given contig & MOI filters
@@ -106,15 +102,15 @@ def apply_moi_to_variants(
     :param variant_dict:
     :param moi_lookup:
     :param panelapp_data:
+    :param pedigree:
     :return:
     """
 
     results = []
 
-    # NOTE - if we want details from both sides of a compound het in the
-    # MOI check or report details, this lookup gives us a way to access that data
-    # For now just iterate over the individual variants
     for gene, variants in variant_dict.items():
+
+        comp_het_dict = find_comp_hets(var_list=variants, pedigree=pedigree)
 
         # extract the panel data specific to this gene
         # extract once per gene, not once per variant
@@ -127,7 +123,7 @@ def apply_moi_to_variants(
 
         simple_moi = get_simple_moi(panel_gene_data.get('moi'))
 
-        for variant in variants.values():
+        for variant in variants:
 
             # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
             if variant.category_non_support:
@@ -138,7 +134,7 @@ def apply_moi_to_variants(
                 # - run variant, append relevant classification(s) to the results
                 results.extend(
                     moi_lookup[simple_moi].run(
-                        principal_var=variant, gene_lookup=variants
+                        principal_var=variant, comp_het=comp_het_dict
                     )
                 )
 
@@ -192,7 +188,6 @@ def clean_initial_results(
 
 def main(
     labelled_vcf: str,
-    comp_het: str,
     config_path: Union[str, Dict[str, Any]],
     out_json: str,
     panelapp: str,
@@ -224,7 +219,6 @@ def main(
             family members
 
     :param labelled_vcf:
-    :param comp_het:
     :param config_path:
     :param out_json:
     :param panelapp:
@@ -254,10 +248,7 @@ def main(
 
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
-        panelapp_data=panelapp_data,
-        pedigree=pedigree_digest,
-        config=config_dict,
-        comp_het_lookup=read_json_from_path(comp_het),
+        panelapp_data=panelapp_data, pedigree=pedigree_digest, config=config_dict
     )
 
     # open the VCF using a cyvcf2 reader
@@ -282,11 +273,13 @@ def main(
             singletons=singletons,
             blacklist=variant_blacklist,
         )
+
         results.extend(
             apply_moi_to_variants(
                 variant_dict=contig_dict,
                 moi_lookup=moi_lookup,
                 panelapp_data=panelapp_data,
+                pedigree=pedigree_digest,
             )
         )
 
@@ -301,12 +294,7 @@ def main(
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     parser = ArgumentParser()
-    parser.add_argument(
-        '--labelled_vcf', help='Path to VCF resulting from category labelling process'
-    )
-    parser.add_argument(
-        '--comp_het', help='JSON file containing all compound het variants'
-    )
+    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--config_path', help='path to the runtime JSON config')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
@@ -314,7 +302,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,
-        comp_het=args.comp_het,
         config_path=args.config_path,
         out_json=args.out_json,
         panelapp=args.panelapp,

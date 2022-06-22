@@ -4,9 +4,11 @@ test class for the utils collection
 from dataclasses import dataclass
 from typing import List
 import pytest
-
+from cyvcf2 import VCFReader
 from reanalysis.utils import (
     AbstractVariant,
+    find_comp_hets,
+    gather_gene_dict_from_contig,
     get_non_ref_samples,
     get_simple_moi,
     read_json_from_path,
@@ -73,8 +75,8 @@ def test_av_de_novo(trio_abs_variant: AbstractVariant):
     :param trio_abs_variant:
     :return:
     """
-    assert trio_abs_variant.sample_de_novo('PROBAND')
-    assert not trio_abs_variant.sample_de_novo('FATHER')
+    assert trio_abs_variant.sample_de_novo('male')
+    assert not trio_abs_variant.sample_de_novo('father_1')
 
 
 def test_av_categories(trio_abs_variant: AbstractVariant):
@@ -90,3 +92,84 @@ def test_av_categories(trio_abs_variant: AbstractVariant):
     assert trio_abs_variant.category_1_2_3
     assert trio_abs_variant.category_non_support
     assert trio_abs_variant.is_classified
+
+
+def test_av_phase(trio_abs_variant: AbstractVariant):
+    """
+    nothing here yet
+    :param trio_abs_variant:
+    :return:
+    """
+    assert trio_abs_variant.phased == {}
+
+
+def test_gene_dict(two_trio_variants_vcf, conf_json_path):
+    """
+    gene = ENSG00000075043
+    :param two_trio_variants_vcf:
+    :param conf_json_path:
+    :return:
+    """
+    conf = read_json_from_path(conf_json_path)
+    reader = VCFReader(two_trio_variants_vcf)
+    contig = 'chr20'
+    panel_data = {'ENSG00000075043': {'new': True}}
+    var_dict = gather_gene_dict_from_contig(
+        contig=contig, config=conf, variant_source=reader, panelapp_data=panel_data
+    )
+    assert len(var_dict) == 1
+    assert 'ENSG00000075043' in var_dict
+    assert len(var_dict['ENSG00000075043']) == 2
+
+
+def test_comp_hets(two_trio_abs_variants: list[AbstractVariant], peddy_ped):
+    """
+    {
+        'male': {
+            '20-63406931-C-CGG': [AbstractVariant()],
+            '20-63406991-C-CGG': [AbstractVariant()]
+        }
+    }
+    :param two_trio_abs_variants:
+    :return:
+    """
+    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=peddy_ped)
+    assert 'male' in ch_dict
+    results = ch_dict.get('male')
+    assert len(results) == 2
+    key_1, key_2 = list(results.keys())
+    assert results[key_1][0].coords.string_format == key_2
+    assert results[key_2][0].coords.string_format == key_1
+
+
+def test_phased_dict(phased_vcf_path, conf_json_path):
+    """
+    gene = ENSG00000075043
+    :param phased_vcf_path:
+    :param conf_json_path:
+    :return:
+    """
+    conf = read_json_from_path(conf_json_path)
+    reader = VCFReader(phased_vcf_path)
+    panel_data = {'ENSG00000075043': {'new': True}}
+    var_dict = gather_gene_dict_from_contig(
+        contig='chr20', config=conf, variant_source=reader, panelapp_data=panel_data
+    )
+    assert len(var_dict) == 1
+    assert 'ENSG00000075043' in var_dict
+    assert len(var_dict['ENSG00000075043']) == 2
+    var_pair = var_dict['ENSG00000075043']
+    for variant in var_pair:
+        assert 'mother_1' in variant.phased
+        assert variant.phased['mother_1'] == {420: '0|1'}
+
+
+def test_phased_comp_hets(phased_variants: list[AbstractVariant], peddy_ped):
+    """
+    phased variants shouldn't form a comp-het
+    'mother_1' is het for both variants, but phase-set is same for both
+    :param phased_variants:
+    :return:
+    """
+    ch_dict = find_comp_hets(phased_variants, pedigree=peddy_ped)
+    assert len(ch_dict) == 0

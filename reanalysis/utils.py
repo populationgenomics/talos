@@ -3,31 +3,17 @@ a collection of classes and methods
 which may be shared across reanalysis components
 """
 
-
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from collections import defaultdict
 from dataclasses import dataclass, is_dataclass
+from itertools import combinations_with_replacement
 
 import json
 import logging
 import re
 
-import cyvcf2
 from cloudpathlib import AnyPath
-from cyvcf2 import Variant
 
-
-# CompHetDict structure:
-# {
-#     sample: {
-#         gene: {
-#             variant: [variant, ...]
-#         }
-#     }
-# }
-# sample: string, e,g, CGP12345
-# gene: string, e.g. ENSG012345
-# variant: string, chr-pos-ref-alt
-CompHetDict = Dict[str, Dict[str, Dict[str, List[str]]]]
 
 InfoDict = Dict[str, Union[str, Dict[str, str]]]
 PanelAppDict = Dict[str, Dict[str, Union[str, bool]]]
@@ -39,6 +25,8 @@ HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: Set[int] = {HOMREF, UNKNOWN}
+PHASE_SET_DEFAULT = -2147483648
+X_CHROMOSOME = {'X'}
 
 
 @dataclass
@@ -72,11 +60,18 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def __init__(
         self,
-        var: Variant,
+        var,
         samples: List[str],
         config: Dict[str, Any],
         as_singletons=False,
     ):
+        """
+        var is a cyvcf2.Variant
+        :param var:
+        :param samples:
+        :param config:
+        :param as_singletons:
+        """
 
         # extract the coordinates into a separate object
         self.coords = Coordinates(
@@ -111,6 +106,31 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.transcript_consequences: List[Dict[str, str]] = extract_csq(
             variant=var, config=config
         )
+
+        # identify variant sets phased with this one
+        # cyvcf2 uses a default value for the phase set, skip that
+        # this is restricted to a single int for phase_set
+        self.phased = defaultdict(dict)
+
+        # first set the numpy.ndarray to be a list of ints
+        # the zip against ordered sample IDs
+        # this might need to store the exact genotype too
+        # i.e. 0|1 and 1|0 can be in the same phase-set
+        # but are un-phased variants
+        for sample, phase, genotype in zip(
+            samples, map(int, var.format('PS')), var.genotypes
+        ):
+            # cyvcf2.Variant holds two ints, and a bool
+            allele_1, allele_2, phased = genotype
+            if not phased:
+                continue
+            gt = f'{allele_1}|{allele_2}'
+            # phase set is a number
+            if phase != PHASE_SET_DEFAULT:
+                self.phased[sample][phase] = gt
+
+    def __str__(self):
+        return repr(self)
 
     @property
     def category_1_2_3(self) -> bool:
@@ -218,6 +238,17 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         return self.category_1_2_3 or self.sample_de_novo(sample_id)
 
 
+# CompHetDict structure:
+# {
+#     sample: {
+#         variant_string: [variant, ...]
+#     }
+# }
+# sample: string, e,g, CGP12345
+CompHetDict = Dict[str, Dict[str, List[AbstractVariant]]]
+GeneDict = Dict[str, list[AbstractVariant]]
+
+
 @dataclass
 class ReportedVariant:
     """
@@ -235,8 +266,9 @@ class ReportedVariant:
     support_vars: Optional[List[str]] = None
 
 
-def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
+def canonical_contigs_from_vcf(reader) -> Set[str]:
     """
+    reader is a cyvcf2.VCFReader
     read the header fields from the VCF handle
     return a set of all 'canonical' contigs
     :param reader:
@@ -255,20 +287,18 @@ def canonical_contigs_from_vcf(reader: cyvcf2.VCFReader) -> Set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str,
-    variant_source: cyvcf2.VCFReader,
+    variant_source,
     config: Dict[str, Any],
     panelapp_data: PanelAppDict,
-    singletons: bool,
+    singletons: bool = False,
     blacklist: Optional[List[str]] = None,
-) -> Dict[str, Dict[str, AbstractVariant]]:
+) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
     {
-        gene: {
-            var1_as_string: var1,
-            var2_as_string: var2,
-        },
+        gene1: [var1, var2],
+        gene2: [var3],
         ...
     }
     :param contig: contig name from header (canonical_contigs_from_vcf)
@@ -285,7 +315,7 @@ def gather_gene_dict_from_contig(
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
-    contig_dict = {}
+    contig_dict = defaultdict(list)
 
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
@@ -303,16 +333,13 @@ def gather_gene_dict_from_contig(
             )
             continue
 
-            # do category 2 'new' test
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
         if abs_var.category_2:
-            # implement the c2 check
             gene_id = abs_var.info.get('gene_id')
             gene_data = panelapp_data.get(gene_id, False)
             if not gene_data:
                 continue
 
-            # is the gene 'new'? if not, skip
             if not gene_data.get('new', False):
                 variant.category_2 = False
 
@@ -324,9 +351,7 @@ def gather_gene_dict_from_contig(
         contig_variants += 1
 
         # update the gene index dictionary
-        contig_dict.setdefault(abs_var.info.get('gene_id'), {})[
-            abs_var.coords.string_format
-        ] = abs_var
+        contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
@@ -380,24 +405,12 @@ def get_simple_moi(panel_app_moi: str) -> str:
     return simple_moi
 
 
-def get_non_ref_samples(
-    variant: Variant, samples: List[str]
-) -> Tuple[Set[str], Set[str]]:
+def get_non_ref_samples(variant, samples: List[str]) -> Tuple[Set[str], Set[str]]:
     """
+    variant is a cyvcf2.Variant
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
     return het, hom, and the union of het and hom
-
-    maybe something different would be more versatile
-    e.g.
-    hets = {
-        sample: '0/1',
-    }
-    where the genotype and phased (|) vs unphased (/)
-    is determined from the variant.genotypes attribute
-    This would make it trivial for the final output to
-    have an accurate representation of the parsed GT
-    without having to regenerate the string rep.
     :param variant:
     :param samples:
     :return:
@@ -418,8 +431,9 @@ def get_non_ref_samples(
     return het_samples, hom_samples
 
 
-def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
+def extract_csq(variant, config: Dict[str, Dict[str, str]]):
     """
+    variant is a cyvcf2.Variant
     specifically handle extraction of the CSQ list
     :param variant:
     :param config:
@@ -443,8 +457,9 @@ def extract_csq(variant: Variant, config: Dict[str, Dict[str, str]]):
     ]
 
 
-def extract_info(variant: Variant):
+def extract_info(variant):
     """
+    variant is a cyvcf2.Variant
     creates an INFO dict by pulling content from the variant info
     keeps a list of dictionaries for each transcript_consequence
     :param variant:
@@ -487,3 +502,68 @@ class CustomEncoder(json.JSONEncoder):
         if isinstance(o, set):
             return list(o)
         return json.JSONEncoder.default(self, o)
+
+
+def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
+    """
+    manual implementation to find compound hets
+    variants provided in the format
+
+    [var1, var2, ..]
+
+    generate pair content in the form
+    {
+        sample: {
+            var_as_string: [partner_variant, ...]
+        }
+    }
+
+    :param var_list:
+    :param pedigree: peddy.Ped
+    :return:
+    """
+
+    # create an empty dictionary
+    comp_het_results = defaultdict(dict)
+
+    # use combinations_with_replacement to find all gene pairs
+    for var_1, var_2 in combinations_with_replacement(var_list, 2):
+        assert var_1.coords.chrom == var_2.coords.chrom
+
+        if (var_1.coords == var_2.coords) or var_1.coords.chrom == 'Y':
+            continue
+
+        sex_chrom = var_1.coords.chrom in X_CHROMOSOME
+
+        # iterate over any samples with a het overlap
+        for sample in var_1.het_samples.intersection(var_2.het_samples):
+            phased = False
+            ped_sample = pedigree.get(sample)
+
+            # don't assess male compound hets on sex chromosomes
+            if ped_sample.sex == 'male' and sex_chrom:
+                continue
+
+            # check for both variants being in the same phase set
+            if sample in var_1.phased and sample in var_2.phased:
+
+                # check for presence of the same phase set
+                for phase_set in [
+                    ps
+                    for ps in var_1.phased[sample].keys()
+                    if ps in var_2.phased[sample].keys()
+                ]:
+                    if (
+                        var_1.phased[sample][phase_set]
+                        == var_2.phased[sample][phase_set]
+                    ):
+                        phased = True
+            if not phased:
+                comp_het_results[sample].setdefault(
+                    var_1.coords.string_format, []
+                ).append(var_2)
+                comp_het_results[sample].setdefault(
+                    var_2.coords.string_format, []
+                ).append(var_1)
+
+    return comp_het_results

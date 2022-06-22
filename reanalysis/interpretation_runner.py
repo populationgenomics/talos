@@ -11,12 +11,10 @@ pipeline stages either directly or via Hail Batch(es)
 Steps are run only where the specified output does not exist
 i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
-
-compound-het calculations moved to Hail, removed requirement for Slivar stage
 """
 
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import logging
 from pathlib import Path
@@ -27,6 +25,7 @@ import click
 from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
 
+from cpg_utils.config import get_config
 from cpg_utils.git import (
     prepare_git_job,
     get_git_commit_ref_of_current_repository,
@@ -42,9 +41,9 @@ from cpg_utils.hail_batch import (
     remote_tmpdir,
 )
 
-from reanalysis import annotation
-from reanalysis.utils import read_json_from_path
-from reanalysis.vep.jobs import vep_jobs, SequencingType
+import annotation
+from utils import read_json_from_path
+from vep.jobs import vep_jobs, SequencingType
 
 
 # static paths to write outputs
@@ -59,7 +58,6 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 
 # output of labelling task in Hail
-COMP_HET_JSON = output_path('hail_categorised.json')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
 # hail outputs with CSQ header line
@@ -80,7 +78,7 @@ OUTPUT_DICT = {
 
 # location of the CPG BCFTools image
 BCFTOOLS_IMAGE = image_path('bcftools')
-DEFAULT_IMAGE = os.getenv('CPG_DRIVER_IMAGE')
+DEFAULT_IMAGE = get_config()['workflow']['driver_image']
 assert DEFAULT_IMAGE
 
 # local script references
@@ -155,7 +153,7 @@ def annotate_vcf(
     input_vcf: str,
     batch: hb.Batch,
     seq_type: Optional[SequencingType] = SequencingType.GENOME,
-) -> List[hb.batch.job.Job]:
+) -> list[hb.batch.job.Job]:
     """
     takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
 
@@ -173,7 +171,7 @@ def annotate_vcf(
     return vep_jobs(
         b=batch,
         vcf_path=AnyPath(input_vcf),
-        hail_billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        hail_billing_project=get_config()['hail']['billing_project'],
         hail_bucket=AnyPath(remote_tmpdir()),
         tmp_bucket=AnyPath(VEP_STAGE_TMP),
         out_path=AnyPath(VEP_HT_TMP),
@@ -195,7 +193,7 @@ def annotated_mt_from_ht_and_vcf(
     apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
 
     copy_common_env(apply_anno_job)
-    apply_anno_job.image(os.getenv('CPG_DRIVER_IMAGE'))
+    apply_anno_job.image(DEFAULT_IMAGE)
 
     cmd = query_command(
         annotation,
@@ -204,7 +202,7 @@ def annotated_mt_from_ht_and_vcf(
         VEP_HT_TMP,
         ANNOTATED_MT,
         setup_gcp=True,
-        hail_billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        hail_billing_project=get_config()['hail']['billing_project'],
         hail_bucket=str(remote_tmpdir()),
         default_reference='GRCh38',
         packages=['seqr-loader==1.2.5'],
@@ -285,7 +283,7 @@ def handle_hail_filtering(
 def handle_reheader_job(
     batch: hb.Batch,
     local_vcf: str,
-    config_dict: Dict[str, Any],
+    config_dict: dict[str, Any],
     prior_job: Optional[hb.batch.job.Job] = None,
 ) -> hb.batch.job.BashJob:
     """
@@ -328,7 +326,6 @@ def handle_reheader_job(
 def handle_results_job(
     batch: hb.Batch,
     config: str,
-    comp_het: str,
     reheadered_vcf: str,
     pedigree: str,
     analysis_index: str,
@@ -339,7 +336,6 @@ def handle_results_job(
 
     :param batch:
     :param config:
-    :param comp_het:
     :param reheadered_vcf:
     :param pedigree:
     :param analysis_index: whether to run singleton or familial analysis
@@ -353,7 +349,6 @@ def handle_results_job(
         'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
         f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
-        f'--comp_het {comp_het} '
         f'--labelled_vcf {reheadered_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
@@ -455,7 +450,7 @@ def main(
     config_dict = read_json_from_path(config_json)
 
     service_backend = hb.ServiceBackend(
-        billing_project=os.getenv('HAIL_BILLING_PROJECT'),
+        billing_project=get_config()['hail']['billing_project'],
         remote_tmpdir=remote_tmpdir(),
     )
     batch = hb.Batch(
@@ -463,6 +458,7 @@ def main(
         backend=service_backend,
         cancel_after_n_failures=1,
         default_timeout=6000,
+        default_memory='highmem',
     )
 
     # set a first job in this batch
@@ -569,12 +565,11 @@ def main(
 
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
-        # use compound-hets and labelled VCF to identify plausibly pathogenic
-        # variants where the MOI is viable compared to the PanelApp expectation
+        # use labelled VCF to identify plausibly pathogenic variants where MOI
+        # is in line with PanelApp expectation
         _results_job = handle_results_job(
             batch=batch,
             config=config_json,
-            comp_het=COMP_HET_JSON,
             reheadered_vcf=reheadered_vcf_in_batch,
             pedigree=relationships,
             analysis_index=analysis_index,

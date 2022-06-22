@@ -18,7 +18,6 @@ PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 
 HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
-HAIL_MULTI_SAM = os.path.join(INPUT, 'multiple_hail.vcf.bgz')
 DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
 DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
 QUAD_PED = os.path.join(INPUT, 'trio_plus_sibling.fam')
@@ -27,6 +26,7 @@ TEST_CONF = os.path.join(INPUT, 'test_conf.json')
 PED_FILE = os.path.join(INPUT, 'pedfile.ped')
 AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
+PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
@@ -89,6 +89,31 @@ def fixture_single_variant_vcf_path():
     return HAIL_VCF
 
 
+@pytest.fixture(name='phased_vcf_path')
+def fixture_phased_trio_vcf_path():
+    """
+    passes path to the phased trio VCF
+    :return:
+    """
+
+    return PHASED_TRIO
+
+
+@pytest.fixture(name='phased_variants')
+def fixture_phased_trio_variants():
+    """
+    passes path to the phased trio VCF
+    :return:
+    """
+
+    conf_json = read_json_from_path(TEST_CONF)
+    vcf_reader = VCFReader(PHASED_TRIO)
+    two_variants = [
+        AbstractVariant(var, vcf_reader.samples, config=conf_json) for var in vcf_reader
+    ]
+    return two_variants
+
+
 @pytest.fixture(name='trio_ped')
 def fixture_trio_ped():
     """
@@ -132,6 +157,31 @@ def fixture_trio_abs_variant():
     return AbstractVariant(cyvcf_var, vcf_reader.samples, config=conf_json)
 
 
+@pytest.fixture(name='two_trio_abs_variants')
+def fixture_two_trio_abs_variants():
+    """
+    sends the location of the Trio Pedigree (PLINK)
+    1) Cat. 3, and Cat. 4 for PROBAND only
+    2) Cat. 1 + 3, and Cat. 4 for PROBAND only
+    :return:
+    """
+    conf_json = read_json_from_path(TEST_CONF)
+    vcf_reader = VCFReader(LABELLED)
+    two_variants = [
+        AbstractVariant(var, vcf_reader.samples, config=conf_json) for var in vcf_reader
+    ]
+    return two_variants
+
+
+@pytest.fixture(name='two_trio_variants_vcf')
+def fixture_path_to_two_trio_abs_variants():
+    """
+    sends the location of the Trio VCF
+    :return:
+    """
+    return LABELLED
+
+
 @pytest.fixture(name='de_novo_matrix')
 def fixture_de_novo_matrix():
     """
@@ -139,15 +189,6 @@ def fixture_de_novo_matrix():
     :return:
     """
     return hl.import_vcf(DE_NOVO_TRIO, reference_genome='GRCh38')
-
-
-@pytest.fixture(name='hail_comp_het')
-def fixture_hail_matrix_comp_het():
-    """
-    loads the single variant as a matrix table
-    :return:
-    """
-    return hl.import_vcf(HAIL_MULTI_SAM, reference_genome='GRCh38')
 
 
 @pytest.fixture(name='output_json', scope='session')
