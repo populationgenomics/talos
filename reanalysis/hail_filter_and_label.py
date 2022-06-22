@@ -434,7 +434,7 @@ def split_rows_by_gene_and_filter_to_green(
 
 
 def vep_struct_to_csq(
-    vep_expr: hl.expr.StructExpression, csq_fields: str
+    vep_expr: hl.expr.StructExpression, csq_fields: list[str]
 ) -> hl.expr.ArrayExpression:
     """
     Taken shamelessly from the gnomad library source code
@@ -445,10 +445,9 @@ def vep_struct_to_csq(
     Order is flexible & all fields in the default value are supported.
     These fields are formatted in the same way that their VEP CSQ counterparts are.
     :param vep_expr: The input VEP Struct
-    :param csq_fields: | delimited fields to include in the CSQ (in that order)
-    :return: The corresponding CSQ strings
+    :param csq_fields: ordered list of lower-case fields to include in the CSQ
+    :return: The corresponding CSQ string(s)
     """
-    _csq_fields = [f.lower() for f in csq_fields.split('|')]
 
     def get_csq_from_struct(
         element: hl.expr.StructExpression, feature_type: str
@@ -509,7 +508,7 @@ def vep_struct_to_csq(
         )
 
         return hl.delimit(
-            [hl.or_else(hl.str(fields.get(f, '')), '') for f in _csq_fields], '|'
+            [hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|'
         )
 
     csq = hl.empty_array(hl.tstr)
