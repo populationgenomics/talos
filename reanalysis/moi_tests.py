@@ -553,6 +553,10 @@ class XDominant(BaseMoi):
 
         for sample_id in samples_with_this_variant:
 
+            # skip primary analysis for unaffected members
+            if not self.pedigree[sample_id].affected:
+                continue
+
             # we require this specific sample to be categorised - check Cat 4 contents
             if not principal_var.sample_specific_category_check(sample_id):
                 continue
