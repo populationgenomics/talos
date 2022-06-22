@@ -132,15 +132,18 @@ def annotate_category_2(
                 (new_genes.contains(matrix.geneIds))
                 & (
                     (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: hl.len(
-                                critical_consequences.intersection(
-                                    hl.set(x.consequence_terms)
+                        hl.len(
+                            matrix.vep.transcript_consequences.filter(
+                                lambda x: hl.len(
+                                    critical_consequences.intersection(
+                                        hl.set(x.consequence_terms)
+                                    )
                                 )
+                                > 0
                             )
-                            > 0
                         )
                     )
+                    > 0
                     | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
                     | (
                         (matrix.info.cadd > config['in_silico']['cadd'])
@@ -170,27 +173,31 @@ def annotate_category_3(
 
     critical_consequences = hl.set(config.get('critical_csq'))
 
+    # explicitly link the LOFTEE check with exact consequences
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category3=hl.if_else(
                 (
-                    matrix.vep.transcript_consequences.any(
-                        lambda x: hl.len(
-                            critical_consequences.intersection(
-                                hl.set(x.consequence_terms)
-                            )
-                        )
-                        > 0
-                    )
+                    ~(matrix.info.clinvar_sig.lower().contains(BENIGN))
+                    & (matrix.info.clinvar_stars > 0)
                 )
                 & (
-                    (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))
+                    hl.len(
+                        matrix.vep.transcript_consequences.filter(
+                            lambda x: (
+                                hl.len(
+                                    critical_consequences.intersection(
+                                        hl.set(x.consequence_terms)
+                                    )
+                                )
+                                > 0
+                            )
+                            & ((x.lof == LOFTEE_HC) | (hl.is_missing(x.lof)))
                         )
                     )
-                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
-                ),
+                    > 0
+                )
+                | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC)),
                 ONE_INT,
                 MISSING_INT,
             )
