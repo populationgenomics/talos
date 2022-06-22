@@ -35,7 +35,6 @@ from cpg_utils.git import (
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
-    image_path,
     output_path,
     query_command,
     remote_tmpdir,
@@ -60,10 +59,6 @@ PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
-# hail outputs with CSQ header line
-REHEADERED_OUT = output_path('hail_categories_reheadered.vcf.bgz')
-REHEADERED_PREFIX = output_path('hail_categories_reheadered')
-
 # outputs for familial and singleton analysis
 OUTPUT_DICT = {
     'default': {
@@ -76,8 +71,6 @@ OUTPUT_DICT = {
     },
 }
 
-# location of the CPG BCFTools image
-BCFTOOLS_IMAGE = image_path('bcftools')
 DEFAULT_IMAGE = get_config()['workflow']['driver_image']
 assert DEFAULT_IMAGE
 
@@ -482,7 +475,7 @@ def main(
 
     # read that VCF into the batch as a local file
     labelled_vcf_in_batch = batch.read_input_group(
-        **{'vcf.bgz': REHEADERED_OUT, 'vcf.bgz.tbi': REHEADERED_OUT + '.tbi'}
+        **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
     )
 
     # for dev purposes - always run as default (family)
