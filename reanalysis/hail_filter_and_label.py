@@ -126,6 +126,7 @@ def annotate_category_2(
 
     critical_consequences = hl.set(config.get('critical_csq'))
 
+    # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category2=hl.if_else(
@@ -144,7 +145,11 @@ def annotate_category_2(
                         )
                         > 0
                     )
-                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    | (
+                        (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                        & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
+                        & ~(matrix.info.clinvar_sig.lower().contains(BENIGN))
+                    )
                     | (
                         (matrix.info.cadd > config['in_silico']['cadd'])
                         | (matrix.info.revel > config['in_silico']['revel'])
@@ -173,15 +178,13 @@ def annotate_category_3(
 
     critical_consequences = hl.set(config.get('critical_csq'))
 
-    # explicitly link the LOFTEE check with exact consequences
+    # First check if we have any HIGH consequences
+    # then explicitly link the LOFTEE check with HIGH consequences
+    # OR allow for a pathogenic ClinVar, any Stars
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category3=hl.if_else(
                 (
-                    ~(matrix.info.clinvar_sig.lower().contains(BENIGN))
-                    & (matrix.info.clinvar_stars > 0)
-                )
-                & (
                     hl.len(
                         matrix.vep.transcript_consequences.filter(
                             lambda x: (
@@ -192,12 +195,33 @@ def annotate_category_3(
                                 )
                                 > 0
                             )
-                            & ((x.lof == LOFTEE_HC) | (hl.is_missing(x.lof)))
                         )
                     )
                     > 0
                 )
-                | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC)),
+                & (
+                    (
+                        hl.len(
+                            matrix.vep.transcript_consequences.filter(
+                                lambda x: (
+                                    hl.len(
+                                        critical_consequences.intersection(
+                                            hl.set(x.consequence_terms)
+                                        )
+                                    )
+                                    > 0
+                                )
+                                & ((x.lof == LOFTEE_HC) | (hl.is_missing(x.lof)))
+                            )
+                        )
+                        > 0
+                    )
+                    | (
+                        (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                        & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
+                        & ~(matrix.info.clinvar_sig.lower().contains(BENIGN))
+                    )
+                ),
                 ONE_INT,
                 MISSING_INT,
             )
