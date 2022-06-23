@@ -12,7 +12,39 @@ from reanalysis.utils import (
     get_non_ref_samples,
     get_simple_moi,
     read_json_from_path,
+    identify_file_type,
+    FileTypes,
 )
+
+
+def test_file_types():
+    """
+    check 'em
+    :return:
+    """
+    assert identify_file_type('this/is/my/matrixtable.mt') == FileTypes.MATRIX_TABLE
+    assert identify_file_type('this/is/my/hailtable.ht') == FileTypes.HAIL_TABLE
+    assert identify_file_type('this/is/a/varfile.vcf') == FileTypes.VCF
+    assert identify_file_type('this/is/a/varfile.vcf.gz') == FileTypes.VCF_GZ
+    assert identify_file_type('this/is/a/varfile.vcf.bgz') == FileTypes.VCF_BGZ
+
+
+def test_file_types_assert_error():
+    """
+    check 'em
+    :return:
+    """
+    with pytest.raises(AssertionError):
+        identify_file_type('no/extensions')
+
+
+def test_file_types_exception():
+    """
+    check 'em
+    :return:
+    """
+    with pytest.raises(Exception):
+        identify_file_type('i/am/a/mystery.file.type')
 
 
 def test_read_json(conf_json_path):
