@@ -15,9 +15,7 @@ re-run currently requires the deletion of previous outputs
 
 
 from typing import Any
-
 import logging
-from pathlib import Path
 import os
 import sys
 
@@ -41,7 +39,7 @@ from cpg_utils.hail_batch import (
 )
 
 import annotation
-from utils import read_json_from_path
+from utils import read_json_from_path, FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
 
@@ -241,7 +239,6 @@ def handle_panelapp_job(
 
 def handle_hail_filtering(
     batch: hb.Batch,
-    matrix_path: str,
     config: str,
     plink_file: str,
     prior_job: hb.batch.job.Job | None = None,
@@ -251,7 +248,6 @@ def handle_hail_filtering(
     use the init query service instead of running inside dataproc
 
     :param batch:
-    :param matrix_path: path to annotated matrix table
     :param config:
     :param plink_file:
     :param prior_job:
@@ -264,7 +260,7 @@ def handle_hail_filtering(
     )
     labelling_command = (
         f'python3 {HAIL_FILTER} '
-        f'--mt_input {matrix_path} '
+        f'--mt_input {ANNOTATED_MT} '
         f'--panelapp_path {PANELAPP_JSON_OUT} '
         f'--config_path {config} '
         f'--plink_file {plink_file} '
@@ -319,33 +315,6 @@ def handle_results_job(
     return results_job
 
 
-def file_is_vcf(file_path: str) -> bool:
-    """
-    return True if the file path represents a VCF
-
-    :param file_path:
-    :return:
-    """
-
-    # convert the path to a pathlib.Path
-    pl_filepath = Path(file_path)
-
-    # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
-    extensions = pl_filepath.suffixes
-
-    assert len(extensions) > 0, 'cannot identify input type from extensions'
-
-    # identify MatrixTables
-    if extensions[-1] == '.mt':
-        return False
-
-    # identify "definitely not VCF"s
-    if '.vcf' not in extensions:
-        raise Exception('file cannot be definitively typed as a VCF or a MT')
-
-    return True
-
-
 @click.command()
 @click.option(
     '--input_path', help='variant matrix table or VCF to analyse', required=True
@@ -375,6 +344,12 @@ def file_is_vcf(file_path: str) -> bool:
     help='location of a plink file for the singletons',
     required=False,
 )
+@click.option(
+    '--skip_annotation',
+    help='if set, a MT with appropriate annotations can be provided',
+    is_flag=True,
+    default=False,
+)
 def main(
     input_path: str,
     config_json: str,
@@ -382,6 +357,7 @@ def main(
     panelapp_version: str | None = None,
     panel_genes: str | None = None,
     singletons: str | None = None,
+    skip_annotation: bool = False,
 ):
     """
     main method, which runs the full reanalysis process
@@ -392,6 +368,7 @@ def main(
     :param panel_genes:
     :param panelapp_version:
     :param singletons:
+    :param skip_annotation:
     """
 
     if not AnyPath(input_path).exists():
@@ -422,9 +399,24 @@ def main(
     # Convert MT to a VCF format #
     # -------------------------- #
     # determine the input type - if MT, decompose to VCF prior to annotation
-    if not file_is_vcf(input_path):
-        prior_job = mt_to_vcf(batch=batch, input_file=input_path, config=config_dict)
-        input_path = INPUT_AS_VCF
+    input_file_type = identify_file_type(input_path)
+    assert input_file_type in [FileTypes.VCF_GZ, FileTypes.VCF_BGZ], (
+        f'inappropriate input type provided: {input_file_type}; '
+        f'this is designed for MT or compressed VCF only'
+    )
+
+    if input_file_type == FileTypes.MATRIX_TABLE:
+        if skip_annotation:
+            # overwrite the expected annotation output path
+            global ANNOTATED_MT  # pylint: disable=W0603
+            ANNOTATED_MT = input_path
+
+        else:
+            prior_job = mt_to_vcf(
+                batch=batch, input_file=input_path, config=config_dict
+            )
+            # overwrite input path with file we just created
+            input_path = INPUT_AS_VCF
 
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
@@ -467,7 +459,6 @@ def main(
         logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
         prior_job = handle_hail_filtering(
             batch=batch,
-            matrix_path=ANNOTATED_MT,
             config=config_json,
             prior_job=prior_job,
             plink_file=plink_file,

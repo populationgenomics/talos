@@ -3,10 +3,12 @@ a collection of classes and methods
 which may be shared across reanalysis components
 """
 
-from typing import Any, Union
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass
+from enum import Enum
 from itertools import combinations_with_replacement
+from pathlib import Path
+from typing import Any, Union
 
 import json
 import logging
@@ -29,6 +31,45 @@ BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 PHASE_SET_DEFAULT = -2147483648
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
+
+
+class FileTypes(Enum):
+    """
+    enumeration of permitted input file types
+    """
+
+    HAIL_TABLE = '.ht'
+    MATRIX_TABLE = '.mt'
+    VCF = '.vcf'
+    VCF_GZ = '.vcf.gz'
+    VCF_BGZ = '.vcf.bgz'
+
+
+def identify_file_type(file_path: str) -> FileTypes | Exception:
+    """
+    return type of the file, if present in FileTypes enum
+
+    :param file_path:
+    :return:
+    """
+    pl_filepath = Path(file_path)
+
+    # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
+    extensions = pl_filepath.suffixes
+
+    assert len(extensions) > 0, 'cannot identify input type from extensions'
+
+    if extensions[-1] == '.ht':
+        return FileTypes.HAIL_TABLE
+    if extensions[-1] == '.mt':
+        return FileTypes.MATRIX_TABLE
+    if extensions == ['.vcf']:
+        return FileTypes.VCF
+    if extensions == ['.vcf', '.gz']:
+        return FileTypes.VCF_GZ
+    if extensions == ['.vcf', '.bgz']:
+        return FileTypes.VCF_BGZ
+    raise Exception(f'File cannot be definitively typed: {str(extensions)}')
 
 
 @dataclass
