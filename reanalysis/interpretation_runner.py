@@ -400,7 +400,11 @@ def main(
     # -------------------------- #
     # determine the input type - if MT, decompose to VCF prior to annotation
     input_file_type = identify_file_type(input_path)
-    assert input_file_type in [FileTypes.VCF_GZ, FileTypes.VCF_BGZ], (
+    assert input_file_type in [
+        FileTypes.VCF_GZ,
+        FileTypes.VCF_BGZ,
+        FileTypes.MATRIX_TABLE,
+    ], (
         f'inappropriate input type provided: {input_file_type}; '
         f'this is designed for MT or compressed VCF only'
     )
