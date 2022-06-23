@@ -71,28 +71,11 @@ Summarised here [Labelling stage](design_docs/Hail_Filter_and_Label.md)
 2. Filtering of the Annotated data to remove common or low quality variants
 3. Labelling of individual variants with categories of interest
 4. Removal of all un-labelled variants
-5. Construction of CSQ strings (see below)
-6. Search for compound-heterozygous pairs within the remaining variants
+5. Construction of CSQ strings as annotations
 
 #### Outputs
 
 - VCF: labelled variants
-- JSON: compound-het pairs
-
-### [VCF Re-heading/CSQ String](reanalysis/interpretation_runner.py)
-
-During the Hail labelling stage, we [create a compound CSQ string](https://github.com/populationgenomics/automated-interpretation-pipeline/blob/main/reanalysis/hail_filter_and_label.py#L478-L571)
-from a number of separate annotations. This format mirrors the way that VEP annotates VCF files, and creates one or more
-compound (|-delimited) strings. During this process we take instruction from the config file to decide which values to
-retain, and the order to squash them together in.
-
-When Hail writes the variant data out as a VCF file, it creates a generic entry in the header, stating that the CSQ
-field is a String, but provides no way to decode it. So that the VCF can be parsed without re-referencing the config
-file, we alter the default Header line to contain the full CSQ compound string. This was originally used to enable
-compound-het calculation by Slivar, and is retained as it could possibly be useful for other downstream users/purposes.
-
-[relevant Slivar issue](https://github.com/brentp/slivar/issues/120)
-
 
 ### [MOI Checking](reanalysis/validate_categories.py)
 
@@ -100,7 +83,6 @@ compound-het calculation by Slivar, and is retained as it could possibly be usef
 
 - String: path to runtime configuration/settings (JSON)
 - VCF: labelled variants
-- String: path to compound-heterozygous pairs (JSON)
 - String: path to PanelApp data (JSON)
 - String: path to PED file for cohort
 

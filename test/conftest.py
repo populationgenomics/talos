@@ -2,13 +2,13 @@
 A home for common test fixtures
 """
 
-
 import os
+from typing import Any
 import pytest
-import hail as hl
-from hail.utils.java import FatalError
 
 from cyvcf2 import VCFReader
+import hail as hl
+from hail.utils.java import FatalError
 from peddy.peddy import Ped
 
 from reanalysis.utils import AbstractVariant, read_json_from_path
@@ -27,6 +27,15 @@ PED_FILE = os.path.join(INPUT, 'pedfile.ped')
 AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
+PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
+
+
+@pytest.fixture(name='panel_changes', scope='session')
+def fixture_panel_with_new_gene_updates() -> dict[str, Any]:
+    """
+    :return: Ped
+    """
+    return read_json_from_path(PANELAPP_CHANGES)
 
 
 @pytest.fixture(name='peddy_ped', scope='session')

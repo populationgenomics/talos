@@ -2,8 +2,6 @@
 unit testing collection for the hail MT methods
 """
 
-import json
-import os
 import pytest
 
 import hail as hl
@@ -13,22 +11,14 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,
-    annotate_category_4,
+    annotate_category_5,
     annotate_category_support,
     green_and_new_from_panelapp,
-    filter_benign,
-    filter_by_consequence,
     filter_to_population_rare,
-    filter_to_green_genes_and_split,
+    split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
 )
 
-
-PWD = os.path.dirname(__file__)
-INPUT = os.path.join(PWD, 'input')
-
-# contains a single variant at chr1:1, with minimal info
-PANELAPP_FILE = os.path.join(INPUT, 'panel_changes_expected.json')
 
 category_1_keys = ['locus', 'clinvar_sig', 'clinvar_stars']
 category_2_keys = [
@@ -72,6 +62,7 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
         ([hl_locus, 'conflicting_interpretations_of_pathogenicity', 1], 0),
         ([hl_locus, 'benign', 1], 0),
         ([hl_locus, 'pathogenic&something&else', 2], 1),
+        ([hl_locus, 'pathogenic&sbenignng&else', 2], 0),
     ],
 )
 def test_class_1_assignment(values, classified, hail_matrix):
@@ -197,6 +188,24 @@ def test_class_3_assignment(values, classified, hail_matrix):
 
 
 @pytest.mark.parametrize(
+    'spliceai_score,flag',
+    [(0.1, 0), (0.11, 0), (0.3, 0), (0.49, 0), (0.5, 1), (0.69, 1), (0.9, 1)],
+)
+def test_category_5_assignment(spliceai_score: float, flag: int, hail_matrix):
+    """
+    :param hail_matrix:
+    :return:
+    """
+
+    matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(splice_ai_delta=spliceai_score)
+    )
+    conf = {'spliceai_full': 0.5}
+    matrix = annotate_category_5(matrix, conf)
+    assert matrix.info.Category5.collect() == [flag]
+
+
+@pytest.mark.parametrize(
     'values,classified',
     [
         ([hl_locus, 0.0, 0.0, 'n', 0.0, 0.0, 1.0, 0.0], 0),
@@ -249,28 +258,26 @@ def test_support_assignment(values, classified, hail_matrix):
     assert anno_matrix.info.CategorySupport.collect() == [classified]
 
 
-def test_green_and_new_from_panelapp():
+def test_green_and_new_from_panelapp(panel_changes):
     """
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
     2 set expressions, one for all genes, one for new genes only
-    :return:
+    :param panel_changes:
     """
-    with open(PANELAPP_FILE, 'r', encoding='utf-8') as handle:
-        panelapp_data = json.load(handle)
-        green_expression, new_expression = green_and_new_from_panelapp(panelapp_data)
+    green_expression, new_expression = green_and_new_from_panelapp(panel_changes)
 
-        # check types
-        assert isinstance(green_expression, hl.SetExpression)
-        assert isinstance(new_expression, hl.SetExpression)
+    # check types
+    assert isinstance(green_expression, hl.SetExpression)
+    assert isinstance(new_expression, hl.SetExpression)
 
-        # check content by collecting
-        assert sorted(list(green_expression.collect()[0])) == [
-            'ENSG00ABCD',
-            'ENSG00EFGH',
-            'ENSG00IJKL',
-        ]
-        assert list(new_expression.collect()[0]) == ['ENSG00EFGH']
+    # check content by collecting
+    assert sorted(list(green_expression.collect()[0])) == [
+        'ENSG00ABCD',
+        'ENSG00EFGH',
+        'ENSG00IJKL',
+    ]
+    assert list(new_expression.collect()[0]) == ['ENSG00EFGH']
 
 
 @pytest.mark.parametrize(
@@ -298,49 +305,6 @@ def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'clinvar,stars,length',
-    [
-        ('not_benign', 0, 1),
-        ('not_benign', 1, 0),
-        ('sth_else', 1, 1),
-        ('', 3, 1),
-    ],
-)
-def test_filter_benign(clinvar, stars, length, hail_matrix):
-    """
-    :param hail_matrix:
-    :return:
-    """
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            clinvar_sig=clinvar,
-            clinvar_stars=stars,
-        )
-    )
-    matrix = filter_benign(anno_matrix)
-    assert matrix.count_rows() == length
-
-
-@pytest.mark.parametrize(
-    'gene_id,length',
-    [
-        ({''}, 0),
-        ({'gene'}, 1),
-        ({hl.missing(t=hl.tstr)}, 0),
-    ],
-)
-def test_filter_genic(gene_id, length, hail_matrix):
-    """
-    :param hail_matrix:
-    :return:
-    """
-    green_genes = hl.literal({'gene'})
-    anno_matrix = hail_matrix.annotate_rows(geneIds=gene_id)
-    matrix = filter_to_green_genes_and_split(anno_matrix, green_genes=green_genes)
-    assert matrix.count_rows() == length
-
-
-@pytest.mark.parametrize(
     'gene_ids,length',
     [
         ({'not_green'}, 0),
@@ -348,6 +312,7 @@ def test_filter_genic(gene_id, length, hail_matrix):
         ({'gene'}, 1),
         ({'gene', 'not_green'}, 1),
         ({'green', 'gene'}, 2),
+        ({hl.missing(t=hl.tstr)}, 0),
     ],
 )
 def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
@@ -356,35 +321,64 @@ def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
     :return:
     """
     green_genes = hl.literal({'green', 'gene'})
-    anno_matrix = hail_matrix.annotate_rows(geneIds=hl.literal(gene_ids))
-    matrix = filter_to_green_genes_and_split(anno_matrix, green_genes)
+    anno_matrix = hail_matrix.annotate_rows(
+        geneIds=hl.literal(gene_ids),
+        vep=hl.Struct(
+            transcript_consequences=hl.array(
+                [hl.Struct(gene_id='gene', biotype='protein_coding', mane_select='')]
+            ),
+        ),
+    )
+    matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
     assert matrix.count_rows() == length
 
 
-def test_filter_by_consequence(csq_matrix):
+def test_filter_to_green_genes_and_split__consequence(hail_matrix):
     """
-    :param csq_matrix:
+    :param hail_matrix:
     :return:
     """
-    conf = {'useless_csq': ['synonymous']}
-    anno_matrix, row_count = csq_matrix
-    matrix = filter_by_consequence(anno_matrix, conf)
-    assert matrix.count_rows() == row_count
+
+    green_genes = hl.literal({'green'})
+    anno_matrix = hail_matrix.annotate_rows(
+        geneIds=green_genes,
+        vep=hl.Struct(
+            transcript_consequences=hl.array(
+                [
+                    hl.Struct(
+                        gene_id='green', biotype='protein_coding', mane_select=''
+                    ),
+                    hl.Struct(gene_id='green', biotype='batman', mane_select='NM_Bane'),
+                    hl.Struct(gene_id='green', biotype='non_coding', mane_select=''),
+                    hl.Struct(
+                        gene_id='NOT_GREEN', biotype='protein_coding', mane_select=''
+                    ),
+                ]
+            ),
+        ),
+    )
+    matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
+    assert matrix.count_rows() == 1
+    matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) == 2)
+    assert matrix.count_rows() == 1
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,support,length',
+    'one,two,three,four,five,support,length',
     [
-        (0, 0, 0, 'missing', 0, 0),
-        (0, 1, 0, 'missing', 0, 1),
-        (0, 0, 1, 'missing', 0, 1),
-        (0, 0, 0, 'missing', 1, 1),
-        (0, 0, 0, 'not_blank', 0, 1),
-        (0, 1, 1, 'missing', 0, 1),
-        (1, 0, 0, 'missing', 1, 1),
+        (0, 0, 0, 'missing', 0, 0, 0),
+        (0, 1, 0, 'missing', 0, 0, 1),
+        (0, 0, 1, 'missing', 0, 0, 1),
+        (0, 0, 0, 'missing', 0, 1, 1),
+        (0, 0, 0, 'not_blank', 0, 0, 1),
+        (0, 0, 0, 'missing', 1, 0, 1),
+        (0, 1, 1, 'missing', 0, 1, 1),
+        (1, 0, 0, 'missing', 0, 1, 1),
     ],
 )
-def test_filter_to_classified(one, two, three, four, support, length, hail_matrix):
+def test_filter_to_classified(
+    one, two, three, four, five, support, length, hail_matrix
+):
     """
     :param hail_matrix:
     """
@@ -394,19 +388,9 @@ def test_filter_to_classified(one, two, three, four, support, length, hail_matri
             Category2=two,
             Category3=three,
             Category4=four,
+            Category5=five,
             CategorySupport=support,
         )
     )
     matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
-
-
-def test_de_novo_classified(de_novo_matrix, trio_ped):
-    """
-    one successful test case, hard to repro with assigned attributes (per-entry)
-    :param de_novo_matrix:
-    :return:
-    """
-    matrix = annotate_category_4(matrix=de_novo_matrix, plink_family_file=trio_ped)
-    matrix.filter_rows(matrix.info.Category4 != 'missing')
-    assert matrix.count_rows() == 1

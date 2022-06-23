@@ -12,14 +12,13 @@ specify additional lines which are required to make the final output valid
 within the VCF specification
 """
 
-from typing import Optional
 from argparse import ArgumentParser
 
 import hail as hl
 from cpg_utils.hail_batch import init_batch
 
 
-def main(input_mt: str, output_path: str, additional_header: Optional[str] = None):
+def main(input_mt: str, output_path: str, additional_header: str | None = None):
     """
     takes an input MT, and reads it out as a VCF
     :param input_mt:

@@ -1,23 +1,20 @@
 """
 Read, filter, annotate, classify, and write Genetic data
-- read VCF into MT
+- read MT
 - read PanelApp data through GCP client
 - hard-filter (FILTERS, AC)
-- annotate
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
-- consequence filter
-- remove all rows with no interesting consequences
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 2, 3, 4, and Support (in silico)
-- remove all un-categorised variants
+- annotate with categories 1, 2, 3, 4, 5, and Support
+- remove un-categorised variants
+- calculate compound-het pairings
 - write as VCF
-
 This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
 
-from typing import Any, Optional
+from typing import Any
 import json
 import logging
 import sys
@@ -30,24 +27,23 @@ from cpg_utils.hail_batch import init_batch
 
 
 # set some Hail constants
-MISSING_STRING = hl.str('missing')
 MISSING_INT = hl.int32(0)
-ONE_INT = hl.int32(1)
 MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_FLOAT_HI = hl.float64(1.0)
-
+MISSING_STRING = hl.str('missing')
+ONE_INT = hl.int32(1)
+BENIGN = hl.str('benign')
 CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
 
 def filter_matrix_by_ac(
-    matrix: hl.MatrixTable, ac_threshold: Optional[float] = 0.1
+    matrix: hl.MatrixTable, ac_threshold: float | None = 0.1
 ) -> hl.MatrixTable:
     """
     if called, this method will remove all variants in the joint call where the
     AlleleCount as a proportion is higher than the provided threshold
-
     :param matrix:
     :param ac_threshold:
     :return: reduced MatrixTable
@@ -59,20 +55,16 @@ def filter_on_quality_flags(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with 0 quality filters
     note: in Hail, PASS is represented as an empty set
-
     :param matrix:
-    :return:
     """
     return matrix.filter_rows(matrix.filters.length() == 0)
 
 
 def filter_to_well_normalised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
+    single alt per row, no missing Alt
     :param matrix:
-    :return:
     """
-    # filter out any quality flagged variants
-    # normalised variants check (single alt per row, no missing Alt)
     return matrix.filter_rows(
         (hl.len(matrix.alleles) == 2) & (matrix.alleles[1] != '*')
     )
@@ -82,13 +74,8 @@ def filter_by_ab_ratio(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filters HomRef, Het, and HomAlt by appropriate AB ratio bins
     :param matrix:
-    :return:
     """
-
-    # filter variant calls by AB ratio
     ab = matrix.AD[1] / hl.sum(matrix.AD)
-
-    # filter entries by the AB, depending on variant call
     return matrix.filter_entries(
         (matrix.GT.is_hom_ref() & (ab <= 0.15))
         | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
@@ -101,10 +88,7 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     applies the Category1 annotation (1 or 0) as appropriate
     semi-rare in Gnomad
     at least one Clinvar star
-    either Pathogenic or Likely_pathogenic in Clinvar
-
-    Didn't handle 'Pathogenic/Likely_pathogenic'
-    Changing to 'contains pathogenic and not conflicting'
+    contains pathogenic and not conflicting; doesn't contain benign
     :param matrix:
     :return: same Matrix, with additional field per variant
     """
@@ -114,7 +98,8 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
             Category1=hl.if_else(
                 (matrix.info.clinvar_stars > 0)
                 & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
-                & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING)),
+                & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
+                & ~(matrix.info.clinvar_sig.lower().contains(BENIGN)),
                 ONE_INT,
                 MISSING_INT,
             )
@@ -128,14 +113,9 @@ def annotate_category_2(
     """
     - Gene is new in PanelApp
     - Rare in Gnomad, and
-    - Clinvar, or
+    - Clinvar contains pathogenic, or
     - Critical protein consequence on at least one transcript
     - High in silico consequence
-
-    New update! this is now restricted to the NEW genes only
-    This means that these are now confident Category2, and we
-    only have a MOI test remaining
-
     :param matrix:
     :param config:
     :param new_genes: the new genes in this panelapp content
@@ -143,23 +123,32 @@ def annotate_category_2(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
+    logging.info(f'C2 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
+    # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category2=hl.if_else(
                 (new_genes.contains(matrix.geneIds))
                 & (
                     (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: hl.len(
-                                critical_consequences.intersection(
-                                    hl.set(x.consequence_terms)
+                        hl.len(
+                            matrix.vep.transcript_consequences.filter(
+                                lambda x: hl.len(
+                                    critical_consequences.intersection(
+                                        hl.set(x.consequence_terms)
+                                    )
                                 )
+                                > 0
                             )
-                            > 0
                         )
+                        > 0
                     )
-                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    | (
+                        (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                        & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
+                        & ~(matrix.info.clinvar_sig.lower().contains(BENIGN))
+                    )
                     | (
                         (matrix.info.cadd > config['in_silico']['cadd'])
                         | (matrix.info.revel > config['in_silico']['revel'])
@@ -187,27 +176,51 @@ def annotate_category_3(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
+    logging.info(f'C3 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
+    # First check if we have any HIGH consequences
+    # then explicitly link the LOFTEE check with HIGH consequences
+    # OR allow for a pathogenic ClinVar, any Stars
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             Category3=hl.if_else(
                 (
-                    matrix.vep.transcript_consequences.any(
-                        lambda x: hl.len(
-                            critical_consequences.intersection(
-                                hl.set(x.consequence_terms)
+                    hl.len(
+                        matrix.vep.transcript_consequences.filter(
+                            lambda x: (
+                                hl.len(
+                                    critical_consequences.intersection(
+                                        hl.set(x.consequence_terms)
+                                    )
+                                )
+                                > 0
+                            )
+                        )
+                    )
+                    > 0
+                )
+                & (
+                    (
+                        hl.len(
+                            matrix.vep.transcript_consequences.filter(
+                                lambda x: (
+                                    hl.len(
+                                        critical_consequences.intersection(
+                                            hl.set(x.consequence_terms)
+                                        )
+                                    )
+                                    > 0
+                                )
+                                & ((x.lof == LOFTEE_HC) | (hl.is_missing(x.lof)))
                             )
                         )
                         > 0
                     )
-                )
-                & (
-                    (
-                        matrix.vep.transcript_consequences.any(
-                            lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))
-                        )
+                    | (
+                        (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
+                        & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
+                        & ~(matrix.info.clinvar_sig.lower().contains(BENIGN))
                     )
-                    | (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
                 ),
                 ONE_INT,
                 MISSING_INT,
@@ -216,35 +229,69 @@ def annotate_category_3(
     )
 
 
-def annotate_category_4(
-    matrix: hl.MatrixTable, plink_family_file: str
+def filter_by_consequence(
+    matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    Category based on de novo MOI
-    This category shifts the emphasis from the variant annotations to the MOI
-    within family structures.
-    Having a low consequence-barrier to entry could mean that this category generates
-    a huge number of variants, so saving the MOI evaluation until later would create a
-    cumbersome output
+    - reduce the per-row transcript consequences to a limited group
+    - reduce the rows to ones where there are remaining tx consequences
+    :param matrix:
+    :param config: dictionary content relating to hail
+    :return: reduced matrix
+    """
+
+    # at time of writing this is VEP HIGH + missense_variant
+    # update without updating the dictionary content
+    high_csq = set(config.get('critical_csq', [])).union(
+        set(config.get('additional_consequences', []))
+    )
+
+    # overwrite the consequences with an intersection against a limited list
+    matrix = matrix.annotate_rows(
+        vep=matrix.vep.annotate(
+            transcript_consequences=matrix.vep.transcript_consequences.filter(
+                lambda x: hl.len(hl.set(x.consequence_terms).intersection(high_csq)) > 0
+            )
+        )
+    )
+
+    # filter out rows with no tx consequences left, and no splice cat. assignment
+    return matrix.filter_rows(
+        (hl.len(matrix.vep.transcript_consequences) > 0) & (matrix.info.Category5 == 0)
+    )
+
+
+def annotate_category_4(
+    matrix: hl.MatrixTable, config: dict[str, Any], plink_family_file: str
+) -> hl.MatrixTable:
+    """
+    Category based on de novo MOI, restricted to a group of consequences
+    Initial implementation didn't restrict by tx consequence, which meant we
+    found 10s of variants per sample, all intronic variants
+    This category focuses de novo on MOI within family structures
     Instead, we are leveraging the inbuilt hl.de_novo functionality to:
     - identify all likely de novo inherited variation
     - collect samples for each variant (expect n=1 per de novo call, but not guaranteed)
     - compress list of proband IDs as a String
     - apply string back to the MatrixTable, else 'missing' if missing
-
     :param matrix:
+    :param config:
     :param plink_family_file: path to a pedigree in PLINK format
     :return:
     """
 
     logging.info('running de novo search')
 
+    de_novo_matrix = filter_by_consequence(matrix, config)
+
     # read pedigree from the specified file
     pedigree = hl.Pedigree.read(plink_family_file)
 
     # identify likely de novo calls
     # use the AFs already embedded in the MT as the prior population frequencies
-    dn_table = hl.de_novo(matrix, pedigree, pop_frequency_prior=matrix.info.gnomad_af)
+    dn_table = hl.de_novo(
+        de_novo_matrix, pedigree, pop_frequency_prior=de_novo_matrix.info.gnomad_af
+    )
     dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
@@ -271,6 +318,26 @@ def annotate_category_4(
     )
 
 
+def annotate_category_5(
+    matrix: hl.MatrixTable, config: dict[str, Any]
+) -> hl.MatrixTable:
+    """
+    :param matrix:
+    :param config:
+    :return: same Matrix, with additional field per variant
+    """
+
+    return matrix.annotate_rows(
+        info=matrix.info.annotate(
+            Category5=hl.if_else(
+                matrix.info.splice_ai_delta >= config['spliceai_full'],
+                ONE_INT,
+                MISSING_INT,
+            )
+        )
+    )
+
+
 def annotate_category_support(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
@@ -280,12 +347,9 @@ def annotate_category_support(
     - CADD & REVEL above threshold (switched to consensus), or
     - Massive cross-tool consensus
     - polyphen and sift are evaluated per-consequence
-
     The intention is that this class will never be the sole reason to treat a variant
     as interesting, but can be used as a broader class with a lower barrier to entry
-    The purpose of this is to have a more permissive set of variants which can be used
-    to find second-hits in the case of Compound-Hets.
-
+    Goal is to have a broader set of variants to find Comp-Hets.
     This support category can be expanded to encompass other scenarios that qualify
     variants as 'of second-hit interest only'
     :param matrix:
@@ -337,7 +401,6 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
         alleles=['GC', 'G'],
         category_4_only=0
     )
-
     transform into simplified 1-10-GC-G
     drop the category_4_only attribute
     :param locus_details:
@@ -370,21 +433,7 @@ def filter_to_population_rare(
     )
 
 
-def filter_benign(matrix: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    filter out benign variants, where clinvar is confident
-    :param matrix:
-    :return:
-    """
-    benign = hl.str('benign')
-    return matrix.filter_rows(
-        (matrix.info.clinvar_sig.lower().contains(benign))
-        & (matrix.info.clinvar_stars > 0),
-        keep=False,
-    )
-
-
-def filter_to_green_genes_and_split(
+def split_rows_by_gene_and_filter_to_green(
     matrix: hl.MatrixTable, green_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
@@ -394,66 +443,42 @@ def filter_to_green_genes_and_split(
     :param green_genes:
     """
 
-    # split to form a separate row for each green gene
-    # this transforms the 'geneIds' field from a set to a string
+    # split each gene onto a separate row
+    # transforms 'geneIds' field from set to string
     matrix = matrix.explode_rows(matrix.geneIds)
 
-    # filter rows without a green gene
-    return matrix.filter_rows(green_genes.contains(matrix.geneIds))
+    # filter rows without a green gene (removes empty geneIds)
+    matrix = matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
-
-def filter_by_consequence(
-    matrix: hl.MatrixTable, config: dict[str, Any]
-) -> hl.MatrixTable:
-    """
-    - reduce the per-row transcript consequences to those specific to the geneIds
-    - reduce the rows to ones where there are remaining tx consequences
-
-    :param matrix:
-    :param config: dictionary content relating to hail
-    :return: reduced matrix
-    """
-
-    # identify consequences to discard from the config
-    useless_csq = hl.set(config['useless_csq'])
-
-    # reduce consequences to overlap with per-variant green geneIDs (pre-filtered)
-    # added another condition to state that the tx biotype needs to be protein_coding,
-    # unless the row also has an attached MANE transcript
-    # consider an extra allowance for strong Appris transcripts
+    # limit the per-row transcript consequences to those relevant to the single
+    # gene now present on each row
     matrix = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
                 lambda x: (matrix.geneIds == x.gene_id)
-                & (hl.len(hl.set(x.consequence_terms).difference(useless_csq)) > 0)
                 & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
             )
         )
     )
 
-    # filter out all rows with no remaining consequences
-    return matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) > 0)
+    return matrix
 
 
 def vep_struct_to_csq(
-    vep_expr: hl.expr.StructExpression, csq_fields: str
+    vep_expr: hl.expr.StructExpression, csq_fields: list[str]
 ) -> hl.expr.ArrayExpression:
     """
     Taken shamelessly from the gnomad library source code
     Given a VEP Struct, returns an array of VEP VCF CSQ strings
     (1 per csq in the struct).
-
     Fields & order correspond to those in `csq_fields`, corresponding to the
     VCF header that is required to interpret the VCF CSQ INFO field.
-
     Order is flexible & all fields in the default value are supported.
     These fields are formatted in the same way that their VEP CSQ counterparts are.
-
     :param vep_expr: The input VEP Struct
-    :param csq_fields: | delimited fields to include in the CSQ (in that order)
-    :return: The corresponding CSQ strings
+    :param csq_fields: ordered list of lower-case fields to include in the CSQ
+    :return: The corresponding CSQ string(s)
     """
-    _csq_fields = [f.lower() for f in csq_fields.split('|')]
 
     def get_csq_from_struct(
         element: hl.expr.StructExpression, feature_type: str
@@ -514,7 +539,7 @@ def vep_struct_to_csq(
         )
 
         return hl.delimit(
-            [hl.or_else(hl.str(fields.get(f, '')), '') for f in _csq_fields], '|'
+            [hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|'
         )
 
     csq = hl.empty_array(hl.tstr)
@@ -535,10 +560,8 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     pull out select fields which aren't per-consequence
     store these in INFO (required to be included in VCF export)
-
     replace with placeholder (least consequential) if empty
     e.g. most tools score 0, but for Sift 1 is least important
-
     :param matrix:
     :return: input matrix with annotations pulled into INFO
     """
@@ -601,19 +624,24 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
         | (matrix.info.Category2 == 1)
         | (matrix.info.Category3 == 1)
         | (matrix.info.Category4 != 'missing')
+        | (matrix.info.Category5 == 1)
         | (matrix.info.CategorySupport == 1)
     )
 
 
-def write_matrix_to_vcf(matrix: hl.MatrixTable, output_path: str):
+def write_matrix_to_vcf(
+    matrix: hl.MatrixTable, output_path: str, additional_header: str | None = None
+):
     """
     write the remaining MatrixTable content to file as a VCF
     :param matrix:
     :param output_path: where to write
+    :param additional_header: file containing any other lines to add into header
     """
     hl.export_vcf(
         matrix,
         output_path,
+        append_to_header=additional_header,
         tabix=True,
     )
 
@@ -644,18 +672,13 @@ def informed_repartition(matrix: hl.MatrixTable):
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
-    post-annotation rows are estimated at ~5kB
-        - a recursive sys.getsizeof-like guess suggested ~140 Bytes :/
-        - writing a row to text was closer to 20kB
-
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
-
     :param matrix:
     :return: repartitioned matrix
     """
 
-    # calculate partitions, falling back to 1 partition if size is too small
+    # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
     partitions = current_rows // 200000 or 1
 
@@ -670,7 +693,6 @@ def main(
     Read the MT from disk
     Do filtering and class annotation
     Export as a VCF
-
     :param mt_input: path to the MT directory
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
@@ -726,31 +748,32 @@ def main(
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
-    # # checkpoint after applying all these operations
+    # checkpoint after applying all these operations
     matrix = informed_repartition(matrix=matrix)
 
     # filter on row annotations
     logging.info('Filtering Variant rows')
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
     logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
-    matrix = filter_benign(matrix=matrix)
-    logging.info(f'Variants remaining after Benign filter: {matrix.count_rows()}')
-    matrix = filter_to_green_genes_and_split(
+    matrix = split_rows_by_gene_and_filter_to_green(
         matrix=matrix, green_genes=green_expression
     )
     logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
-    matrix = filter_by_consequence(matrix=matrix, config=hail_config)
-    logging.info(f'Variants remaining after Consequence filter: {matrix.count_rows()}')
 
-    logging.info('Repartitioning after consequence filtration')
+    logging.info('Repartitioning after splitting and MAF filtration')
     matrix = informed_repartition(matrix=matrix)
 
     # add Classes to the MT
+    # current logic is to apply 1, 2, 3, and 5
+    # for cat. 5 (de novo), pre-filter the variants by tx-consequential or C5==1
     logging.info('Applying categories to variant consequences')
     matrix = annotate_category_1(matrix)
-    matrix = annotate_category_2(matrix, hail_config, new_expression)
-    matrix = annotate_category_3(matrix, hail_config)
-    matrix = annotate_category_4(matrix, plink_family_file=plink_file)
+    matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
+    matrix = annotate_category_3(matrix, config=hail_config)
+    matrix = annotate_category_5(matrix, config=hail_config)
+    matrix = annotate_category_4(
+        matrix, config=hail_config, plink_family_file=plink_file
+    )
     matrix = annotate_category_support(matrix, hail_config)
 
     # filter to class-annotated only prior to export
@@ -776,6 +799,7 @@ def main(
             & (matrix.info.Category2 == 0)
             & (matrix.info.Category3 == 0)
             & (matrix.info.Category4 == 'missing')
+            & (matrix.info.Category5 == 0)
             & (matrix.info.CategorySupport == 1),
             ONE_INT,
             MISSING_INT,
@@ -784,7 +808,11 @@ def main(
 
     # write the results to a VCF path
     logging.info(f'Write variants out to "{out_vcf}"')
-    write_matrix_to_vcf(matrix=matrix, output_path=out_vcf)
+    write_matrix_to_vcf(
+        matrix=matrix,
+        output_path=out_vcf,
+        additional_header=hail_config.get('csq_header_file'),
+    )
 
 
 if __name__ == '__main__':

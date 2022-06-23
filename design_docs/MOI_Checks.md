@@ -1,9 +1,8 @@
 # MOI Checks
 
 Following the labelling and VCF re-headering, we have a heavily filtered VCF file containing all the required
-labels and annotations, accompanied by a JSON file describing all the Compound-Het variant pairs. Combining this
-information with the pedigree, we can iterate through each of the variants, and check if the evidence supports the
-PanelApp suggested Mode Of Inheritance for the corresponding gene.
+labels and annotations. Combining this information with the pedigree, we can iterate through each of the variants, and
+check if the evidence supports the PanelApp suggested Mode Of Inheritance for the corresponding gene.
 
 For each participant, we compile a list of variants where the inheritance model matches the PanelApp MOI, e.g.
 
@@ -27,37 +26,27 @@ variant to decide whether we include it in the final report.
 
 Static Objects:
 
-- Comp-Het mapping: a lookup object of the strings `Var_1: [Var_2, Var_3, ...]` for all variant pairs
-  - As each variant is assessed, we first check if the variant fits with the expected MOI alone. If
-  the variant alone doesn't pass the relevant MOI test, we can then check if it was seen as a compound-het with a
-  `second hit`. If this is the case then we can report the variant pair as a plausible variant combination.
 - Configuration File: used throughout the pipeline, this contains all runtime settings
   - When we are assessing each variant, we may choose to apply thresholds (e.f. MAF, frequency in a joint call). These
   may change with each run, so we take those parameters from a central configuration file
 - PanelApp data: associates genes with evidenced inheritance patterns
   - For each 'green' (high evidence) gene contains inheritance pattern to be applied & if the gene as 'new'
   (since a given date, or specific gene list).
-- Gene Lookup: a dictionary of all variants in this gene, indexed on `chr-pos-ref-alt` representation
-  - When we check the partner variants of a compound-het, we also need to check whether or not other family members
-  also have this same compound het pair. To do that, we must be able to reach the representation of the variant. For
-  this purpose we pass a collection of variants to the `MOI.run()` method, so that we can access the MOI for all vars
-  being considered. We could also do this same test using the comp-het dictionary, but there are other reasons to group
-  variants by gene (parsing variants as a gene group is a logical level for parallelisation, as all X-variant impacts
-  will be covered by grouping at this level) so this logic feels more versatile. Note: parsing variants as a gene-group
-  removes need for separately gathering a compound-het dictionary
 
-Dynamic Objects: AbstractVariant
+Dynamic Objects:
 
-Each variant in turn is read from the source (VCF) and cast in a custom AbstractVariant Class representation. This is
+- AbstractVariant: Each variant in turn is read from the source (VCF) and cast in a custom AbstractVariant Class representation. This is
 for a couple of reasons:
 
-1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly different
-representation. This normalises all logic to a common class, and allows for different sources/parsers to generate a
-common format.
-2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to issues
-with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so async/await
-structure can be added in at any level.
-3. Making an abstract object from simple types will lead to simpler unit testing.
+  1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly different
+  representation. This normalises all logic to a common class, and allows for different sources/parsers to generate a
+  common format.
+  2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to issues
+  with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so async/await
+  structure can be added in at any level.
+  3. Making an abstract object from simple types will lead to simpler unit testing.
+
+- Compound Het lookup: This object is built per-gene as we iterate over all genes independently
 
 We open and read through the VCF, and for each variant create an AbstractVariant representation. This holds the
 following details:
@@ -70,17 +59,20 @@ following details:
    1. `Category_4` (_de novo_) is slightly different; this value is a list of Strings, identifying all samples which were
    confirmed to be _de novo_ for this variant call. This doesn't preclude other non-reference samples at this site, but
    sample ID presence in this list means all criteria of the _de novo_ test in Hail were satisfied.
+6. If physical phasing is evident for any sample calls, record the numerical phase set ID, and sample-specific GT
+    1. Within a phase set ID, two variants are in-phase if their GT is also the same, i.e. for phase set #1, variants
+   with the GT `0|1` and `1|0` are explicitly out of phase, so knowing the PS ID alone is not sufficient
 
 The AbstractVariant has a few internal methods
 
 - `is_classified`: returns True if any category was assigned to this variant
-- `category_1_2_3`: returns True if any of category 1, 2, or 3 were assigned
+- `category_1_2_3_5`: returns True if any of category 1, 2, 3, or 5 were assigned
 - `support_only`: returns True if only the supporting category was assigned
-- `category_ints`: returns a list of strings for each assigned category, i.e.
+- `category_values`: returns a list of strings for each assigned category, i.e.
   - if a variant is True for category 2 and 3, the return will be `[2, 3]`
   - if a variant is True for category 2 and 4, the return will be `[2, de_novo]`
 - `sample_specific_category_check`: returns True if the specific sample is _de novo_,
-or if the variant has category 1, 2, or 3 assigned
+or if the variant has category 1, 2, 3, or 5 assigned
 
 ## Variant Gathering
 
@@ -88,52 +80,48 @@ The Variant gathering strategy observed in this application is:
 
  - parse the VCF header to obtain all chromosome names
  - for each contig in turn, extract all variants & create an Abstract representation of each
- - group variants by gene ID
-   - each variant contains exactly one gene annotation, from an earlier MT split
-   - each gene can be processed separately, allowing a comp-het workaround
+ - group variants by gene ID, forming a structure `{'gene_name': [Variant1, Variant2, ...], }`
+   - each variant contains exactly one gene annotation, from an earlier MT split, so grouping is accurate
+   - each gene can be processed separately if required, allowing logical parallelisation breaks
  - once all variants on a contig are extracted, iterate over variants grouped by gene
 
 Justification:
 
-1. Grouping variants by gene is a fallback for the compound-het process, which is currently causing problems, allowing
-all possibly comp-het variants to be loaded together and evaluated
-2. Use of the AbstractVariant structure means each variant can be pickled, so each group can be processed in parallel
+1. Use of the AbstractVariant structure means each variant can be pickled, so each group can be processed in parallel
 (Cyvcf2 and pyvcf objects can't be pickled directly)
-3. Allows us to collect the panelapp details once per gene, instead of once per variant; minor efficiency gain
-4. Gathering all variants relevant to an MOI test means that when generating the results, we can access all attributes
+2. Allows us to collect the panelapp details once per gene, instead of once per variant; minor efficiency gain
+3. Gathering all variants relevant to an MOI test means that when generating the results, we can access all attributes
 of the relevant variants for presentation, e.g. instead of just variant coordinates for the variant pair, we can show
 the exact consequence(s) that led to category labelling
 
 ## Compound-Heterozygous checks
 
-Currently the compound-het checks are done in Hail, resulting in a simple result format:
+Compound-Het testing has been migrated from Hail to Python for stability reasons. As we process a list of all variants
+associated with a gene, we first run all variant-pair permutations, and check for compound hets. During this check we
+use a couple of additional rules:
 
-```json
-{
+- If the variant is on Y or MT, don't consider for compound-het
+- As we check per-sample genotypes, don't consider Male hets on X
+- For each variant pair, check that they aren't in-phase from the read backed data
+
+Assemble a lookup dictionary, indexed primarily on SampleID, with a second layer of indexing which is the String repr.
+of the variant coordinates. If we are assessing a variant, we would find out it's string representation, and if that
+exists in the dictionary as a key, the terminal value is a list of all the Variant objects where a compound-het exists
+for this sample. These objects can be retrieved directly from this dictionary, and pairs can be passed to the familial
+inheritance checks.
+
+```python
+from reanalysis.utils import AbstractVariant
+_comp_het = {
     "sample": {
-        "gene": {
-            "chr-pos-ref-alt": ["chr-pos2-ref-alt", "chr-pos3-ref-alt", "..."]
-        },
-        "gene2": {
-            "chr-pos-ref-alt": ["chr-pos2-ref-alt", "chr-pos3-ref-alt", "..."]
-        }
+        "coords_string_1": [AbstractVariant, AbstractVariant],
+        "coords_string_2": [AbstractVariant, AbstractVariant]
     }
 }
 ```
 
-This is a highly condensed representation, and doesn't hold any annotations from the relevant variants. It simply
-contains information to state that the named sample(s) have co-located variants within the same gene.
-
-Compound-het checks are triggered once we find  consists of parsing the above format to
-At this stage, compound-het checking simply takes a variant read from the VCF, and for the given sample, gene, and
-position, checks if a paired variant was found. If so, the 2nd var coordinates are logged as 'supporting' the 'primary'
-variant.
-
-When evaluating a biallelic MOI, we are able to consider the presence of a compound-het within the family group. See the
-Family Checks section below for implementation detail.
-
-Post MVP it will make sense to check that compounded variants are not in phase (where possible to determine during
-variant calling).
+When evaluating biallelic MOI, we consider the presence of a compound-het within the family group. See the Family Checks
+section below for implementation detail.
 
 ## MOI Tests
 
@@ -146,7 +134,7 @@ derivatives each define a single Mode of Inheritance e.g.
 databases. All samples with a heterozygous variant call are passed as fitting with the MOI
 
 - XRecessive - Male samples are passed so long as the AF is below a stringent threshold, Female samples must be
-Homozygous or supported in a compound-het
+Homozygous or supported in a trans compound-het
 
 The separation between the methods defining the filter algorithm, and the MoiRunner using one or more algorithms
 allows multiple filters to be applied for a given MOI string e.g.
@@ -160,7 +148,8 @@ The usage paradigm is:
 
 1. Create an instance of the `MoiRunner`, passing a target MOI string and some configuration parameters
 2. During the setup, the MOI string is used to determine which filters to add into the filter list
-3. The `MoiRunner` implements a `.run()` method, which takes a single variant and passes through each filter in turn
+3. The `MoiRunner` implements a `.run()` method, which takes a single variant and the lookup of all compound-hets within
+this gene, and passes through each filter in turn
 4. Where a variant passes all conditions within a filter class, a 'result' object is created
 5. The result of `.run()` is a list of valid modes of inheritance (ReportedVariant), each including details of the
 variant(s), and samples

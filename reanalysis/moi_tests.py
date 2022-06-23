@@ -121,12 +121,16 @@ class MOIRunner:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
     def run(
-        self, principal_var, comp_het: CompHetDict | None = None
+        self,
+        principal_var,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
         run method - triggers each relevant inheritance model
         :param principal_var: the variant we are focused on
         :param comp_het:
+        :param partial_penetrance:
         :return:
         """
 
@@ -136,7 +140,11 @@ class MOIRunner:
         moi_matched = []
         for model in self.filter_list:
             moi_matched.extend(
-                model.run(principal_var=principal_var, comp_het=comp_het)
+                model.run(
+                    principal_var=principal_var,
+                    comp_het=comp_het,
+                    partial_penetrance=partial_penetrance,
+                )
             )
         return moi_matched
 
@@ -165,12 +173,16 @@ class BaseMoi:
 
     @abstractmethod
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
         run all applicable inheritance patterns and finds good fits
         :param principal_var:
         :param comp_het: dictionary of compound-hets
+        :param partial_penetrance: default to False, permit setting True
         :return:
         """
 
@@ -178,7 +190,7 @@ class BaseMoi:
         self,
         sample_id: str,
         called_variants: set[str],
-        complete_penetrance: bool = True,
+        partial_penetrance: bool = False,
     ) -> bool:
         """
         sex-agnostic check for single variant inheritance
@@ -193,7 +205,7 @@ class BaseMoi:
 
         :param sample_id:
         :param called_variants: the set of sample_ids which have this variant
-        :param complete_penetrance: if True, (force affected==has variant call)
+        :param partial_penetrance: if True, permit unaffected has variant call
 
         NOTE: this called_variants pool is prepared before calling this method.
         If we only want to check hom calls, only send hom calls. If we are checking for
@@ -214,10 +226,9 @@ class BaseMoi:
             # if any of these combinations occur, fail the family
             if (member.affected and member.sample_id not in called_variants) or (
                 member.sample_id in called_variants
-                and complete_penetrance
+                and not partial_penetrance
                 and not member.affected
             ):
-                # fail
                 return False
 
         return True
@@ -227,7 +238,7 @@ class BaseMoi:
         sample_id: str,
         called_variants_1: set[str],
         called_variants_2: set[str],
-        complete_penetrance: bool = True,
+        partial_penetrance: bool = False,
     ) -> bool:
         """
         compound_het check, requires 2 pools of variant calls
@@ -248,7 +259,7 @@ class BaseMoi:
         :param sample_id:
         :param called_variants_1: called samples for variant 1
         :param called_variants_2: called samples for variant 2
-        :param complete_penetrance: if True, (force affected==has variant call)
+        :param partial_penetrance: if True, allow unaffected has variant call
         :return:
         """
 
@@ -265,7 +276,7 @@ class BaseMoi:
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
             if (member.affected and not sample_comp_het) or (
-                sample_comp_het and complete_penetrance and not member.affected
+                sample_comp_het and not partial_penetrance and not member.affected
             ):
                 # fail
                 return False
@@ -297,7 +308,10 @@ class DominantAutosomal(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
         simplest
@@ -305,6 +319,7 @@ class DominantAutosomal(BaseMoi):
 
         :param principal_var:
         :param comp_het:
+        :param partial_penetrance:
         :return:
         """
 
@@ -337,7 +352,9 @@ class DominantAutosomal(BaseMoi):
 
             # check if this is a candidate for dominant inheritance
             if not self.check_familial_inheritance(
-                sample_id=sample_id, called_variants=samples_with_this_variant
+                sample_id=sample_id,
+                called_variants=samples_with_this_variant,
+                partial_penetrance=partial_penetrance,
             ):
                 continue
 
@@ -371,7 +388,10 @@ class RecessiveAutosomal(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
         valid if present as hom, or compound het
@@ -379,6 +399,7 @@ class RecessiveAutosomal(BaseMoi):
         Clarify if we want to consider a homozygous variant as 2 hets
         :param principal_var:
         :param comp_het:
+        :param partial_penetrance:
         :return:
         """
 
@@ -409,7 +430,9 @@ class RecessiveAutosomal(BaseMoi):
 
             # check if this is a possible candidate for homozygous inheritance
             if not self.check_familial_inheritance(
-                sample_id=sample_id, called_variants=principal_var.hom_samples
+                sample_id=sample_id,
+                called_variants=principal_var.hom_samples,
+                partial_penetrance=partial_penetrance,
             ):
                 continue
 
@@ -446,6 +469,7 @@ class RecessiveAutosomal(BaseMoi):
                     sample_id=sample_id,
                     called_variants_1=principal_var.het_samples,
                     called_variants_2=partner_variant.het_samples,
+                    partial_penetrance=partial_penetrance,
                 ):
                     continue
 
@@ -488,13 +512,17 @@ class XDominant(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
         if variant is present and sufficiently rare, we take it
 
         :param principal_var:
         :param comp_het:
+        :param partial_penetrance:
         :return:
         """
 
@@ -525,13 +553,19 @@ class XDominant(BaseMoi):
 
         for sample_id in samples_with_this_variant:
 
+            # skip primary analysis for unaffected members
+            if not self.pedigree[sample_id].affected:
+                continue
+
             # we require this specific sample to be categorised - check Cat 4 contents
             if not principal_var.sample_specific_category_check(sample_id):
                 continue
 
             # check if this is a candidate for dominant inheritance
             if not self.check_familial_inheritance(
-                sample_id=sample_id, called_variants=samples_with_this_variant
+                sample_id=sample_id,
+                called_variants=samples_with_this_variant,
+                partial_penetrance=partial_penetrance,
             ):
                 continue
 
@@ -577,12 +611,16 @@ class XRecessive(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
 
         :param principal_var:
         :param comp_het:
+        :param partial_penetrance:
         :return:
         """
 
@@ -653,6 +691,7 @@ class XRecessive(BaseMoi):
                     sample_id=sample_id,
                     called_variants_1=principal_var.het_samples,
                     called_variants_2=het_females_partner,
+                    partial_penetrance=partial_penetrance,
                 ):
                     continue
 
@@ -687,7 +726,9 @@ class XRecessive(BaseMoi):
 
             # check if this is a possible candidate for homozygous inheritance
             if not self.check_familial_inheritance(
-                sample_id=sample_id, called_variants=samples_to_check
+                sample_id=sample_id,
+                called_variants=samples_to_check,
+                partial_penetrance=partial_penetrance,
             ):
                 continue
 
@@ -734,12 +775,16 @@ class YHemi(BaseMoi):
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
-        self, principal_var: AbstractVariant, comp_het: CompHetDict | None = None
+        self,
+        principal_var: AbstractVariant,
+        comp_het: CompHetDict | None = None,
+        partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
         flag calls on Y which are Hom (maybe ok?) or female (bit weird)
         :param principal_var:
         :param comp_het:
+        :param partial_penetrance:
         :return:
         """
         classifications = []

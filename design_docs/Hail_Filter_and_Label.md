@@ -63,7 +63,6 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 
 4. Filter annotated variants
    * Common variants, based on ExAC/GnomAD frequencies
-   * Benign variants, based on confident Clinvar annotations
    * Variants without any [Green-Gene](https://panelapp.agha.umccr.org/panels/137/) consequences
    * Consequences unlikely to be impactful or on non-protein-coding transcripts are removed
      * ... followed by removal of any variants with no remaining consequences
@@ -78,10 +77,4 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 
 7. Concatenate all per-transcript consequences remaining after filters into a single VEP-style `CSQ` field
 
-8. Sweep over the whole MatrixTable, and calculate all compound-het pairings for each sample
-   * Combines a gene-grouped aggregation with a sample-level heterozygous aggregation
-   * This is post-filtered to remove any category-support only pairings
-   * Note, this doesn't currently consider phase
-   * Export the JSON output to a GCP bucket path
-
-9. Write the Variants out as a VCF
+8. Write the Variants out as a VCF
