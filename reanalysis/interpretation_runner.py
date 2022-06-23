@@ -267,7 +267,7 @@ def handle_hail_filtering(
         f'--out_vcf {HAIL_VCF_OUT} '
     )
 
-    logging.info(f'PanelApp Command: {labelling_command}')
+    logging.info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
     copy_common_env(labelling_job)
     return labelling_job
