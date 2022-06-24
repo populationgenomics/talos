@@ -36,6 +36,10 @@ CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
+# rotates temp path extension .mt <-> .mt2
+CHECKPOINT_FLIP_FLOP = {'': '2', '2': ''}
+CHECKPOINT_EXTENSION = ''
+
 
 def filter_matrix_by_ac(
     matrix: hl.MatrixTable, ac_threshold: float | None = 0.1
@@ -561,6 +565,8 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
     :return: input matrix with annotations pulled into INFO
     """
 
+    logging.info('Pulling VEP annotations into INFO field')
+
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             exac_af=hl.or_else(matrix.exac.AF, MISSING_FLOAT_LO),
@@ -663,21 +669,34 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, new_gene_set_expression
 
 
-def informed_repartition(matrix: hl.MatrixTable):
+def checkpoint_and_repartition(
+    matrix: hl.MatrixTable, checkpoint_path: str, extra_logging: str | None = ''
+) -> hl.MatrixTable:
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
     :param matrix:
-    :return: repartitioned matrix
+    :param checkpoint_path: tmp location for checkpoint
+    :param extra_logging: any additional context
+    :return: repartitioned, checkpointed matrix
     """
+    global CHECKPOINT_EXTENSION  # pylint: disable=W0603
+    matrix = matrix.checkpoint(
+        f'{checkpoint_path}{CHECKPOINT_EXTENSION}', overwrite=True
+    )
+    CHECKPOINT_EXTENSION = CHECKPOINT_FLIP_FLOP[CHECKPOINT_EXTENSION]
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
     partitions = current_rows // 200000 or 1
 
-    logging.info(f'Re-partitioning {current_rows} into {partitions} partitions')
+    log_string = f'Re-partitioning {current_rows} into {partitions} partitions '
+    if extra_logging:
+        log_string += extra_logging
+    logging.info(log_string)
+
     return matrix.repartition(n_partitions=partitions, shuffle=True)
 
 
@@ -700,11 +719,6 @@ def main(
     :param out_vcf: path to write the VCF out to
     :param tmp_path: temporary checkpoint write path
     """
-
-    # when we checkpoint to a location, we are now reading from it
-    # to maintain multiple checkpoints, we rotate between two ext.
-    checkpoint_extension = ''
-    checkpoint_flip_flop = {'': '2', '2': ''}
 
     # initiate Hail with defined driver spec.
     init_batch(driver_cores=8, driver_memory='highmem')
@@ -750,13 +764,12 @@ def main(
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 
-    logging.info('checkpointing MT after applying quality filters')
-    matrix = matrix.checkpoint(f'{tmp_path}{checkpoint_extension}', overwrite=True)
-    checkpoint_extension = checkpoint_flip_flop[checkpoint_extension]
-    logging.info(f'Rows remaining: {matrix.count_rows()}')
+    matrix = checkpoint_and_repartition(
+        matrix, tmp_path, extra_logging='after applying quality filters'
+    )
 
     # pull annotations into info and update if missing
-    logging.info('Pulling VEP annotations into INFO field')
+
     matrix = extract_annotations(matrix)
 
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
@@ -764,18 +777,14 @@ def main(
         matrix=matrix, green_genes=green_expression
     )
 
-    logging.info('checkpointing MT after applying annotation filters')
-    matrix = matrix.checkpoint(f'{tmp_path}{checkpoint_extension}', overwrite=True)
-    checkpoint_extension = checkpoint_flip_flop[checkpoint_extension]
-    matrix = informed_repartition(matrix=matrix)
-    logging.info(
-        f'Variants remaining after Rare & Green-Gene filter: {matrix.count_rows()}'
+    matrix = checkpoint_and_repartition(
+        matrix, tmp_path, extra_logging=' after applying Rare & Green-Gene filters'
     )
 
     # add Classes to the MT
-    # current logic is to apply 1, 2, 3, and 5
-    # for cat. 5 (de novo), pre-filter the variants by tx-consequential or C5==1
-    logging.info('Applying categories to variant consequences')
+    # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
+    # for cat. 4, pre-filter the variants by tx-consequential or C5==1
+    logging.info('Applying categories')
     matrix = annotate_category_1(matrix)
     matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
     matrix = annotate_category_3(matrix, config=hail_config)
@@ -785,11 +794,10 @@ def main(
     )
     matrix = annotate_category_support(matrix, hail_config)
 
-    # now restrict to only categorised variants
     matrix = filter_to_categorised(matrix)
-    matrix = matrix.checkpoint(f'{tmp_path}{checkpoint_extension}', overwrite=True)
-    matrix = informed_repartition(matrix=matrix)
-    logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
+    matrix = checkpoint_and_repartition(
+        matrix, tmp_path, extra_logging=' after filtering to categorised only'
+    )
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
