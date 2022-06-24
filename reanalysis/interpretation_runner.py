@@ -55,7 +55,6 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 
 # output of labelling task in Hail
-HAIL_TMP = output_path('hail_matrix.mt', 'tmp')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
 # outputs for familial and singleton analysis
@@ -264,9 +263,7 @@ def handle_hail_filtering(
         f'--mt_input {ANNOTATED_MT} '
         f'--panelapp_path {PANELAPP_JSON_OUT} '
         f'--config_path {config} '
-        f'--plink_file {plink_file} '
-        f'--out_vcf {HAIL_VCF_OUT} '
-        f'--tmp_path {HAIL_TMP}'
+        f'--plink_file {plink_file}'
     )
 
     logging.info(f'Labelling Command: {labelling_command}')

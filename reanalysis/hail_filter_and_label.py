@@ -22,7 +22,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cloudpathlib import AnyPath
-from cpg_utils.hail_batch import init_batch
+from cpg_utils.hail_batch import init_batch, output_path
 
 
 # set some Hail constants
@@ -36,9 +36,9 @@ CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
-# rotates temp path extension .mt <-> .mt2
-CHECKPOINT_FLIP_FLOP = {'': '2', '2': ''}
-CHECKPOINT_EXTENSION = ''
+VCF_OUT = output_path('hail_categorised.vcf.bgz')
+TEMP_CHECKPOINT = output_path('hail_matrix.mt', 'tmp')
+CHECKPOINT_EXTENSION = 0
 
 
 def filter_matrix_by_ac(
@@ -630,21 +630,13 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(
-    matrix: hl.MatrixTable, output_path: str, additional_header: str | None = None
-):
+def write_matrix_to_vcf(matrix: hl.MatrixTable, additional_header: str | None = None):
     """
     write the remaining MatrixTable content to file as a VCF
     :param matrix:
-    :param output_path: where to write
     :param additional_header: file containing any other lines to add into header
     """
-    hl.export_vcf(
-        matrix,
-        output_path,
-        append_to_header=additional_header,
-        tabix=True,
-    )
+    hl.export_vcf(matrix, VCF_OUT, append_to_header=additional_header, tabix=True)
 
 
 def green_and_new_from_panelapp(
@@ -670,23 +662,22 @@ def green_and_new_from_panelapp(
 
 
 def checkpoint_and_repartition(
-    matrix: hl.MatrixTable, checkpoint_path: str, extra_logging: str | None = ''
-) -> hl.MatrixTable:
+    matrix: hl.MatrixTable, checkpoint_num: int, extra_logging: str | None = ''
+) -> tuple[hl.MatrixTable, int]:
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
     :param matrix:
-    :param checkpoint_path: tmp location for checkpoint
+    :param checkpoint_num:
     :param extra_logging: any additional context
     :return: repartitioned, post-checkpoint matrix
     """
-    global CHECKPOINT_EXTENSION  # pylint: disable=W0603
-    checkpoint_extended = f'{checkpoint_path}{CHECKPOINT_EXTENSION}'
+    checkpoint_extended = f'{TEMP_CHECKPOINT}_{CHECKPOINT_EXTENSION }'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
     matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
-    CHECKPOINT_EXTENSION = CHECKPOINT_FLIP_FLOP[CHECKPOINT_EXTENSION]
+    checkpoint_num += 1
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
@@ -696,17 +687,10 @@ def checkpoint_and_repartition(
         f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
     )
 
-    return matrix.repartition(n_partitions=partitions, shuffle=True)
+    return matrix.repartition(n_partitions=partitions, shuffle=True), checkpoint_num
 
 
-def main(
-    mt_input: str,
-    panelapp_path: str,
-    config_path: str,
-    plink_file: str,
-    out_vcf: str,
-    tmp_path: str,
-):
+def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     """
     Read the MT from disk
     Do filtering and class annotation
@@ -715,12 +699,13 @@ def main(
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
     :param plink_file: pedigree filepath in PLINK format
-    :param out_vcf: path to write the VCF out to
-    :param tmp_path: temporary checkpoint write path
     """
 
     # initiate Hail with defined driver spec.
     init_batch(driver_cores=8, driver_memory='highmem')
+
+    # checkpoints should be kept independent
+    checkpoint_number = 0
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
@@ -763,21 +748,22 @@ def main(
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 
-    matrix = checkpoint_and_repartition(
-        matrix, tmp_path, extra_logging='after applying quality filters'
+    matrix, checkpoint_number = checkpoint_and_repartition(
+        matrix,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after applying quality filters',
     )
 
-    # pull annotations into info and update if missing
-
     matrix = extract_annotations(matrix)
-
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
     matrix = split_rows_by_gene_and_filter_to_green(
         matrix=matrix, green_genes=green_expression
     )
 
-    matrix = checkpoint_and_repartition(
-        matrix, tmp_path, extra_logging='after applying Rare & Green-Gene filters'
+    matrix, checkpoint_number = checkpoint_and_repartition(
+        matrix,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after applying Rare & Green-Gene filters',
     )
 
     # add Classes to the MT
@@ -794,8 +780,10 @@ def main(
     matrix = annotate_category_support(matrix, hail_config)
 
     matrix = filter_to_categorised(matrix)
-    matrix = checkpoint_and_repartition(
-        matrix, tmp_path, extra_logging='after filtering to categorised only'
+    matrix, checkpoint_number = checkpoint_and_repartition(
+        matrix,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after filtering to categorised only',
     )
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
@@ -809,12 +797,9 @@ def main(
         )
     )
 
-    # write the results to a VCF path
-    logging.info(f'Write variants out to "{out_vcf}"')
+    logging.info(f'Write variants out to "{VCF_OUT}"')
     write_matrix_to_vcf(
-        matrix=matrix,
-        output_path=out_vcf,
-        additional_header=hail_config.get('csq_header_file'),
+        matrix=matrix, additional_header=hail_config.get('csq_header_file')
     )
 
 
@@ -847,18 +832,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--plink_file', type=str, required=True, help='Family Pedigree in PLINK format'
     )
-    parser.add_argument(
-        '--out_vcf', type=str, required=True, help='VCF path to export results'
-    )
-    parser.add_argument(
-        '--tmp_path', type=str, required=True, help='Temp path for checkpoints'
-    )
     args = parser.parse_args()
     main(
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
         config_path=args.config_path,
         plink_file=args.plink_file,
-        out_vcf=args.out_vcf,
-        tmp_path=args.tmp_path,
     )
