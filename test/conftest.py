@@ -28,10 +28,9 @@ AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
-CPG_CONFIG = os.path.join(INPUT, 'cpg_runtime_config.toml')
 
-# can't use a session-scoped monkeypatch, so just override
-os.putenv('CPG_CONFIG_PATH', CPG_CONFIG)
+# can't use a session-scoped monkeypatch, so just set
+os.putenv('CPG_CONFIG_PATH', os.path.join(INPUT, 'cpg_runtime_config.toml'))
 
 
 @pytest.fixture(name='panel_changes', scope='session')
