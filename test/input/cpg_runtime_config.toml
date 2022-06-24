@@ -2,6 +2,7 @@
 # Access level (test, standard, full). Translates into the storage and inputs
 # namespace (test or main):
 access_level = 'standard'
+output_prefix = 'test'
 
 # Input provider type ('csv' or 'smdb' for the CPG sample-metadata database)
 input_provider = 'smdb'
