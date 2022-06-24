@@ -8,7 +8,6 @@ Read, filter, annotate, classify, and write Genetic data
 - extract vep data into CSQ string(s)
 - annotate with categories 1, 2, 3, 4, 5, and Support
 - remove un-categorised variants
-- calculate compound-het pairings
 - write as VCF
 This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
@@ -112,7 +111,6 @@ def annotate_category_2(
 ) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
-    - Rare in Gnomad, and
     - Clinvar contains pathogenic, or
     - Critical protein consequence on at least one transcript
     - High in silico consequence
@@ -123,7 +121,6 @@ def annotate_category_2(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
-    logging.info(f'C2 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
@@ -167,7 +164,6 @@ def annotate_category_3(
     """
     applies the Category3 flag where appropriate
     - Critical protein consequence on at least one transcript
-    - rare in Gnomad
     - either predicted NMD or
     - any star Pathogenic or Likely_pathogenic in Clinvar
     :param matrix:
@@ -176,7 +172,6 @@ def annotate_category_3(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
-    logging.info(f'C3 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -687,7 +682,12 @@ def informed_repartition(matrix: hl.MatrixTable):
 
 
 def main(
-    mt_input: str, panelapp_path: str, config_path: str, plink_file: str, out_vcf: str
+    mt_input: str,
+    panelapp_path: str,
+    config_path: str,
+    plink_file: str,
+    out_vcf: str,
+    tmp_path: str,
 ):
     """
     Read the MT from disk
@@ -698,6 +698,7 @@ def main(
     :param config_path: path to the config json
     :param plink_file: pedigree filepath in PLINK format
     :param out_vcf: path to write the VCF out to
+    :param tmp_path: temporary checkpoint write path
     """
 
     # initiate Hail with defined driver spec.
@@ -744,22 +745,25 @@ def main(
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 
+    logging.info('checkpointing MT after applying quality filters')
+    matrix = matrix.checkpoint(tmp_path, overwrite=True)
+    logging.info(f'Rows remaining: {matrix.count_rows()}')
+
     # pull annotations into info and update if missing
     logging.info('Pulling VEP annotations into INFO field')
     matrix = extract_annotations(matrix)
 
-    # checkpoint after applying all these operations
-    matrix = informed_repartition(matrix=matrix)
-
-    # filter on row annotations
-    logging.info('Filtering Variant rows')
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
-    logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
     matrix = split_rows_by_gene_and_filter_to_green(
         matrix=matrix, green_genes=green_expression
     )
-    logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
+
+    logging.info('checkpointing MT after applying annotation filters')
+    matrix = matrix.checkpoint(tmp_path, overwrite=True)
     matrix = informed_repartition(matrix=matrix)
+    logging.info(
+        f'Variants remaining after Rare & Green-Gene filter: {matrix.count_rows()}'
+    )
 
     # add Classes to the MT
     # current logic is to apply 1, 2, 3, and 5
@@ -774,15 +778,12 @@ def main(
     )
     matrix = annotate_category_support(matrix, hail_config)
 
-    # filter to class-annotated only prior to export
-    logging.info('Filter variants to leave only classified')
+    # now restrict to only categorised variants
     matrix = filter_to_categorised(matrix)
+    matrix = matrix.checkpoint(tmp_path, overwrite=True)
+    matrix = informed_repartition(matrix=matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
-    # another little repartition after heavy filtering
-    matrix = informed_repartition(matrix=matrix)
-
-    # add an additional annotation, if the variant is Support only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     matrix = matrix.annotate_rows(
@@ -791,17 +792,7 @@ def main(
                 matrix.vep, csq_fields=config_dict['variant_object'].get('csq_string')
             ),
             gene_id=matrix.geneIds,
-        ),
-        support_only=hl.if_else(
-            (matrix.info.Category1 == 0)
-            & (matrix.info.Category2 == 0)
-            & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 'missing')
-            & (matrix.info.Category5 == 0)
-            & (matrix.info.CategorySupport == 1),
-            ONE_INT,
-            MISSING_INT,
-        ),
+        )
     )
 
     # write the results to a VCF path
@@ -845,6 +836,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--out_vcf', type=str, required=True, help='VCF path to export results'
     )
+    parser.add_argument(
+        '--tmp_path', type=str, required=True, help='Temp path for checkpoints'
+    )
     args = parser.parse_args()
     main(
         mt_input=args.mt_input,
@@ -852,4 +846,5 @@ if __name__ == '__main__':
         config_path=args.config_path,
         plink_file=args.plink_file,
         out_vcf=args.out_vcf,
+        tmp_path=args.tmp_path,
     )
