@@ -674,7 +674,7 @@ def checkpoint_and_repartition(
     :param extra_logging: any additional context
     :return: repartitioned, post-checkpoint matrix
     """
-    checkpoint_extended = f'{TEMP_CHECKPOINT}_{CHECKPOINT_EXTENSION }'
+    checkpoint_extended = f'{TEMP_CHECKPOINT}_{CHECKPOINT_EXTENSION}'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
     matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
     checkpoint_num += 1

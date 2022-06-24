@@ -28,6 +28,15 @@ AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
+CPG_CONFIG = os.path.join(INPUT, 'cpg_runtime_config.json')
+
+
+@pytest.fixture(name='cpg_config', scope='session')
+def fixture_cpg_config(monkeypatch):
+    """
+    :return:
+    """
+    monkeypatch.setenv('CPG_CONFIG_PATH', CPG_CONFIG)
 
 
 @pytest.fixture(name='panel_changes', scope='session')
