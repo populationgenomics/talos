@@ -701,7 +701,10 @@ def main(
     :param tmp_path: temporary checkpoint write path
     """
 
-    checkpoint_count = 0
+    # when we checkpoint to a location, we are now reading from it
+    # to maintain multiple checkpoints, we rotate between two ext.
+    checkpoint_extension = ''
+    checkpoint_flip_flop = {'': '2', '2': ''}
 
     # initiate Hail with defined driver spec.
     init_batch(driver_cores=8, driver_memory='highmem')
@@ -748,8 +751,8 @@ def main(
     matrix = filter_by_ab_ratio(matrix)
 
     logging.info('checkpointing MT after applying quality filters')
-    matrix = matrix.checkpoint(f'{tmp_path}_{checkpoint_count}', overwrite=True)
-    checkpoint_count += 1
+    matrix = matrix.checkpoint(f'{tmp_path}{checkpoint_extension}', overwrite=True)
+    checkpoint_extension = checkpoint_flip_flop[checkpoint_extension]
     logging.info(f'Rows remaining: {matrix.count_rows()}')
 
     # pull annotations into info and update if missing
@@ -762,8 +765,8 @@ def main(
     )
 
     logging.info('checkpointing MT after applying annotation filters')
-    matrix = matrix.checkpoint(f'{tmp_path}_{checkpoint_count}', overwrite=True)
-    checkpoint_count += 1
+    matrix = matrix.checkpoint(f'{tmp_path}{checkpoint_extension}', overwrite=True)
+    checkpoint_extension = checkpoint_flip_flop[checkpoint_extension]
     matrix = informed_repartition(matrix=matrix)
     logging.info(
         f'Variants remaining after Rare & Green-Gene filter: {matrix.count_rows()}'
@@ -784,8 +787,7 @@ def main(
 
     # now restrict to only categorised variants
     matrix = filter_to_categorised(matrix)
-    matrix = matrix.checkpoint(f'{tmp_path}_{checkpoint_count}', overwrite=True)
-    checkpoint_count += 1
+    matrix = matrix.checkpoint(f'{tmp_path}{checkpoint_extension}', overwrite=True)
     matrix = informed_repartition(matrix=matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
