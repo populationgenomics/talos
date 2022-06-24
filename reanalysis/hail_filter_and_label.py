@@ -759,8 +759,6 @@ def main(
         matrix=matrix, green_genes=green_expression
     )
     logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
-
-    logging.info('Repartitioning after splitting and MAF filtration')
     matrix = informed_repartition(matrix=matrix)
 
     # add Classes to the MT

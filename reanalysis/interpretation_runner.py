@@ -296,14 +296,14 @@ def handle_results_job(
     results_job = batch.new_job(name='finalise_results')
     set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
     results_command = (
-        'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
-        f'PYTHONPATH=$(pwd) python3 {RESULTS_SCRIPT} '
+        'pip install . && '
+        f'python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {OUTPUT_DICT[analysis_index]["results"]} && '
-        f'PYTHONPATH=$(pwd) python3 {HTML_SCRIPT} '
+        f'python3 {HTML_SCRIPT} '
         f'--results {OUTPUT_DICT[analysis_index]["results"]} '
         f'--config_path {config} '
         f'--panelapp {PANELAPP_JSON_OUT} '
