@@ -263,8 +263,7 @@ def handle_hail_filtering(
         f'--mt_input {ANNOTATED_MT} '
         f'--panelapp_path {PANELAPP_JSON_OUT} '
         f'--config_path {config} '
-        f'--plink_file {plink_file} '
-        f'--out_vcf {HAIL_VCF_OUT} '
+        f'--plink_file {plink_file}'
     )
 
     logging.info(f'Labelling Command: {labelling_command}')

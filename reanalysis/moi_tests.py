@@ -201,7 +201,7 @@ class BaseMoi:
         - find the family ID from this sample
         - iterate through all family members, and check that MOI holds for all
 
-        Return False if a participant fails tests, True if all checked (so far) are ok
+        Return False if a participant fails tests, True if all checked are ok
 
         :param sample_id:
         :param called_variants: the set of sample_ids which have this variant
@@ -342,9 +342,11 @@ class DominantAutosomal(BaseMoi):
         samples_with_this_variant = principal_var.het_samples.union(
             principal_var.hom_samples
         )
-        for sample_id in [
-            sam for sam in samples_with_this_variant if self.pedigree[sam].affected
-        ]:
+        for sample_id in samples_with_this_variant:
+
+            # skip primary analysis for unaffected members
+            if not self.pedigree[sample_id].affected:
+                continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
             if not principal_var.sample_specific_category_check(sample_id):
@@ -419,9 +421,11 @@ class RecessiveAutosomal(BaseMoi):
             return classifications
 
         # homozygous is relevant directly
-        for sample_id in [
-            sam for sam in principal_var.hom_samples if self.pedigree[sam].affected
-        ]:
+        for sample_id in principal_var.hom_samples:
+
+            # skip primary analysis for unaffected members
+            if not self.pedigree[sample_id].affected:
+                continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
             # this shouldn't be possible, de novo homozygous?!
@@ -447,9 +451,12 @@ class RecessiveAutosomal(BaseMoi):
             )
 
         # if hets are present, try and find support
-        for sample_id in [
-            sam for sam in principal_var.het_samples if self.pedigree[sam].affected
-        ]:
+        for sample_id in principal_var.het_samples:
+
+            # skip primary analysis for unaffected members
+            if not self.pedigree[sample_id].affected:
+                continue
+
             # we require this specific sample to be categorised - check Cat 4 contents
             if not principal_var.sample_specific_category_check(sample_id):
                 continue
@@ -666,8 +673,12 @@ class XRecessive(BaseMoi):
         # if het females are present, try and find support
         for sample_id in het_females:
 
+            # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
-            if not principal_var.sample_specific_category_check(sample_id):
+            if not (
+                self.pedigree[sample_id].affected
+                and principal_var.sample_specific_category_check(sample_id)
+            ):
                 continue
 
             for partner_variant in check_for_second_hit(
@@ -716,12 +727,14 @@ class XRecessive(BaseMoi):
             return classifications
 
         # find all het males and hom females
-        # assumption that the sample can only be hom if female?
         samples_to_check = males.union(hom_females)
         for sample_id in samples_to_check:
 
-            # specific sample category check
-            if not principal_var.sample_specific_category_check(sample_id):
+            # specific affected sample category check
+            if not (
+                self.pedigree[sample_id].affected
+                and principal_var.sample_specific_category_check(sample_id)
+            ):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -803,6 +816,10 @@ class YHemi(BaseMoi):
 
         # we don't expect any confident Y calls in females
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
+
+            # skip primary analysis for unaffected members
+            if not self.pedigree[sample_id].affected:
+                continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
             if not principal_var.sample_specific_category_check(sample_id):

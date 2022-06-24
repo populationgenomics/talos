@@ -8,7 +8,6 @@ Read, filter, annotate, classify, and write Genetic data
 - extract vep data into CSQ string(s)
 - annotate with categories 1, 2, 3, 4, 5, and Support
 - remove un-categorised variants
-- calculate compound-het pairings
 - write as VCF
 This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
@@ -23,7 +22,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cloudpathlib import AnyPath
-from cpg_utils.hail_batch import init_batch
+from cpg_utils.hail_batch import init_batch, output_path
 
 
 # set some Hail constants
@@ -36,6 +35,10 @@ BENIGN = hl.str('benign')
 CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
+
+VCF_OUT = output_path('hail_categorised.vcf.bgz')
+TEMP_CHECKPOINT = output_path('hail_matrix.mt', 'tmp')
+CHECKPOINT_EXTENSION = 0
 
 
 def filter_matrix_by_ac(
@@ -112,7 +115,6 @@ def annotate_category_2(
 ) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
-    - Rare in Gnomad, and
     - Clinvar contains pathogenic, or
     - Critical protein consequence on at least one transcript
     - High in silico consequence
@@ -123,7 +125,6 @@ def annotate_category_2(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
-    logging.info(f'C2 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
@@ -167,7 +168,6 @@ def annotate_category_3(
     """
     applies the Category3 flag where appropriate
     - Critical protein consequence on at least one transcript
-    - rare in Gnomad
     - either predicted NMD or
     - any star Pathogenic or Likely_pathogenic in Clinvar
     :param matrix:
@@ -176,7 +176,6 @@ def annotate_category_3(
     """
 
     critical_consequences = hl.set(config.get('critical_csq'))
-    logging.info(f'C3 Critical CSQs: {",".join(config.get("critical_csq"))}')
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -566,6 +565,8 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
     :return: input matrix with annotations pulled into INFO
     """
 
+    logging.info('Pulling VEP annotations into INFO field')
+
     return matrix.annotate_rows(
         info=matrix.info.annotate(
             exac_af=hl.or_else(matrix.exac.AF, MISSING_FLOAT_LO),
@@ -629,21 +630,13 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(
-    matrix: hl.MatrixTable, output_path: str, additional_header: str | None = None
-):
+def write_matrix_to_vcf(matrix: hl.MatrixTable, additional_header: str | None = None):
     """
     write the remaining MatrixTable content to file as a VCF
     :param matrix:
-    :param output_path: where to write
     :param additional_header: file containing any other lines to add into header
     """
-    hl.export_vcf(
-        matrix,
-        output_path,
-        append_to_header=additional_header,
-        tabix=True,
-    )
+    hl.export_vcf(matrix, VCF_OUT, append_to_header=additional_header, tabix=True)
 
 
 def green_and_new_from_panelapp(
@@ -668,27 +661,36 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, new_gene_set_expression
 
 
-def informed_repartition(matrix: hl.MatrixTable):
+def checkpoint_and_repartition(
+    matrix: hl.MatrixTable, checkpoint_num: int, extra_logging: str | None = ''
+) -> tuple[hl.MatrixTable, int]:
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
     :param matrix:
-    :return: repartitioned matrix
+    :param checkpoint_num:
+    :param extra_logging: any additional context
+    :return: repartitioned, post-checkpoint matrix
     """
+    checkpoint_extended = f'{TEMP_CHECKPOINT}_{CHECKPOINT_EXTENSION}'
+    logging.info(f'Checkpointing MT to {checkpoint_extended}')
+    matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
+    checkpoint_num = checkpoint_num + 1
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
     partitions = current_rows // 200000 or 1
 
-    logging.info(f'Re-partitioning {current_rows} into {partitions} partitions')
-    return matrix.repartition(n_partitions=partitions, shuffle=True)
+    logging.info(
+        f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
+    )
+
+    return matrix.repartition(n_partitions=partitions, shuffle=True), checkpoint_num
 
 
-def main(
-    mt_input: str, panelapp_path: str, config_path: str, plink_file: str, out_vcf: str
-):
+def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     """
     Read the MT from disk
     Do filtering and class annotation
@@ -697,11 +699,13 @@ def main(
     :param panelapp_path: path to the panelapp data dump
     :param config_path: path to the config json
     :param plink_file: pedigree filepath in PLINK format
-    :param out_vcf: path to write the VCF out to
     """
 
     # initiate Hail with defined driver spec.
     init_batch(driver_cores=8, driver_memory='highmem')
+
+    # checkpoints should be kept independent
+    checkpoint_number = 0
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
@@ -744,27 +748,28 @@ def main(
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 
-    # pull annotations into info and update if missing
-    logging.info('Pulling VEP annotations into INFO field')
+    matrix, checkpoint_number = checkpoint_and_repartition(
+        matrix,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after applying quality filters',
+    )
+
     matrix = extract_annotations(matrix)
-
-    # checkpoint after applying all these operations
-    matrix = informed_repartition(matrix=matrix)
-
-    # filter on row annotations
-    logging.info('Filtering Variant rows')
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
-    logging.info(f'Variants remaining after Rare filter: {matrix.count_rows()}')
     matrix = split_rows_by_gene_and_filter_to_green(
         matrix=matrix, green_genes=green_expression
     )
-    logging.info(f'Variants remaining after Green-Gene filter: {matrix.count_rows()}')
-    matrix = informed_repartition(matrix=matrix)
+
+    matrix, checkpoint_number = checkpoint_and_repartition(
+        matrix,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after applying Rare & Green-Gene filters',
+    )
 
     # add Classes to the MT
-    # current logic is to apply 1, 2, 3, and 5
-    # for cat. 5 (de novo), pre-filter the variants by tx-consequential or C5==1
-    logging.info('Applying categories to variant consequences')
+    # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
+    # for cat. 4, pre-filter the variants by tx-consequential or C5==1
+    logging.info('Applying categories')
     matrix = annotate_category_1(matrix)
     matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
     matrix = annotate_category_3(matrix, config=hail_config)
@@ -774,15 +779,13 @@ def main(
     )
     matrix = annotate_category_support(matrix, hail_config)
 
-    # filter to class-annotated only prior to export
-    logging.info('Filter variants to leave only classified')
     matrix = filter_to_categorised(matrix)
-    logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
+    matrix, checkpoint_number = checkpoint_and_repartition(
+        matrix,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after filtering to categorised only',
+    )
 
-    # another little repartition after heavy filtering
-    matrix = informed_repartition(matrix=matrix)
-
-    # add an additional annotation, if the variant is Support only
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     matrix = matrix.annotate_rows(
@@ -791,25 +794,12 @@ def main(
                 matrix.vep, csq_fields=config_dict['variant_object'].get('csq_string')
             ),
             gene_id=matrix.geneIds,
-        ),
-        support_only=hl.if_else(
-            (matrix.info.Category1 == 0)
-            & (matrix.info.Category2 == 0)
-            & (matrix.info.Category3 == 0)
-            & (matrix.info.Category4 == 'missing')
-            & (matrix.info.Category5 == 0)
-            & (matrix.info.CategorySupport == 1),
-            ONE_INT,
-            MISSING_INT,
-        ),
+        )
     )
 
-    # write the results to a VCF path
-    logging.info(f'Write variants out to "{out_vcf}"')
+    logging.info(f'Write variants out to "{VCF_OUT}"')
     write_matrix_to_vcf(
-        matrix=matrix,
-        output_path=out_vcf,
-        additional_header=hail_config.get('csq_header_file'),
+        matrix=matrix, additional_header=hail_config.get('csq_header_file')
     )
 
 
@@ -842,14 +832,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--plink_file', type=str, required=True, help='Family Pedigree in PLINK format'
     )
-    parser.add_argument(
-        '--out_vcf', type=str, required=True, help='VCF path to export results'
-    )
     args = parser.parse_args()
     main(
         mt_input=args.mt_input,
         panelapp_path=args.panelapp_path,
         config_path=args.config_path,
         plink_file=args.plink_file,
-        out_vcf=args.out_vcf,
     )
