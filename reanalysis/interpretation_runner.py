@@ -55,7 +55,7 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 
 # output of labelling task in Hail
-HAIL_TMP = output_path('hail_matrix.mt')
+HAIL_TMP = output_path('hail_matrix.mt', 'tmp')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
 # outputs for familial and singleton analysis
