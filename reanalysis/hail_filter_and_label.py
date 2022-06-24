@@ -677,7 +677,7 @@ def checkpoint_and_repartition(
     checkpoint_extended = f'{TEMP_CHECKPOINT}_{CHECKPOINT_EXTENSION}'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
     matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
-    checkpoint_num += 1
+    checkpoint_num = checkpoint_num + 1
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
