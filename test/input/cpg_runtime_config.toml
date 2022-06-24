@@ -1,0 +1,211 @@
+[workflow]
+# Access level (test, standard, full). Translates into the storage and inputs
+# namespace (test or main):
+access_level = 'standard'
+
+# Input provider type ('csv' or 'smdb' for the CPG sample-metadata database)
+input_provider = 'smdb'
+
+# For the first (not-skipped) stage, if the input for a target does
+# not exist, just skip this target instead of failing. E.g. if the first
+# stage is Align, and `sample.alignment_input` for a sample do not exist,
+# remove this sample, instead of failing. In order words, ignore samples
+# that are missing results from skipped stages
+skip_samples_with_missing_input = false
+
+# Check input file existence (e.g. FASTQ files). If they are missing
+# the --skip-samples-with-missing-input option controls whether such
+# should be ignored, or raise an error
+check_inputs = true
+
+# Within jobs, check all in-job intermediate files for possible reuse.
+# If set to False, will overwrite all intermediates
+check_intermediates = true
+
+# Before running a stage, check if its input already exists. If it exists,
+# submit a [reuse] job instead.
+check_expected_outputs = true
+
+# Local directory for temporary files. Usually takes a few kB.
+# If not provided, a temp folder will be created
+#local_tmp_dir =
+
+# Slack channel to send status reports with the CPG status reporter:
+#slack_channel = 'seqr-loader'
+
+# When the sample-metadata database API returns an error from the
+# database, only show the error and continue, instead of crashing
+smdb_errors_are_fatal = true
+
+# Prefix to find docker images referenced in `image_config_yaml_path`
+image_registry_prefix = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
+
+# Prefix to find reference files referenced in `refdata_yaml_path`
+reference_prefix = 'gs://cpg-reference'
+
+# Template to build HTTP URLs matching the dataset_path of category
+# "web". Should be parametrised by namespace and dataset in Jinja format:
+web_url_template = 'https://{namespace}-web.populationgenomics.org.au/{dataset}'
+
+# GCP project to activate and for requester-pays buckets. For CPG, will be determined
+# automatically if not provided, and analysis-runner service account is activated.
+#dataset_gcp_project =
+
+# Limit to data of this sequencing type
+sequencing_type = 'genome'
+
+# Realign CRAM when available, instead of using FASTQ.
+# The parameter value should correspond to CRAM version
+# (e.g. v0 in gs://cpg-fewgenomes-main/cram/v0/CPG01234.cram
+realign_from_cram_version = 'bwamem'
+
+# Number of shards for realignment from BAM/CRAM
+realignment_shards_num = 10
+
+# Number of intervals to partition sample genotyping
+hc_intervals_num = 50
+
+# Number of intervals to partition joint calling and VQSR
+jc_intervals_num = 50
+
+# Number of intervals to partition VEP annotation
+vep_intervals_num = 50
+
+# Use GnarlyGenotyper instead of GenotypeGVCFs
+use_gnarly = false
+
+# Use allele-specific annotations for VQSR
+use_as_vqsr = true
+
+# Run CRAM QC and PED checks
+cram_qc = true
+
+# Calling intervals (defauls to whole genome intervals)
+#intervals_path =
+
+# Create Seqr ElasticSearch indices for these datasets. If not specified, will
+# create indices for all input datasets.
+#create_es_index_for_datasets =
+
+[elasticsearch]
+# Configure access to ElasticSearch server
+es_port = 9243
+es_host = 'elasticsearch.es.australia-southeast1.gcp.elastic-cloud.com'
+es_username = 'seqr'
+# Load ElasticSearch password from a secret, unless SEQR_ES_PASSWORD is set
+es_password_secret_id = 'seqr-es-password'
+es_password_project_id = 'seqr-308602'
+
+[hail]
+#billing_project =
+#bucket =
+pool_label = 'seqr'
+keep_scratch = true
+dry_run = false
+
+[images]
+# Docker image URLs. Can be absolute or relative to `workflow.image_registry_prefix`.
+gatk = 'gatk:4.2.6.1'
+bcftools = 'bcftools:1.10.2--h4f4756c_2'
+sm-api = 'australia-southeast1-docker.pkg.dev/analysis-runner/images/driver:7d00c4871b2e96f50bae208e4184c3c4789a2fa4-hail-83056327f288917537531475ba475287b413db1c'
+bwa ='bwa:v0'
+bwamem2 = 'bwamem2:v0'
+dragmap = 'dragmap:1.3.0'
+samtools = 'picard_samtools:v0'
+picard = 'picard_samtools:v0'
+picard_samtools = 'picard_samtools:v0'
+somalier = 'somalier:v0.2.15'
+peddy = 'peddy:v0'
+vep ='vep:105'
+verify-bam-id = 'verify-bam-id:1.0.1'
+multiqc = 'multiqc:v1.12'
+fastqc = 'fastqc:v0.11.9_cv8'
+hail = 'australia-southeast1-docker.pkg.dev/analysis-runner/images/driver:7d00c4871b2e96f50bae208e4184c3c4789a2fa4-hail-83056327f288917537531475ba475287b413db1c'
+
+[references]
+# Genome build. Only GRCh38 is currently supported.
+genome_build = 'GRCh38'
+
+# Paths to reference files. Paths can be absolute
+# or relative to the `workflow.reference_prefix` config option.
+
+# Site list for somalier https://github.com/brentp/somalier/releases/tag/v0.2.15
+somalier_sites = 'somalier/v0/sites.hg38.vcf.gz'
+# Somalier 1kg data for the "ancestry" command
+somalier_1kg_targz = 'somalier/v0/1kg.somalier.tar.gz'
+# Somalier list of 1kg samples for the "ancestry" command.
+somalier_1kg_labels = 'somalier/v0/ancestry-labels-1kg.tsv'
+# LofTee reference tarball for VEP.
+vep_loftee = 'vep/loftee_GRCh38.tar'
+# Reference tarball for VEP.
+vep = 'vep/homo_sapiens_vep_105_GRCh38.tar'
+# Contains uncompressed VEP tarballs for mounting with cloudfuse.
+vep_mount = 'vep/GRCh38'
+# To cache intervals.
+intervals_prefix = 'intervals'
+
+## The Broad references
+[references.broad]
+# Path to a copy of the Broad reference bucket
+# gs://gcp-public-data--broad-references/hg38/v0
+prefix = 'hg38/v0'
+
+# Path to DRAGMAP index (relative to braod_ref)
+dragmap_prefix = 'dragen_reference'
+ref_fasta = 'dragen_reference/Homo_sapiens_assembly38_masked.fasta'
+# For DRAGMAP, also the following files are expected to exist in `dragen_reference`:
+#  ['hash_table.cfg.bin', 'hash_table.cmp', 'reference.bin']
+# For BWA, files with the following indices added to ref_fasta expected:
+# are expected to exist: ['sa', 'amb', 'bwt', 'ann', 'pac', 'alt']
+# Similarly, for bwamem2: ['0123', 'amb', 'bwt.2bit.64', 'ann', 'pac', 'alt']
+
+# Primary contigs BED file (relative to broad_ref)
+noalt_bed = 'sv-resources/resources/v1/primary_contigs_plus_mito.bed.gz'
+
+# Exome calling regions (relative to broad_ref)
+exome_bed = 'Homo_sapiens_assembly38.contam.exome_calling_regions.v1.bed'
+
+# Calling intervals lists (relative to broad_ref)
+genome_calling_interval_lists = 'wgs_calling_regions.hg38.interval_list'
+exome_calling_interval_lists = 'exome_calling_regions.v1.interval_list'
+genome_evaluation_interval_lists = 'wgs_evaluation_regions.hg38.interval_list'
+exome_evaluation_interval_lists = 'exome_evaluation_regions.v1.interval_list'
+genome_coverage_interval_list = 'wgs_coverage_regions.hg38.interval_list'
+unpadded_intervals = 'hg38.even.handcurated.20k.intervals'
+
+# VQSR (relative to broad_ref)
+dbsnp_vcf = 'Homo_sapiens_assembly38.dbsnp138.vcf'
+dbsnp_vcf_index = 'Homo_sapiens_assembly38.dbsnp138.vcf.idx'
+hapmap_vcf = 'hapmap_3.3.hg38.vcf.gz'
+hapmap_vcf_index = 'hapmap_3.3.hg38.vcf.gz.tbi'
+omni_vcf = '1000G_omni2.5.hg38.vcf.gz'
+omni_vcf_index = '1000G_omni2.5.hg38.vcf.gz.tbi'
+one_thousand_genomes_vcf = '1000G_phase1.snps.high_confidence.hg38.vcf.gz'
+one_thousand_genomes_vcf_index = '1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi'
+mills_vcf = 'Mills_and_1000G_gold_standard.indels.hg38.vcf.gz'
+mills_vcf_index = 'Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi'
+axiom_poly_vcf = 'Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf.gz'
+axiom_poly_vcf_index = 'Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf.gz.tbi'
+
+# Contamination check (relative to boad_ref):
+contam_ud =  'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.UD'
+contam_bed = 'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.bed'
+contam_mu =  'contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.mu'
+
+## GnomAD resources for Hail Query
+[references.gnomad]
+prefix = 'gnomad/v0'
+# All paths below relative to prefix.
+tel_and_cent_ht = 'telomeres_and_centromeres/hg38.telomeresAndMergedCentromeres.ht'
+lcr_intervals_ht = 'lcr_intervals/LCRFromHengHg38.ht'
+seg_dup_intervals_ht = 'seg_dup_intervals/GRCh38_segdups.ht'
+clinvar_ht = 'clinvar/clinvar_20190923.ht'
+hapmap_ht = 'hapmap/hapmap_3.3.hg38.ht'
+kgp_omni_ht = 'kgp/1000G_omni2.5.hg38.ht'
+kgp_hc_ht = 'kgp/1000G_phase1.snps.high_confidence.hg38.ht'
+mills_ht = 'mills/Mills_and_1000G_gold_standard.indels.hg38.ht'
+
+[references.seqr]
+prefix = 'seqr/v0-1'
+combined_reference = 'combined_reference_data_grch38-2.0.4.ht'
+clinvar = 'clinvar.GRCh38.ht'
