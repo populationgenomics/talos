@@ -6,10 +6,9 @@ based on reference data: VEP, ClinVar, etc.
 
 import logging
 
-import hail as hl
-
-from cpg_utils.hail_batch import reference_path
 from cloudpathlib import AnyPath
+from cpg_utils.hail_batch import reference_path
+import hail as hl
 
 
 logger = logging.getLogger(__file__)
@@ -167,7 +166,5 @@ def apply_annotations(
         sampleType=sequencing_type,
         hail_version=hl.version(),
     )
-    logger.info('Done:')
-    mt.describe()
     mt.write(str(out_mt_path), overwrite=overwrite)
     logger.info(f'Written final matrix table into {out_mt_path}')

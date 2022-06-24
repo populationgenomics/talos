@@ -16,7 +16,7 @@ jobs:
         python-version: '3.10'
 
     - name: Install packages
-      run: pip install -r requirements-dev.txt
+      run: pip install -r requirements-lint.py
 
     - name: pre-commit
       run: pre-commit run --all-files
