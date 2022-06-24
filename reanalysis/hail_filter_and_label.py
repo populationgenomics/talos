@@ -701,6 +701,8 @@ def main(
     :param tmp_path: temporary checkpoint write path
     """
 
+    checkpoint_count = 0
+
     # initiate Hail with defined driver spec.
     init_batch(driver_cores=8, driver_memory='highmem')
 
@@ -746,7 +748,8 @@ def main(
     matrix = filter_by_ab_ratio(matrix)
 
     logging.info('checkpointing MT after applying quality filters')
-    matrix = matrix.checkpoint(tmp_path, overwrite=True)
+    matrix = matrix.checkpoint(f'{tmp_path}_{checkpoint_count}', overwrite=True)
+    checkpoint_count += 1
     logging.info(f'Rows remaining: {matrix.count_rows()}')
 
     # pull annotations into info and update if missing
@@ -759,7 +762,8 @@ def main(
     )
 
     logging.info('checkpointing MT after applying annotation filters')
-    matrix = matrix.checkpoint(tmp_path, overwrite=True)
+    matrix = matrix.checkpoint(f'{tmp_path}_{checkpoint_count}', overwrite=True)
+    checkpoint_count += 1
     matrix = informed_repartition(matrix=matrix)
     logging.info(
         f'Variants remaining after Rare & Green-Gene filter: {matrix.count_rows()}'
@@ -780,7 +784,8 @@ def main(
 
     # now restrict to only categorised variants
     matrix = filter_to_categorised(matrix)
-    matrix = matrix.checkpoint(tmp_path, overwrite=True)
+    matrix = matrix.checkpoint(f'{tmp_path}_{checkpoint_count}', overwrite=True)
+    checkpoint_count += 1
     matrix = informed_repartition(matrix=matrix)
     logging.info(f'Variants remaining after Category filter: {matrix.count_rows()}')
 
