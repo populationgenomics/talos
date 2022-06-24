@@ -680,22 +680,21 @@ def checkpoint_and_repartition(
     :param matrix:
     :param checkpoint_path: tmp location for checkpoint
     :param extra_logging: any additional context
-    :return: repartitioned, checkpointed matrix
+    :return: repartitioned, post-checkpoint matrix
     """
     global CHECKPOINT_EXTENSION  # pylint: disable=W0603
-    matrix = matrix.checkpoint(
-        f'{checkpoint_path}{CHECKPOINT_EXTENSION}', overwrite=True
-    )
+    checkpoint_extended = f'{checkpoint_path}{CHECKPOINT_EXTENSION}'
+    logging.info(f'Checkpointing MT to {checkpoint_extended}')
+    matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
     CHECKPOINT_EXTENSION = CHECKPOINT_FLIP_FLOP[CHECKPOINT_EXTENSION]
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
     partitions = current_rows // 200000 or 1
 
-    log_string = f'Re-partitioning {current_rows} into {partitions} partitions '
-    if extra_logging:
-        log_string += extra_logging
-    logging.info(log_string)
+    logging.info(
+        f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
+    )
 
     return matrix.repartition(n_partitions=partitions, shuffle=True)
 
@@ -778,7 +777,7 @@ def main(
     )
 
     matrix = checkpoint_and_repartition(
-        matrix, tmp_path, extra_logging=' after applying Rare & Green-Gene filters'
+        matrix, tmp_path, extra_logging='after applying Rare & Green-Gene filters'
     )
 
     # add Classes to the MT
@@ -796,7 +795,7 @@ def main(
 
     matrix = filter_to_categorised(matrix)
     matrix = checkpoint_and_repartition(
-        matrix, tmp_path, extra_logging=' after filtering to categorised only'
+        matrix, tmp_path, extra_logging='after filtering to categorised only'
     )
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
