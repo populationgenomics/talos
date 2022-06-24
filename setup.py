@@ -50,7 +50,6 @@ setup(
             'tabulate==0.8.9',
             'pytest-xdist==2.5.0',
             'requests_mock==1.9.3',
-        ],
-        'pre-commit': ['black==22.3.0', 'pre-commit>=2.19.0', 'pylint>=2.14.0'],
+        ]
     },
 )
