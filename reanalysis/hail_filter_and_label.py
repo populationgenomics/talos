@@ -709,6 +709,10 @@ def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.Matrix
     # find overlapping samples
     common_samples = ped_samples.intersection(matrix_samples)
 
+    logging.info(f'Samples in Pedigree: {len(ped_samples)}')
+    logging.info(f'Samples in MatrixTable: {len(matrix_samples)}')
+    logging.info(f'Common Samples: {len(common_samples)}')
+
     # full overlap = no filtering
     if common_samples == ped_samples:
         return matrix
