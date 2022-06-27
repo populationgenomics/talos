@@ -20,6 +20,7 @@ import sys
 from argparse import ArgumentParser
 
 import hail as hl
+from peddy import Ped
 
 from cloudpathlib import AnyPath
 from cpg_utils.hail_batch import init_batch, output_path
@@ -38,7 +39,6 @@ PATHOGENIC = hl.str('pathogenic')
 
 VCF_OUT = output_path('hail_categorised.vcf.bgz')
 TEMP_CHECKPOINT = output_path('hail_matrix.mt', 'tmp')
-CHECKPOINT_EXTENSION = 0
 
 
 def filter_matrix_by_ac(
@@ -663,7 +663,7 @@ def green_and_new_from_panelapp(
 
 def checkpoint_and_repartition(
     matrix: hl.MatrixTable, checkpoint_num: int, extra_logging: str | None = ''
-) -> tuple[hl.MatrixTable, int]:
+) -> hl.MatrixTable:
     """
     uses an estimate of row size to inform the repartitioning of a MT
     aiming for a target partition size of ~10MB
@@ -674,10 +674,9 @@ def checkpoint_and_repartition(
     :param extra_logging: any additional context
     :return: repartitioned, post-checkpoint matrix
     """
-    checkpoint_extended = f'{TEMP_CHECKPOINT}_{CHECKPOINT_EXTENSION}'
+    checkpoint_extended = f'{TEMP_CHECKPOINT}_{checkpoint_num}'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
     matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
-    checkpoint_num = checkpoint_num + 1
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = matrix.count_rows()
@@ -687,7 +686,41 @@ def checkpoint_and_repartition(
         f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
     )
 
-    return matrix.repartition(n_partitions=partitions, shuffle=True), checkpoint_num
+    return matrix.repartition(n_partitions=partitions, shuffle=True)
+
+
+def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
+    """
+    remove any columns from the MT which are not represented in the Pedigree
+    :param matrix:
+    :param pedigree:
+    :return:
+    """
+
+    # individual IDs from pedigree
+    peddy_ped = Ped(pedigree)
+    ped_samples = {individual.sample_id for individual in peddy_ped.samples()}
+
+    # individual IDs from matrix
+    matrix_samples = set(matrix.s.collect())
+
+    # find overlapping samples
+    common_samples = ped_samples.intersection(matrix_samples)
+
+    logging.info(f'Samples in Pedigree: {len(ped_samples)}')
+    logging.info(f'Samples in MatrixTable: {len(matrix_samples)}')
+    logging.info(f'Common Samples: {len(common_samples)}')
+
+    # full overlap = no filtering
+    if common_samples == ped_samples:
+        return matrix
+
+    # reduce to those common samples
+    matrix = matrix.filter_cols(hl.literal(common_samples).contains(matrix.s))
+
+    logging.info(f'Remaining MatrixTable columns: {matrix.count_cols()}')
+
+    return matrix
 
 
 def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
@@ -732,6 +765,10 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
         raise Exception(f'Input MatrixTable doesn\'t exist: {mt_input}')
 
     matrix = hl.read_matrix_table(mt_input)
+
+    # subset to currently considered samples
+    matrix = subselect_mt_to_pedigree(matrix, pedigree=plink_file)
+
     logging.debug(
         f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
     )
@@ -748,11 +785,13 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 
-    matrix, checkpoint_number = checkpoint_and_repartition(
+    matrix = checkpoint_and_repartition(
         matrix,
         checkpoint_num=checkpoint_number,
         extra_logging='after applying quality filters',
     )
+
+    checkpoint_number = checkpoint_number + 1
 
     matrix = extract_annotations(matrix)
     matrix = filter_to_population_rare(matrix=matrix, config=hail_config)
@@ -760,11 +799,13 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
         matrix=matrix, green_genes=green_expression
     )
 
-    matrix, checkpoint_number = checkpoint_and_repartition(
+    matrix = checkpoint_and_repartition(
         matrix,
         checkpoint_num=checkpoint_number,
         extra_logging='after applying Rare & Green-Gene filters',
     )
+
+    checkpoint_number = checkpoint_number + 1
 
     # add Classes to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
@@ -780,7 +821,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     matrix = annotate_category_support(matrix, hail_config)
 
     matrix = filter_to_categorised(matrix)
-    matrix, checkpoint_number = checkpoint_and_repartition(
+    matrix = checkpoint_and_repartition(
         matrix,
         checkpoint_num=checkpoint_number,
         extra_logging='after filtering to categorised only',

@@ -149,10 +149,8 @@ class HTMLBuilder:
 
         self.panelapp = read_json_from_path(panelapp_data)
 
-        # peddy can't read cloudpaths, so create a local copy
-        with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
-            handle.write(AnyPath(pedigree).read_text())
-        self.pedigree = Ped('i_am_a_temporary.ped')
+        # read the ped file with Peddy
+        self.pedigree = Ped(pedigree)
 
     def get_summary_stats(
         self,

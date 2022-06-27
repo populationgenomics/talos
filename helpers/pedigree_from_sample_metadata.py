@@ -8,9 +8,10 @@ optional argument will replace missing parents with '0' to be valid PLINK struct
 
 from collections import defaultdict
 from itertools import product
+import hashlib
 import json
 import logging
-from typing import Dict, List, Union
+from typing import Union
 
 import click
 
@@ -29,11 +30,11 @@ PED_KEYS = [
 
 
 def get_ped_with_permutations(
-    pedigree_dicts: List[Dict[str, Union[str, List[str]]]],
-    sample_to_cpg_dict: Dict[str, List[str]],
+    pedigree_dicts: list[dict[str, Union[str, list[str]]]],
+    sample_to_cpg_dict: dict[str, list[str]],
     make_singletons: bool,
     plink_format: bool,
-) -> List[Dict[str, List[str]]]:
+) -> list[dict[str, list[str]]]:
     """
     Take the pedigree entry representations from the pedigree endpoint
     translates sample IDs of all members to CPG values
@@ -48,7 +49,7 @@ def get_ped_with_permutations(
     """
 
     new_entries = []
-    failures: List[str] = []
+    failures: list[str] = []
 
     for counter, ped_entry in enumerate(pedigree_dicts, 1):
 
@@ -83,7 +84,7 @@ def get_ped_with_permutations(
 
 
 def write_ped_with_permutations(
-    ped_with_permutations: List[Dict[str, List[str]]], output: str
+    ped_with_permutations: list[dict[str, list[str]]], output: str
 ):
     """
     take the pedigree data, and write out as a correctly formatted PED file
@@ -113,7 +114,7 @@ def write_ped_with_permutations(
                 )
 
 
-def get_pedigree_for_project(project: str) -> List[Dict[str, str]]:
+def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
     """
     fetches the project pedigree from sample-metadata
     list, one dict per participant
@@ -124,7 +125,7 @@ def get_pedigree_for_project(project: str) -> List[Dict[str, str]]:
     return FamilyApi().get_pedigree(project=project)
 
 
-def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
+def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     """
     fetches the participant-sample mapping, so external IDs can be translated
     to the corresponding CPG ID
@@ -152,7 +153,7 @@ def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
     return sample_map
 
 
-def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, str]:
+def generate_reverse_lookup(mapping_digest: dict[str, list[str]]) -> dict[str, str]:
     """
     :param mapping_digest: created by ext_to_int_sample_map
     :return:
@@ -165,11 +166,34 @@ def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, s
     }
 
 
+def hash_reduce_dicts(
+    pedigree_dicts: list[dict[str, str]], hash_threshold: int
+) -> list[dict[str, str]]:
+    """
+    hashes the family ID of each member of the Pedigree
+    Normalises the Hash value to the range 0 - 99
+    if the normalised value exceeds the threshold, remove
+
+    :param pedigree_dicts:
+    :param hash_threshold: int
+    :return:
+    """
+
+    reduced_pedigree = []
+
+    for member in pedigree_dicts:
+        family_id = member['family_id']
+        family_bytes = family_id.encode('utf-8')
+        hash_int = int(hashlib.sha1(family_bytes).hexdigest(), 16)
+        if hash_int % 100 >= hash_threshold:
+            continue
+        reduced_pedigree.append(member)
+
+    return reduced_pedigree
+
+
 @click.command()
-@click.option(
-    '--project',
-    help='the name of the project to use in API queries',
-)
+@click.option('--project', help='Project name to use in API queries')
 @click.option(
     '--singletons',
     default=False,
@@ -182,22 +206,39 @@ def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, s
     is_flag=True,
     help='make a plink format file (.fam, .ped is the default)',
 )
+@click.option('--output', help='prefix for writing all outputs to')
 @click.option(
-    '--output',
-    help='prefix for writing all outputs to',
+    '--hash_threshold',
+    help=(
+        'Integer 0-100 representing the % of families to include, e.g. 15'
+        'will result in the retention of 15% of families'
+    ),
+    default=None,
+    type=int,
 )
-def main(project: str, singletons: bool, plink: bool, output: str):
+def main(
+    project: str,
+    singletons: bool,
+    plink: bool,
+    output: str,
+    hash_threshold: int | None = None,
+):
     """
 
     :param project: may be able to retrieve this from the environment
     :param singletons: whether to split the pedigree(s) into singletons
     :param plink: whether to write the file as PLINK.fam format
+    :param hash_threshold:
     :param output: path to write new PED file
     """
 
     # get the list of all pedigree members as list of dictionaries
     logging.info('Pulling all pedigree members')
     pedigree_dicts = get_pedigree_for_project(project=project)
+
+    # if a threshold is provided, reduce the families present
+    if isinstance(hash_threshold, int):
+        pedigree_dicts = hash_reduce_dicts(pedigree_dicts, hash_threshold)
 
     # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPG12341']]
     # parser returns a dictionary, arbitrary # sample IDs per participant

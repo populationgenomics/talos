@@ -259,6 +259,7 @@ def handle_hail_filtering(
         labelling_job, auth=True, git=True, prior_job=prior_job, memory='16Gi'
     )
     labelling_command = (
+        f'pip install peddy==0.4.8 && '
         f'python3 {HAIL_FILTER} '
         f'--mt_input {ANNOTATED_MT} '
         f'--panelapp_path {PANELAPP_JSON_OUT} '
@@ -391,6 +392,9 @@ def main(
         default_memory='highmem',
     )
 
+    # read the ped file into the Batch
+    pedigree_in_batch = batch.read_input(plink_file)
+
     # set a first job in this batch
     prior_job = None
 
@@ -464,7 +468,7 @@ def main(
             batch=batch,
             config=config_json,
             prior_job=prior_job,
-            plink_file=plink_file,
+            plink_file=pedigree_in_batch,
         )
 
     # read that VCF into the batch as a local file
@@ -474,9 +478,10 @@ def main(
 
     # for dev purposes - always run as default (family)
     # if singleton VCF supplied, also run as singletons (using separate output paths)
-    analysis_rounds = [(plink_file, 'default')]
+    analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and AnyPath(singletons).exists():
-        analysis_rounds.append((singletons, 'singletons'))
+        pedigree_singletons = batch.read_input(singletons)
+        analysis_rounds.append((pedigree_singletons, 'singletons'))
 
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
