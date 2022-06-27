@@ -769,10 +769,8 @@ def main(
     aip_json = read_json_from_path(results)
     result_dict = common_format_from_results(results_dict=aip_json)
 
-    # Peddy can't read cloud paths, but we want the parsed Pedigree
-    with open('i_am_a_temporary.ped', 'w', encoding='utf-8') as handle:
-        handle.write(AnyPath(ped).read_text())
-    pedigree_digest = Ped('i_am_a_temporary.ped')
+    # Peddy parsed Pedigree
+    pedigree_digest = Ped(ped)
 
     # Search for all affected sample IDs in the Pedigree
     affected = find_affected_samples(pedigree_digest)

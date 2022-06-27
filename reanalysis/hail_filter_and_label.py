@@ -20,6 +20,7 @@ import sys
 from argparse import ArgumentParser
 
 import hail as hl
+from peddy import Ped
 
 from cloudpathlib import AnyPath
 from cpg_utils.hail_batch import init_batch, output_path
@@ -688,6 +689,32 @@ def checkpoint_and_repartition(
     )
 
     return matrix.repartition(n_partitions=partitions, shuffle=True), checkpoint_num
+
+
+def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
+    """
+    remove any columns from the MT which are not represented in the Pedigree
+    :param matrix:
+    :param pedigree:
+    :return:
+    """
+
+    # individual IDs from pedigree
+    peddy_ped = Ped(pedigree)
+    ped_samples = {individual.sample_id for individual in peddy_ped.samples()}
+
+    # individual IDs from matrix
+    matrix_samples = set(matrix.s.collect())
+
+    # find overlapping samples
+    common_samples = ped_samples.intersection(matrix_samples)
+
+    # full overlap = no filtering
+    if common_samples == ped_samples:
+        return matrix
+
+    # reduce to those common samples
+    return matrix.filter_cols(hl.literal(common_samples).contains(matrix.s))
 
 
 def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
