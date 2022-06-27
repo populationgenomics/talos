@@ -712,7 +712,7 @@ def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.Matrix
     logging.info(f'Common Samples: {len(common_samples)}')
 
     # full overlap = no filtering
-    if common_samples == ped_samples:
+    if common_samples == matrix_samples:
         return matrix
 
     # reduce to those common samples
