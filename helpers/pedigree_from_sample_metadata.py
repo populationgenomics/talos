@@ -11,7 +11,7 @@ from itertools import product
 import hashlib
 import json
 import logging
-from typing import Dict, List, Union
+from typing import Union
 
 import click
 
@@ -30,11 +30,11 @@ PED_KEYS = [
 
 
 def get_ped_with_permutations(
-    pedigree_dicts: List[Dict[str, Union[str, List[str]]]],
-    sample_to_cpg_dict: Dict[str, List[str]],
+    pedigree_dicts: list[dict[str, Union[str, list[str]]]],
+    sample_to_cpg_dict: dict[str, list[str]],
     make_singletons: bool,
     plink_format: bool,
-) -> List[Dict[str, List[str]]]:
+) -> list[dict[str, list[str]]]:
     """
     Take the pedigree entry representations from the pedigree endpoint
     translates sample IDs of all members to CPG values
@@ -49,7 +49,7 @@ def get_ped_with_permutations(
     """
 
     new_entries = []
-    failures: List[str] = []
+    failures: list[str] = []
 
     for counter, ped_entry in enumerate(pedigree_dicts, 1):
 
@@ -84,7 +84,7 @@ def get_ped_with_permutations(
 
 
 def write_ped_with_permutations(
-    ped_with_permutations: List[Dict[str, List[str]]], output: str
+    ped_with_permutations: list[dict[str, list[str]]], output: str
 ):
     """
     take the pedigree data, and write out as a correctly formatted PED file
@@ -114,7 +114,7 @@ def write_ped_with_permutations(
                 )
 
 
-def get_pedigree_for_project(project: str) -> List[Dict[str, str]]:
+def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
     """
     fetches the project pedigree from sample-metadata
     list, one dict per participant
@@ -125,7 +125,7 @@ def get_pedigree_for_project(project: str) -> List[Dict[str, str]]:
     return FamilyApi().get_pedigree(project=project)
 
 
-def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
+def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     """
     fetches the participant-sample mapping, so external IDs can be translated
     to the corresponding CPG ID
@@ -153,7 +153,7 @@ def ext_to_int_sample_map(project: str) -> Dict[str, List[str]]:
     return sample_map
 
 
-def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, str]:
+def generate_reverse_lookup(mapping_digest: dict[str, list[str]]) -> dict[str, str]:
     """
     :param mapping_digest: created by ext_to_int_sample_map
     :return:
@@ -167,8 +167,8 @@ def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, s
 
 
 def hash_reduce_dicts(
-    pedigree_dicts: List[Dict[str, str]], hash_threshold: int
-) -> List[Dict[str, str]]:
+    pedigree_dicts: list[dict[str, str]], hash_threshold: int
+) -> list[dict[str, str]]:
     """
     hashes the family ID of each member of the Pedigree
     Normalises the Hash value to the range 0 - 99
