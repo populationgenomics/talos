@@ -3,25 +3,16 @@ methods for testing the sample-metadata API queries
 """
 
 from copy import deepcopy
-
 from unittest.mock import patch
-
-import json
-import os
-
 import pytest
 
 from helpers.pedigree_from_sample_metadata import (
     ext_to_int_sample_map,
     get_ped_with_permutations,
+    hash_reduce_dicts,
 )
 
-
-PWD = os.path.dirname(__file__)
 PROJECT = 'fake-project'
-INPUT = os.path.join(PWD, 'input')
-JSON_PED = os.path.join(INPUT, 'mock_pedigree.json')
-LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
 
 SAMPLE_TO_CPG = {
     'sam1': ['cpg1'],
@@ -44,19 +35,14 @@ DIRTY_PED = [
     'helpers.pedigree_from_sample_metadata.ParticipantApi.'
     'get_external_participant_id_to_internal_sample_id'
 )
-def test_ext_to_int_sample_map(
-    map_mock,
-):
+def test_ext_to_int_sample_map(map_mock, sm_lookup):
     """
     fetch method using a mocked API endpoint
     :param map_mock:
     :return:
     """
 
-    with open(LOOKUP_PED, 'r', encoding='utf-8') as handle:
-        payload = json.load(handle)
-
-    map_mock.return_value = payload
+    map_mock.return_value = sm_lookup
     result = ext_to_int_sample_map(project=PROJECT)
     assert isinstance(result, dict)
     assert result == {
@@ -150,3 +136,40 @@ def test_get_clean_pedigree_singles_plink():
             'affected': 1,
         }
     ]
+
+
+def test_hash_reduce():
+    """
+    examples of the int hash % 100
+    family0 35
+    family1 76
+    family2 97
+    family3 76
+    family4 55
+    family5 43
+    family6 35
+
+    note collision of family1 & 3, 0 & 6; not a problem
+    :return:
+    """
+    # test input includes duplication
+    pedigree_dicts = [
+        {'family_id': 'family0'},
+        {'family_id': 'family1'},
+        {'family_id': 'family1'},
+        {'family_id': 'family2'},
+        {'family_id': 'family3'},
+        {'family_id': 'family4'},
+        {'family_id': 'family4'},
+    ]
+    result_1 = hash_reduce_dicts(pedigree_dicts, 76)
+    assert len(result_1) == 3
+    fam1 = [x for x in result_1 if x['family_id'] == 'family1']
+    assert len(fam1) == 0
+
+    result_2 = hash_reduce_dicts(pedigree_dicts, 77)
+    assert len(result_2) == 6
+
+    # check all of family1 were retained
+    fam1 = [x for x in result_2 if x['family_id'] == 'family1']
+    assert len(fam1) == 2

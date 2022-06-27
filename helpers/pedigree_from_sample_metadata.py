@@ -8,6 +8,7 @@ optional argument will replace missing parents with '0' to be valid PLINK struct
 
 from collections import defaultdict
 from itertools import product
+import hashlib
 import json
 import logging
 from typing import Dict, List, Union
@@ -165,11 +166,34 @@ def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, s
     }
 
 
+def hash_reduce_dicts(
+    pedigree_dicts: List[Dict[str, str]], hash_threshold: int
+) -> List[Dict[str, str]]:
+    """
+    hashes the family ID of each member of the Pedigree
+    Normalises the Hash value to the range 0 - 99
+    if the normalised value exceeds the threshold, remove
+
+    :param pedigree_dicts:
+    :param hash_threshold: int
+    :return:
+    """
+
+    reduced_pedigree = []
+
+    for member in pedigree_dicts:
+        family_id = member['family_id']
+        family_bytes = family_id.encode('utf-8')
+        hash_int = int(hashlib.sha1(family_bytes).hexdigest(), 16)
+        if hash_int % 100 >= hash_threshold:
+            continue
+        reduced_pedigree.append(member)
+
+    return reduced_pedigree
+
+
 @click.command()
-@click.option(
-    '--project',
-    help='the name of the project to use in API queries',
-)
+@click.option('--project', help='Project name to use in API queries')
 @click.option(
     '--singletons',
     default=False,
@@ -182,22 +206,39 @@ def generate_reverse_lookup(mapping_digest: Dict[str, List[str]]) -> Dict[str, s
     is_flag=True,
     help='make a plink format file (.fam, .ped is the default)',
 )
+@click.option('--output', help='prefix for writing all outputs to')
 @click.option(
-    '--output',
-    help='prefix for writing all outputs to',
+    '--hash_threshold',
+    help=(
+        'Integer 0-100 representing the % of families to include, e.g. 15'
+        'will result in the retention of 15% of families'
+    ),
+    default=None,
+    type=int,
 )
-def main(project: str, singletons: bool, plink: bool, output: str):
+def main(
+    project: str,
+    singletons: bool,
+    plink: bool,
+    output: str,
+    hash_threshold: int | None = None,
+):
     """
 
     :param project: may be able to retrieve this from the environment
     :param singletons: whether to split the pedigree(s) into singletons
     :param plink: whether to write the file as PLINK.fam format
+    :param hash_threshold:
     :param output: path to write new PED file
     """
 
     # get the list of all pedigree members as list of dictionaries
     logging.info('Pulling all pedigree members')
     pedigree_dicts = get_pedigree_for_project(project=project)
+
+    # if a threshold is provided, reduce the families present
+    if isinstance(hash_threshold, int):
+        pedigree_dicts = hash_reduce_dicts(pedigree_dicts, hash_threshold)
 
     # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPG12341']]
     # parser returns a dictionary, arbitrary # sample IDs per participant
