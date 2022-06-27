@@ -718,7 +718,11 @@ def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.Matrix
         return matrix
 
     # reduce to those common samples
-    return matrix.filter_cols(hl.literal(common_samples).contains(matrix.s))
+    matrix = matrix.filter_cols(hl.literal(common_samples).contains(matrix.s))
+
+    logging.info(f'Remaining MatrixTable columns: {matrix.count_cols()}')
+
+    return matrix
 
 
 def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
@@ -763,6 +767,10 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
         raise Exception(f'Input MatrixTable doesn\'t exist: {mt_input}')
 
     matrix = hl.read_matrix_table(mt_input)
+
+    # subset to currently considered samples
+    matrix = subselect_mt_to_pedigree(matrix, pedigree=plink_file)
+
     logging.debug(
         f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
     )
