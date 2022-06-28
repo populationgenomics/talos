@@ -89,7 +89,7 @@ def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
     mane_csq = set()
 
     # iterate over all consequences, special care for MANE
-    for each_csq in variant['var_data']['transcript_consequences']:
+    for each_csq in variant['var_data'].get('transcript_consequences', []):
 
         # allow for variants with no transcript CSQs
         if 'consequence' not in each_csq:
