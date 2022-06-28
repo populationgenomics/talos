@@ -245,11 +245,6 @@ def main(
     logging.info('pulling internal-external sample mapping')
     sample_to_cpg_dict = ext_to_int_sample_map(project=project)
 
-    # store a way of reversing this lookup in future
-    reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
-    with open(f'{output}_reversed.json', 'w', encoding='utf-8') as handle:
-        json.dump(reverse_lookup, handle, indent=4)
-
     logging.info('updating pedigree sample IDs to internal')
     ped_with_permutations = get_ped_with_permutations(
         pedigree_dicts=pedigree_dicts,
@@ -257,6 +252,11 @@ def main(
         make_singletons=singletons,
         plink_format=plink,
     )
+
+    # store a way of reversing this lookup in future
+    reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
+    with open(f'{output}_reversed.json', 'w', encoding='utf-8') as handle:
+        json.dump(reverse_lookup, handle, indent=4)
 
     pedigree_output_path = f'{output}_pedigree.{"fam" if plink else "ped"}'
     logging.info('writing new PED file to "%s"', pedigree_output_path)

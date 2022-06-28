@@ -2,6 +2,7 @@
 
 # hail logs
 hail*.log
+inputs
 
 # local run files
 reanalysis/input

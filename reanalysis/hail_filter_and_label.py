@@ -291,7 +291,10 @@ def annotate_category_4(
     dn_table = hl.de_novo(
         de_novo_matrix, pedigree, pop_frequency_prior=de_novo_matrix.info.gnomad_af
     )
-    dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
+
+    # removing filter here as we are currently happy with the quality of the
+    # variant calling and subsequent call-set filtering
+    # dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
     dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
