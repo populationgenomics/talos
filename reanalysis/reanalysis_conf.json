@@ -76,7 +76,8 @@
         "description": "variables affecting how the final HTML report appears",
         "seqr_lookup": "gs://cpg-acute-care-test/reanalysis/parsed_seqr.json",
         "external_lookup": "gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.json",
-        "seqr_instance": "https://seqr.populationgenomics.org.au"
+        "seqr_instance": "https://seqr.populationgenomics.org.au",
+        "seqr_project": "R0011_acute_care"
     },
     "vqsr_header_file": "gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt"
 }

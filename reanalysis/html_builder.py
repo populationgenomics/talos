@@ -3,7 +3,7 @@ Methods for taking the final output and generating static report content
 """
 
 import logging
-
+from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
 
@@ -19,8 +19,16 @@ GNOMAD_TEMPLATE = (
     '{variant}?dataset=gnomad_r3" target="_blank">{value:.5f}</a>'
 )
 PANELAPP_TEMPLATE = (
-    '<a href="https://panelapp.agha.umccr.org/panels/137/gene/{symbol}/"'
-    ' target="_blank">{symbol}</a>'
+    '<a href="https://panelapp.agha.umccr.org/panels/137/gene/{symbol}/" '
+    'target="_blank">{symbol}</a>'
+)
+SEQR_TEMPLATE = (
+    '<a href="{seqr}/variant_search/variant/{variant}/family/{family}" '
+    'target="_blank">{variant}</a>'
+)
+FAMILY_TEMPLATE = (
+    '<a href="{seqr}/project/{project}/family_page/{family}" '
+    'target="_blank">{sample}</a>'
 )
 
 STRONG_STRING = '<strong>{content}</strong>'
@@ -33,9 +41,10 @@ COLORS = {
     '5': '#006e4e',
     'support': '#00FF08',
 }
+CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
 
 
-def numerical_categories(var_data: dict[str, Any], sample: str) -> list[str]:
+def category_strings(var_data: dict[str, Any], sample: str) -> list[str]:
     """
     get a list of strings representing the categories present on this variant
     :param var_data:
@@ -89,7 +98,12 @@ def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
     mane_csq = set()
 
     # iterate over all consequences, special care for MANE
-    for each_csq in variant['var_data']['transcript_consequences']:
+    for each_csq in variant['var_data'].get('transcript_consequences', []):
+
+        # allow for variants with no transcript CSQs
+        if 'consequence' not in each_csq:
+            continue
+
         row_csq = set(each_csq['consequence'].split('&'))
 
         # record the transcript ID(s), and CSQ(s)
@@ -136,15 +150,10 @@ class HTMLBuilder:
         try:
             # update the seqr instance location
             if self.config.get('seqr_instance'):
-                self.seqr_template = (
-                    f'<a href="{self.config.get("seqr_instance")}/variant_search/'
-                    'variant/{variant}/family/{family}" target="_blank">{variant}</a>'
-                )
                 self.seqr = read_json_from_path(self.config.get('seqr_lookup'))
         except AttributeError:
             logging.error(
-                f'Seqr ID lookup file could not be parsed from '
-                f'{self.config.get("seqr_lookup")}'
+                f'Failure parsing Seqr lookup from {self.config.get("seqr_lookup")}'
             )
 
         self.panelapp = read_json_from_path(panelapp_data)
@@ -154,40 +163,18 @@ class HTMLBuilder:
 
     def get_summary_stats(
         self,
-    ) -> tuple[str, list[str]]:  # pylint: disable=too-many-locals
+    ) -> tuple[str, list[str]]:
         """
         run the numbers across all variant categories
         :return:
         """
 
-        category_count = {
-            '1': [],
-            '2': [],
-            '3': [],
-            'de_novo': [],
-            '5': [],
-            'all': [],
-        }
-        category_strings = {
-            '1': set(),
-            '2': set(),
-            '3': set(),
-            'de_novo': set(),
-            '5': set(),
-            'support': set(),
-            'all': set(),
-        }
+        category_count = {key: [] for key in CATEGORY_ORDERING}
+        unique_variants = defaultdict(set)
 
         samples_with_no_variants = []
 
         for sample, variants in self.results.items():
-
-            # skip over any sample entries that
-            if not self.pedigree[sample].affected:
-                assert (
-                    len(variants) == 0
-                ), f'Sample {sample} was unaffected, but had categorised variants'
-                continue
 
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
@@ -200,12 +187,12 @@ class HTMLBuilder:
             # how many variants were attached to this sample?
             # this set is for chr-pos-ref-alt
             # i.e. don't double-count if the variant is dominant and compound-het
-            category_count['all'].append(
+            category_count['any'].append(
                 len({key.split('__')[0] for key in variants.keys()})
             )
 
             # create a per-sample object to track variants for each category
-            sample_count = {'1': 0, '2': 0, '3': 0, 'de_novo': 0, '5': 0}
+            sample_count = defaultdict(int)
 
             # iterate over the variants
             for var_key, variant in variants.items():
@@ -214,37 +201,30 @@ class HTMLBuilder:
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
-                for category_value in numerical_categories(
+                for category_value in category_strings(
                     variant['var_data'], sample=sample
                 ):
                     if category_value == 'support':
                         continue
                     sample_count[category_value] += 1
-                    category_strings[category_value].add(var_string)
+                    unique_variants[category_value].add(var_string)
 
                 # update the set of all unique variants
-                category_strings['all'].add(var_string)
+                unique_variants['any'].add(var_string)
 
             # update the global lists with per-sample counts
-            for key, value in sample_count.items():
-                category_count[key].append(value)
+            for key, key_list in category_count.items():
+                key_list.append(sample_count[key])
 
         summary_dicts = [
             {
-                'Category': title,
+                'Category': key,
                 'Total': sum(category_count[key]),
-                'Unique': len(category_strings[key]),
+                'Unique': len(unique_variants[key]),
                 'Peak #/sample': max(category_count[key]),
                 'Mean/sample': sum(category_count[key]) / len(category_count[key]),
             }
-            for title, key in [
-                ('Total', 'all'),
-                ('Cat1', '1'),
-                ('Cat2', '2'),
-                ('Cat3', '3'),
-                ('de_novo', 'de_novo'),
-                ('Cat5', '5'),
-            ]
+            for key in CATEGORY_ORDERING
         ]
 
         return (
@@ -293,9 +273,16 @@ class HTMLBuilder:
         html_lines.append('<br/>Any red "csq" don\'t appear on a MANE transcript<br/>')
 
         for sample, table in html_tables.items():
-            html_lines.append(
-                fr'<h3>Sample: {self.external_map.get(sample, sample)}</h3>'
-            )
+            if sample in self.external_map and sample in self.seqr:
+                sample_string = FAMILY_TEMPLATE.format(
+                    seqr=self.config.get('seqr_instance'),
+                    project=self.config.get('seqr_project'),
+                    family=self.seqr[sample],
+                    sample=self.external_map[sample],
+                )
+            else:
+                sample_string = sample
+            html_lines.append(fr'<h3>Sample: {sample_string}</h3>')
             html_lines.append(table)
         html_lines.append('\n</body>')
 
@@ -320,7 +307,7 @@ class HTMLBuilder:
                 var_string = var_key.split('__')[0]
 
                 # find list of all categories assigned
-                variant_categories = numerical_categories(
+                variant_categories = category_strings(
                     variant['var_data'], sample=sample
                 )
 
@@ -418,7 +405,8 @@ class HTMLBuilder:
         """
         if sample not in self.seqr:
             return var_string
-        return self.seqr_template.format(
+        return SEQR_TEMPLATE.format(
+            seqr=self.config.get('seqr_instance'),
             variant=var_string,
             family=self.seqr.get(sample),
         )
