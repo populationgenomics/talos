@@ -13,7 +13,7 @@ For context there are some key data sources relevant to this comparison:
    determining whether a variant is categorised initially will be present in this data source..
 2. The Labelled Variant Call Format File (VCF):
    - A key step of AIP is analysing the variants present in the MT, and labelling those which meet specific criteria
-   (see [relevant documentation](Hail_Filter_and_Label.md)). All variants selected into at least one relevant category
+   (see [relevant documentation](../design_docs/Hail_Filter_and_Label.md)). All variants selected into at least one relevant category
    are retained, and the process outputs a VCF file. For comparison purposes, we understand that when the process works
    correctly, all variants present in the MT and missing from the VCF were not selected as important.
 3. The final results JSON:
@@ -45,16 +45,17 @@ and potentially resolve any discrepancies against the Truth dataset:
 Input data from both sources will be translated into a common format:
 
 ```python
-from reanalysis.comparison import CommonFormatResult
+from comparison.comparison import CommonFormatResult
+
 results = {
-   'sample_ID': [
+    'sample_ID': [
         CommonFormatResult('chr', 'pos', 'ref', 'alt', ['confidence']),
         CommonFormatResult('chr', 'pos', 'ref', 'alt', ['confidence']),
     ],
-   'sample_ID_2':[
+    'sample_ID_2': [
         CommonFormatResult('chr', 'pos', 'ref', 'alt', ['confidence']),
         ...
-   ]
+    ]
 }
 ```
 
@@ -78,12 +79,12 @@ of the Category 1 filter criteria was failed`.
 2. Compare AIP + Ext. data, find `True Positives` and discrepancies
 3. For each Discrepancy:
 
-![ComparisonTree](images/comparison_decision_tree.png)
+![ComparisonTree](../design_docs/images/comparison_decision_tree.png)
 
 At a more granular level, a check will run for each category, initially testing whether a category flag was applied,
 then testing each separate component of that category logic if not:
 
-![CategoryTree](images/category_testing_decision_tree.png)
+![CategoryTree](../design_docs/images/category_testing_decision_tree.png)
 
 For each failing test, a descriptive String will be generated. The collection of Strings should explain the reason for
 each variant avoiding categorisation, e.g.

@@ -104,8 +104,8 @@ def main(
     )
 
     results_command = (
-        'pip install cyvcf2==0.30.14 peddy==0.4.8 && '
-        f'PYTHONPATH=$(pwd) python3 {COMPARISON_SCRIPT} '
+        'pip install . && '
+        f'python3 {COMPARISON_SCRIPT} '
         f'--results {results} '
         f'--seqr {seqr} '
         f'--ped {ped} '
