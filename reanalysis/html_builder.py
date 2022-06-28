@@ -3,7 +3,7 @@ Methods for taking the final output and generating static report content
 """
 
 import logging
-
+from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
 
@@ -90,6 +90,11 @@ def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
 
     # iterate over all consequences, special care for MANE
     for each_csq in variant['var_data']['transcript_consequences']:
+
+        # allow for variants with no transcript CSQs
+        if 'consequence' not in each_csq:
+            continue
+
         row_csq = set(each_csq['consequence'].split('&'))
 
         # record the transcript ID(s), and CSQ(s)
@@ -166,28 +171,13 @@ class HTMLBuilder:
             '3': [],
             'de_novo': [],
             '5': [],
-            'all': [],
+            'any': [],
         }
-        category_strings = {
-            '1': set(),
-            '2': set(),
-            '3': set(),
-            'de_novo': set(),
-            '5': set(),
-            'support': set(),
-            'all': set(),
-        }
+        category_strings = defaultdict(set)
 
         samples_with_no_variants = []
 
         for sample, variants in self.results.items():
-
-            # skip over any sample entries that
-            if not self.pedigree[sample].affected:
-                assert (
-                    len(variants) == 0
-                ), f'Sample {sample} was unaffected, but had categorised variants'
-                continue
 
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
@@ -200,7 +190,7 @@ class HTMLBuilder:
             # how many variants were attached to this sample?
             # this set is for chr-pos-ref-alt
             # i.e. don't double-count if the variant is dominant and compound-het
-            category_count['all'].append(
+            category_count['any'].append(
                 len({key.split('__')[0] for key in variants.keys()})
             )
 
@@ -223,7 +213,7 @@ class HTMLBuilder:
                     category_strings[category_value].add(var_string)
 
                 # update the set of all unique variants
-                category_strings['all'].add(var_string)
+                category_strings['any'].add(var_string)
 
             # update the global lists with per-sample counts
             for key, value in sample_count.items():
@@ -231,20 +221,13 @@ class HTMLBuilder:
 
         summary_dicts = [
             {
-                'Category': title,
+                'Category': f'Cat_{key}',
                 'Total': sum(category_count[key]),
                 'Unique': len(category_strings[key]),
                 'Peak #/sample': max(category_count[key]),
                 'Mean/sample': sum(category_count[key]) / len(category_count[key]),
             }
-            for title, key in [
-                ('Total', 'all'),
-                ('Cat1', '1'),
-                ('Cat2', '2'),
-                ('Cat3', '3'),
-                ('de_novo', 'de_novo'),
-                ('Cat5', '5'),
-            ]
+            for key in ['any', '1', '2', '3', 'de_novo', '5']
         ]
 
         return (
