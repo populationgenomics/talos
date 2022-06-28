@@ -145,7 +145,7 @@ def apply_moi_to_variants(
 
 
 def clean_initial_results(
-    result_list: List[ReportedVariant], samples: List[str]
+    result_list: List[ReportedVariant], samples: List[str], pedigree: Ped
 ) -> Dict[str, Dict[str, ReportedVariant]]:
     """
     Possibility 1 variant can be classified multiple ways
@@ -153,6 +153,7 @@ def clean_initial_results(
     Join all possible classes for the condensed variants
     :param result_list:
     :param samples: all samples from the VCF
+    :param pedigree:
     """
 
     clean_results = defaultdict(dict)
@@ -174,15 +175,26 @@ def clean_initial_results(
             # combine any possible reasons
             clean_results[each_event.sample][var_uid].reasons.update(each_event.reasons)
 
+            # this is a grotty loop, but probably not relevant very often
+            current_genes = set(
+                clean_results[each_event.sample][var_uid].gene.split(',')
+            )
+            current_genes.update(each_event.gene)
+            clean_results[each_event.sample][var_uid].gene = ','.join(current_genes)
+
         # otherwise insert this variant into the dict
         else:
             clean_results[each_event.sample][var_uid] = each_event
 
-    # Empty list for 0 variant samples; explicitly record samples in this joint-call
+    # Empty list for 0 variant samples with affected status
+    # explicitly record samples checked in this analysis
     # the PED could have more samples than a joint call, due to sub-setting or QC.
     # When presenting results, we want all samples with negative findings, without
     # comparing both VCF and PED files
-    for sample in samples:
+    affected_samples = [
+        sam for sam in pedigree.samples() if sam.affected and sam.sample_id in samples
+    ]
+    for sample in affected_samples:
         if sample not in clean_results:
             clean_results[sample] = {}
 
@@ -229,7 +241,7 @@ def main(
     """
 
     # check if this is a singleton pedigree
-    singletons = 'singletons' in pedigree
+    singletons = 'singleton' in pedigree
 
     # parse the pedigree from the file
     pedigree_digest = Ped(pedigree)
@@ -285,7 +297,9 @@ def main(
         )
 
     # remove duplicate variants
-    cleaned_results = clean_initial_results(results, samples=vcf_opened.samples)
+    cleaned_results = clean_initial_results(
+        results, samples=vcf_opened.samples, pedigree=pedigree_digest
+    )
 
     # dump results using the custom-encoder to transform sets & DataClasses
     with AnyPath(out_json).open('w') as fh:

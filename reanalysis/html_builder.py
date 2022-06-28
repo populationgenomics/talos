@@ -312,7 +312,7 @@ class HTMLBuilder:
                 )
 
                 if '2' in variant_categories:
-                    category_2_genes.add(variant['gene'])
+                    category_2_genes.update(set(variant['gene'].split(',')))
 
                 csq_string, mane_string = get_csq_details(variant)
                 candidate_dictionaries.setdefault(variant['sample'], []).append(
@@ -330,8 +330,14 @@ class HTMLBuilder:
                                 )
                             )
                         ),
-                        'symbol': PANELAPP_TEMPLATE.format(
-                            symbol=self.panelapp[variant['gene']]['symbol']
+                        # allow for multiple symbols on the same row
+                        'symbol': ','.join(
+                            [
+                                PANELAPP_TEMPLATE.format(
+                                    symbol=self.panelapp[symbol]['symbol']
+                                )
+                                for symbol in variant['gene'].split(',')
+                            ]
                         ),
                         'csq': csq_string,
                         'mane_select': mane_string,
