@@ -48,11 +48,11 @@ Summarised here [PanelApp stage](design_docs/PanelApp_interaction.md)
 1. Query PanelApp for the latest version of the defined panel
 2. Store all Green gene data (ENSG, Symbol, MOI)
 3. Optional (if prior data is provided) annotate each current gene entity with 'New' if it has been added since that
-original data
+   original data
 
 #### Outputs
 
- - JSON: PanelApp data for use downstream
+- JSON: PanelApp data for use downstream
 
 ### [Labelling in Hail](reanalysis/hail_filter_and_label.py)
 
@@ -90,9 +90,9 @@ Summarised here [Labelling stage](design_docs/Hail_Filter_and_Label.md)
 
 1. iterate through the VCF, pulling out the labels & annotations for each variant
 2. for each variant in turn:
-   1. look up the relevant gene in the PanelApp data to find the MOI to use
-   2. for each participant which has this variant, see if the MOI fits with their family structure
-   3. If this search succeeds record the variant,  participant, & passing MOI
+    1. look up the relevant gene in the PanelApp data to find the MOI to use
+    2. for each participant which has this variant, see if the MOI fits with their family structure
+    3. If this search succeeds record the variant,  participant, & passing MOI
 
 #### Outputs
 

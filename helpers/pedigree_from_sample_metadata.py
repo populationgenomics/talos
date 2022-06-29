@@ -255,10 +255,10 @@ def main(
 
     # store a way of reversing this lookup in future
     reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
-    with open(f'{output}_reversed.json', 'w', encoding='utf-8') as handle:
+    with open(f'{output}_external_lookup.json', 'w', encoding='utf-8') as handle:
         json.dump(reverse_lookup, handle, indent=4)
 
-    pedigree_output_path = f'{output}_pedigree.{"fam" if plink else "ped"}'
+    pedigree_output_path = f'{output}.{"fam" if plink else "ped"}'
     logging.info('writing new PED file to "%s"', pedigree_output_path)
     write_ped_with_permutations(ped_with_permutations, pedigree_output_path)
 

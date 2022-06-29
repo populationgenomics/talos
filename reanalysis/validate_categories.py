@@ -192,7 +192,9 @@ def clean_initial_results(
     # When presenting results, we want all samples with negative findings, without
     # comparing both VCF and PED files
     affected_samples = [
-        sam for sam in pedigree.samples() if sam.affected and sam.sample_id in samples
+        sam.sample_id
+        for sam in pedigree.samples()
+        if sam.affected and sam.sample_id in samples
     ]
     for sample in affected_samples:
         if sample not in clean_results:
