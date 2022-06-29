@@ -10,7 +10,7 @@ from peddy import Ped
 
 import hail as hl
 
-from reanalysis.comparison import (
+from comparison.comparison import (
     check_gene_is_green,
     check_variant_was_normalised,
     check_in_vcf,

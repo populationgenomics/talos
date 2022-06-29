@@ -12,6 +12,6 @@ mkdir -p "inputs/$COHORT"
 # generate the pedigree
 python helpers/pedigree_from_sample_metadata.py \
     --project "${COHORT}" \
-    --output "inputs/${COHORT}/${COHORT}_${TODAY}_${SUBSAMPLE}_percent" \
+    --output "inputs/${COHORT}/${TODAY}_${SUBSAMPLE}_percent" \
     --plink --hash_threshold \
     "${SUBSAMPLE}"
