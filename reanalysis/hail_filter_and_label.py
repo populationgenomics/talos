@@ -42,7 +42,7 @@ TEMP_CHECKPOINT = output_path('hail_matrix.mt', 'tmp')
 
 
 def filter_matrix_by_ac(
-    matrix: hl.MatrixTable, ac_threshold: float | None = 0.1
+    matrix: hl.MatrixTable, ac_threshold: float | None = 0.01
 ) -> hl.MatrixTable:
     """
     if called, this method will remove all variants in the joint call where the
@@ -51,7 +51,9 @@ def filter_matrix_by_ac(
     :param ac_threshold:
     :return: reduced MatrixTable
     """
-    return matrix.filter_rows(matrix.info.AC / matrix.info.AN < ac_threshold)
+    return matrix.filter_rows(
+        (matrix.info.AC <= 5) | (matrix.info.AC / matrix.info.AN < ac_threshold)
+    )
 
 
 def filter_on_quality_flags(matrix: hl.MatrixTable) -> hl.MatrixTable:
@@ -781,9 +783,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
 
     # running global quality filter steps
     if matrix.count_cols() >= hail_config['min_samples_to_ac_filter']:
-        matrix = filter_matrix_by_ac(
-            matrix=matrix, ac_threshold=hail_config['ac_threshold']
-        )
+        matrix = filter_matrix_by_ac(matrix=matrix)
 
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
