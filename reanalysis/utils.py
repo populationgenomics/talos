@@ -609,3 +609,10 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
                 ).append(var_1)
 
     return comp_het_results
+
+
+def good_string(in_string: str) -> bool:
+    """quick string check"""
+    if isinstance(in_string, str) and len(in_string) > 0:
+        return True
+    return False

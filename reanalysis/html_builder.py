@@ -11,7 +11,7 @@ from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
-from reanalysis.utils import read_json_from_path
+from reanalysis.utils import read_json_from_path, good_string
 
 
 GNOMAD_TEMPLATE = (
@@ -140,6 +140,7 @@ class HTMLBuilder:
         :param pedigree:
         """
         self.results = read_json_from_path(results_dict)
+
         self.config = read_json_from_path(config)['output']
 
         # map of internal:external IDs for translation in results
@@ -149,8 +150,13 @@ class HTMLBuilder:
         self.seqr = {}
         try:
             # update the seqr instance location
-            if self.config.get('seqr_instance'):
+            if self.config.get('seqr_lookup'):
                 self.seqr = read_json_from_path(self.config.get('seqr_lookup'))
+                for seqr_key in ['seqr_instance', 'seqr_project']:
+                    assert seqr_key in self.config and good_string(
+                        self.config[seqr_key]
+                    ), f'Seqr-related key required but not present: {seqr_key}'
+
         except AttributeError:
             logging.error(
                 f'Failure parsing Seqr lookup from {self.config.get("seqr_lookup")}'
