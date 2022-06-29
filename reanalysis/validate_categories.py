@@ -179,7 +179,7 @@ def clean_initial_results(
             current_genes = set(
                 clean_results[each_event.sample][var_uid].gene.split(',')
             )
-            current_genes.update(each_event.gene)
+            current_genes.add(each_event.gene)
             clean_results[each_event.sample][var_uid].gene = ','.join(current_genes)
 
         # otherwise insert this variant into the dict
