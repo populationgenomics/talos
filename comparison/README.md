@@ -40,7 +40,8 @@ and potentially resolve any discrepancies against the Truth dataset:
 ## Inputs
 
 1. Input representing the AIP results will be provided using the summary JSON format
-2. 'Truth' data will be provided using the Seqr tagged variant export table, but could be generalised
+2. 'Truth' data will be provided using the Seqr tagged variant export table, but could be generalised (e.g. for acute-care,
+download the table from [e.g. saved variants](https://seqr.populationgenomics.org.au/project/R0011_acute_care/saved_variants))
 
 Input data from both sources will be translated into a common format:
 
