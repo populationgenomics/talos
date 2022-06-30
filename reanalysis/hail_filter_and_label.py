@@ -865,26 +865,10 @@ if __name__ == '__main__':
     )
 
     parser = ArgumentParser()
-    parser.add_argument(
-        '--mt_input',
-        required=True,
-        help='path to the matrix table to ingest',
-    )
-    parser.add_argument(
-        '--panelapp_path',
-        type=str,
-        required=True,
-        help='bucket path containing panelapp JSON',
-    )
-    parser.add_argument(
-        '--config_path',
-        type=str,
-        required=False,
-        help='If a gene list is being used as a comparison ',
-    )
-    parser.add_argument(
-        '--plink_file', type=str, required=True, help='Family Pedigree in PLINK format'
-    )
+    parser.add_argument('--mt', required=True, help='path to input MT')
+    parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
+    parser.add_argument('--config_path', type=str)
+    parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
     args = parser.parse_args()
     main(
         mt_input=args.mt_input,

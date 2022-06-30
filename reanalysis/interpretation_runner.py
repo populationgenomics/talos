@@ -252,10 +252,10 @@ def handle_hail_filtering(
     labelling_command = (
         f'pip install . && '
         f'python3 {HAIL_FILTER} '
-        f'--mt_input {ANNOTATED_MT} '
-        f'--panelapp_path {PANELAPP_JSON_OUT} '
+        f'--mt {ANNOTATED_MT} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
         f'--config_path {config} '
-        f'--plink_file {plink_file}'
+        f'--plink {plink_file}'
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
