@@ -39,7 +39,7 @@ from cpg_utils.hail_batch import (
 )
 
 import annotation
-from utils import read_json_from_path, FileTypes, identify_file_type
+from utils import check_good_value, read_json_from_path, FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
 
@@ -47,8 +47,6 @@ from vep.jobs import vep_jobs, SequencingType
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 
 # phases of annotation
-VEP_STAGE_TMP = output_path('vep_temp', 'tmp')
-VEP_HT_TMP = output_path('vep_annotations.ht', 'tmp')
 ANNOTATED_MT = output_path('annotated_variants.mt')
 
 # panelapp query results
@@ -56,18 +54,6 @@ PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
 
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
-
-# outputs for familial and singleton analysis
-OUTPUT_DICT = {
-    'default': {
-        'web_html': output_path('summary_output.html', 'web'),
-        'results': output_path('summary_results.json'),
-    },
-    'singletons': {
-        'web_html': output_path('singleton_output.html', 'web'),
-        'results': output_path('singleton_results.json'),
-    },
-}
 
 DEFAULT_IMAGE = get_config()['workflow']['driver_image']
 assert DEFAULT_IMAGE
@@ -147,6 +133,8 @@ def mt_to_vcf(batch: hb.Batch, input_file: str, config: dict[str, Any]):
 def annotate_vcf(
     input_vcf: str,
     batch: hb.Batch,
+    vep_temp: str,
+    vep_out: str,
     seq_type: SequencingType | None = SequencingType.GENOME,
 ) -> list[hb.batch.job.Job]:
     """
@@ -158,6 +146,8 @@ def annotate_vcf(
 
     :param input_vcf:
     :param batch:
+    :param vep_temp:
+    :param vep_out:
     :param seq_type:
     :return:
     """
@@ -168,8 +158,8 @@ def annotate_vcf(
         vcf_path=AnyPath(input_vcf),
         hail_billing_project=get_config()['hail']['billing_project'],
         hail_bucket=AnyPath(remote_tmpdir()),
-        tmp_bucket=AnyPath(VEP_STAGE_TMP),
-        out_path=AnyPath(VEP_HT_TMP),
+        tmp_bucket=AnyPath(vep_temp),
+        out_path=AnyPath(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
         sequencing_type=seq_type,
         job_attrs={},
@@ -179,6 +169,7 @@ def annotate_vcf(
 def annotated_mt_from_ht_and_vcf(
     input_vcf: str,
     batch: hb.Batch,
+    vep_ht: str,
     job_attrs: dict | None = None,
 ) -> hb.batch.job.Job:
     """
@@ -194,7 +185,7 @@ def annotated_mt_from_ht_and_vcf(
         annotation,
         annotation.apply_annotations.__name__,
         input_vcf,
-        VEP_HT_TMP,
+        vep_ht,
         ANNOTATED_MT,
         setup_gcp=True,
         hail_billing_project=get_config()['hail']['billing_project'],
@@ -278,7 +269,7 @@ def handle_results_job(
     config: str,
     labelled_vcf: str,
     pedigree: str,
-    analysis_index: str,
+    output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
@@ -288,7 +279,7 @@ def handle_results_job(
     :param config:
     :param labelled_vcf:
     :param pedigree:
-    :param analysis_index: whether to run singleton or familial analysis
+    :param output_dict: paths to the
     :param prior_job:
     :return:
     """
@@ -302,13 +293,13 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {OUTPUT_DICT[analysis_index]["results"]} && '
+        f'--out_json {output_dict["results"]} && '
         f'python3 {HTML_SCRIPT} '
-        f'--results {OUTPUT_DICT[analysis_index]["results"]} '
+        f'--results {output_dict["results"]} '
         f'--config_path {config} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_path {OUTPUT_DICT[analysis_index]["web_html"]}'
+        f'--out_path {output_dict["web_html"]}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
@@ -319,30 +310,16 @@ def handle_results_job(
 @click.option(
     '--input_path', help='variant matrix table or VCF to analyse', required=True
 )
+@click.option('--config_json', help='JSON dict of runtime settings', required=True)
+@click.option('--plink_file', help='Plink file path for the cohort', required=True)
 @click.option(
-    '--config_json',
-    help='dictionary of runtime settings',
-    default='gs://cpg-acute-care-test/reanalysis/reanalysis_conf.json',
+    '--panelapp_version', help='compare current with this version', required=False
 )
 @click.option(
-    '--plink_file',
-    help='location of a plink file for the cohort',
-    required=True,
+    '--panel_genes', help='JSON Gene list for use in analysis', required=False
 )
 @click.option(
-    '--panelapp_version',
-    help='panelapp current comparison with this earlier version',
-    required=False,
-)
-@click.option(
-    '--panel_genes',
-    help='location of a Gene list for use in analysis',
-    required=False,
-)
-@click.option(
-    '--singletons',
-    help='location of a plink file for the singletons',
-    required=False,
+    '--singletons', help='location of a plink file for the singletons', required=False
 )
 @click.option(
     '--skip_annotation',
@@ -380,12 +357,33 @@ def main(
 
     config_dict = read_json_from_path(config_json)
 
+    # create output paths with optional suffixes
+    vep_stage_tmp = output_path('vep_temp', check_good_value('tmp_suffix', config_dict))
+    vep_ht_tmp = output_path(
+        'vep_annotations.ht', check_good_value('tmp_suffix', config_dict)
+    )
+    # separate paths for familial and singleton analysis
+    output_dict = {
+        'default': {
+            'web_html': output_path(
+                'summary_output.html', check_good_value('web_suffix', config_dict)
+            ),
+            'results': output_path('summary_results.json'),
+        },
+        'singletons': {
+            'web_html': output_path(
+                'singleton_output.html', check_good_value('web_suffix', config_dict)
+            ),
+            'results': output_path('singleton_results.json'),
+        },
+    }
+
     service_backend = hb.ServiceBackend(
         billing_project=get_config()['hail']['billing_project'],
         remote_tmpdir=remote_tmpdir(),
     )
     batch = hb.Batch(
-        name='run reanalysis (AIP)',
+        name='AIP batch',
         backend=service_backend,
         cancel_after_n_failures=1,
         default_timeout=6000,
@@ -428,11 +426,12 @@ def main(
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
     # ------------------------------------- #
-    annotated_path = CloudPath(ANNOTATED_MT)
-    if not annotated_path.exists():
+    if not CloudPath(ANNOTATED_MT).exists():
         # need to run the annotation phase
         # uses default values from RefData
-        annotation_jobs = annotate_vcf(input_path, batch=batch)
+        annotation_jobs = annotate_vcf(
+            input_path, batch=batch, vep_temp=vep_stage_tmp, vep_out=vep_ht_tmp
+        )
 
         # if convert-to-VCF job exists, assign as an annotation dependency
         if prior_job:
@@ -440,13 +439,10 @@ def main(
                 job.depends_on(prior_job)
 
         # apply annotations
-        anno_job = annotated_mt_from_ht_and_vcf(
-            input_vcf=input_path, batch=batch, job_attrs={}
+        prior_job = annotated_mt_from_ht_and_vcf(
+            input_vcf=input_path, batch=batch, job_attrs={}, vep_ht=vep_ht_tmp
         )
-        anno_job.depends_on(*annotation_jobs)
-
-        # last job in batch used for future dependencies
-        prior_job = anno_job
+        prior_job.depends_on(*annotation_jobs)
 
     # -------------------------------- #
     # query panelapp for panel details #
@@ -477,7 +473,7 @@ def main(
     )
 
     # for dev purposes - always run as default (family)
-    # if singleton VCF supplied, also run as singletons (using separate output paths)
+    # if singleton VCF supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and AnyPath(singletons).exists():
         pedigree_singletons = batch.read_input(singletons)
@@ -490,7 +486,7 @@ def main(
             config=config_json,
             labelled_vcf=labelled_vcf_in_batch['vcf.bgz'],
             pedigree=relationships,
-            analysis_index=analysis_index,
+            output_dict=output_dict[analysis_index],
             prior_job=prior_job,
         )
     batch.run(wait=False)
