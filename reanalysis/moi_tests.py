@@ -635,11 +635,6 @@ class XRecessive(BaseMoi):
         :return:
         """
 
-        if principal_var.coords.chrom.lower() != 'x':
-            raise Exception(
-                f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
-            )
-
         if comp_het is None:
             comp_het = {}
 
@@ -657,15 +652,11 @@ class XRecessive(BaseMoi):
         # X-relevant, we separate out male and females
         # combine het and hom here, we don't trust the variant callers
         # if hemi count is too high, don't consider males
-        males = (
-            {
-                sam
-                for sam in principal_var.het_samples.union(principal_var.hom_samples)
-                if self.pedigree[sam].sex == 'male'
-            }
-            if principal_var.info.get('gnomad_hemi') < self.hemi_threshold
-            else set()
-        )
+        males = {
+            sam
+            for sam in principal_var.het_samples.union(principal_var.hom_samples)
+            if self.pedigree[sam].sex == 'male'
+        }
 
         # split female calls into 2 categories
         het_females = {
@@ -743,6 +734,13 @@ class XRecessive(BaseMoi):
             if not (
                 self.pedigree[sample_id].affected
                 and principal_var.sample_specific_category_check(sample_id)
+            ):
+                continue
+
+            # if this is male, and hemi count is high, skip the sample
+            if (
+                self.pedigree[sample_id].sex == 'male'
+                and principal_var.info.get('gnomad_hemi') > self.hemi_threshold
             ):
                 continue
 
