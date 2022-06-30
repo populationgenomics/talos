@@ -4,8 +4,7 @@
         "gnomad_dominant": 0.001,
         "gnomad_max_homs_dominant": 1,
         "gnomad_max_homs_recessive": 2,
-        "gnomad_max_ac_dominant": 100,
-        "category_2_new_only": true
+        "gnomad_max_ac_dominant": 50
     },
     "variant_object": {
         "description": "variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated",
