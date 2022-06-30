@@ -552,7 +552,7 @@ class XDominant(BaseMoi):
                 }
             )
             or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
-            or principal_var.info.get('gnomad_hemi') > self.hemi_threshold
+            or principal_var.info.get('gnomad_hemi', 0) > self.hemi_threshold
         ):
             return classifications
 
@@ -740,7 +740,7 @@ class XRecessive(BaseMoi):
             # if this is male, and hemi count is high, skip the sample
             if (
                 self.pedigree[sample_id].sex == 'male'
-                and principal_var.info.get('gnomad_hemi') > self.hemi_threshold
+                and principal_var.info.get('gnomad_hemi', 0) > self.hemi_threshold
             ):
                 continue
 
