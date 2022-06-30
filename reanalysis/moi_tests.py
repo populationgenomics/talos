@@ -39,7 +39,8 @@ GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
 GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
 GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
 GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
-INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom', 'exac_ac_hom'}
+GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
+INFO_HOMS = {'gnomad_hom', 'exac_ac_hom'}
 
 
 def check_for_second_hit(
@@ -516,6 +517,7 @@ class XDominant(BaseMoi):
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
         self.hom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
+        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
@@ -540,7 +542,7 @@ class XDominant(BaseMoi):
                 f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
             )
 
-        # more stringent Pop.Freq checks for dominant
+        # more stringent Pop.Freq checks for dominant - hemi restriction
         if (
             principal_var.info.get('gnomad_af', 0) > self.ad_threshold
             or any(
@@ -550,6 +552,7 @@ class XDominant(BaseMoi):
                 }
             )
             or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
+            or principal_var.info.get('gnomad_hemi') > self.hemi_threshold
         ):
             return classifications
 
@@ -614,6 +617,7 @@ class XRecessive(BaseMoi):
 
         self.hom_dom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
         self.hom_rec_threshold = config.get(GNOMAD_REC_HOM_THRESHOLD)
+        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
 
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
@@ -652,11 +656,16 @@ class XRecessive(BaseMoi):
 
         # X-relevant, we separate out male and females
         # combine het and hom here, we don't trust the variant callers
-        males = {
-            sam
-            for sam in principal_var.het_samples.union(principal_var.hom_samples)
-            if self.pedigree[sam].sex == 'male'
-        }
+        # if hemi count is too high, don't consider males
+        males = (
+            {
+                sam
+                for sam in principal_var.het_samples.union(principal_var.hom_samples)
+                if self.pedigree[sam].sex == 'male'
+            }
+            if principal_var.info.get('gnomad_hemi') < self.hemi_threshold
+            else set()
+        )
 
         # split female calls into 2 categories
         het_females = {
