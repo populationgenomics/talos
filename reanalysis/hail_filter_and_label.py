@@ -782,9 +782,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     matrix = filter_on_quality_flags(matrix)
 
     # running global quality filter steps
-    if matrix.count_cols() >= hail_config['min_samples_to_ac_filter']:
-        matrix = filter_matrix_by_ac(matrix=matrix)
-
+    matrix = filter_matrix_by_ac(matrix=matrix)
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 

@@ -46,11 +46,9 @@
         "description": "variables for the hail operations, including CSQ sets and filter thresholds",
         "csq_header_file": "gs://cpg-acute-care-test/reanalysis/csq_header_line.txt",
         "af_semi_rare": 0.01,
-        "min_samples_to_ac_filter": 70,
         "ac_threshold": 0.01,
         "ref_genome": "GRCh38",
         "spliceai_full": 0.5,
-        "spliceai_support": 0.5,
         "critical_csq": [
             "frameshift_variant",
             "splice_acceptor_variant",

@@ -84,7 +84,6 @@ def set_job_resources(
     job: hb.batch.job.Job,
     auth=False,
     git=False,
-    image: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
     memory: str = 'standard',
 ):
@@ -93,12 +92,11 @@ def set_job_resources(
     :param job:
     :param auth: if true, authenticate gcloud in this container
     :param git: if true, pull this repository into container
-    :param image:
     :param prior_job:
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(image or DEFAULT_IMAGE).memory(memory).storage('20G')
+    job.cpu(2).image(DEFAULT_IMAGE).memory(memory).storage('20G')
 
     if prior_job is not None:
         job.depends_on(prior_job)
