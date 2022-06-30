@@ -281,14 +281,14 @@ def test_green_and_new_from_panelapp(panel_changes):
 
 
 @pytest.mark.parametrize(
-    'exac,gnomad,length',
+    'exomes,genomes,length',
     [
         (0, 0, 1),
         (1.0, 0, 0),
         (0.04, 0.04, 1),
     ],
 )
-def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
+def test_filter_rows_for_rare(exomes, genomes, length, hail_matrix):
     """
     :param hail_matrix:
     :return:
@@ -296,8 +296,8 @@ def test_filter_rows_for_rare(exac, gnomad, length, hail_matrix):
     conf = {'af_semi_rare': 0.05}
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            exac_af=exac,
-            gnomad_af=gnomad,
+            gnomad_ex_af=exomes,
+            gnomad_af=genomes,
         )
     )
     matrix = filter_to_population_rare(anno_matrix, conf)

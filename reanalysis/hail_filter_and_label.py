@@ -423,16 +423,15 @@ def filter_to_population_rare(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    run the rare filter, using Gnomad & exac
+    run the rare filter, using Gnomad Xxomes and Genomes
     :param matrix:
     :param config:
     :return:
     """
-    # exac and gnomad must be below threshold or missing
+    # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
-    # could also extend this filter to include max gnomad Homs
     return matrix.filter_rows(
-        (matrix.info.exac_af < config['af_semi_rare'])
+        (matrix.info.gnomad_ex_af < config['af_semi_rare'])
         & (matrix.info.gnomad_af < config['af_semi_rare'])
     )
 
@@ -574,11 +573,11 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            exac_af=hl.or_else(matrix.exac.AF, MISSING_FLOAT_LO),
-            exac_ac_het=hl.or_else(matrix.exac.AC_Het, MISSING_INT),
-            exac_ac_hom=hl.or_else(matrix.exac.AC_Hom, MISSING_INT),
-            exac_ac_hemi=hl.or_else(matrix.exac.AC_Hemi, MISSING_INT),
-            gnomad_cov=hl.or_else(matrix.gnomad_genome_coverage, MISSING_FLOAT_LO),
+            gnomad_ex_cov=hl.or_else(matrix.gnomad_exome_coverage, MISSING_FLOAT_LO),
+            gnomad_ex_af=hl.or_else(matrix.gnomad_exomes.AF, MISSING_FLOAT_LO),
+            gnomad_ex_an=hl.or_else(matrix.gnomad_exomes.AN, MISSING_INT),
+            gnomad_ex_ac=hl.or_else(matrix.gnomad_exomes.AC, MISSING_INT),
+            gnomad_ex_hom=hl.or_else(matrix.gnomad_exomes.Hom, MISSING_INT),
             gnomad_af=hl.or_else(matrix.gnomad_genomes.AF, MISSING_FLOAT_LO),
             gnomad_an=hl.or_else(matrix.gnomad_genomes.AN, MISSING_INT),
             gnomad_ac=hl.or_else(matrix.gnomad_genomes.AC, MISSING_INT),

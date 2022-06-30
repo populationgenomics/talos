@@ -40,7 +40,7 @@ GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
 GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
 GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
 GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
-INFO_HOMS = {'gnomad_hom', 'exac_ac_hom'}
+INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
 
 
 def check_for_second_hit(
