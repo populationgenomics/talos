@@ -3,7 +3,7 @@
         "description": "thresholds for different filters during the MOI checks",
         "gnomad_dominant": 0.001,
         "gnomad_max_homs_dominant": 1,
-        "gnomad_max_homs_recessive": 10,
+        "gnomad_max_homs_recessive": 2,
         "gnomad_max_ac_dominant": 100,
         "category_2_new_only": true
     },
