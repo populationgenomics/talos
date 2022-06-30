@@ -41,6 +41,7 @@ GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
 GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
 GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
 INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
+INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
 
 
 def check_for_second_hit(
@@ -552,7 +553,12 @@ class XDominant(BaseMoi):
                 }
             )
             or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
-            or principal_var.info.get('gnomad_hemi', 0) > self.hemi_threshold
+            or any(
+                {
+                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
+                    for hemi_key in INFO_HEMI
+                }
+            )
         ):
             return classifications
 
@@ -738,9 +744,11 @@ class XRecessive(BaseMoi):
                 continue
 
             # if this is male, and hemi count is high, skip the sample
-            if (
-                self.pedigree[sample_id].sex == 'male'
-                and principal_var.info.get('gnomad_hemi', 0) > self.hemi_threshold
+            if self.pedigree[sample_id].sex == 'male' and any(
+                {
+                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
+                    for hemi_key in INFO_HEMI
+                }
             ):
                 continue
 
@@ -792,6 +800,7 @@ class YHemi(BaseMoi):
 
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
+        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
@@ -813,6 +822,12 @@ class YHemi(BaseMoi):
         if (
             principal_var.info.get('gnomad_af') >= self.ad_threshold
             or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+            or any(
+                {
+                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
+                    for hemi_key in INFO_HEMI
+                }
+            )
         ):
             return classifications
 

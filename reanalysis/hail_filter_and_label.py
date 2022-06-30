@@ -578,6 +578,7 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
             gnomad_ex_an=hl.or_else(matrix.gnomad_exomes.AN, MISSING_INT),
             gnomad_ex_ac=hl.or_else(matrix.gnomad_exomes.AC, MISSING_INT),
             gnomad_ex_hom=hl.or_else(matrix.gnomad_exomes.Hom, MISSING_INT),
+            gnomad_ex_hemi=hl.or_else(matrix.gnomad_exomes.Hemi, MISSING_INT),
             gnomad_af=hl.or_else(matrix.gnomad_genomes.AF, MISSING_FLOAT_LO),
             gnomad_an=hl.or_else(matrix.gnomad_genomes.AN, MISSING_INT),
             gnomad_ac=hl.or_else(matrix.gnomad_genomes.AC, MISSING_INT),
