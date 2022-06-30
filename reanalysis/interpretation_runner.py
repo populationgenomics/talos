@@ -259,7 +259,7 @@ def handle_hail_filtering(
         labelling_job, auth=True, git=True, prior_job=prior_job, memory='16Gi'
     )
     labelling_command = (
-        f'pip install peddy==0.4.8 && '
+        f'pip install . && '
         f'python3 {HAIL_FILTER} '
         f'--mt_input {ANNOTATED_MT} '
         f'--panelapp_path {PANELAPP_JSON_OUT} '

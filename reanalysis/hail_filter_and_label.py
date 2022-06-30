@@ -14,7 +14,6 @@ Categories applied here are treated as unconfirmed
 """
 
 from typing import Any
-import json
 import logging
 import sys
 from argparse import ArgumentParser
@@ -24,6 +23,8 @@ from peddy import Ped
 
 from cloudpathlib import AnyPath
 from cpg_utils.hail_batch import init_batch, output_path
+
+from reanalysis.utils import read_json_from_path
 
 
 # set some Hail constants
@@ -36,9 +37,6 @@ BENIGN = hl.str('benign')
 CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
-
-VCF_OUT = output_path('hail_categorised.vcf.bgz')
-TEMP_CHECKPOINT = output_path('hail_matrix.mt', 'tmp')
 
 
 def filter_matrix_by_ac(
@@ -639,7 +637,9 @@ def write_matrix_to_vcf(matrix: hl.MatrixTable, additional_header: str | None = 
     :param matrix:
     :param additional_header: file containing any other lines to add into header
     """
-    hl.export_vcf(matrix, VCF_OUT, append_to_header=additional_header, tabix=True)
+    vcf_out = output_path('hail_categorised.vcf.bgz')
+    logging.info(f'Writing categorised variants out to {vcf_out}')
+    hl.export_vcf(matrix, vcf_out, append_to_header=additional_header, tabix=True)
 
 
 def green_and_new_from_panelapp(
@@ -665,7 +665,10 @@ def green_and_new_from_panelapp(
 
 
 def checkpoint_and_repartition(
-    matrix: hl.MatrixTable, checkpoint_num: int, extra_logging: str | None = ''
+    matrix: hl.MatrixTable,
+    checkpoint_root: str,
+    checkpoint_num: int,
+    extra_logging: str | None = '',
 ) -> hl.MatrixTable:
     """
     uses an estimate of row size to inform the repartitioning of a MT
@@ -673,11 +676,12 @@ def checkpoint_and_repartition(
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
     :param matrix:
+    :param checkpoint_root:
     :param checkpoint_num:
     :param extra_logging: any additional context
     :return: repartitioned, post-checkpoint matrix
     """
-    checkpoint_extended = f'{TEMP_CHECKPOINT}_{checkpoint_num}'
+    checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
     matrix = matrix.checkpoint(checkpoint_extended, overwrite=True)
 
@@ -745,16 +749,21 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
 
     # get the run configuration JSON
     logging.info(f'Reading config dict from "{config_path}"')
-    with open(AnyPath(config_path), encoding='utf-8') as handle:
-        config_dict = json.load(handle)
+    config_dict = read_json_from_path(config_path)
+
+    # get temp suffix from the config (can be None or missing)
+    tmp_suffix = config_dict.get('tmp_suffix')
+    if isinstance(tmp_suffix, str) and len(tmp_suffix) > 0:
+        checkpoint_root = output_path('hail_matrix.mt', tmp_suffix)
+    else:
+        checkpoint_root = output_path('hail_matrix.mt')
 
     # find the config area specific to hail operations
     hail_config = config_dict.get('filter')
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from "{panelapp_path}"')
-    with AnyPath(panelapp_path).open() as handle:
-        panelapp = json.load(handle)
+    panelapp = read_json_from_path(panelapp_path)
 
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
@@ -790,6 +799,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
 
     matrix = checkpoint_and_repartition(
         matrix,
+        checkpoint_root=checkpoint_root,
         checkpoint_num=checkpoint_number,
         extra_logging='after applying quality filters',
     )
@@ -804,6 +814,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
 
     matrix = checkpoint_and_repartition(
         matrix,
+        checkpoint_root=checkpoint_root,
         checkpoint_num=checkpoint_number,
         extra_logging='after applying Rare & Green-Gene filters',
     )
@@ -826,6 +837,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     matrix = filter_to_categorised(matrix)
     matrix = checkpoint_and_repartition(
         matrix,
+        checkpoint_root=checkpoint_root,
         checkpoint_num=checkpoint_number,
         extra_logging='after filtering to categorised only',
     )
@@ -841,7 +853,6 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
         )
     )
 
-    logging.info(f'Write variants out to "{VCF_OUT}"')
     write_matrix_to_vcf(
         matrix=matrix, additional_header=hail_config.get('csq_header_file')
     )
