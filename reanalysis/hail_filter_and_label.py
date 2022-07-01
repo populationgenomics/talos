@@ -728,15 +728,15 @@ def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.Matrix
     return matrix
 
 
-def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
+def main(mt: str, panelapp: str, config_path: str, plink: str):
     """
     Read the MT from disk
     Do filtering and class annotation
     Export as a VCF
-    :param mt_input: path to the MT directory
-    :param panelapp_path: path to the panelapp data dump
+    :param mt: path to the MT directory
+    :param panelapp: path to the panelapp data dump
     :param config_path: path to the config json
-    :param plink_file: pedigree filepath in PLINK format
+    :param plink: pedigree filepath in PLINK format
     """
 
     # initiate Hail with defined driver spec.
@@ -758,8 +758,8 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     hail_config = config_dict.get('filter')
 
     # read the parsed panelapp data
-    logging.info(f'Reading PanelApp data from "{panelapp_path}"')
-    panelapp = read_json_from_path(panelapp_path)
+    logging.info(f'Reading PanelApp data from "{panelapp}"')
+    panelapp = read_json_from_path(panelapp)
 
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
@@ -769,16 +769,16 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     )
 
     # if we already generated the annotated output, load instead
-    if not AnyPath(mt_input.rstrip('/') + '/').exists():
-        raise Exception(f'Input MatrixTable doesn\'t exist: {mt_input}')
+    if not AnyPath(mt.rstrip('/') + '/').exists():
+        raise Exception(f'Input MatrixTable doesn\'t exist: {mt}')
 
-    matrix = hl.read_matrix_table(mt_input)
+    matrix = hl.read_matrix_table(mt)
 
     # subset to currently considered samples
-    matrix = subselect_mt_to_pedigree(matrix, pedigree=plink_file)
+    matrix = subselect_mt_to_pedigree(matrix, pedigree=plink)
 
     logging.debug(
-        f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
+        f'Loaded annotated MT from {mt}, size: {matrix.count_rows()}',
     )
 
     # filter out quality failures
@@ -821,9 +821,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
     matrix = annotate_category_3(matrix, config=hail_config)
     matrix = annotate_category_5(matrix, config=hail_config)
-    matrix = annotate_category_4(
-        matrix, config=hail_config, plink_family_file=plink_file
-    )
+    matrix = annotate_category_4(matrix, config=hail_config, plink_family_file=plink)
     matrix = annotate_category_support(matrix, hail_config)
 
     matrix = filter_to_categorised(matrix)
@@ -865,8 +863,8 @@ if __name__ == '__main__':
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
     args = parser.parse_args()
     main(
-        mt_input=args.mt_input,
-        panelapp_path=args.panelapp_path,
+        mt=args.mt,
+        panelapp=args.panelapp,
         config_path=args.config_path,
-        plink_file=args.plink_file,
+        plink=args.plink,
     )
