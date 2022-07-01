@@ -25,7 +25,7 @@ import logging
 from abc import abstractmethod
 from typing import Any
 
-from peddy.peddy import Ped
+from peddy.peddy import Ped, PHENOTYPE
 
 from reanalysis.utils import (
     AbstractVariant,
@@ -42,6 +42,7 @@ GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
 GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
 INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
 INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
+PEDDY_AFFECTED = PHENOTYPE().AFFECTED
 
 
 def check_for_second_hit(
@@ -226,10 +227,13 @@ class BaseMoi:
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (member.affected and member.sample_id not in called_variants) or (
+            if (
+                member.affected == PEDDY_AFFECTED
+                and member.sample_id not in called_variants
+            ) or (
                 member.sample_id in called_variants
                 and not partial_penetrance
-                and not member.affected
+                and not member.affected == PEDDY_AFFECTED
             ):
                 return False
 
@@ -277,8 +281,10 @@ class BaseMoi:
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (member.affected and not sample_comp_het) or (
-                sample_comp_het and not partial_penetrance and not member.affected
+            if (member.affected == PEDDY_AFFECTED and not sample_comp_het) or (
+                sample_comp_het
+                and not partial_penetrance
+                and not member.affected == PEDDY_AFFECTED
             ):
                 # fail
                 return False
@@ -347,7 +353,7 @@ class DominantAutosomal(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -426,7 +432,7 @@ class RecessiveAutosomal(BaseMoi):
         for sample_id in principal_var.hom_samples:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -456,7 +462,7 @@ class RecessiveAutosomal(BaseMoi):
         for sample_id in principal_var.het_samples:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -570,7 +576,7 @@ class XDominant(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -682,7 +688,7 @@ class XRecessive(BaseMoi):
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
             if not (
-                self.pedigree[sample_id].affected
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal_var.sample_specific_category_check(sample_id)
             ):
                 continue
@@ -738,7 +744,7 @@ class XRecessive(BaseMoi):
 
             # specific affected sample category check
             if not (
-                self.pedigree[sample_id].affected
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal_var.sample_specific_category_check(sample_id)
             ):
                 continue
@@ -840,7 +846,7 @@ class YHemi(BaseMoi):
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents

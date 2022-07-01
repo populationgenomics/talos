@@ -22,7 +22,7 @@ from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
-from reanalysis.moi_tests import MOIRunner
+from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
     find_comp_hets,
@@ -194,7 +194,7 @@ def clean_initial_results(
     affected_samples = [
         sam.sample_id
         for sam in pedigree.samples()
-        if sam.affected and sam.sample_id in samples
+        if sam.affected == PEDDY_AFFECTED and sam.sample_id in samples
     ]
     for sample in affected_samples:
         if sample not in clean_results:
