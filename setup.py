@@ -35,7 +35,7 @@ setup(
         'cpg-utils==4.4.0',
         'cyvcf2==0.30.14',
         'dill==0.3.4',
-        'hail==0.2.93',
+        'hail==0.2.96',
         'Jinja2==3.0.3',
         'pandas==1.3.5',
         'peddy==0.4.8',
