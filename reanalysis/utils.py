@@ -616,3 +616,14 @@ def good_string(in_string: str) -> bool:
     if isinstance(in_string, str) and len(in_string) > 0:
         return True
     return False
+
+
+def check_good_value(key: str, conf: dict[str, Any]) -> str | None:
+    """
+    check if a key from the dictionary is a good string
+    return it or None
+    """
+    conf_value = conf.get(key)
+    if good_string(conf_value):
+        return conf_value
+    return None

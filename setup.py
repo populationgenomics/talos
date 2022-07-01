@@ -31,7 +31,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'click==8.0.4',
-        'cloudpathlib[azure,gs]==0.7.0',
+        'cloudpathlib[all]==0.7.0',
         'cpg-utils==4.4.0',
         'cyvcf2==0.30.14',
         'dill==0.3.4',

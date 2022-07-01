@@ -77,5 +77,7 @@
         "seqr_instance": "https://seqr.populationgenomics.org.au",
         "seqr_project": "R0011_acute_care"
     },
-    "vqsr_header_file": "gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt"
+    "vqsr_header_file": "gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt",
+    "web_suffix": "web",
+    "tmp_suffix": "tmp"
 }
