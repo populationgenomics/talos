@@ -421,7 +421,7 @@ def filter_to_population_rare(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    run the rare filter, using Gnomad Xxomes and Genomes
+    run the rare filter, using Gnomad Exomes and Genomes
     :param matrix:
     :param config:
     :return:
