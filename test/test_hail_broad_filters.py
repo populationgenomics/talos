@@ -3,8 +3,6 @@ unit testing collection for the hail MT methods
 """
 
 
-from unittest.mock import MagicMock
-
 import pytest
 import hail as hl
 
@@ -18,18 +16,22 @@ from reanalysis.hail_filter_and_label import (
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
-def test_filter_matrix_by_ac_large():
+@pytest.mark.parametrize(
+    'ac,an,threshold,rows',
+    [
+        (1, 1, 0.01, 1),
+        (6, 1, 0.01, 0),
+        (6, 70, 0.1, 1),
+        (50, 999999, 0.01, 1),
+        (50, 50, 0.01, 0),
+    ],
+)
+def test_ac_filter_no_filt(ac: int, an: int, threshold: float, rows: int, hail_matrix):
     """
-    check the ac filter is triggered
+    run tests on the ac filtering method
     """
-    # above threshold value
-    matrix_mock = MagicMock()
-    matrix_mock.count_cols.return_value = 10
-    matrix_mock.info.AC = 1
-    matrix_mock.info.AN = 1
-    matrix_mock.filter_rows.return_value = matrix_mock
-    mt = filter_matrix_by_ac(matrix=matrix_mock)
-    assert mt.filter_rows.call_count == 1
+    matrix = hail_matrix.annotate_rows(info=hail_matrix.info.annotate(AC=ac, AN=an))
+    assert filter_matrix_by_ac(matrix, threshold).count_rows() == rows
 
 
 @pytest.mark.parametrize(

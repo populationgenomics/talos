@@ -15,6 +15,7 @@ from reanalysis.moi_tests import (
     DominantAutosomal,
     GNOMAD_AD_AC_THRESHOLD,
     GNOMAD_DOM_HOM_THRESHOLD,
+    GNOMAD_HEMI_THRESHOLD,
     GNOMAD_RARE_THRESHOLD,
     GNOMAD_REC_HOM_THRESHOLD,
     MOIRunner,
@@ -31,6 +32,7 @@ MOI_CONF = {
     GNOMAD_DOM_HOM_THRESHOLD: 1,
     GNOMAD_AD_AC_THRESHOLD: 10,
     GNOMAD_RARE_THRESHOLD: 0.01,
+    GNOMAD_HEMI_THRESHOLD: 2,
 }
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
@@ -176,13 +178,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     :return:
     """
 
-    info_dict = {
-        'gnomad_af': 0.0001,
-        'gnomad_ac': 0,
-        'gnomad_hom': 0,
-        'gnomad_ex_hom': 0,
-        'exac_ac_hom': 0,
-    }
+    info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0}
 
     dom = DominantAutosomal(pedigree=peddy_ped, config=MOI_CONF)
 
@@ -211,12 +207,7 @@ def test_dominant_autosomal_passes(peddy_ped):
 
 @pytest.mark.parametrize(
     'info',
-    [
-        {'gnomad_af': 0.1},
-        {'gnomad_hom': 2},
-        {'gnomad_ex_hom': 12},
-        {'exac_ac_hom': 12},
-    ],
+    [{'gnomad_af': 0.1}, {'gnomad_hom': 2}],
 )
 def test_dominant_autosomal_fails(info, peddy_ped):
     """
@@ -359,11 +350,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
 
 @pytest.mark.parametrize(
     'info',
-    [
-        {'gnomad_hom': 2},
-        {'gnomad_ex_hom': 12},
-        {'exac_ac_hom': 12},
-    ],
+    [{'gnomad_hom': 2}],
 )
 def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
@@ -385,7 +372,10 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={}, het_samples={'female', 'male'}, hom_samples=set(), coords=x_coords
+        info={'gnomad_hemi': 0},
+        het_samples={'female', 'male'},
+        hom_samples=set(),
+        coords=x_coords,
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
@@ -402,7 +392,10 @@ def test_x_dominant_female_hom_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={}, hom_samples={'female'}, het_samples=set(), coords=x_coords
+        info={'gnomad_hemi': 0},
+        hom_samples={'female'},
+        het_samples=set(),
+        coords=x_coords,
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
@@ -417,7 +410,10 @@ def test_x_dominant_male_hom_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={}, hom_samples={'male'}, het_samples=set(), coords=x_coords
+        info={'gnomad_hemi': 0},
+        hom_samples={'male'},
+        het_samples=set(),
+        coords=x_coords,
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
@@ -425,27 +421,12 @@ def test_x_dominant_male_hom_passes(peddy_ped):
     assert results[0].reasons == {'X_Dominant Male'}
 
 
-def test_x_moi_on_non_x_fails(peddy_ped):
-    """
-    check that a male is accepted as a het
-    :return:
-    """
-    y_coords = Coordinates('y', 1, 'A', 'C')
-    y_variant = SimpleVariant(
-        info={}, het_samples={'male'}, hom_samples=set(), coords=y_coords
-    )
-    x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
-    with pytest.raises(Exception):
-        x_dom.run(y_variant)
-
-
 @pytest.mark.parametrize(
     'info',
     [
         {'gnomad_af': 0.1},
         {'gnomad_hom': 2},
-        {'gnomad_ex_hom': 12},
-        {'exac_ac_hom': 12},
+        {'gnomad_hemi': 3},
     ],
 )
 def test_x_dominant_info_fails(info, peddy_ped):
@@ -456,7 +437,7 @@ def test_x_dominant_info_fails(info, peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info=info, hom_samples={'female'}, het_samples=set(), coords=x_coords
+        info=info, hom_samples={'male'}, het_samples=set(), coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     assert not x_dom.run(passing_variant)
@@ -497,20 +478,6 @@ def test_x_recessive_male_het_passes(peddy_ped):
     results = x_rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'X_Recessive Male'}
-
-
-def test_x_recessive_y_variant_fails(peddy_ped):
-    """
-
-    :return:
-    """
-    y_coords = Coordinates('y', 1, 'A', 'C')
-    passing_variant = RecessiveSimpleVariant(
-        info={}, hom_samples={'male'}, het_samples=set(), coords=y_coords, category_4=[]
-    )
-    x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF)
-    with pytest.raises(Exception):
-        x_rec.run(passing_variant)
 
 
 def test_x_recessive_female_het_passes(peddy_ped):

@@ -25,7 +25,7 @@ import logging
 from abc import abstractmethod
 from typing import Any
 
-from peddy.peddy import Ped
+from peddy.peddy import Ped, PHENOTYPE
 
 from reanalysis.utils import (
     AbstractVariant,
@@ -39,7 +39,10 @@ GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
 GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
 GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
 GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
-INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom', 'exac_ac_hom'}
+GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
+INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
+INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
+PEDDY_AFFECTED = PHENOTYPE().AFFECTED
 
 
 def check_for_second_hit(
@@ -224,10 +227,13 @@ class BaseMoi:
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (member.affected and member.sample_id not in called_variants) or (
+            if (
+                member.affected == PEDDY_AFFECTED
+                and member.sample_id not in called_variants
+            ) or (
                 member.sample_id in called_variants
                 and not partial_penetrance
-                and not member.affected
+                and not member.affected == PEDDY_AFFECTED
             ):
                 return False
 
@@ -275,8 +281,10 @@ class BaseMoi:
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (member.affected and not sample_comp_het) or (
-                sample_comp_het and not partial_penetrance and not member.affected
+            if (member.affected == PEDDY_AFFECTED and not sample_comp_het) or (
+                sample_comp_het
+                and not partial_penetrance
+                and not member.affected == PEDDY_AFFECTED
             ):
                 # fail
                 return False
@@ -345,7 +353,7 @@ class DominantAutosomal(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -424,7 +432,7 @@ class RecessiveAutosomal(BaseMoi):
         for sample_id in principal_var.hom_samples:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -454,7 +462,7 @@ class RecessiveAutosomal(BaseMoi):
         for sample_id in principal_var.het_samples:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -516,6 +524,7 @@ class XDominant(BaseMoi):
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
         self.hom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
+        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
@@ -540,7 +549,7 @@ class XDominant(BaseMoi):
                 f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
             )
 
-        # more stringent Pop.Freq checks for dominant
+        # more stringent Pop.Freq checks for dominant - hemi restriction
         if (
             principal_var.info.get('gnomad_af', 0) > self.ad_threshold
             or any(
@@ -550,6 +559,12 @@ class XDominant(BaseMoi):
                 }
             )
             or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
+            or any(
+                {
+                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
+                    for hemi_key in INFO_HEMI
+                }
+            )
         ):
             return classifications
 
@@ -561,7 +576,7 @@ class XDominant(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents
@@ -614,6 +629,7 @@ class XRecessive(BaseMoi):
 
         self.hom_dom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
         self.hom_rec_threshold = config.get(GNOMAD_REC_HOM_THRESHOLD)
+        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
 
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
@@ -631,11 +647,6 @@ class XRecessive(BaseMoi):
         :return:
         """
 
-        if principal_var.coords.chrom.lower() != 'x':
-            raise Exception(
-                f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
-            )
-
         if comp_het is None:
             comp_het = {}
 
@@ -652,6 +663,7 @@ class XRecessive(BaseMoi):
 
         # X-relevant, we separate out male and females
         # combine het and hom here, we don't trust the variant callers
+        # if hemi count is too high, don't consider males
         males = {
             sam
             for sam in principal_var.het_samples.union(principal_var.hom_samples)
@@ -676,7 +688,7 @@ class XRecessive(BaseMoi):
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
             if not (
-                self.pedigree[sample_id].affected
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal_var.sample_specific_category_check(sample_id)
             ):
                 continue
@@ -732,8 +744,17 @@ class XRecessive(BaseMoi):
 
             # specific affected sample category check
             if not (
-                self.pedigree[sample_id].affected
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal_var.sample_specific_category_check(sample_id)
+            ):
+                continue
+
+            # if this is male, and hemi count is high, skip the sample
+            if self.pedigree[sample_id].sex == 'male' and any(
+                {
+                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
+                    for hemi_key in INFO_HEMI
+                }
             ):
                 continue
 
@@ -785,6 +806,7 @@ class YHemi(BaseMoi):
 
         self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
         self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
+        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
         super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
 
     def run(
@@ -806,6 +828,12 @@ class YHemi(BaseMoi):
         if (
             principal_var.info.get('gnomad_af') >= self.ad_threshold
             or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+            or any(
+                {
+                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
+                    for hemi_key in INFO_HEMI
+                }
+            )
         ):
             return classifications
 
@@ -818,7 +846,7 @@ class YHemi(BaseMoi):
         for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected:
+            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
                 continue
 
             # we require this specific sample to be categorised - check Cat 4 contents

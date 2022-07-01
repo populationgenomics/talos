@@ -94,7 +94,6 @@ def write_ped_with_permutations(
     :param output: file location to create
     """
     with open(output, 'w', encoding='utf-8') as handle:
-        handle.write('\t'.join(PED_KEYS) + '\n')
         for entry in ped_with_permutations:
             for sample, mother, father in product(
                 entry['individual_id'], entry['paternal_id'], entry['maternal_id']

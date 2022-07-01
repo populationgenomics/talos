@@ -40,7 +40,7 @@ PATHOGENIC = hl.str('pathogenic')
 
 
 def filter_matrix_by_ac(
-    matrix: hl.MatrixTable, ac_threshold: float | None = 0.1
+    matrix: hl.MatrixTable, ac_threshold: float | None = 0.01
 ) -> hl.MatrixTable:
     """
     if called, this method will remove all variants in the joint call where the
@@ -49,7 +49,9 @@ def filter_matrix_by_ac(
     :param ac_threshold:
     :return: reduced MatrixTable
     """
-    return matrix.filter_rows(matrix.info.AC / matrix.info.AN < ac_threshold)
+    return matrix.filter_rows(
+        (matrix.info.AC <= 5) | (matrix.info.AC / matrix.info.AN < ac_threshold)
+    )
 
 
 def filter_on_quality_flags(matrix: hl.MatrixTable) -> hl.MatrixTable:
@@ -419,16 +421,15 @@ def filter_to_population_rare(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    run the rare filter, using Gnomad & exac
+    run the rare filter, using Gnomad Exomes and Genomes
     :param matrix:
     :param config:
     :return:
     """
-    # exac and gnomad must be below threshold or missing
+    # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
-    # could also extend this filter to include max gnomad Homs
     return matrix.filter_rows(
-        (matrix.info.exac_af < config['af_semi_rare'])
+        (matrix.info.gnomad_ex_af < config['af_semi_rare'])
         & (matrix.info.gnomad_af < config['af_semi_rare'])
     )
 
@@ -570,20 +571,17 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            exac_af=hl.or_else(matrix.exac.AF, MISSING_FLOAT_LO),
-            exac_ac_het=hl.or_else(matrix.exac.AC_Het, MISSING_INT),
-            exac_ac_hom=hl.or_else(matrix.exac.AC_Hom, MISSING_INT),
-            exac_ac_hemi=hl.or_else(matrix.exac.AC_Hemi, MISSING_INT),
             gnomad_ex_cov=hl.or_else(matrix.gnomad_exome_coverage, MISSING_FLOAT_LO),
             gnomad_ex_af=hl.or_else(matrix.gnomad_exomes.AF, MISSING_FLOAT_LO),
             gnomad_ex_an=hl.or_else(matrix.gnomad_exomes.AN, MISSING_INT),
             gnomad_ex_ac=hl.or_else(matrix.gnomad_exomes.AC, MISSING_INT),
             gnomad_ex_hom=hl.or_else(matrix.gnomad_exomes.Hom, MISSING_INT),
-            gnomad_cov=hl.or_else(matrix.gnomad_genome_coverage, MISSING_FLOAT_LO),
+            gnomad_ex_hemi=hl.or_else(matrix.gnomad_exomes.Hemi, MISSING_INT),
             gnomad_af=hl.or_else(matrix.gnomad_genomes.AF, MISSING_FLOAT_LO),
             gnomad_an=hl.or_else(matrix.gnomad_genomes.AN, MISSING_INT),
             gnomad_ac=hl.or_else(matrix.gnomad_genomes.AC, MISSING_INT),
             gnomad_hom=hl.or_else(matrix.gnomad_genomes.Hom, MISSING_INT),
+            gnomad_hemi=hl.or_else(matrix.gnomad_genomes.Hemi, MISSING_INT),
             splice_ai_delta=hl.or_else(matrix.splice_ai.delta_score, MISSING_FLOAT_LO),
             splice_ai_csq=hl.or_else(
                 matrix.splice_ai.splice_consequence, MISSING_STRING
@@ -730,15 +728,15 @@ def subselect_mt_to_pedigree(matrix: hl.MatrixTable, pedigree: str) -> hl.Matrix
     return matrix
 
 
-def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
+def main(mt: str, panelapp: str, config_path: str, plink: str):
     """
     Read the MT from disk
     Do filtering and class annotation
     Export as a VCF
-    :param mt_input: path to the MT directory
-    :param panelapp_path: path to the panelapp data dump
+    :param mt: path to the MT directory
+    :param panelapp: path to the panelapp data dump
     :param config_path: path to the config json
-    :param plink_file: pedigree filepath in PLINK format
+    :param plink: pedigree filepath in PLINK format
     """
 
     # initiate Hail with defined driver spec.
@@ -760,8 +758,8 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     hail_config = config_dict.get('filter')
 
     # read the parsed panelapp data
-    logging.info(f'Reading PanelApp data from "{panelapp_path}"')
-    panelapp = read_json_from_path(panelapp_path)
+    logging.info(f'Reading PanelApp data from "{panelapp}"')
+    panelapp = read_json_from_path(panelapp)
 
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
@@ -771,27 +769,23 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     )
 
     # if we already generated the annotated output, load instead
-    if not AnyPath(mt_input.rstrip('/') + '/').exists():
-        raise Exception(f'Input MatrixTable doesn\'t exist: {mt_input}')
+    if not AnyPath(mt.rstrip('/') + '/').exists():
+        raise Exception(f'Input MatrixTable doesn\'t exist: {mt}')
 
-    matrix = hl.read_matrix_table(mt_input)
+    matrix = hl.read_matrix_table(mt)
 
     # subset to currently considered samples
-    matrix = subselect_mt_to_pedigree(matrix, pedigree=plink_file)
+    matrix = subselect_mt_to_pedigree(matrix, pedigree=plink)
 
     logging.debug(
-        f'Loaded annotated MT from {mt_input}, size: {matrix.count_rows()}',
+        f'Loaded annotated MT from {mt}, size: {matrix.count_rows()}',
     )
 
     # filter out quality failures
     matrix = filter_on_quality_flags(matrix)
 
     # running global quality filter steps
-    if matrix.count_cols() >= hail_config['min_samples_to_ac_filter']:
-        matrix = filter_matrix_by_ac(
-            matrix=matrix, ac_threshold=hail_config['ac_threshold']
-        )
-
+    matrix = filter_matrix_by_ac(matrix=matrix)
     matrix = filter_to_well_normalised(matrix)
     matrix = filter_by_ab_ratio(matrix)
 
@@ -827,9 +821,7 @@ def main(mt_input: str, panelapp_path: str, config_path: str, plink_file: str):
     matrix = annotate_category_2(matrix, config=hail_config, new_genes=new_expression)
     matrix = annotate_category_3(matrix, config=hail_config)
     matrix = annotate_category_5(matrix, config=hail_config)
-    matrix = annotate_category_4(
-        matrix, config=hail_config, plink_family_file=plink_file
-    )
+    matrix = annotate_category_4(matrix, config=hail_config, plink_family_file=plink)
     matrix = annotate_category_support(matrix, hail_config)
 
     matrix = filter_to_categorised(matrix)
@@ -871,8 +863,8 @@ if __name__ == '__main__':
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
     args = parser.parse_args()
     main(
-        mt_input=args.mt_input,
-        panelapp_path=args.panelapp_path,
+        mt=args.mt,
+        panelapp=args.panelapp,
         config_path=args.config_path,
-        plink_file=args.plink_file,
+        plink=args.plink,
     )

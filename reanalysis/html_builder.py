@@ -352,9 +352,13 @@ class HTMLBuilder:
                             value=float(variant['var_data']['info']['gnomad_af']),
                         ),
                         'gnomad_AC': variant['var_data']['info']['gnomad_ac'],
-                        'exac:hom': variant['var_data']['info']['exac_ac_hom'],
-                        'g_exome:hom': variant['var_data']['info']['gnomad_ex_hom'],
-                        'g_genome:hom': variant['var_data']['info']['gnomad_hom'],
+                        'exomes_hom': variant['var_data']['info']['gnomad_ex_hom'],
+                        'genomes_hom': variant['var_data']['info']['gnomad_hom'],
+                        'gnomad_hemi': (
+                            variant['var_data']['info']['gnomad_hemi']
+                            if 'x' in var_string.lower()
+                            else 'N/A'
+                        ),
                         'MOIs': ', '.join(variant['reasons']),
                         'support': ', '.join(
                             [
