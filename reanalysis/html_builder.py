@@ -215,6 +215,8 @@ class HTMLBuilder:
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
+                if key == 'any':
+                    continue
                 key_list.append(sample_count[key])
 
         summary_dicts = [
