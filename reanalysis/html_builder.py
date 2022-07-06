@@ -2,7 +2,6 @@
 Methods for taking the final output and generating static report content
 """
 
-import logging
 from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
@@ -11,7 +10,7 @@ from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
-from reanalysis.utils import read_json_from_path, good_string
+from reanalysis.utils import read_json_from_path, check_good_value
 
 
 GNOMAD_TEMPLATE = (
@@ -143,28 +142,24 @@ class HTMLBuilder:
 
         self.config = read_json_from_path(config)['output']
 
-        # map of internal:external IDs for translation in results
-        self.external_map = read_json_from_path(self.config['external_lookup']) or {}
+        # map of internal:external IDs for translation in results (optional)
+        ext_lookup = check_good_value('external_lookup', self.config)
+        self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
+        seqr_path = check_good_value('seqr_lookup', self.config)
         self.seqr = {}
-        try:
-            # update the seqr instance location
-            if self.config.get('seqr_lookup'):
-                self.seqr = read_json_from_path(self.config.get('seqr_lookup'))
-                for seqr_key in ['seqr_instance', 'seqr_project']:
-                    assert seqr_key in self.config and good_string(
-                        self.config[seqr_key]
-                    ), f'Seqr-related key required but not present: {seqr_key}'
 
-        except AttributeError:
-            logging.error(
-                f'Failure parsing Seqr lookup from {self.config.get("seqr_lookup")}'
-            )
+        if seqr_path is not None:
+            self.seqr = read_json_from_path(seqr_path)
+
+            # force user to correct config file if seqr URL/project are missing
+            for seqr_key in ['seqr_instance', 'seqr_project']:
+                assert check_good_value(
+                    seqr_key, self.config
+                ), f'Seqr-related key required but not present: {seqr_key}'
 
         self.panelapp = read_json_from_path(panelapp_data)
-
-        # read the ped file with Peddy
         self.pedigree = Ped(pedigree)
 
     def get_summary_stats(
@@ -220,6 +215,8 @@ class HTMLBuilder:
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
+                if key == 'any':
+                    continue
                 key_list.append(sample_count[key])
 
         summary_dicts = [
