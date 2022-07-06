@@ -10,7 +10,7 @@ from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
-from reanalysis.utils import read_json_from_path, check_good_value
+from reanalysis.utils import read_json_from_path
 
 
 GNOMAD_TEMPLATE = (
@@ -143,11 +143,11 @@ class HTMLBuilder:
         self.config = read_json_from_path(config)['output']
 
         # map of internal:external IDs for translation in results (optional)
-        ext_lookup = check_good_value('external_lookup', self.config)
+        ext_lookup = self.config.get('external_lookup')
         self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = check_good_value('seqr_lookup', self.config)
+        seqr_path = self.config.get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path is not None:
@@ -155,8 +155,8 @@ class HTMLBuilder:
 
             # force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert check_good_value(
-                    seqr_key, self.config
+                assert self.config.get(
+                    seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
         self.panelapp = read_json_from_path(panelapp_data)

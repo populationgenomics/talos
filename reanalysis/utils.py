@@ -609,21 +609,3 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
                 ).append(var_1)
 
     return comp_het_results
-
-
-def good_string(in_string: str) -> bool:
-    """quick string check"""
-    if isinstance(in_string, str) and len(in_string) > 0:
-        return True
-    return False
-
-
-def check_good_value(key: str, conf: dict[str, Any]) -> str | None:
-    """
-    check if a key from the dictionary is a good string
-    return it or None
-    """
-    conf_value = conf.get(key)
-    if good_string(conf_value):
-        return conf_value
-    return None

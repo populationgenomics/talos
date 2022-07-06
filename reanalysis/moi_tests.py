@@ -4,20 +4,9 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 
 Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant,
-e.g. if the MOI is Dominant, we may also be interested in Recessive (?)
-e.g. if the MOI is X-linked Dom, we also search X-linked Recessive (?)
-    - relevant for females, if the pedigree is loaded
-    - also depends on the accuracy of a male hemi call
-
-This will come down to clinician preference, some may exclusively
-prefer dominant model = monogenic search
 
 This model does not apply anything to MT, I expect those to default
 to a Monogenic MOI
-
-
-DOES NOT CURRENTLY CHECK PARENT GENOTYPES - MVP holds that everyone is
-a singleton
 """
 
 
