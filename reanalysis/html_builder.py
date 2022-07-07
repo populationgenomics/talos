@@ -323,9 +323,7 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'flags': ','.join(variant['flags'])
-                        if variant['flags'] is not None
-                        else '',
+                        'flags': ','.join(variant['flags']),
                         'categories': ', '.join(
                             list(
                                 map(

@@ -24,6 +24,7 @@ from peddy import Ped
 from cloudpathlib import AnyPath
 from cpg_utils.hail_batch import init_batch, output_path
 
+from reanalysis.homebrewed import custom_de_novo
 from reanalysis.utils import read_json_from_path
 
 
@@ -273,14 +274,12 @@ def annotate_category_4(
 ) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
-    Initial implementation didn't restrict by tx consequence, which meant we
-    found 10s of variants per sample, all intronic variants
-    This category focuses de novo on MOI within family structures
-    Instead, we are leveraging the inbuilt hl.de_novo functionality to:
-    - identify all likely de novo inherited variation
-    - collect samples for each variant (expect n=1 per de novo call, but not guaranteed)
-    - compress list of proband IDs as a String
-    - apply string back to the MatrixTable, else 'missing' if missing
+    We run twice;
+    - once using the Hail builtin method (very strict)
+    - once using the homebrewed method (too lenient?)
+
+    both sets of results will be added as labels
+    if a variant appears in only the lenient set, it will be flagged in the report
     :param matrix:
     :param config:
     :param plink_family_file: path to a pedigree in PLINK format
@@ -291,41 +290,44 @@ def annotate_category_4(
 
     de_novo_matrix = filter_by_consequence(matrix, config)
 
-    # read pedigree from the specified file
     pedigree = hl.Pedigree.read(plink_family_file)
 
-    # identify likely de novo calls
-    # use the AFs already embedded in the MT as the prior population frequencies
-    dn_table = hl.de_novo(
-        de_novo_matrix, pedigree, pop_frequency_prior=de_novo_matrix.info.gnomad_af
-    )
+    # avoid consequence filtering twice by calling the de novos in a loop
+    for (method, arguments, label) in [
+        (custom_de_novo, {}, 'Category4'),
+        (
+            hl.de_novo,
+            {'pop_frequency_prior': de_novo_matrix.info.gnomad_af},
+            'Category4b',
+        ),
+    ]:
+        # run the selected method
+        dn_table = method(de_novo_matrix, pedigree, **arguments)
 
-    # removing filter here as we are currently happy with the quality of the
-    # variant calling and subsequent call-set filtering
-    # dn_table = dn_table.filter(dn_table.confidence == 'HIGH')
+        # re-key the table by locus,alleles, removing the sampleID from the compound key
+        dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
 
-    # re-key the table by locus,alleles, removing the sampleID from the compound key
-    dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
+        # we only require the key (locus, alleles) and the sample ID
+        # select to remove other fields, then collect per-key into Array of Structs
+        dn_table = dn_table.select(dn_table.id).collect_by_key()
 
-    # we only require the key (locus, alleles) and the sample ID
-    # select to remove other fields, then collect per-key into Array of Structs
-    dn_table = dn_table.select(dn_table.id).collect_by_key()
-
-    # collect all sample IDs per locus, and squash into a String Array
-    # delimit to compress that Array into single Strings
-    dn_table = dn_table.annotate(
-        values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
-    )
-
-    # log the number of variants found this way
-    logging.info(f'{dn_table.count()} variants showed de novo inheritance')
-
-    # annotate those values as a flag if relevant, else 'missing'
-    return matrix.annotate_rows(
-        info=matrix.info.annotate(
-            Category4=hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)
+        # collect all sample IDs per locus, and squash into a String Array
+        # delimit to compress that Array into single Strings
+        dn_table = dn_table.annotate(
+            values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
         )
-    )
+
+        # log the number of variants found this way
+        logging.info(f'{dn_table.count()} variants showed {label} de novo inheritance')
+
+        # annotate those values as a flag if relevant, else 'missing'
+        matrix = matrix.annotate_rows(
+            info=matrix.info.annotate(
+                **{label: hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)}
+            )
+        )
+
+    return matrix
 
 
 def annotate_category_5(
@@ -632,6 +634,7 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
         | (matrix.info.Category2 == 1)
         | (matrix.info.Category3 == 1)
         | (matrix.info.Category4 != 'missing')
+        | (matrix.info.Category4b != 'missing')
         | (matrix.info.Category5 == 1)
         | (matrix.info.CategorySupport == 1)
     )
