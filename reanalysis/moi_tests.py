@@ -17,6 +17,7 @@ from typing import Any
 from peddy.peddy import Ped, PHENOTYPE
 
 from reanalysis.utils import (
+    check_ab_ratio,
     AbstractVariant,
     CompHetDict,
     ReportedVariant,
@@ -340,6 +341,7 @@ class DominantAutosomal(BaseMoi):
                     var_data=principal_var,
                     reasons={self.applied_moi},
                     supported=False,
+                    flags=check_ab_ratio(principal_var, sample_id),
                 )
             )
 
@@ -420,6 +422,7 @@ class RecessiveAutosomal(BaseMoi):
                     var_data=principal_var,
                     reasons={f'{self.applied_moi} Homozygous'},
                     supported=False,
+                    flags=check_ab_ratio(principal_var, sample_id),
                 )
             )
 
@@ -452,6 +455,7 @@ class RecessiveAutosomal(BaseMoi):
                 ):
                     continue
 
+                # multiple AB tests - flag if either is relevant
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
@@ -460,6 +464,10 @@ class RecessiveAutosomal(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
+                        flags=(
+                            check_ab_ratio(principal_var, sample_id)
+                            or check_ab_ratio(partner_variant, sample_id)
+                        ),
                     )
                 )
 
@@ -566,6 +574,7 @@ class XDominant(BaseMoi):
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
                     supported=False,
+                    flags=check_ab_ratio(principal_var, sample_id),
                 )
             )
         return classifications
@@ -682,6 +691,10 @@ class XRecessive(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
+                        flags=(
+                            check_ab_ratio(principal_var, sample_id)
+                            or check_ab_ratio(partner_variant, sample_id)
+                        ),
                     )
                 )
 
@@ -732,6 +745,7 @@ class XRecessive(BaseMoi):
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
                     supported=False,
+                    flags=check_ab_ratio(principal_var, sample_id),
                 )
             )
         return classifications
@@ -818,6 +832,7 @@ class YHemi(BaseMoi):
                     var_data=principal_var,
                     reasons={self.applied_moi},
                     supported=False,
+                    flags=check_ab_ratio(principal_var, sample_id),
                 )
             )
 
