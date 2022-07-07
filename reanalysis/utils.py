@@ -329,7 +329,7 @@ def check_ab_ratio(variant: AbstractVariant, sample: str) -> list[str] | None:
     variant_ab = variant.ab_ratios.get(sample, 0.0)
     if (
         (variant_ab <= 0.15)
-        or (het and (0.25 <= variant_ab <= 0.75))
+        or (het and not 0.25 <= variant_ab <= 0.75)
         or (hom and variant_ab <= 0.85)
     ):
         return ['AB Ratio']
