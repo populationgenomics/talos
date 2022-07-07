@@ -76,6 +76,14 @@ def filter_to_well_normalised(matrix: hl.MatrixTable) -> hl.MatrixTable:
 def filter_by_ab_ratio(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     filters HomRef, Het, and HomAlt by appropriate AB ratio bins
+
+    NOTE: This is a broken implementation, as it will replace the
+    true genotype calls with missing values. This has implications for
+    MOI testing downstream, as the corresponding genotypes in family
+    members can be absent, despite being called in the VCF
+
+    This can also cause rows in the final report to be filled with
+    only WT/missing calls, removing all actual variant calls
     :param matrix:
     """
     ab = matrix.AD[1] / hl.sum(matrix.AD)
@@ -787,7 +795,9 @@ def main(mt: str, panelapp: str, config_path: str, plink: str):
     # running global quality filter steps
     matrix = filter_matrix_by_ac(matrix=matrix)
     matrix = filter_to_well_normalised(matrix)
-    matrix = filter_by_ab_ratio(matrix)
+
+    # see method docstring, currently disabled
+    # matrix = filter_by_ab_ratio(matrix)
 
     matrix = checkpoint_and_repartition(
         matrix,
