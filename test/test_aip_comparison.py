@@ -70,14 +70,12 @@ def test_affected_finder(trio_ped):
     tests function to find probands from a Ped file
     this trio contains PROBAND, MOTHER, and FATHER.
     Only the proband is affected, and the mother and father both have a listed child
-    not the toughest test
     :param trio_ped:
     :return:
     """
-    # digest that Ped
     ped_parsed = Ped(trio_ped)
     samples = find_affected_samples(ped_parsed)
-    assert samples == ['PROBAND']
+    assert samples == ['PROBAND1', 'PROBAND2']
 
 
 def test_affected_finder_with_sibling(quad_ped):
