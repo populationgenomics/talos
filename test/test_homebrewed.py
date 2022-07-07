@@ -37,4 +37,9 @@ def test_de_novo_calling(trio_ped, de_novo_matrix):
         tiny_table = table.filter(table.locus == locus)
         assert tiny_table.values.collect() == expected
 
-    assert table.filter(table.locus == hl.Locus('chr3', 33333333)).count() == 0
+    assert (
+        table.filter(
+            table.locus == hl.Locus('chr3', 33333333, reference_genome='GRCh38')
+        ).count()
+        == 0
+    )

@@ -292,10 +292,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         gets all report flags for this sample
         """
-        flags = []
-        flags.extend(self.check_ab_ratio(sample))
-        flags.extend(self.check_dodgy_de_novo(sample))
-        return flags
+        return self.check_ab_ratio(sample) + self.check_dodgy_de_novo(sample)
 
     def check_dodgy_de_novo(self, sample: str) -> list[str]:
         """

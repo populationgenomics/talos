@@ -454,8 +454,6 @@ class RecessiveAutosomal(BaseMoi):
                     variant_2=partner_variant,
                 ):
                     continue
-
-                # multiple AB tests - flag if either is relevant
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
@@ -464,12 +462,9 @@ class RecessiveAutosomal(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=(
-                            principal_var.get_sample_flags(sample_id).extend(
-                                partner_variant.get_sample_flags(sample_id)
-                            )
-                        ),
-                    )
+                        flags=principal_var.get_sample_flags(sample_id)
+                        + partner_variant.get_sample_flags(sample_id),
+                    ),
                 )
 
         return classifications

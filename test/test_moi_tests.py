@@ -1,10 +1,8 @@
 """
 tests relating to the MOI filters
 """
-
-
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List
 
 from unittest import mock
 
@@ -47,11 +45,12 @@ class SimpleVariant:
     """
 
     info: Dict[str, Any]
-    het_samples: Set[str]
-    hom_samples: Set[str]
     coords: Coordinates
+    het_samples: set[str] = field(default_factory=set)
+    hom_samples: set[str] = field(default_factory=set)
     category_1: bool = True
-    category_4: List[str] = field(default_factory=list)
+    category_4: list[str] = field(default_factory=list)
+    category_4b: list[str] = field(default_factory=list)
     ab_ratios = {'nobody': 1.0}
 
     def sample_specific_category_check(self, sample):
@@ -60,26 +59,37 @@ class SimpleVariant:
         :param sample:
         :return:
         """
-        return self.category_1 or sample in self.category_4
+        return (
+            self.category_1 or sample in self.category_4 or sample in self.category_4b
+        )
+
+    def get_sample_flags(self, *args, **kwargs):
+        """
+        dummy method
+        """
+        if args and kwargs and self:
+            pass
+        return []
 
 
 @dataclass
-class RecessiveSimpleVariant:
+class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
     """
     a fake version of AbstractVariant
     """
 
-    info: Dict[str, Any]
-    het_samples: Set[str]
-    hom_samples: Set[str]
     coords: Coordinates
-    category_4: List[str]
     ab_ratios: dict[str, float]
+    info: dict[str, Any] = field(default_factory=dict)
+    het_samples: set[str] = field(default_factory=set)
+    hom_samples: set[str] = field(default_factory=set)
+    category_4: list[str] = field(default_factory=list)
+    category_4b: list[str] = field(default_factory=list)
     # add category default
     category_1: bool = True
 
     @property
-    def category_1_2_3(self):
+    def category_1_2_3_5(self):
         """
         mock method
         :return:
@@ -88,19 +98,47 @@ class RecessiveSimpleVariant:
 
     def sample_de_novo(self, sample):
         """
-        pass
         :param sample:
         :return:
         """
-        return sample in self.category_4
+        return sample in self.category_4 or sample in self.category_4b
 
     def sample_specific_category_check(self, sample):
         """
-        pass
         :param sample:
         :return:
         """
-        return (sample in self.category_4) or self.category_1_2_3
+        return (sample in self.category_4) or self.category_1_2_3_5
+
+    def check_ab_ratio(self, sample) -> list[str]:
+        """
+        pass
+        """
+
+        het = sample in self.het_samples
+        hom = sample in self.hom_samples
+        variant_ab = self.ab_ratios.get(sample, 0.0)
+        if (
+            (variant_ab <= 0.15)
+            or (het and not 0.25 <= variant_ab <= 0.75)
+            or (hom and variant_ab <= 0.85)
+        ):
+            return ['AB Ratio']
+        return []
+
+    def check_dodgy_de_novo(self, sample: str) -> list[str]:
+        """
+        flag if a de novo is only called by the lenient method
+        """
+        if self.sample_de_novo(sample) and sample not in self.category_4b:
+            return ['Dodgy de novo']
+        return []
+
+    def get_sample_flags(self, sample: str):
+        """
+        gets all report flags for this sample
+        """
+        return self.check_ab_ratio(sample) + self.check_dodgy_de_novo(sample)
 
 
 @pytest.mark.parametrize(
@@ -234,12 +272,7 @@ def test_recessive_autosomal_hom_passes(peddy_ped):
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples=set(),
-        hom_samples={'male'},
-        coords=TEST_COORDS,
-        category_4=[],
-        ab_ratios={'male': 1.0},
+        hom_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 1.0}
     )
     rec = RecessiveAutosomal(pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1})
     results = rec.run(passing_variant)
@@ -254,18 +287,13 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(peddy_ped):
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples=set(),
-        hom_samples={'male'},
-        coords=TEST_COORDS,
-        category_4=[],
-        ab_ratios={'male': 0.4},
+        hom_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 0.4}
     )
     rec = RecessiveAutosomal(pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1})
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
-    assert results[0].flags == ['AB Ratio']
+    assert passing_variant.get_sample_flags('male') == ['AB Ratio']
 
 
 def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
@@ -276,20 +304,10 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples={'male'},
-        hom_samples=set(),
-        coords=TEST_COORDS,
-        category_4=[],
-        ab_ratios={'male': 0.5},
+        het_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 0.5}
     )
     passing_variant2 = RecessiveSimpleVariant(
-        info={},
-        het_samples={'male'},
-        hom_samples=set(),
-        coords=TEST_COORDS2,
-        category_4=[],
-        ab_ratios={'male': 0.5},
+        het_samples={'male'}, coords=TEST_COORDS2, ab_ratios={'male': 0.5}
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomal(pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1})
@@ -306,20 +324,10 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples={'male'},
-        hom_samples=set(),
-        coords=TEST_COORDS,
-        category_4=[],
-        ab_ratios={'male': 0.5},
+        het_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 0.5}
     )
     passing_variant2 = RecessiveSimpleVariant(
-        info={},
-        het_samples={'male'},
-        hom_samples=set(),
-        coords=TEST_COORDS2,
-        category_4=[],
-        ab_ratios={'male': 1.0},
+        het_samples={'male'}, coords=TEST_COORDS2, ab_ratios={'male': 1.0}
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomal(pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1})
@@ -338,27 +346,17 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples={'female'},
-        hom_samples=set(),
-        coords=TEST_COORDS,
-        category_4=[],
-        ab_ratios={'female': 0.5},
+        het_samples={'female'}, coords=TEST_COORDS, ab_ratios={'female': 0.5}
     )
     passing_variant2 = RecessiveSimpleVariant(
-        info={},
-        het_samples={'female'},
-        hom_samples=set(),
-        coords=TEST_COORDS2,
-        category_4=[],
-        ab_ratios={'female': 0.5},
+        het_samples={'female'}, coords=TEST_COORDS2, ab_ratios={'female': 0.5}
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomal(pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1})
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
-    assert results[0].flags is None
+    assert results[0].flags == []
 
 
 def test_recessive_autosomal_comp_het_fails_no_ch_return(peddy_ped):
@@ -387,20 +385,10 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
     """
 
     failing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples={'male'},
-        hom_samples=set(),
-        coords=TEST_COORDS,
-        category_4=[],
-        ab_ratios={'male': 0.5},
+        het_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 0.5}
     )
     failing_variant2 = RecessiveSimpleVariant(
-        info={},
-        het_samples={'female'},
-        hom_samples=set(),
-        coords=TEST_COORDS2,
-        category_4=[],
-        ab_ratios={'female': 0.5},
+        het_samples={'female'}, coords=TEST_COORDS2, ab_ratios={'female': 0.5}
     )
 
     rec = RecessiveAutosomal(pedigree=peddy_ped, config={GNOMAD_REC_HOM_THRESHOLD: 1})
@@ -410,10 +398,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
     )
 
 
-@pytest.mark.parametrize(
-    'info',
-    [{'gnomad_hom': 2}],
-)
+@pytest.mark.parametrize('info', [{'gnomad_hom': 2}])
 def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
     check that when the info values are failures
@@ -434,10 +419,7 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={'gnomad_hemi': 0},
-        het_samples={'female', 'male'},
-        hom_samples=set(),
-        coords=x_coords,
+        info={'gnomad_hemi': 0}, het_samples={'female', 'male'}, coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
@@ -454,10 +436,7 @@ def test_x_dominant_female_hom_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={'gnomad_hemi': 0},
-        hom_samples={'female'},
-        het_samples=set(),
-        coords=x_coords,
+        info={'gnomad_hemi': 0}, hom_samples={'female'}, coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
@@ -472,10 +451,7 @@ def test_x_dominant_male_hom_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info={'gnomad_hemi': 0},
-        hom_samples={'male'},
-        het_samples=set(),
-        coords=x_coords,
+        info={'gnomad_hemi': 0}, hom_samples={'male'}, coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped, config=MOI_CONF)
     results = x_dom.run(passing_variant)
@@ -513,11 +489,8 @@ def test_x_recessive_male_and_female_hom_passes(peddy_ped):
 
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = RecessiveSimpleVariant(
-        info={},
         hom_samples={'female', 'male'},
-        het_samples=set(),
         coords=x_coords,
-        category_4=[],
         ab_ratios={'female': 1.0, 'male': 1.0},
     )
     x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF)
@@ -535,12 +508,7 @@ def test_x_recessive_male_het_passes(peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = RecessiveSimpleVariant(
-        info={},
-        het_samples={'male'},
-        hom_samples=set(),
-        coords=x_coords,
-        category_4=[],
-        ab_ratios={'male': 0.5},
+        het_samples={'male'}, coords=x_coords, ab_ratios={'male': 0.5}
     )
     x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF)
     results = x_rec.run(passing_variant)
@@ -555,17 +523,13 @@ def test_x_recessive_female_het_passes(peddy_ped):
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
         het_samples={'female'},
-        hom_samples=set(),
         coords=Coordinates('x', 1, 'A', 'C'),
         category_4=['female'],
         ab_ratios={'female': 0.5},
     )
     passing_variant_2 = RecessiveSimpleVariant(
-        info={},
         het_samples={'female'},
-        hom_samples=set(),
         coords=Coordinates('x', 2, 'A', 'C'),
         category_4=['female'],
         ab_ratios={'female': 0.5},
@@ -577,24 +541,58 @@ def test_x_recessive_female_het_passes(peddy_ped):
     assert results[0].reasons == {'X_Recessive Compound-Het Female'}
 
 
-def test_x_recessive_female_het_fails(peddy_ped):
+def test_het_de_novo_het_passes(peddy_ped):
     """
 
     :return:
     """
 
     passing_variant = RecessiveSimpleVariant(
-        info={},
         het_samples={'female'},
-        hom_samples=set(),
+        coords=Coordinates('x', 1, 'A', 'C'),
+        category_4=['female'],
+        category_4b=['female'],
+        ab_ratios={'female': 0.5},
+    )
+    dom_a = DominantAutosomal(pedigree=peddy_ped, config=MOI_CONF)
+    results = dom_a.run(passing_variant)
+    assert len(results) == 1
+    assert results[0].reasons == {'Autosomal Dominant'}
+    assert not results[0].flags
+
+
+def test_het_de_novo_het_passes_flagged(peddy_ped):
+    """
+
+    :return:
+    """
+
+    passing_variant = RecessiveSimpleVariant(
+        het_samples={'female'},
+        coords=Coordinates('x', 1, 'A', 'C'),
+        category_4=['female'],
+        ab_ratios={'female': 0.5},
+    )
+    dom_a = DominantAutosomal(pedigree=peddy_ped, config=MOI_CONF)
+    results = dom_a.run(passing_variant)
+    assert len(results) == 1
+    assert results[0].reasons == {'Autosomal Dominant'}
+    assert results[0].flags == ['Dodgy de novo']
+
+
+def test_x_recessive_female_het_fails(peddy_ped):
+    """
+    :return:
+    """
+
+    passing_variant = RecessiveSimpleVariant(
+        het_samples={'female'},
         coords=Coordinates('x', 1, 'A', 'C'),
         category_4=['male'],
         ab_ratios={'female': 0.5},
     )
     passing_variant_2 = RecessiveSimpleVariant(
-        info={},
         het_samples={'male'},
-        hom_samples=set(),
         coords=Coordinates('x', 2, 'A', 'C'),
         category_4=['male'],
         ab_ratios={'male': 0.5},
@@ -608,17 +606,13 @@ def test_x_recessive_female_het_fails(peddy_ped):
 @mock.patch('reanalysis.moi_tests.check_for_second_hit')
 def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch, peddy_ped):
     """
-
     :return:
     """
 
     second_hit.return_value = []
     passing_variant = RecessiveSimpleVariant(
-        info={},
         het_samples={'female'},
-        hom_samples=set(),
         coords=Coordinates('x', 1, 'A', 'C'),
-        category_4=[],
         ab_ratios={'female': 0.5},
     )
     x_rec = XRecessive(pedigree=peddy_ped, config=MOI_CONF)
@@ -733,5 +727,4 @@ def test_check_familial_inheritance_no_calls(peddy_ped):
         called_variants=set(),
         partial_penetrance=True,
     )
-    # should fail immediately
     assert not result
