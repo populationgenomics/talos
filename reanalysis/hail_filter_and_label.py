@@ -24,7 +24,7 @@ from peddy import Ped
 from cloudpathlib import AnyPath
 from cpg_utils.hail_batch import init_batch, output_path
 
-from reanalysis.utils import check_good_value, read_json_from_path
+from reanalysis.utils import read_json_from_path
 
 
 # set some Hail constants
@@ -751,7 +751,7 @@ def main(mt: str, panelapp: str, config_path: str, plink: str):
 
     # get temp suffix from the config (can be None or missing)
     checkpoint_root = output_path(
-        'hail_matrix.mt', check_good_value('tmp_suffix', config_dict)
+        'hail_matrix.mt', config_dict.get('tmp_suffix') or None
     )
 
     # find the config area specific to hail operations

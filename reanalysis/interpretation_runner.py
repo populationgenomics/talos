@@ -39,7 +39,7 @@ from cpg_utils.hail_batch import (
 )
 
 import annotation
-from utils import check_good_value, read_json_from_path, FileTypes, identify_file_type
+from utils import read_json_from_path, FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
 
@@ -356,21 +356,22 @@ def main(
     config_dict = read_json_from_path(config_json)
 
     # create output paths with optional suffixes
-    vep_stage_tmp = output_path('vep_temp', check_good_value('tmp_suffix', config_dict))
+    vep_stage_tmp = output_path('vep_temp', config_dict.get('tmp_suffix') or None)
     vep_ht_tmp = output_path(
-        'vep_annotations.ht', check_good_value('tmp_suffix', config_dict)
+        'vep_annotations.ht', config_dict.get('tmp_suffix') or None
     )
+
     # separate paths for familial and singleton analysis
     output_dict = {
         'default': {
             'web_html': output_path(
-                'summary_output.html', check_good_value('web_suffix', config_dict)
+                'summary_output.html', config_dict.get('web_suffix') or None
             ),
             'results': output_path('summary_results.json'),
         },
         'singletons': {
             'web_html': output_path(
-                'singleton_output.html', check_good_value('web_suffix', config_dict)
+                'singleton_output.html', config_dict.get('web_suffix') or None
             ),
             'results': output_path('singleton_results.json'),
         },

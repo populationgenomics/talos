@@ -279,12 +279,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         return self.category_1_2_3_5 or self.sample_de_novo(sample_id)
 
 
-# CompHetDict structure:
-# {
-#     sample: {
-#         variant_string: [variant, ...]
-#     }
-# }
+# CompHetDict structure: {sample: {variant_string: [variant, ...]}}
 # sample: string, e,g, CGP12345
 CompHetDict = dict[str, dict[str, list[AbstractVariant]]]
 GeneDict = dict[str, list[AbstractVariant]]
@@ -404,7 +399,7 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     take a path to a JSON file, read into an object
     :param bucket_path:
     """
-    with open(AnyPath(bucket_path), encoding='utf-8') as handle:
+    with AnyPath(bucket_path).open() as handle:
         return json.load(handle)
 
 
@@ -609,21 +604,3 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
                 ).append(var_1)
 
     return comp_het_results
-
-
-def good_string(in_string: str) -> bool:
-    """quick string check"""
-    if isinstance(in_string, str) and len(in_string) > 0:
-        return True
-    return False
-
-
-def check_good_value(key: str, conf: dict[str, Any]) -> str | None:
-    """
-    check if a key from the dictionary is a good string
-    return it or None
-    """
-    conf_value = conf.get(key)
-    if good_string(conf_value):
-        return conf_value
-    return None

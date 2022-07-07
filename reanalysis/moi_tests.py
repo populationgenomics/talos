@@ -4,20 +4,9 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 
 Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant,
-e.g. if the MOI is Dominant, we may also be interested in Recessive (?)
-e.g. if the MOI is X-linked Dom, we also search X-linked Recessive (?)
-    - relevant for females, if the pedigree is loaded
-    - also depends on the accuracy of a male hemi call
-
-This will come down to clinician preference, some may exclusively
-prefer dominant model = monogenic search
 
 This model does not apply anything to MT, I expect those to default
 to a Monogenic MOI
-
-
-DOES NOT CURRENTLY CHECK PARENT GENOTYPES - MVP holds that everyone is
-a singleton
 """
 
 
@@ -240,53 +229,29 @@ class BaseMoi:
         return True
 
     def check_familial_comp_het(
-        self,
-        sample_id: str,
-        called_variants_1: set[str],
-        called_variants_2: set[str],
-        partial_penetrance: bool = False,
+        self, sample_id: str, variant_1: AbstractVariant, variant_2: AbstractVariant
     ) -> bool:
         """
-        compound_het check, requires 2 pools of variant calls
-        called_variants_1 & called_variants_2 are the relevant variant calls from
-        2 different variants. We evaluate the sample as 'having this variant pair'
-        if the sample ID appears in both call groups
+        use parents to accept or dismiss the comp-het
+        If the 'comp-het' pair are inherited from a single parent, they are in cis
+        rather than trans, and reporting as a comp-het would be misleading.
 
-        - find the family ID from this sample
-        - iterate through all family members, and check that MOI holds for all
-        - this MOI test requires the participant to have both variant calls in order
-          to 'have this variant'
-
-        At each stage, append the sample ID of all checked samples so we don't repeat
-        One broken check will fail the variant for the whole family
-
-        Return False if a participant fails tests, True if all members pass
+        compound het is inherently not inherited from a single parent, so rule out
+        when either parent has both, or either parent is affected
 
         :param sample_id:
-        :param called_variants_1: called samples for variant 1
-        :param called_variants_2: called samples for variant 2
-        :param partial_penetrance: if True, allow unaffected has variant call
+        :param variant_1:
+        :param variant_2:
         :return:
         """
 
-        # iterate through family members, no interest in relationship directionality
-        for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
-
-            # one value to store the check that this sample has _this_ comp-het
-            sample_comp_het = (
-                member.sample_id in called_variants_1
-                and member.sample_id in called_variants_2
-            )
-
-            # complete & incomplete penetrance - affected samples must have the variant
-            # complete pen. requires participants to be affected if they have the var
-            # if any of these combinations occur, fail the family
-            if (member.affected == PEDDY_AFFECTED and not sample_comp_het) or (
-                sample_comp_het
-                and not partial_penetrance
-                and not member.affected == PEDDY_AFFECTED
-            ):
-                # fail
+        # if both vars are present in a single parent: not a compound het
+        # or if the parent is affected: not causative
+        sample_ped_entry = self.pedigree[sample_id]
+        for parent in [sample_ped_entry.mom, sample_ped_entry.dad]:
+            if (
+                parent.sample_id in variant_1.het_samples and variant_2.het_samples
+            ) or parent.affected == PEDDY_AFFECTED:
                 return False
 
         return True
@@ -482,9 +447,8 @@ class RecessiveAutosomal(BaseMoi):
                 # check if this is a candidate for comp-het inheritance
                 if not self.check_familial_comp_het(
                     sample_id=sample_id,
-                    called_variants_1=principal_var.het_samples,
-                    called_variants_2=partner_variant.het_samples,
-                    partial_penetrance=partial_penetrance,
+                    variant_1=principal_var,
+                    variant_2=partner_variant,
                 ):
                     continue
 
@@ -703,18 +667,10 @@ class XRecessive(BaseMoi):
                 if not partner_variant.sample_specific_category_check(sample_id):
                     continue
 
-                # check if this is a candidate for comp-het inheritance
-                # get all female het calls on the paired variant
-                het_females_partner = {
-                    sam
-                    for sam in partner_variant.het_samples
-                    if self.pedigree[sample_id].sex == 'female'
-                }
                 if not self.check_familial_comp_het(
                     sample_id=sample_id,
-                    called_variants_1=principal_var.het_samples,
-                    called_variants_2=het_females_partner,
-                    partial_penetrance=partial_penetrance,
+                    variant_1=principal_var,
+                    variant_2=partner_variant,
                 ):
                     continue
 
