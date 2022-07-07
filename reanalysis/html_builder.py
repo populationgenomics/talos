@@ -150,7 +150,7 @@ class HTMLBuilder:
         seqr_path = self.config.get('seqr_lookup')
         self.seqr = {}
 
-        if seqr_path is not None:
+        if seqr_path:
             self.seqr = read_json_from_path(seqr_path)
 
             # force user to correct config file if seqr URL/project are missing

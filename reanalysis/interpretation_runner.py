@@ -356,20 +356,22 @@ def main(
     config_dict = read_json_from_path(config_json)
 
     # create output paths with optional suffixes
-    vep_stage_tmp = output_path('vep_temp', config_dict.get('tmp_suffix'))
-    vep_ht_tmp = output_path('vep_annotations.ht', config_dict.get('tmp_suffix'))
+    vep_stage_tmp = output_path('vep_temp', config_dict.get('tmp_suffix') or None)
+    vep_ht_tmp = output_path(
+        'vep_annotations.ht', config_dict.get('tmp_suffix') or None
+    )
 
     # separate paths for familial and singleton analysis
     output_dict = {
         'default': {
             'web_html': output_path(
-                'summary_output.html', config_dict.get('web_suffix')
+                'summary_output.html', config_dict.get('web_suffix') or None
             ),
             'results': output_path('summary_results.json'),
         },
         'singletons': {
             'web_html': output_path(
-                'singleton_output.html', config_dict.get('web_suffix')
+                'singleton_output.html', config_dict.get('web_suffix') or None
             ),
             'results': output_path('singleton_results.json'),
         },

@@ -750,7 +750,9 @@ def main(mt: str, panelapp: str, config_path: str, plink: str):
     config_dict = read_json_from_path(config_path)
 
     # get temp suffix from the config (can be None or missing)
-    checkpoint_root = output_path('hail_matrix.mt', config_dict.get('tmp_suffix'))
+    checkpoint_root = output_path(
+        'hail_matrix.mt', config_dict.get('tmp_suffix') or None
+    )
 
     # find the config area specific to hail operations
     hail_config = config_dict.get('filter')
