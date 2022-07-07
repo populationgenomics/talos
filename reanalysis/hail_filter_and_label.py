@@ -82,7 +82,7 @@ def filter_by_ab_ratio(matrix: hl.MatrixTable) -> hl.MatrixTable:
     MOI testing downstream, as the corresponding genotypes in family
     members can be absent, despite being called in the VCF
 
-    This can also cause rows in the final report to be filled with
+    This can also cause rows in the resulting VCF to be
     only WT/missing calls, removing all actual variant calls
     :param matrix:
     """
