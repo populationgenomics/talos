@@ -251,7 +251,8 @@ class BaseMoi:
         sample_ped_entry = self.pedigree[sample_id]
         for parent in [sample_ped_entry.mom, sample_ped_entry.dad]:
             if (
-                parent.sample_id in variant_1.het_samples and variant_2.het_samples
+                (parent.sample_id in variant_1.het_samples)
+                and (parent.sample_id in variant_2.het_samples)
             ) or parent.affected == PEDDY_AFFECTED:
                 return False
 
