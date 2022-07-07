@@ -173,6 +173,8 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             if phase != PHASE_SET_DEFAULT:
                 self.phased[sample][phase] = gt
 
+        self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
+
     def __str__(self):
         return repr(self)
 
@@ -292,6 +294,7 @@ class ReportedVariant:
     the initial variant
     the MOI passed
     the support (if any)
+    allows for the presence of flags e.g. Borderline AB ratio
     """
 
     sample: str
@@ -300,6 +303,32 @@ class ReportedVariant:
     reasons: set[str]
     supported: bool
     support_vars: list[str] | None = None
+    flags: list[str] | None = None
+
+
+def check_ab_ratio(variant: AbstractVariant, sample: str) -> list[str] | None:
+    """
+    AB ratio test for this sample's variant call. Prior ratios:
+
+    ab = matrix.AD[1] / hl.sum(matrix.AD)
+    return matrix.filter_entries(
+        (matrix.GT.is_hom_ref() & (ab <= 0.15))
+        | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
+        | (matrix.GT.is_hom_var() & (ab >= 0.85))
+    )
+    :param variant: the variant being processed
+    :param sample: this affected individual
+    """
+    het = sample in variant.het_samples
+    hom = sample in variant.hom_samples
+    variant_ab = variant.ab_ratios.get(sample, 0.0)
+    if (
+        (variant_ab <= 0.15)
+        or (het and not 0.25 <= variant_ab <= 0.75)
+        or (hom and variant_ab <= 0.85)
+    ):
+        return ['AB Ratio']
+    return None
 
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
