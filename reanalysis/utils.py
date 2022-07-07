@@ -127,14 +127,20 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.category_3: bool = var.INFO.get('Category3') == 1
         self.category_5: bool = var.INFO.get('Category5') == 1
 
-        # de novo category is a list of strings or empty list
+        # de novo categories are a list of strings or empty list
         # if cohort runs as singletons, remove possibility of de novo
         if as_singletons:
             self.category_4 = []
+            self.category_4b = []
         else:
             self.category_4: list[str] = (
                 var.INFO.get('Category4').split(',')
                 if var.INFO.get('Category4') != 'missing'
+                else []
+            )
+            self.category_4b: list[str] = (
+                var.INFO.get('Category4b').split(',')
+                if var.INFO.get('Category4b') != 'missing'
                 else []
             )
 
@@ -205,6 +211,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                 self.category_2,
                 self.category_3,
                 self.category_4,
+                self.category_4b,
                 self.category_5,
             ]
         )
@@ -222,6 +229,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                 self.category_2,
                 self.category_3,
                 self.category_4,
+                self.category_4b,
                 self.category_5,
                 self.category_support,
             ]
@@ -270,7 +278,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :return:
         """
 
-        return sample_id in self.category_4
+        return sample_id in self.category_4 or sample_id in self.category_4b
 
     def sample_specific_category_check(self, sample_id: str) -> bool:
         """
@@ -279,6 +287,46 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :return:
         """
         return self.category_1_2_3_5 or self.sample_de_novo(sample_id)
+
+    def get_sample_flags(self, sample: str) -> list[str]:
+        """
+        gets all report flags for this sample
+        """
+        flags = []
+        flags.extend(self.check_ab_ratio(sample))
+        flags.extend(self.check_dodgy_de_novo(sample))
+        return flags
+
+    def check_dodgy_de_novo(self, sample: str) -> list[str]:
+        """
+        flag if a de novo is only called by the lenient method
+        """
+        if self.sample_de_novo(sample) and sample not in self.category_4b:
+            return ['Dodgy de novo']
+        return []
+
+    def check_ab_ratio(self, sample: str) -> list[str]:
+        """
+        AB ratio test for this sample's variant call
+
+        ab = matrix.AD[1] / hl.sum(matrix.AD)
+        return matrix.filter_entries(
+            (matrix.GT.is_hom_ref() & (ab <= 0.15))
+            | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
+            | (matrix.GT.is_hom_var() & (ab >= 0.85))
+        )
+        :param sample: this affected individual
+        """
+        het = sample in self.het_samples
+        hom = sample in self.hom_samples
+        variant_ab = self.ab_ratios.get(sample, 0.0)
+        if (
+            (variant_ab <= 0.15)
+            or (het and not 0.25 <= variant_ab <= 0.75)
+            or (hom and variant_ab <= 0.85)
+        ):
+            return ['AB Ratio']
+        return []
 
 
 # CompHetDict structure: {sample: {variant_string: [variant, ...]}}
@@ -304,31 +352,6 @@ class ReportedVariant:
     supported: bool
     support_vars: list[str] | None = None
     flags: list[str] | None = None
-
-
-def check_ab_ratio(variant: AbstractVariant, sample: str) -> list[str] | None:
-    """
-    AB ratio test for this sample's variant call. Prior ratios:
-
-    ab = matrix.AD[1] / hl.sum(matrix.AD)
-    return matrix.filter_entries(
-        (matrix.GT.is_hom_ref() & (ab <= 0.15))
-        | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-        | (matrix.GT.is_hom_var() & (ab >= 0.85))
-    )
-    :param variant: the variant being processed
-    :param sample: this affected individual
-    """
-    het = sample in variant.het_samples
-    hom = sample in variant.hom_samples
-    variant_ab = variant.ab_ratios.get(sample, 0.0)
-    if (
-        (variant_ab <= 0.15)
-        or (het and not 0.25 <= variant_ab <= 0.75)
-        or (hom and variant_ab <= 0.85)
-    ):
-        return ['AB Ratio']
-    return None
 
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
@@ -539,6 +562,7 @@ def extract_info(variant):
         'category2',
         'category3',
         'category4',
+        'category4b',
         'categorysupport',
         'support_only',
     }

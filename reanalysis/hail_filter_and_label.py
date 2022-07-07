@@ -294,12 +294,12 @@ def annotate_category_4(
 
     # avoid consequence filtering twice by calling the de novos in a loop
     for (method, arguments, label) in [
+        (custom_de_novo, {}, 'Category4'),
         (
             hl.de_novo,
             {'pop_frequency_prior': de_novo_matrix.info.gnomad_af},
-            'Category4',
+            'Category4b',
         ),
-        (custom_de_novo, {}, 'Category4b'),
     ]:
         # run the selected method
         dn_table = method(de_novo_matrix, pedigree, **arguments)
