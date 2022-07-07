@@ -279,12 +279,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         return self.category_1_2_3_5 or self.sample_de_novo(sample_id)
 
 
-# CompHetDict structure:
-# {
-#     sample: {
-#         variant_string: [variant, ...]
-#     }
-# }
+# CompHetDict structure: {sample: {variant_string: [variant, ...]}}
 # sample: string, e,g, CGP12345
 CompHetDict = dict[str, dict[str, list[AbstractVariant]]]
 GeneDict = dict[str, list[AbstractVariant]]
@@ -404,7 +399,7 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     take a path to a JSON file, read into an object
     :param bucket_path:
     """
-    with open(AnyPath(bucket_path), encoding='utf-8') as handle:
+    with AnyPath(bucket_path).open() as handle:
         return json.load(handle)
 
 
