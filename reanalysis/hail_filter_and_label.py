@@ -97,7 +97,7 @@ def filter_by_ab_ratio(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
 def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
-    applies the Category1 annotation (1 or 0) as appropriate
+    applies the boolean Category1 annotation
     semi-rare in Gnomad
     at least one Clinvar star
     contains pathogenic and not conflicting; doesn't contain benign
@@ -107,7 +107,7 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Category1=hl.if_else(
+            CategoryBoolean1=hl.if_else(
                 (matrix.info.clinvar_stars > 0)
                 & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
                 & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
@@ -138,7 +138,7 @@ def annotate_category_2(
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Category2=hl.if_else(
+            CategoryBoolean2=hl.if_else(
                 (new_genes.contains(matrix.geneIds))
                 & (
                     (
@@ -175,7 +175,7 @@ def annotate_category_3(
     matrix: hl.MatrixTable, config: dict[str, Any]
 ) -> hl.MatrixTable:
     """
-    applies the Category3 flag where appropriate
+    applies the boolean Category3 flag
     - Critical protein consequence on at least one transcript
     - either predicted NMD or
     - any star Pathogenic or Likely_pathogenic in Clinvar
@@ -191,7 +191,7 @@ def annotate_category_3(
     # OR allow for a pathogenic ClinVar, any Stars
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Category3=hl.if_else(
+            CategoryBoolean3=hl.if_else(
                 (
                     hl.len(
                         matrix.vep.transcript_consequences.filter(
@@ -265,7 +265,8 @@ def filter_by_consequence(
 
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return matrix.filter_rows(
-        (hl.len(matrix.vep.transcript_consequences) > 0) & (matrix.info.Category5 == 0)
+        (hl.len(matrix.vep.transcript_consequences) > 0)
+        & (matrix.info.CategoryBoolean5 == 0)
     )
 
 
@@ -294,11 +295,11 @@ def annotate_category_4(
 
     # avoid consequence filtering twice by calling the de novos in a loop
     for (method, arguments, label) in [
-        (custom_de_novo, {}, 'Category4'),
+        (custom_de_novo, {}, 'CategorySample4'),
         (
             hl.de_novo,
             {'pop_frequency_prior': de_novo_matrix.info.gnomad_af},
-            'Category4b',
+            'CategorySample4b',
         ),
     ]:
         # run the selected method
@@ -341,7 +342,7 @@ def annotate_category_5(
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            Category5=hl.if_else(
+            CategoryBoolean5=hl.if_else(
                 matrix.info.splice_ai_delta >= config['spliceai_full'],
                 ONE_INT,
                 MISSING_INT,
@@ -630,12 +631,12 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     :return: input matrix, minus rows without Categories applied
     """
     return matrix.filter_rows(
-        (matrix.info.Category1 == 1)
-        | (matrix.info.Category2 == 1)
-        | (matrix.info.Category3 == 1)
-        | (matrix.info.Category4 != 'missing')
-        | (matrix.info.Category4b != 'missing')
-        | (matrix.info.Category5 == 1)
+        (matrix.info.CategoryBoolean1 == 1)
+        | (matrix.info.CategoryBoolean2 == 1)
+        | (matrix.info.CategoryBoolean3 == 1)
+        | (matrix.info.CategorySample4 != 'missing')
+        | (matrix.info.CategorySample4b != 'missing')
+        | (matrix.info.CategoryBoolean5 == 1)
         | (matrix.info.CategorySupport == 1)
     )
 
