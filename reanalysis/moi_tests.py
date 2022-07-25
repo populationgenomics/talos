@@ -249,6 +249,10 @@ class BaseMoi:
         # or if the parent is affected: not causative
         sample_ped_entry = self.pedigree[sample_id]
         for parent in [sample_ped_entry.mom, sample_ped_entry.dad]:
+            # skip to prevent crashing on !trios
+            if parent is None:
+                continue
+
             if (
                 (parent.sample_id in variant_1.het_samples)
                 and (parent.sample_id in variant_2.het_samples)
