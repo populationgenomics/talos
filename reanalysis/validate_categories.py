@@ -137,7 +137,7 @@ def apply_moi_to_variants(
                     moi_lookup[simple_moi].run(
                         principal_var=variant,
                         comp_het=comp_het_dict,
-                        partial_penetrance=variant.category_1,
+                        partial_penetrance=variant.info.get('CategoryBoolean1', False),
                     )
                 )
 

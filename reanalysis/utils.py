@@ -213,6 +213,13 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         return any(self.info[value] for value in self.sample_categories)
 
     @property
+    def has_support(self) -> bool:
+        """
+        check for a True flag in any CategorySupport* attribute
+        """
+        return any(self.info[value] for value in self.sample_support)
+
+    @property
     def category_non_support(self) -> bool:
         """
         check the variant has at least one non-support category assigned
@@ -228,13 +235,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :return:
         """
         return self.category_non_support or self.has_support
-
-    @property
-    def has_support(self) -> bool:
-        """
-        check for a True flag in any CategorySupport* attribute
-        """
-        return any(self.info[value] for value in self.sample_support)
 
     @property
     def support_only(self) -> bool:
