@@ -92,6 +92,31 @@ class Coordinates:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
 
+def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
+    """
+    read phase data from this variant
+    """
+    phased_dict = defaultdict(dict)
+
+    # first set the numpy.ndarray to be a list of ints
+    # the zip against ordered sample IDs
+    # this might need to store the exact genotype too
+    # i.e. 0|1 and 1|0 can be in the same phase-set
+    # but are un-phased variants
+    for sample, phase, genotype in zip(
+        samples, map(int, var.format('PS')), var.genotypes
+    ):
+        # cyvcf2.Variant holds two ints, and a bool
+        allele_1, allele_2, phased = genotype
+        if not phased:
+            continue
+        gt = f'{allele_1}|{allele_2}'
+        # phase set is a number
+        if phase != PHASE_SET_DEFAULT:
+            phased_dict[sample][phase] = gt
+    return dict(phased_dict)
+
+
 @dataclass
 class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     """
@@ -121,30 +146,36 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
         )
 
+        # overwrite the non-standard cyvcf2 representation
+        self.info: dict[str, Any] = dict(var.INFO)
+
         # set the class attributes
-        self.category_1: bool = var.INFO.get('Category1') == 1
-        self.category_2: bool = var.INFO.get('Category2') == 1
-        self.category_3: bool = var.INFO.get('Category3') == 1
-        self.category_5: bool = var.INFO.get('Category5') == 1
+        self.boolean_categories = [
+            key for key in self.info.keys() if key.startswith('CategoryBoolean')
+        ]
+        self.sample_categories = [
+            key for key in self.info.keys() if key.startswith('CategorySamples')
+        ]
+        self.sample_support = [
+            key for key in self.info.keys() if key.startswith('CategorySupport')
+        ]
 
-        # de novo categories are a list of strings or empty list
+        # overwrite with true booleans
+        for cat in self.sample_support + self.boolean_categories:
+            self.info[cat] = self.info.get(cat, 0) == 1
+
+        # de novo categories are a list of strings or 'missing'
         # if cohort runs as singletons, remove possibility of de novo
-        if as_singletons:
-            self.category_4 = []
-            self.category_4b = []
-        else:
-            self.category_4: list[str] = (
-                var.INFO.get('Category4').split(',')
-                if var.INFO.get('Category4') != 'missing'
-                else []
-            )
-            self.category_4b: list[str] = (
-                var.INFO.get('Category4b').split(',')
-                if var.INFO.get('Category4b') != 'missing'
-                else []
-            )
-
-        self.category_support: bool = var.INFO.get('CategorySupport') == 1
+        # if not singletons, split each into a list of sample IDs
+        for sam_cat in self.sample_categories:
+            if as_singletons:
+                self.info[sam_cat] = []
+            else:
+                self.info[sam_cat] = (
+                    self.info[sam_cat].split(',')
+                    if self.info[sam_cat] != 'missing'
+                    else []
+                )
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
@@ -152,32 +183,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             variant=var, samples=samples
         )
 
-        self.info: dict[str, str] = extract_info(variant=var)
         self.transcript_consequences: list[dict[str, str]] = extract_csq(
-            variant=var, config=config
+            csq_contents=self.info.pop('CSQ'), config=config
         )
 
         # identify variant sets phased with this one
         # cyvcf2 uses a default value for the phase set, skip that
         # this is restricted to a single int for phase_set
-        self.phased = defaultdict(dict)
-
-        # first set the numpy.ndarray to be a list of ints
-        # the zip against ordered sample IDs
-        # this might need to store the exact genotype too
-        # i.e. 0|1 and 1|0 can be in the same phase-set
-        # but are un-phased variants
-        for sample, phase, genotype in zip(
-            samples, map(int, var.format('PS')), var.genotypes
-        ):
-            # cyvcf2.Variant holds two ints, and a bool
-            allele_1, allele_2, phased = genotype
-            if not phased:
-                continue
-            gt = f'{allele_1}|{allele_2}'
-            # phase set is a number
-            if phase != PHASE_SET_DEFAULT:
-                self.phased[sample][phase] = gt
+        self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
 
@@ -185,19 +198,19 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         return repr(self)
 
     @property
-    def category_1_2_3_5(self) -> bool:
+    def has_boolean_categories(self) -> bool:
         """
         check that the variant has at least one assigned class
         :return:
         """
-        return any(
-            [
-                self.category_1,
-                self.category_2,
-                self.category_3,
-                self.category_5,
-            ]
-        )
+        return any(self.info[value] for value in self.boolean_categories)
+
+    @property
+    def has_sample_categories(self) -> bool:
+        """
+        check that the variant has any list-category entries
+        """
+        return any(self.info[value] for value in self.sample_categories)
 
     @property
     def category_non_support(self) -> bool:
@@ -205,16 +218,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         check the variant has at least one non-support category assigned
         :return:
         """
-        return any(
-            [
-                self.category_1,
-                self.category_2,
-                self.category_3,
-                self.category_4,
-                self.category_4b,
-                self.category_5,
-            ]
-        )
+        return self.has_sample_categories or self.has_boolean_categories
 
     @property
     def is_classified(self) -> bool:
@@ -223,17 +227,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         supporting category is considered here
         :return:
         """
-        return any(
-            [
-                self.category_1,
-                self.category_2,
-                self.category_3,
-                self.category_4,
-                self.category_4b,
-                self.category_5,
-                self.category_support,
-            ]
-        )
+        return self.category_non_support or self.has_support
+
+    @property
+    def has_support(self) -> bool:
+        """
+        check for a True flag in any CategorySupport* attribute
+        """
+        return any(self.info[value] for value in self.sample_support)
 
     @property
     def support_only(self) -> bool:
@@ -241,30 +242,23 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         checks that the variant was only class 4
         :return:
         """
-        return self.category_support and not self.category_non_support
+        return self.has_support and not self.category_non_support
 
     def category_values(self, sample: str) -> list[str]:
         """
         get a list values representing the classes present on this variant
         for each category, append that number if the class is present
-        - support is not an int
         - de novo on a per-sample basis
         """
 
-        # for basic categories, append the value if flag is present
         categories = [
-            value
-            for value, category in [
-                ('1', self.category_1),
-                ('2', self.category_2),
-                ('3', self.category_3),
-                ('5', self.category_5),
-                ('in_silico', self.category_support),
-            ]
-            if category
+            bool_cat.replace('CategoryBoolean', '')
+            for bool_cat in self.boolean_categories
+            if self.info[bool_cat]
         ]
+        if self.has_support:
+            categories.append('support')
 
-        # sample-specific check for de novo
         if self.sample_de_novo(sample_id=sample):
             categories.append('de_novo')
 
@@ -277,8 +271,20 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :param sample_id:
         :return:
         """
+        return any(
+            sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
+        )
 
-        return sample_id in self.category_4 or sample_id in self.category_4b
+    def confident_sample_de_novo(self, sample_id: str) -> bool:
+        """
+        return True if the sample is present in all sample lists
+
+        :param sample_id:
+        :return:
+        """
+        return all(
+            sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
+        )
 
     def sample_specific_category_check(self, sample_id: str) -> bool:
         """
@@ -286,7 +292,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :param sample_id:
         :return:
         """
-        return self.category_1_2_3_5 or self.sample_de_novo(sample_id)
+        return self.has_sample_categories or self.sample_de_novo(sample_id)
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
@@ -298,7 +304,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         flag if a de novo is only called by the lenient method
         """
-        if self.sample_de_novo(sample) and sample not in self.category_4b:
+        if self.sample_de_novo(sample) and not self.confident_sample_de_novo(sample):
             return ['Dodgy de novo']
         return []
 
@@ -419,7 +425,7 @@ def gather_gene_dict_from_contig(
             continue
 
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
-        if abs_var.category_2:
+        if abs_var.info.get('CategoryBoolean2'):
             gene_id = abs_var.info.get('gene_id')
             gene_data = panelapp_data.get(gene_id, False)
             if not gene_data:
@@ -516,17 +522,14 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
     return het_samples, hom_samples
 
 
-def extract_csq(variant, config: dict[str, dict[str, str]]):
+def extract_csq(csq_contents, config: dict[str, dict[str, str]]):
     """
     variant is a cyvcf2.Variant
     specifically handle extraction of the CSQ list
-    :param variant:
+    :param csq_contents:
     :param config:
     :return:
     """
-
-    # pull the CSQ content from the variant
-    csq_contents = variant.INFO.get('CSQ')
 
     # allow for no CSQ data, i.e. splice variant
     if not csq_contents:
