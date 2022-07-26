@@ -283,10 +283,9 @@ class HTMLBuilder:
                     family=self.seqr[sample],
                     sample=self.external_map[sample],
                 )
-            elif sample in self.external_map:
-                sample_string = self.external_map[sample]
             else:
-                sample_string = sample
+                sample_string = self.external_map.get(sample, sample)
+
             html_lines.append(fr'<h3>Sample: {sample_string}</h3>')
             html_lines.append(table)
         html_lines.append('\n</body>')
