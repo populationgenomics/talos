@@ -295,11 +295,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :param sample_id:
         :return:
         """
-        return (
-            self.category_non_support
-            or self.has_sample_categories
-            or self.sample_de_novo(sample_id)
-        )
+        return self.category_non_support or self.sample_de_novo(sample_id)
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
