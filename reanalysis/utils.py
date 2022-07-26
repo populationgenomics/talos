@@ -147,18 +147,24 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
         )
 
+        # get all zygosities once per variant
+        # abstraction avoids pulling per-sample calls again later
+        self.het_samples, self.hom_samples = get_non_ref_samples(
+            variant=var, samples=samples
+        )
+
         # overwrite the non-standard cyvcf2 representation
-        self.info: dict[str, Any] = dict(var.INFO)
+        self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
         # set the class attributes
         self.boolean_categories = [
-            key for key in self.info.keys() if key.startswith('CategoryBoolean')
+            key for key in self.info.keys() if key.startswith('categoryboolean')
         ]
         self.sample_categories = [
-            key for key in self.info.keys() if key.startswith('CategorySample')
+            key for key in self.info.keys() if key.startswith('categorysample')
         ]
         self.sample_support = [
-            key for key in self.info.keys() if key.startswith('CategorySupport')
+            key for key in self.info.keys() if key.startswith('categorysupport')
         ]
 
         # overwrite with true booleans
@@ -178,16 +184,10 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
                     else []
                 )
 
-        # get all zygosities once per variant
-        # abstraction avoids pulling per-sample calls again later
-        self.het_samples, self.hom_samples = get_non_ref_samples(
-            variant=var, samples=samples
-        )
-
         self.transcript_consequences: list[dict[str, str]] = []
-        if 'CSQ' in self.info:
+        if 'csq' in self.info:
             self.transcript_consequences = extract_csq(
-                csq_contents=self.info.pop('CSQ'), config=config
+                csq_contents=self.info.pop('csq'), config=config
             )
 
         # identify variant sets phased with this one
@@ -255,7 +255,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
 
         categories = [
-            bool_cat.replace('CategoryBoolean', '')
+            bool_cat.replace('categoryboolean', '')
             for bool_cat in self.boolean_categories
             if self.info[bool_cat]
         ]
@@ -295,7 +295,11 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         :param sample_id:
         :return:
         """
-        return self.has_sample_categories or self.sample_de_novo(sample_id)
+        return (
+            self.category_non_support
+            or self.has_sample_categories
+            or self.sample_de_novo(sample_id)
+        )
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
@@ -428,14 +432,14 @@ def gather_gene_dict_from_contig(
             continue
 
         # if the gene isn't 'new' in PanelApp, remove Class2 flag
-        if abs_var.info.get('CategoryBoolean2'):
+        if abs_var.info.get('categoryboolean2'):
             gene_id = abs_var.info.get('gene_id')
             gene_data = panelapp_data.get(gene_id, False)
             if not gene_data:
                 continue
 
             if not gene_data.get('new', False):
-                variant.info['CategoryBoolean2'] = False
+                variant.info['categoryboolean2'] = False
 
         # if unclassified, skip the whole variant
         if not abs_var.is_classified:

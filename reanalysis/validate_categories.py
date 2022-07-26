@@ -110,8 +110,6 @@ def apply_moi_to_variants(
 
     for gene, variants in variant_dict.items():
 
-        print(len(variants))
-
         comp_het_dict = find_comp_hets(var_list=variants, pedigree=pedigree)
 
         # extract the panel data specific to this gene
@@ -127,6 +125,9 @@ def apply_moi_to_variants(
 
         for variant in variants:
 
+            if not (variant.het_samples or variant.hom_samples):
+                continue
+
             # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
             if variant.category_non_support:
 
@@ -139,7 +140,7 @@ def apply_moi_to_variants(
                     moi_lookup[simple_moi].run(
                         principal_var=variant,
                         comp_het=comp_het_dict,
-                        partial_penetrance=variant.info.get('CategoryBoolean1', False),
+                        partial_penetrance=variant.info.get('categoryboolean1', False),
                     )
                 )
 
