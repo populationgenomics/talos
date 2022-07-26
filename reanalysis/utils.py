@@ -527,7 +527,6 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
 
 def extract_csq(csq_contents, config: dict[str, dict[str, str]]):
     """
-    variant is a cyvcf2.Variant
     specifically handle extraction of the CSQ list
     :param csq_contents:
     :param config:
@@ -547,31 +546,6 @@ def extract_csq(csq_contents, config: dict[str, dict[str, str]]):
         dict(zip(csq_categories, each_csq.split('|')))
         for each_csq in csq_contents.split(',')
     ]
-
-
-def extract_info(variant):
-    """
-    variant is a cyvcf2.Variant
-    creates an INFO dict by pulling content from the variant info
-    keeps a list of dictionaries for each transcript_consequence
-    :param variant:
-    :return:
-    """
-
-    # choose some values to exclude, and keep everything else
-    exclusions = {
-        'csq',
-        'category1',
-        'category2',
-        'category3',
-        'category4',
-        'category4b',
-        'categorysupport',
-        'support_only',
-    }
-
-    # grab the basic information from INFO
-    return {x.lower(): y for x, y in variant.INFO if x.lower() not in exclusions}
 
 
 class CustomEncoder(json.JSONEncoder):
