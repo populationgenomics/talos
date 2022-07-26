@@ -184,9 +184,11 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             variant=var, samples=samples
         )
 
-        self.transcript_consequences: list[dict[str, str]] = extract_csq(
-            csq_contents=self.info.pop('csq'), config=config
-        )
+        self.transcript_consequences: list[dict[str, str]] = []
+        if 'CSQ' in self.info:
+            self.transcript_consequences = extract_csq(
+                csq_contents=self.info.pop('CSQ'), config=config
+            )
 
         # identify variant sets phased with this one
         # cyvcf2 uses a default value for the phase set, skip that
