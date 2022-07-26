@@ -121,9 +121,9 @@ def test_av_categories(trio_abs_variant: AbstractVariant):
     assert trio_abs_variant.category_non_support
     assert trio_abs_variant.has_sample_categories
     assert trio_abs_variant.sample_de_novo('male')
-    assert trio_abs_variant.info.get('CategoryBoolean3')
-    assert not trio_abs_variant.info.get('CategoryBoolean1')
-    assert not trio_abs_variant.info.get('CategoryBoolean2')
+    assert trio_abs_variant.info.get('categoryboolean3')
+    assert not trio_abs_variant.info.get('categoryboolean1')
+    assert not trio_abs_variant.info.get('categoryboolean2')
 
 
 def test_av_phase(trio_abs_variant: AbstractVariant):

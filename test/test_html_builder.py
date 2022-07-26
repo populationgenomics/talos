@@ -12,10 +12,10 @@ def test_numerical_categories():
 
     :return:
     """
-    assert category_strings({}, sample='') == []
-    var_data = {'category_2': True}
+    assert category_strings({'info': {}}, sample='') == []
+    var_data = {'info': {'categoryboolean2': True}}
     assert category_strings(var_data, sample='') == ['2']
-    var_data = {'category_4': ['sam1']}
+    var_data = {'info': {'categorysample4': ['sam1']}}
     assert category_strings(var_data, sample='') == []
     assert category_strings(var_data, sample='sam1') == ['de_novo']
 
