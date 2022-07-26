@@ -88,14 +88,6 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
     # add category default
     category_1: bool = True
 
-    @property
-    def category_1_2_3_5(self):
-        """
-        mock method
-        :return:
-        """
-        return self.category_1
-
     def sample_de_novo(self, sample):
         """
         :param sample:
@@ -108,7 +100,7 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
         :param sample:
         :return:
         """
-        return (sample in self.category_4) or self.category_1_2_3_5
+        return (sample in self.category_4) or self.category_1
 
     def check_ab_ratio(self, sample) -> list[str]:
         """
