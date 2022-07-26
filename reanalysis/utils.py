@@ -114,6 +114,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
         # phase set is a number
         if phase != PHASE_SET_DEFAULT:
             phased_dict[sample][phase] = gt
+
     return dict(phased_dict)
 
 
@@ -154,7 +155,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             key for key in self.info.keys() if key.startswith('CategoryBoolean')
         ]
         self.sample_categories = [
-            key for key in self.info.keys() if key.startswith('CategorySamples')
+            key for key in self.info.keys() if key.startswith('CategorySample')
         ]
         self.sample_support = [
             key for key in self.info.keys() if key.startswith('CategorySupport')
@@ -184,7 +185,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         )
 
         self.transcript_consequences: list[dict[str, str]] = extract_csq(
-            csq_contents=self.info.pop('CSQ'), config=config
+            csq_contents=self.info.pop('csq'), config=config
         )
 
         # identify variant sets phased with this one
