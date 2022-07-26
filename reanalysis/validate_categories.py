@@ -110,6 +110,8 @@ def apply_moi_to_variants(
 
     for gene, variants in variant_dict.items():
 
+        print(len(variants))
+
         comp_het_dict = find_comp_hets(var_list=variants, pedigree=pedigree)
 
         # extract the panel data specific to this gene

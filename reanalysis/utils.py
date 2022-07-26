@@ -435,7 +435,7 @@ def gather_gene_dict_from_contig(
                 continue
 
             if not gene_data.get('new', False):
-                variant.category_2 = False
+                variant.info['CategoryBoolean2'] = False
 
         # if unclassified, skip the whole variant
         if not abs_var.is_classified:
