@@ -10,21 +10,39 @@ Runs within a Hail Batch, as a Hail Query runtime.
 
 ---
 
-Takes an annotated VCF in Hail MatrixTable format, adds category classifications based on the variant annotations.
+Takes an annotated VCF in Hail MatrixTable format, adds category classifications based on the variant annotations. These
+diagrams describe the logic used to select variants into each category. Assignment of each category is independent, and
+variants can have multiple categories assigned.
 
-![Pre-Annotation Filters](images/variant_filtering.png)
+### Pre-category filtering process
 
 This shows the progressive filters applied to each variant to reduce the search space when running the category tests
 
-![Category_1](images/category_1.png)
-![Category_2](images/category_2.png)
-![Category_3](images/category_3.png)
-![Category_4](images/category_4.png)
-![Category_5](images/category_5.png)
-![Category_support](images/category_support.png)
+![Pre-Annotation Filters](images/variant_filtering.png)
 
-These diagrams describe the logic used to select variants into each category. Category assignment is indepedent in each
-case, and variants can have multiple categories assigned.
+### Category 1
+
+![CategoryBoolean1](images/category_1.png)
+
+### Category 2
+
+![CategoryBoolean2](images/category_2.png)
+
+### Category 3
+
+![CategoryBoolean3](images/category_3.png)
+
+### Category 4 (de novo)
+
+![CategorySamples4](images/category_4.png)
+
+### Category 5
+
+![CategoryBoolean5](images/category_5.png)
+
+### Category Support
+
+![CategorySupport](images/category_support.png)
 
 For Category 2, a gene being `New` is contextual. The program permits several methods:
 
@@ -78,3 +96,20 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 7. Concatenate all per-transcript consequences remaining after filters into a single VEP-style `CSQ` field
 
 8. Write the Variants out as a VCF
+
+---
+
+### Types of Category flags
+
+To make downstream operations easier, the different categories are grouped into types. There are currently 3 types:
+
+1. Boolean - The category is a binary flag, either the variant has the flag assigned or does not. These flags are based
+    on the *variant* annotations, so the flag will apply equally to all samples with an alt call at that position
+2. Samples - The category is a list of sample IDs or 'missing'. This type indicates that the flag has been assigned to
+    only the identified samples, rather than all samples with the variant call. An example of this is _de novo_, where
+    the assignment of the flag is conditional on the MOI, so this won't apply to all samples with a variant call. When
+    processing these variants, only variant calls for samples in this list are treated as being categorised
+3. Support - Any flag starting with _CategorySupport_ is treated equally, but inferior to all other Categories. This
+    means that the Support flags are never enough to categorise a variant alone, but may support a separate categorised
+    variant in a compound inheritance MOI. If a variant has a Support flag & non-support flags, it will be treated as an
+    independent variant
