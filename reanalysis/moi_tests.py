@@ -691,10 +691,8 @@ class XRecessive(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=(
-                            principal_var.get_sample_flags(sample_id).extend(
-                                partner_variant.get_sample_flags(sample_id)
-                            ),
+                        flags=principal_var.get_sample_flags(sample_id).extend(
+                            partner_variant.get_sample_flags(sample_id),
                         ),
                     )
                 )

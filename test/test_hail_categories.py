@@ -89,7 +89,7 @@ def test_class_1_assignment(values, classified, hail_matrix):
     )
 
     anno_matrix = annotate_category_1(anno_matrix)
-    assert anno_matrix.info.Category1.collect() == [classified]
+    assert anno_matrix.info.CategoryBoolean1.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -138,7 +138,7 @@ def test_class_2_assignment(values, classified, hail_matrix):
     anno_matrix = annotate_category_2(
         anno_matrix, config=category_conf, new_genes=hl.set(['GREEN'])
     )
-    assert anno_matrix.info.Category2.collect() == [classified]
+    assert anno_matrix.info.CategoryBoolean2.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -184,7 +184,7 @@ def test_class_3_assignment(values, classified, hail_matrix):
     )
 
     anno_matrix = annotate_category_3(anno_matrix, config=category_conf)
-    assert anno_matrix.info.Category3.collect() == [classified]
+    assert anno_matrix.info.CategoryBoolean3.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -202,7 +202,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, hail_matrix):
     )
     conf = {'spliceai_full': 0.5}
     matrix = annotate_category_5(matrix, conf)
-    assert matrix.info.Category5.collect() == [flag]
+    assert matrix.info.CategoryBoolean5.collect() == [flag]
 
 
 @pytest.mark.parametrize(
@@ -385,12 +385,12 @@ def test_filter_to_classified(
     """
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            Category1=one,
-            Category2=two,
-            Category3=three,
-            Category4=four,
-            Category4b=four_b,
-            Category5=five,
+            CategoryBoolean1=one,
+            CategoryBoolean2=two,
+            CategoryBoolean3=three,
+            CategorySample4=four,
+            CategorySample4b=four_b,
+            CategoryBoolean5=five,
             CategorySupport=support,
         )
     )

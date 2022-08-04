@@ -51,11 +51,14 @@ def category_strings(var_data: dict[str, Any], sample: str) -> list[str]:
     :return:
     """
     strings = [
-        category
-        for category in ['1', '2', '3', 'support', '5']
-        if var_data.get(f'category_{category}', False)
+        cat.replace('categoryboolean', '')
+        for cat in var_data['info'].keys()
+        if cat.startswith('categoryboolean') and var_data['info'][cat]
     ]
-    if sample in var_data.get('category_4', []):
+    if var_data['info'].get('categorysupport'):
+        strings.append('support')
+
+    if sample in var_data['info'].get('categorysample4', []):
         strings.append('de_novo')
 
     return strings
