@@ -364,21 +364,20 @@ def test_filter_to_green_genes_and_split__consequence(hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,four_b,five,support,length',
+    'one,two,three,four,five,support,length',
     [
-        (0, 0, 0, 'missing', 'missing', 0, 0, 0),
-        (0, 1, 0, 'missing', 'missing', 0, 0, 1),
-        (0, 0, 1, 'missing', 'missing', 0, 0, 1),
-        (0, 0, 0, 'missing', 'missing', 0, 1, 1),
-        (0, 0, 0, 'missing', 'not_blank', 0, 0, 1),
-        (0, 0, 0, 'not_blank', 'missing', 0, 0, 1),
-        (0, 0, 0, 'missing', 'missing', 1, 0, 1),
-        (0, 1, 1, 'missing', 'missing', 0, 1, 1),
-        (1, 0, 0, 'missing', 'missing', 0, 1, 1),
+        (0, 0, 0, 'missing', 0, 0, 0),
+        (0, 1, 0, 'missing', 0, 0, 1),
+        (0, 0, 1, 'missing', 0, 0, 1),
+        (0, 0, 0, 'missing', 0, 1, 1),
+        (0, 0, 0, 'not_blank', 0, 0, 1),
+        (0, 0, 0, 'missing', 1, 0, 1),
+        (0, 1, 1, 'missing', 0, 1, 1),
+        (1, 0, 0, 'missing', 0, 1, 1),
     ],
 )
 def test_filter_to_classified(
-    one, two, three, four, four_b, five, support, length, hail_matrix
+    one, two, three, four, five, support, length, hail_matrix
 ):
     """
     :param hail_matrix:
@@ -389,7 +388,6 @@ def test_filter_to_classified(
             CategoryBoolean2=two,
             CategoryBoolean3=three,
             CategorySample4=four,
-            CategorySample4b=four_b,
             CategoryBoolean5=five,
             CategorySupport=support,
         )

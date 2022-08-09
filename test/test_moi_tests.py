@@ -50,7 +50,6 @@ class SimpleVariant:
     hom_samples: set[str] = field(default_factory=set)
     category_1: bool = True
     category_4: list[str] = field(default_factory=list)
-    category_4b: list[str] = field(default_factory=list)
     ab_ratios = {'nobody': 1.0}
 
     def sample_specific_category_check(self, sample):
@@ -59,9 +58,7 @@ class SimpleVariant:
         :param sample:
         :return:
         """
-        return (
-            self.category_1 or sample in self.category_4 or sample in self.category_4b
-        )
+        return self.category_1 or sample in self.category_4
 
     def get_sample_flags(self, *args, **kwargs):
         """
@@ -84,7 +81,6 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
     het_samples: set[str] = field(default_factory=set)
     hom_samples: set[str] = field(default_factory=set)
     category_4: list[str] = field(default_factory=list)
-    category_4b: list[str] = field(default_factory=list)
     # add category default
     category_1: bool = True
 
@@ -93,7 +89,7 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
         :param sample:
         :return:
         """
-        return sample in self.category_4 or sample in self.category_4b
+        return sample in self.category_4
 
     def sample_specific_category_check(self, sample):
         """
@@ -118,19 +114,11 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
             return ['AB Ratio']
         return []
 
-    def check_dodgy_de_novo(self, sample: str) -> list[str]:
-        """
-        flag if a de novo is only called by the lenient method
-        """
-        if self.sample_de_novo(sample) and sample not in self.category_4b:
-            return ['Dodgy de novo']
-        return []
-
     def get_sample_flags(self, sample: str):
         """
         gets all report flags for this sample
         """
-        return self.check_ab_ratio(sample) + self.check_dodgy_de_novo(sample)
+        return self.check_ab_ratio(sample)
 
 
 @pytest.mark.parametrize(
@@ -543,7 +531,6 @@ def test_het_de_novo_het_passes(peddy_ped):
         het_samples={'female'},
         coords=Coordinates('x', 1, 'A', 'C'),
         category_4=['female'],
-        category_4b=['female'],
         ab_ratios={'female': 0.5},
     )
     dom_a = DominantAutosomal(pedigree=peddy_ped, config=MOI_CONF)
@@ -569,7 +556,6 @@ def test_het_de_novo_het_passes_flagged(peddy_ped):
     results = dom_a.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
-    assert results[0].flags == ['Dodgy de novo']
 
 
 def test_x_recessive_female_het_fails(peddy_ped):

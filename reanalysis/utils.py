@@ -278,17 +278,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
         )
 
-    def confident_sample_de_novo(self, sample_id: str) -> bool:
-        """
-        return True if the sample is present in all sample lists
-
-        :param sample_id:
-        :return:
-        """
-        return all(
-            sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
-        )
-
     def sample_specific_category_check(self, sample_id: str) -> bool:
         """
 
@@ -301,15 +290,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         gets all report flags for this sample
         """
-        return self.check_ab_ratio(sample) + self.check_dodgy_de_novo(sample)
-
-    def check_dodgy_de_novo(self, sample: str) -> list[str]:
-        """
-        flag if a de novo is only called by the lenient method
-        """
-        if self.sample_de_novo(sample) and not self.confident_sample_de_novo(sample):
-            return ['Dodgy de novo']
-        return []
+        return self.check_ab_ratio(sample)
 
     def check_ab_ratio(self, sample: str) -> list[str]:
         """
