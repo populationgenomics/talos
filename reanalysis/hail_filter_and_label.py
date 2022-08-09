@@ -24,7 +24,6 @@ from peddy import Ped
 from cloudpathlib import AnyPath
 from cpg_utils.hail_batch import init_batch, output_path
 
-from reanalysis.homebrewed import custom_de_novo
 from reanalysis.utils import read_json_from_path
 
 
@@ -107,7 +106,7 @@ def annotate_category_1(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            CategoryBoolean1=hl.if_else(
+            categoryboolean1=hl.if_else(
                 (matrix.info.clinvar_stars > 0)
                 & (matrix.info.clinvar_sig.lower().contains(PATHOGENIC))
                 & ~(matrix.info.clinvar_sig.lower().contains(CONFLICTING))
@@ -138,7 +137,7 @@ def annotate_category_2(
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            CategoryBoolean2=hl.if_else(
+            categoryboolean2=hl.if_else(
                 (new_genes.contains(matrix.geneIds))
                 & (
                     (
@@ -191,7 +190,7 @@ def annotate_category_3(
     # OR allow for a pathogenic ClinVar, any Stars
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            CategoryBoolean3=hl.if_else(
+            categoryboolean3=hl.if_else(
                 (
                     hl.len(
                         matrix.vep.transcript_consequences.filter(
@@ -266,69 +265,62 @@ def filter_by_consequence(
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return matrix.filter_rows(
         (hl.len(matrix.vep.transcript_consequences) > 0)
-        & (matrix.info.CategoryBoolean5 == 0)
+        & (matrix.info.categoryboolean5 == 0)
     )
 
 
 def annotate_category_4(
-    matrix: hl.MatrixTable, config: dict[str, Any], plink_family_file: str
+    mt: hl.MatrixTable, config: dict[str, Any], plink_family_file: str
 ) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
-    We run twice;
-    - once using the Hail builtin method (very strict)
-    - once using the homebrewed method (too lenient?)
-
-    both sets of results will be added as labels
-    if a variant appears in only the lenient set, it will be flagged in the report
-    :param matrix:
-    :param config:
+    uses the Hail builtin method (very strict)
+    :param mt: the whole joint-call MatrixTable
+    :param config: all parameters to use when consequence-filtering
     :param plink_family_file: path to a pedigree in PLINK format
-    :return:
+    :return: mt with Category4 annotations
     """
 
-    logging.info('running de novo search')
+    logging.info('Running de novo search')
 
-    de_novo_matrix = filter_by_consequence(matrix, config)
+    de_novo_matrix = filter_by_consequence(mt, config)
 
     pedigree = hl.Pedigree.read(plink_family_file)
 
     # avoid consequence filtering twice by calling the de novos in a loop
-    for (method, arguments, label) in [
-        (custom_de_novo, {}, 'CategorySample4'),
-        (
-            hl.de_novo,
-            {'pop_frequency_prior': de_novo_matrix.info.gnomad_af},
-            'CategorySample4b',
-        ),
-    ]:
-        # run the selected method
-        dn_table = method(de_novo_matrix, pedigree, **arguments)
+    dn_table = hl.de_novo(
+        de_novo_matrix,
+        pedigree,
+        pop_frequency_prior=mt.info.gnomad_af,
+        ignore_in_sample_allele_frequency=True,
+    )
 
-        # re-key the table by locus,alleles, removing the sampleID from the compound key
-        dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
+    # re-key the table by locus,alleles, removing the sampleID from the compound key
+    dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
 
-        # we only require the key (locus, alleles) and the sample ID
-        # select to remove other fields, then collect per-key into Array of Structs
-        dn_table = dn_table.select(dn_table.id).collect_by_key()
+    # we only require the key (locus, alleles) and the sample ID
+    # select to remove other fields, then collect per-key into Array of Structs
+    dn_table = dn_table.select(dn_table.id).collect_by_key()
 
-        # collect all sample IDs per locus, and squash into a String Array
-        # delimit to compress that Array into single Strings
-        dn_table = dn_table.annotate(
-            values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
+    # collect all sample IDs per locus, and squash into a String Array
+    # delimit to compress that Array into single Strings
+    dn_table = dn_table.annotate(
+        values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
+    )
+
+    # log the number of variants found this way
+    logging.info(f'{dn_table.count()} variants showed de novo inheritance')
+
+    # annotate those values as a flag if relevant, else 'missing'
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            **{
+                'categorysample4': hl.or_else(
+                    dn_table[mt.row_key].values, MISSING_STRING
+                )
+            }
         )
-
-        # log the number of variants found this way
-        logging.info(f'{dn_table.count()} variants showed {label} de novo inheritance')
-
-        # annotate those values as a flag if relevant, else 'missing'
-        matrix = matrix.annotate_rows(
-            info=matrix.info.annotate(
-                **{label: hl.or_else(dn_table[matrix.row_key].values, MISSING_STRING)}
-            )
-        )
-
-    return matrix
+    )
 
 
 def annotate_category_5(
@@ -342,7 +334,7 @@ def annotate_category_5(
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            CategoryBoolean5=hl.if_else(
+            categoryboolean5=hl.if_else(
                 matrix.info.splice_ai_delta >= config['spliceai_full'],
                 ONE_INT,
                 MISSING_INT,
@@ -372,7 +364,7 @@ def annotate_category_support(
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            CategorySupport=hl.if_else(
+            categorysupport=hl.if_else(
                 (
                     (matrix.info.cadd > config['in_silico'].get('cadd'))
                     & (matrix.info.revel > config['in_silico'].get('revel'))
@@ -631,13 +623,12 @@ def filter_to_categorised(matrix: hl.MatrixTable) -> hl.MatrixTable:
     :return: input matrix, minus rows without Categories applied
     """
     return matrix.filter_rows(
-        (matrix.info.CategoryBoolean1 == 1)
-        | (matrix.info.CategoryBoolean2 == 1)
-        | (matrix.info.CategoryBoolean3 == 1)
-        | (matrix.info.CategorySample4 != 'missing')
-        | (matrix.info.CategorySample4b != 'missing')
-        | (matrix.info.CategoryBoolean5 == 1)
-        | (matrix.info.CategorySupport == 1)
+        (matrix.info.categoryboolean1 == 1)
+        | (matrix.info.categoryboolean2 == 1)
+        | (matrix.info.categoryboolean3 == 1)
+        | (matrix.info.categorysample4 != 'missing')
+        | (matrix.info.categoryboolean5 == 1)
+        | (matrix.info.categorysupport == 1)
     )
 
 
