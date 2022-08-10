@@ -340,6 +340,16 @@ class ReportedVariant:
     support_vars: list[str] | None = None
     flags: list[str] | None = None
 
+    def __eq__(self, other):
+        """
+        makes reported variants comparable?
+        """
+        return (
+            self.var_data.coords.string_format == other.var_data.coords.string_format
+            and self.supported == other.supported
+            and self.support_vars == other.support_vars
+        )
+
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
     """

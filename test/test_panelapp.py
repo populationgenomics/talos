@@ -128,7 +128,7 @@ def test_second_panel_update_moi():
     }
     combine_mendeliome_with_other_panels(main, additional)
     assert main['ensg1'].get('flags') == ['NAME']
-    assert main['ensg1'].get('moi') == ['REALLY_BIG']
+    assert main['ensg1'].get('moi') == 'REALLY_BIG'
 
 
 def test_second_panel_no_overlap():
