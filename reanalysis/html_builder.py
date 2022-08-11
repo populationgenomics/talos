@@ -48,7 +48,7 @@ def make_coord_string(var_coord: dict[str, str]) -> str:
     make a quick string representation from vardata
     """
     return (
-        f'{var_coord["chrom"]}:{var_coord["pos"]} {var_coord["ref"]}>{var_coord["alt"]}'
+        f'{var_coord["chrom"]}-{var_coord["pos"]}-{var_coord["ref"]}-{var_coord["alt"]}'
     )
 
 

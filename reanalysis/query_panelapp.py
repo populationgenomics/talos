@@ -179,11 +179,11 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
             # update MOI if None
             if panel_dict[ensg]['moi'] is None:
                 panel_dict[ensg]['moi'] = additional[ensg].get('moi', None)
-
             panel_dict[ensg]['flags'].append(additional_name)
+
         else:
             panel_dict[ensg] = {
-                'symbol': additional[ensg].get('entity_name'),
+                'symbol': additional[ensg].get('symbol'),
                 'moi': additional[ensg].get('moi', None),
                 'new': False,
                 'changed': False,
