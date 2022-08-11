@@ -291,7 +291,7 @@ def annotate_category_4(
     dn_table = hl.de_novo(
         de_novo_matrix,
         pedigree,
-        pop_frequency_prior=mt.info.gnomad_af,
+        pop_frequency_prior=de_novo_matrix.info.gnomad_af,
         ignore_in_sample_allele_frequency=True,
     )
 
