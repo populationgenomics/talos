@@ -505,7 +505,7 @@ def main(
     batch.run(wait=False)
 
     # save the json file into the batch output, with latest run details
-    with AnyPath(output_path('latest_config.json')).open() as handle:
+    with AnyPath(output_path('latest_config.json')).open('w') as handle:
         json.dump(config_dict, handle)
 
     # write pedigree content to the output folder
