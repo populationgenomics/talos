@@ -197,14 +197,14 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
-    additional_panels: list[str] | None = None,
+    extra_panel: tuple[str],
     gene_list: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
-    :param additional_panels:
+    :param extra_panel:
     :param gene_list:
     :param prior_job:
     """
@@ -214,8 +214,8 @@ def handle_panelapp_job(
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
     if gene_list is not None:
         panelapp_command += f'--gene_list {gene_list} '
-    if additional_panels is not None:
-        panelapp_command += f'--panel_id {" ".join(additional_panels)} '
+    if extra_panel is not None and len(extra_panel) != 0:
+        panelapp_command += f'--panel_id {" ".join(extra_panel)} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
@@ -310,13 +310,14 @@ def handle_results_job(
 @click.option('--config_json', help='JSON dict of runtime settings', required=True)
 @click.option('--plink_file', help='Plink file path for the cohort', required=True)
 @click.option(
-    '--panel_genes', help='JSON Gene list for use in analysis', required=False
+    '--extra_panel',
+    help='Any additional panelapp IDs to add to the Mendeliome. '
+    'Multiple can be added as "--extra_panels 123 --extra_panels 456',
+    required=False,
+    multiple=True,
 )
 @click.option(
-    '--additional_panels',
-    help='Any additional panelapp IDs to add to the Mendeliome',
-    required=False,
-    nargs=-1,
+    '--panel_genes', help='JSON Gene list for use in analysis', required=False
 )
 @click.option(
     '--singletons', help='location of a plink file for the singletons', required=False
@@ -331,8 +332,8 @@ def main(
     input_path: str,
     config_json: str,
     plink_file: str,
+    extra_panel: tuple[str],
     panel_genes: str | None = None,
-    additional_panels: list[str] | None = None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -343,7 +344,7 @@ def main(
     :param config_json:
     :param plink_file:
     :param panel_genes:
-    :param additional_panels:
+    :param extra_panel:
     :param singletons:
     :param skip_annotation:
     """
@@ -462,7 +463,7 @@ def main(
     if not AnyPath(PANELAPP_JSON_OUT).exists():
         prior_job = handle_panelapp_job(
             batch=batch,
-            additional_panels=additional_panels,
+            extra_panel=extra_panel,
             gene_list=panel_genes,
             prior_job=prior_job,
         )
