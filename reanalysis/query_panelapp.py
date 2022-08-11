@@ -206,7 +206,6 @@ def main(additional_panels: list[str], out_path: str, gene_list: str | None):
         - absent in provided gene list
     :param additional_panels: op
     :param out_path: path to write a JSON object out to
-    :param previous_version: prior panel version to compare to
     :param gene_list: alternative to prior data, give a strict gene list file
     :return:
     """
@@ -243,7 +242,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument(
         '-p',
-        '--additional_panels',
         nargs='+',
         required=False,
         help='Panelapp IDs of any additional panels to query for',
@@ -259,7 +257,7 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     main(
-        additional_panels=args.additional_panels,
+        additional_panels=args.p,
         out_path=args.out_path,
         gene_list=args.gene_list,
     )

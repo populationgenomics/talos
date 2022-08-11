@@ -215,7 +215,7 @@ def handle_panelapp_job(
     if gene_list is not None:
         panelapp_command += f'--gene_list {gene_list} '
     if extra_panel is not None and len(extra_panel) != 0:
-        panelapp_command += f'--panel_id {" ".join(extra_panel)} '
+        panelapp_command += f'-p {" ".join(extra_panel)} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
