@@ -184,7 +184,6 @@ class HTMLBuilder:
         """
 
         category_count = {key: [] for key in CATEGORY_ORDERING}
-        category_count['any'] = set()
 
         unique_variants = defaultdict(set)
 
@@ -197,10 +196,7 @@ class HTMLBuilder:
 
                 # update all indices; 0 variants for this sample
                 for category_list in category_count.values():
-                    if isinstance(category_list, list):
-                        category_list.append(0)
-                    else:
-                        category_list.add(0)
+                    category_list.append(0)
 
                 continue
 
@@ -224,6 +220,8 @@ class HTMLBuilder:
 
                 # update the set of all unique variants
                 unique_variants['any'].add(var_string)
+
+            category_count['any'].append(len(unique_variants['any']))
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
