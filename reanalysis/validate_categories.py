@@ -122,6 +122,7 @@ def apply_moi_to_variants(
             continue
 
         simple_moi = get_simple_moi(panel_gene_data.get('moi'))
+        additional_panels = panel_gene_data.get('flags')
 
         for variant in variants:
 
@@ -136,20 +137,23 @@ def apply_moi_to_variants(
                 # - use to get appropriate MOI model
                 # - run variant, append relevant classification(s) to the results
                 # NEW - run partially penetrant analysis for Category 1 (clinvar)
-                results.extend(
-                    moi_lookup[simple_moi].run(
-                        principal_var=variant,
-                        comp_het=comp_het_dict,
-                        partial_penetrance=variant.info.get('categoryboolean1', False),
-                    )
+                # adds a flag extension to include any specific panels for this gene
+                variant_reports = moi_lookup[simple_moi].run(
+                    principal_var=variant,
+                    comp_het=comp_het_dict,
+                    partial_penetrance=variant.info.get('categoryboolean1', False),
                 )
+                for var in variant_reports:
+                    var.flags.extend(additional_panels)
+
+                results.extend(variant_reports)
 
     return results
 
 
 def clean_initial_results(
     result_list: List[ReportedVariant], samples: List[str], pedigree: Ped
-) -> Dict[str, Dict[str, ReportedVariant]]:
+) -> Dict[str, list[ReportedVariant]]:
     """
     Possibility 1 variant can be classified multiple ways
     This cleans those to unique for final report
@@ -159,35 +163,20 @@ def clean_initial_results(
     :param pedigree:
     """
 
-    clean_results = defaultdict(dict)
+    clean_results = defaultdict(list)
 
     for each_event in result_list:
-        support_id = (
-            ','.join(sorted(each_event.support_vars))
-            if each_event.support_vars is not None
-            else 'Unsupported'
-        )
-        var_uid = (
-            f'{each_event.var_data.coords.string_format}__'
-            f'{each_event.gene}__'
-            f'{support_id}'
-        )
-
-        # if this variant was already found, combine the selection 'reasons'
-        if var_uid in clean_results[each_event.sample]:
-            # combine any possible reasons
-            clean_results[each_event.sample][var_uid].reasons.update(each_event.reasons)
-
-            # this is a grotty loop, but probably not relevant very often
-            current_genes = set(
-                clean_results[each_event.sample][var_uid].gene.split(',')
-            )
-            current_genes.add(each_event.gene)
-            clean_results[each_event.sample][var_uid].gene = ','.join(current_genes)
-
-        # otherwise insert this variant into the dict
+        if each_event not in clean_results[each_event.sample]:
+            clean_results[each_event.sample].append(each_event)
         else:
-            clean_results[each_event.sample][var_uid] = each_event
+            prev_event_index = clean_results[each_event.sample].index(each_event)
+            prev_event = clean_results[each_event.sample][prev_event_index]
+            prev_event.reasons.update(each_event.reasons)
+            prev_genes = set(prev_event.gene.split(','))
+            prev_genes.add(each_event.gene)
+            prev_event.gene = ','.join(prev_genes)
+            prev_event.flags.extend(each_event.flags)
+            prev_event.flags = list(set(prev_event.flags))
 
     # Empty list for 0 variant samples with affected status
     # explicitly record samples checked in this analysis
@@ -201,7 +190,7 @@ def clean_initial_results(
     ]
     for sample in affected_samples:
         if sample not in clean_results:
-            clean_results[sample] = {}
+            clean_results[sample] = []
 
     return clean_results
 

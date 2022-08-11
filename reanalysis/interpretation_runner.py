@@ -12,12 +12,12 @@ Steps are run only where the specified output does not exist
 i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
-
-
-from typing import Any
+from datetime import datetime
+import json
 import logging
 import os
 import sys
+from typing import Any
 
 import click
 from cloudpathlib import AnyPath, CloudPath
@@ -50,7 +50,7 @@ INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 ANNOTATED_MT = output_path('annotated_variants.mt')
 
 # panelapp query results
-PANELAPP_JSON_OUT = output_path('panelapp_137_data.json')
+PANELAPP_JSON_OUT = output_path('panelapp_data.json')
 
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
@@ -197,26 +197,25 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
+    additional_panels: list[str] | None = None,
     gene_list: str | None = None,
-    prev_version: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
+    :param additional_panels:
     :param gene_list:
-    :param prev_version:
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
     set_job_resources(panelapp_job, auth=True, git=True, prior_job=prior_job)
-    panelapp_command = (
-        f'python3 {QUERY_PANELAPP} --panel_id 137 --out_path {PANELAPP_JSON_OUT} '
-    )
+
+    panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
     if gene_list is not None:
         panelapp_command += f'--gene_list {gene_list} '
-    elif prev_version is not None:
-        panelapp_command += f'--previous_version {prev_version} '
+    if additional_panels is not None:
+        panelapp_command += f'--panel_id {" ".join(additional_panels)} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
@@ -311,10 +310,13 @@ def handle_results_job(
 @click.option('--config_json', help='JSON dict of runtime settings', required=True)
 @click.option('--plink_file', help='Plink file path for the cohort', required=True)
 @click.option(
-    '--panelapp_version', help='compare current with this version', required=False
+    '--panel_genes', help='JSON Gene list for use in analysis', required=False
 )
 @click.option(
-    '--panel_genes', help='JSON Gene list for use in analysis', required=False
+    '--additional_panels',
+    help='Any additional panelapp IDs to add to the Mendeliome',
+    required=False,
+    nargs=-1,
 )
 @click.option(
     '--singletons', help='location of a plink file for the singletons', required=False
@@ -329,8 +331,8 @@ def main(
     input_path: str,
     config_json: str,
     plink_file: str,
-    panelapp_version: str | None = None,
     panel_genes: str | None = None,
+    additional_panels: list[str] | None = None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -341,7 +343,7 @@ def main(
     :param config_json:
     :param plink_file:
     :param panel_genes:
-    :param panelapp_version:
+    :param additional_panels:
     :param singletons:
     :param skip_annotation:
     """
@@ -354,6 +356,13 @@ def main(
     logging.info('Starting the reanalysis batch')
 
     config_dict = read_json_from_path(config_json)
+    config_dict.update(
+        {
+            'latest_run': f'{datetime.now():%Y-%m-%d %H:%M:%S%z}',
+            'input_file': input_path,
+            'panelapp_file': PANELAPP_JSON_OUT,
+        }
+    )
 
     # create output paths with optional suffixes
     vep_stage_tmp = output_path('vep_temp', config_dict.get('tmp_suffix') or None)
@@ -411,6 +420,7 @@ def main(
 
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
+            config_dict.update({'aip_annotated': False})
             # overwrite the expected annotation output path
             global ANNOTATED_MT  # pylint: disable=W0603
             ANNOTATED_MT = input_path
@@ -419,6 +429,7 @@ def main(
             prior_job = mt_to_vcf(
                 batch=batch, input_file=input_path, config=config_dict
             )
+            config_dict.update({'vcf_created': INPUT_AS_VCF})
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
 
@@ -443,14 +454,16 @@ def main(
         )
         prior_job.depends_on(*annotation_jobs)
 
+        config_dict.update({'aip_annotated': True})
+
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
     if not AnyPath(PANELAPP_JSON_OUT).exists():
         prior_job = handle_panelapp_job(
             batch=batch,
+            additional_panels=additional_panels,
             gene_list=panel_genes,
-            prev_version=panelapp_version,
             prior_job=prior_job,
         )
 
@@ -489,6 +502,18 @@ def main(
             prior_job=prior_job,
         )
     batch.run(wait=False)
+
+    # save the json file into the batch output, with latest run details
+    with AnyPath(output_path('latest_config.json')).open() as handle:
+        json.dump(config_dict, handle)
+
+    # write pedigree content to the output folder
+    with AnyPath(output_path('latest_pedigree.fam')).open('w') as handle:
+        handle.writelines(AnyPath(plink_file).open().readlines())
+
+    if singletons:
+        with AnyPath(output_path('latest_singletons.fam')).open('w') as handle:
+            handle.writelines(AnyPath(singletons).open().readlines())
 
 
 if __name__ == '__main__':
