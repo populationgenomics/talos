@@ -206,7 +206,6 @@ class HTMLBuilder:
             # iterate over the list of variants
             for variant in variants:
                 var_string = make_coord_string(variant['var_data']['coords'])
-                category_count['any'].add(var_string)
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
