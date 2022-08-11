@@ -194,16 +194,10 @@ class HTMLBuilder:
         for sample, variants in variant_dictionary.items():
             sample_vars = []
             for variant in variants:
-                # purge any variants where a forbidden gene consequence is seen
-                if any(
-                    {
-                        tx_con['symbol'] in self.forbidden_genes
-                        for tx_con in variant['var_data']['info'][
-                            'transcript_consequences'
-                        ]
-                    }
-                ):
+
+                if variant['gene'] in self.forbidden_genes:
                     continue
+
                 sample_vars.append(variant)
 
             # add any retained variants to the new per-sample list

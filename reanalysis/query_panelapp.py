@@ -148,7 +148,7 @@ def write_output_json(output_path: str, object_to_write: Any):
     AnyPath provides platform abstraction
 
     :param output_path:
-    :param object_to_write:=
+    :param object_to_write:
     """
 
     logging.info(f'Writing output JSON file to {output_path}')
