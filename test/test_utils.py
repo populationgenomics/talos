@@ -7,6 +7,7 @@ import pytest
 from cyvcf2 import VCFReader
 from reanalysis.utils import (
     AbstractVariant,
+    Coordinates,
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_non_ref_samples,
@@ -14,7 +15,64 @@ from reanalysis.utils import (
     read_json_from_path,
     identify_file_type,
     FileTypes,
+    ReportedVariant,
 )
+
+
+def test_coord_sorting():
+    """
+    check that coord sorting methods work
+    """
+    coord_1 = Coordinates('4', 20, 'A', 'C')
+    coord_1b = Coordinates('4', 21, 'A', 'C')
+    coord_1c = Coordinates('4', 21, 'A', 'C')
+    coord_2 = Coordinates('5', 20, 'A', 'C')
+    assert coord_1 < coord_2
+    assert coord_1 < coord_1b
+    assert not coord_1b < coord_1c  # pylint: disable=unneeded-not
+
+
+def test_abs_var_sorting(two_trio_abs_variants: list[AbstractVariant]):
+    """
+    test sorting and equivalence at the AbsVar level
+    """
+
+    var1, var2 = two_trio_abs_variants
+    assert var1 < var2
+    assert var1 == var1  # pylint: disable=comparison-with-itself
+    assert sorted([var2, var1]) == [var1, var2]
+    # not sure if I should be able to just override the chrom...
+    var1.coords.chrom = 'HLA1234'
+    assert var1 > var2
+
+
+def test_reported_variant_ordering(trio_abs_variant):
+    """
+    test that equivalence between Report objects works as exp.
+    """
+    report_1 = ReportedVariant(
+        sample='1',
+        gene='2',
+        var_data=trio_abs_variant,
+        reasons={'test'},
+        supported=False,
+    )
+    report_2 = ReportedVariant(
+        sample='1',
+        gene='2',
+        var_data=trio_abs_variant,
+        reasons={'test'},
+        supported=False,
+    )
+    assert report_1 == report_2
+    report_1.support_vars = ['support']
+    assert report_1 != report_2
+    # set to same and re-check
+    report_2.support_vars = ['support']
+    assert report_1 == report_2
+    # alter sample ID, expected mismatch
+    report_1.sample = '2'
+    assert report_1 != report_2
 
 
 def test_file_types():
