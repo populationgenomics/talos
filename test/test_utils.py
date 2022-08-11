@@ -1,6 +1,7 @@
 """
 test class for the utils collection
 """
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import List
 import pytest
@@ -53,14 +54,14 @@ def test_reported_variant_ordering(trio_abs_variant):
     report_1 = ReportedVariant(
         sample='1',
         gene='2',
-        var_data=trio_abs_variant,
+        var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
         supported=False,
     )
     report_2 = ReportedVariant(
         sample='1',
         gene='2',
-        var_data=trio_abs_variant,
+        var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
         supported=False,
     )
@@ -73,6 +74,10 @@ def test_reported_variant_ordering(trio_abs_variant):
     # alter sample ID, expected mismatch
     report_1.sample = '2'
     assert report_1 != report_2
+    report_2.sample = '2'
+    report_1.var_data.coords.chrom = '1'
+    report_2.var_data.coords.chrom = '11'
+    assert report_1 < report_2
 
 
 def test_file_types():

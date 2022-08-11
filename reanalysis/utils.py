@@ -378,7 +378,7 @@ class ReportedVariant:
 
     def __eq__(self, other):
         """
-        makes reported variants comparable?
+        makes reported variants comparable
         """
         self_supvar = set() if self.support_vars is None else set(self.support_vars)
         other_supvar = set() if other.support_vars is None else set(other.support_vars)
@@ -388,6 +388,9 @@ class ReportedVariant:
             and self.supported == other.supported
             and self_supvar == other_supvar
         )
+
+    def __lt__(self, other):
+        return self.var_data.coords < other.var_data.coords
 
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
