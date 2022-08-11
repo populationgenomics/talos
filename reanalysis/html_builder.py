@@ -197,7 +197,11 @@ class HTMLBuilder:
 
                 # update all indices; 0 variants for this sample
                 for category_list in category_count.values():
-                    category_list.append(0)
+                    if isinstance(category_list, list):
+                        category_list.append(0)
+                    else:
+                        category_list.add(0)
+
                 continue
 
             # create a per-sample object to track variants for each category
