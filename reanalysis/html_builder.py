@@ -251,23 +251,9 @@ class HTMLBuilder:
         """
 
         summary_table, zero_categorised_samples = self.get_summary_stats()
-        html_tables, category_2_genes = self.create_html_tables()
-        category_2_table = self.category_2_table(category_2_genes)
+        html_tables = self.create_html_tables()
 
         html_lines = ['<head>\n</head>\n<body>\n']
-
-        if category_2_table:
-            html_lines.extend(
-                [
-                    '<h3>MOI changes used for Cat.2</h3>',
-                    category_2_table,
-                    '<br/>',
-                    f'<h3>Samples without Categorised Variants '
-                    f'({len(zero_categorised_samples)})</h3>',
-                ]
-            )
-        else:
-            html_lines.append('<h3>No Cat.2 variants found</h3>')
 
         if len(zero_categorised_samples) > 0:
             html_lines.append(f'<h5>{", ".join(zero_categorised_samples)}</h3>')
@@ -311,8 +297,6 @@ class HTMLBuilder:
         candidate_dictionaries = {}
         sample_tables = {}
 
-        category_2_genes = set()
-
         for sample, variants in self.results.items():
             for variant in variants:
 
@@ -323,9 +307,6 @@ class HTMLBuilder:
                 variant_categories = category_strings(
                     variant['var_data'], sample=sample
                 )
-
-                if '2' in variant_categories:
-                    category_2_genes.update(set(variant['gene'].split(',')))
 
                 csq_string, mane_string = get_csq_details(variant)
                 candidate_dictionaries.setdefault(variant['sample'], []).append(
@@ -387,38 +368,7 @@ class HTMLBuilder:
                 index=False, render_links=True, escape=False
             )
 
-        return sample_tables, category_2_genes
-
-    def category_2_table(self, category_2_variants: set[str]) -> str:
-        """
-        takes all Cat. 2 variants, and documents relevant genes
-        cat. 2 is now 'new genes', not 'new, or altered MOI'
-        table altered to account for this changed purpose
-
-        :param category_2_variants:
-        :return:
-        """
-
-        if len(category_2_variants) == 0:
-            return ''
-
-        current_key = (
-            f'MOI in v{self.panelapp["panel_metadata"].get("current_version")}'
-        )
-
-        gene_dicts = []
-        for gene in category_2_variants:
-            gene_data = self.panelapp.get(gene)
-            gene_dicts.append(
-                {
-                    'gene': gene,
-                    'symbol': PANELAPP_TEMPLATE.format(symbol=gene_data.get('symbol')),
-                    current_key: gene_data.get('moi'),
-                }
-            )
-        return pd.DataFrame(gene_dicts).to_html(
-            index=False, render_links=True, escape=False
-        )
+        return sample_tables
 
     def make_seqr_link(self, var_string: str, sample: str) -> str:
         """
