@@ -151,9 +151,18 @@ class HTMLBuilder:
         :param config:
         :param pedigree:
         """
-        self.results = read_json_from_path(results_dict)
 
         self.config = read_json_from_path(config)['output']
+
+        # if it exists, read the forbidden genes as a set
+        self.forbidden_genes = (
+            set(read_json_from_path(self.config.get('forbidden')))
+            if self.config.get('forbidden') is not None
+            else set()
+        )
+
+        # pre-filter the results to remove forbidden genes
+        self.results = self.remove_forbidden_genes(read_json_from_path(results_dict))
 
         # map of internal:external IDs for translation in results (optional)
         ext_lookup = self.config.get('external_lookup')
@@ -174,6 +183,33 @@ class HTMLBuilder:
 
         self.panelapp = read_json_from_path(panelapp_data)
         self.pedigree = Ped(pedigree)
+
+    def remove_forbidden_genes(
+        self, variant_dictionary: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        takes the results from the analysis and purges forbidden-gene variants
+        """
+        clean_results = defaultdict(list[dict[str, Any]])
+        for sample, variants in variant_dictionary.items():
+            sample_vars = []
+            for variant in variants:
+                # purge any variants where a forbidden gene consequence is seen
+                if any(
+                    {
+                        tx_con['symbol'] in self.forbidden_genes
+                        for tx_con in variant['var_data']['info'][
+                            'transcript_consequences'
+                        ]
+                    }
+                ):
+                    continue
+                sample_vars.append(variant)
+
+            # add any retained variants to the new per-sample list
+            clean_results[sample] = sample_vars
+
+        return clean_results
 
     def get_summary_stats(
         self,
