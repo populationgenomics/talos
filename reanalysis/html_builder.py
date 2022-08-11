@@ -43,6 +43,15 @@ COLORS = {
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
 
 
+def make_coord_string(var_coord: dict[str, str]) -> str:
+    """
+    make a quick string representation from vardata
+    """
+    return (
+        f'{var_coord["chrom"]}:{var_coord["pos"]} {var_coord["ref"]}>{var_coord["alt"]}'
+    )
+
+
 def category_strings(var_data: dict[str, Any], sample: str) -> list[str]:
     """
     get a list of strings representing the categories present on this variant
@@ -135,6 +144,7 @@ class HTMLBuilder:
         pedigree: Ped,
     ):
         """
+        before parsing data, purge any forbidden genes
 
         :param results_dict:
         :param panelapp_data:
@@ -174,6 +184,8 @@ class HTMLBuilder:
         """
 
         category_count = {key: [] for key in CATEGORY_ORDERING}
+        category_count['any'] = set()
+
         unique_variants = defaultdict(set)
 
         samples_with_no_variants = []
@@ -188,20 +200,13 @@ class HTMLBuilder:
                     category_list.append(0)
                 continue
 
-            # how many variants were attached to this sample?
-            # this set is for chr-pos-ref-alt
-            # i.e. don't double-count if the variant is dominant and compound-het
-            category_count['any'].append(
-                len({key.split('__')[0] for key in variants.keys()})
-            )
-
             # create a per-sample object to track variants for each category
             sample_count = defaultdict(int)
 
-            # iterate over the variants
-            for var_key, variant in variants.items():
-
-                var_string = var_key.split('__')[0]
+            # iterate over the list of variants
+            for variant in variants:
+                var_string = make_coord_string(variant['var_data']['coords'])
+                category_count['any'].add(var_string)
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
@@ -308,10 +313,10 @@ class HTMLBuilder:
         category_2_genes = set()
 
         for sample, variants in self.results.items():
-            for var_key, variant in variants.items():
+            for variant in variants:
 
                 # pull out the string representation
-                var_string = var_key.split('__')[0]
+                var_string = make_coord_string(variant['var_data']['coords'])
 
                 # find list of all categories assigned
                 variant_categories = category_strings(
