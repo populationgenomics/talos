@@ -220,8 +220,7 @@ class HTMLBuilder:
         """
 
         category_count = {key: [] for key in CATEGORY_ORDERING}
-
-        unique_variants = defaultdict(set)
+        unique_variants = {key: set() for key in CATEGORY_ORDERING}
 
         samples_with_no_variants = []
 
@@ -230,18 +229,13 @@ class HTMLBuilder:
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
 
-                # update all indices; 0 variants for this sample
-                for category_list in category_count.values():
-                    category_list.append(0)
-
-                continue
-
-            # create a per-sample object to track variants for each category
-            sample_count = defaultdict(int)
+            sample_variants = {key: set() for key in CATEGORY_ORDERING}
 
             # iterate over the list of variants
             for variant in variants:
                 var_string = make_coord_string(variant['var_data']['coords'])
+                unique_variants['any'].add(var_string)
+                sample_variants['any'].add(var_string)
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
@@ -250,19 +244,18 @@ class HTMLBuilder:
                 ):
                     if category_value == 'support':
                         continue
-                    sample_count[category_value] += 1
+                    sample_variants[category_value].add(var_string)
                     unique_variants[category_value].add(var_string)
 
-                # update the set of all unique variants
-                unique_variants['any'].add(var_string)
-
-            category_count['any'].append(len(unique_variants['any']))
+            category_count['any'].append(len(sample_variants['any']))
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
-                if key == 'any':
-                    continue
-                key_list.append(sample_count[key])
+                key_list.append(len(sample_variants[key]))
+
+        print(sample_variants)
+        print(unique_variants)
+        print(category_count)
 
         summary_dicts = [
             {
@@ -363,7 +356,7 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'flags': ','.join(variant['flags']),
+                        'flags': ', '.join(variant['flags']),
                         'categories': ', '.join(
                             list(
                                 map(
