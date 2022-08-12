@@ -1,7 +1,7 @@
 """
 Methods for taking the final output and generating static report content
 """
-
+import logging
 from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
@@ -160,6 +160,9 @@ class HTMLBuilder:
             if self.config.get('forbidden') is not None
             else set()
         )
+        print(self.forbidden_genes)
+
+        logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # pre-filter the results to remove forbidden genes
         self.results = self.remove_forbidden_genes(read_json_from_path(results_dict))
@@ -194,8 +197,8 @@ class HTMLBuilder:
         for sample, variants in variant_dictionary.items():
             sample_vars = []
             for variant in variants:
-
                 for gene_id in variant['gene'].split(','):
+                    print(gene_id)
                     if gene_id in self.forbidden_genes:
                         continue
 
@@ -291,8 +294,10 @@ class HTMLBuilder:
             html_lines.append(f'<h4>{", ".join(self.forbidden_genes)}</h4>')
         else:
             html_lines.append('<h3>No Forbidden Genes</h3>')
+        html_lines.append('<br/>')
 
         if len(zero_categorised_samples) > 0:
+            html_lines.append('<h3>Samples with no Reportable Variants</h3>')
             html_lines.append(f'<h4>{", ".join(zero_categorised_samples)}</h3>')
         html_lines.append('<br/>')
 
