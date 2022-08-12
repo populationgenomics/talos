@@ -253,10 +253,6 @@ class HTMLBuilder:
             for key, key_list in category_count.items():
                 key_list.append(len(sample_variants[key]))
 
-        print(sample_variants)
-        print(unique_variants)
-        print(category_count)
-
         summary_dicts = [
             {
                 'Category': key,
