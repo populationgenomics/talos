@@ -195,8 +195,9 @@ class HTMLBuilder:
             sample_vars = []
             for variant in variants:
 
-                if variant['gene'] in self.forbidden_genes:
-                    continue
+                for gene_id in variant['gene'].split(','):
+                    if gene_id in self.forbidden_genes:
+                        continue
 
                 sample_vars.append(variant)
 
@@ -285,8 +286,14 @@ class HTMLBuilder:
 
         html_lines = ['<head>\n</head>\n<body>\n']
 
+        if self.forbidden_genes:
+            html_lines.append('<h3>Forbidden Gene IDs:</h3>')
+            html_lines.append(f'<h4>{", ".join(self.forbidden_genes)}</h4>')
+        else:
+            html_lines.append('<h3>No Forbidden Genes</h3>')
+
         if len(zero_categorised_samples) > 0:
-            html_lines.append(f'<h5>{", ".join(zero_categorised_samples)}</h3>')
+            html_lines.append(f'<h4>{", ".join(zero_categorised_samples)}</h3>')
         html_lines.append('<br/>')
 
         html_lines.append('<h3>Per-Category summary</h3>')
