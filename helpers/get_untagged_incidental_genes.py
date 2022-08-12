@@ -2,20 +2,15 @@
 
 
 """
-PanelApp Parser for Reanalysis project
+PanelApp Forbidden gene parser
+Targets the Incidentalome, and finds all genes
+- green
+- not tagged as cardiac
 
- Takes a panel ID
-Pulls latest 'green' content; Symbol, ENSG, and MOI
-
-Optionally user can provide a panel version number in the past
-Pull all details from the earlier version
-Annotate all discrepancies between earlier and current
-
-Optionally user can provide path to a JSON gene list
-Annotate all genes in current panel and not the gene list
-
-Write all output to a JSON dictionary
+Makes them into a JSON list of forbidden content
+(to be scrubbed out of any report)
 """
+
 import json
 import sys
 
