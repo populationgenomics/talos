@@ -29,14 +29,15 @@ if __name__ == '__main__':
 
     problem_genes = []
     for gene in panel_json['genes']:
+        if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene':
+            continue
         if gene['tags'] != ['cardiac']:
             for build, content in gene['gene_data']['ensembl_genes'].items():
                 if build.lower() == 'grch38':
                     # the ensembl version may alter over time, but will be singular
                     ensg = content[list(content.keys())[0]]['ensembl_id']
                     if not ensg:
-                        print('FAIL!')
-                        print(gene)
+                        print(f'FAIL! {gene}')
                         sys.exit(1)
                     problem_genes.append(ensg)
 

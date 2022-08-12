@@ -153,14 +153,18 @@ class HTMLBuilder:
         """
 
         self.config = read_json_from_path(config)['output']
+        self.panelapp = read_json_from_path(panelapp_data)
+        self.pedigree = Ped(pedigree)
 
         # if it exists, read the forbidden genes as a set
         self.forbidden_genes = (
-            set(read_json_from_path(self.config.get('forbidden')))
+            {
+                ensg: self.panelapp[ensg]['symbol']
+                for ensg in set(read_json_from_path(self.config.get('forbidden')))
+            }
             if self.config.get('forbidden') is not None
-            else set()
+            else {}
         )
-        print(self.forbidden_genes)
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
@@ -184,9 +188,6 @@ class HTMLBuilder:
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
-        self.panelapp = read_json_from_path(panelapp_data)
-        self.pedigree = Ped(pedigree)
-
     def remove_forbidden_genes(
         self, variant_dictionary: dict[str, Any]
     ) -> dict[str, Any]:
@@ -197,12 +198,13 @@ class HTMLBuilder:
         for sample, variants in variant_dictionary.items():
             sample_vars = []
             for variant in variants:
+                skip_variant = False
                 for gene_id in variant['gene'].split(','):
-                    print(gene_id)
-                    if gene_id in self.forbidden_genes:
+                    if gene_id in self.forbidden_genes.keys():
+                        skip_variant = True
                         continue
-
-                sample_vars.append(variant)
+                if not skip_variant:
+                    sample_vars.append(variant)
 
             # add any retained variants to the new per-sample list
             clean_results[sample] = sample_vars
@@ -290,8 +292,13 @@ class HTMLBuilder:
         html_lines = ['<head>\n</head>\n<body>\n']
 
         if self.forbidden_genes:
+            # this should be sorted/arranged better
+            forbidden_list = [
+                f'{ensg} ({self.forbidden_genes[ensg]})'
+                for ensg in self.forbidden_genes.keys()
+            ]
             html_lines.append('<h3>Forbidden Gene IDs:</h3>')
-            html_lines.append(f'<h4>{", ".join(self.forbidden_genes)}</h4>')
+            html_lines.append(f'<h4>{", ".join(forbidden_list)}</h4>')
         else:
             html_lines.append('<h3>No Forbidden Genes</h3>')
         html_lines.append('<br/>')

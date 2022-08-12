@@ -178,6 +178,10 @@ def clean_initial_results(
             prev_event.flags.extend(each_event.flags)
             prev_event.flags = list(set(prev_event.flags))
 
+    # organise the variants by chromosomal location
+    for sample in clean_results:
+        clean_results[sample].sort()
+
     # Empty list for 0 variant samples with affected status
     # explicitly record samples checked in this analysis
     # the PED could have more samples than a joint call, due to sub-setting or QC.
