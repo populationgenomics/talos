@@ -1,19 +1,12 @@
 # MOI Checks
 
-Following the labelling and VCF re-headering, we have a heavily filtered VCF file containing all the required
-labels and annotations. Combining this information with the pedigree, we can iterate through each of the variants, and
-check if the evidence supports the PanelApp suggested Mode Of Inheritance for the corresponding gene.
-
-For each participant, we compile a list of variants where the inheritance model matches the PanelApp MOI, e.g.
+Following the category labelling stage, we have a heavily filtered VCF. Combining this information with the pedigree, we
+iterate through each variant and check if the gene's PanelApp MOI fits for any samples. For each participant, we compile
+a list of variants where the inheritance model matches the PanelApp MOI, e.g.
 
 - Variants in Monoallelic genes must pass additional population frequency filters
 - Biallelic variants must be Homozygous or supported by a 'second-hit'
 - X-Hemizygous variants must be monoallelic in males, and biallelic in females
-
-## Extensions post MVP
-
-1. Enable partially penetrant disease/affection-status
-2. Familial inheritance checks using a supplied pedigree file
 
 ---
 
@@ -207,3 +200,12 @@ which will generate a reported variant structure for the sample(s) which passed 
 
 *Note*: if multiple samples have variants at a locus, Cat. 4 is only confirmed where the sample IDs are within that Cat.
 4 list, showing that they were subject to all tests relevant to _de novo_ status.
+
+## Flags
+
+When a reportable event is found, a JSON blob representing the variant and sample is created. If the relevant gene was
+in one or more of the additional panels requested (see [additional panels](PanelApp_interaction.md#additional-panels)),
+the names/IDs of those panels are appended to the list of any variant-specific panels.
+
+This leaves us the flexibility to mark individual samples/families as having disease-relevant panels, which can then be
+cross-referenced against these flags for visual emphasis in the final report.

@@ -24,7 +24,7 @@ Annotation is currently built around the resource bundle structure defined in [h
 This allows us to leverage the Broad's resource packaging tools, whilst allowing us the flexibility to update and alter
 data sources as & when we see fit.
 
-The annotation resource structure is currently set rigidly, using the following structure:
+The annotation resources use the following structure:
 
 ```text
 reference_location/
