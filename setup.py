@@ -34,14 +34,14 @@ setup(
         'full': [
             'click==8.0.4',
             'cloudpathlib[all]==0.9.0',
-            'cpg-utils==4.4.3',
+            'cpg-utils==4.4.4',
             'dill==0.3.5.1',
             'hail==0.2.96',
             'Jinja2==3.0.3',
             'pandas==1.4.3',
             'peddy==0.4.8',
             'requests==2.25.1',
-            'sample-metadata==4.13.0',
+            'sample-metadata==4.14.0',
             'seqr-loader==1.2.5',
         ],
         'test': [

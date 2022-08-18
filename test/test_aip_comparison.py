@@ -371,7 +371,7 @@ def test_variant_is_normalised(
     :param hail_matrix:
     :return:
     """
-    anno_mt = hail_matrix.annotate_rows(alleles=alleles)
+    anno_mt = hail_matrix.key_rows_by(hail_matrix.locus).annotate_rows(alleles=alleles)
     assert check_variant_was_normalised(anno_mt) == results
 
 

@@ -166,7 +166,7 @@ def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
     # collect all per-sample results into a separate index
     for sample, variants in results_dict.items():
 
-        for var in variants.values():
+        for var in variants:
             coords = var['var_data']['coords']
             sample_dict[sample].append(
                 CommonFormatResult(
