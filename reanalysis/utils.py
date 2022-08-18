@@ -29,6 +29,13 @@ HOMALT: int = 3
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 
 PHASE_SET_DEFAULT = -2147483648
+CHROM_ORDER = list(map(str, range(1, 23))) + [
+    'X',
+    'Y',
+    'MT',
+    'M',
+]
+
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
 
@@ -90,6 +97,29 @@ class Coordinates:
         chr-pos-ref-alt
         """
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
+
+    def __lt__(self, other):
+        """
+        positional sorting
+        """
+        # this will return False for same chrom and position
+        if self.chrom == other.chrom:
+            return self.pos < other.pos
+        # otherwise take the relative index from sorted chromosomes list
+        if self.chrom in CHROM_ORDER and other.chrom in CHROM_ORDER:
+            return CHROM_ORDER.index(self.chrom) < CHROM_ORDER.index(other.chrom)
+        # if self is on a canonical chromosome, sort before HLA/Decoy etc.
+        if self.chrom in CHROM_ORDER:
+            return True
+        return False
+
+    def __eq__(self, other):
+        return (
+            self.chrom == other.chrom
+            and self.pos == other.pos
+            and self.ref == other.ref
+            and self.alt == other.alt
+        )
 
 
 def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
@@ -199,6 +229,12 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def __str__(self):
         return repr(self)
+
+    def __lt__(self, other):
+        return self.coords < other.coords
+
+    def __eq__(self, other):
+        return self.coords == other.coords
 
     @property
     def has_boolean_categories(self) -> bool:
@@ -340,6 +376,22 @@ class ReportedVariant:
     support_vars: list[str] | None = None
     flags: list[str] | None = None
 
+    def __eq__(self, other):
+        """
+        makes reported variants comparable
+        """
+        self_supvar = set() if self.support_vars is None else set(self.support_vars)
+        other_supvar = set() if other.support_vars is None else set(other.support_vars)
+        return (
+            self.sample == other.sample
+            and self.var_data.coords == other.var_data.coords
+            and self.supported == other.supported
+            and self_supvar == other_supvar
+        )
+
+    def __lt__(self, other):
+        return self.var_data.coords < other.var_data.coords
+
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
     """
@@ -416,7 +468,7 @@ def gather_gene_dict_from_contig(
                 continue
 
             if not gene_data.get('new', False):
-                variant.info['categoryboolean2'] = False
+                abs_var.info['categoryboolean2'] = False
 
         # if unclassified, skip the whole variant
         if not abs_var.is_classified:

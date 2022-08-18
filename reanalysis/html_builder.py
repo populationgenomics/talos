@@ -1,7 +1,7 @@
 """
 Methods for taking the final output and generating static report content
 """
-
+import logging
 from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
@@ -41,6 +41,15 @@ COLORS = {
     'support': '#00FF08',
 }
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
+
+
+def make_coord_string(var_coord: dict[str, str]) -> str:
+    """
+    make a quick string representation from vardata
+    """
+    return (
+        f'{var_coord["chrom"]}-{var_coord["pos"]}-{var_coord["ref"]}-{var_coord["alt"]}'
+    )
 
 
 def category_strings(var_data: dict[str, Any], sample: str) -> list[str]:
@@ -135,15 +144,32 @@ class HTMLBuilder:
         pedigree: Ped,
     ):
         """
+        before parsing data, purge any forbidden genes
 
         :param results_dict:
         :param panelapp_data:
         :param config:
         :param pedigree:
         """
-        self.results = read_json_from_path(results_dict)
 
         self.config = read_json_from_path(config)['output']
+        self.panelapp = read_json_from_path(panelapp_data)
+        self.pedigree = Ped(pedigree)
+
+        # if it exists, read the forbidden genes as a set
+        self.forbidden_genes = (
+            {
+                ensg: self.panelapp[ensg]['symbol']
+                for ensg in set(read_json_from_path(self.config.get('forbidden')))
+            }
+            if self.config.get('forbidden') is not None
+            else {}
+        )
+
+        logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
+
+        # pre-filter the results to remove forbidden genes
+        self.results = self.remove_forbidden_genes(read_json_from_path(results_dict))
 
         # map of internal:external IDs for translation in results (optional)
         ext_lookup = self.config.get('external_lookup')
@@ -162,8 +188,28 @@ class HTMLBuilder:
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
-        self.panelapp = read_json_from_path(panelapp_data)
-        self.pedigree = Ped(pedigree)
+    def remove_forbidden_genes(
+        self, variant_dictionary: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        takes the results from the analysis and purges forbidden-gene variants
+        """
+        clean_results = defaultdict(list[dict[str, Any]])
+        for sample, variants in variant_dictionary.items():
+            sample_vars = []
+            for variant in variants:
+                skip_variant = False
+                for gene_id in variant['gene'].split(','):
+                    if gene_id in self.forbidden_genes.keys():
+                        skip_variant = True
+                        continue
+                if not skip_variant:
+                    sample_vars.append(variant)
+
+            # add any retained variants to the new per-sample list
+            clean_results[sample] = sample_vars
+
+        return clean_results
 
     def get_summary_stats(
         self,
@@ -174,7 +220,7 @@ class HTMLBuilder:
         """
 
         category_count = {key: [] for key in CATEGORY_ORDERING}
-        unique_variants = defaultdict(set)
+        unique_variants = {key: set() for key in CATEGORY_ORDERING}
 
         samples_with_no_variants = []
 
@@ -183,25 +229,13 @@ class HTMLBuilder:
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
 
-                # update all indices; 0 variants for this sample
-                for category_list in category_count.values():
-                    category_list.append(0)
-                continue
+            sample_variants = {key: set() for key in CATEGORY_ORDERING}
 
-            # how many variants were attached to this sample?
-            # this set is for chr-pos-ref-alt
-            # i.e. don't double-count if the variant is dominant and compound-het
-            category_count['any'].append(
-                len({key.split('__')[0] for key in variants.keys()})
-            )
-
-            # create a per-sample object to track variants for each category
-            sample_count = defaultdict(int)
-
-            # iterate over the variants
-            for var_key, variant in variants.items():
-
-                var_string = var_key.split('__')[0]
+            # iterate over the list of variants
+            for variant in variants:
+                var_string = make_coord_string(variant['var_data']['coords'])
+                unique_variants['any'].add(var_string)
+                sample_variants['any'].add(var_string)
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
@@ -210,17 +244,14 @@ class HTMLBuilder:
                 ):
                     if category_value == 'support':
                         continue
-                    sample_count[category_value] += 1
+                    sample_variants[category_value].add(var_string)
                     unique_variants[category_value].add(var_string)
 
-                # update the set of all unique variants
-                unique_variants['any'].add(var_string)
+            category_count['any'].append(len(sample_variants['any']))
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
-                if key == 'any':
-                    continue
-                key_list.append(sample_count[key])
+                key_list.append(len(sample_variants[key]))
 
         summary_dicts = [
             {
@@ -245,26 +276,25 @@ class HTMLBuilder:
         """
 
         summary_table, zero_categorised_samples = self.get_summary_stats()
-        html_tables, category_2_genes = self.create_html_tables()
-        category_2_table = self.category_2_table(category_2_genes)
+        html_tables = self.create_html_tables()
 
         html_lines = ['<head>\n</head>\n<body>\n']
 
-        if category_2_table:
-            html_lines.extend(
-                [
-                    '<h3>MOI changes used for Cat.2</h3>',
-                    category_2_table,
-                    '<br/>',
-                    f'<h3>Samples without Categorised Variants '
-                    f'({len(zero_categorised_samples)})</h3>',
-                ]
-            )
+        if self.forbidden_genes:
+            # this should be sorted/arranged better
+            forbidden_list = [
+                f'{ensg} ({self.forbidden_genes[ensg]})'
+                for ensg in self.forbidden_genes.keys()
+            ]
+            html_lines.append('<h3>Forbidden Gene IDs:</h3>')
+            html_lines.append(f'<h4>{", ".join(forbidden_list)}</h4>')
         else:
-            html_lines.append('<h3>No Cat.2 variants found</h3>')
+            html_lines.append('<h3>No Forbidden Genes</h3>')
+        html_lines.append('<br/>')
 
         if len(zero_categorised_samples) > 0:
-            html_lines.append(f'<h5>{", ".join(zero_categorised_samples)}</h3>')
+            html_lines.append('<h3>Samples with no Reportable Variants</h3>')
+            html_lines.append(f'<h4>{", ".join(zero_categorised_samples)}</h3>')
         html_lines.append('<br/>')
 
         html_lines.append('<h3>Per-Category summary</h3>')
@@ -305,21 +335,16 @@ class HTMLBuilder:
         candidate_dictionaries = {}
         sample_tables = {}
 
-        category_2_genes = set()
-
         for sample, variants in self.results.items():
-            for var_key, variant in variants.items():
+            for variant in variants:
 
                 # pull out the string representation
-                var_string = var_key.split('__')[0]
+                var_string = make_coord_string(variant['var_data']['coords'])
 
                 # find list of all categories assigned
                 variant_categories = category_strings(
                     variant['var_data'], sample=sample
                 )
-
-                if '2' in variant_categories:
-                    category_2_genes.update(set(variant['gene'].split(',')))
 
                 csq_string, mane_string = get_csq_details(variant)
                 candidate_dictionaries.setdefault(variant['sample'], []).append(
@@ -327,7 +352,7 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'flags': ','.join(variant['flags']),
+                        'flags': ', '.join(variant['flags']),
                         'categories': ', '.join(
                             list(
                                 map(
@@ -381,38 +406,7 @@ class HTMLBuilder:
                 index=False, render_links=True, escape=False
             )
 
-        return sample_tables, category_2_genes
-
-    def category_2_table(self, category_2_variants: set[str]) -> str:
-        """
-        takes all Cat. 2 variants, and documents relevant genes
-        cat. 2 is now 'new genes', not 'new, or altered MOI'
-        table altered to account for this changed purpose
-
-        :param category_2_variants:
-        :return:
-        """
-
-        if len(category_2_variants) == 0:
-            return ''
-
-        current_key = (
-            f'MOI in v{self.panelapp["panel_metadata"].get("current_version")}'
-        )
-
-        gene_dicts = []
-        for gene in category_2_variants:
-            gene_data = self.panelapp.get(gene)
-            gene_dicts.append(
-                {
-                    'gene': gene,
-                    'symbol': PANELAPP_TEMPLATE.format(symbol=gene_data.get('symbol')),
-                    current_key: gene_data.get('moi'),
-                }
-            )
-        return pd.DataFrame(gene_dicts).to_html(
-            index=False, render_links=True, escape=False
-        )
+        return sample_tables
 
     def make_seqr_link(self, var_string: str, sample: str) -> str:
         """

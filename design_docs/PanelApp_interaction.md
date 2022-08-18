@@ -10,17 +10,27 @@ a traffic light system:
 * Green (strong evidence linking gene to theme)
 
 For this project, we will focus analysis on a specific list of genes associated strongly with mendelian
-disease. The Gene list we will use is the [Mendeliome Gene Panel](https://panelapp.agha.umccr.org/panels/137/).
+disease, with an option to supplement this gene list with any number of additional PanelApp entries.
+The Gene list we will use as the spine of the analysis is the [Mendeliome](https://panelapp.agha.umccr.org/panels/137/).
 
 During an analysis run, the [Query Script](../reanalysis/query_panelapp.py) is used to pull down the latest data
-for the mendeliome panel (gene ENSG, symbol, and Mode of Inheritance). This is saved as a dictionary indexed on
-the ENSG
+for the Mendeliome panel (gene ENSG, symbol, and Mode of Inheritance). This is saved as a dictionary indexed on
+GRCh38/Ensembl 90 ENSG.
 
-One key use case for this application is to chart the differences in gene list(s) over time. This script provides
-two key ways to do this:
+## Additional Panels
 
-1. Provide a prior version as a command line argument. If this is done, the script will parse the Mendeliome's
-content at the indicated version. Using this as comparison data, the 'latest' data is annotated with whether the
-gene is newly green, or if the MOI has changed (new and previous both present).
-2. Provide a path to a gene list file. This will be a JSON file containing a single list of Strings. the 'latest'
-data will be annotated with `new=True` if the PanelApp gene doesn't appear in the provided gene list
+If additional gene panel IDs are requested, the following steps are followed:
+
+* the new panel's content is retrieved from PanelApp
+* the Mendeliome (base) data is updated per-gene with new content
+  * if a gene was on the mendeliome, add a `flag` with the additional panel ID/name
+  * if a gene was on the mendeliome with no MOI, and the subsequent panel contains an MOI, update the MOI
+  * if a gene was not on the mendeliome, add a new gene entry with the panel ID as a flag
+* if multiple additional panels are added, this is repeated for each (extending `flags` for each panel a gene overlaps with)
+
+## New Genes
+
+Once all required panels are merged in, the final [optional] step is to check for 'new' genes. This can be done by
+providing a gene list; a JSON file containing a single list of Strings. Each gene's entry will be annotated with
+`new=True` if the PanelApp gene doesn't appear in the provided gene list, otherwise `new` remains at the default value
+which is False.

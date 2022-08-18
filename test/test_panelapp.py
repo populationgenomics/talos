@@ -4,20 +4,21 @@ tests for the PanelApp parser
 
 import json
 import os
-
 import pytest
 
 from reanalysis.query_panelapp import (
     gene_list_differences,
     get_json_response,
     get_panel_green,
-    get_panel_changes,
     parse_gene_list,
+    combine_mendeliome_with_other_panels,
 )
+
 
 PWD = os.path.dirname(__file__)
 INPUT = os.path.join(PWD, 'input')
 PANELAPP_LATEST = os.path.join(INPUT, 'panelapp_current_137.json')
+PANELAPP_INCIDENTALOME = os.path.join(INPUT, 'incidentalome.json')
 PANELAPP_OLDER = os.path.join(INPUT, 'panelapp_older_137.json')
 LATEST_EXPECTED = os.path.join(INPUT, 'panel_green_latest_expected.json')
 CHANGES_EXPECTED = os.path.join(INPUT, 'panel_changes_expected.json')
@@ -36,6 +37,12 @@ def fixture_fake_panelapp(requests_mock):
         requests_mock.register_uri(
             'GET',
             'https://panelapp.agha.umccr.org/api/v1/panels/137',
+            json=json.load(handle),
+        )
+    with open(PANELAPP_INCIDENTALOME, 'r', encoding='utf-8') as handle:
+        requests_mock.register_uri(
+            'GET',
+            'https://panelapp.agha.umccr.org/api/v1/panels/126',
             json=json.load(handle),
         )
     with open(PANELAPP_OLDER, 'r', encoding='utf-8') as handle:
@@ -74,22 +81,6 @@ def test_gene_list_changes():
     assert latest['ENSG00IJKL']['new']
 
 
-def test_get_panel_changes(fake_panelapp):  # pylint: disable=unused-argument
-    """
-
-    :param fake_panelapp:
-    :return:
-    """
-    with open(LATEST_EXPECTED, 'r', encoding='utf-8') as handle:
-        latest = json.load(handle)
-
-    get_panel_changes(
-        previous_version=OLD_VERSION, panel_id='137', latest_content=latest
-    )
-    with open(CHANGES_EXPECTED, 'r', encoding='utf-8') as handle2:
-        assert latest == json.load(handle2)
-
-
 def test_get_json_response(fake_panelapp):  # pylint: disable=unused-argument
     """
     read the json content via an API call
@@ -108,3 +99,53 @@ def test_parse_local_gene_list():
     """
     found_genes = parse_gene_list(FAKE_GENE_LIST)
     assert found_genes == {'foo bar', 'foo', 'bar'}
+
+
+def test_second_panel_update(fake_panelapp):  # pylint: disable=unused-argument
+    """
+    check that the combination method works
+    """
+    main = get_panel_green('137')
+    early_keys = set(main.keys())
+    additional = get_panel_green('126')
+    combine_mendeliome_with_other_panels(main, additional)
+    assert set(main.keys()) == early_keys
+    assert main['ENSG00ABCD'].get('flags') == ['Incidentalome']
+
+
+def test_second_panel_update_moi():
+    """
+    panels overlap with MOI in second panel
+    - expect overwriting of MOI
+    """
+    main = {
+        'panel_metadata': {'panel_name': 'NAME'},
+        'ensg1': {'entity_name': '1', 'moi': None, 'flags': []},
+    }
+    additional = {
+        'panel_metadata': {'panel_name': 'NAME'},
+        'ensg1': {'entity_name': '1', 'moi': 'REALLY_BIG'},
+    }
+    combine_mendeliome_with_other_panels(main, additional)
+    assert main['ensg1'].get('flags') == ['NAME']
+    assert main['ensg1'].get('moi') == 'REALLY_BIG'
+
+
+def test_second_panel_no_overlap():
+    """
+    two panels don't overlap
+    - expect both results
+    """
+    main = {
+        'panel_metadata': {'panel_name': 'NAME'},
+        'ensg1': {'entity_name': '1', 'moi': None, 'flags': []},
+    }
+    additional = {
+        'panel_metadata': {'panel_name': 'NAME'},
+        'ensg2': {'entity_name': '2', 'moi': 'REALLY_BIG'},
+    }
+    combine_mendeliome_with_other_panels(main, additional)
+    assert main['ensg1'].get('flags') == []
+    assert main['ensg1'].get('moi') is None
+    assert main['ensg2'].get('flags') == ['NAME']
+    assert main['ensg2'].get('moi') == 'REALLY_BIG'

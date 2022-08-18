@@ -7,20 +7,23 @@
   "moi": "BIALLELIC",
   "new": false,
   "changed": true,
-  "old_moi": "MONOALLELIC"
+  "old_moi": "MONOALLELIC",
+  "flags": []
  },
  "ENSG00EFGH": {
   "symbol": "EFGH",
   "moi": "MONOALLELIC",
   "new": true,
   "changed": false,
-  "old_moi": null
+  "old_moi": null,
+  "flags": []
  },
  "ENSG00IJKL": {
   "symbol": "IJKL",
   "moi": "BOTH",
   "new": false,
   "changed": false,
-  "old_moi": null
+  "old_moi": null,
+  "flags": []
  }
 }
