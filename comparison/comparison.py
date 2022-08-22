@@ -778,12 +778,13 @@ def check_mt(
     return not_in_mt, untiered
 
 
-def main(results_folder: str, seqr: str, vcf: str, mt: str, output: str):
+def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, output: str):
     """
     runs a full match-seeking analysis of this AIP run against the
     expected variants (based on seqr training flags)
 
     :param results_folder:
+    :param pedigree:
     :param seqr:
     :param vcf:
     :param mt:
@@ -799,9 +800,7 @@ def main(results_folder: str, seqr: str, vcf: str, mt: str, output: str):
     )
 
     # Search for all affected sample IDs in the Peddy Pedigree
-    affected = find_affected_samples(
-        Ped(os.path.join(results_folder, 'latest_pedigree.fam'))
-    )
+    affected = find_affected_samples(Ped(pedigree))
 
     # parse the Seqr results table, specifically targeting variants in probands
     seqr_results = common_format_seqr(seqr=seqr, affected=affected)
@@ -876,6 +875,7 @@ if __name__ == '__main__':
     )
     parser = ArgumentParser()
     parser.add_argument('--results_folder')
+    parser.add_argument('--pedigree')
     parser.add_argument('--seqr')
     parser.add_argument('--vcf')
     parser.add_argument('--mt')
@@ -883,6 +883,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         results_folder=args.results_folder,
+        pedigree=args.pedigree,
         seqr=args.seqr,
         vcf=args.vcf,
         mt=args.mt,

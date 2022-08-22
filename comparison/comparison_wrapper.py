@@ -79,11 +79,13 @@ def main(results_folder: str, seqr: str, mt: str):
     vcf_in_batch = batch.read_input_group(
         **{'vcf.bgz': run_vcf, 'vcf.bgz.tbi': run_vcf + '.tbi'}
     )
+    ped_in_batch = batch.read_input(os.path.join(results_folder, 'latest_pedigree.fam'))
 
     results_command = (
         'pip install . && '
         f'python3 {COMPARISON_SCRIPT} '
         f'--results_folder {results_folder} '
+        f'--pedigree {ped_in_batch} '
         f'--seqr {seqr} '
         f'--vcf {vcf_in_batch["vcf.bgz"]} '
         f'--mt {mt} '
