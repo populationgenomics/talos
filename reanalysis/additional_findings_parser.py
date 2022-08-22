@@ -55,6 +55,12 @@ def main(input_file: str, output_file: str):
         }
         data_blob['flags'] = [row_dict[value].rstrip() for value in FLAG_KEYS]
         data_blob['moi'] = MOI_TRANSLATION[data_blob['moi']]
+
+        if 'only' in row_dict.get('Variants to report'):
+            print(
+                f'Specific Variants: '
+                f'{data_blob["symbol"]} - {row_dict["Variants to report"]}'
+            )
         # don't duplicate gene entries
         if data_blob['symbol'] in parsed_content:
             parsed_data = parsed_content[data_blob['symbol']]
