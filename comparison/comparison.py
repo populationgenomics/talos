@@ -131,7 +131,7 @@ class CommonFormatResult:
 
     def __repr__(self):
         return (
-            f'{self.chr}:{self.pos}_{self.ref}>{self.alt} - '
+            f'{self.chr}:{self.pos}_{self.ref}>{self.alt} '
             f'- {", ".join(map(str, sorted(self.confidence)))}'
         )
 
@@ -259,7 +259,7 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
         if sample not in aip_results:
             for v in variants:
                 for conf in v.confidence:
-                    flag_matches[conf]['unmatched'].append(f'{sample}::{repr(v)}')
+                    flag_matches[conf.name]['unmatched'].append(f'{sample}::{repr(v)}')
                 total_seqr_variants += 1
             continue
 
@@ -268,7 +268,7 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
             total_seqr_variants += 1
             match = 'matched' if v in aip_variants else 'unmatched'
             for conf in v.confidence:
-                flag_matches[conf][match].append(f'{sample}::{repr(v)}')
+                flag_matches[conf.name][match].append(f'{sample}::{repr(v)}')
 
     # print a summary into logging
     logging.info(f'Total Seqr Variants: {total_seqr_variants}')
