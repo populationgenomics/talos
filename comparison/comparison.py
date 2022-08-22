@@ -251,7 +251,7 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
 
     flag_matches = {
         key: {'matched': [], 'unmatched': []}
-        for key in [Confidence.EXPECTED, Confidence.UNLIKELY, Confidence.POSSIBLE]
+        for key in ['EXPECTED', 'UNLIKELY', 'POSSIBLE']
     }
     total_seqr_variants = 0
 
