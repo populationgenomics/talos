@@ -7,6 +7,7 @@ This is designed to recognise flags in the format 'AIP training: Confidence'
 See relevant documentation for a description of the algorithm used
 """
 import json
+import os
 from collections import defaultdict
 from csv import DictReader
 from enum import Enum
@@ -777,36 +778,30 @@ def check_mt(
     return not_in_mt, untiered
 
 
-def main(
-    results: str,
-    seqr: str,
-    ped: str,
-    vcf: str,
-    mt: str,
-    config: str,
-    panel: str,
-    output: str,
-):  # pylint: disable=too-many-locals
+def main(results_folder: str, seqr: str, vcf: str, mt: str, output: str):
     """
     runs a full match-seeking analysis of this AIP run against the
     expected variants (based on seqr training flags)
 
-    :param results:
+    :param results_folder:
     :param seqr:
-    :param ped:
     :param vcf:
     :param mt:
-    :param config:
-    :param panel:
     :param output:
     :return:
     """
 
     # normalise data formats from AIP result file
-    aip_results = common_format_aip(results_dict=read_json_from_path(results))
+    aip_results = common_format_aip(
+        results_dict=read_json_from_path(
+            os.path.join(results_folder, 'summary_results.json')
+        )
+    )
 
     # Search for all affected sample IDs in the Peddy Pedigree
-    affected = find_affected_samples(Ped(ped))
+    affected = find_affected_samples(
+        Ped(os.path.join(results_folder, 'latest_pedigree.fam'))
+    )
 
     # parse the Seqr results table, specifically targeting variants in probands
     seqr_results = common_format_seqr(seqr=seqr, affected=affected)
@@ -823,10 +818,12 @@ def main(
         sys.exit(0)
 
     # retain only the 'filter' index of the config file
-    config_dict = read_json_from_path(config)['filter']
+    config_dict = read_json_from_path(
+        os.path.join(results_folder, 'latest_config.json')
+    )['filter']
 
     # load and digest panel data
-    panel_dict = read_json_from_path(panel)
+    panel_dict = read_json_from_path(os.path.join(results_folder, 'panelapp_data.json'))
     green_genes, new_genes = green_and_new_from_panelapp(panel_dict)
 
     # if we had discrepancies, bin into classified and misc.
@@ -878,22 +875,16 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
     parser = ArgumentParser()
-    parser.add_argument('--results')
+    parser.add_argument('--results_folder')
     parser.add_argument('--seqr')
-    parser.add_argument('--ped')
     parser.add_argument('--vcf')
     parser.add_argument('--mt')
-    parser.add_argument('--config')
-    parser.add_argument('--panel')
     parser.add_argument('--output')
     args = parser.parse_args()
     main(
-        results=args.results,
+        results_folder=args.results_folder,
         seqr=args.seqr,
-        ped=args.ped,
         vcf=args.vcf,
         mt=args.mt,
-        config=args.config,
-        panel=args.panel,
         output=args.output,
     )
