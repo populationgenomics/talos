@@ -24,6 +24,7 @@ from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     remote_tmpdir,
+    output_path,
 )
 from cpg_utils.config import get_config
 
@@ -40,17 +41,7 @@ COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 @click.option('--mt', help='matrix table of annotated variants')
 @click.option('--config', help='configuration used in AIP')
 @click.option('--panel', help='PanelApp data used in AIP')
-@click.option('--output', help='where to write results to')
-def main(
-    results: str,
-    seqr: str,
-    ped: str,
-    vcf: str,
-    mt: str,
-    config: str,
-    panel: str,
-    output: str,
-):
+def main(results: str, seqr: str, ped: str, vcf: str, mt: str, config: str, panel: str):
     """
     main method, which runs the AIP comparison
     :param results:
@@ -60,7 +51,6 @@ def main(
     :param mt:
     :param config:
     :param panel:
-    :param output:
     :return:
     """
 
@@ -113,7 +103,7 @@ def main(
         f'--mt {mt} '
         f'--config {config} '
         f'--panel {panel} '
-        f'--output {output} '
+        f'--output {output_path("comparison_result")} '
     )
     logging.info(f'Results command: {results_command}')
     comp_job.command(results_command)
