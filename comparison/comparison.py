@@ -38,7 +38,6 @@ from reanalysis.hail_filter_and_label import (
 
 from reanalysis.utils import read_json_from_path, canonical_contigs_from_vcf
 
-
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
 SAMPLE_ALT_TEMPLATE = 'num_alt_alleles_{}'
 VALID_VALUES = [
@@ -130,7 +129,10 @@ class CommonFormatResult:
         ]
 
     def __repr__(self):
-        return f'{self.chr}:{self.pos}_{self.ref}>{self.alt} - {self.confidence}'
+        return (
+            f'{self.chr}:{self.pos}_{self.ref}>{self.alt} - '
+            f'- {", ".join(map(str, sorted(self.confidence)))}'
+        )
 
     def __eq__(self, other):
         return (
@@ -145,16 +147,14 @@ class CommonFormatResult:
         hash function
         :return:
         """
-        return hash(
-            repr(self) + ''.join(list(map(lambda x: x.value, sorted(self.confidence))))
-        )
+        return hash(repr(self))
 
 
 CommonDict = dict[str, list[CommonFormatResult]]
 ReasonDict = dict[str, list[tuple[CommonFormatResult, list[str]]]]
 
 
-def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
+def common_format_aip(results_dict: dict[str, Any]) -> CommonDict:
     """
     Parses the JSON
 
@@ -181,7 +181,7 @@ def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
     return sample_dict
 
 
-def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
+def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
     """
     identify the most likely proband for each row, and create a variant object for them
 
@@ -238,6 +238,45 @@ def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
     logging.info(f'Variants from Seqr digest: {sample_dict}')
 
     return sample_dict
+
+
+def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
+    """
+    check for exact matches to the Seqr flags, and report numbers
+    :param aip_results:
+    :param seqr_results:
+    :return:
+    """
+
+    flag_matches = {
+        key: {'matched': [], 'unmatched': []}
+        for key in [Confidence.EXPECTED, Confidence.UNLIKELY, Confidence.POSSIBLE]
+    }
+    total_seqr_variants = 0
+
+    for sample, variants in seqr_results.items():
+        if sample not in aip_results:
+            for v in variants:
+                for conf in v.confidence:
+                    flag_matches[conf]['unmatched'].append(f'{sample}::{repr(v)}')
+                total_seqr_variants += 1
+            continue
+
+        aip_variants = aip_results[sample]
+        for v in variants:
+            total_seqr_variants += 1
+            match = 'matched' if v in aip_variants else 'unmatched'
+            for conf in v.confidence:
+                flag_matches[conf][match].append(f'{sample}::{repr(v)}')
+
+    # print a summary into logging
+    logging.info(f'Total Seqr Variants: {total_seqr_variants}')
+    for confidence, match_types in flag_matches.items():
+        logging.info(f'{confidence}')
+        for match_type, variants in match_types.items():
+            logging.info(f'\t{match_type} - {len(variants)}')
+
+    return flag_matches
 
 
 def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDict:
@@ -377,7 +416,6 @@ def check_gene_is_green(
     :param green_genes:
     :return:
     """
-
     return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
@@ -388,11 +426,8 @@ def run_ac_check(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
     :param config:
     :return:
     """
-
-    # this test is only run conditionally
-    if matrix.count_cols() >= config['min_samples_to_ac_filter']:
-        if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
-            return ['QC: AC too high in joint call']
+    if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
+        return ['QC: AC too high in joint call']
     return []
 
 
@@ -426,14 +461,13 @@ def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
     :param sample_id:
     :return:
     """
-    reasons = []
 
     # evaluating the AB test has to be sample ID specific
     ab_filt_mt = filter_by_ab_ratio(matrix)
     if len(ab_filt_mt.filter_cols(ab_filt_mt.s == sample_id).entries().collect()) == 0:
-        reasons.append('QC: Variant fails AB ratio')
+        return ['QC: Variant fails AB ratio']
 
-    return reasons
+    return []
 
 
 def check_population_rare(
@@ -708,7 +742,8 @@ def check_mt(
         reasons.extend(run_ac_check(var_mt, config))
         reasons.extend(run_quality_flag_check(var_mt))
         reasons.extend(check_variant_was_normalised(var_mt))
-        reasons.extend(filter_sample_by_ab(var_mt, sample))
+        # # not actually a reason for failing
+        # reasons.extend(filter_sample_by_ab(var_mt, sample))
         var_mt = check_gene_is_green(matrix=var_mt, green_genes=green_genes)
         if not var_mt.count_rows():
             reasons.append('Gene is not GREEN in PanelApp')
@@ -753,6 +788,8 @@ def main(
     output: str,
 ):  # pylint: disable=too-many-locals
     """
+    runs a full match-seeking analysis of this AIP run against the
+    expected variants (based on seqr training flags)
 
     :param results:
     :param seqr:
@@ -766,20 +803,21 @@ def main(
     """
 
     # normalise data formats from AIP result file
-    aip_json = read_json_from_path(results)
-    result_dict = common_format_from_results(results_dict=aip_json)
+    aip_results = common_format_aip(results_dict=read_json_from_path(results))
 
-    # Peddy parsed Pedigree
-    pedigree_digest = Ped(ped)
-
-    # Search for all affected sample IDs in the Pedigree
-    affected = find_affected_samples(pedigree_digest)
+    # Search for all affected sample IDs in the Peddy Pedigree
+    affected = find_affected_samples(Ped(ped))
 
     # parse the Seqr results table, specifically targeting variants in probands
-    seqr_results = common_format_from_seqr(seqr=seqr, affected=affected)
+    seqr_results = common_format_seqr(seqr=seqr, affected=affected)
+
+    # strict comparison
+    flag_summary = find_seqr_flags(aip_results=aip_results, seqr_results=seqr_results)
+    with AnyPath(f'{output}_match_summary.json').open('w') as handle:
+        json.dump(flag_summary, handle, default=str, indent=4)
 
     # compare the results of the two datasets
-    discrepancies = find_missing(seqr_results=seqr_results, aip_results=result_dict)
+    discrepancies = find_missing(seqr_results=seqr_results, aip_results=aip_results)
     if not discrepancies:
         logging.info('All variants resolved!')
         sys.exit(0)
@@ -824,15 +862,12 @@ def main(
         new_genes=new_genes,
     )
     if untiered:
-        logging.info(f'Untiered: {json.dumps(untiered, default=str, indent=4)}')
+        with AnyPath(f'{output}_untiered.json').open('w') as handle:
+            json.dump(untiered, handle, default=str, indent=4)
 
     if not_present:
-        logging.info(f'Missing: {json.dumps(not_present, default=str, indent=4)}')
-
-    # write the output to a file as JSON
-    logging.info(f'Writing output JSON to {output}')
-    with AnyPath(output).open('w') as handle:
-        json.dump(untiered, handle, default=str, indent=4)
+        with AnyPath(f'{output}_missing.json').open('w') as handle:
+            json.dump(not_present, handle, default=str, indent=4)
 
 
 if __name__ == '__main__':
