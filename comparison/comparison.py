@@ -7,6 +7,7 @@ This is designed to recognise flags in the format 'AIP training: Confidence'
 See relevant documentation for a description of the algorithm used
 """
 import json
+import os
 from collections import defaultdict
 from csv import DictReader
 from enum import Enum
@@ -37,7 +38,6 @@ from reanalysis.hail_filter_and_label import (
 )
 
 from reanalysis.utils import read_json_from_path, canonical_contigs_from_vcf
-
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
 SAMPLE_ALT_TEMPLATE = 'num_alt_alleles_{}'
@@ -130,7 +130,10 @@ class CommonFormatResult:
         ]
 
     def __repr__(self):
-        return f'{self.chr}:{self.pos}_{self.ref}>{self.alt} - {self.confidence}'
+        return (
+            f'{self.chr}:{self.pos}_{self.ref}>{self.alt} '
+            f'- {", ".join(map(str, sorted(self.confidence)))}'
+        )
 
     def __eq__(self, other):
         return (
@@ -145,16 +148,14 @@ class CommonFormatResult:
         hash function
         :return:
         """
-        return hash(
-            repr(self) + ''.join(list(map(lambda x: x.value, sorted(self.confidence))))
-        )
+        return hash(repr(self))
 
 
 CommonDict = dict[str, list[CommonFormatResult]]
 ReasonDict = dict[str, list[tuple[CommonFormatResult, list[str]]]]
 
 
-def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
+def common_format_aip(results_dict: dict[str, Any]) -> CommonDict:
     """
     Parses the JSON
 
@@ -181,7 +182,7 @@ def common_format_from_results(results_dict: dict[str, Any]) -> CommonDict:
     return sample_dict
 
 
-def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
+def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
     """
     identify the most likely proband for each row, and create a variant object for them
 
@@ -238,6 +239,55 @@ def common_format_from_seqr(seqr: str, affected: list[str]) -> CommonDict:
     logging.info(f'Variants from Seqr digest: {sample_dict}')
 
     return sample_dict
+
+
+def find_seqr_flags(
+    aip_results: CommonDict, seqr_results: CommonDict
+) -> dict[str, dict[str, list[str] | int]]:
+    """
+    check for exact matches to the Seqr flags, and report numbers
+    returns a per-confidence dictionary of the variant details and counts
+    :param aip_results:
+    :param seqr_results:
+    :return:
+    """
+
+    flag_matches = {
+        key: {
+            'matched': {'details': [], 'count': 0},
+            'unmatched': {'details': [], 'count': 0},
+        }
+        for key in ['EXPECTED', 'UNLIKELY', 'POSSIBLE']
+    }
+    total_seqr_variants = 0
+
+    for sample, variants in seqr_results.items():
+        if sample not in aip_results:
+            for v in variants:
+                for conf in v.confidence:
+                    flag_matches[conf.name]['unmatched']['details'].append(
+                        f'{sample}::{repr(v)}'
+                    )
+                    flag_matches[conf.name]['unmatched']['count'] += 1
+                total_seqr_variants += 1
+            continue
+
+        aip_variants = aip_results[sample]
+        for v in variants:
+            total_seqr_variants += 1
+            match = 'matched' if v in aip_variants else 'unmatched'
+            for conf in v.confidence:
+                flag_matches[conf.name][match]['details'].append(f'{sample}::{repr(v)}')
+                flag_matches[conf.name][match]['count'] += 1
+
+    # print a summary into logging
+    logging.info(f'Total Seqr Variants: {total_seqr_variants}')
+    for confidence, match_types in flag_matches.items():
+        logging.info(f'{confidence}')
+        for match_type, match_dict in match_types.items():
+            logging.info(f'\t{match_type} - {match_dict["count"]}')
+
+    return flag_matches
 
 
 def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDict:
@@ -377,7 +427,6 @@ def check_gene_is_green(
     :param green_genes:
     :return:
     """
-
     return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
@@ -388,11 +437,8 @@ def run_ac_check(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
     :param config:
     :return:
     """
-
-    # this test is only run conditionally
-    if matrix.count_cols() >= config['min_samples_to_ac_filter']:
-        if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
-            return ['QC: AC too high in joint call']
+    if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
+        return ['QC: AC too high in joint call']
     return []
 
 
@@ -426,14 +472,13 @@ def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
     :param sample_id:
     :return:
     """
-    reasons = []
 
     # evaluating the AB test has to be sample ID specific
     ab_filt_mt = filter_by_ab_ratio(matrix)
     if len(ab_filt_mt.filter_cols(ab_filt_mt.s == sample_id).entries().collect()) == 0:
-        reasons.append('QC: Variant fails AB ratio')
+        return ['QC: Variant fails AB ratio']
 
-    return reasons
+    return []
 
 
 def check_population_rare(
@@ -708,7 +753,8 @@ def check_mt(
         reasons.extend(run_ac_check(var_mt, config))
         reasons.extend(run_quality_flag_check(var_mt))
         reasons.extend(check_variant_was_normalised(var_mt))
-        reasons.extend(filter_sample_by_ab(var_mt, sample))
+        # # not actually a reason for failing
+        # reasons.extend(filter_sample_by_ab(var_mt, sample))
         var_mt = check_gene_is_green(matrix=var_mt, green_genes=green_genes)
         if not var_mt.count_rows():
             reasons.append('Gene is not GREEN in PanelApp')
@@ -742,53 +788,51 @@ def check_mt(
     return not_in_mt, untiered
 
 
-def main(
-    results: str,
-    seqr: str,
-    ped: str,
-    vcf: str,
-    mt: str,
-    config: str,
-    panel: str,
-    output: str,
-):  # pylint: disable=too-many-locals
+def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, output: str):
     """
+    runs a full match-seeking analysis of this AIP run against the
+    expected variants (based on seqr training flags)
 
-    :param results:
+    :param results_folder:
+    :param pedigree:
     :param seqr:
-    :param ped:
     :param vcf:
     :param mt:
-    :param config:
-    :param panel:
     :param output:
     :return:
     """
 
     # normalise data formats from AIP result file
-    aip_json = read_json_from_path(results)
-    result_dict = common_format_from_results(results_dict=aip_json)
+    aip_results = common_format_aip(
+        results_dict=read_json_from_path(
+            os.path.join(results_folder, 'summary_results.json')
+        )
+    )
 
-    # Peddy parsed Pedigree
-    pedigree_digest = Ped(ped)
-
-    # Search for all affected sample IDs in the Pedigree
-    affected = find_affected_samples(pedigree_digest)
+    # Search for all affected sample IDs in the Peddy Pedigree
+    affected = find_affected_samples(Ped(pedigree))
 
     # parse the Seqr results table, specifically targeting variants in probands
-    seqr_results = common_format_from_seqr(seqr=seqr, affected=affected)
+    seqr_results = common_format_seqr(seqr=seqr, affected=affected)
+
+    # strict comparison
+    flag_summary = find_seqr_flags(aip_results=aip_results, seqr_results=seqr_results)
+    with AnyPath(f'{output}_match_summary.json').open('w') as handle:
+        json.dump(flag_summary, handle, default=str, indent=4)
 
     # compare the results of the two datasets
-    discrepancies = find_missing(seqr_results=seqr_results, aip_results=result_dict)
+    discrepancies = find_missing(seqr_results=seqr_results, aip_results=aip_results)
     if not discrepancies:
         logging.info('All variants resolved!')
         sys.exit(0)
 
     # retain only the 'filter' index of the config file
-    config_dict = read_json_from_path(config)['filter']
+    config_dict = read_json_from_path(
+        os.path.join(results_folder, 'latest_config.json')
+    )['filter']
 
     # load and digest panel data
-    panel_dict = read_json_from_path(panel)
+    panel_dict = read_json_from_path(os.path.join(results_folder, 'panelapp_data.json'))
     green_genes, new_genes = green_and_new_from_panelapp(panel_dict)
 
     # if we had discrepancies, bin into classified and misc.
@@ -824,15 +868,12 @@ def main(
         new_genes=new_genes,
     )
     if untiered:
-        logging.info(f'Untiered: {json.dumps(untiered, default=str, indent=4)}')
+        with AnyPath(f'{output}_untiered.json').open('w') as handle:
+            json.dump(untiered, handle, default=str, indent=4)
 
     if not_present:
-        logging.info(f'Missing: {json.dumps(not_present, default=str, indent=4)}')
-
-    # write the output to a file as JSON
-    logging.info(f'Writing output JSON to {output}')
-    with AnyPath(output).open('w') as handle:
-        json.dump(untiered, handle, default=str, indent=4)
+        with AnyPath(f'{output}_missing.json').open('w') as handle:
+            json.dump(not_present, handle, default=str, indent=4)
 
 
 if __name__ == '__main__':
@@ -843,22 +884,18 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
     parser = ArgumentParser()
-    parser.add_argument('--results')
+    parser.add_argument('--results_folder')
+    parser.add_argument('--pedigree')
     parser.add_argument('--seqr')
-    parser.add_argument('--ped')
     parser.add_argument('--vcf')
     parser.add_argument('--mt')
-    parser.add_argument('--config')
-    parser.add_argument('--panel')
     parser.add_argument('--output')
     args = parser.parse_args()
     main(
-        results=args.results,
+        results_folder=args.results_folder,
+        pedigree=args.pedigree,
         seqr=args.seqr,
-        ped=args.ped,
         vcf=args.vcf,
         mt=args.mt,
-        config=args.config,
-        panel=args.panel,
         output=args.output,
     )

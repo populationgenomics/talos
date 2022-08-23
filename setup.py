@@ -41,7 +41,7 @@ setup(
             'pandas==1.4.3',
             'peddy==0.4.8',
             'requests==2.25.1',
-            'sample-metadata==4.14.0',
+            'sample-metadata==4.15.0',
             'seqr-loader==1.2.5',
         ],
         'test': [
