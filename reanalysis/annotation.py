@@ -14,6 +14,21 @@ import hail as hl
 logger = logging.getLogger(__file__)
 
 
+def add_call_stats(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    If the GT stats were missing, add now
+    potentially less powerful than running on X-cohort joint-call
+    """
+    mt = mt.annotate_rows(gt_stats=hl.agg.call_stats(mt.GT, mt.alleles))
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            AC=mt.gt_stats.AC,
+            AF=mt.gt_stats.AF,
+            AN=mt.gt_stats.AN,
+        )
+    )
+
+
 def apply_annotations(
     vcf_path: str,
     vep_ht_path: str,
@@ -93,6 +108,9 @@ def apply_annotations(
 
     ref_ht = hl.read_table(str(ref_ht_path))
     clinvar_ht = hl.read_table(str(clinvar_ht_path))
+
+    if not all(field in mt.info for field in ['AC', 'AF', 'AN']):
+        mt = add_call_stats(mt)
 
     logger.info('Annotating with seqr-loader fields: round 1')
     mt = mt.annotate_rows(

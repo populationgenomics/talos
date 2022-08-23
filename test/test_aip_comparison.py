@@ -14,8 +14,8 @@ from comparison.comparison import (
     check_gene_is_green,
     check_variant_was_normalised,
     check_in_vcf,
-    common_format_from_results,
-    common_format_from_seqr,
+    common_format_aip,
+    common_format_seqr,
     find_affected_samples,
     filter_sample_by_ab,
     find_missing,
@@ -34,7 +34,7 @@ def test_parse_aip(output_json):
     :return:
     """
 
-    parsed_result = common_format_from_results(output_json)
+    parsed_result = common_format_aip(output_json)
     assert list(parsed_result.keys()) == ['SAMPLE_1']
 
     parsed_variants = parsed_result['SAMPLE_1']
@@ -99,7 +99,7 @@ def test_seqr_parser(seqr_csv_output):
     :return:
     """
 
-    seqr_results = common_format_from_seqr(seqr_csv_output, affected=['PROBAND'])
+    seqr_results = common_format_seqr(seqr_csv_output, affected=['PROBAND'])
 
     # only results for one sample
     assert len(list(seqr_results.keys())) == 1
@@ -371,7 +371,7 @@ def test_variant_is_normalised(
     :param hail_matrix:
     :return:
     """
-    anno_mt = hail_matrix.annotate_rows(alleles=alleles)
+    anno_mt = hail_matrix.key_rows_by(hail_matrix.locus).annotate_rows(alleles=alleles)
     assert check_variant_was_normalised(anno_mt) == results
 
 

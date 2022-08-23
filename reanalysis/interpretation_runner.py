@@ -481,8 +481,7 @@ def main(
         **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
     )
 
-    # for dev purposes - always run as default (family)
-    # if singleton VCF supplied, also run as singletons w/separate outputs
+    # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and AnyPath(singletons).exists():
         pedigree_singletons = batch.read_input(singletons)
@@ -498,7 +497,6 @@ def main(
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
         )
-    batch.run(wait=False)
 
     # save the json file into the batch output, with latest run details
     with AnyPath(output_path('latest_config.json')).open('w') as handle:
@@ -511,6 +509,8 @@ def main(
     if singletons:
         with AnyPath(output_path('latest_singletons.fam')).open('w') as handle:
             handle.writelines(AnyPath(singletons).open().readlines())
+
+    batch.run(wait=False)
 
 
 if __name__ == '__main__':
