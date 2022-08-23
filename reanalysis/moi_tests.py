@@ -447,8 +447,11 @@ class RecessiveAutosomal(BaseMoi):
                 sample=sample_id,
             ):
 
-                # categorised for this specific
-                if not partner_variant.sample_specific_category_check(sample_id):
+                # categorised for this specific sample, allow support in partner
+                if not (
+                    partner_variant.sample_specific_category_check(sample_id)
+                    or partner_variant.has_support
+                ):
                     continue
 
                 # check if this is a candidate for comp-het inheritance
@@ -673,7 +676,10 @@ class XRecessive(BaseMoi):
             ):
 
                 # allow for de novo check
-                if not partner_variant.sample_specific_category_check(sample_id):
+                if not (
+                    partner_variant.sample_specific_category_check(sample_id)
+                    or partner_variant.has_support
+                ):
                     continue
 
                 if not self.check_familial_comp_het(

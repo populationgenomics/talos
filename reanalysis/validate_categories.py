@@ -122,7 +122,7 @@ def apply_moi_to_variants(
             continue
 
         simple_moi = get_simple_moi(panel_gene_data.get('moi'))
-        additional_panels = panel_gene_data.get('flags')
+        additional_panels = panel_gene_data.get('flags', [])
 
         for variant in variants:
 

@@ -60,12 +60,12 @@ results = {
 }
 ```
 
-In addition, we require a number of other input files from the AIP run being analysed:
+The majority of the input files (AIP outputs, AIP labelled VCF, PanelApp data, config file, pedigree) are located
+relative to the root run folder, so running via the wrapper is simple. The 3 arguments when using the wrapper are:
 
-- PanelApp Data
-- VCF produced by the labelling process
-- MT used to derive labelled variants from
-- Configuration used
+- Seqr Tags CSV
+- MT used as input for AIP run
+- AIP analysis folder
 
 ---
 
@@ -78,6 +78,7 @@ of the Category 1 filter criteria was failed`.
 
 1. Parse both AIP and external results into a common format
 2. Compare AIP + Ext. data, find `True Positives` and discrepancies
+   - At this point the top-line results are logged to GCP in JSON format
 3. For each Discrepancy:
 
 ![ComparisonTree](../design_docs/images/comparison_decision_tree.png)
@@ -96,7 +97,6 @@ reasons = [
    'Cat. 1: Clinvar Stars: 1',
    'Cat. 2: Gene not new in PanelApp',
    'Cat. 3: No VEP HIGH CSQ',
-   'Cat. 4: Not implemented',
    'Cat. Support: not Missense'
 ]
 ```
@@ -148,7 +148,7 @@ multiple affecteds in the same family). The MT-portion of the algorithm should b
 2. find which of those discrepant variants weren't present in the VCF (un-classified in the Hail stage)
 3. for each of those discrepant variants, find all corresponding reasons
 
-Change to:
+### Change to
 
 1. retain steps 1 & 2
 2. Pool all unique variants across all samples

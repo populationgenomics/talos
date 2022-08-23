@@ -1,6 +1,6 @@
 {
-    "SAMPLE_1": {
-        "7-93105286-T-A__ENSG00000205413__Unsupported": {
+    "SAMPLE_1": [
+        {
             "sample": "SAMPLE_1",
             "gene": "ENSG00000205413",
             "var_data": {
@@ -63,7 +63,8 @@
                 "Autosomal Dominant"
             ],
             "supported": false,
-            "support_vars": null
+            "support_vars": null,
+            "flags": []
         }
-    }
+    ]
 }
