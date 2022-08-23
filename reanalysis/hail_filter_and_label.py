@@ -38,6 +38,119 @@ CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
+FIELDS_REQUIRED = {
+    'info': [
+        ('AC', hl.Int32Expression),
+        ('AF', hl.ArrayNumericExpression),
+        ('AN', hl.Int32Expression),
+    ],
+    'splice_ai': [
+        ('delta_score', hl.Float32Expression),
+        ('splice_consequence', hl.StringExpression),
+    ],
+    'gnomad_exomes': [
+        ('AF', hl.Float64Expression),
+        ('AN', hl.Int32Expression),
+        ('AC', hl.Int32Expression),
+        ('Hom', hl.Int32Expression),
+        ('Hemi', hl.Int32Expression),
+    ],
+    'gnomad_genomes': [
+        ('AF', hl.Float64Expression),
+        ('AN', hl.Int32Expression),
+        ('AC', hl.Int32Expression),
+        ('Hom', hl.Int32Expression),
+        ('Hemi', hl.Int32Expression),
+    ],
+    'cadd': [('PHRED', hl.Float32Expression)],
+    'dbnsfp': [
+        ('REVEL_score', hl.StringExpression),
+        ('MutationTaster_pred', hl.StringExpression),
+    ],
+    'clinvar': [
+        ('clinical_significance', hl.StringExpression),
+        ('gold_stars', hl.Int32Expression),
+    ],
+    'geneIds': [],
+}
+
+VEP_TX_FIELDS_REQUIRED = [
+    ('variant_allele', hl.StringExpression),
+    ('consequence_terms', hl.ArrayExpression),
+    ('transcript_id', hl.StringExpression),
+    ('protein_id', hl.StringExpression),
+    ('gene_id', hl.StringExpression),
+    ('gene_symbol', hl.StringExpression),
+    ('gene_symbol_source', hl.StringExpression),
+    ('canonical', hl.Int32Expression),
+    ('cdna_start', hl.Int32Expression),
+    ('cds_start', hl.Int32Expression),
+    ('cds_end', hl.Int32Expression),
+    ('biotype', hl.StringExpression),
+    ('protein_start', hl.Int32Expression),
+    ('protein_end', hl.Int32Expression),
+    ('sift_score', hl.Float64Expression),
+    ('sift_prediction', hl.StringExpression),
+    ('polyphen_score', hl.Float64Expression),
+    ('mane_select', hl.StringExpression),
+    ('lof', hl.StringExpression),
+]
+
+
+def fields_audit(mt: hl.MatrixTable) -> bool:
+    """
+    checks that the required fields are all present before continuing
+    """
+    problems = []
+    for field_group, group_types in FIELDS_REQUIRED.items():
+        if field_group not in mt.row_value:
+            problems.append(f'{field_group}:missing')
+        else:
+            for annotation, datatype in group_types:
+                if annotation in mt[field_group]:
+                    if not isinstance(mt[field_group][annotation], datatype):
+                        problems.append(
+                            f'{annotation}:'
+                            f'{datatype}/'
+                            f'{type(mt[field_group][annotation])}'
+                        )
+                else:
+                    problems.append(f'{annotation}:missing')
+    if problems:
+        for problem in problems:
+            logging.error(f'MT field: \t{problem}')
+        return False
+    return True
+
+
+def vep_audit(mt: hl.MatrixTable) -> bool:
+    """
+    check that the required VEP annotations are present
+    True if the 'audit' passes (all required fields present)
+    """
+
+    problems = []
+    # now the content of the transcript_consequences
+    if 'vep' not in mt.row_value:
+        problems.append('VEP:missing')
+    elif 'transcript_consequences' not in mt.vep:
+        problems.append('transcript_consequences:missing')
+    else:
+        fields_and_types = dict(mt.vep.transcript_consequences[0].items())
+        for field, field_type in VEP_TX_FIELDS_REQUIRED:
+            if field in fields_and_types:
+                if not isinstance(fields_and_types[field], field_type):
+                    problems.append(
+                        f'{field}:{field_type}/{type(fields_and_types[field])}'
+                    )
+            else:
+                problems.append(f'{field}:missing')
+
+    if problems:
+        logging.error('VEP field: \n'.join(problems))
+        return False
+    return True
+
 
 def filter_matrix_by_ac(
     matrix: hl.MatrixTable, ac_threshold: float | None = 0.01
@@ -574,7 +687,6 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
 
     return matrix.annotate_rows(
         info=matrix.info.annotate(
-            gnomad_ex_cov=hl.or_else(matrix.gnomad_exome_coverage, MISSING_FLOAT_LO),
             gnomad_ex_af=hl.or_else(matrix.gnomad_exomes.AF, MISSING_FLOAT_LO),
             gnomad_ex_an=hl.or_else(matrix.gnomad_exomes.AN, MISSING_INT),
             gnomad_ex_ac=hl.or_else(matrix.gnomad_exomes.AC, MISSING_INT),
@@ -589,7 +701,6 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
             splice_ai_csq=hl.or_else(
                 matrix.splice_ai.splice_consequence, MISSING_STRING
             ).replace(' ', '_'),
-            revel=hl.float64(hl.or_else(matrix.dbnsfp.REVEL_score, '0.0')),
             cadd=hl.or_else(matrix.cadd.PHRED, MISSING_FLOAT_LO),
             clinvar_sig=hl.or_else(
                 matrix.clinvar.clinical_significance, MISSING_STRING
@@ -598,20 +709,10 @@ def extract_annotations(matrix: hl.MatrixTable) -> hl.MatrixTable:
             # these next 3 are per-transcript, with ';' to delimit
             # pulling these annotations into INFO with ';' to separate
             # will break INFO parsing for most tools
+            revel=hl.float64(hl.or_else(matrix.dbnsfp.REVEL_score, '0.0')),
             mutationtaster=hl.or_else(
                 matrix.dbnsfp.MutationTaster_pred, MISSING_STRING
             ).replace(';', ','),
-            fathmm=hl.or_else(matrix.dbnsfp.FATHMM_pred, MISSING_STRING).replace(
-                ';', ','
-            ),
-            metasvm=hl.or_else(matrix.dbnsfp.MetaSVM_pred, MISSING_STRING).replace(
-                ';', ','
-            ),
-            phast_cons=hl.float64(
-                hl.or_else(matrix.dbnsfp.phastCons100way_vertebrate, '0.0')
-            ),
-            gerp_rs=hl.float64(hl.or_else(matrix.dbnsfp.GERP_RS, '0.0')),
-            eigen_phred=hl.or_else(matrix.eigen.Eigen_phred, MISSING_FLOAT_LO),
         )
     )
 
@@ -776,6 +877,9 @@ def main(mt: str, panelapp: str, config_path: str, plink: str):
         raise Exception(f'Input MatrixTable doesn\'t exist: {mt}')
 
     matrix = hl.read_matrix_table(mt)
+
+    if not (fields_audit(matrix) and vep_audit(matrix)):
+        raise Exception('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
     matrix = subselect_mt_to_pedigree(matrix, pedigree=plink)
