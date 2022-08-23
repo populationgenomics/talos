@@ -241,16 +241,22 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
     return sample_dict
 
 
-def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
+def find_seqr_flags(
+    aip_results: CommonDict, seqr_results: CommonDict
+) -> dict[str, dict[str, list[str] | int]]:
     """
     check for exact matches to the Seqr flags, and report numbers
+    returns a per-confidence dictionary of the variant details and counts
     :param aip_results:
     :param seqr_results:
     :return:
     """
 
     flag_matches = {
-        key: {'matched': [], 'unmatched': []}
+        key: {
+            'matched': {'details': [], 'count': 0},
+            'unmatched': {'details': [], 'count': 0},
+        }
         for key in ['EXPECTED', 'UNLIKELY', 'POSSIBLE']
     }
     total_seqr_variants = 0
@@ -259,7 +265,10 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
         if sample not in aip_results:
             for v in variants:
                 for conf in v.confidence:
-                    flag_matches[conf.name]['unmatched'].append(f'{sample}::{repr(v)}')
+                    flag_matches[conf.name]['unmatched']['details'].append(
+                        f'{sample}::{repr(v)}'
+                    )
+                    flag_matches[conf.name]['unmatched']['count'] += 1
                 total_seqr_variants += 1
             continue
 
@@ -268,14 +277,15 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict):
             total_seqr_variants += 1
             match = 'matched' if v in aip_variants else 'unmatched'
             for conf in v.confidence:
-                flag_matches[conf.name][match].append(f'{sample}::{repr(v)}')
+                flag_matches[conf.name][match]['details'].append(f'{sample}::{repr(v)}')
+                flag_matches[conf.name][match]['count'] += 1
 
     # print a summary into logging
     logging.info(f'Total Seqr Variants: {total_seqr_variants}')
     for confidence, match_types in flag_matches.items():
         logging.info(f'{confidence}')
-        for match_type, variants in match_types.items():
-            logging.info(f'\t{match_type} - {len(variants)}')
+        for match_type, match_dict in match_types.items():
+            logging.info(f'\t{match_type} - {match_dict["count"]}')
 
     return flag_matches
 
