@@ -36,6 +36,7 @@ from cpg_utils.hail_batch import (
     output_path,
     query_command,
     remote_tmpdir,
+    image_path,
 )
 
 import annotation
@@ -133,7 +134,7 @@ def annotate_vcf(
     batch: hb.Batch,
     vep_temp: str,
     vep_out: str,
-    seq_type: SequencingType | None = SequencingType.GENOME,
+    seq_type: SequencingType = SequencingType.GENOME,
 ) -> list[hb.batch.job.Job]:
     """
     takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
@@ -154,8 +155,6 @@ def annotate_vcf(
     return vep_jobs(
         b=batch,
         vcf_path=AnyPath(input_vcf),
-        hail_billing_project=get_config()['hail']['billing_project'],
-        hail_bucket=AnyPath(remote_tmpdir()),
         tmp_bucket=AnyPath(vep_temp),
         out_path=AnyPath(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
@@ -177,7 +176,7 @@ def annotated_mt_from_ht_and_vcf(
     apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
 
     copy_common_env(apply_anno_job)
-    apply_anno_job.image(DEFAULT_IMAGE)
+    apply_anno_job.image(image_path('hail'))
 
     cmd = query_command(
         annotation,
@@ -186,9 +185,6 @@ def annotated_mt_from_ht_and_vcf(
         vep_ht,
         ANNOTATED_MT,
         setup_gcp=True,
-        hail_billing_project=get_config()['hail']['billing_project'],
-        hail_bucket=str(remote_tmpdir()),
-        default_reference='GRCh38',
         packages=['seqr-loader==1.2.5'],
     )
     apply_anno_job.command(cmd)

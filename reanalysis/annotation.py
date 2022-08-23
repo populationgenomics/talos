@@ -76,9 +76,7 @@ def apply_annotations(
         skip_invalid_loci=True,
         force_bgz=True,
     )
-    logger.info(
-        f'Importing VCF {vcf_path}, ' f'adding VEP annotations from {vep_ht_path}'
-    )
+    logger.info(f'Importing VCF {vcf_path}, adding VEP annotations from {vep_ht_path}')
 
     logger.info(f'Loading VEP Table from {vep_ht_path}')
     # Annotate VEP. Do before splitting multi, because we run VEP on unsplit VCF,
@@ -92,10 +90,6 @@ def apply_annotations(
         mt.annotate_rows(locus_old=mt.locus, alleles_old=mt.alleles)
     )
     mt = _checkpoint(mt, 'mt-vep-split.mt')
-
-    # Add dummy GRCh37 loci
-    logger.info('Adding dummy GRCh37 loci')
-    mt = mt.annotate_rows(rg37_locus=mt.locus)
 
     ref_ht = hl.read_table(str(ref_ht_path))
     clinvar_ht = hl.read_table(str(clinvar_ht_path))
@@ -119,7 +113,6 @@ def apply_annotations(
         xpos=get_expr_for_xpos(mt.locus),
         xstart=get_expr_for_xpos(mt.locus),
         xstop=get_expr_for_xpos(mt.locus) + hl.len(mt.alleles[0]) - 1,
-        rg37_locus=mt.rg37_locus,
         clinvar_data=clinvar_ht[mt.row_key],
         ref_data=ref_ht[mt.row_key],
     )

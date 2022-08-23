@@ -3,7 +3,6 @@ Hail Batch jobs to run VEP on a VCF in parallel.
 """
 
 import logging
-import os
 from enum import Enum
 from typing import Literal, Optional, Union, Dict, Tuple, List
 
@@ -38,8 +37,6 @@ class SequencingType(Enum):
 def vep_jobs(  # pylint: disable=too-many-arguments
     b: Batch,
     vcf_path: CloudPath,
-    hail_billing_project: str,
-    hail_bucket: CloudPath,
     tmp_bucket: CloudPath,
     out_path: Optional[CloudPath] = None,
     overwrite: bool = False,
@@ -126,8 +123,6 @@ def vep_jobs(  # pylint: disable=too-many-arguments
         gather_j = gather_vep_json_to_ht(
             b=b,
             vep_results_paths=part_files,
-            hail_billing_project=hail_billing_project,
-            hail_bucket=hail_bucket,
             out_path=out_path,
             job_attrs=job_attrs,
         )
@@ -327,25 +322,21 @@ def gather_vcfs(
 def gather_vep_json_to_ht(
     b: Batch,
     vep_results_paths: List[CloudPath],
-    hail_billing_project: str,
-    hail_bucket: CloudPath,
     out_path: CloudPath,
     job_attrs: Optional[dict] = None,
-):
+) -> Job:
     """
     Parse results from VEP with annotations formatted in JSON,
     and write into a Hail Table using a Batch job.
     """
     j = b.new_job('VEP json to Hail table', job_attrs)
-    j.image(os.getenv('CPG_DRIVER_IMAGE'))
+    j.image(image_path('hail'))
     cmd = query_command(
         query,
         query.vep_json_to_ht.__name__,
         [str(p) for p in vep_results_paths],
         str(out_path),
         setup_gcp=True,
-        hail_billing_project=hail_billing_project,
-        hail_bucket=str(hail_bucket),
     )
     j.command(cmd)
     return j
