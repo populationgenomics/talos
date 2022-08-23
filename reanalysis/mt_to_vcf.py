@@ -18,20 +18,30 @@ import hail as hl
 from cpg_utils.hail_batch import init_batch
 
 
-def main(input_mt: str, output_path: str, additional_header: str | None = None):
+def main(mt: str, output_path: str, additional_header: str | None = None):
     """
     takes an input MT, and reads it out as a VCF
-    :param input_mt:
+    inserted new conditions to minimise the data produced
+    :param mt:
     :param output_path:
     :param additional_header: file containing lines to append to header
     :return:
     """
     init_batch()
 
-    matrix = hl.read_matrix_table(input_mt)
+    mt = hl.read_matrix_table(mt)
+
+    # remove potentially problematic field from gVCF
+    if 'gvcf_info' in mt.row_value:
+        mt = mt.drop('gvcf_info')
+
+    # filter out filter failures and non-variant rows (prior to VEP)
+    mt = mt.filter_rows(mt.filters.length() == 0)
+    mt = hl.variant_qc(mt)
+    mt = mt.filter_rows(mt.variant_qc.n_non_ref > 0)
 
     hl.export_vcf(
-        matrix,
+        mt,
         output_path,
         append_to_header=additional_header,
         tabix=True,
@@ -55,7 +65,7 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     main(
-        input_mt=args.input,
+        mt=args.input,
         output_path=args.output,
         additional_header=args.additional_header,
     )
