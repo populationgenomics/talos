@@ -22,6 +22,7 @@ from cpg_utils.git import (
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
+    image_path,
     remote_tmpdir,
     output_path,
 )
@@ -56,9 +57,7 @@ def main(results_folder: str, seqr: str, mt: str):
     comp_job = batch.new_job(name='Run Comparison')
 
     # set reasonable job resources
-    comp_job.cpu(4).image(get_config()['workflow']['driver_image']).memory(
-        'standard'
-    ).storage('50G')
+    comp_job.cpu(4).image(image_path('hail')).memory('standard').storage('50G')
 
     # run gcloud authentication
     authenticate_cloud_credentials_in_job(comp_job)

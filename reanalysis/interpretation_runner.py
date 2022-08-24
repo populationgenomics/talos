@@ -36,6 +36,7 @@ from cpg_utils.hail_batch import (
     output_path,
     query_command,
     remote_tmpdir,
+    image_path,
 )
 
 import annotation
@@ -55,8 +56,6 @@ PANELAPP_JSON_OUT = output_path('panelapp_data.json')
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
-DEFAULT_IMAGE = get_config()['workflow']['driver_image']
-assert DEFAULT_IMAGE
 
 # local script references
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
@@ -82,7 +81,7 @@ def set_job_resources(
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(DEFAULT_IMAGE).memory(memory).storage('20G')
+    job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
 
     if prior_job is not None:
         job.depends_on(prior_job)
@@ -133,7 +132,7 @@ def annotate_vcf(
     batch: hb.Batch,
     vep_temp: str,
     vep_out: str,
-    seq_type: SequencingType | None = SequencingType.GENOME,
+    seq_type: SequencingType = SequencingType.GENOME,
 ) -> list[hb.batch.job.Job]:
     """
     takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
@@ -154,8 +153,6 @@ def annotate_vcf(
     return vep_jobs(
         b=batch,
         vcf_path=AnyPath(input_vcf),
-        hail_billing_project=get_config()['hail']['billing_project'],
-        hail_bucket=AnyPath(remote_tmpdir()),
         tmp_bucket=AnyPath(vep_temp),
         out_path=AnyPath(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
@@ -177,7 +174,7 @@ def annotated_mt_from_ht_and_vcf(
     apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
 
     copy_common_env(apply_anno_job)
-    apply_anno_job.image(DEFAULT_IMAGE)
+    apply_anno_job.image(image_path('hail'))
 
     cmd = query_command(
         annotation,
@@ -186,9 +183,6 @@ def annotated_mt_from_ht_and_vcf(
         vep_ht,
         ANNOTATED_MT,
         setup_gcp=True,
-        hail_billing_project=get_config()['hail']['billing_project'],
-        hail_bucket=str(remote_tmpdir()),
-        default_reference='GRCh38',
         packages=['seqr-loader==1.2.5'],
     )
     apply_anno_job.command(cmd)
@@ -482,8 +476,8 @@ def main(
 
     # read that VCF into the batch as a local file
     labelled_vcf_in_batch = batch.read_input_group(
-        **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
-    )
+        vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi'
+    ).vcf
 
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
@@ -496,7 +490,7 @@ def main(
         _results_job = handle_results_job(
             batch=batch,
             config=config_json,
-            labelled_vcf=labelled_vcf_in_batch['vcf.bgz'],
+            labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
