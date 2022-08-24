@@ -69,7 +69,7 @@ def apply_annotations(
     assert AnyPath(clinvar_ht_path).exists(), f'{clinvar_ht_path} unavailable'
     assert AnyPath(ref_ht_path).exists(), f'{ref_ht_path} unavailable'
 
-    def _checkpoint(t: hl.Table, filename: str):
+    def _checkpoint(t: hl.Table | hl.MatrixTable, filename: str):
         """
         if a checkpoint location was provided, periodically dump the table to
         that location
