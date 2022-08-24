@@ -11,7 +11,6 @@ import hail as hl
 from hail.utils.java import FatalError
 from peddy.peddy import Ped
 
-import cpg_utils
 from reanalysis.utils import AbstractVariant, read_json_from_path
 
 
@@ -30,12 +29,6 @@ SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
-
-# can't use a session-scoped monkeypatch, so just set
-os.putenv(
-    'CPG_CONFIG_PATH',
-    os.path.join(os.path.dirname(cpg_utils.__file__), 'config-template.toml'),
-)
 
 
 @pytest.fixture(name='sm_lookup', scope='session')
