@@ -56,8 +56,6 @@ PANELAPP_JSON_OUT = output_path('panelapp_data.json')
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
-DEFAULT_IMAGE = get_config()['workflow']['driver_image']
-assert DEFAULT_IMAGE
 
 # local script references
 HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
@@ -83,7 +81,7 @@ def set_job_resources(
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(DEFAULT_IMAGE).memory(memory).storage('20G')
+    job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
 
     if prior_job is not None:
         job.depends_on(prior_job)
@@ -478,8 +476,8 @@ def main(
 
     # read that VCF into the batch as a local file
     labelled_vcf_in_batch = batch.read_input_group(
-        **{'vcf.bgz': HAIL_VCF_OUT, 'vcf.bgz.tbi': HAIL_VCF_OUT + '.tbi'}
-    )
+        vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi'
+    ).vcf
 
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
@@ -492,7 +490,7 @@ def main(
         _results_job = handle_results_job(
             batch=batch,
             config=config_json,
-            labelled_vcf=labelled_vcf_in_batch['vcf.bgz'],
+            labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
