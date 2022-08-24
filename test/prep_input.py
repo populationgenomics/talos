@@ -14,14 +14,18 @@ pos = '5111495-5111607'
 
 ht = hl.read_table('gs://cpg-reference/seqr/v0-1/clinvar.GRCh38.ht')
 ht = hl.filter_intervals(ht, [hl.parse_locus_interval(f'{chrom}:{pos}')])
-ht.write_table(f'gs://cpg-fewgenomes-test/unittest/input/clinvar.GRCh38-{chrom}-{pos}.ht')
+ht.write(
+    f'gs://cpg-fewgenomes-test/unittest/input/clinvar.GRCh38-{chrom}-{pos}.ht',
+    overwrite=True,
+)
 print('Done writing clinvar')
 
 ht = hl.read_table(
-    'gs://cpg-reference/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht'
+    'gs://cpg-reference/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht',
 )
 ht = hl.filter_intervals(ht, [hl.parse_locus_interval(f'{chrom}:{pos}')])
-ht.write_table(
-    f'gs://cpg-fewgenomes-test/unittest/input/combined_reference_data_grch38-2.0.4-{chrom}-{pos}.ht'
+ht.write(
+    f'gs://cpg-fewgenomes-test/unittest/input/combined_reference_data_grch38-2.0.4-{chrom}-{pos}.ht',
+    overwrite=True,
 )
 print('Done writing combined_reference_data_grch38')
