@@ -12,6 +12,7 @@ import os
 from random import choices
 import hail as hl
 import pytest
+from cpg_utils.hail_batch import dataset_path, reference_path
 
 from reanalysis.annotation import apply_annotations
 
@@ -28,34 +29,27 @@ def timestamp():
     return time.strftime('%Y-%m%d-%H%M') + rand_bit
 
 
-TMP_BUCKET = (
-    f'gs://cpg-fewgenomes-test/unittest/tmp/test_apply_annotations/{timestamp()}'
-)
 INTERVAL = 'chr20-5111495-5111607'
 
 
 @pytest.mark.gcp
-def test_apply_annotations(monkeypatch):
+def test_apply_annotations():
     """
     Test annotation.apply_annotations: convert VCF to a MatrixTable,
     and add VEP and other annotations.
     """
-    monkeypatch.setenv('CPG_REFERENCE_PREFIX', 'gs://cpg-reference')
-    vcf_path = (
-        f'gs://cpg-fewgenomes-test/unittest/inputs/chr20/'
-        f'joint-called-{INTERVAL}.vcf.gz'
+    vcf_path = dataset_path(f'unittest/inputs/chr20/joint-called-{INTERVAL}.vcf.gz')
+    vep_ht_path = dataset_path(f'unittest/inputs/chr20/vep/chr20-5111495-5111607.ht')
+    tmp_bucket = dataset_path(
+        f'unittest/test_apply_annotations/{timestamp()}', category='tmp'
     )
-    vep_ht_path = (
-        f'gs://cpg-fewgenomes-test/unittest/inputs/chr20/vep/chr20-5111495-5111607.ht'
-    )
-    out_mt_path = f'{TMP_BUCKET}/cohort-{INTERVAL}.mt'
+    out_mt_path = f'{tmp_bucket}/cohort-{INTERVAL}.mt'
     apply_annotations(
         vcf_path=vcf_path,
         vep_ht_path=vep_ht_path,
         out_mt_path=str(out_mt_path),
-        checkpoints_bucket=f'{TMP_BUCKET}/checkpoints',
-        clinvar_ht_path='gs://cpg-seqr-reference-data/GRCh38/clinvar/'
-        'clinvar.GRCh38.2020-06-15.ht/',
+        checkpoints_bucket=f'{tmp_bucket}/checkpoints',
+        clinvar_ht_path=reference_path('seqr/clinvar_ht'),
     )
     # Testing
     mt = hl.read_matrix_table(str(out_mt_path))
