@@ -115,8 +115,6 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
             'symbol': symbol,
             'moi': moi,
             'new': False,
-            'changed': False,
-            'old_moi': None,
             'flags': [],
         }
 
@@ -186,8 +184,6 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
                 'symbol': additional[ensg].get('symbol'),
                 'moi': additional[ensg].get('moi', None),
                 'new': False,
-                'changed': False,
-                'old_moi': None,
                 'flags': [additional_name],
             }
 

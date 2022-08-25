@@ -30,9 +30,6 @@ PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
 
-# can't use a session-scoped monkeypatch, so just set
-os.putenv('CPG_CONFIG_PATH', os.path.join(INPUT, 'cpg_runtime_config.toml'))
-
 
 @pytest.fixture(name='sm_lookup', scope='session')
 def fixture_sm_api_lookup() -> dict[str, Any]:

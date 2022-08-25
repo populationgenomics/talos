@@ -156,10 +156,10 @@ class HTMLBuilder:
         self.panelapp = read_json_from_path(panelapp_data)
         self.pedigree = Ped(pedigree)
 
-        # if it exists, read the forbidden genes as a set
+        # if it exists, read the forbidden genes as a dict
         self.forbidden_genes = (
             {
-                ensg: self.panelapp[ensg]['symbol']
+                ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
                 for ensg in set(read_json_from_path(self.config.get('forbidden')))
             }
             if self.config.get('forbidden') is not None

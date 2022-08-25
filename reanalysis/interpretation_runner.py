@@ -306,7 +306,7 @@ def handle_results_job(
 @click.option(
     '--extra_panel',
     help='Any additional panelapp IDs to add to the Mendeliome. '
-    'Multiple can be added as "--extra_panels 123 --extra_panels 456',
+    'Multiple can be added as "--extra_panel 123 --extra_panel 456',
     required=False,
     multiple=True,
 )
