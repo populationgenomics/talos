@@ -14,9 +14,9 @@ gsutil -m -u validation-351902 cp \
 # recursive copy of MT
 gsutil -m -u validation-351902 cp -r \
     gs://cpg-validation-main/mt/986d792a448c66a8a5cfba65434e7d1ce9b1ff_1051-validation.mt \
-    gs://cpg-validation-release/reanalysis/validation.mt
+    gs://cpg-validation-release/reanalysis/2022-09-19_validation.mt
 
 # copy and rename
 gsutil -m -u validation-351902 cp \
     gs://cpg-validation-test/reanalysis/2022-08-19/summary_results.json \
-    gs://cpg-validation-release/reanalysis/expected.json
+    gs://cpg-validation-release/reanalysis/2022-09-19_expected.json
