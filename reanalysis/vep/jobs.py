@@ -12,6 +12,7 @@ import hailtop.batch as hb
 from hailtop.batch.job import Job
 from hailtop.batch import Batch
 
+from cpg_utils import to_path
 from cpg_utils.hail_batch import (
     image_path,
     reference_path,
@@ -374,10 +375,10 @@ def vep_one(
         output = j.output
 
     # gcsfuse works only with the root bucket, without prefix:
-    base_bucket_name = reference_path('vep_mount').drive
-    data_mount = f'/{base_bucket_name}'
-    j.cloudfuse(base_bucket_name, str(data_mount))
-    vep_dir = f'{data_mount}/vep/GRCh38'
+    vep_mount_path = reference_path('vep_mount')
+    data_mount = to_path(f'/{vep_mount_path.drive}')
+    j.cloudfuse(vep_mount_path.drive, str(data_mount), read_only=True)
+    vep_dir = data_mount / '/'.join(vep_mount_path.parts[2:])
     loftee_conf = {
         'loftee_path': '$LOFTEE_PLUGIN_PATH',
         'gerp_bigwig': f'{vep_dir}/gerp_conservation_scores.homo_sapiens.GRCh38.bw',
