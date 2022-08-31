@@ -31,7 +31,7 @@ from cloudpathlib import AnyPath
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
-PanelData = dict[str, dict[str, Union[str, bool, list[str]]]]
+PanelData = dict[str, dict]
 
 
 def parse_gene_list(path_to_list: str) -> set[str]:
@@ -55,7 +55,7 @@ def get_json_response(url: str) -> dict[str, Any]:
     :return: python object from JSON response
     """
 
-    response = requests.get(url, headers={'Accept': 'application/json'})
+    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
     response.raise_for_status()
     return response.json()
 
@@ -70,7 +70,7 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
 
     # prepare the query URL
     panel_app_genes_url = f'{PANELAPP_BASE}{panel_id}'
-    panel_response = requests.get(panel_app_genes_url)
+    panel_response = requests.get(panel_app_genes_url, timeout=60)
     panel_response.raise_for_status()
     panel_json = panel_response.json()
 
@@ -83,7 +83,12 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
     )
 
     gene_dict = {
-        'panel_metadata': {'current_version': panel_version, 'panel_name': panel_name}
+        'metadata': {
+            'current_version': panel_version,
+            'panel_name': panel_name,
+            'panel_version': panel_version,
+            'additional_panels': [],
+        }
     }
 
     for gene in panel_json['genes']:
@@ -132,7 +137,7 @@ def gene_list_differences(latest_content: PanelData, previous_genes: set[str]):
     """
     new_genes = 0
     for content in [
-        content for ensg, content in latest_content.items() if ensg != 'panel_metadata'
+        content for ensg, content in latest_content.items() if ensg != 'metadata'
     ]:
         if content['symbol'] not in previous_genes:
             content['new'] = True
@@ -167,10 +172,14 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
     :param additional:
     """
 
-    additional_name = additional['panel_metadata']['panel_name']
+    additional_name = additional['metadata']['panel_name']
+    additional_version = additional['metadata']['panel_version']
+    panel_dict['additional_panels'].append(
+        {'panel_name': additional_name, 'panel_version': additional_version}
+    )
     panel_keys = panel_dict.keys()
     for ensg in additional.keys():
-        if ensg == 'panel_metadata':
+        if ensg == 'metadata':
             continue
 
         if ensg in panel_keys:
