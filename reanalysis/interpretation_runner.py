@@ -356,6 +356,7 @@ def main(
             'latest_run': f'{datetime.now():%Y-%m-%d %H:%M:%S%z}',
             'input_file': input_path,
             'panelapp_file': PANELAPP_JSON_OUT,
+            'cohort': get_config()['workflow']['dataset'],
         }
     )
 

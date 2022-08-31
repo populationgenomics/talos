@@ -213,9 +213,11 @@ def update_result_meta(
         family_counter['affected'] += affected[True]
         family_counter['male'] += sex['male']
         family_counter['female'] += sex['female']
-        family_counter['trios'] += trios
-        family_counter['quads'] += quads
-        family_counter[len(pedigree.families[family].samples)] += 1
+        if trios != 0:
+            family_counter['trios'] += trios
+        if quads != 0:
+            family_counter['quads'] += quads
+        family_counter[str(len(pedigree.families[family].samples))] += 1
 
     panels = panelapp['metadata']['additional_panels']
     panels.append(
@@ -228,7 +230,7 @@ def update_result_meta(
     results['metadata'] = {
         'run_datetime': config['latest_run'],
         'input_file': config['input_file'],
-        'family_breakdown': family_counter,
+        'family_breakdown': dict(family_counter),
         'panels': panels,
     }
 
