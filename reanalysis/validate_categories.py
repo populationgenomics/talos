@@ -219,8 +219,9 @@ def update_result_meta(
         family_counter[str(len(pedigree.families[family].samples))] += 1
 
     results['metadata'] = {
-        'run_datetime': config['latest_run'],
+        'cohort': config['cohort'],
         'input_file': config['input_file'],
+        'run_datetime': config['latest_run'],
         'family_breakdown': dict(family_counter),
         'panels': panelapp['metadata'],
     }

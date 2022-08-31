@@ -282,14 +282,14 @@ class HTMLBuilder:
                 index=False, escape=False
             ),
             'Meta': pd.DataFrame(
-                {key.capitalize(): self.config['metadata'][key]}
+                {key.capitalize(): self.results['metadata'][key]}
                 for key in ['cohort', 'run_datetime', 'input_file']
             ).to_html(index=False, escape=False),
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
                     for fam_type, fam_count in sorted(
-                        self.config['metadata']['family_breakdown'].items()
+                        self.results['metadata']['family_breakdown'].items()
                     )
                 ]
             ).to_html(index=False, escape=False),
