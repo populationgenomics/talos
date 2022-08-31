@@ -197,6 +197,8 @@ class HTMLBuilder:
         """
         clean_results = defaultdict(list[dict[str, Any]])
         for sample, variants in variant_dictionary.items():
+            if sample == 'metadata':
+                continue
             sample_vars = []
             for variant in variants:
                 skip_variant = False
