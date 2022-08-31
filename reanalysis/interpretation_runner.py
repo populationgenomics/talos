@@ -153,7 +153,7 @@ def annotate_vcf(
     return vep_jobs(
         b=batch,
         vcf_path=AnyPath(input_vcf),
-        tmp_bucket=AnyPath(vep_temp),
+        tmp_prefix=AnyPath(vep_temp),
         out_path=AnyPath(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
         sequencing_type=seq_type,

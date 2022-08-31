@@ -6,13 +6,14 @@ import logging
 from enum import Enum
 from typing import Literal, Optional, Union, Dict, Tuple, List
 
-from cloudpathlib import CloudPath
-
 import hailtop.batch as hb
 from hailtop.batch.job import Job
 from hailtop.batch import Batch
 
-from cpg_utils import to_path
+from cpg_utils.config import get_config
+from cpg_utils.workflows.resources import STANDARD
+from cpg_utils.workflows.utils import can_reuse
+from cpg_utils import to_path, Path
 from cpg_utils.hail_batch import (
     image_path,
     reference_path,
@@ -37,60 +38,56 @@ class SequencingType(Enum):
 
 def vep_jobs(  # pylint: disable=too-many-arguments
     b: Batch,
-    vcf_path: CloudPath,
-    tmp_bucket: CloudPath,
-    out_path: Optional[CloudPath] = None,
+    vcf_path: Path,
+    tmp_prefix: Path,
+    out_path: Optional[Path] = None,
     overwrite: bool = False,
-    scatter_count: Optional[int] = 50,
+    scatter_count: int = 50,
     sequencing_type: SequencingType = SequencingType.GENOME,
-    intervals_path: Optional[CloudPath] = None,
     job_attrs: Optional[dict] = None,
 ) -> List[Job]:
     """
     Runs VEP on provided VCF. Writes a VCF into `out_path` by default,
     unless `out_path` ends with ".ht", in which case writes a Hail table.
     """
+    if out_path and out_path.exists() and not overwrite:
+        return []
+
     to_hail_table = out_path and out_path.suffix == '.ht'
     if not to_hail_table:
         assert str(out_path).endswith('.vcf.gz'), out_path
 
-    if out_path and not overwrite and out_path.exists():
-        return [b.new_job('VEP [reuse]', job_attrs)]
-
     jobs: List[Job] = []
-    intervals_j, intervals = get_intervals(
-        b=b,
-        cache_bucket=reference_path('intervals_prefix')
-        / sequencing_type.value
-        / f'{scatter_count}intervals',
-        sequencing_type=sequencing_type,
-        intervals_path=intervals_path,
-        scatter_count=scatter_count,
-    )
-    jobs.append(intervals_j)
-
+    scatter_count = max(scatter_count, 2)
+    parts_bucket = tmp_prefix / 'vep' / 'parts'
+    part_files = []
     vcf = b.read_input_group(
         **{'vcf.gz': str(vcf_path), 'vcf.gz.tbi': str(vcf_path) + '.tbi'}
     )
 
-    parts_bucket = tmp_bucket / 'vep' / 'parts'
-    part_files = []
+    intervals_j, intervals = get_intervals(
+        b=b,
+        scatter_count=scatter_count,
+        output_prefix=tmp_prefix / 'intervals',
+        sequencing_type=sequencing_type,
+    )
+    if intervals_j:
+        jobs.append(intervals_j)
 
     # Splitting variant calling by intervals
     for idx in range(scatter_count):
-
-        # find the eventual output path if appropriate
+        # find the eventual output path
         if to_hail_table:
-            part_path = parts_bucket / f'part{idx + 1}.json_list'
+            part_path = parts_bucket / f'part{idx + 1}.jsonl'
         else:
-            part_path = None
+            part_path = parts_bucket / f'part{idx + 1}.vcf.gz'
+        part_files.append(part_path)
 
         # here we assume that if the eventual path exists, the subset and
         # annotation were both done and can be re-used
         # the subset-vcf is not persisted, so we can skip either both jobs,
         # or neither
         if part_path and part_path.exists() and not overwrite:
-            part_files.append(part_path)
             continue
 
         subset_j = subset_vcf(
@@ -100,8 +97,11 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             job_attrs=job_attrs or dict(part=f'{idx + 1}/{scatter_count}'),
         )
         jobs.append(subset_j)
+        # To make mypy happy:
+        assert isinstance(subset_j.output_vcf, hb.ResourceGroup)
+
         # noinspection PyTypeChecker
-        j = vep_one(
+        vep_one_job = vep_one(
             b,
             vcf=subset_j.output_vcf['vcf.gz'],
             out_format='json' if to_hail_table else 'vcf',
@@ -109,18 +109,10 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             job_attrs=job_attrs or dict(part=f'{idx + 1}/{scatter_count}'),
             overwrite=overwrite,
         )
-        jobs.append(j)
-        if to_hail_table:
-            part_files.append(part_path)
-        else:
-            part_files.append(j.output['vcf.gz'])
+        if vep_one_job:
+            jobs.append(vep_one_job)
 
     if to_hail_table:
-
-        # if already generated, don't regen
-        if out_path and CloudPath(out_path).exists() and not overwrite:
-            return jobs
-
         gather_j = gather_vep_json_to_ht(
             b=b,
             vep_results_paths=part_files,
@@ -134,31 +126,35 @@ def vep_jobs(  # pylint: disable=too-many-arguments
             input_vcfs=part_files,
             out_vcf_path=out_path,
         )
-    gather_j.depends_on(*jobs)
-    jobs.append(gather_j)
+    if gather_j:
+        gather_j.depends_on(*jobs)
+        jobs.append(gather_j)
     return jobs
 
 
 def get_intervals(
     b: hb.Batch,
     scatter_count: int,
-    intervals_path: Optional[CloudPath] = None,
-    cache_bucket: Optional[CloudPath] = None,
+    source_intervals_path: Optional[Path] = None,
     sequencing_type: SequencingType = SequencingType.GENOME,
     job_attrs: Optional[dict] = None,
-) -> Tuple[Job, List[hb.Resource]]:
+    output_prefix: Optional[Path] = None,
+) -> tuple[Job | None, list[hb.ResourceFile]]:
     """
-    Add a job that split genome into partitions for variant calling parallelisation.
+    Add a job that splits genome/exome intervals into sub-intervals to be used to
+    parallelize variant calling.
 
-    Takes `intervals_path` if provided, otherwise calls `reference_path()`
-    for the intervals of provided `sequencing_type`.
+    @param b: Hail Batch object,
+    @param scatter_count: number of target sub-intervals,
+    @param source_intervals_path: path to source intervals to split. Would check for
+        config if not provided.
+    @param sequencing_type: genome of exome,
+    @param job_attrs: attributes for Hail Batch job,
+    @param output_prefix: path optionally to save split subintervals.
 
-    Caches intervals for each partition into `cache_bucket`, if provided.
-
-    This job calls picard's IntervalListTools to scatter the input interval list
+    The job calls picard IntervalListTools to scatter the input interval list
     into scatter_count sub-interval lists, inspired by this WARP task :
-    https://github.com/broadinstitute/warp/blob
-    /bc90b0db0138747685b459c83ce52c8576ce03cd/tasks/broad/Utilities.wdl
+    https://github.com/broadinstitute/warp/blob/bc90b0db0138747685b459c83ce52c8576ce03cd/tasks/broad/Utilities.wdl
 
     Note that we use the mode INTERVAL_SUBDIVISION instead of
     BALANCING_WITHOUT_INTERVAL_SUBDIVISION_WITH_OVERFLOW. Modes other than
@@ -166,35 +162,64 @@ def get_intervals(
     that, but Hail Batch is not dynamic and have to expect certain number of output
     files.
     """
-    job_attrs = job_attrs or dict(tool='picard_IntervalListTools')
-    j = b.new_job(f'Make {scatter_count} intervals', job_attrs)
+    assert scatter_count > 0, scatter_count
 
-    if cache_bucket:
-        # Checking previously cached split intervals.
-        if (cache_bucket / '1.interval_list').exists():
-            j.name += ' [use cached]'
-            return j, [
-                b.read_input(str(cache_bucket / f'{idx + 1}.interval_list'))
-                for idx in range(scatter_count)
-            ]
+    sequencing_type = sequencing_type or {
+        'genome': SequencingType.GENOME,
+        'exome': SequencingType.EXOME,
+    }.get(get_config()['workflow']['sequencing_type'])
 
-    # Taking intervals file for the sequencing_type.
-    intervals_path = intervals_path or reference_path(
-        f'broad/{sequencing_type.value}_calling_interval_lists',
+    source_intervals_path = source_intervals_path or reference_path(
+        f'broad/{SequencingType.value}_calling_interval_lists'
     )
 
+    if scatter_count == 1:
+        # Special case when we don't need to split
+        return None, [b.read_input(str(source_intervals_path))]
+
+    if output_prefix and (output_prefix / '1.interval_list').exists():
+        return None, [
+            b.read_input(str(output_prefix / f'{idx + 1}.interval_list'))
+            for idx in range(scatter_count)
+        ]
+
+    if (
+        not source_intervals_path
+        and (
+            (
+                existing_split_intervals_prefix := (
+                    reference_path('intervals_prefix')
+                    / sequencing_type
+                    / f'{scatter_count}intervals'
+                )
+            )
+            / '1.interval_list'
+        ).exists()
+    ):
+        # We already have split intervals for this sequencing_type:
+        return None, [
+            b.read_input(
+                str(existing_split_intervals_prefix / f'{idx + 1}.interval_list')
+            )
+            for idx in range(scatter_count)
+        ]
+
+    j = b.new_job(
+        f'Make {scatter_count} intervals for {sequencing_type}',
+        attributes=(job_attrs or {}) | dict(tool='picard_IntervalListTools'),
+    )
     j.image(image_path('picard'))
-    j.memory('16Gi')
-    j.storage('50G')
-    j.cpu(4)
+    j.memory('2G')
+    j.storage('16G')
+    j.cpu(2)
 
     break_bands_at_multiples_of = {
         SequencingType.GENOME: 100000,
         SequencingType.EXOME: 0,
-    }.get(sequencing_type, 0)
+    }[sequencing_type]
 
     cmd = f"""
-    mkdir /io/batch/out
+    mkdir $BATCH_TMPDIR/out
 
     picard -Xms1000m -Xmx1500m \
     IntervalListTools \
@@ -203,25 +228,31 @@ def get_intervals(
     UNIQUE=true \
     SORT=true \
     BREAK_BANDS_AT_MULTIPLES_OF={break_bands_at_multiples_of} \
-    INPUT={b.read_input(str(intervals_path))} \
-    OUTPUT=/io/batch/out
-    ls /io/batch/out
-    ls /io/batch/out/*
+    INPUT={b.read_input(str(source_intervals_path))} \
+    OUTPUT=$BATCH_TMPDIR/out
+    ls $BATCH_TMPDIR/out
+    ls $BATCH_TMPDIR/out/*
     """
     for idx in range(scatter_count):
         name = f'temp_{str(idx + 1).zfill(4)}_of_{scatter_count}'
         cmd += f"""
-        ln /io/batch/out/{name}/scattered.interval_list {j[f'{idx + 1}.interval_list']}
+        ln $BATCH_TMPDIR/out/{name}/scattered.interval_list {j[f'{idx + 1}.interval_list']}
         """
 
     j.command(cmd)
-    if cache_bucket:
+    if output_prefix:
         for idx in range(scatter_count):
             b.write_output(
                 j[f'{idx + 1}.interval_list'],
-                str(cache_bucket / f'{idx + 1}.interval_list'),
+                str(output_prefix / f'{idx + 1}.interval_list'),
             )
-    return j, [j[f'{idx + 1}.interval_list'] for idx in range(scatter_count)]
+
+    intervals: list[hb.ResourceFile] = []
+    for idx in range(scatter_count):
+        interval = j[f'{idx + 1}.interval_list']
+        assert isinstance(interval, hb.ResourceFile)
+        intervals.append(interval)
+    return j, intervals
 
 
 def subset_vcf(
@@ -229,7 +260,7 @@ def subset_vcf(
     vcf: hb.ResourceGroup,
     interval: hb.Resource,
     job_attrs: Optional[Dict] = None,
-    output_vcf_path: Optional[CloudPath] = None,
+    output_vcf_path: Optional[Path] = None,
 ) -> Job:
     """
     Subset VCF to provided intervals, and drop sample/genotype
@@ -268,51 +299,50 @@ def gather_vcfs(
     b: hb.Batch,
     input_vcfs: List[hb.ResourceFile],
     overwrite: bool = True,
-    out_vcf_path: Optional[CloudPath] = None,
+    out_vcf_path: Optional[Path] = None,
     site_only: bool = False,
     gvcf_count: Optional[int] = None,
     job_attrs: Optional[dict] = None,
-) -> Tuple[Job, hb.ResourceGroup]:
+) -> Tuple[Job | None, hb.ResourceGroup]:
     """
     Combines per-interval scattered VCFs into a single VCF.
     Saves the output VCF to a bucket `output_vcf_path`
     """
-    job_name = f'Gather {len(input_vcfs)} {"site-only " if site_only else ""}VCFs'
-    j = b.new_job(job_name, job_attrs)
-    j.image(image_path('gatk'))
-    if out_vcf_path and out_vcf_path.exists() and not overwrite:
-        j.name += ' [reuse]'
-        return j, b.read_input_group(
+    if out_vcf_path and can_reuse(out_vcf_path, overwrite):
+        return None, b.read_input_group(
             **{
                 'vcf.gz': str(out_vcf_path),
                 'vcf.gz.tbi': f'{out_vcf_path}.tbi',
             }
         )
 
-    j.memory('16Gi')
-    j.storage('50G')
-    j.cpu(16)
+    job_name = f'Gather {len(input_vcfs)} {"site-only " if site_only else ""}VCFs'
+    j = b.new_job(job_name, job_attrs)
+    j.image(image_path('gatk'))
     if gvcf_count:
-        j.storage((1 if site_only else 2) * gvcf_count)
+        storage_gb = (1 if site_only else 2) * gvcf_count
+        res = STANDARD.set_resources(j, fraction=1, storage_gb=storage_gb)
+    else:
+        res = STANDARD.set_resources(j, fraction=1)
 
     j.declare_resource_group(
         output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
     )
 
     input_cmdl = ' '.join([f'--input {v}' for v in input_vcfs])
+    assert isinstance(j.output_vcf, hb.ResourceGroup)
     cmd = f"""
     # --ignore-safety-checks makes a big performance difference so we include it in
     # our invocation. This argument disables expensive checks that the file headers
     # contain the same set of genotyped samples and that files are in order
     # by position of first record.
-    gatk --java-options -Xms25g \\
+    gatk --java-options -Xms{res.get_java_mem_mb()}m \\
     GatherVcfsCloud \\
     --ignore-safety-checks \\
     --gather-type BLOCK \\
     {input_cmdl} \\
     --output {j.output_vcf['vcf.gz']}
-
-    tabix {j.output_vcf['vcf.gz']}
+    tabix -p vcf {j.output_vcf['vcf.gz']}
     """
     j.command(cmd)
     if out_vcf_path:
@@ -322,9 +352,9 @@ def gather_vcfs(
 
 def gather_vep_json_to_ht(
     b: Batch,
-    vep_results_paths: List[CloudPath],
-    out_path: CloudPath,
-    job_attrs: Optional[dict] = None,
+    vep_results_paths: list[Path],
+    out_path: Path,
+    job_attrs: dict | None = None,
 ) -> Job:
     """
     Parse results from VEP with annotations formatted in JSON,
@@ -345,33 +375,33 @@ def gather_vep_json_to_ht(
 
 def vep_one(
     b: Batch,
-    vcf: Union[CloudPath, hb.Resource],
-    out_path: Optional[CloudPath] = None,
+    vcf: Union[Path, hb.ResourceFile],
+    out_path: Optional[Path] = None,
     out_format: Literal['vcf', 'json'] = 'vcf',
     job_attrs: Optional[Dict] = None,
     overwrite: bool = False,
-) -> Job:
+) -> Job | None:
     """
     Run a single VEP job.
     """
-    j = b.new_job('VEP', job_attrs)
     if out_path and out_path.exists() and not overwrite:
-        j.name += ' [reuse]'
-        return j
+        return None
 
+    j = b.new_job('VEP', job_attrs)
     j.image(image_path('vep'))
-    j.storage('50G')
-    j.cpu(16)
+    STANDARD.set_resources(j, storage_gb=50, mem_gb=50, ncpu=16)
 
-    if not isinstance(vcf, hb.Resource):
+    if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
 
     if out_format == 'vcf':
         j.declare_resource_group(
             output={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
         )
+        assert isinstance(j.output, hb.ResourceGroup)
         output = j.output['vcf.gz']
     else:
+        assert isinstance(j.output, hb.ResourceFile)
         output = j.output
 
     # gcsfuse works only with the root bucket, without prefix:
