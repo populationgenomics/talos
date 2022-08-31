@@ -199,7 +199,7 @@ def clean_initial_results(
 
 
 def update_result_meta(
-    results: dict, config: dict, pedigree: Ped, panelapp: dict
+    results: dict, config: dict, pedigree: Ped, panelapp: dict, samples: list[str]
 ) -> dict:
     """
     takes the 'cleaned' results, and adds in a metadata key
@@ -208,6 +208,10 @@ def update_result_meta(
     """
     family_counter = defaultdict(int)
     for family in pedigree.families:
+        # don't count families who don't appear in this pedigree subset
+        if not any(sam.sample_id in samples for sam in pedigree.families[family]):
+            continue
+
         affected, sex, trios, quads = pedigree.families[family].summary()
         family_counter['affected'] += affected[True]
         family_counter['male'] += sex['male']
@@ -312,7 +316,11 @@ def main(
 
     # add metadata into the results
     meta_results = update_result_meta(
-        cleaned_results, config_dict, pedigree=pedigree_digest, panelapp=panelapp_data
+        cleaned_results,
+        config_dict,
+        pedigree=pedigree_digest,
+        panelapp=panelapp_data,
+        samples=vcf_opened.samples,
     )
 
     # dump results using the custom-encoder to transform sets & DataClasses
