@@ -14,19 +14,12 @@ def test_update_results_meta(peddy_ped):
     results = {}
     config = {'input_file': 'foo', 'latest_run': 'bar', 'cohort': 'cohort'}
     panelapp = {
-        'metadata': {
-            'panel_name': 'biff',
-            'panel_version': 'pow',
-            'panel_id': 'wallop',
-            'additional_panels': [
-                {
-                    'panel_name': 'extra_panel',
-                    'panel_version': 'extra_version',
-                    'panel_id': 2,
-                },
-            ],
-        }
+        'metadata': [
+            {'name': 'biff', 'version': 'pow', 'id': 'wallop'},
+            {'name': 'extra_panel', 'version': 'extra_version', 'id': 2},
+        ]
     }
+
     ped_samples = ['male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2']
 
     big_results = update_result_meta(
@@ -49,12 +42,8 @@ def test_update_results_meta(peddy_ped):
                 '3': 2,
             },
             'panels': [
-                {
-                    'panel_name': 'extra_panel',
-                    'panel_version': 'extra_version',
-                    'panel_id': 2,
-                },
-                {'panel_name': 'biff', 'panel_version': 'pow', 'panel_id': 'wallop'},
+                {'name': 'biff', 'version': 'pow', 'id': 'wallop'},
+                {'name': 'extra_panel', 'version': 'extra_version', 'id': 2},
             ],
         }
     }
