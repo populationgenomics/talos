@@ -27,9 +27,14 @@ def test_update_results_meta(peddy_ped):
             ],
         }
     }
+    ped_samples = ['male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2']
 
     big_results = update_result_meta(
-        results=results, config=config, pedigree=peddy_ped, panelapp=panelapp
+        results=results,
+        config=config,
+        pedigree=peddy_ped,
+        panelapp=panelapp,
+        samples=ped_samples,
     )
     assert big_results == {
         'metadata': {
