@@ -1,6 +1,6 @@
 {
- "panel_metadata": {
-  "current_version": "0.11088"
+ "metadata": {
+  "version": "0.11088"
  },
  "ENSG00ABCD": {
   "symbol": "ABCD",

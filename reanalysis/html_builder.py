@@ -151,8 +151,7 @@ class HTMLBuilder:
         :param config:
         :param pedigree:
         """
-
-        self.config = read_json_from_path(config)['output']
+        self.config = read_json_from_path(config)
         self.panelapp = read_json_from_path(panelapp_data)
         self.pedigree = Ped(pedigree)
 
@@ -160,9 +159,11 @@ class HTMLBuilder:
         self.forbidden_genes = (
             {
                 ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
-                for ensg in set(read_json_from_path(self.config.get('forbidden')))
+                for ensg in set(
+                    read_json_from_path(self.config['output'].get('forbidden'))
+                )
             }
-            if self.config.get('forbidden') is not None
+            if self.config['output'].get('forbidden') is not None
             else {}
         )
 
@@ -172,11 +173,11 @@ class HTMLBuilder:
         self.results = self.remove_forbidden_genes(read_json_from_path(results_dict))
 
         # map of internal:external IDs for translation in results (optional)
-        ext_lookup = self.config.get('external_lookup')
+        ext_lookup = self.config['output'].get('external_lookup')
         self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = self.config.get('seqr_lookup')
+        seqr_path = self.config['output'].get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path:
@@ -184,7 +185,7 @@ class HTMLBuilder:
 
             # force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert self.config.get(
+                assert self.config['output'].get(
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
@@ -195,9 +196,12 @@ class HTMLBuilder:
         takes the results from the analysis and purges forbidden-gene variants
         """
         clean_results = defaultdict(list[dict[str, Any]])
-        for sample, variants in variant_dictionary.items():
+        for sample, content in variant_dictionary.items():
+            if sample == 'metadata':
+                clean_results['metadata'] = content
+                continue
             sample_vars = []
-            for variant in variants:
+            for variant in content:
                 skip_variant = False
                 for gene_id in variant['gene'].split(','):
                     if gene_id in self.forbidden_genes.keys():
@@ -225,6 +229,9 @@ class HTMLBuilder:
         samples_with_no_variants = []
 
         for sample, variants in self.results.items():
+
+            if sample == 'metadata':
+                continue
 
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
@@ -269,16 +276,44 @@ class HTMLBuilder:
             samples_with_no_variants,
         )
 
+    def read_metadata(self) -> dict[str, str]:
+        """
+        reads self.config[metadata]
+        parses into a general table and a panel table
+        """
+        tables = {
+            'Panels': pd.DataFrame(self.results['metadata']['panels']).to_html(
+                index=False, escape=False
+            ),
+            'Meta': pd.DataFrame(
+                {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
+                for key in ['cohort', 'run_datetime', 'input_file']
+            ).to_html(index=False, escape=False),
+            'Families': pd.DataFrame(
+                [
+                    {'family_size': fam_type, 'tally': fam_count}
+                    for fam_type, fam_count in sorted(
+                        self.results['metadata']['family_breakdown'].items()
+                    )
+                ]
+            ).to_html(index=False, escape=False),
+        }
+        return tables
+
     def write_html(self, output_path: str):
         """
         uses the results to create the HTML tables
         writes all content to the output path
         """
-
         summary_table, zero_categorised_samples = self.get_summary_stats()
         html_tables = self.create_html_tables()
 
-        html_lines = ['<head>\n</head>\n<body>\n']
+        html_lines = ['<head></head>\n<body>\n']
+
+        for title, meta_table in self.read_metadata().items():
+            html_lines.append(f'<h3>{title}</h3>')
+            html_lines.append(meta_table)
+            html_lines.append('<br/>')
 
         if self.forbidden_genes:
             # this should be sorted/arranged better
@@ -311,8 +346,8 @@ class HTMLBuilder:
         for sample, table in html_tables.items():
             if sample in self.external_map and sample in self.seqr:
                 sample_string = FAMILY_TEMPLATE.format(
-                    seqr=self.config.get('seqr_instance'),
-                    project=self.config.get('seqr_project'),
+                    seqr=self.config['output'].get('seqr_instance'),
+                    project=self.config['output'].get('seqr_project'),
                     family=self.seqr[sample],
                     sample=self.external_map[sample],
                 )
@@ -336,6 +371,10 @@ class HTMLBuilder:
         sample_tables = {}
 
         for sample, variants in self.results.items():
+
+            if sample == 'metadata':
+                continue
+
             for variant in variants:
 
                 # pull out the string representation
@@ -418,7 +457,7 @@ class HTMLBuilder:
         if sample not in self.seqr:
             return var_string
         return SEQR_TEMPLATE.format(
-            seqr=self.config.get('seqr_instance'),
+            seqr=self.config['output'].get('seqr_instance'),
             variant=var_string,
             family=self.seqr.get(sample),
         )

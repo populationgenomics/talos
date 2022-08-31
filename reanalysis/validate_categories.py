@@ -71,8 +71,7 @@ def set_up_inheritance_filters(
     # iterate over all genes
     for key, gene_data in panelapp_data.items():
 
-        # skip over the stored metadata
-        if '_version' in key:
+        if key == 'metadata':
             continue
 
         # extract the per-gene MOI, and SIMPLIFY
@@ -152,8 +151,8 @@ def apply_moi_to_variants(
 
 
 def clean_initial_results(
-    result_list: List[ReportedVariant], samples: List[str], pedigree: Ped
-) -> Dict[str, list[ReportedVariant]]:
+    result_list: list[ReportedVariant], samples: list[str], pedigree: Ped
+) -> dict[str, list[ReportedVariant]]:
     """
     Possibility 1 variant can be classified multiple ways
     This cleans those to unique for final report
@@ -199,6 +198,41 @@ def clean_initial_results(
     return clean_results
 
 
+def update_result_meta(
+    results: dict, config: dict, pedigree: Ped, panelapp: dict, samples: list[str]
+) -> dict:
+    """
+    takes the 'cleaned' results, and adds in a metadata key
+    the key is used to set the results in context, and will be parsed
+    during generation of the report
+    """
+    family_counter = defaultdict(int)
+    for family in pedigree.families:
+        # don't count families who don't appear in this pedigree subset
+        if not any(sam.sample_id in samples for sam in pedigree.families[family]):
+            continue
+
+        affected, sex, trios, quads = pedigree.families[family].summary()
+        family_counter['affected'] += affected[True]
+        family_counter['male'] += sex['male']
+        family_counter['female'] += sex['female']
+        if trios != 0:
+            family_counter['trios'] += trios
+        if quads != 0:
+            family_counter['quads'] += quads
+        family_counter[str(len(pedigree.families[family].samples))] += 1
+
+    results['metadata'] = {
+        'cohort': config['cohort'],
+        'input_file': config['input_file'],
+        'run_datetime': config['latest_run'],
+        'family_breakdown': dict(family_counter),
+        'panels': panelapp['metadata'],
+    }
+
+    return results
+
+
 def main(
     labelled_vcf: str,
     config_path: Union[str, Dict[str, Any]],
@@ -212,25 +246,6 @@ def main(
     holding all the variants in memory should not be a challenge, no matter how large
     the cohort; if the variant number is large, the classes should be refined
     We expect approximately linear scaling with participants in the joint call
-
-    Might be able to use a single output path, just altering the extension
-    Depends on how this is handled by Hail, as the object paths are Resource File paths
-
-    Re-working of the comp-het logic means that we only store pairings as strings
-    Not needing to reach the annotations attached to variant pairs opens up choices:
-        - process each variant in turn (original design)
-        - parse each chromosome separately, then process the group of variants
-        - parse all variants, then process as a group
-
-    these come with incrementing memory footprints...
-
-    preference is for #2; process an entire contig together (note, still heavily
-    filtered, so low variant numbers expected)
-        - we can look-up the partner variant's attributes in future if we want
-        - this will be required when we do familial checks, e.g. for a compound het,
-            we need to check the presence/absence of a pair of variants in unaffected
-            family members
-
     :param labelled_vcf:
     :param config_path:
     :param out_json:
@@ -299,9 +314,18 @@ def main(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
+    # add metadata into the results
+    meta_results = update_result_meta(
+        cleaned_results,
+        config_dict,
+        pedigree=pedigree_digest,
+        panelapp=panelapp_data,
+        samples=vcf_opened.samples,
+    )
+
     # dump results using the custom-encoder to transform sets & DataClasses
     with AnyPath(out_json).open('w') as fh:
-        json.dump(cleaned_results, fh, cls=CustomEncoder, indent=4)
+        json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':

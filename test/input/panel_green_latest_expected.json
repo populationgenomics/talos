@@ -1,8 +1,11 @@
 {
- "panel_metadata": {
-  "current_version": "0.11088",
-  "panel_name": "Mendeliome"
- },
+ "metadata": [
+  {
+   "version": "0.11088",
+   "name": "Mendeliome",
+   "id": "137"
+  }
+ ],
  "ENSG00ABCD": {
   "symbol": "ABCD",
   "moi": "BIALLELIC",

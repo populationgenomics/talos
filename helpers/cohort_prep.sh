@@ -13,5 +13,6 @@ mkdir -p "inputs/$COHORT"
 python helpers/pedigree_from_sample_metadata.py \
     --project "${COHORT}" \
     --output "inputs/${COHORT}/${TODAY}_${SUBSAMPLE}_percent" \
-    --plink --hash_threshold \
-    "${SUBSAMPLE}"
+    --plink \
+    --hash_threshold "${SUBSAMPLE}" \
+    --copy
