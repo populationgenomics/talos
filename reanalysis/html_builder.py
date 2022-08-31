@@ -371,6 +371,10 @@ class HTMLBuilder:
         sample_tables = {}
 
         for sample, variants in self.results.items():
+
+            if sample == 'metadata':
+                continue
+
             for variant in variants:
 
                 # pull out the string representation
