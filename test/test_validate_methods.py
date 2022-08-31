@@ -12,7 +12,7 @@ def test_update_results_meta(peddy_ped):
     """
 
     results = {}
-    config = {'input_file': 'foo', 'latest_run': 'bar'}
+    config = {'input_file': 'foo', 'latest_run': 'bar', 'cohort': 'cohort'}
     panelapp = {
         'metadata': {
             'panel_name': 'biff',
@@ -40,6 +40,7 @@ def test_update_results_meta(peddy_ped):
         'metadata': {
             'run_datetime': 'bar',
             'input_file': 'foo',
+            'cohort': 'cohort',
             'family_breakdown': {
                 'affected': 2,
                 'male': 3,

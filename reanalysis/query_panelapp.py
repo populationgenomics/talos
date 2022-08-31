@@ -173,7 +173,7 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
     :param additional:
     """
 
-    additional_name = [0]
+    additional_name = additional['metadata'][0]['name']
     panel_dict['metadata'].append(
         {
             'name': additional['metadata'][0]['name'],

@@ -119,23 +119,19 @@ def test_second_panel_update_moi():
     - expect overwriting of MOI
     """
     main = {
-        'metadata': {'panel_name': 'NAME', 'additional_panels': []},
+        'metadata': [{'name': 'NAME', 'id': 'fish'}],
         'ensg1': {'entity_name': '1', 'moi': None, 'flags': []},
     }
     additional = {
-        'metadata': {
-            'panel_name': 'NAME',
-            'panel_version': '1.0',
-            'panel_id': '123',
-            'additional_panels': [],
-        },
+        'metadata': [{'name': 'NAME', 'version': '1.0', 'id': '123'}],
         'ensg1': {'entity_name': '1', 'moi': 'REALLY_BIG'},
     }
     combine_mendeliome_with_other_panels(main, additional)
     assert main['ensg1'].get('flags') == ['NAME']
     assert main['ensg1'].get('moi') == 'REALLY_BIG'
-    assert len(main['metadata']['additional_panels']) == 1
-    assert main['metadata']['additional_panels'][0]['panel_id'] == '123'
+    assert len(main['metadata']) == 2
+    assert main['metadata'][0]['id'] == 'fish'
+    assert main['metadata'][1]['id'] == '123'
 
 
 def test_second_panel_no_overlap():
@@ -144,21 +140,11 @@ def test_second_panel_no_overlap():
     - expect both results
     """
     main = {
-        'metadata': {
-            'panel_name': 'NAME',
-            'panel_version': '1.0',
-            'panel_id': '1',
-            'additional_panels': [],
-        },
+        'metadata': [{'name': 'NAME', 'version': '1.0', 'id': '1'}],
         'ensg1': {'entity_name': '1', 'moi': None, 'flags': []},
     }
     additional = {
-        'metadata': {
-            'panel_name': 'ADD',
-            'panel_version': '1.1',
-            'panel_id': '2',
-            'additional_panels': [],
-        },
+        'metadata': [{'name': 'ADD', 'version': '1.1', 'id': '2'}],
         'ensg2': {'entity_name': '2', 'moi': 'REALLY_BIG'},
     }
     combine_mendeliome_with_other_panels(main, additional)
@@ -166,5 +152,6 @@ def test_second_panel_no_overlap():
     assert main['ensg1'].get('moi') is None
     assert main['ensg2'].get('flags') == ['ADD']
     assert main['ensg2'].get('moi') == 'REALLY_BIG'
-    assert len(main['metadata']['additional_panels']) == 1
-    assert main['metadata']['additional_panels'][0]['panel_version'] == '1.1'
+    assert len(main['metadata']) == 2
+    assert main['metadata'][0]['version'] == '1.0'
+    assert main['metadata'][1]['version'] == '1.1'
