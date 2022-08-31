@@ -71,8 +71,7 @@ def set_up_inheritance_filters(
     # iterate over all genes
     for key, gene_data in panelapp_data.items():
 
-        # skip over the stored metadata
-        if '_version' in key:
+        if key == 'metadata':
             continue
 
         # extract the per-gene MOI, and SIMPLIFY
