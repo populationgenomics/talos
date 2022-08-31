@@ -286,7 +286,7 @@ class HTMLBuilder:
                 index=False, escape=False
             ),
             'Meta': pd.DataFrame(
-                {key.capitalize(): self.results['metadata'][key]}
+                {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
                 for key in ['cohort', 'run_datetime', 'input_file']
             ).to_html(index=False, escape=False),
             'Families': pd.DataFrame(
