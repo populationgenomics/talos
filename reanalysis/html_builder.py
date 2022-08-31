@@ -230,6 +230,9 @@ class HTMLBuilder:
 
         for sample, variants in self.results.items():
 
+            if sample == 'metadata':
+                continue
+
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
 
