@@ -218,20 +218,11 @@ def update_result_meta(
             family_counter['quads'] += quads
         family_counter[str(len(pedigree.families[family].samples))] += 1
 
-    panels = panelapp['metadata']['additional_panels']
-    panels.append(
-        {
-            'panel_name': panelapp['metadata']['panel_name'],
-            'panel_version': panelapp['metadata']['panel_version'],
-            'panel_id': panelapp['metadata']['panel_id'],
-        }
-    )
-
     results['metadata'] = {
         'run_datetime': config['latest_run'],
         'input_file': config['input_file'],
         'family_breakdown': dict(family_counter),
-        'panels': panels,
+        'panels': panelapp['metadata'],
     }
 
     return results
