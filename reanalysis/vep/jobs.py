@@ -153,8 +153,9 @@ def get_intervals(
     @param output_prefix: path optionally to save split subintervals.
 
     The job calls picard IntervalListTools to scatter the input interval list
-    into scatter_count sub-interval lists, inspired by this WARP task :
-    https://github.com/broadinstitute/warp/blob/bc90b0db0138747685b459c83ce52c8576ce03cd/tasks/broad/Utilities.wdl
+    into scatter_count sub-interval lists, inspired by this WARP task:
+    https://github.com/broadinstitute/warp/blob/
+    bc90b0db0138747685b459c83ce52c8576ce03cd/tasks/broad/Utilities.wdl
 
     Note that we use the mode INTERVAL_SUBDIVISION instead of
     BALANCING_WITHOUT_INTERVAL_SUBDIVISION_WITH_OVERFLOW. Modes other than
