@@ -278,7 +278,7 @@ class HTMLBuilder:
         parses into a general table and a panel table
         """
         tables = {
-            'Panels': pd.DataFrame(self.config['metadata']['panels']).to_html(
+            'Panels': pd.DataFrame(self.panelapp['metadata']).to_html(
                 index=False, escape=False
             ),
             'Meta': pd.DataFrame(

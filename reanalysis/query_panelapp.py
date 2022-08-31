@@ -31,7 +31,7 @@ from cloudpathlib import AnyPath
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
-PanelData = dict[str, dict]
+PanelData = dict[str, dict | list[dict]]
 
 
 def parse_gene_list(path_to_list: str) -> set[str]:
@@ -83,12 +83,13 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
     )
 
     gene_dict = {
-        'metadata': {
-            'panel_name': panel_name,
-            'panel_version': panel_version,
-            'panel_id': panel_id,
-            'additional_panels': [],
-        }
+        'metadata': [
+            {
+                'name': panel_name,
+                'version': panel_version,
+                'id': panel_id,
+            }
+        ]
     }
 
     for gene in panel_json['genes']:
@@ -172,12 +173,12 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
     :param additional:
     """
 
-    additional_name = additional['metadata']['panel_name']
-    panel_dict['metadata']['additional_panels'].append(
+    additional_name = [0]
+    panel_dict['metadata'].append(
         {
-            'panel_name': additional_name,
-            'panel_version': additional['metadata']['panel_version'],
-            'panel_id': additional['metadata']['panel_id'],
+            'name': additional['metadata'][0]['name'],
+            'version': additional['metadata'][0]['version'],
+            'id': additional['metadata'][0]['id'],
         }
     )
     panel_keys = panel_dict.keys()
