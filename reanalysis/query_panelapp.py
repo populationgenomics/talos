@@ -84,9 +84,9 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
 
     gene_dict = {
         'metadata': {
-            'current_version': panel_version,
             'panel_name': panel_name,
             'panel_version': panel_version,
+            'panel_id': panel_id,
             'additional_panels': [],
         }
     }
@@ -173,9 +173,12 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
     """
 
     additional_name = additional['metadata']['panel_name']
-    additional_version = additional['metadata']['panel_version']
-    panel_dict['additional_panels'].append(
-        {'panel_name': additional_name, 'panel_version': additional_version}
+    panel_dict['metadata']['additional_panels'].append(
+        {
+            'panel_name': additional_name,
+            'panel_version': additional['metadata']['panel_version'],
+            'panel_id': additional['metadata']['panel_id'],
+        }
     )
     panel_keys = panel_dict.keys()
     for ensg in additional.keys():

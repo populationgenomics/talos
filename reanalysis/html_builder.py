@@ -299,13 +299,12 @@ class HTMLBuilder:
         uses the results to create the HTML tables
         writes all content to the output path
         """
-        meta_tables = self.read_metadata()
         summary_table, zero_categorised_samples = self.get_summary_stats()
         html_tables = self.create_html_tables()
 
         html_lines = ['<head></head>\n<body>\n']
 
-        for title, meta_table in meta_tables.items():
+        for title, meta_table in self.read_metadata().items():
             html_lines.append(f'<h3>{title}</h3>')
             html_lines.append(meta_table)
             html_lines.append('<br/>')

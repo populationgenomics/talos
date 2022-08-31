@@ -224,6 +224,7 @@ def update_result_meta(
         {
             'panel_name': panelapp['metadata']['panel_name'],
             'panel_version': panelapp['metadata']['panel_version'],
+            'panel_id': panelapp['metadata']['panel_id'],
         }
     )
 

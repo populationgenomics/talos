@@ -17,8 +17,13 @@ def test_update_results_meta(peddy_ped):
         'metadata': {
             'panel_name': 'biff',
             'panel_version': 'pow',
+            'panel_id': 'wallop',
             'additional_panels': [
-                {'panel_name': 'extra_panel', 'panel_version': 'extra_version'},
+                {
+                    'panel_name': 'extra_panel',
+                    'panel_version': 'extra_version',
+                    'panel_id': 2,
+                },
             ],
         }
     }
@@ -38,8 +43,12 @@ def test_update_results_meta(peddy_ped):
                 '3': 2,
             },
             'panels': [
-                {'panel_name': 'extra_panel', 'panel_version': 'extra_version'},
-                {'panel_name': 'biff', 'panel_version': 'pow'},
+                {
+                    'panel_name': 'extra_panel',
+                    'panel_version': 'extra_version',
+                    'panel_id': 2,
+                },
+                {'panel_name': 'biff', 'panel_version': 'pow', 'panel_id': 'wallop'},
             ],
         }
     }

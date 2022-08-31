@@ -1,7 +1,9 @@
 {
- "panel_metadata": {
-  "current_version": "0.11088",
-  "panel_name": "Mendeliome"
+ "metadata": {
+  "panel_version": "0.11088",
+  "panel_name": "Mendeliome",
+  "panel_id": "137",
+  "additional_panels": []
  },
  "ENSG00ABCD": {
   "symbol": "ABCD",

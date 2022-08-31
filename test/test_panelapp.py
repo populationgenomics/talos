@@ -119,16 +119,23 @@ def test_second_panel_update_moi():
     - expect overwriting of MOI
     """
     main = {
-        'panel_metadata': {'panel_name': 'NAME'},
+        'metadata': {'panel_name': 'NAME', 'additional_panels': []},
         'ensg1': {'entity_name': '1', 'moi': None, 'flags': []},
     }
     additional = {
-        'panel_metadata': {'panel_name': 'NAME'},
+        'metadata': {
+            'panel_name': 'NAME',
+            'panel_version': '1.0',
+            'panel_id': '123',
+            'additional_panels': [],
+        },
         'ensg1': {'entity_name': '1', 'moi': 'REALLY_BIG'},
     }
     combine_mendeliome_with_other_panels(main, additional)
     assert main['ensg1'].get('flags') == ['NAME']
     assert main['ensg1'].get('moi') == 'REALLY_BIG'
+    assert len(main['metadata']['additional_panels']) == 1
+    assert main['metadata']['additional_panels'][0]['panel_id'] == '123'
 
 
 def test_second_panel_no_overlap():
@@ -137,15 +144,27 @@ def test_second_panel_no_overlap():
     - expect both results
     """
     main = {
-        'panel_metadata': {'panel_name': 'NAME'},
+        'metadata': {
+            'panel_name': 'NAME',
+            'panel_version': '1.0',
+            'panel_id': '1',
+            'additional_panels': [],
+        },
         'ensg1': {'entity_name': '1', 'moi': None, 'flags': []},
     }
     additional = {
-        'panel_metadata': {'panel_name': 'NAME'},
+        'metadata': {
+            'panel_name': 'ADD',
+            'panel_version': '1.1',
+            'panel_id': '2',
+            'additional_panels': [],
+        },
         'ensg2': {'entity_name': '2', 'moi': 'REALLY_BIG'},
     }
     combine_mendeliome_with_other_panels(main, additional)
     assert main['ensg1'].get('flags') == []
     assert main['ensg1'].get('moi') is None
-    assert main['ensg2'].get('flags') == ['NAME']
+    assert main['ensg2'].get('flags') == ['ADD']
     assert main['ensg2'].get('moi') == 'REALLY_BIG'
+    assert len(main['metadata']['additional_panels']) == 1
+    assert main['metadata']['additional_panels'][0]['panel_version'] == '1.1'
