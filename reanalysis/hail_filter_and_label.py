@@ -742,7 +742,7 @@ def green_and_new_from_panelapp(
     """
 
     # take all the green genes, remove the metadata
-    green_genes = set(panel_data.keys()) - {'panel_metadata'}
+    green_genes = set(panel_data.keys()) - {'metadata'}
     logging.info(f'Extracted {len(green_genes)} green genes')
     green_gene_set_expression = hl.literal(green_genes)
 

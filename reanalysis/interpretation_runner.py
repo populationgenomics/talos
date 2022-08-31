@@ -356,6 +356,7 @@ def main(
             'latest_run': f'{datetime.now():%Y-%m-%d %H:%M:%S%z}',
             'input_file': input_path,
             'panelapp_file': PANELAPP_JSON_OUT,
+            'cohort': get_config()['workflow']['dataset'],
         }
     )
 
@@ -485,11 +486,12 @@ def main(
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
 
+    # pointing this analysis at the updated config file, including input metadata
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
         _results_job = handle_results_job(
             batch=batch,
-            config=config_json,
+            config=output_path('latest_config.json'),
             labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
@@ -498,7 +500,7 @@ def main(
 
     # save the json file into the batch output, with latest run details
     with AnyPath(output_path('latest_config.json')).open('w') as handle:
-        json.dump(config_dict, handle)
+        json.dump(config_dict, handle, indent=True)
 
     # write pedigree content to the output folder
     with AnyPath(output_path('latest_pedigree.fam')).open('w') as handle:

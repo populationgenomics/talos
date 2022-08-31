@@ -4,8 +4,7 @@ optional argument will remove all family associations
     - family structure removal enforces singleton structure during this MVP
 optional argument will replace missing parents with '0' to be valid PLINK structure
 """
-
-
+import os
 from collections import defaultdict
 from itertools import product
 import hashlib
@@ -14,6 +13,7 @@ import logging
 from typing import Union
 
 import click
+from cloudpathlib import AnyPath
 
 from sample_metadata.apis import FamilyApi, ParticipantApi
 
@@ -76,41 +76,39 @@ def get_ped_with_permutations(
         new_entries.append(ped_entry)
 
     if failures:
-        raise Exception(
+        logging.error(
             f'Samples were available from the Pedigree endpoint, '
             f'but no ID translation was available: {",".join(failures)}'
         )
     return new_entries
 
 
-def write_ped_with_permutations(
-    ped_with_permutations: list[dict[str, list[str]]], output: str
-):
+def get_ped_lines(ped_with_permutations: list[dict[str, list[str]]]) -> str:
     """
     take the pedigree data, and write out as a correctly formatted PED file
     this permits the situation where we have multiple possible samples per individual
 
     :param ped_with_permutations: the PED content with sample lists
-    :param output: file location to create
     """
-    with open(output, 'w', encoding='utf-8') as handle:
-        for entry in ped_with_permutations:
-            for sample, mother, father in product(
-                entry['individual_id'], entry['paternal_id'], entry['maternal_id']
-            ):
-                handle.write(
-                    '\t'.join(
-                        [
-                            entry['family_id'],
-                            sample,
-                            mother,
-                            father,
-                            str(entry['sex']),
-                            str(entry['affected']),
-                        ]
-                    )
-                    + '\n'
+    ped_lines = []
+    for entry in ped_with_permutations:
+        for sample, mother, father in product(
+            entry['individual_id'], entry['paternal_id'], entry['maternal_id']
+        ):
+            ped_lines.append(
+                '\t'.join(
+                    [
+                        entry['family_id'],
+                        sample,
+                        mother,
+                        father,
+                        str(entry['sex']),
+                        str(entry['affected']),
+                    ]
                 )
+                + '\n'
+            )
+    return ''.join(ped_lines)
 
 
 def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
@@ -215,20 +213,25 @@ def hash_reduce_dicts(
     default=None,
     type=int,
 )
+@click.option(
+    '--copy', help='If used, copy directly to GCP', is_flag=True, default=False
+)
 def main(
     project: str,
     singletons: bool,
     plink: bool,
     output: str,
     hash_threshold: int | None = None,
+    copy: bool = False,
 ):
     """
 
     :param project: may be able to retrieve this from the environment
     :param singletons: whether to split the pedigree(s) into singletons
     :param plink: whether to write the file as PLINK.fam format
-    :param hash_threshold:
     :param output: path to write new PED file
+    :param hash_threshold:
+    :param copy: if True, copy directly to GCP, or error
     """
 
     # get the list of all pedigree members as list of dictionaries
@@ -254,12 +257,25 @@ def main(
 
     # store a way of reversing this lookup in future
     reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
-    with open(f'{output}_external_lookup.json', 'w', encoding='utf-8') as handle:
+    lookup_path = f'{output}_external_lookup.json'
+    with open(lookup_path, 'w', encoding='utf-8') as handle:
         json.dump(reverse_lookup, handle, indent=4)
 
     pedigree_output_path = f'{output}.{"fam" if plink else "ped"}'
     logging.info('writing new PED file to "%s"', pedigree_output_path)
-    write_ped_with_permutations(ped_with_permutations, pedigree_output_path)
+    ped_line = get_ped_lines(ped_with_permutations)
+
+    with open(pedigree_output_path, 'w', encoding='utf-8') as handle:
+        handle.write(ped_line)
+
+    output_folder = f'gs://cpg-{project}-test/reanalysis'
+    if copy:
+        with AnyPath(os.path.join(output_folder, 'pedigree.fam')).open('w') as handle:
+            handle.write(ped_line)
+        with AnyPath(os.path.join(output_folder, 'external_lookup.json')).open(
+            'w'
+        ) as handle:
+            json.dump(reverse_lookup, handle)
 
 
 if __name__ == '__main__':
