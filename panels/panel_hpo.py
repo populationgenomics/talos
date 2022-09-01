@@ -33,7 +33,7 @@ def get_panels(endpoint: str) -> dict[str, list[int]]:
 
         # cycle through additional pages
         # why don't GEL make the panelapp API public...
-        if endpoint_data['next'] is not None:
+        if endpoint_data['next']:
             endpoint = endpoint_data['next']
         else:
             break
