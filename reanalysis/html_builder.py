@@ -6,10 +6,10 @@ from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
 
-from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
 
+from cpg_utils import to_path
 from reanalysis.utils import read_json_from_path
 
 
@@ -360,7 +360,7 @@ class HTMLBuilder:
 
         # write all HTML content to the output file in one go
         # fix formatting later
-        AnyPath(output_path).write_text(''.join(html_lines))
+        to_path(output_path).write_text(''.join(html_lines))
 
     def create_html_tables(self):
         """

@@ -14,7 +14,6 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_5,
     annotate_category_support,
     green_and_new_from_panelapp,
-    filter_to_population_rare,
     split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
 )
@@ -278,30 +277,6 @@ def test_green_and_new_from_panelapp(panel_changes):
         'ENSG00IJKL',
     ]
     assert list(new_expression.collect()[0]) == ['ENSG00EFGH']
-
-
-@pytest.mark.parametrize(
-    'exomes,genomes,length',
-    [
-        (0, 0, 1),
-        (1.0, 0, 0),
-        (0.04, 0.04, 1),
-    ],
-)
-def test_filter_rows_for_rare(exomes, genomes, length, hail_matrix):
-    """
-    :param hail_matrix:
-    :return:
-    """
-    conf = {'af_semi_rare': 0.05}
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            gnomad_ex_af=exomes,
-            gnomad_af=genomes,
-        )
-    )
-    matrix = filter_to_population_rare(anno_matrix, conf)
-    assert matrix.count_rows() == length
 
 
 @pytest.mark.parametrize(

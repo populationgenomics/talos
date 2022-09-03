@@ -6,10 +6,11 @@ unit testing collection for the hail MT methods
 import pytest
 import hail as hl
 
-from reanalysis.hail_filter_and_label import (
+from reanalysis.hail_methods import (
     filter_matrix_by_ac,
     filter_on_quality_flags,
     filter_to_well_normalised,
+    filter_to_population_rare,
 )
 
 
@@ -80,3 +81,26 @@ def test_filter_to_well_normalised(alleles, length, hail_matrix):
     anno_matrix = hail_matrix.annotate_rows(alleles=alleles)
 
     assert filter_to_well_normalised(anno_matrix).count_rows() == length
+
+
+@pytest.mark.parametrize(
+    'exomes,genomes,length',
+    [
+        (0, 0, 1),
+        (1.0, 0, 0),
+        (0.04, 0.04, 1),
+    ],
+)
+def test_filter_rows_for_rare(exomes, genomes, length, hail_matrix):
+    """
+    :param hail_matrix:
+    :return:
+    """
+    anno_matrix = hail_matrix.annotate_rows(
+        info=hail_matrix.info.annotate(
+            gnomad_ex_af=exomes,
+            gnomad_af=genomes,
+        )
+    )
+    matrix = filter_to_population_rare(anno_matrix, thresh=0.05)
+    assert matrix.count_rows() == length

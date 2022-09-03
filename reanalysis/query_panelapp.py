@@ -26,7 +26,7 @@ import sys
 from argparse import ArgumentParser
 
 import requests
-from cloudpathlib import AnyPath
+from cpg_utils import to_path
 
 
 MENDELIOME = '137'
@@ -41,7 +41,7 @@ def parse_gene_list(path_to_list: str) -> set[str]:
     :param path_to_list:
     """
     logging.info(f'Loading gene list from {path_to_list}')
-    with open(AnyPath(path_to_list), encoding='utf-8') as handle:
+    with open(to_path(path_to_list), encoding='utf-8') as handle:
         return set(json.load(handle))
 
 
@@ -149,14 +149,14 @@ def gene_list_differences(latest_content: PanelData, previous_genes: set[str]):
 def write_output_json(output_path: str, object_to_write: Any):
     """
     writes object to a json file
-    AnyPath provides platform abstraction
+    to_path provides platform abstraction
 
     :param output_path:
     :param object_to_write:
     """
 
     logging.info(f'Writing output JSON file to {output_path}')
-    out_route = AnyPath(output_path)
+    out_route = to_path(output_path)
 
     if out_route.exists():
         logging.info(f'Output path "{output_path}" exists, will be overwritten')

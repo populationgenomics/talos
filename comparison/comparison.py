@@ -17,20 +17,21 @@ import sys
 from typing import Any
 
 from argparse import ArgumentParser
-from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 import hail as hl
 from peddy import Ped
 
+from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch
 
-from reanalysis.hail_filter_and_label import (
-    extract_annotations,
-    filter_by_ab_ratio,
+from reanalysis.hail_methods import (
     filter_matrix_by_ac,
     filter_on_quality_flags,
     filter_to_population_rare,
     filter_to_well_normalised,
+)
+from reanalysis.hail_filter_and_label import (
+    extract_annotations,
     green_and_new_from_panelapp,
     CONFLICTING,
     LOFTEE_HC,
@@ -194,7 +195,7 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
     assert seqr.endswith('.tsv'), f'process requires a TSV format export'
     sample_dict: CommonDict = defaultdict(list)
 
-    with AnyPath(seqr).open() as handle:
+    with to_path(seqr).open() as handle:
         seqr_parser = DictReader(handle, delimiter='\t')
 
         # Each Sample ID is under a separate column heading, e.g. sample_1
@@ -465,32 +466,17 @@ def check_variant_was_normalised(matrix: hl.MatrixTable) -> list[str]:
     return []
 
 
-def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
-    """
-
-    :param matrix:
-    :param sample_id:
-    :return:
-    """
-
-    # evaluating the AB test has to be sample ID specific
-    ab_filt_mt = filter_by_ab_ratio(matrix)
-    if len(ab_filt_mt.filter_cols(ab_filt_mt.s == sample_id).entries().collect()) == 0:
-        return ['QC: Variant fails AB ratio']
-
-    return []
-
-
 def check_population_rare(
-    matrix: hl.MatrixTable, config: dict[str, Any]
+    matrix: hl.MatrixTable, threshold: float
 ) -> tuple[hl.MatrixTable, list[str]]:
     """
     filter out all rare variants, return fail reason if everything is removed
     :param matrix:
-    :param config:
+    :param threshold: af threshold in config
     :return:
     """
-    matrix = filter_to_population_rare(matrix, config)
+
+    matrix = filter_to_population_rare(matrix, thresh=threshold)
 
     if matrix.count_rows() == 0:
         return matrix, ['AF: No variants remain after Rare filter']
@@ -765,7 +751,7 @@ def check_mt(
             continue
 
         # remove common variants
-        var_mt, af_reason = check_population_rare(var_mt, config)
+        var_mt, af_reason = check_population_rare(var_mt, config['af_semi_rare'])
 
         # break early if we find a CSQ failure?
         if af_reason:
@@ -817,7 +803,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
 
     # strict comparison
     flag_summary = find_seqr_flags(aip_results=aip_results, seqr_results=seqr_results)
-    with AnyPath(f'{output}_match_summary.json').open('w') as handle:
+    with to_path(f'{output}_match_summary.json').open('w') as handle:
         json.dump(flag_summary, handle, default=str, indent=4)
 
     # compare the results of the two datasets
@@ -868,11 +854,11 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
         new_genes=new_genes,
     )
     if untiered:
-        with AnyPath(f'{output}_untiered.json').open('w') as handle:
+        with to_path(f'{output}_untiered.json').open('w') as handle:
             json.dump(untiered, handle, default=str, indent=4)
 
     if not_present:
-        with AnyPath(f'{output}_missing.json').open('w') as handle:
+        with to_path(f'{output}_missing.json').open('w') as handle:
             json.dump(not_present, handle, default=str, indent=4)
 
 

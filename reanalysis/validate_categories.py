@@ -18,10 +18,10 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from typing import Any, Dict, List, Union
 
-from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
+from cpg_utils import to_path
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
@@ -324,7 +324,7 @@ def main(
     )
 
     # dump results using the custom-encoder to transform sets & DataClasses
-    with AnyPath(out_json).open('w') as fh:
+    with to_path(out_json).open('w') as fh:
         json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
 

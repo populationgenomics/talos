@@ -7,14 +7,13 @@ from collections import defaultdict
 from dataclasses import dataclass, is_dataclass
 from enum import Enum
 from itertools import combinations_with_replacement
-from pathlib import Path
 from typing import Any, Union
 
 import json
 import logging
 import re
 
-from cloudpathlib import AnyPath
+from cpg_utils import to_anypath, Path
 
 
 InfoDict = dict[str, Union[str, dict[str, str]]]
@@ -490,7 +489,7 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     take a path to a JSON file, read into an object
     :param bucket_path:
     """
-    with AnyPath(bucket_path).open() as handle:
+    with to_anypath(bucket_path).open() as handle:
         return json.load(handle)
 
 

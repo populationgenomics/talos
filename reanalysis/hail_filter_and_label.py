@@ -21,10 +21,20 @@ from argparse import ArgumentParser
 import hail as hl
 from peddy import Ped
 
-from cloudpathlib import AnyPath
+from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
 
 from reanalysis.utils import read_json_from_path
+from reanalysis.hail_methods import (
+    checkpoint_and_repartition,
+    fields_audit,
+    filter_matrix_by_ac,
+    filter_on_quality_flags,
+    filter_to_population_rare,
+    filter_to_well_normalised,
+    split_rows_by_gene_and_filter_to_green,
+    vep_tx_audit,
+)
 
 
 # set some Hail constants
@@ -95,112 +105,6 @@ VEP_TX_FIELDS_REQUIRED = [
     ('mane_select', hl.StringExpression),
     ('lof', hl.StringExpression),
 ]
-
-
-def fields_audit(mt: hl.MatrixTable) -> bool:
-    """
-    checks that the required fields are all present before continuing
-    """
-    problems = []
-    for field_group, group_types in FIELDS_REQUIRED.items():
-        if field_group not in mt.row_value:
-            problems.append(f'{field_group}:missing')
-        else:
-            for annotation, datatype in group_types:
-                if annotation in mt[field_group]:
-                    if not isinstance(mt[field_group][annotation], datatype):
-                        problems.append(
-                            f'{annotation}:'
-                            f'{datatype}/'
-                            f'{type(mt[field_group][annotation])}'
-                        )
-                else:
-                    problems.append(f'{annotation}:missing')
-    if problems:
-        for problem in problems:
-            logging.error(f'MT field: \t{problem}')
-        return False
-    return True
-
-
-def vep_audit(mt: hl.MatrixTable) -> bool:
-    """
-    check that the required VEP annotations are present
-    True if the 'audit' passes (all required fields present)
-    """
-
-    problems = []
-    # now the content of the transcript_consequences
-    if 'vep' not in mt.row_value:
-        problems.append('VEP:missing')
-    elif 'transcript_consequences' not in mt.vep:
-        problems.append('transcript_consequences:missing')
-    else:
-        fields_and_types = dict(mt.vep.transcript_consequences[0].items())
-        for field, field_type in VEP_TX_FIELDS_REQUIRED:
-            if field in fields_and_types:
-                if not isinstance(fields_and_types[field], field_type):
-                    problems.append(
-                        f'{field}:{field_type}/{type(fields_and_types[field])}'
-                    )
-            else:
-                problems.append(f'{field}:missing')
-
-    if problems:
-        logging.error('VEP field: \n'.join(problems))
-        return False
-    return True
-
-
-def filter_matrix_by_ac(
-    mt: hl.MatrixTable, ac_threshold: float | None = 0.01
-) -> hl.MatrixTable:
-    """
-    if called, this method will remove all variants in the joint call where the
-    AlleleCount as a proportion is higher than the provided threshold
-    :param mt:
-    :param ac_threshold:
-    :return: reduced MatrixTable
-    """
-    return mt.filter_rows((mt.info.AC <= 5) | (mt.info.AC / mt.info.AN < ac_threshold))
-
-
-def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    filter MT to rows with 0 quality filters
-    note: in Hail, PASS is represented as an empty set
-    :param mt:
-    """
-    return mt.filter_rows(mt.filters.length() == 0)
-
-
-def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    single alt per row, no missing Alt
-    :param mt:
-    """
-    return mt.filter_rows((hl.len(mt.alleles) == 2) & (mt.alleles[1] != '*'))
-
-
-def filter_by_ab_ratio(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    filters HomRef, Het, and HomAlt by appropriate AB ratio bins
-
-    NOTE: This is a broken implementation, as it will replace the
-    true genotype calls with missing values. This has implications for
-    MOI testing downstream, as the corresponding genotypes in family
-    members can be absent, despite being called in the VCF
-
-    This can also cause rows in the resulting VCF to be
-    only WT/missing calls, removing all actual variant calls
-    :param mt:
-    """
-    ab = mt.AD[1] / hl.sum(mt.AD)
-    return mt.filter_entries(
-        (mt.GT.is_hom_ref() & (ab <= 0.15))
-        | (mt.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-        | (mt.GT.is_hom_var() & (ab >= 0.85))
-    )
 
 
 def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -496,80 +400,6 @@ def annotate_category_support(
     )
 
 
-def transform_variant_string(locus_details: hl.Struct) -> str:
-    """
-    takes an object
-    Struct(
-        locus=Locus(
-            contig='chr1',
-            position=10,
-            reference_genome='GRCh38'
-        ),
-        alleles=['GC', 'G'],
-        category_4_only=0
-    )
-    transform into simplified 1-10-GC-G
-    drop the category_4_only attribute
-    :param locus_details:
-    :return:
-    """
-    return '-'.join(
-        [
-            locus_details.locus.contig.replace('chr', ''),
-            str(locus_details.locus.position),
-            *locus_details.alleles,
-        ]
-    )
-
-
-def filter_to_population_rare(
-    mt: hl.MatrixTable, config: dict[str, Any]
-) -> hl.MatrixTable:
-    """
-    run the rare filter, using Gnomad Exomes and Genomes
-    :param mt:
-    :param config:
-    :return:
-    """
-    # gnomad exomes and genomes below threshold or missing
-    # if missing they were previously replaced with 0.0
-    return mt.filter_rows(
-        (mt.info.gnomad_ex_af < config['af_semi_rare'])
-        & (mt.info.gnomad_af < config['af_semi_rare'])
-    )
-
-
-def split_rows_by_gene_and_filter_to_green(
-    mt: hl.MatrixTable, green_genes: hl.SetExpression
-) -> hl.MatrixTable:
-    """
-    splits each GeneId onto a new row, then filters any
-    rows not annotating a Green PanelApp gene
-    :param mt:
-    :param green_genes:
-    """
-
-    # split each gene onto a separate row
-    # transforms 'geneIds' field from set to string
-    mt = mt.explode_rows(mt.geneIds)
-
-    # filter rows without a green gene (removes empty geneIds)
-    mt = mt.filter_rows(green_genes.contains(mt.geneIds))
-
-    # limit the per-row transcript consequences to those relevant to the single
-    # gene now present on each row
-    mt = mt.annotate_rows(
-        vep=mt.vep.annotate(
-            transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: (mt.geneIds == x.gene_id)
-                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
-            )
-        )
-    )
-
-    return mt
-
-
 def vep_struct_to_csq(
     vep_expr: hl.expr.StructExpression, csq_fields: list[str]
 ) -> hl.expr.ArrayExpression:
@@ -744,45 +574,13 @@ def green_and_new_from_panelapp(
     # take all the green genes, remove the metadata
     green_genes = set(panel_data.keys()) - {'metadata'}
     logging.info(f'Extracted {len(green_genes)} green genes')
-    green_gene_set_expression = hl.literal(green_genes)
+    green_gene_set_expression = hl.set(green_genes)
 
     new_genes = {gene for gene in green_genes if panel_data[gene].get('new')}
     logging.info(f'Extracted {len(new_genes)} NEW genes')
-    new_gene_set_expression = hl.literal(new_genes)
+    new_gene_set_expression = hl.set(new_genes)
 
     return green_gene_set_expression, new_gene_set_expression
-
-
-def checkpoint_and_repartition(
-    mt: hl.MatrixTable,
-    checkpoint_root: str,
-    checkpoint_num: int,
-    extra_logging: str | None = '',
-) -> hl.MatrixTable:
-    """
-    uses an estimate of row size to inform the repartitioning of a MT
-    aiming for a target partition size of ~10MB
-    Kat's thread:
-    https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
-    :param mt:
-    :param checkpoint_root:
-    :param checkpoint_num:
-    :param extra_logging: any additional context
-    :return: repartitioned, post-checkpoint matrix
-    """
-    checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
-    logging.info(f'Checkpointing MT to {checkpoint_extended}')
-    mt = mt.checkpoint(checkpoint_extended, overwrite=True)
-
-    # estimate partitions; fall back to 1 if low row count
-    current_rows = mt.count_rows()
-    partitions = current_rows // 200000 or 1
-
-    logging.info(
-        f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
-    )
-
-    return mt.repartition(n_partitions=partitions, shuffle=True)
 
 
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
@@ -812,7 +610,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
         return mt
 
     # reduce to those common samples
-    mt = mt.filter_cols(hl.literal(common_samples).contains(mt.s))
+    mt = mt.filter_cols(hl.set(common_samples).contains(mt.s))
 
     logging.info(f'Remaining MatrixTable columns: {mt.count_cols()}')
 
@@ -860,12 +658,15 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     )
 
     # if we already generated the annotated output, load instead
-    if not AnyPath(mt_path.rstrip('/') + '/').exists():
+    if not to_path(mt_path.rstrip('/') + '/').exists():
         raise Exception(f'Input MatrixTable doesn\'t exist: {mt_path}')
 
     mt = hl.read_matrix_table(mt_path)
 
-    if not (fields_audit(mt) and vep_audit(mt)):
+    if not (
+        fields_audit(mt, fields=FIELDS_REQUIRED)
+        and vep_tx_audit(mt, vep_required=VEP_TX_FIELDS_REQUIRED)
+    ):
         raise Exception('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
@@ -886,9 +687,6 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     if mt.count_rows() == 0:
         raise Exception('No remaining rows to process!')
 
-    # see method docstring, currently disabled
-    # matrix = filter_by_ab_ratio(matrix)
-
     mt = checkpoint_and_repartition(
         mt,
         checkpoint_root=checkpoint_root,
@@ -899,7 +697,7 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     checkpoint_number = checkpoint_number + 1
 
     mt = extract_annotations(mt)
-    mt = filter_to_population_rare(mt=mt, config=hail_config)
+    mt = filter_to_population_rare(mt=mt, thresh=hail_config['af_semi_rare'])
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
     mt = checkpoint_and_repartition(

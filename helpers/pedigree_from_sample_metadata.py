@@ -13,7 +13,7 @@ import logging
 from typing import Union
 
 import click
-from cloudpathlib import AnyPath
+from cpg_utils import to_path
 
 from sample_metadata.apis import FamilyApi, ParticipantApi
 
@@ -270,9 +270,9 @@ def main(
 
     output_folder = f'gs://cpg-{project}-test/reanalysis'
     if copy:
-        with AnyPath(os.path.join(output_folder, 'pedigree.fam')).open('w') as handle:
+        with to_path(os.path.join(output_folder, 'pedigree.fam')).open('w') as handle:
             handle.write(ped_line)
-        with AnyPath(os.path.join(output_folder, 'external_lookup.json')).open(
+        with to_path(os.path.join(output_folder, 'external_lookup.json')).open(
             'w'
         ) as handle:
             json.dump(reverse_lookup, handle)

@@ -6,9 +6,10 @@ based on reference data: VEP, ClinVar, etc.
 
 import logging
 
-from cloudpathlib import AnyPath
-from cpg_utils.hail_batch import reference_path
 import hail as hl
+
+from cpg_utils import to_path
+from cpg_utils.hail_batch import reference_path
 
 
 logger = logging.getLogger(__file__)
@@ -66,8 +67,8 @@ def apply_annotations(
     ref_ht_path = ref_ht_path or reference_path('seqr/combined_reference')
     clinvar_ht_path = clinvar_ht_path or reference_path('seqr/clinvar')
 
-    assert AnyPath(clinvar_ht_path).exists(), f'{clinvar_ht_path} unavailable'
-    assert AnyPath(ref_ht_path).exists(), f'{ref_ht_path} unavailable'
+    assert to_path(clinvar_ht_path).exists(), f'{clinvar_ht_path} unavailable'
+    assert to_path(ref_ht_path).exists(), f'{ref_ht_path} unavailable'
 
     def _checkpoint(t: hl.Table | hl.MatrixTable, filename: str):
         """
