@@ -138,7 +138,6 @@ def find_specific_types(
     Returns
     -------
     same MT, with categories flagged where the variant types are appropriate
-    list of the new categories we've added (to filter against later)
     """
 
     specific_types = {
@@ -192,46 +191,37 @@ def find_exact_variants(
     """
     Parameters
     ----------
-    mt :
+    mt : the whole matrix table
     acmg_data : ACMG data
 
     Returns
     -------
     same MT, with categories flagged where the exact variants were found
-    list of the new categories we've added (to filter against later)
     """
 
-    specific_types = {
-        key: value for key, value in acmg_data.items() if value.get('specific_type')
+    specific_variants = {
+        key: value['specific_variant']
+        for key, value in acmg_data.items()
+        if value.get('specific_variant')
     }
-    types = {gene['specific_type'] for gene in specific_types.values()}
-    for var_type in types:
-        assert (
-            var_type in VARIANT_CONSEQUENCES
-        ), f'this script doesn\'t tolerate {var_type}'  # so fix it
-        consequences = VARIANT_CONSEQUENCES[var_type]
-        genes_for_this_consequence = hl.set(
-            [key for key, value in specific_types if var_type in value['specific_type']]
-        )
+
+    # this approach is pretty miserable... won't scale
+    # some sexy _case_ work could solve
+    for gene, variants in specific_variants.items():
+        variant_set = hl.set(variants)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
                 **{
-                    f'categoryboolean{var_type}': hl.if_else(
-                        (genes_for_this_consequence.contains(mt.geneIds))
+                    f'categoryboolean{gene}specific': hl.if_else(
+                        (mt.geneIds == gene)
                         & (
                             hl.len(
                                 mt.vep.transcript_consequences.filter(
-                                    lambda x: hl.len(
-                                        consequences.intersection(
-                                            hl.set(x.consequence_terms)
-                                        )
-                                    )
-                                    > 0
+                                    lambda x: variant_set.contains(x.hgvsp)
                                 )
                             )
                             > 0
-                        )
-                        & (mt.clinvar == ONE_INT),
+                        ),
                         ONE_INT,
                         MISSING_INT,
                     )
@@ -241,10 +231,25 @@ def find_exact_variants(
 
         # either update to 1, or keep original value
         mt = mt.annotate_rows(
-            keep=hl.if_else(mt.info[f'categoryboolean{var_type}'], ONE_INT, mt.keep)
+            keep=hl.if_else(mt.info[f'categoryboolean{gene}specific'], ONE_INT, mt.keep)
         )
 
     return mt
+
+
+def filter_mt_to_keep(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    reduces the MT to relevant rows only
+    Parameters
+    ----------
+    mt : all variants in the MT
+
+    Returns
+    -------
+    the same MT, filtered to all rows where 'keep' is set to 1
+    keep is set to 1 when any individual category is approved
+    """
+    return mt.filter_rows(mt.keep == ONE_INT)
 
 
 def main(mt_path: str, acmg_path: str, output: str):
@@ -261,6 +266,8 @@ def main(mt_path: str, acmg_path: str, output: str):
         config={'filter_af': 0.05},
         green_genes=hl.set(acmg_data.keys()),
     )
+
+    # assign a clinvar boolean flag once to simplify logic
     mt = add_top_level_clinvar_flag(mt)
     mt = checkpoint_and_repartition(
         mt,
@@ -269,7 +276,12 @@ def main(mt_path: str, acmg_path: str, output: str):
     )
 
     # NOW FOR THE FUN PART!
+    mt = find_standard_interesting(mt=mt, acmg_data=acmg_data)
+    mt = find_specific_types(mt=mt, acmg_data=acmg_data)
+    mt = find_exact_variants(mt=mt, acmg_data=acmg_data)
+    mt = filter_mt_to_keep(mt)
 
+    print(mt.count())
     print(output)
 
 

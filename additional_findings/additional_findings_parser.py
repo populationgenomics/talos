@@ -12,16 +12,15 @@ from the original, correct "Disease/Phentyope" to "Disease/Phenotype"
 This format is just not super friendly for parsing, especially with a couple of
 per-gene exceptions to the interesting genes. This will be used for MOI tests,
 with the Hail layer requiring a messy bit of hard coding of conditionals for now
-
-The idea here will be to have a user step in where specific variants or types
-are identified. The two types will be
 """
 
 
 from csv import DictReader
 import json
+import logging
 import os
 import re
+import sys
 
 from argparse import ArgumentParser
 
@@ -55,6 +54,44 @@ SPECIFIC_CHANGE = re.compile(r'(p.[A-Z][0-9]+[A-Z]) (?:\w+ )?only')
 ADDITIONAL_MAP = os.path.join(os.path.dirname(__file__), 'additional_map.json')
 
 
+def get_data_from_row(row_data: dict) -> dict:
+    """
+
+    Parameters
+    ----------
+    row_data : the DictReader entry for the row
+
+    Returns
+    -------
+    a dictionary of that content, parsed
+    """
+
+    # parse all top level data
+    data_blob = {key: row_data[value].rstrip() for key, value in USEFUL_KEYS.items()}
+
+    # assign flags to the row as appropriate
+    data_blob['flags'] = [row_data[value].rstrip() for value in FLAG_KEYS]
+
+    # replace the default MOI with a 'simple' MOI
+    data_blob['moi'] = MOI_TRANSLATION[data_blob['moi']]
+
+    # find any specific targets
+    data_blob['specific_type'] = re.findall(
+        VARIANT_TYPE, row_data.get('Variants to report', '')
+    )
+    data_blob['specific_variant'] = re.findall(
+        SPECIFIC_CHANGE, row_data.get('Variants to report', '')
+    )
+
+    if 'only' in row_data.get('Variants to report', ''):
+        print(
+            f'Specific Variants: '
+            f'{data_blob["symbol"]} - {row_data["Variants to report"]}'
+        )
+
+    return data_blob
+
+
 def main(input_file: str, output_file: str):
     """
     process the input file
@@ -66,27 +103,12 @@ def main(input_file: str, output_file: str):
     gene_id_map = read_json_from_path(ADDITIONAL_MAP)
     for row_dict in DictReader(to_path(input_file).open()):
 
-        data_blob = {
-            key: row_dict[value].rstrip() for key, value in USEFUL_KEYS.items()
-        }
-        data_blob['flags'] = [row_dict[value].rstrip() for value in FLAG_KEYS]
-        data_blob['moi'] = MOI_TRANSLATION[data_blob['moi']]
-        data_blob['specific_type'] = re.findall(
-            VARIANT_TYPE, row_dict.get('Variants to report', '')
-        )
-        data_blob['specific_variant'] = re.findall(
-            SPECIFIC_CHANGE, row_dict.get('Variants to report', '')
-        )
+        data_blob = get_data_from_row(row_dict)
 
         # don't duplicate gene entries - use ESG as key
         ensg_id = gene_id_map[data_blob['symbol']]
 
-        if 'only' in row_dict.get('Variants to report'):
-            print(
-                f'Specific Variants: '
-                f'{data_blob["symbol"]} ({ensg_id }) - {row_dict["Variants to report"]}'
-            )
-
+        # if we already found an entry for this gene, squash them
         if data_blob['symbol'] in parsed_content:
             parsed_data = parsed_content[ensg_id]
 
@@ -111,6 +133,12 @@ def main(input_file: str, output_file: str):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
     parser = ArgumentParser()
     parser.add_argument('-i', help='input config CSV', required=True)
     parser.add_argument('-o', help='output json path', required=True)
