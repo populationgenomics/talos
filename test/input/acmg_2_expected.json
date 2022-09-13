@@ -1,0 +1,18 @@
+{
+    "metadata": [
+        {
+            "name": "ACMG additional findings",
+            "version": 1.0
+        }
+    ],
+    "ENSG00000125952": {
+        "symbol": "MAX",
+        "moi": "Biallelic",
+        "flags": [
+            "category",
+            "disease"
+        ],
+        "specific_type": ["exciting"],
+        "specific_variant": []
+    }
+}

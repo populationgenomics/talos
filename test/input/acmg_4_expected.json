@@ -1,0 +1,18 @@
+{
+    "metadata": [
+        {
+            "name": "ACMG additional findings",
+            "version": 1.0
+        }
+    ],
+    "ENSG00000134982": {
+        "symbol": "APC",
+        "moi": "BOTH",
+        "flags": [
+            "category",
+            "disease"
+        ],
+        "specific_type": ["tumultuous"],
+        "specific_variant": []
+    }
+}

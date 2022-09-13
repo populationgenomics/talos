@@ -70,7 +70,7 @@ def get_data_from_row(row_data: dict) -> dict:
     data_blob = {key: row_data[value].rstrip() for key, value in USEFUL_KEYS.items()}
 
     # assign flags to the row as appropriate
-    data_blob['flags'] = [row_data[value].rstrip() for value in FLAG_KEYS]
+    data_blob['flags'] = sorted([row_data[value].rstrip() for value in FLAG_KEYS])
 
     # replace the default MOI with a 'simple' MOI
     data_blob['moi'] = MOI_TRANSLATION[data_blob['moi']]
@@ -84,7 +84,7 @@ def get_data_from_row(row_data: dict) -> dict:
     )
 
     if 'only' in row_data.get('Variants to report', ''):
-        print(
+        logging.info(
             f'Specific Variants: '
             f'{data_blob["symbol"]} - {row_data["Variants to report"]}'
         )
@@ -109,7 +109,7 @@ def main(input_file: str, output_file: str):
         ensg_id = gene_id_map[data_blob['symbol']]
 
         # if we already found an entry for this gene, squash them
-        if data_blob['symbol'] in parsed_content:
+        if ensg_id in parsed_content:
             parsed_data = parsed_content[ensg_id]
 
             # e.g. if for some reason there are two entries, one AR one AD
@@ -119,8 +119,8 @@ def main(input_file: str, output_file: str):
                     parsed_data['moi'] = X_LENIENT
                 else:
                     parsed_data['moi'] = LENIENT
-            parsed_data['flags'] = list(
-                set(data_blob['flags']).union(set(parsed_data['flags']))
+            parsed_data['flags'] = sorted(
+                list(set(data_blob['flags']).union(set(parsed_data['flags'])))
             )
             parsed_data['specific_variant'].extend(data_blob['specific_variant'])
             parsed_data['specific_type'].extend(data_blob['specific_type'])
