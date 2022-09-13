@@ -13,7 +13,7 @@ import json
 import logging
 import re
 
-from cpg_utils import to_anypath, Path
+from cpg_utils import to_path
 
 
 InfoDict = dict[str, Union[str, dict[str, str]]]
@@ -51,14 +51,14 @@ class FileTypes(Enum):
     VCF_BGZ = '.vcf.bgz'
 
 
-def identify_file_type(file_path: str) -> FileTypes | Exception:
+def identify_file_type(file_path: str) -> FileTypes:
     """
     return type of the file, if present in FileTypes enum
 
     :param file_path:
     :return:
     """
-    pl_filepath = Path(file_path)
+    pl_filepath = to_path(file_path)
 
     # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
     extensions = pl_filepath.suffixes
@@ -489,7 +489,7 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     take a path to a JSON file, read into an object
     :param bucket_path:
     """
-    with to_anypath(bucket_path).open() as handle:
+    with to_path(bucket_path).open() as handle:
         return json.load(handle)
 
 
