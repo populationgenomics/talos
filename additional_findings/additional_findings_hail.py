@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 
 import hail as hl
 
+from cpg_utils.hail_batch import output_path
 from reanalysis.utils import read_json_from_path
 from reanalysis.hail_methods import (
     checkpoint_and_repartition,
@@ -18,6 +19,7 @@ from reanalysis.hail_filter_and_label import (
     CONFLICTING,
     ONE_INT,
     MISSING_INT,
+    write_matrix_to_vcf,
 )
 
 
@@ -110,19 +112,12 @@ def find_standard_interesting(mt: hl.MatrixTable, acmg_data: dict[str, dict]):
         ]
     )
 
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            categorybooleangeneral=hl.if_else(
-                (plain_ids.contains(mt.geneIds)) & (mt.clinvar == ONE_INT),
-                ONE_INT,
-                MISSING_INT,
-            )
-        )
-    )
-
-    # either update to 1, or keep original value
     return mt.annotate_rows(
-        keep=hl.if_else(mt.info['categorybooleangeneral'], ONE_INT, mt.keep)
+        keep=hl.if_else(
+            (plain_ids.contains(mt.geneIds)) & (mt.clinvar == ONE_INT),
+            ONE_INT,
+            mt.keep,
+        )
     )
 
 
@@ -153,35 +148,24 @@ def find_specific_types(
             [key for key, value in specific_types if var_type in value['specific_type']]
         )
         mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                **{
-                    f'categoryboolean{var_type}': hl.if_else(
-                        (genes_for_this_consequence.contains(mt.geneIds))
-                        & (
-                            hl.len(
-                                mt.vep.transcript_consequences.filter(
-                                    lambda x: hl.len(
-                                        consequences.intersection(
-                                            hl.set(x.consequence_terms)
-                                        )
-                                    )
-                                    > 0
-                                )
+            keep=hl.if_else(
+                (genes_for_this_consequence.contains(mt.geneIds))
+                & (
+                    hl.len(
+                        mt.vep.transcript_consequences.filter(
+                            lambda x: hl.len(
+                                consequences.intersection(hl.set(x.consequence_terms))
                             )
                             > 0
                         )
-                        & (mt.clinvar == ONE_INT),
-                        ONE_INT,
-                        MISSING_INT,
                     )
-                }
+                    > 0
+                )
+                & (mt.clinvar == ONE_INT),
+                ONE_INT,
+                mt.keep,
             )
         )
-        # either update to 1, or keep original value
-        mt = mt.annotate_rows(
-            keep=hl.if_else(mt.info[f'categoryboolean{var_type}'], ONE_INT, mt.keep)
-        )
-
     return mt
 
 
@@ -189,6 +173,7 @@ def find_exact_variants(
     mt: hl.MatrixTable, acmg_data: dict[str, dict]
 ) -> hl.MatrixTable:
     """
+    find an exact protein match consequence
     Parameters
     ----------
     mt : the whole matrix table
@@ -205,33 +190,28 @@ def find_exact_variants(
         if value.get('specific_variant')
     }
 
+    # filthy double layered lambda
     # this approach is pretty miserable... won't scale
     # some sexy _case_ work could solve
     for gene, variants in specific_variants.items():
         variant_set = hl.set(variants)
+        # pylint: disable=W0108
         mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                **{
-                    f'categoryboolean{gene}specific': hl.if_else(
-                        (mt.geneIds == gene)
-                        & (
-                            hl.len(
-                                mt.vep.transcript_consequences.filter(
-                                    lambda x: variant_set.contains(x.hgvsp)
-                                )
+            keep=hl.if_else(
+                (mt.geneIds == gene)
+                & (
+                    hl.len(
+                        mt.vep.transcript_consequences.filter(
+                            lambda tc_con: variant_set.any(
+                                lambda change: tc_con.hgvsp.contains(change)
                             )
-                            > 0
-                        ),
-                        ONE_INT,
-                        MISSING_INT,
+                        )
                     )
-                }
+                    > 0
+                ),
+                ONE_INT,
+                mt.keep,
             )
-        )
-
-        # either update to 1, or keep original value
-        mt = mt.annotate_rows(
-            keep=hl.if_else(mt.info[f'categoryboolean{gene}specific'], ONE_INT, mt.keep)
         )
 
     return mt
@@ -271,7 +251,7 @@ def main(mt_path: str, acmg_path: str, output: str):
     mt = add_top_level_clinvar_flag(mt)
     mt = checkpoint_and_repartition(
         mt,
-        checkpoint_root='',
+        checkpoint_root=output_path('additional_findings.mt', category='tmp'),
         extra_logging='after applying filters and splitting genes',
     )
 
@@ -281,14 +261,14 @@ def main(mt_path: str, acmg_path: str, output: str):
     mt = find_exact_variants(mt=mt, acmg_data=acmg_data)
     mt = filter_mt_to_keep(mt)
 
-    print(mt.count())
-    print(output)
+    # write the resulting content to a file/folder
+    write_matrix_to_vcf(mt, file_name=output)
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--mt', help='the MT to use as input')
     parser.add_argument('--acmg', help='the parsed ACMG data')
-    parser.add_argument('-o', help='VCF output path/prefix')
+    parser.add_argument('-o', help='VCF output name')
     args = parser.parse_args()
-    print(args)
+    main(mt_path=args.mt, acmg_path=args.acmg, output=args.o)

@@ -38,6 +38,29 @@ CHROM_ORDER = list(map(str, range(1, 23))) + [
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
 
+AMINO_ACIDS = {
+    'C': 'Cys',
+    'D': 'Asp',
+    'S': 'Ser',
+    'Q': 'Gln',
+    'K': 'Lys',
+    'I': 'Ile',
+    'P': 'Pro',
+    'T': 'Thr',
+    'F': 'Phe',
+    'N': 'Asn',
+    'G': 'Gly',
+    'H': 'His',
+    'L': 'Leu',
+    'R': 'Arg',
+    'W': 'Trp',
+    'A': 'Ala',
+    'V': 'Val',
+    'E': 'Glu',
+    'Y': 'Tyr',
+    'M': 'Met',
+}
+
 
 class FileTypes(Enum):
     """

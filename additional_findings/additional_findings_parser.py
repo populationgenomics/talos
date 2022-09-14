@@ -25,7 +25,7 @@ import sys
 from argparse import ArgumentParser
 
 from cpg_utils import to_path
-from reanalysis.utils import read_json_from_path
+from reanalysis.utils import read_json_from_path, AMINO_ACIDS
 
 
 KEYS = [
@@ -49,9 +49,36 @@ LENIENT = 'BOTH'
 X_LENIENT = 'X-LINKED'
 VARIANT_TYPE = re.compile(r'\((\w+) variants only\)')
 SPECIFIC_CHANGE = re.compile(r'(p.[A-Z][0-9]+[A-Z]) (?:\w+ )?only')
+SPECIFIC_P_DOT = re.compile(r'(?P<p>p.)(?P<from>[A-Z])(?P<pos>[0-9]+)(?P<to>[A-Z])')
 
 # placeholder, find a better way to get in future
 ADDITIONAL_MAP = os.path.join(os.path.dirname(__file__), 'additional_map.json')
+
+
+def triple_protein_changes(protein_changes: list[str]) -> list[str]:
+    """
+    Converts single letter amino acid codes to IUPAC 3-letter
+    Parameters
+    ----------
+    protein_changes :
+
+    Returns
+    -------
+    the re-written content
+    """
+
+    rewritten = []
+    for p_dot in protein_changes:
+        p_match = SPECIFIC_P_DOT.match(p_dot)
+        new_string = (
+            f"{p_match.group('p')}"
+            f"{AMINO_ACIDS[p_match.group('from')]}"
+            f"{p_match.group('pos')}"
+            f"{AMINO_ACIDS[p_match.group('to')]}"
+        )
+        rewritten.append(new_string)
+
+    return rewritten
 
 
 def get_data_from_row(row_data: dict) -> dict:
@@ -79,8 +106,8 @@ def get_data_from_row(row_data: dict) -> dict:
     data_blob['specific_type'] = re.findall(
         VARIANT_TYPE, row_data.get('Variants to report', '')
     )
-    data_blob['specific_variant'] = re.findall(
-        SPECIFIC_CHANGE, row_data.get('Variants to report', '')
+    data_blob['specific_variant'] = triple_protein_changes(
+        re.findall(SPECIFIC_CHANGE, row_data.get('Variants to report', ''))
     )
 
     if 'only' in row_data.get('Variants to report', ''):

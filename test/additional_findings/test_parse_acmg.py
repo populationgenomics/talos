@@ -5,7 +5,23 @@ docstring
 import json
 import os
 
-from additional_findings.additional_findings_parser import get_data_from_row, main
+from additional_findings.additional_findings_parser import (
+    get_data_from_row,
+    main,
+    triple_protein_changes,
+)
+
+
+def test_triple_protein():
+    """
+    tests the single to triple IUPAC conversion method
+    """
+
+    assert triple_protein_changes(['p.S69R']) == ['p.Ser69Arg']
+    assert triple_protein_changes(['p.S69R', 'p.M420L']) == [
+        'p.Ser69Arg',
+        'p.Met420Leu',
+    ]
 
 
 def test_main_1(tmpdir, acmg_1, acmg_1_exp):
@@ -111,12 +127,12 @@ def test_data_from_row_3():
         'Inheritance': 'AD',
         'Disease/Phentyope': 'foo',
         'Phenotype Category': 'bar',
-        'Variants to report': 'p.E69E variants only',
+        'Variants to report': 'p.E69R variants only',
     }
     assert get_data_from_row(row_data=data) == {
         'symbol': 'ABCDE',
         'moi': 'Monoallelic',
         'flags': ['bar', 'foo'],
         'specific_type': [],
-        'specific_variant': ['p.E69E'],
+        'specific_variant': ['p.Glu69Arg'],
     }

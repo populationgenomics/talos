@@ -54,7 +54,7 @@ def apply_annotations(
     )
 
     # custom imports to reduce line lengths
-    # pylint disable:C0415
+    # pylint: disable=C0415
     from hail_scripts.computed_fields.vep import (
         get_expr_for_vep_sorted_transcript_consequences_array as vep_array,
         get_expr_for_vep_transcript_ids_set as vep_set,

@@ -550,13 +550,18 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(mt: hl.MatrixTable, additional_header: str | None = None):
+def write_matrix_to_vcf(
+    mt: hl.MatrixTable,
+    additional_header: str | None = None,
+    file_name: str | None = None,
+):
     """
     write the remaining MatrixTable content to file as a VCF
     :param mt:
     :param additional_header: file containing any other lines to add into header
+    :param file_name: file name, other than the default
     """
-    vcf_out = output_path('hail_categorised.vcf.bgz')
+    vcf_out = output_path(file_name or 'hail_categorised.vcf.bgz')
     logging.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_header, tabix=True)
 
