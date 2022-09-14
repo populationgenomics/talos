@@ -243,7 +243,7 @@ def main(mt_path: str, acmg_path: str, output: str):
     # read the MT & do filtering
     mt = read_and_filter_mt(
         mt_path=mt_path,
-        config={'filter_af': 0.05},
+        config={'filter_af': 0.01},
         green_genes=hl.set(acmg_data.keys()),
     )
 
@@ -260,6 +260,9 @@ def main(mt_path: str, acmg_path: str, output: str):
     mt = find_specific_types(mt=mt, acmg_data=acmg_data)
     mt = find_exact_variants(mt=mt, acmg_data=acmg_data)
     mt = filter_mt_to_keep(mt)
+
+    # all remaining rows get an AIP-friendly label
+    mt = mt.annotate_rows(info=mt.info.annotate(categorybooleanaf=ONE_INT))
 
     # write the resulting content to a file/folder
     write_matrix_to_vcf(mt, file_name=output)
