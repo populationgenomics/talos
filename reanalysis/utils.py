@@ -13,6 +13,7 @@ from typing import Any, Union
 import json
 import logging
 import re
+import requests
 
 from cloudpathlib import AnyPath
 
@@ -120,6 +121,21 @@ class Coordinates:
             and self.ref == other.ref
             and self.alt == other.alt
         )
+
+
+def get_json_response(url: str) -> dict[str, Any]:
+    """
+    takes a request URL, checks for healthy response, returns the JSON
+    For this purpose we only expect a dictionary return
+    List use-case (activities endpoint) no longer supported
+
+    :param url:
+    :return: python object from JSON response
+    """
+
+    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    response.raise_for_status()
+    return response.json()
 
 
 def get_phase_data(samples, var) -> dict[str, dict[int, str]]:

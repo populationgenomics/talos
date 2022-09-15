@@ -25,8 +25,8 @@ import sys
 
 from argparse import ArgumentParser
 
-import requests
 from cloudpathlib import AnyPath
+from reanalysis.utils import get_json_response
 
 
 MENDELIOME = '137'
@@ -45,21 +45,6 @@ def parse_gene_list(path_to_list: str) -> set[str]:
         return set(json.load(handle))
 
 
-def get_json_response(url: str) -> dict[str, Any]:
-    """
-    takes a request URL, checks for healthy response, returns the JSON
-    For this purpose we only expect a dictionary return
-    List use-case (activities endpoint) no longer supported
-
-    :param url:
-    :return: python object from JSON response
-    """
-
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()
-    return response.json()
-
-
 def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
@@ -70,9 +55,7 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
 
     # prepare the query URL
     panel_app_genes_url = f'{PANELAPP_BASE}{panel_id}'
-    panel_response = requests.get(panel_app_genes_url, timeout=60)
-    panel_response.raise_for_status()
-    panel_json = panel_response.json()
+    panel_json = get_json_response(panel_app_genes_url)
 
     panel_version = panel_json.get('version')
     panel_name = panel_json.get('name')

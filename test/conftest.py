@@ -29,6 +29,24 @@ SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
+FAKE_OBO = os.path.join(INPUT, 'hpo_test.obo')
+FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
+
+
+@pytest.fixture(name='fake_obo_path', scope='session')
+def fixture_fake_obo() -> str:
+    """
+    path to fake obo
+    """
+    return FAKE_OBO
+
+
+@pytest.fixture(name='fake_panelapp_overview', scope='session')
+def fixture_panelapp_overview() -> str:
+    """
+    path to panelapp_overview json
+    """
+    return FAKE_PANELAPP_OVERVIEW
 
 
 @pytest.fixture(name='sm_lookup', scope='session')
