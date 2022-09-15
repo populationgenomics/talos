@@ -124,7 +124,10 @@ def test_match_participants_to_panels():
     -------
 
     """
-    party_hpo = {'participant1': ['HP:1', 'HP:2'], 'participant2': ['HP:1', 'HP:6']}
+    party_hpo = {
+        'participant1': {'family_id': 'fam1', 'hpo_terms': {'HP:1', 'HP:2'}},
+        'participant2': {'family_id': 'fam2', 'hpo_terms': {'HP:1', 'HP:6'}},
+    }
     hpo_to_panels = {
         'HP:1': {'room', '101'},
         'HP:2': {'2002'},
@@ -135,8 +138,16 @@ def test_match_participants_to_panels():
         participant_hpos=party_hpo, hpo_panels=hpo_to_panels
     )
     assert results == {
-        'participant1': {'room', '101', '2002'},
-        'participant2': {'room', '101', '666'},
+        'participant1': {
+            'family_id': 'fam1',
+            'hpo_terms': {'HP:1', 'HP:2'},
+            'panels': {'room', '101', '2002'},
+        },
+        'participant2': {
+            'family_id': 'fam2',
+            'hpo_terms': {'HP:1', 'HP:6'},
+            'panels': {'room', '101', '666'},
+        },
     }
 
 

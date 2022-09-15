@@ -1,6 +1,12 @@
 """
-script for pulling relevant deets from metamist
+all methods relating to:
+- querying metamist for participants and their HPO terms
+- querying PanelApp for all panels with HPO terms
+- loose-matching all HPO terms to relevant panels
+- collecting a list of relevant panels for all participants
 """
+
+
 import logging
 import json
 import os
