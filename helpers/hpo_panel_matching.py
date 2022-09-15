@@ -115,7 +115,7 @@ def match_hpo_terms(
                     selections,
                 )
             )
-        return selections
+    # search for parent(s), even if the term is obsolete
     for hpo_term in hpo_node.get('is_a', []):
         selections.update(
             match_hpo_terms(
@@ -143,10 +143,9 @@ def get_participants(dataset_name: str) -> None:
 
     """
     seqr_api = SeqrApi()
-    participants = seqr_api.get_individual_metadata_for_seqr(
+    return seqr_api.get_individual_metadata_for_seqr(
         project=dataset_name, export_type=ExportType('json')
     )
-    return participants
 
 
 def get_participants_temp(dataset_name: str) -> dict:
@@ -260,11 +259,11 @@ def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict) -> di
 
     """
     final_dict = {}
-    for participant, hpo_list in participant_hpos.items():
-        final_dict[participant] = set()
-        for hpo_term in hpo_list:
+    for participant, party_data in participant_hpos.items():
+        final_dict[participant] = {'panels': set(), **party_data}
+        for hpo_term in party_data['hpo_terms']:
             if hpo_term in hpo_panels:
-                final_dict[participant].update(hpo_panels[hpo_term])
+                final_dict[participant]['panels'].update(hpo_panels[hpo_term])
 
     return final_dict
 

@@ -38,6 +38,8 @@ setup(
             'dill==0.3.5.1',
             'hail==0.2.96',
             'Jinja2==3.0.3',
+            'networkx==2.8.3',
+            'obonet==0.3.0',
             'pandas==1.4.3',
             'peddy==0.4.8',
             'requests==2.25.1',
