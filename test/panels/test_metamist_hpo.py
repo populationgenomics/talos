@@ -8,13 +8,15 @@ import pytest
 
 import networkx
 
-from panels.metamist_hpo import (
+from helpers.hpo_panel_matching import (
     match_hpos_to_panels,
     get_unique_hpo_terms,
     match_participants_to_panels,
     parse_metadata,
+    get_panels,
+    read_hpo_tree,
+    match_hpo_terms,
 )
-from panels.panel_hpo import get_panels, read_hpo_tree, match_hpo_terms
 
 PANELAPP = 'https://fake_panelapp.agha.umccr.org/api/v1/panels/'
 
