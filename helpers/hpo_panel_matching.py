@@ -88,6 +88,9 @@ def match_hpo_terms(
 
     for live terms we recurse on all parents
 
+    this could benefit from some cache-ing, but that will be hard with the
+    layer argument
+
     relevant usage guide:
     https://github.com/dhimmel/obonet/blob/main/examples/go-obonet.ipynb
     """
@@ -204,7 +207,8 @@ def match_hpos_to_panels(
     max_depth: int | None = None,
 ) -> dict:
     """
-    take all the hpo terms
+    take all the hpo terms, and run each against the panel~hpo matcher
+
     Parameters
     ----------
     hpo_to_panel_map :
@@ -214,7 +218,7 @@ def match_hpos_to_panels(
 
     Returns
     -------
-
+    a dictionary linking all HPO terms to a corresponding set of Panel IDs
     """
 
     hpo_to_panels = {}
@@ -276,15 +280,7 @@ def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict) -> di
 
 def main(dataset: str, output_path: str):
     """
-
-    Parameters
-    ----------
-    dataset :
-    output_path :
-
-    Returns
-    -------
-
+    main method linking all component methods together
     """
 
     # get a dictionary of HPO terms to panel IDs
@@ -296,8 +292,9 @@ def main(dataset: str, output_path: str):
     participants_hpo = parse_metadata(participant_metadata)
 
     # mix & match the HPOs, panels, and participants
-    # this will be a little complex to reduce/remove redundancy
+    # this will be a little complex to remove redundant searches
     # e.g. multiple participants & panels may have the same HPO terms
+    # so only search once for each HPO term
     unique_hpos = get_unique_hpo_terms(participants_hpo)
     hpo_to_panels = match_hpos_to_panels(
         hpo_to_panel_map=panels_by_hpo, hpo_graph=hpo_tree, all_hpos=unique_hpos
