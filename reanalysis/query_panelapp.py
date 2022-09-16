@@ -187,7 +187,7 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
             }
 
 
-def get_list_from_participants(participant_panels) -> list[str]:
+def get_list_from_participants(participant_panels) -> set[str]:
     """
     takes the per-participant panels and extracts the panel list
 
@@ -204,7 +204,7 @@ def get_list_from_participants(participant_panels) -> list[str]:
     for details in participant_panels.values():
         panel_set.update(details.get('panels', []))
 
-    return list(panel_set)
+    return panel_set
 
 
 def grab_genes_only(panel_data: PanelData) -> list[str]:
@@ -223,7 +223,12 @@ def grab_genes_only(panel_data: PanelData) -> list[str]:
     return [key for key in panel_data.keys() if key != 'metadata']
 
 
-def main(panel_list: list[str], panel_file: str, out_path: str, gene_list: str | None):
+def main(
+    panel_list: list[str] | set[str],
+    panel_file: str,
+    out_path: str,
+    gene_list: str | None,
+):
     """
     Base assumption here is that we are always using the Mendeliome
     Optionally, additional panel IDs can be specified to expand the gene list
@@ -235,7 +240,7 @@ def main(panel_list: list[str], panel_file: str, out_path: str, gene_list: str |
     optionally take a reference to a JSON gene list, records all genes:
         - green in current panelapp
         - absent in provided gene list
-    :param panel_list: list of panelapp IDs
+    :param panel_list: iterable of panelapp IDs
     :param panel_file: json file of panel IDs per participant
     :param out_path: path to write a JSON object out to
     :param gene_list: alternative to prior data, give a strict gene list file
