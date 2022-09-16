@@ -12,7 +12,6 @@ from helpers.hpo_panel_matching import (
     match_hpos_to_panels,
     get_unique_hpo_terms,
     match_participants_to_panels,
-    parse_metadata,
     get_panels,
     read_hpo_tree,
     match_hpo_terms,
@@ -147,36 +146,5 @@ def test_match_participants_to_panels():
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
             'panels': {'room', '101', '666'},
-        },
-    }
-
-
-def test_parse_metadata():
-    """
-    test parse_metadata
-    """
-    example_data = {
-        'rows': [
-            {'foo': 'bar', 'individual_id': 'party1', 'family_id': 'fam1'},
-            {
-                'foo': 'bar',
-                'individual_id': 'party2',
-                'family_id': 'fam2',
-                'hpo_terms_present': 'HPO:00420',
-            },
-            {
-                'foo': 'bar',
-                'individual_id': 'party3',
-                'family_id': 'fam3',
-                'hpo_terms_present': 'HPO:0,HPO:00,HPO:000,HPO:0000',
-            },
-        ]
-    }
-    assert parse_metadata(example_data) == {
-        'party1': {'family_id': 'fam1', 'hpo_terms': []},
-        'party2': {'family_id': 'fam2', 'hpo_terms': ['HPO:00420']},
-        'party3': {
-            'family_id': 'fam3',
-            'hpo_terms': ['HPO:0', 'HPO:00', 'HPO:000', 'HPO:0000'],
         },
     }

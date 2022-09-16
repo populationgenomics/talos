@@ -18,7 +18,6 @@ from collections import defaultdict
 import networkx
 from obonet import read_obo
 from sample_metadata.apis import SeqrApi
-from sample_metadata.model.export_type import ExportType
 
 from cpg_utils import to_path
 
@@ -139,53 +138,21 @@ def match_hpo_terms(
     return selections
 
 
-def get_participants(dataset_name: str) -> None:
-    """
-    This SM-API endpoint isn't currently working, so avoid using this method for now
-
-    Parameters
-    ----------
-    dataset_name :
-
-    Returns
-    -------
-
-    """
-    seqr_api = SeqrApi()
-    return seqr_api.get_individual_metadata_for_seqr(
-        project=dataset_name, export_type=ExportType('json')
-    )
-
-
-def get_participants_temp(dataset_name: str) -> dict:
-    """
-    a stopgap method, using cached data
-    Parameters
-    ----------
-    dataset_name :
-
-    Returns
-    -------
-
-    """
-    metadata_file = os.path.join(os.path.dirname(__file__), f'{dataset_name}-meta.json')
-    with open(metadata_file, encoding='utf-8') as handle:
-        dictionary = json.load(handle)
-    return dictionary
-
-
-def parse_metadata(participant_meta: dict) -> dict:
+def query_and_parse_metadata(dataset_name: str) -> dict:
     """
     takes the seqr metadata and parses out the relevant HPO data
     Parameters
     ----------
-    participant_meta :
+    dataset_name : string, the project dataset key to use
 
     Returns
     -------
-
+    all project metadata, parsed into a dict
     """
+
     hpo_dict = {}
+    seqr_api = SeqrApi()
+    participant_meta = seqr_api.get_individual_metadata_for_seqr(project=dataset_name)
 
     for row in participant_meta['rows']:
 
@@ -288,8 +255,7 @@ def main(dataset: str, output_path: str):
     hpo_tree = read_hpo_tree()
 
     # pull metadata from metamist/api content
-    participant_metadata = get_participants_temp(dataset)
-    participants_hpo = parse_metadata(participant_metadata)
+    participants_hpo = query_and_parse_metadata(dataset_name=dataset)
 
     # mix & match the HPOs, panels, and participants
     # this will be a little complex to remove redundant searches
