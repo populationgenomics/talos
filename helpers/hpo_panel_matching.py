@@ -21,6 +21,7 @@ from sample_metadata.apis import SeqrApi
 
 from cpg_utils import to_path
 
+from helpers.pedigree_from_sample_metadata import ext_to_int_sample_map
 from reanalysis.utils import get_json_response
 
 
@@ -218,7 +219,9 @@ def get_unique_hpo_terms(participants_hpo: dict) -> set:
     return all_hpos
 
 
-def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict) -> dict:
+def match_participants_to_panels(
+    participant_hpos: dict, hpo_panels: dict, participant_map: dict
+) -> dict:
     """
     take the two maps of Participants: HPOs, and HPO: Panels
     blend the two to find panels per participant
@@ -230,6 +233,7 @@ def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict) -> di
     ----------
     participant_hpos :
     hpo_panels :
+    participant_map : a lookup of external to CPG ID
 
     Returns
     -------
@@ -237,10 +241,15 @@ def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict) -> di
     """
     final_dict = {}
     for participant, party_data in participant_hpos.items():
-        final_dict[participant] = {'panels': set(), **party_data}
-        for hpo_term in party_data['hpo_terms']:
-            if hpo_term in hpo_panels:
-                final_dict[participant]['panels'].update(hpo_panels[hpo_term])
+        for participant_key in participant_map.get(participant, [participant]):
+            final_dict[participant_key] = {
+                'panels': set(),
+                'external_id': participant,
+                **party_data,
+            }
+            for hpo_term in party_data['hpo_terms']:
+                if hpo_term in hpo_panels:
+                    final_dict[participant_key]['panels'].update(hpo_panels[hpo_term])
 
     return final_dict
 
@@ -257,6 +266,9 @@ def main(dataset: str, output_path: str):
     # pull metadata from metamist/api content
     participants_hpo = query_and_parse_metadata(dataset_name=dataset)
 
+    # obtain a lookup of Ext. ID to CPG ID
+    reverse_lookup = ext_to_int_sample_map(project=dataset)
+
     # mix & match the HPOs, panels, and participants
     # this will be a little complex to remove redundant searches
     # e.g. multiple participants & panels may have the same HPO terms
@@ -265,7 +277,9 @@ def main(dataset: str, output_path: str):
     hpo_to_panels = match_hpos_to_panels(
         hpo_to_panel_map=panels_by_hpo, hpo_graph=hpo_tree, all_hpos=unique_hpos
     )
-    participant_panels = match_participants_to_panels(participants_hpo, hpo_to_panels)
+    participant_panels = match_participants_to_panels(
+        participants_hpo, hpo_to_panels, participant_map=reverse_lookup
+    )
 
     with to_path(output_path).open('w') as handle:
         json.dump(participant_panels, handle, indent=4, default=list)

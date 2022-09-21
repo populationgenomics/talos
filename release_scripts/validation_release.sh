@@ -9,7 +9,7 @@ gsutil -m -u validation-351902 cp \
     gs://cpg-validation-test/reanalysis/pedigree.fam \
     gs://cpg-validation-test/reanalysis/reanalysis_conf.json \
     gs://cpg-validation-test/reanalysis/external_lookup.json \
-    gs://cpg-validation-release/reanalysis
+    .
 
 # recursive copy of MT
 gsutil -m -u validation-351902 cp -r \
