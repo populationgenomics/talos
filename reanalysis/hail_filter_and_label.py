@@ -22,6 +22,8 @@ import hail as hl
 from peddy import Ped
 
 from cloudpathlib import AnyPath
+
+from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
 
 from reanalysis.utils import read_json_from_path
@@ -720,15 +722,22 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(mt: hl.MatrixTable, additional_header: str | None = None):
+def write_matrix_to_vcf(mt: hl.MatrixTable):
     """
     write the remaining MatrixTable content to file as a VCF
-    :param mt:
-    :param additional_header: file containing any other lines to add into header
+    :param mt: the MT to write to file
     """
+    with to_path('additional_header.txt').open() as handle:
+        handle.write(
+            '##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: '
+            'allele|consequence|symbol|gene|feature|mane_select|biotype|exon|hgvsc|'
+            'hgvsp|cdna_position|cds_position|protein_position|amino_acids|codons|'
+            'allele_num|variant_class|tsl|appris|ccds|ensp|swissprot|trembl|uniparc|'
+            'gene_pheno|sift|polyphen|lof|lof_filter|lof_flags">'
+        )
     vcf_out = output_path('hail_categorised.vcf.bgz')
     logging.info(f'Writing categorised variants out to {vcf_out}')
-    hl.export_vcf(mt, vcf_out, append_to_header=additional_header, tabix=True)
+    hl.export_vcf(mt, vcf_out, append_to_header='additional_header.txt', tabix=True)
 
 
 def green_and_new_from_panelapp(
@@ -941,7 +950,7 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
         )
     )
 
-    write_matrix_to_vcf(mt=mt, additional_header=hail_config.get('csq_header_file'))
+    write_matrix_to_vcf(mt=mt)
 
 
 if __name__ == '__main__':
