@@ -230,6 +230,10 @@ def gene_clean_results(
     # the lookup is generated so the primary index is on CPG ID, so as to be compatible
     for sample, variants in cleaned_data.items():
 
+        if sample == 'metadata':
+            gene_cleaned_data[sample] = variants
+            continue
+
         # always keep default (mendeliome), and supplement with HPO-matched panel genes
         sample_genes = deepcopy(default_genes)
         for panel in panels_per_participant.get(sample, []):
@@ -295,7 +299,7 @@ def main(
     We expect approximately linear scaling with participants in the joint call
     :param labelled_vcf:
     :param config_path:
-    :param out_json:
+    :param out_json: a prefix, used for both the full and panel-filtered results
     :param panelapp:
     :param pedigree:
     :param participant_panels: the json of panels per participant
@@ -360,14 +364,6 @@ def main(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
-    # cleanest results - reported variants are matched to panel ROI
-    if participant_panels and panel_genes:
-        cleaned_results = gene_clean_results(
-            party_panels=participant_panels,
-            panel_genes=panel_genes,
-            cleaned_data=cleaned_results,
-        )
-
     # add metadata into the results
     meta_results = update_result_meta(
         cleaned_results,
@@ -377,9 +373,22 @@ def main(
         samples=vcf_opened.samples,
     )
 
+    # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
-    with AnyPath(out_json).open('w') as fh:
+    with AnyPath(f'{out_json}_full.json').open('w') as fh:
         json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
+
+    # cleanest results - reported variants are matched to panel ROI
+    if participant_panels and panel_genes:
+        meta_results = gene_clean_results(
+            party_panels=participant_panels,
+            panel_genes=panel_genes,
+            cleaned_data=meta_results,
+        )
+
+        # dump results using the custom-encoder to transform sets & DataClasses
+        with AnyPath(f'{out_json}_panel_filtered.json').open('w') as fh:
+            json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':
@@ -389,7 +398,7 @@ if __name__ == '__main__':
     parser.add_argument('--config_path', help='path to the runtime JSON config')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--out_json', help='Path to write JSON results to')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to')
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,
