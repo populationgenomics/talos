@@ -10,3 +10,4 @@ peddy==0.4.8
 requests==2.25.1
 sample-metadata-ms==0.6.8
 seqr-loader==1.2.5
+analysis-runner-ms==0.9.3
