@@ -259,6 +259,7 @@ def handle_results_job(
     pedigree: str,
     output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
+    participant_panels: str | None = None,
 ) -> hb.batch.job.Job:
     """
     one container to run the MOI checks, and the presentation
@@ -269,19 +270,31 @@ def handle_results_job(
     :param pedigree:
     :param output_dict: paths to the
     :param prior_job:
+    :param participant_panels: JSON of relevant panels per participant
     :return:
     """
 
     results_job = batch.new_job(name='finalise_results')
     set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
+
+    gene_filter_files = (
+        (
+            f'--particpant_panels {participant_panels} '
+            f'--panel_genes {PANELAPP_JSON_OUT}_per_panel.json '
+        )
+        if participant_panels
+        else ''
+    )
+
     results_command = (
         'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
         f'--labelled_vcf {labelled_vcf} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
-        f'--out_json {output_dict["results"]} && '
+        f'--out_json {output_dict["results"]} '
+        f'{gene_filter_files} && '
         f'python3 {HTML_SCRIPT} '
         f'--results {output_dict["results"]} '
         f'--config_path {config} '
@@ -467,6 +480,7 @@ def main(
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
+            participant_panels=participant_panels,
         )
 
     # save the json file into the batch output, with latest run details
