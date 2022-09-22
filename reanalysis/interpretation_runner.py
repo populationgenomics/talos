@@ -510,9 +510,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', help='variant data to analyse', required=True)
     parser.add_argument('--config', help='JSON, runtime settings', required=True)
     parser.add_argument('--pedigree', help='in Plink format', required=True)
-    parser.add_argument(
-        '--singletons', help='singletons in Plink format', required=True
-    )
+    parser.add_argument('--singletons', help='singletons in Plink format')
     panel_args = parser.add_mutually_exclusive_group()
     panel_args.add_argument(
         '--extra_panels', help='any additional panel IDs', nargs='+', default=[]
