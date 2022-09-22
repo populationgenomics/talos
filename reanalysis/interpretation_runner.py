@@ -14,13 +14,13 @@ re-run currently requires the deletion of previous outputs
 """
 
 
+from argparse import ArgumentParser
 from datetime import datetime
 import json
 import logging
 import os
 import sys
 
-import click
 import hailtop.batch as hb
 
 from cpg_utils import to_path
@@ -186,13 +186,13 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
-    extra_panel: tuple[str],
+    extra_panels: list[str],
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
-    :param extra_panel:
+    :param extra_panels:
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
@@ -200,8 +200,8 @@ def handle_panelapp_job(
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
 
-    if extra_panel is not None and len(extra_panel) != 0:
-        panelapp_command += f'-p {" ".join(extra_panel)} '
+    if extra_panels is not None and len(extra_panels) != 0:
+        panelapp_command += f'-p {" ".join(extra_panels)} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
@@ -289,33 +289,12 @@ def handle_results_job(
     return results_job
 
 
-@click.command()
-@click.option(
-    '--input_path', help='variant matrix table or VCF to analyse', required=True
-)
-@click.option('--config_json', help='JSON dict of runtime settings', required=True)
-@click.option('--plink_file', help='Plink file path for the cohort', required=True)
-@click.option(
-    '--extra_panel',
-    help='Any additional panelapp IDs to add to the Mendeliome. '
-    'Multiple can be added as "--extra_panel 123 --extra_panel 456',
-    required=False,
-    multiple=True,
-)
-@click.option(
-    '--singletons', help='location of a plink file for the singletons', required=False
-)
-@click.option(
-    '--skip_annotation',
-    help='if set, a MT with appropriate annotations can be provided',
-    is_flag=True,
-    default=False,
-)
 def main(
     input_path: str,
     config_json: str,
-    plink_file: str,
-    extra_panel: tuple[str],
+    pedigree: str,
+    extra_panels: list[str],
+    participant_panels: str | None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -324,8 +303,9 @@ def main(
 
     :param input_path: annotated input matrix table or VCF
     :param config_json:
-    :param plink_file:
-    :param extra_panel:
+    :param pedigree:
+    :param extra_panels:
+    :param participant_panels:
     :param singletons:
     :param skip_annotation:
     """
@@ -344,6 +324,7 @@ def main(
             'input_file': input_path,
             'panelapp_file': PANELAPP_JSON_OUT,
             'cohort': get_config()['workflow']['dataset'],
+            'panelapp_inputs': extra_panels or participant_panels or None,
         }
     )
 
@@ -382,7 +363,7 @@ def main(
     )
 
     # read the ped file into the Batch
-    pedigree_in_batch = batch.read_input(plink_file)
+    pedigree_in_batch = batch.read_input(pedigree)
 
     # set a first job in this batch
     prior_job = None
@@ -442,7 +423,7 @@ def main(
     # -------------------------------- #
     if not to_path(f'PANELAPP_JSON_OUT.json').exists():
         prior_job = handle_panelapp_job(
-            batch=batch, extra_panel=extra_panel, prior_job=prior_job
+            batch=batch, extra_panels=extra_panels, prior_job=prior_job
         )
 
     # ----------------------- #
@@ -486,7 +467,7 @@ def main(
 
     # write pedigree content to the output folder
     with to_path(output_path('latest_pedigree.fam')).open('w') as handle:
-        handle.writelines(to_path(plink_file).open().readlines())
+        handle.writelines(to_path(pedigree).open().readlines())
 
     if singletons:
         with to_path(output_path('latest_singletons.fam')).open('w') as handle:
@@ -502,4 +483,33 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument('-i', help='variant data to analyse', required=True)
+    parser.add_argument('--config', help='JSON, runtime settings', required=True)
+    parser.add_argument('--pedigree', help='in Plink format', required=True)
+    parser.add_argument(
+        '--singletons', help='singletons in Plink format', required=True
+    )
+    panel_args = parser.add_mutually_exclusive_group()
+    panel_args.add_argument(
+        '--extra_panels', help='any additional panel IDs', nargs='+', default=[]
+    )
+    panel_args.add_argument(
+        '--participant_panels',
+        help='JSON file containing per-participant panel details',
+    )
+    parser.add_argument(
+        '--skip_annotation',
+        help='if set, annotation will not be repeated',
+        action='store_true',
+    )
+    args = parser.parse_args()
+    main(
+        input_path=args.i,
+        config_json=args.config,
+        pedigree=args.pedigree,
+        extra_panels=args.extra_panels,
+        participant_panels=args.participant_panels,
+        skip_annotation=args.skip_annotation,
+    )
