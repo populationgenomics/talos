@@ -186,13 +186,15 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
-    extra_panels: list[str],
+    extra_panels: list[str] | None = None,
+    participant_panels: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
     :param extra_panels:
+    :param participant_panels:
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
@@ -200,8 +202,11 @@ def handle_panelapp_job(
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
 
-    if extra_panels is not None and len(extra_panels) != 0:
+    if extra_panels:
         panelapp_command += f'-p {" ".join(extra_panels)} '
+
+    if participant_panels:
+        panelapp_command += f'--panel_file {participant_panels} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
@@ -423,7 +428,10 @@ def main(
     # -------------------------------- #
     if not to_path(f'PANELAPP_JSON_OUT.json').exists():
         prior_job = handle_panelapp_job(
-            batch=batch, extra_panels=extra_panels, prior_job=prior_job
+            batch=batch,
+            extra_panels=extra_panels,
+            participant_panels=participant_panels,
+            prior_job=prior_job,
         )
 
     # ----------------------- #
