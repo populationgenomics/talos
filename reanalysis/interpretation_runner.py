@@ -194,22 +194,19 @@ def annotated_mt_from_ht_and_vcf(
 def handle_panelapp_job(
     batch: hb.Batch,
     extra_panel: tuple[str],
-    gene_list: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
     :param extra_panel:
-    :param gene_list:
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
     set_job_resources(panelapp_job, auth=True, git=True, prior_job=prior_job)
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
-    if gene_list is not None:
-        panelapp_command += f'--gene_list {gene_list} '
+
     if extra_panel is not None and len(extra_panel) != 0:
         panelapp_command += f'-p {" ".join(extra_panel)} '
 
@@ -313,9 +310,6 @@ def handle_results_job(
     multiple=True,
 )
 @click.option(
-    '--panel_genes', help='JSON Gene list for use in analysis', required=False
-)
-@click.option(
     '--singletons', help='location of a plink file for the singletons', required=False
 )
 @click.option(
@@ -329,7 +323,6 @@ def main(
     config_json: str,
     plink_file: str,
     extra_panel: tuple[str],
-    panel_genes: str | None = None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -339,7 +332,6 @@ def main(
     :param input_path: annotated input matrix table or VCF
     :param config_json:
     :param plink_file:
-    :param panel_genes:
     :param extra_panel:
     :param singletons:
     :param skip_annotation:
@@ -459,10 +451,7 @@ def main(
     # -------------------------------- #
     if not to_path(f'PANELAPP_JSON_OUT.json').exists():
         prior_job = handle_panelapp_job(
-            batch=batch,
-            extra_panel=extra_panel,
-            gene_list=panel_genes,
-            prior_job=prior_job,
+            batch=batch, extra_panel=extra_panel, prior_job=prior_job
         )
 
     # ----------------------- #
