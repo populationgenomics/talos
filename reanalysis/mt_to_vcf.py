@@ -5,31 +5,38 @@ This is currently required as the end-to-end CPG pipeline doesn't currently
 store intermediate files. To simulate workflows running on VCF files, we
 have to regenerate a VCF representation from a MT.
 
-Optional argument allows the specification of an 'additional header' file
+Hard coded additional header file for VQSR content
 When Hail extracts a VCF from a MT, it doesn't contain any custom field
 definitions, e.g. 'VQSR' as a Filter field. This argument allows us to
 specify additional lines which are required to make the final output valid
 within the VCF specification
+
+If the file was not processed with VQSR, there are no negatives to including
+this additional header line
 """
 
 from argparse import ArgumentParser
 
 import hail as hl
+
+from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch
 
 
-def main(mt: str, output_path: str, additional_header: str | None = None):
+def main(mt: str, output_path: str):
     """
     takes an input MT, and reads it out as a VCF
     inserted new conditions to minimise the data produced
     :param mt:
     :param output_path:
-    :param additional_header: file containing lines to append to header
     :return:
     """
     init_batch()
 
     mt = hl.read_matrix_table(mt)
+
+    with to_path('additional_header.txt').open() as handle:
+        handle.write('##FILTER=<ID=VQSR,Description="VQSR triggered">')
 
     # remove potentially problematic field from gVCF
     if 'gvcf_info' in mt.row_value:
@@ -43,7 +50,7 @@ def main(mt: str, output_path: str, additional_header: str | None = None):
     hl.export_vcf(
         mt,
         output_path,
-        append_to_header=additional_header,
+        append_to_header='additional_header.txt',
         tabix=True,
     )
 
@@ -56,16 +63,5 @@ if __name__ == '__main__':
         help='input MatrixTable path',
     )
     parser.add_argument('--output', type=str, help='path to write VCF out to')
-    parser.add_argument(
-        '--additional_header',
-        type=str,
-        help='path to file containing any additional header lines',
-        required=False,
-        default=None,
-    )
     args = parser.parse_args()
-    main(
-        mt=args.input,
-        output_path=args.output,
-        additional_header=args.additional_header,
-    )
+    main(mt=args.input, output_path=args.output)

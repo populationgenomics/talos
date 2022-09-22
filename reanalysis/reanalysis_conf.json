@@ -44,7 +44,6 @@
     },
     "filter": {
         "description": "variables for the hail operations, including CSQ sets and filter thresholds",
-        "csq_header_file": "gs://cpg-acute-care-test/reanalysis/csq_header_line.txt",
         "af_semi_rare": 0.01,
         "ac_threshold": 0.01,
         "ref_genome": "GRCh38",
@@ -77,7 +76,6 @@
         "seqr_instance": "https://seqr.populationgenomics.org.au",
         "seqr_project": "R0011_acute_care"
     },
-    "vqsr_header_file": "gs://cpg-acute-care-test/reanalysis/vqsr_header_line.txt",
     "web_suffix": "web",
     "tmp_suffix": "tmp"
 }
