@@ -467,6 +467,9 @@ def main(
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and to_path(singletons).exists():
+        with to_path(output_path('latest_singletons.fam')).open('w') as handle:
+            handle.writelines(to_path(singletons).open().readlines())
+
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
 
@@ -483,6 +486,11 @@ def main(
             participant_panels=participant_panels,
         )
 
+    # if we ran with per-participant panel data, copy to output folder
+    if participant_panels:
+        with to_path(output_path('latest_pid_to_panels.json')).open('w') as handle:
+            handle.writelines(to_path(participant_panels).open().readlines())
+
     # save the json file into the batch output, with latest run details
     with to_path(output_path('latest_config.json')).open('w') as handle:
         json.dump(config_dict, handle, indent=True)
@@ -490,10 +498,6 @@ def main(
     # write pedigree content to the output folder
     with to_path(output_path('latest_pedigree.fam')).open('w') as handle:
         handle.writelines(to_path(pedigree).open().readlines())
-
-    if singletons:
-        with to_path(output_path('latest_singletons.fam')).open('w') as handle:
-            handle.writelines(to_path(singletons).open().readlines())
 
     batch.run(wait=False)
 
