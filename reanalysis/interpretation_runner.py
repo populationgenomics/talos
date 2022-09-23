@@ -439,7 +439,10 @@ def main(
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
-    if not to_path(f'PANELAPP_JSON_OUT.json').exists():
+    if (not to_path(f'{PANELAPP_JSON_OUT}.json').exists()) or (
+        participant_panels
+        and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
+    ):
         prior_job = handle_panelapp_job(
             batch=batch,
             extra_panels=extra_panels,
