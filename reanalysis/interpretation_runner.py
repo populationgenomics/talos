@@ -279,7 +279,7 @@ def handle_results_job(
 
     gene_filter_files = (
         (
-            f'--particpant_panels {participant_panels} '
+            f'--participant_panels {participant_panels} '
             f'--panel_genes {PANELAPP_JSON_OUT}_per_panel.json '
         )
         if participant_panels
