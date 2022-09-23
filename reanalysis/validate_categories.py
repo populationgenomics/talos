@@ -236,7 +236,7 @@ def gene_clean_results(
 
         # always keep default (mendeliome), and supplement with HPO-matched panel genes
         sample_genes = deepcopy(default_genes)
-        for panel in panels_per_participant.get(sample, []):
+        for panel in panels_per_participant.get(sample, {}).get('panels', []):
             sample_genes.update(genes_per_panel[panel])
 
         # keep only panel-relevant reportable varaints
