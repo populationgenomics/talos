@@ -727,7 +727,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
     write the remaining MatrixTable content to file as a VCF
     :param mt: the MT to write to file
     """
-    with to_path('additional_header.txt').open() as handle:
+    with to_path('additional_header.txt').open('w') as handle:
         handle.write(
             '##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: '
             'allele|consequence|symbol|gene|feature|mane_select|biotype|exon|hgvsc|'

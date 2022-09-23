@@ -35,7 +35,7 @@ def main(mt: str, output_path: str):
 
     mt = hl.read_matrix_table(mt)
 
-    with to_path('additional_header.txt').open() as handle:
+    with to_path('additional_header.txt').open('w') as handle:
         handle.write('##FILTER=<ID=VQSR,Description="VQSR triggered">')
 
     # remove potentially problematic field from gVCF
@@ -57,11 +57,7 @@ def main(mt: str, output_path: str):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument(
-        '--input',
-        type=str,
-        help='input MatrixTable path',
-    )
+    parser.add_argument('--input', type=str, help='input MatrixTable path')
     parser.add_argument('--output', type=str, help='path to write VCF out to')
     args = parser.parse_args()
     main(mt=args.input, output_path=args.output)
