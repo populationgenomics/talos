@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''Simple script to test whether the CPG infrastructure and permissions are configured appropriately to permit running AIP.'''
 
 import click
