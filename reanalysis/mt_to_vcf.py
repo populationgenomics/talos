@@ -20,22 +20,26 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cpg_utils import to_path
-from cpg_utils.hail_batch import init_batch
+from cpg_utils.hail_batch import init_batch, output_path
 
 
-def main(mt: str, output_path: str):
+def main(mt: str, write_path: str):
     """
     takes an input MT, and reads it out as a VCF
     inserted new conditions to minimise the data produced
     :param mt:
-    :param output_path:
+    :param write_path:
     :return:
     """
     init_batch()
 
     mt = hl.read_matrix_table(mt)
 
-    with to_path('additional_header.txt').open('w') as handle:
+    # this temp file needs to be in GCP, not local
+    # otherwise the batch that generates the file won't be able to read
+    additional_cloud_path = output_path('additional_header.txt', 'tmp')
+
+    with to_path(additional_cloud_path).open('w') as handle:
         handle.write('##FILTER=<ID=VQSR,Description="VQSR triggered">')
 
     # remove potentially problematic field from gVCF
@@ -49,8 +53,8 @@ def main(mt: str, output_path: str):
 
     hl.export_vcf(
         mt,
-        output_path,
-        append_to_header='additional_header.txt',
+        write_path,
+        append_to_header=additional_cloud_path,
         tabix=True,
     )
 
@@ -60,4 +64,4 @@ if __name__ == '__main__':
     parser.add_argument('--input', type=str, help='input MatrixTable path')
     parser.add_argument('--output', type=str, help='path to write VCF out to')
     args = parser.parse_args()
-    main(mt=args.input, output_path=args.output)
+    main(mt=args.input, write_path=args.output)

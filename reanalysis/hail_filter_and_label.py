@@ -727,7 +727,11 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
     write the remaining MatrixTable content to file as a VCF
     :param mt: the MT to write to file
     """
-    with to_path('additional_header.txt').open('w') as handle:
+
+    # this temp file needs to be in GCP, not local
+    # otherwise the batch that generates the file won't be able to read
+    additional_cloud_path = output_path('additional_header.txt', 'tmp')
+    with to_path(additional_cloud_path).open('w') as handle:
         handle.write(
             '##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: '
             'allele|consequence|symbol|gene|feature|mane_select|biotype|exon|hgvsc|'
@@ -737,7 +741,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
         )
     vcf_out = output_path('hail_categorised.vcf.bgz')
     logging.info(f'Writing categorised variants out to {vcf_out}')
-    hl.export_vcf(mt, vcf_out, append_to_header='additional_header.txt', tabix=True)
+    hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
 
 
 def green_and_new_from_panelapp(
