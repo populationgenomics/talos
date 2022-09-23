@@ -286,6 +286,12 @@ def handle_results_job(
         else ''
     )
 
+    report_from_file = (
+        f'--results {output_dict["results"]}_panel_filtered.json '
+        if participant_panels
+        else f'--results {output_dict["results"]}_full.json '
+    )
+
     results_command = (
         'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
@@ -296,7 +302,7 @@ def handle_results_job(
         f'--out_json {output_dict["results"]} '
         f'{gene_filter_files} && '
         f'python3 {HTML_SCRIPT} '
-        f'--results {output_dict["results"]} '
+        f'{report_from_file} '
         f'--config_path {config} '
         f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
@@ -358,13 +364,13 @@ def main(
             'web_html': output_path(
                 'summary_output.html', config_dict.get('web_suffix') or None
             ),
-            'results': output_path('summary_results.json'),
+            'results': output_path('summary_results'),
         },
         'singletons': {
             'web_html': output_path(
                 'singleton_output.html', config_dict.get('web_suffix') or None
             ),
-            'results': output_path('singleton_results.json'),
+            'results': output_path('singleton_results'),
         },
     }
 
