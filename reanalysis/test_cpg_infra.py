@@ -2,6 +2,7 @@
 '''Simple script to test whether the CPG infrastructure and permissions are configured appropriately to permit running AIP.'''
 
 import click
+from cloudpathlib import AnyPath
 
 @click.command()
 @click.option(
