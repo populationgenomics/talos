@@ -23,18 +23,41 @@ import logging
 import json
 import os
 import sys
-
 from argparse import ArgumentParser
 
-from cpg_utils import to_path
+import requests
 
-from reanalysis.utils import get_json_response, read_json_from_path
+from cpg_utils import to_path
 
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 PRE_PANELAPP = os.path.join(os.path.dirname(__file__), 'pre_panelapp_mendeliome.json')
 PanelData = dict[str, dict | list[dict]]
+
+
+def get_json_response(url: str) -> dict[str, Any]:
+    """
+    takes a request URL, checks for healthy response, returns the JSON
+    For this purpose we only expect a dictionary return
+    List use-case (activities endpoint) no longer supported
+
+    :param url:
+    :return: python object from JSON response
+    """
+
+    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    response.raise_for_status()
+    return response.json()
+
+
+def read_json_from_path(bucket_path: str) -> dict[str, Any]:
+    """
+    take a path to a JSON file, read into an object
+    :param bucket_path:
+    """
+    with to_path(bucket_path).open() as handle:
+        return json.load(handle)
 
 
 def parse_gene_list(path_to_list: str) -> set[str]:
