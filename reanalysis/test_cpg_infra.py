@@ -14,10 +14,10 @@ def main(
     main
     """
 
-    # if not AnyPath(blob).exists():
-    #     raise Exception(
-    #         f'The provided path "{blob}" does not exist or is inaccessible'
-    #     )
+    if not AnyPath(blob).exists():
+        raise Exception(
+            f'The provided path "{blob}" does not exist or is inaccessible'
+        )
 
     # service_backend = hb.ServiceBackend(
     #     billing_project=get_config()['hail']['billing_project'],
