@@ -17,6 +17,12 @@ During an analysis run, the [Query Script](../reanalysis/query_panelapp.py) is u
 for the Mendeliome panel (gene ENSG, symbol, and Mode of Inheritance). This is saved as a dictionary indexed on
 GRCh38/Ensembl 90 ENSG.
 
+## Incidentalome Flag
+
+If the `--cpg_incidentalome` flag is used, the Mendeliome data is supplemented with Incidentalome genes, currently
+restricted to those flagged as being 'cardiac' in PanelApp. This Mendeliome + Incidentalome data becomes the 'default'
+gene list applied to all participants.
+
 ## Additional Panels
 
 If additional gene panel IDs are requested, the following steps are followed:
