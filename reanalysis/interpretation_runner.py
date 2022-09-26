@@ -189,6 +189,7 @@ def handle_panelapp_job(
     extra_panels: list[str] | None = None,
     participant_panels: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
+    use_incidentalome: bool = True,
 ) -> hb.batch.job.Job:
     """
 
@@ -196,6 +197,7 @@ def handle_panelapp_job(
     :param extra_panels:
     :param participant_panels:
     :param prior_job:
+    :param use_incidentalome:
     """
     panelapp_job = batch.new_job(name='query panelapp')
     set_job_resources(panelapp_job, auth=True, git=True, prior_job=prior_job)
@@ -207,6 +209,9 @@ def handle_panelapp_job(
 
     if participant_panels:
         panelapp_command += f'--panel_file {participant_panels} '
+
+    if use_incidentalome:
+        panelapp_command += '--cpg_incidentalome'
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
