@@ -31,6 +31,7 @@ from cpg_utils import to_path
 
 
 MENDELIOME = '137'
+INCIDENTALOME = '126'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 PRE_PANELAPP = os.path.join(os.path.dirname(__file__), 'pre_panelapp_mendeliome.json')
 PanelData = dict[str, dict | list[dict]]
@@ -72,13 +73,14 @@ def parse_gene_list(path_to_list: str) -> set[str]:
 
 
 def get_panel_green(
-    panel_id: str = MENDELIOME,
+    panel_id: str = MENDELIOME, keep_tags: list[str] | None = None
 ) -> dict[str, dict[str, Union[str, bool]]]:
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
     For each gene, keep the MOI, symbol, ENSG (where present)
 
     :param panel_id: defaults to the PanelAppAU Mendeliome
+    :param keep_tags: only keep genes with these tags assigned
     """
 
     # prepare the query URL
@@ -108,6 +110,11 @@ def get_panel_green(
         # only retain green genes
         if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene':
             continue
+
+        # if defined, only retain genes with the appropriate tags
+        if keep_tags:
+            if not any(tag in gene.get('tags', []) for tag in keep_tags):
+                continue
 
         ensg = None
         symbol = gene.get('entity_name')
@@ -176,7 +183,7 @@ def write_output_json(output_path: str, object_to_write: Any):
         json.dump(object_to_write, fh, indent=4, default=str)
 
 
-def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: PanelData):
+def combine_panels(panel_dict: PanelData, additional: PanelData):
     """
     takes the main panel data and an additional panel dict
 
@@ -248,21 +255,33 @@ def grab_genes_only(panel_data: PanelData) -> list[str]:
     return [key for key in panel_data.keys() if key != 'metadata']
 
 
-def main(panel_list: list[str] | set[str], panel_file: str, out_path: str):
+def main(
+    panel_list: list[str],
+    panel_file: str,
+    out_path: str,
+    cpg_incidentalome: bool,
+):
     """
     Base assumption here is that we are always using the Mendeliome
     Optionally, additional panel IDs can be specified to expand the gene list
 
-    Finds all latest panel data from the API
-    optionally take a prior version argument, records all panel differences
-        - new genes
-        - altered MOI
-    optionally take a reference to a JSON gene list, records all genes:
-        - green in current panelapp
-        - absent in provided gene list
+    Finds all latest panel data from the API for the requested panels
+
+    The path to a JSON list has been hard-coded, representing the genes which
+    were present on the Mendeliome prior to PanelApp. If this file is accessible,
+    it is used to mark each gene as being 'new' True/False, depending on whether
+    it has been added since the move to PanelApp
+
+    Optional flag `cpg_incidentalome` has been added. By default this is False
+    Once the Mendeliome has been collected, if cpg_incidentalome is True we
+    query for the incidentalome and filter for any 'cardiac' genes. This data
+    is added to the Mendeliome (i.e. the 'default' gene list for all participants
+    for this analysis becomes Mendeliome + Cardiac Incidentalome
+
     :param panel_list: iterable of panelapp IDs
     :param panel_file: json file of panel IDs per participant
     :param out_path: path to write a JSON object out to
+    :param cpg_incidentalome: if True, grab the cardiac incidentalome
     :return:
     """
 
@@ -270,6 +289,18 @@ def main(panel_list: list[str] | set[str], panel_file: str, out_path: str):
 
     # get latest Mendeliome data
     panel_dict = get_panel_green()
+
+    if to_path(PRE_PANELAPP).exists():
+        logging.info(f'A Gene List was provided: {PRE_PANELAPP}')
+        gene_list_contents = parse_gene_list(PRE_PANELAPP)
+        logging.info(f'Length of gene list: {len(gene_list_contents)}')
+        gene_list_differences(panel_dict, gene_list_contents)
+
+    if cpg_incidentalome:
+        incidentalome_data = get_panel_green(
+            panel_id=INCIDENTALOME, keep_tags=['cardiac']
+        )
+        combine_panels(panel_dict=panel_dict, additional=incidentalome_data)
 
     # create this to stop the linter complaining
     panel_master = {}
@@ -284,20 +315,12 @@ def main(panel_list: list[str] | set[str], panel_file: str, out_path: str):
     if panel_list:
         for additional_panel_id in panel_list:
             ad_panel = get_panel_green(panel_id=additional_panel_id)
-            combine_mendeliome_with_other_panels(
-                panel_dict=panel_dict, additional=ad_panel
-            )
+            combine_panels(panel_dict=panel_dict, additional=ad_panel)
 
             # if we are finding per-panel gene lists, store the genes for
             # this panel in the X-cohort master dict
             if panel_file:
                 panel_master[str(additional_panel_id)] = grab_genes_only(ad_panel)
-
-    if to_path(PRE_PANELAPP).exists():
-        logging.info(f'A Gene List was provided: {PRE_PANELAPP}')
-        gene_list_contents = parse_gene_list(PRE_PANELAPP)
-        logging.info(f'Length of gene list: {len(gene_list_contents)}')
-        gene_list_differences(panel_dict, gene_list_contents)
 
     write_output_json(f'{out_path}.json', panel_dict)
 
@@ -327,9 +350,18 @@ if __name__ == '__main__':
     panel_input.add_argument(
         '--panel_file', type=str, help='json file containing per-participant panels'
     )
-
     parser.add_argument(
         '--out_path', type=str, required=True, help='Path to write output JSON to'
     )
+    parser.add_argument(
+        '--cpg_incidentalome',
+        action='store_true',
+        help='if flag is used, suppress cardiac incidentalome',
+    )
     args = parser.parse_args()
-    main(panel_list=args.p, panel_file=args.panel_file, out_path=args.out_path)
+    main(
+        panel_list=args.p,
+        panel_file=args.panel_file,
+        out_path=args.out_path,
+        cpg_incidentalome=args.cpg_incidentalome,
+    )

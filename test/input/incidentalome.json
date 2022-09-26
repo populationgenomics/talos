@@ -19,6 +19,22 @@
       "entity_name": "ABCD",
       "confidence_level": "3",
       "mode_of_inheritance": "REALLY_BIG"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00WXYZ"
+            }
+          }
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "WXYZ",
+      "confidence_level": "3",
+      "mode_of_inheritance": "MONOALLELIC",
+      "tags": ["cardiac"]
     }
   ]
 }
