@@ -19,7 +19,6 @@ import json
 import logging
 import os
 import sys
-from typing import Any
 
 import click
 import hailtop.batch as hb
@@ -101,12 +100,11 @@ def set_job_resources(
         )
 
 
-def mt_to_vcf(batch: hb.Batch, input_file: str, config: dict[str, Any]):
+def mt_to_vcf(batch: hb.Batch, input_file: str):
     """
     takes a MT and converts to VCF
     :param batch:
     :param input_file:
-    :param config:
     :return:
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
@@ -117,11 +115,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str, config: dict[str, Any]):
         f'--input {input_file} '
         f'--output {INPUT_AS_VCF}'
     )
-
-    # if the config has an additional header file, add argument
-    vqsr_file = config.get('vqsr_header_file')
-    if vqsr_file:
-        job_cmd += f' --additional_header {vqsr_file}'
 
     logging.info(f'Command used to convert MT: {job_cmd}')
     copy_common_env(mt_to_vcf_job)
@@ -424,9 +417,7 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            prior_job = mt_to_vcf(
-                batch=batch, input_file=input_path, config=config_dict
-            )
+            prior_job = mt_to_vcf(batch=batch, input_file=input_path)
             config_dict.update({'vcf_created': INPUT_AS_VCF})
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF

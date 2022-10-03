@@ -2,19 +2,27 @@
 
 
 """
-PanelApp Parser for Reanalysis project
+PanelApp Parser
 
- Takes a panel ID
+Creates the gene panel content for AIP
 Pulls latest 'green' content; Symbol, ENSG, and MOI
 
-Optionally user can provide a panel version number in the past
-Pull all details from the earlier version
-Annotate all discrepancies between earlier and current
+Bases analyses on the Mendeliome panel, querying PanelApp
+for the current version at runtime.
 
-Optionally user can provide path to a JSON gene list
-Annotate all genes in current panel and not the gene list
+Optionally user can provide a list of PanelIDs, with content
+from all panels being joined together to form the analysis ROI
 
-Write all output to a JSON dictionary
+- instead -
+
+Optionally user can provide a file of per-participant panels,
+which results in 2 files:
+
+- the union of all panel data
+- a file of per-panel gene lists (for downstream result filtering)
+
+User can also provide a gene list representing previous panel content.
+All genes from PanelApp will be marked as 'new' if not in this list
 """
 
 
