@@ -12,6 +12,8 @@ Steps are run only where the specified output does not exist
 i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
+
+
 from datetime import datetime
 import json
 import logging
@@ -19,9 +21,9 @@ import os
 import sys
 
 import click
-from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
 
+from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.git import (
     prepare_git_job,
@@ -50,7 +52,7 @@ INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 ANNOTATED_MT = output_path('annotated_variants.mt')
 
 # panelapp query results
-PANELAPP_JSON_OUT = output_path('panelapp_data.json')
+PANELAPP_JSON_OUT = output_path('panelapp_data')
 
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
@@ -145,9 +147,9 @@ def annotate_vcf(
     # generate the jobs which run VEP & collect the results
     return vep_jobs(
         b=batch,
-        vcf_path=AnyPath(input_vcf),
-        tmp_bucket=AnyPath(vep_temp),
-        out_path=AnyPath(vep_out),
+        vcf_path=to_path(input_vcf),
+        tmp_bucket=to_path(vep_temp),
+        out_path=to_path(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
         sequencing_type=seq_type,
         job_attrs={},
@@ -237,7 +239,7 @@ def handle_hail_filtering(
         f'pip install . && '
         f'python3 {HAIL_FILTER} '
         f'--mt {ANNOTATED_MT} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--config_path {config} '
         f'--plink {plink_file}'
     )
@@ -281,7 +283,7 @@ def handle_results_job(
         f'python3 {HTML_SCRIPT} '
         f'--results {output_dict["results"]} '
         f'--config_path {config} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
         f'--out_path {output_dict["web_html"]}'
     )
@@ -336,7 +338,7 @@ def main(
     :param skip_annotation:
     """
 
-    if not AnyPath(input_path).exists():
+    if not to_path(input_path).exists():
         raise Exception(
             f'The provided path "{input_path}" does not exist or is inaccessible'
         )
@@ -423,7 +425,7 @@ def main(
     # ------------------------------------- #
     # split the VCF, and annotate using VEP #
     # ------------------------------------- #
-    if not CloudPath(ANNOTATED_MT).exists():
+    if not to_path(ANNOTATED_MT).exists():
         # need to run the annotation phase
         # uses default values from RefData
         annotation_jobs = annotate_vcf(
@@ -446,7 +448,7 @@ def main(
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
-    if not AnyPath(PANELAPP_JSON_OUT).exists():
+    if not to_path(f'PANELAPP_JSON_OUT.json').exists():
         prior_job = handle_panelapp_job(
             batch=batch,
             extra_panel=extra_panel,
@@ -457,7 +459,7 @@ def main(
     # ----------------------- #
     # run hail categorisation #
     # ----------------------- #
-    if not AnyPath(HAIL_VCF_OUT).exists():
+    if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
         prior_job = handle_hail_filtering(
             batch=batch,
@@ -473,7 +475,7 @@ def main(
 
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
-    if singletons and AnyPath(singletons).exists():
+    if singletons and to_path(singletons).exists():
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
 
@@ -490,16 +492,16 @@ def main(
         )
 
     # save the json file into the batch output, with latest run details
-    with AnyPath(output_path('latest_config.json')).open('w') as handle:
+    with to_path(output_path('latest_config.json')).open('w') as handle:
         json.dump(config_dict, handle, indent=True)
 
     # write pedigree content to the output folder
-    with AnyPath(output_path('latest_pedigree.fam')).open('w') as handle:
-        handle.writelines(AnyPath(plink_file).open().readlines())
+    with to_path(output_path('latest_pedigree.fam')).open('w') as handle:
+        handle.writelines(to_path(plink_file).open().readlines())
 
     if singletons:
-        with AnyPath(output_path('latest_singletons.fam')).open('w') as handle:
-            handle.writelines(AnyPath(singletons).open().readlines())
+        with to_path(output_path('latest_singletons.fam')).open('w') as handle:
+            handle.writelines(to_path(singletons).open().readlines())
 
     batch.run(wait=False)
 

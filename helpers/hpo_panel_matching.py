@@ -249,7 +249,6 @@ def main(dataset: str, output_path: str, obo: str):
 
     Parameters
     ----------
-    dataset : the dataset name in metamist
     output_path : path to write output file to
     obo : path to the HPO obo ontology tree
     """
