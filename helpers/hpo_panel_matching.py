@@ -288,4 +288,3 @@ if __name__ == '__main__':
     parser.add_argument('--obo', required=True, help='path to the HPO .obo tree file')
     args = parser.parse_args()
     main(dataset=args.dataset, output_path=args.output, obo=args.obo)
-
