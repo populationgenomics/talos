@@ -9,7 +9,6 @@ all methods relating to:
 
 import logging
 import json
-import os
 import sys
 import re
 from argparse import ArgumentParser
@@ -32,7 +31,6 @@ TEMPLATE = (
 
 
 HPO_RE = re.compile(r'HP:[0-9]+')
-OBO_FILE = os.path.join(os.path.dirname(__file__), 'hpo_terms.obo')
 PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 
 
@@ -62,7 +60,7 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
     return dict(hpo_dict)
 
 
-def read_hpo_tree(obo_file: str = OBO_FILE) -> networkx.MultiDiGraph:
+def read_hpo_tree(obo_file: str) -> networkx.MultiDiGraph:
     """
     takes the obo file and creates a graph
     """
@@ -245,14 +243,20 @@ def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict) -> di
     return final_dict
 
 
-def main(dataset: str, output_path: str):
+def main(dataset: str, output_path: str, obo: str):
     """
     main method linking all component methods together
+
+    Parameters
+    ----------
+    dataset : the dataset name in metamist
+    output_path : path to write output file to
+    obo : path to the HPO obo ontology tree
     """
 
     # get a dictionary of HPO terms to panel IDs
     panels_by_hpo = get_panels()
-    hpo_tree = read_hpo_tree()
+    hpo_tree = read_hpo_tree(obo_file=obo)
 
     # pull metadata from metamist/api content
     participants_hpo = query_and_parse_metadata(dataset_name=dataset)
@@ -282,5 +286,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-d', '--dataset', type=str, help='the dataset to process')
     parser.add_argument('-o', '--output', type=str, help='file path to write output to')
+    parser.add_argument('--obo', required=True, help='path to the HPO .obo tree file')
     args = parser.parse_args()
-    main(dataset=args.dataset, output_path=args.output)
+    main(dataset=args.dataset, output_path=args.output, obo=args.obo)
