@@ -26,7 +26,6 @@ import sys
 from argparse import ArgumentParser
 
 from cpg_utils import to_path
-
 from reanalysis.utils import get_json_response, read_json_from_path
 
 
