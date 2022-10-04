@@ -14,13 +14,13 @@ re-run currently requires the deletion of previous outputs
 """
 
 
+from argparse import ArgumentParser
 from datetime import datetime
 import json
 import logging
 import os
 import sys
 
-import click
 import hailtop.batch as hb
 
 from cpg_utils import to_path
@@ -186,25 +186,27 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
-    extra_panel: tuple[str],
-    gene_list: str | None = None,
+    extra_panels: list[str] | None = None,
+    participant_panels: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
-    :param extra_panel:
-    :param gene_list:
+    :param extra_panels:
+    :param participant_panels:
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
     set_job_resources(panelapp_job, auth=True, git=True, prior_job=prior_job)
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
-    if gene_list is not None:
-        panelapp_command += f'--gene_list {gene_list} '
-    if extra_panel is not None and len(extra_panel) != 0:
-        panelapp_command += f'-p {" ".join(extra_panel)} '
+
+    if extra_panels:
+        panelapp_command += f'-p {" ".join(extra_panels)} '
+
+    if participant_panels:
+        panelapp_command += f'--panel_file {participant_panels} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
@@ -257,6 +259,7 @@ def handle_results_job(
     pedigree: str,
     output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
+    participant_panels: str | None = None,
 ) -> hb.batch.job.Job:
     """
     one container to run the MOI checks, and the presentation
@@ -267,21 +270,39 @@ def handle_results_job(
     :param pedigree:
     :param output_dict: paths to the
     :param prior_job:
+    :param participant_panels: JSON of relevant panels per participant
     :return:
     """
 
     results_job = batch.new_job(name='finalise_results')
     set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
+
+    gene_filter_files = (
+        (
+            f'--participant_panels {participant_panels} '
+            f'--panel_genes {PANELAPP_JSON_OUT}_per_panel.json '
+        )
+        if participant_panels
+        else ''
+    )
+
+    report_from_file = (
+        f'--results {output_dict["results"]}_panel_filtered.json '
+        if participant_panels
+        else f'--results {output_dict["results"]}_full.json '
+    )
+
     results_command = (
         'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
         f'--config_path {config} '
         f'--labelled_vcf {labelled_vcf} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
-        f'--out_json {output_dict["results"]} && '
+        f'--out_json {output_dict["results"]} '
+        f'{gene_filter_files} && '
         f'python3 {HTML_SCRIPT} '
-        f'--results {output_dict["results"]} '
+        f'{report_from_file} '
         f'--config_path {config} '
         f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
@@ -292,37 +313,12 @@ def handle_results_job(
     return results_job
 
 
-@click.command()
-@click.option(
-    '--input_path', help='variant matrix table or VCF to analyse', required=True
-)
-@click.option('--config_json', help='JSON dict of runtime settings', required=True)
-@click.option('--plink_file', help='Plink file path for the cohort', required=True)
-@click.option(
-    '--extra_panel',
-    help='Any additional panelapp IDs to add to the Mendeliome. '
-    'Multiple can be added as "--extra_panel 123 --extra_panel 456',
-    required=False,
-    multiple=True,
-)
-@click.option(
-    '--panel_genes', help='JSON Gene list for use in analysis', required=False
-)
-@click.option(
-    '--singletons', help='location of a plink file for the singletons', required=False
-)
-@click.option(
-    '--skip_annotation',
-    help='if set, a MT with appropriate annotations can be provided',
-    is_flag=True,
-    default=False,
-)
 def main(
     input_path: str,
     config_json: str,
-    plink_file: str,
-    extra_panel: tuple[str],
-    panel_genes: str | None = None,
+    pedigree: str,
+    extra_panels: list[str],
+    participant_panels: str | None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -331,9 +327,9 @@ def main(
 
     :param input_path: annotated input matrix table or VCF
     :param config_json:
-    :param plink_file:
-    :param panel_genes:
-    :param extra_panel:
+    :param pedigree:
+    :param extra_panels:
+    :param participant_panels:
     :param singletons:
     :param skip_annotation:
     """
@@ -352,6 +348,7 @@ def main(
             'input_file': input_path,
             'panelapp_file': PANELAPP_JSON_OUT,
             'cohort': get_config()['workflow']['dataset'],
+            'panelapp_inputs': extra_panels or participant_panels or None,
         }
     )
 
@@ -367,13 +364,13 @@ def main(
             'web_html': output_path(
                 'summary_output.html', config_dict.get('web_suffix') or None
             ),
-            'results': output_path('summary_results.json'),
+            'results': output_path('summary_results'),
         },
         'singletons': {
             'web_html': output_path(
                 'singleton_output.html', config_dict.get('web_suffix') or None
             ),
-            'results': output_path('singleton_results.json'),
+            'results': output_path('singleton_results'),
         },
     }
 
@@ -390,7 +387,7 @@ def main(
     )
 
     # read the ped file into the Batch
-    pedigree_in_batch = batch.read_input(plink_file)
+    pedigree_in_batch = batch.read_input(pedigree)
 
     # set a first job in this batch
     prior_job = None
@@ -448,11 +445,14 @@ def main(
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
-    if not to_path(f'PANELAPP_JSON_OUT.json').exists():
+    if (not to_path(f'{PANELAPP_JSON_OUT}.json').exists()) or (
+        participant_panels
+        and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
+    ):
         prior_job = handle_panelapp_job(
             batch=batch,
-            extra_panel=extra_panel,
-            gene_list=panel_genes,
+            extra_panels=extra_panels,
+            participant_panels=participant_panels,
             prior_job=prior_job,
         )
 
@@ -476,6 +476,9 @@ def main(
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and to_path(singletons).exists():
+        with to_path(output_path('latest_singletons.fam')).open('w') as handle:
+            handle.writelines(to_path(singletons).open().readlines())
+
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
 
@@ -489,7 +492,13 @@ def main(
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
+            participant_panels=participant_panels,
         )
+
+    # if we ran with per-participant panel data, copy to output folder
+    if participant_panels:
+        with to_path(output_path('latest_pid_to_panels.json')).open('w') as handle:
+            handle.writelines(to_path(participant_panels).open().readlines())
 
     # save the json file into the batch output, with latest run details
     with to_path(output_path('latest_config.json')).open('w') as handle:
@@ -497,11 +506,7 @@ def main(
 
     # write pedigree content to the output folder
     with to_path(output_path('latest_pedigree.fam')).open('w') as handle:
-        handle.writelines(to_path(plink_file).open().readlines())
-
-    if singletons:
-        with to_path(output_path('latest_singletons.fam')).open('w') as handle:
-            handle.writelines(to_path(singletons).open().readlines())
+        handle.writelines(to_path(pedigree).open().readlines())
 
     batch.run(wait=False)
 
@@ -513,4 +518,31 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument('-i', help='variant data to analyse', required=True)
+    parser.add_argument('--config', help='JSON, runtime settings', required=True)
+    parser.add_argument('--pedigree', help='in Plink format', required=True)
+    parser.add_argument('--singletons', help='singletons in Plink format')
+    panel_args = parser.add_mutually_exclusive_group()
+    panel_args.add_argument(
+        '--extra_panels', help='any additional panel IDs', nargs='+', default=[]
+    )
+    panel_args.add_argument(
+        '--participant_panels',
+        help='JSON file containing per-participant panel details',
+    )
+    parser.add_argument(
+        '--skip_annotation',
+        help='if set, annotation will not be repeated',
+        action='store_true',
+    )
+    args = parser.parse_args()
+    main(
+        input_path=args.i,
+        config_json=args.config,
+        pedigree=args.pedigree,
+        extra_panels=args.extra_panels,
+        participant_panels=args.participant_panels,
+        skip_annotation=args.skip_annotation,
+    )

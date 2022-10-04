@@ -236,8 +236,8 @@ def gene_clean_results(
 
         # always keep default (mendeliome), and supplement with HPO-matched panel genes
         sample_genes = deepcopy(default_genes)
-        for panel in panels_per_participant.get(sample, []):
-            sample_genes.update(genes_per_panel[panel])
+        for panel in panels_per_participant.get(sample, {}).get('panels', []):
+            sample_genes.update(genes_per_panel[str(panel)])
 
         # keep only panel-relevant reportable varaints
         gene_cleaned_data[sample] = [
@@ -399,6 +399,8 @@ if __name__ == '__main__':
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
     parser.add_argument('--out_json', help='Prefix to write JSON results to')
+    parser.add_argument('--participant_panels', help='dict of panels per participant')
+    parser.add_argument('--panel_genes', help='dict of genes in each panel')
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,
@@ -406,4 +408,6 @@ if __name__ == '__main__':
         out_json=args.out_json,
         panelapp=args.panelapp,
         pedigree=args.pedigree,
+        participant_panels=args.participant_panels,
+        panel_genes=args.panel_genes,
     )

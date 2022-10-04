@@ -12,7 +12,8 @@ import json
 import logging
 from typing import Union
 
-import click
+from argparse import ArgumentParser
+
 from cloudpathlib import AnyPath
 
 from sample_metadata.apis import FamilyApi, ParticipantApi
@@ -189,38 +190,11 @@ def hash_reduce_dicts(
     return reduced_pedigree
 
 
-@click.command()
-@click.option('--project', help='Project name to use in API queries')
-@click.option(
-    '--singletons',
-    default=False,
-    is_flag=True,
-    help='remake the pedigree as singletons',
-)
-@click.option(
-    '--plink',
-    default=False,
-    is_flag=True,
-    help='make a plink format file (.fam, .ped is the default)',
-)
-@click.option('--output', help='prefix for writing all outputs to')
-@click.option(
-    '--hash_threshold',
-    help=(
-        'Integer 0-100 representing the % of families to include, e.g. 15'
-        'will result in the retention of 15% of families'
-    ),
-    default=None,
-    type=int,
-)
-@click.option(
-    '--copy', help='If used, copy directly to GCP', is_flag=True, default=False
-)
 def main(
     project: str,
+    output: str,
     singletons: bool,
     plink: bool,
-    output: str,
     hash_threshold: int | None = None,
     copy: bool = False,
 ):
@@ -280,4 +254,42 @@ def main(
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--project', help='Project name to use in API queries', required=True
+    )
+    parser.add_argument(
+        '--output', help='prefix for writing all outputs to', required=True
+    )
+    parser.add_argument(
+        '--singletons',
+        help='Flag, recreate pedigree as singletons',
+        action='store_true',
+    )
+    parser.add_argument(
+        '--plink',
+        help='make a plink format file (.fam, .ped is the default)',
+        action='store_true',
+    )
+    parser.add_argument(
+        '--hash_threshold',
+        help=(
+            'Integer 0-100 representing the % of families to include, e.g. 15'
+            'will result in the retention of 15% of families'
+        ),
+        type=int,
+        default=100,
+    )
+    parser.add_argument(
+        '--copy', help='If used, copy directly to GCP', action='store_true'
+    )
+    args = parser.parse_args()
+    main(
+        project=args.project,
+        output=args.output,
+        singletons=args.singletons,
+        plink=args.plink,
+        hash_threshold=args.hash_threshold,
+        copy=args.copy,
+    )

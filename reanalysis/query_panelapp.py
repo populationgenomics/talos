@@ -29,8 +29,8 @@ All genes from PanelApp will be marked as 'new' if not in this list
 from typing import Any, Union
 import logging
 import json
+import os
 import sys
-
 from argparse import ArgumentParser
 
 from cpg_utils import to_path
@@ -40,6 +40,7 @@ from reanalysis.utils import get_json_response, read_json_from_path
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
+PRE_PANELAPP = os.path.join(os.path.dirname(__file__), 'pre_panelapp_mendeliome.json')
 PanelData = dict[str, dict | list[dict]]
 
 
@@ -231,12 +232,7 @@ def grab_genes_only(panel_data: PanelData) -> list[str]:
     return [key for key in panel_data.keys() if key != 'metadata']
 
 
-def main(
-    panel_list: list[str] | set[str],
-    panel_file: str,
-    out_path: str,
-    gene_list: str | None,
-):
+def main(panel_list: list[str] | set[str], panel_file: str, out_path: str):
     """
     Base assumption here is that we are always using the Mendeliome
     Optionally, additional panel IDs can be specified to expand the gene list
@@ -251,7 +247,6 @@ def main(
     :param panel_list: iterable of panelapp IDs
     :param panel_file: json file of panel IDs per participant
     :param out_path: path to write a JSON object out to
-    :param gene_list: alternative to prior data, give a strict gene list file
     :return:
     """
 
@@ -282,9 +277,9 @@ def main(
             if panel_file:
                 panel_master[str(additional_panel_id)] = grab_genes_only(ad_panel)
 
-    if gene_list is not None:
-        logging.info(f'A Gene_List was selected: {gene_list}')
-        gene_list_contents = parse_gene_list(gene_list)
+    if to_path(PRE_PANELAPP).exists():
+        logging.info(f'A Gene List was provided: {PRE_PANELAPP}')
+        gene_list_contents = parse_gene_list(PRE_PANELAPP)
         logging.info(f'Length of gene list: {len(gene_list_contents)}')
         gene_list_differences(panel_dict, gene_list_contents)
 
@@ -320,16 +315,5 @@ if __name__ == '__main__':
     parser.add_argument(
         '--out_path', type=str, required=True, help='Path to write output JSON to'
     )
-    parser.add_argument(
-        '--gene_list',
-        type=str,
-        required=False,
-        help='If a gene list is being used as a comparison',
-    )
     args = parser.parse_args()
-    main(
-        panel_list=args.p,
-        panel_file=args.panel_file,
-        out_path=args.out_path,
-        gene_list=args.gene_list,
-    )
+    main(panel_list=args.p, panel_file=args.panel_file, out_path=args.out_path)

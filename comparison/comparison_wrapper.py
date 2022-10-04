@@ -10,7 +10,8 @@ import logging
 import os
 import sys
 
-import click
+from argparse import ArgumentParser
+
 import hailtop.batch as hb
 
 from cpg_utils.git import (
@@ -33,10 +34,6 @@ from cpg_utils.config import get_config
 COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 
 
-@click.command()
-@click.option('--results_folder', help='folder containing the results')
-@click.option('--seqr', help='Seqr flagged variants export')
-@click.option('--mt', help='matrix table of annotated variants')
 def main(results_folder: str, seqr: str, mt: str):
     """
     main method, which runs the AIP comparison
@@ -103,4 +100,9 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=E1120
+    parser = ArgumentParser()
+    parser.add_argument('--results', help='results folder', required=True)
+    parser.add_argument('--seqr', help='Flagged Seqr variants', required=True)
+    parser.add_argument('--mt', help='Hail MT of annotated variants', required=True)
+    args = parser.parse_args()
+    main(results_folder=args.results, seqr=args.seqr, mt=args.mt)

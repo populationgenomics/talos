@@ -35,6 +35,8 @@ def main(mt: str, write_path: str):
 
     mt = hl.read_matrix_table(mt)
 
+    # this temp file needs to be in GCP, not local
+    # otherwise the batch that generates the file won't be able to read
     additional_cloud_path = output_path('additional_header.txt', 'tmp')
 
     with to_path(additional_cloud_path).open('w') as handle:

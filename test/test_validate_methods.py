@@ -35,7 +35,7 @@ def test_gene_clean_results(tmpdir):
 
     party_panels = os.path.join(tmpdir, 'party_panels.json')
     with open(party_panels, 'w', encoding='utf-8') as handle:
-        json.dump({'sam2': ['2'], 'sam3': ['3']}, handle)
+        json.dump({'sam2': {'panels': ['2']}, 'sam3': {'panels': ['3']}}, handle)
 
     clean = gene_clean_results(party_panels, panel_genes, dirty_data)
     assert len(clean['sam1']) == 1
