@@ -2,19 +2,27 @@
 
 
 """
-PanelApp Parser for Reanalysis project
+PanelApp Parser
 
- Takes a panel ID
+Creates the gene panel content for AIP
 Pulls latest 'green' content; Symbol, ENSG, and MOI
 
-Optionally user can provide a panel version number in the past
-Pull all details from the earlier version
-Annotate all discrepancies between earlier and current
+Bases analyses on the Mendeliome panel, querying PanelApp
+for the current version at runtime.
 
-Optionally user can provide path to a JSON gene list
-Annotate all genes in current panel and not the gene list
+Optionally user can provide a list of PanelIDs, with content
+from all panels being joined together to form the analysis ROI
 
-Write all output to a JSON dictionary
+- instead -
+
+Optionally user can provide a file of per-participant panels,
+which results in 2 files:
+
+- the union of all panel data
+- a file of per-panel gene lists (for downstream result filtering)
+
+User can also provide a gene list representing previous panel content.
+All genes from PanelApp will be marked as 'new' if not in this list
 """
 
 
@@ -25,39 +33,15 @@ import os
 import sys
 from argparse import ArgumentParser
 
-import requests
-
 from cpg_utils import to_path
+
+from reanalysis.utils import get_json_response, read_json_from_path
 
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 PRE_PANELAPP = os.path.join(os.path.dirname(__file__), 'pre_panelapp_mendeliome.json')
 PanelData = dict[str, dict | list[dict]]
-
-
-def get_json_response(url: str) -> dict[str, Any]:
-    """
-    takes a request URL, checks for healthy response, returns the JSON
-    For this purpose we only expect a dictionary return
-    List use-case (activities endpoint) no longer supported
-
-    :param url:
-    :return: python object from JSON response
-    """
-
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()
-    return response.json()
-
-
-def read_json_from_path(bucket_path: str) -> dict[str, Any]:
-    """
-    take a path to a JSON file, read into an object
-    :param bucket_path:
-    """
-    with to_path(bucket_path).open() as handle:
-        return json.load(handle)
 
 
 def parse_gene_list(path_to_list: str) -> set[str]:
