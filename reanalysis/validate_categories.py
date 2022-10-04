@@ -16,6 +16,7 @@ import json
 import logging
 from argparse import ArgumentParser
 from collections import defaultdict
+from copy import deepcopy
 from typing import Any, Dict, List, Union
 
 from cloudpathlib import AnyPath
@@ -198,6 +199,54 @@ def clean_initial_results(
     return clean_results
 
 
+def gene_clean_results(
+    party_panels: str, panel_genes: str, cleaned_data: dict[str, list[ReportedVariant]]
+) -> dict[str, list[ReportedVariant]]:
+    """
+    takes the unique-ified data from the previous cleaning
+    applies gene panel filters per-participant
+    the only remaining data should be relevant to the participant's panel list
+
+    Parameters
+    ----------
+    party_panels : JSON file containing the panels per participant
+    panel_genes : JSON file containing the genes on each panel
+    cleaned_data : the reportable variants, indexed per participant
+
+    Returns
+    -------
+    a gene-list filtered version of the reportable data
+    """
+
+    gene_cleaned_data = {}
+
+    # read the input files
+    panels_per_participant = read_json_from_path(party_panels)
+    genes_per_panel = read_json_from_path(panel_genes)
+
+    # set of genes on the mendeliome
+    default_genes = set(genes_per_panel['default'])
+
+    # the lookup is generated so the primary index is on CPG ID, so as to be compatible
+    for sample, variants in cleaned_data.items():
+
+        if sample == 'metadata':
+            gene_cleaned_data[sample] = variants
+            continue
+
+        # always keep default (mendeliome), and supplement with HPO-matched panel genes
+        sample_genes = deepcopy(default_genes)
+        for panel in panels_per_participant.get(sample, []):
+            sample_genes.update(genes_per_panel[panel])
+
+        # keep only panel-relevant reportable varaints
+        gene_cleaned_data[sample] = [
+            var for var in variants if var.gene in sample_genes
+        ]
+
+    return gene_cleaned_data
+
+
 def update_result_meta(
     results: dict, config: dict, pedigree: Ped, panelapp: dict, samples: list[str]
 ) -> dict:
@@ -239,6 +288,8 @@ def main(
     out_json: str,
     panelapp: str,
     pedigree: str,
+    participant_panels: str | None = None,
+    panel_genes: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -248,13 +299,12 @@ def main(
     We expect approximately linear scaling with participants in the joint call
     :param labelled_vcf:
     :param config_path:
-    :param out_json:
+    :param out_json: a prefix, used for both the full and panel-filtered results
     :param panelapp:
     :param pedigree:
+    :param participant_panels: the json of panels per participant
+    :param panel_genes: the genes associated with each panel
     """
-
-    # check if this is a singleton pedigree
-    singletons = 'singleton' in pedigree
 
     # parse the pedigree from the file
     pedigree_digest = Ped(pedigree)
@@ -296,7 +346,7 @@ def main(
             variant_source=vcf_opened,
             config=config_dict,
             panelapp_data=panelapp_data,
-            singletons=singletons,
+            singletons=bool('singleton' in pedigree),
             blacklist=variant_blacklist,
         )
 
@@ -323,9 +373,22 @@ def main(
         samples=vcf_opened.samples,
     )
 
+    # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
-    with AnyPath(out_json).open('w') as fh:
+    with AnyPath(f'{out_json}_full.json').open('w') as fh:
         json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
+
+    # cleanest results - reported variants are matched to panel ROI
+    if participant_panels and panel_genes:
+        meta_results = gene_clean_results(
+            party_panels=participant_panels,
+            panel_genes=panel_genes,
+            cleaned_data=meta_results,
+        )
+
+        # dump results using the custom-encoder to transform sets & DataClasses
+        with AnyPath(f'{out_json}_panel_filtered.json').open('w') as fh:
+            json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':
@@ -335,7 +398,7 @@ if __name__ == '__main__':
     parser.add_argument('--config_path', help='path to the runtime JSON config')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--out_json', help='Path to write JSON results to')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to')
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,

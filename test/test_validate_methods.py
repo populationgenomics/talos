@@ -2,8 +2,48 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
+import json
+import os
+from dataclasses import dataclass
 
-from reanalysis.validate_categories import update_result_meta
+from reanalysis.validate_categories import gene_clean_results, update_result_meta
+
+
+@dataclass
+class PicoVariant:
+    """
+    smallest Reportable variant object for this test
+    """
+
+    gene: str
+
+
+def test_gene_clean_results(tmpdir):
+    """
+    tests the per-participant gene-filtering of results
+    messy test, write and pass file paths
+    """
+    dirty_data = {
+        'metadata': {'foo': 'bar'},
+        'sam1': [PicoVariant('ENSG1'), PicoVariant('ENSG2')],
+        'sam2': [PicoVariant('ENSG3'), PicoVariant('ENSG3')],
+        'sam3': [PicoVariant('ENSG4'), PicoVariant('ENSG5')],
+    }
+    panel_genes = os.path.join(tmpdir, 'panel_genes.json')
+    with open(panel_genes, 'w', encoding='utf-8') as handle:
+        json.dump({'default': ['ENSG1'], '2': ['ENSG3'], '3': ['ENSG5']}, handle)
+
+    party_panels = os.path.join(tmpdir, 'party_panels.json')
+    with open(party_panels, 'w', encoding='utf-8') as handle:
+        json.dump({'sam2': ['2'], 'sam3': ['3']}, handle)
+
+    clean = gene_clean_results(party_panels, panel_genes, dirty_data)
+    assert len(clean['sam1']) == 1
+    assert clean['sam1'][0].gene == 'ENSG1'
+    assert len(clean['sam2']) == 2
+    assert clean['sam2'][0].gene == 'ENSG3'
+    assert len(clean['sam3']) == 1
+    assert clean['sam3'][0].gene == 'ENSG5'
 
 
 def test_update_results_meta(peddy_ped):

@@ -133,16 +133,21 @@ def test_match_participants_to_panels():
         'HP:3': {'nothing', 'at', 'all'},
         'HP:6': {'666'},
     }
+    participant_map = {'participant1': ['luke_skywalker']}
     results = match_participants_to_panels(
-        participant_hpos=party_hpo, hpo_panels=hpo_to_panels
+        participant_hpos=party_hpo,
+        hpo_panels=hpo_to_panels,
+        participant_map=participant_map,
     )
     assert results == {
-        'participant1': {
+        'luke_skywalker': {
+            'external_id': 'participant1',
             'family_id': 'fam1',
             'hpo_terms': {'HP:1', 'HP:2'},
             'panels': {'room', '101', '2002'},
         },
         'participant2': {
+            'external_id': 'participant2',
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
             'panels': {'room', '101', '666'},
