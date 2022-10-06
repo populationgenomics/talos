@@ -275,8 +275,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--hash_threshold',
         help=(
-            'Integer 0-100 representing the % of families to include, e.g. 15'
-            'will result in the retention of 15% of families'
+            'Integer 0-100 representing the percentage of families to '
+            'include, e.g. 15 will result in the retention of 15pc of families'
         ),
         type=int,
         default=100,
