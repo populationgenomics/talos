@@ -130,7 +130,7 @@ def fields_audit(mt: hl.MatrixTable) -> bool:
                     problems.append(f'{annotation}:missing')
     for problem in problems:
         logging.error(f'MT field: \t{problem}')
-    return len(problems) > 0
+    return len(problems) == 0
 
 
 def vep_audit(mt: hl.MatrixTable) -> bool:
@@ -156,10 +156,10 @@ def vep_audit(mt: hl.MatrixTable) -> bool:
             else:
                 problems.append(f'{field}:missing')
 
-    if problems:
-        logging.error('VEP field: \n'.join(problems))
-        return False
-    return True
+    for problem in problems:
+        logging.error(f'VEP field: {problem}')
+
+    return len(problems) == 0
 
 
 def filter_matrix_by_ac(
