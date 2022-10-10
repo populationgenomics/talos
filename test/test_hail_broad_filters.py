@@ -30,7 +30,7 @@ def test_ac_filter_no_filt(ac: int, an: int, threshold: float, rows: int, hail_m
     """
     run tests on the ac filtering method
     """
-    matrix = hail_matrix.annotate_rows(info=hail_matrix.info.annotate(AC=ac, AN=an))
+    matrix = hail_matrix.annotate_rows(AC=ac, AN=an)
     assert filter_matrix_by_ac(matrix, threshold).count_rows() == rows
 
 
