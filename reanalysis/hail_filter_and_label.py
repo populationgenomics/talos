@@ -108,7 +108,7 @@ def fields_audit(mt: hl.MatrixTable) -> bool:
     problems = []
     # iterate over top-level attributes
     for annotation, datatype in BASE_FIELDS_REQUIRED:
-        if annotation in mt:
+        if annotation in mt.row_value or annotation in mt.row_key:
             if not isinstance(mt[annotation], datatype):
                 problems.append(f'{annotation}: {datatype}/{type(mt[annotation])}')
         else:
