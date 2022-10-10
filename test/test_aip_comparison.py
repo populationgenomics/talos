@@ -323,7 +323,7 @@ def test_ac_threshold(
     :return:
     """
     config = {'min_samples_to_ac_filter': 0, 'ac_threshold': 0.1}
-    anno_mt = hail_matrix.annotate_rows(info=hail_matrix.info.annotate(AC=ac, AN=an))
+    anno_mt = hail_matrix.annotate_rows(AC=ac, AN=an)
     assert run_ac_check(anno_mt, config) == results
 
 
