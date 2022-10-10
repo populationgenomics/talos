@@ -40,12 +40,14 @@ CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
+BASE_FIELDS_REQUIRED = [
+    ('locus', hl.LocusExpression),
+    ('alleles', hl.ArrayExpression),
+    ('AC', hl.Int32Expression),
+    ('AF', hl.Float64Expression),
+    ('AN', hl.Int32Expression),
+]
 FIELDS_REQUIRED = {
-    'info': [
-        ('AC', hl.Int32Expression),
-        ('AF', hl.ArrayNumericExpression),
-        ('AN', hl.Int32Expression),
-    ],
     'splice_ai': [
         ('delta_score', hl.Float32Expression),
         ('splice_consequence', hl.StringExpression),
@@ -104,6 +106,14 @@ def fields_audit(mt: hl.MatrixTable) -> bool:
     checks that the required fields are all present before continuing
     """
     problems = []
+    # iterate over top-level attributes
+    for annotation, datatype in BASE_FIELDS_REQUIRED:
+        if annotation in mt:
+            if not isinstance(mt[annotation], datatype):
+                problems.append(f'{annotation}: {datatype}/{type(mt[annotation])}')
+        else:
+            problems.append(f'{annotation}:missing')
+
     for field_group, group_types in FIELDS_REQUIRED.items():
         if field_group not in mt.row_value:
             problems.append(f'{field_group}:missing')
@@ -118,11 +128,9 @@ def fields_audit(mt: hl.MatrixTable) -> bool:
                         )
                 else:
                     problems.append(f'{annotation}:missing')
-    if problems:
-        for problem in problems:
-            logging.error(f'MT field: \t{problem}')
-        return False
-    return True
+    for problem in problems:
+        logging.error(f'MT field: \t{problem}')
+    return len(problems) > 0
 
 
 def vep_audit(mt: hl.MatrixTable) -> bool:
@@ -164,7 +172,7 @@ def filter_matrix_by_ac(
     :param ac_threshold:
     :return: reduced MatrixTable
     """
-    return mt.filter_rows((mt.info.AC <= 5) | (mt.info.AC / mt.info.AN < ac_threshold))
+    return mt.filter_rows((mt.AC <= 5) | (mt.AC / mt.AN < ac_threshold))
 
 
 def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -678,6 +686,8 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.annotate_rows(
         info=mt.info.annotate(
+            AC=hl.or_else(mt.AC, MISSING_INT),
+            AN=hl.or_else(mt.AN, MISSING_INT),
             gnomad_ex_af=hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO),
             gnomad_ex_an=hl.or_else(mt.gnomad_exomes.AN, MISSING_INT),
             gnomad_ex_ac=hl.or_else(mt.gnomad_exomes.AC, MISSING_INT),
