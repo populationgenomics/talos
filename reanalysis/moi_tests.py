@@ -12,9 +12,10 @@ to a Monogenic MOI
 
 import logging
 from abc import abstractmethod
-from typing import Any
 
 from peddy.peddy import Ped, PHENOTYPE
+
+from cpg_utils.config import get_config
 
 from reanalysis.utils import (
     AbstractVariant,
@@ -70,7 +71,7 @@ class MOIRunner:
     pass
     """
 
-    def __init__(self, pedigree: Ped, target_moi: str, config: dict[str, Any]):
+    def __init__(self, pedigree: Ped, target_moi: str):
         """
         for each possible MOI, choose the appropriate filters to apply
         ran into a situation where the ID of target_moi didn't match the
@@ -80,34 +81,33 @@ class MOIRunner:
 
         :param pedigree:
         :param target_moi:
-        :param config:
         """
 
         # for unknown, we catch all possible options?
         # should we be doing both checks for Monoallelic?
         if target_moi == 'Monoallelic':
             self.filter_list = [
-                DominantAutosomal(pedigree=pedigree, config=config),
+                DominantAutosomal(pedigree=pedigree),
             ]
         elif target_moi in ['Mono_And_Biallelic', 'Unknown']:
             self.filter_list = [
-                DominantAutosomal(pedigree=pedigree, config=config),
-                RecessiveAutosomal(pedigree=pedigree, config=config),
+                DominantAutosomal(pedigree=pedigree),
+                RecessiveAutosomal(pedigree=pedigree),
             ]
         elif target_moi == 'Biallelic':
-            self.filter_list = [RecessiveAutosomal(pedigree=pedigree, config=config)]
+            self.filter_list = [RecessiveAutosomal(pedigree=pedigree)]
 
         elif target_moi == 'Hemi_Mono_In_Female':
             self.filter_list = [
-                XRecessive(pedigree=pedigree, config=config),
-                XDominant(pedigree=pedigree, config=config),
+                XRecessive(pedigree=pedigree),
+                XDominant(pedigree=pedigree),
             ]
 
         elif target_moi == 'Hemi_Bi_In_Female':
-            self.filter_list = [XRecessive(pedigree=pedigree, config=config)]
+            self.filter_list = [XRecessive(pedigree=pedigree)]
 
         elif target_moi == 'Y_Chrom_Variant':
-            self.filter_list = [YHemi(pedigree=pedigree, config=config)]
+            self.filter_list = [YHemi(pedigree=pedigree)]
 
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
@@ -153,14 +153,13 @@ class BaseMoi:
     Definition of the MOI base class
     """
 
-    def __init__(self, pedigree: Ped, config: dict[str, Any], applied_moi: str):
+    def __init__(self, pedigree: Ped, applied_moi: str):
         """
         base class
         """
         if applied_moi is None:
             raise Exception('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
-        self.config = config
         self.applied_moi = applied_moi
 
     @abstractmethod
@@ -179,10 +178,7 @@ class BaseMoi:
         """
 
     def check_familial_inheritance(
-        self,
-        sample_id: str,
-        called_variants: set[str],
-        partial_penetrance: bool = False,
+        self, sample_id: str, called_variants: set[str], partial_pen: bool = False
     ) -> bool:
         """
         sex-agnostic check for single variant inheritance
@@ -197,7 +193,7 @@ class BaseMoi:
 
         :param sample_id:
         :param called_variants: the set of sample_ids which have this variant
-        :param partial_penetrance: if True, permit unaffected has variant call
+        :param partial_pen: if True, permit unaffected has variant call
 
         NOTE: this called_variants pool is prepared before calling this method.
         If we only want to check hom calls, only send hom calls. If we are checking for
@@ -221,7 +217,7 @@ class BaseMoi:
                 and member.sample_id not in called_variants
             ) or (
                 member.sample_id in called_variants
-                and not partial_penetrance
+                and not partial_pen
                 and not member.affected == PEDDY_AFFECTED
             ):
                 return False
@@ -271,19 +267,17 @@ class DominantAutosomal(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: dict[str, Any],
         applied_moi: str = 'Autosomal Dominant',
     ):
         """
 
         :param pedigree: not yet implemented
-        :param config:
         :param applied_moi:
         """
-        self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
-        self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
-        self.hom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
-        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
+        self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
+        self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
+        self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -334,7 +328,7 @@ class DominantAutosomal(BaseMoi):
             if not self.check_familial_inheritance(
                 sample_id=sample_id,
                 called_variants=samples_with_this_variant,
-                partial_penetrance=partial_penetrance,
+                partial_pen=partial_penetrance,
             ):
                 continue
 
@@ -361,12 +355,11 @@ class RecessiveAutosomal(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: dict[str, Any],
         applied_moi: str = 'Autosomal Recessive',
     ):
         """ """
-        self.hom_threshold = config.get(GNOMAD_REC_HOM_THRESHOLD)
-        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
+        self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -415,7 +408,7 @@ class RecessiveAutosomal(BaseMoi):
             if not self.check_familial_inheritance(
                 sample_id=sample_id,
                 called_variants=principal_var.hom_samples,
-                partial_penetrance=partial_penetrance,
+                partial_pen=partial_penetrance,
             ):
                 continue
 
@@ -487,20 +480,17 @@ class XDominant(BaseMoi):
     re-implement here, but don't permit Male X-Homs
     """
 
-    def __init__(
-        self, pedigree: Ped, config: dict[str, Any], applied_moi: str = 'X_Dominant'
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'X_Dominant'):
         """
         accept male hets and homs, and female hets without support
         :param pedigree:
-        :param config:
         :param applied_moi:
         """
-        self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
-        self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
-        self.hom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
-        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
-        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
+        self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
+        self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
+        self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
+        self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -562,7 +552,7 @@ class XDominant(BaseMoi):
             if not self.check_familial_inheritance(
                 sample_id=sample_id,
                 called_variants=samples_with_this_variant,
-                partial_penetrance=partial_penetrance,
+                partial_pen=partial_penetrance,
             ):
                 continue
 
@@ -592,22 +582,20 @@ class XRecessive(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: dict[str, Any],
         applied_moi: str = 'X_Recessive',
     ):
         """
         set parameters specific to recessive tests
         and take the comp-het dictionary
         :param pedigree:
-        :param config:
         :param applied_moi:
         """
 
-        self.hom_dom_threshold = config.get(GNOMAD_DOM_HOM_THRESHOLD)
-        self.hom_rec_threshold = config.get(GNOMAD_REC_HOM_THRESHOLD)
-        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
+        self.hom_dom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
+        self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
 
-        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -736,7 +724,7 @@ class XRecessive(BaseMoi):
             if not self.check_familial_inheritance(
                 sample_id=sample_id,
                 called_variants=samples_to_check,
-                partial_penetrance=partial_penetrance,
+                partial_pen=partial_penetrance,
             ):
                 continue
 
@@ -769,20 +757,18 @@ class YHemi(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        config: dict[str, Any],
         applied_moi: str = 'Y_Hemi',
     ):
         """
 
         :param pedigree:
-        :param config:
         :param applied_moi:
         """
 
-        self.ad_threshold = config.get(GNOMAD_RARE_THRESHOLD)
-        self.ac_threshold = config.get(GNOMAD_AD_AC_THRESHOLD)
-        self.hemi_threshold = config.get(GNOMAD_HEMI_THRESHOLD)
-        super().__init__(pedigree=pedigree, config=config, applied_moi=applied_moi)
+        self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
+        self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
+        self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
