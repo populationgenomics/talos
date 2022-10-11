@@ -67,10 +67,12 @@ def test_update_results_meta(peddy_ped):
         panelapp=panelapp,
         samples=ped_samples,
     )
+
+    # either this or mock the entry
+    del big_results['metadata']['run_datetime']
+
     assert big_results == {
         'metadata': {
-            'run_datetime': 'bar',
-            'input_file': 'foo',
             'cohort': 'cohort',
             'family_breakdown': {
                 'affected': 2,

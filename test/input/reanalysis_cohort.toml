@@ -5,3 +5,6 @@ external_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.j
 seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
 seqr_project = "e.g. R0011_acute_care"
 forbidden = ""
+
+[workflow]
+dataset = "cohort"
