@@ -466,20 +466,20 @@ def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
         info=mt.info.annotate(
             categorysupport=hl.if_else(
                 (
-                    (mt.info.cadd > get_config()['filter']['in_silico'].get('cadd'))
-                    & (mt.info.revel > get_config()['filter']['in_silico'].get('revel'))
+                    (mt.info.cadd > get_config()['filter'].get('cadd'))
+                    & (mt.info.revel > get_config()['filter'].get('revel'))
                 )
                 | (
                     (
                         mt.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
-                            <= get_config()['filter']['in_silico'].get('sift')
+                            <= get_config()['filter'].get('sift')
                         )
                     )
                     & (
                         mt.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
-                            >= get_config()['filter']['in_silico'].get('polyphen')
+                            >= get_config()['filter'].get('polyphen')
                         )
                     )
                     & (

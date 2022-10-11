@@ -16,16 +16,14 @@ csq_string = [ "allele", "consequence", "symbol", "gene", "feature", "mane_selec
 
 [filter]
 description = "variables for the hail operations, including CSQ sets and filter thresholds"
-af_semi_rare = 0.01
 ac_threshold = 0.01
-spliceai_full = 0.5
-critical_csq = [ "frameshift_variant", "splice_acceptor_variant", "splice_donor_variant", "start_lost", "stop_gained", "stop_lost", "transcript_ablation",]
-additional_consequences = [ "missense_variant",]
-
-[filter.in_silico]
+additional_csq = [ "missense_variant"]
+af_semi_rare = 0.01
 cadd = 28.1
-revel = 0.77
-polyphen = 0.99
-sift = 0.0
+critical_csq = [ "frameshift_variant", "splice_acceptor_variant", "splice_donor_variant", "start_lost", "stop_gained", "stop_lost", "transcript_ablation",]
 gerp = 1.0
 eigen = 0.25
+polyphen = 0.99
+revel = 0.77
+sift = 0.0
+spliceai = 0.5
