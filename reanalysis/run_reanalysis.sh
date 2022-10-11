@@ -3,14 +3,14 @@
 set -ex
 
 # set the date, or provide a default
-PAP_DATE=${1:-$(date +%F)}
+DATE=${1:-$(date +%F)}
 
 analysis-runner \
   --config reanalysis/reanalysis_global.toml \
   --config reanalysis/reanalysis_cohort.toml \
   --dataset acute-care \
   --description "AIP run" \
-  -o "reanalysis/${PAP_DATE}" \
+  -o "reanalysis/${DATE}" \
   --access-level test \
   reanalysis/interpretation_runner.py \
     --input_path gs://cpg-acute-care-test/reanalysis/2011-11-11/prior_to_annotation.vcf.bgz \
