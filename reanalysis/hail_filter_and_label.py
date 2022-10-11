@@ -830,6 +830,9 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     logging.info(f'Samples in MatrixTable: {len(matrix_samples)}')
     logging.info(f'Common Samples: {len(common_samples)}')
 
+    if len(common_samples) == 0:
+        raise Exception('No samples shared between pedigree and MT')
+
     # full overlap = no filtering
     if common_samples == matrix_samples:
         return mt

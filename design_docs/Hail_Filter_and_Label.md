@@ -66,7 +66,7 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 
 ### Process
 
-1. Read reference files (PanelApp data, [Configuration](../reanalysis/reanalysis_conf.json))
+1. Read reference files (PanelApp data, [Configuration](../reanalysis/reanalysis_global.json))
    * From the PanelApp data, pull `ENSG` values corresponding to GREEN (High Confidence) genes
    * Most of the steps are configurable based on this file, e.g. the definition of `common in joint call` is a balance of the 2 parameters `min_samples_to_ac_filter`, and `ac_filter_percentge`.
    * All the config file parameters related to the Hail stage are contained within the top level key `hail`
