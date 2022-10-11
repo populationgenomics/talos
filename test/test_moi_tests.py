@@ -11,11 +11,6 @@ from reanalysis.moi_tests import (
     check_for_second_hit,
     BaseMoi,
     DominantAutosomal,
-    GNOMAD_AD_AC_THRESHOLD,
-    GNOMAD_DOM_HOM_THRESHOLD,
-    GNOMAD_HEMI_THRESHOLD,
-    GNOMAD_RARE_THRESHOLD,
-    GNOMAD_REC_HOM_THRESHOLD,
     MOIRunner,
     RecessiveAutosomal,
     XDominant,
@@ -25,16 +20,8 @@ from reanalysis.moi_tests import (
 from reanalysis.utils import Coordinates
 
 
-MOI_CONF = {
-    GNOMAD_REC_HOM_THRESHOLD: 2,
-    GNOMAD_DOM_HOM_THRESHOLD: 1,
-    GNOMAD_AD_AC_THRESHOLD: 10,
-    GNOMAD_RARE_THRESHOLD: 0.01,
-    GNOMAD_HEMI_THRESHOLD: 2,
-}
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
-TINY_CONFIG = {'male': 'male'}
 TINY_COMP_HET = {}
 
 
