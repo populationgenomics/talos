@@ -322,9 +322,8 @@ def test_ac_threshold(
     :param hail_matrix:
     :return:
     """
-    config = {'min_samples_to_ac_filter': 0, 'ac_threshold': 0.1}
     anno_mt = hail_matrix.annotate_rows(AC=ac, AN=an)
-    assert run_ac_check(anno_mt, config) == results
+    assert run_ac_check(anno_mt) == results
 
 
 @pytest.mark.parametrize(

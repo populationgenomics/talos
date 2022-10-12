@@ -263,6 +263,7 @@ class HTMLBuilder:
                 'Mean/sample': sum(category_count[key]) / len(category_count[key]),
             }
             for key in CATEGORY_ORDERING
+            if category_count[key]
         ]
 
         return (
