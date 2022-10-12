@@ -86,6 +86,10 @@ def set_job_resources(
     # apply all settings
     job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
 
+    # copy the env variables into the container
+    # specifically the CPG_CONFIG_PATH value
+    copy_common_env(job)
+
     if prior_job is not None:
         job.depends_on(prior_job)
 
