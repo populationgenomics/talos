@@ -259,12 +259,11 @@ class HTMLBuilder:
                 'Category': key,
                 'Total': sum(category_count[key]),
                 'Unique': len(unique_variants[key]),
-                'Peak #/sample': max(category_count[key])
-                if category_count[key]
-                else 'N/A',
+                'Peak #/sample': max(category_count[key]),
                 'Mean/sample': sum(category_count[key]) / len(category_count[key]),
             }
             for key in CATEGORY_ORDERING
+            if category_count[key]
         ]
 
         return (
