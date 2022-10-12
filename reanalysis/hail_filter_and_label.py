@@ -361,13 +361,16 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     # update without updating the dictionary content
     critical_consequences = set(get_config()['filter']['critical_csq'])
     additional_consequences = set(get_config()['filter']['additional_csq'])
-    high_csq = critical_consequences.update(additional_consequences)
+    critical_consequences.update(additional_consequences)
 
     # overwrite the consequences with an intersection against a limited list
     mt = mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: hl.len(hl.set(x.consequence_terms).intersection(high_csq)) > 0
+                lambda x: hl.len(
+                    hl.set(x.consequence_terms).intersection(critical_consequences)
+                )
+                > 0
             )
         )
     )
@@ -393,7 +396,6 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
 
     pedigree = hl.Pedigree.read(plink_family_file)
 
-    # avoid consequence filtering twice by calling the de novos in a loop
     dn_table = hl.de_novo(
         de_novo_matrix,
         pedigree,
@@ -466,20 +468,20 @@ def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
         info=mt.info.annotate(
             categorysupport=hl.if_else(
                 (
-                    (mt.info.cadd > get_config()['filter']['in_silico'].get('cadd'))
-                    & (mt.info.revel > get_config()['filter']['in_silico'].get('revel'))
+                    (mt.info.cadd > get_config()['filter'].get('cadd'))
+                    & (mt.info.revel > get_config()['filter'].get('revel'))
                 )
                 | (
                     (
                         mt.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
-                            <= get_config()['filter']['in_silico'].get('sift')
+                            <= get_config()['filter'].get('sift')
                         )
                     )
                     & (
                         mt.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
-                            >= get_config()['filter']['in_silico'].get('polyphen')
+                            >= get_config()['filter'].get('polyphen')
                         )
                     )
                     & (

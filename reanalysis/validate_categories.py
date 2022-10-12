@@ -17,11 +17,14 @@ import logging
 from argparse import ArgumentParser
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Dict, List, Union
+from typing import Dict, List, Union
+from datetime import datetime
 
-from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
+
+from cpg_utils import to_path
+from cpg_utils.config import get_config
 
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
@@ -38,7 +41,6 @@ from reanalysis.utils import (
 
 def set_up_inheritance_filters(
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
-    config: Dict[str, Any],
     pedigree: Ped,
 ) -> Dict[str, MOIRunner]:
     """
@@ -62,7 +64,6 @@ def set_up_inheritance_filters(
     This dictionary format means we only have to set up each once
     A billion variants, 6 MOI = 6 test instances, each created once
     :param panelapp_data:
-    :param config:
     :param pedigree:
     :return:
     """
@@ -82,9 +83,7 @@ def set_up_inheritance_filters(
         if gene_moi not in moi_dictionary:
 
             # get a MOIRunner with the relevant filters
-            moi_dictionary[gene_moi] = MOIRunner(
-                pedigree=pedigree, target_moi=gene_moi, config=config['moi_tests']
-            )
+            moi_dictionary[gene_moi] = MOIRunner(pedigree=pedigree, target_moi=gene_moi)
 
     return moi_dictionary
 
@@ -248,7 +247,7 @@ def gene_clean_results(
 
 
 def update_result_meta(
-    results: dict, config: dict, pedigree: Ped, panelapp: dict, samples: list[str]
+    results: dict, pedigree: Ped, panelapp: dict, samples: list[str]
 ) -> dict:
     """
     takes the 'cleaned' results, and adds in a metadata key
@@ -272,9 +271,8 @@ def update_result_meta(
         family_counter[str(len(pedigree.families[family].samples))] += 1
 
     results['metadata'] = {
-        'cohort': config['cohort'],
-        'input_file': config['input_file'],
-        'run_datetime': config['latest_run'],
+        'cohort': get_config()['workflow']['dataset'],
+        'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
         'family_breakdown': dict(family_counter),
         'panels': panelapp['metadata'],
     }
@@ -284,7 +282,6 @@ def update_result_meta(
 
 def main(
     labelled_vcf: str,
-    config_path: Union[str, Dict[str, Any]],
     out_json: str,
     panelapp: str,
     pedigree: str,
@@ -298,12 +295,11 @@ def main(
     the cohort; if the variant number is large, the classes should be refined
     We expect approximately linear scaling with participants in the joint call
     :param labelled_vcf:
-    :param config_path:
     :param out_json: a prefix, used for both the full and panel-filtered results
     :param panelapp:
     :param pedigree:
     :param participant_panels: the json of panels per participant
-    :param panel_genes: the genes associated with each panel
+    :param panel_genes: path to file; genes assc. with each panel
     """
 
     # parse the pedigree from the file
@@ -312,28 +308,13 @@ def main(
     # parse panelapp data from dict
     panelapp_data = read_json_from_path(panelapp)
 
-    # get the runtime configuration
-    if isinstance(config_path, dict):
-        config_dict = config_path
-    elif isinstance(config_path, str):
-        config_dict = read_json_from_path(config_path)
-    else:
-        raise Exception(
-            f'What is the conf path then?? "{config_path}": {type(config_path)}'
-        )
-
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
-        panelapp_data=panelapp_data, pedigree=pedigree_digest, config=config_dict
+        panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
-
-    # permit a blacklist to exclude known artefacts
-    variant_blacklist = None
-    if 'variant_blacklist' in config_dict:
-        variant_blacklist = read_json_from_path(config_dict['variant_blacklist'])
 
     results = []
 
@@ -344,10 +325,8 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            config=config_dict,
             panelapp_data=panelapp_data,
             singletons=bool('singleton' in pedigree),
-            blacklist=variant_blacklist,
         )
 
         results.extend(
@@ -367,7 +346,6 @@ def main(
     # add metadata into the results
     meta_results = update_result_meta(
         cleaned_results,
-        config_dict,
         pedigree=pedigree_digest,
         panelapp=panelapp_data,
         samples=vcf_opened.samples,
@@ -375,7 +353,7 @@ def main(
 
     # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
-    with AnyPath(f'{out_json}_full.json').open('w') as fh:
+    with to_path(f'{out_json}_full.json').open('w') as fh:
         json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
     # cleanest results - reported variants are matched to panel ROI
@@ -387,7 +365,7 @@ def main(
         )
 
         # dump results using the custom-encoder to transform sets & DataClasses
-        with AnyPath(f'{out_json}_panel_filtered.json').open('w') as fh:
+        with to_path(f'{out_json}_panel_filtered.json').open('w') as fh:
             json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
 
@@ -395,7 +373,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     parser = ArgumentParser()
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--config_path', help='path to the runtime JSON config')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
     parser.add_argument('--out_json', help='Prefix to write JSON results to')
@@ -404,7 +381,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,
-        config_path=args.config_path,
         out_json=args.out_json,
         panelapp=args.panelapp,
         pedigree=args.pedigree,

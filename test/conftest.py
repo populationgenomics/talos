@@ -11,6 +11,8 @@ import hail as hl
 from hail.utils.java import FatalError
 from peddy.peddy import Ped
 
+from cpg_utils.config import set_config_paths
+
 from reanalysis.utils import AbstractVariant, read_json_from_path
 
 
@@ -22,7 +24,6 @@ DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
 DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
 QUAD_PED = os.path.join(INPUT, 'trio_plus_sibling.fam')
 LABELLED = os.path.join(INPUT, '1_labelled_variant.vcf.bgz')
-TEST_CONF = os.path.join(INPUT, 'test_conf.json')
 PED_FILE = os.path.join(INPUT, 'pedfile.ped')
 AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
@@ -31,6 +32,16 @@ PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
 FAKE_OBO = os.path.join(INPUT, 'hpo_test.obo')
 FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
+CONF_BASE = os.path.join(INPUT, 'reanalysis_global.toml')
+CONF_COHORT = os.path.join(INPUT, 'reanalysis_cohort.toml')
+
+
+@pytest.fixture(name='config_setup', scope='session', autouse=True)
+def fixture_config_setup():
+    """
+    update the config paths for all tests
+    """
+    set_config_paths([CONF_BASE, CONF_COHORT])
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')
@@ -141,11 +152,8 @@ def fixture_phased_trio_variants():
     :return:
     """
 
-    conf_json = read_json_from_path(TEST_CONF)
     vcf_reader = VCFReader(PHASED_TRIO)
-    two_variants = [
-        AbstractVariant(var, vcf_reader.samples, config=conf_json) for var in vcf_reader
-    ]
+    two_variants = [AbstractVariant(var, vcf_reader.samples) for var in vcf_reader]
     return two_variants
 
 
@@ -169,15 +177,6 @@ def fixture_quad_ped():
     return QUAD_PED
 
 
-@pytest.fixture(name='conf_json_path')
-def fixture_test_conf_path():
-    """
-    returns the path to the config JSON file
-    :return:
-    """
-    return TEST_CONF
-
-
 @pytest.fixture(name='trio_abs_variant')
 def fixture_trio_abs_variant():
     """
@@ -185,11 +184,10 @@ def fixture_trio_abs_variant():
     Cat. 3, and Cat. 4 for PROBAND only
     :return:
     """
-    conf_json = read_json_from_path(TEST_CONF)
     vcf_reader = VCFReader(LABELLED)
     cyvcf_var = next(vcf_reader)
 
-    return AbstractVariant(cyvcf_var, vcf_reader.samples, config=conf_json)
+    return AbstractVariant(cyvcf_var, vcf_reader.samples)
 
 
 @pytest.fixture(name='two_trio_abs_variants')
@@ -200,11 +198,8 @@ def fixture_two_trio_abs_variants():
     2) Cat. 1 + 3, and Cat. 4 for PROBAND only
     :return:
     """
-    conf_json = read_json_from_path(TEST_CONF)
     vcf_reader = VCFReader(LABELLED)
-    two_variants = [
-        AbstractVariant(var, vcf_reader.samples, config=conf_json) for var in vcf_reader
-    ]
+    two_variants = [AbstractVariant(var, vcf_reader.samples) for var in vcf_reader]
     return two_variants
 
 

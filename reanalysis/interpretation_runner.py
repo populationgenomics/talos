@@ -86,6 +86,10 @@ def set_job_resources(
     # apply all settings
     job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
 
+    # copy the env variables into the container
+    # specifically the CPG_CONFIG_PATH value
+    copy_common_env(job)
+
     if prior_job is not None:
         job.depends_on(prior_job)
 
@@ -119,7 +123,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     )
 
     logging.info(f'Command used to convert MT: {job_cmd}')
-    copy_common_env(mt_to_vcf_job)
     mt_to_vcf_job.command(job_cmd)
     return mt_to_vcf_job
 
@@ -247,7 +250,6 @@ def handle_hail_filtering(
 
     logging.info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
-    copy_common_env(labelling_job)
     return labelling_job
 
 

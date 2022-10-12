@@ -15,7 +15,8 @@ import logging
 import re
 import requests
 
-from cloudpathlib import AnyPath
+from cpg_utils import to_path
+from cpg_utils.config import get_config
 
 
 InfoDict = dict[str, Union[str, dict[str, str]]]
@@ -177,14 +178,12 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self,
         var,
         samples: list[str],
-        config: dict[str, Any],
         as_singletons=False,
     ):
         """
         var is a cyvcf2.Variant
         :param var:
         :param samples:
-        :param config:
         :param as_singletons:
         """
 
@@ -233,7 +232,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.transcript_consequences: list[dict[str, str]] = []
         if 'csq' in self.info:
             self.transcript_consequences = extract_csq(
-                csq_contents=self.info.pop('csq'), config=config
+                csq_contents=self.info.pop('csq')
             )
 
         # identify variant sets phased with this one
@@ -431,10 +430,8 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    config: dict[str, Any],
     panelapp_data: PanelAppDict,
     singletons: bool = False,
-    blacklist: list[str] | None = None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -446,15 +443,14 @@ def gather_gene_dict_from_contig(
     }
     :param contig: contig name from header (canonical_contigs_from_vcf)
     :param variant_source: VCF reader instance
-    :param config: configuration file
     :param panelapp_data:
     :param singletons:
-    :param blacklist:
     :return: populated lookup dict
     """
 
-    if blacklist is None:
-        blacklist = []
+    blacklist = []
+    if 'blacklist' in get_config()['filter'].keys():
+        blacklist = read_json_from_path(get_config()['filter']['blacklist'])
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
@@ -466,7 +462,6 @@ def gather_gene_dict_from_contig(
         abs_var = AbstractVariant(
             var=variant,
             samples=variant_source.samples,
-            config=config,
             as_singletons=singletons,
         )
 
@@ -506,7 +501,7 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     take a path to a JSON file, read into an object
     :param bucket_path:
     """
-    with AnyPath(bucket_path).open() as handle:
+    with to_path(bucket_path).open() as handle:
         return json.load(handle)
 
 
@@ -574,11 +569,10 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
     return het_samples, hom_samples
 
 
-def extract_csq(csq_contents, config: dict[str, dict[str, str]]):
+def extract_csq(csq_contents) -> list[dict]:
     """
-    specifically handle extraction of the CSQ list
+    handle extraction of the CSQ entries
     :param csq_contents:
-    :param config:
     :return:
     """
 
@@ -586,9 +580,8 @@ def extract_csq(csq_contents, config: dict[str, dict[str, str]]):
     if not csq_contents:
         return []
 
-    # config region concerning variant objects
     # break mono-CSQ-string into components
-    csq_categories = config['variant_object']['csq_string']
+    csq_categories = get_config()['csq']['csq_string']
 
     # iterate over all consequences, and make each into a dict
     return [
