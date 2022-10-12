@@ -66,6 +66,7 @@ def test_update_results_meta(peddy_ped):
         pedigree=peddy_ped,
         panelapp=panelapp,
         samples=ped_samples,
+        input_path='this',
     )
 
     # either this or mock the entry
@@ -73,6 +74,7 @@ def test_update_results_meta(peddy_ped):
 
     assert big_results == {
         'metadata': {
+            'input_file': 'this',
             'cohort': 'cohort',
             'family_breakdown': {
                 'affected': 2,
