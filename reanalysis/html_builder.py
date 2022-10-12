@@ -138,15 +138,15 @@ class HTMLBuilder:
     takes the input, makes the output
     """
 
-    def __init__(self, results_dict: str, panelapp_data: str, pedigree: Ped):
+    def __init__(self, results: str, panelapp: str, pedigree: Ped):
         """
         before parsing data, purge any forbidden genes
 
-        :param results_dict:
-        :param panelapp_data:
+        :param results:
+        :param panelapp:
         :param pedigree:
         """
-        self.panelapp = read_json_from_path(panelapp_data)
+        self.panelapp = read_json_from_path(panelapp)
         self.pedigree = Ped(pedigree)
 
         # if it exists, read the forbidden genes as a dict
@@ -164,7 +164,7 @@ class HTMLBuilder:
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # pre-filter the results to remove forbidden genes
-        self.results = self.remove_forbidden_genes(read_json_from_path(results_dict))
+        self.results = self.remove_forbidden_genes(read_json_from_path(results))
 
         # map of internal:external IDs for translation in results (optional)
         ext_lookup = get_config()['dataset_specific'].get('external_lookup')
@@ -459,19 +459,13 @@ class HTMLBuilder:
 if __name__ == '__main__':
 
     parser = ArgumentParser()
-    parser.add_argument(
-        '--results', help='Path to JSON containing analysis results', required=True
-    )
-    parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
-    parser.add_argument(
-        '--panelapp', help='Path to JSON file of PanelApp data', required=True
-    )
-    parser.add_argument(
-        '--out_path', help='Path to write JSON results to', required=True
-    )
+    parser.add_argument('--results', help='Path to analysis results', required=True)
+    parser.add_argument('--pedigree', help='PED file', required=True)
+    parser.add_argument('--panelapp', help='PanelApp data', required=True)
+    parser.add_argument('--out_path', help='results path', required=True)
     args = parser.parse_args()
 
-    html_generator = HTMLBuilder(
-        results_dict=args.results, panelapp_data=args.panelapp, pedigree=args.pedigree
+    html = HTMLBuilder(
+        results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
-    html_generator.write_html(output_path=args.out_path)
+    html.write_html(output_path=args.out_path)
