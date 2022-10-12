@@ -260,6 +260,7 @@ def handle_results_job(
     output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
     participant_panels: str | None = None,
+    input_path: str | None = None,
 ) -> hb.batch.job.Job:
     """
     one container to run the MOI checks, and the presentation
@@ -270,6 +271,7 @@ def handle_results_job(
     :param output_dict: paths to the
     :param prior_job:
     :param participant_panels: JSON of relevant panels per participant
+    :param input_path: source file for the analysis process
     :return:
     """
 
@@ -291,6 +293,8 @@ def handle_results_job(
         else f'--results {output_dict["results"]}_full.json '
     )
 
+    path_input = f'--input_path {input_path} ' if input_path else ''
+
     results_command = (
         'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
@@ -298,7 +302,7 @@ def handle_results_job(
         f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
         f'--out_json {output_dict["results"]} '
-        f'{gene_filter_files} && '
+        f'{gene_filter_files} {path_input} && '
         f'python3 {HTML_SCRIPT} '
         f'{report_from_file} '
         f'--panelapp {PANELAPP_JSON_OUT}.json '
@@ -468,6 +472,7 @@ def main(
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
             participant_panels=participant_panels,
+            input_path=input_path,
         )
     # endregion
 

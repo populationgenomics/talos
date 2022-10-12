@@ -247,7 +247,7 @@ def gene_clean_results(
 
 
 def update_result_meta(
-    results: dict, pedigree: Ped, panelapp: dict, samples: list[str]
+    results: dict, pedigree: Ped, panelapp: dict, samples: list[str], input_path: str
 ) -> dict:
     """
     takes the 'cleaned' results, and adds in a metadata key
@@ -271,6 +271,7 @@ def update_result_meta(
         family_counter[str(len(pedigree.families[family].samples))] += 1
 
     results['metadata'] = {
+        'input_file': input_path,
         'cohort': get_config()['workflow']['dataset'],
         'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
         'family_breakdown': dict(family_counter),
@@ -285,6 +286,7 @@ def main(
     out_json: str,
     panelapp: str,
     pedigree: str,
+    input_path: str,
     participant_panels: str | None = None,
     panel_genes: str | None = None,
 ):
@@ -298,6 +300,7 @@ def main(
     :param out_json: a prefix, used for both the full and panel-filtered results
     :param panelapp:
     :param pedigree:
+    :param input_path: data file used as input
     :param participant_panels: the json of panels per participant
     :param panel_genes: path to file; genes assc. with each panel
     """
@@ -349,6 +352,7 @@ def main(
         pedigree=pedigree_digest,
         panelapp=panelapp_data,
         samples=vcf_opened.samples,
+        input_path=input_path,
     )
 
     # store a full version of the results here
@@ -378,6 +382,7 @@ if __name__ == '__main__':
     parser.add_argument('--out_json', help='Prefix to write JSON results to')
     parser.add_argument('--participant_panels', help='dict of panels per participant')
     parser.add_argument('--panel_genes', help='dict of genes in each panel')
+    parser.add_argument('--input_path', help='source data', default='Not supplied')
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,
@@ -386,4 +391,5 @@ if __name__ == '__main__':
         pedigree=args.pedigree,
         participant_panels=args.participant_panels,
         panel_genes=args.panel_genes,
+        input_path=args.input_path,
     )
