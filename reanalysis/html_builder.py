@@ -6,9 +6,11 @@ from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
 
-from cloudpathlib import AnyPath
 import pandas as pd
 from peddy.peddy import Ped
+
+from cpg_utils import to_path
+from cpg_utils.config import get_config
 
 from reanalysis.utils import read_json_from_path
 
@@ -136,22 +138,14 @@ class HTMLBuilder:
     takes the input, makes the output
     """
 
-    def __init__(
-        self,
-        results_dict: str,
-        panelapp_data: str,
-        config: str,
-        pedigree: Ped,
-    ):
+    def __init__(self, results_dict: str, panelapp_data: str, pedigree: Ped):
         """
         before parsing data, purge any forbidden genes
 
         :param results_dict:
         :param panelapp_data:
-        :param config:
         :param pedigree:
         """
-        self.config = read_json_from_path(config)
         self.panelapp = read_json_from_path(panelapp_data)
         self.pedigree = Ped(pedigree)
 
@@ -160,10 +154,10 @@ class HTMLBuilder:
             {
                 ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
                 for ensg in set(
-                    read_json_from_path(self.config['output'].get('forbidden'))
+                    read_json_from_path(get_config()['dataset_specific']['forbidden'])
                 )
             }
-            if self.config['output'].get('forbidden') is not None
+            if get_config()['dataset_specific'].get('forbidden')
             else {}
         )
 
@@ -173,11 +167,11 @@ class HTMLBuilder:
         self.results = self.remove_forbidden_genes(read_json_from_path(results_dict))
 
         # map of internal:external IDs for translation in results (optional)
-        ext_lookup = self.config['output'].get('external_lookup')
+        ext_lookup = get_config()['dataset_specific'].get('external_lookup')
         self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = self.config['output'].get('seqr_lookup')
+        seqr_path = get_config()['dataset_specific'].get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path:
@@ -185,7 +179,7 @@ class HTMLBuilder:
 
             # force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert self.config['output'].get(
+                assert get_config()['dataset_specific'].get(
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
@@ -269,6 +263,7 @@ class HTMLBuilder:
                 'Mean/sample': sum(category_count[key]) / len(category_count[key]),
             }
             for key in CATEGORY_ORDERING
+            if category_count[key]
         ]
 
         return (
@@ -278,7 +273,6 @@ class HTMLBuilder:
 
     def read_metadata(self) -> dict[str, str]:
         """
-        reads self.config[metadata]
         parses into a general table and a panel table
         """
         tables = {
@@ -346,8 +340,8 @@ class HTMLBuilder:
         for sample, table in html_tables.items():
             if sample in self.external_map and sample in self.seqr:
                 sample_string = FAMILY_TEMPLATE.format(
-                    seqr=self.config['output'].get('seqr_instance'),
-                    project=self.config['output'].get('seqr_project'),
+                    seqr=get_config()['dataset_specific'].get('seqr_instance'),
+                    project=get_config()['dataset_specific'].get('seqr_project'),
                     family=self.seqr[sample],
                     sample=self.external_map[sample],
                 )
@@ -359,8 +353,7 @@ class HTMLBuilder:
         html_lines.append('\n</body>')
 
         # write all HTML content to the output file in one go
-        # fix formatting later
-        AnyPath(output_path).write_text(''.join(html_lines))
+        to_path(output_path).write_text(''.join(html_lines))
 
     def create_html_tables(self):
         """
@@ -457,7 +450,7 @@ class HTMLBuilder:
         if sample not in self.seqr:
             return var_string
         return SEQR_TEMPLATE.format(
-            seqr=self.config['output'].get('seqr_instance'),
+            seqr=get_config()['dataset_specific'].get('seqr_instance'),
             variant=var_string,
             family=self.seqr.get(sample),
         )
@@ -469,9 +462,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '--results', help='Path to JSON containing analysis results', required=True
     )
-    parser.add_argument(
-        '--config_path', help='path to the runtime JSON config', required=True
-    )
     parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
     parser.add_argument(
         '--panelapp', help='Path to JSON file of PanelApp data', required=True
@@ -482,9 +472,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     html_generator = HTMLBuilder(
-        results_dict=args.results,
-        panelapp_data=args.panelapp,
-        pedigree=args.pedigree,
-        config=args.config_path,
+        results_dict=args.results, panelapp_data=args.panelapp, pedigree=args.pedigree
     )
     html_generator.write_html(output_path=args.out_path)
