@@ -7,6 +7,7 @@ PAP_DATE=${1:-$(date +%F)}
 
 # run
 analysis-runner \
+  --config global.toml \
   --dataset acute-care \
   --description "Run Comparison" \
   -o "reanalysis/comparison/${PAP_DATE}" \

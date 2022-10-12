@@ -1,10 +1,25 @@
-# Genome-wide Variant Prioritisation (MVP)
+# Genome-wide Variant Prioritisation
 
 Code Repository for the Rare Disease variant prioritisation pipeline
 
-Currently being ported over from [a prior repository](https://github.com/populationgenomics/rare-disease/tree/initial_content)
-
 review [design docs](design_docs) for component descriptions
+
+## Configuration
+
+Configuration settings for this application are provided using the [cpg-utils config functions](https://github.com/populationgenomics/cpg-utils/blob/main/cpg_utils/config.py).
+There are two provided configuration templates:
+
+1. The Cohort/Run-specific config [here](reanalysis/reanalysis_cohort.toml)
+   - contains settings like which seqr instance to use, and the corresponding project ID
+
+2. The Operational settings config [here](reanalysis/reanalysis_global.toml)
+   - contains filter thresholds and parameters
+
+The use of the `cpg-utils` functionality removes the need to manually pass a configuration file around the codebase,
+instead generating a single aggregated config file and referencing globally as required.
+
+The main considered use-case is via the CPG Analysis-Runner framework, which handles the merging and storage of config
+files, but if required outside of this framework, an issue can be raised and will be addressed.
 
 ## Flow
 
@@ -14,7 +29,7 @@ The current implementation consists of the following steps:
 
 Summarised here [Annotation stage](design_docs/Annotation.md)
 
-This stage can take a MT as input, but a pre-processing step will revert to VCF prior to running annotation
+This stage can take a VCF, or an MT  as input (pre-processing step will revert to VCF prior to running annotation)
 
 #### Inputs
 
@@ -61,7 +76,6 @@ Summarised here [Labelling stage](design_docs/Hail_Filter_and_Label.md)
 #### Inputs
 
 - MatrixTable: Annotated Variant Data
-- String: path to configuration file (JSON)
 - String: Path to PanelApp data (JSON)
 
 
@@ -81,7 +95,6 @@ Summarised here [Labelling stage](design_docs/Hail_Filter_and_Label.md)
 
 ##### Inputs
 
-- String: path to runtime configuration/settings (JSON)
 - VCF: labelled variants
 - String: path to PanelApp data (JSON)
 - String: path to PED file for cohort

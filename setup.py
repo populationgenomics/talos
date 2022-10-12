@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='automated-interpretation-pipeline',
-    version='0.0.1',
+    version='0.1.0',
     author='Matthew Welland, CPG',
     author_email=(
         'matthew.welland@populationgenomics.org.au, '

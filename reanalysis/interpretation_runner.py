@@ -16,7 +16,6 @@ re-run currently requires the deletion of previous outputs
 
 from argparse import ArgumentParser
 from datetime import datetime
-import json
 import logging
 import os
 import sys
@@ -41,9 +40,12 @@ from cpg_utils.hail_batch import (
 )
 
 import annotation
-from utils import read_json_from_path, FileTypes, identify_file_type
+from utils import FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
+
+# exact time that this run occurred
+EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
 
 # static paths to write outputs
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
@@ -84,6 +86,10 @@ def set_job_resources(
     # apply all settings
     job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
 
+    # copy the env variables into the container
+    # specifically the CPG_CONFIG_PATH value
+    copy_common_env(job)
+
     if prior_job is not None:
         job.depends_on(prior_job)
 
@@ -117,7 +123,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     )
 
     logging.info(f'Command used to convert MT: {job_cmd}')
-    copy_common_env(mt_to_vcf_job)
     mt_to_vcf_job.command(job_cmd)
     return mt_to_vcf_job
 
@@ -125,7 +130,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
 def annotate_vcf(
     input_vcf: str,
     batch: hb.Batch,
-    vep_temp: str,
     vep_out: str,
     seq_type: SequencingType = SequencingType.GENOME,
 ) -> list[hb.batch.job.Job]:
@@ -138,7 +142,6 @@ def annotate_vcf(
 
     :param input_vcf:
     :param batch:
-    :param vep_temp:
     :param vep_out:
     :param seq_type:
     :return:
@@ -148,7 +151,9 @@ def annotate_vcf(
     return vep_jobs(
         b=batch,
         vcf_path=to_path(input_vcf),
-        tmp_bucket=to_path(vep_temp),
+        tmp_bucket=to_path(
+            output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
+        ),
         out_path=to_path(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
         sequencing_type=seq_type,
@@ -218,7 +223,6 @@ def handle_panelapp_job(
 
 def handle_hail_filtering(
     batch: hb.Batch,
-    config: str,
     plink_file: str,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.BashJob:
@@ -227,7 +231,6 @@ def handle_hail_filtering(
     use the init query service instead of running inside dataproc
 
     :param batch:
-    :param config:
     :param plink_file:
     :param prior_job:
     :return:
@@ -242,35 +245,33 @@ def handle_hail_filtering(
         f'python3 {HAIL_FILTER} '
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT}.json '
-        f'--config_path {config} '
         f'--plink {plink_file}'
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
-    copy_common_env(labelling_job)
     return labelling_job
 
 
 def handle_results_job(
     batch: hb.Batch,
-    config: str,
     labelled_vcf: str,
     pedigree: str,
     output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
     participant_panels: str | None = None,
+    input_path: str | None = None,
 ) -> hb.batch.job.Job:
     """
     one container to run the MOI checks, and the presentation
 
     :param batch:
-    :param config:
     :param labelled_vcf:
     :param pedigree:
     :param output_dict: paths to the
     :param prior_job:
     :param participant_panels: JSON of relevant panels per participant
+    :param input_path: source file for the analysis process
     :return:
     """
 
@@ -292,18 +293,18 @@ def handle_results_job(
         else f'--results {output_dict["results"]}_full.json '
     )
 
+    path_input = f'--input_path {input_path} ' if input_path else ''
+
     results_command = (
         'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
-        f'--config_path {config} '
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
         f'--out_json {output_dict["results"]} '
-        f'{gene_filter_files} && '
+        f'{gene_filter_files} {path_input} && '
         f'python3 {HTML_SCRIPT} '
         f'{report_from_file} '
-        f'--config_path {config} '
         f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
         f'--out_path {output_dict["web_html"]}'
@@ -315,7 +316,6 @@ def handle_results_job(
 
 def main(
     input_path: str,
-    config_json: str,
     pedigree: str,
     extra_panels: list[str],
     participant_panels: str | None,
@@ -326,7 +326,6 @@ def main(
     main method, which runs the full reanalysis process
 
     :param input_path: annotated input matrix table or VCF
-    :param config_json:
     :param pedigree:
     :param extra_panels:
     :param participant_panels:
@@ -334,46 +333,31 @@ def main(
     :param skip_annotation:
     """
 
-    if not to_path(input_path).exists():
-        raise Exception(
-            f'The provided path "{input_path}" does not exist or is inaccessible'
-        )
+    assert to_path(
+        input_path
+    ).exists(), f'The provided path "{input_path}" does not exist or is inaccessible'
 
     logging.info('Starting the reanalysis batch')
 
-    config_dict = read_json_from_path(config_json)
-    config_dict.update(
-        {
-            'latest_run': f'{datetime.now():%Y-%m-%d %H:%M:%S%z}',
-            'input_file': input_path,
-            'panelapp_file': PANELAPP_JSON_OUT,
-            'cohort': get_config()['workflow']['dataset'],
-            'panelapp_inputs': extra_panels or participant_panels or None,
-        }
-    )
-
-    # create output paths with optional suffixes
-    vep_stage_tmp = output_path('vep_temp', config_dict.get('tmp_suffix') or None)
-    vep_ht_tmp = output_path(
-        'vep_annotations.ht', config_dict.get('tmp_suffix') or None
-    )
-
+    # region: output files lookup
     # separate paths for familial and singleton analysis
     output_dict = {
         'default': {
             'web_html': output_path(
-                'summary_output.html', config_dict.get('web_suffix') or None
+                'summary_output.html', get_config()['buckets'].get('web_suffix')
             ),
             'results': output_path('summary_results'),
         },
         'singletons': {
             'web_html': output_path(
-                'singleton_output.html', config_dict.get('web_suffix') or None
+                'singleton_output.html', get_config()['buckets'].get('web_suffix')
             ),
             'results': output_path('singleton_results'),
         },
     }
+    # endregion
 
+    # region: batch instantiation
     service_backend = hb.ServiceBackend(
         billing_project=get_config()['hail']['billing_project'],
         remote_tmpdir=remote_tmpdir(),
@@ -385,6 +369,7 @@ def main(
         default_timeout=6000,
         default_memory='highmem',
     )
+    # endregion
 
     # read the ped file into the Batch
     pedigree_in_batch = batch.read_input(pedigree)
@@ -392,9 +377,7 @@ def main(
     # set a first job in this batch
     prior_job = None
 
-    # -------------------------- #
-    # Convert MT to a VCF format #
-    # -------------------------- #
+    # region: MT to VCF
     # determine the input type - if MT, decompose to VCF prior to annotation
     input_file_type = identify_file_type(input_path)
     assert input_file_type in [
@@ -408,26 +391,25 @@ def main(
 
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
-            config_dict.update({'aip_annotated': False})
             # overwrite the expected annotation output path
             global ANNOTATED_MT  # pylint: disable=W0603
             ANNOTATED_MT = input_path
 
         else:
             prior_job = mt_to_vcf(batch=batch, input_file=input_path)
-            config_dict.update({'vcf_created': INPUT_AS_VCF})
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
+    # endregion
 
-    # ------------------------------------- #
-    # split the VCF, and annotate using VEP #
-    # ------------------------------------- #
+    # region: split & annotate VCF
     if not to_path(ANNOTATED_MT).exists():
         # need to run the annotation phase
         # uses default values from RefData
-        annotation_jobs = annotate_vcf(
-            input_path, batch=batch, vep_temp=vep_stage_tmp, vep_out=vep_ht_tmp
+
+        vep_ht_tmp = output_path(
+            'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
         )
+        annotation_jobs = annotate_vcf(input_path, batch=batch, vep_out=vep_ht_tmp)
 
         # if convert-to-VCF job exists, assign as an annotation dependency
         if prior_job:
@@ -440,11 +422,9 @@ def main(
         )
         prior_job.depends_on(*annotation_jobs)
 
-        config_dict.update({'aip_annotated': True})
+    # endregion
 
-    # -------------------------------- #
-    # query panelapp for panel details #
-    # -------------------------------- #
+    #  region: query panelapp
     if (not to_path(f'{PANELAPP_JSON_OUT}.json').exists()) or (
         participant_panels
         and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
@@ -455,58 +435,58 @@ def main(
             participant_panels=participant_panels,
             prior_job=prior_job,
         )
+    # endregion
 
-    # ----------------------- #
-    # run hail categorisation #
-    # ----------------------- #
+    # region: hail categorisation
     if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
         prior_job = handle_hail_filtering(
             batch=batch,
-            config=config_json,
             prior_job=prior_job,
             plink_file=pedigree_in_batch,
         )
+    # endregion
 
-    # read that VCF into the batch as a local file
+    # read VCF into the batch as a local file
     labelled_vcf_in_batch = batch.read_input_group(
         vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi'
     ).vcf
 
+    # region: singleton decisions
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and to_path(singletons).exists():
-        with to_path(output_path('latest_singletons.fam')).open('w') as handle:
-            handle.writelines(to_path(singletons).open().readlines())
-
+        to_path(singletons).copy(output_path(f'singletons_{EXECUTION_TIME}.fam'))
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
+    # endregion
 
+    # region: run results job
     # pointing this analysis at the updated config file, including input metadata
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
         _results_job = handle_results_job(
             batch=batch,
-            config=output_path('latest_config.json'),
             labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
             participant_panels=participant_panels,
+            input_path=input_path,
+        )
+    # endregion
+
+    # region: copy data out
+    # if we ran with per-participant panel data, copy to output folder
+    # include datetime to differentiate output files and prevent clashes
+    if participant_panels:
+        to_path(participant_panels).copy(
+            output_path(f'pid_to_panels_{EXECUTION_TIME}.json')
         )
 
-    # if we ran with per-participant panel data, copy to output folder
-    if participant_panels:
-        with to_path(output_path('latest_pid_to_panels.json')).open('w') as handle:
-            handle.writelines(to_path(participant_panels).open().readlines())
-
-    # save the json file into the batch output, with latest run details
-    with to_path(output_path('latest_config.json')).open('w') as handle:
-        json.dump(config_dict, handle, indent=True)
-
     # write pedigree content to the output folder
-    with to_path(output_path('latest_pedigree.fam')).open('w') as handle:
-        handle.writelines(to_path(pedigree).open().readlines())
+    to_path(pedigree).copy(output_path(f'pedigree_{EXECUTION_TIME}.fam'))
+    # endregion
 
     batch.run(wait=False)
 
@@ -521,7 +501,6 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-i', help='variant data to analyse', required=True)
-    parser.add_argument('--config', help='JSON, runtime settings', required=True)
     parser.add_argument('--pedigree', help='in Plink format', required=True)
     parser.add_argument('--singletons', help='singletons in Plink format')
     panel_args = parser.add_mutually_exclusive_group()
@@ -540,7 +519,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         input_path=args.i,
-        config_json=args.config,
         pedigree=args.pedigree,
         extra_panels=args.extra_panels,
         participant_panels=args.participant_panels,

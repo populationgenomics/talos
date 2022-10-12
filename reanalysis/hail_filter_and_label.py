@@ -12,8 +12,7 @@ Read, filter, annotate, classify, and write Genetic data
 This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
-
-from typing import Any
+import os
 import logging
 import sys
 from argparse import ArgumentParser
@@ -21,9 +20,8 @@ from argparse import ArgumentParser
 import hail as hl
 from peddy import Ped
 
-from cloudpathlib import AnyPath
-
 from cpg_utils import to_path
+from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, output_path
 
 from reanalysis.utils import read_json_from_path
@@ -238,7 +236,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 
 def annotate_category_2(
-    mt: hl.MatrixTable, config: dict[str, Any], new_genes: hl.SetExpression
+    mt: hl.MatrixTable, new_genes: hl.SetExpression
 ) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
@@ -246,12 +244,11 @@ def annotate_category_2(
     - Critical protein consequence on at least one transcript
     - High in silico consequence
     :param mt:
-    :param config:
     :param new_genes: the new genes in this panelapp content
     :return: same Matrix, with additional field per variant
     """
 
-    critical_consequences = hl.set(config.get('critical_csq'))
+    critical_consequences = hl.set(get_config()['filter']['critical_csq'])
 
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return mt.annotate_rows(
@@ -278,8 +275,8 @@ def annotate_category_2(
                         & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
                     )
                     | (
-                        (mt.info.cadd > config['in_silico']['cadd'])
-                        | (mt.info.revel > config['in_silico']['revel'])
+                        (mt.info.cadd > get_config()['filter']['cadd'])
+                        | (mt.info.revel > get_config()['filter']['revel'])
                     )
                 ),
                 ONE_INT,
@@ -289,18 +286,17 @@ def annotate_category_2(
     )
 
 
-def annotate_category_3(mt: hl.MatrixTable, config: dict[str, Any]) -> hl.MatrixTable:
+def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category3 flag
     - Critical protein consequence on at least one transcript
     - either predicted NMD or
     - any star Pathogenic or Likely_pathogenic in Clinvar
     :param mt:
-    :param config:
     :return:
     """
 
-    critical_consequences = hl.set(config.get('critical_csq'))
+    critical_consequences = hl.set(get_config()['filter']['critical_csq'])
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -353,26 +349,28 @@ def annotate_category_3(mt: hl.MatrixTable, config: dict[str, Any]) -> hl.Matrix
     )
 
 
-def filter_by_consequence(mt: hl.MatrixTable, config: dict[str, Any]) -> hl.MatrixTable:
+def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     - reduce the per-row transcript consequences to a limited group
     - reduce the rows to ones where there are remaining tx consequences
     :param mt:
-    :param config: dictionary content relating to hail
     :return: reduced matrix
     """
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    high_csq = set(config.get('critical_csq', [])).union(
-        set(config.get('additional_consequences', []))
-    )
+    critical_consequences = set(get_config()['filter']['critical_csq'])
+    additional_consequences = set(get_config()['filter']['additional_csq'])
+    critical_consequences.update(additional_consequences)
 
     # overwrite the consequences with an intersection against a limited list
     mt = mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: hl.len(hl.set(x.consequence_terms).intersection(high_csq)) > 0
+                lambda x: hl.len(
+                    hl.set(x.consequence_terms).intersection(critical_consequences)
+                )
+                > 0
             )
         )
     )
@@ -383,25 +381,21 @@ def filter_by_consequence(mt: hl.MatrixTable, config: dict[str, Any]) -> hl.Matr
     )
 
 
-def annotate_category_4(
-    mt: hl.MatrixTable, config: dict[str, Any], plink_family_file: str
-) -> hl.MatrixTable:
+def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
     uses the Hail builtin method (very strict)
     :param mt: the whole joint-call MatrixTable
-    :param config: all parameters to use when consequence-filtering
     :param plink_family_file: path to a pedigree in PLINK format
     :return: mt with Category4 annotations
     """
 
     logging.info('Running de novo search')
 
-    de_novo_matrix = filter_by_consequence(mt, config)
+    de_novo_matrix = filter_by_consequence(mt)
 
     pedigree = hl.Pedigree.read(plink_family_file)
 
-    # avoid consequence filtering twice by calling the de novos in a loop
     dn_table = hl.de_novo(
         de_novo_matrix,
         pedigree,
@@ -437,17 +431,16 @@ def annotate_category_4(
     )
 
 
-def annotate_category_5(mt: hl.MatrixTable, config: dict[str, Any]) -> hl.MatrixTable:
+def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     :param mt:
-    :param config:
     :return: same Matrix, with additional field per variant
     """
 
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean5=hl.if_else(
-                mt.info.splice_ai_delta >= config['spliceai_full'],
+                mt.info.splice_ai_delta >= get_config()['filter']['spliceai'],
                 ONE_INT,
                 MISSING_INT,
             )
@@ -455,9 +448,7 @@ def annotate_category_5(mt: hl.MatrixTable, config: dict[str, Any]) -> hl.Matrix
     )
 
 
-def annotate_category_support(
-    mt: hl.MatrixTable, config: dict[str, Any]
-) -> hl.MatrixTable:
+def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Background class based on in silico annotations
     - rare in Gnomad, and
@@ -470,7 +461,6 @@ def annotate_category_support(
     This support category can be expanded to encompass other scenarios that qualify
     variants as 'of second-hit interest only'
     :param mt:
-    :param config:
     :return:
     """
 
@@ -478,20 +468,20 @@ def annotate_category_support(
         info=mt.info.annotate(
             categorysupport=hl.if_else(
                 (
-                    (mt.info.cadd > config['in_silico'].get('cadd'))
-                    & (mt.info.revel > config['in_silico'].get('revel'))
+                    (mt.info.cadd > get_config()['filter'].get('cadd'))
+                    & (mt.info.revel > get_config()['filter'].get('revel'))
                 )
                 | (
                     (
                         mt.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
-                            <= config['in_silico'].get('sift')
+                            <= get_config()['filter'].get('sift')
                         )
                     )
                     & (
                         mt.vep.transcript_consequences.any(
                             lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
-                            >= config['in_silico'].get('polyphen')
+                            >= get_config()['filter'].get('polyphen')
                         )
                     )
                     & (
@@ -532,20 +522,19 @@ def transform_variant_string(locus_details: hl.Struct) -> str:
     )
 
 
-def filter_to_population_rare(
-    mt: hl.MatrixTable, config: dict[str, Any]
-) -> hl.MatrixTable:
+def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad Exomes and Genomes
     :param mt:
-    :param config:
     :return:
     """
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
+    # 'semi-rare' as dominant filters will be more strictly filtered later
+    rare_af_threshold = get_config()['filter']['af_semi_rare']
     return mt.filter_rows(
-        (mt.info.gnomad_ex_af < config['af_semi_rare'])
-        & (mt.info.gnomad_af < config['af_semi_rare'])
+        (mt.info.gnomad_ex_af < rare_af_threshold)
+        & (mt.info.gnomad_af < rare_af_threshold)
     )
 
 
@@ -580,9 +569,7 @@ def split_rows_by_gene_and_filter_to_green(
     return mt
 
 
-def vep_struct_to_csq(
-    vep_expr: hl.expr.StructExpression, csq_fields: list[str]
-) -> hl.expr.ArrayExpression:
+def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpression:
     """
     Taken shamelessly from the gnomad library source code
     Given a VEP Struct, returns an array of VEP VCF CSQ strings
@@ -592,7 +579,6 @@ def vep_struct_to_csq(
     Order is flexible & all fields in the default value are supported.
     These fields are formatted in the same way that their VEP CSQ counterparts are.
     :param vep_expr: The input VEP Struct
-    :param csq_fields: ordered list of lower-case fields to include in the CSQ
     :return: The corresponding CSQ string(s)
     """
 
@@ -653,6 +639,9 @@ def vep_struct_to_csq(
                 'mane_select': element.mane_select,
             }
         )
+
+        # pull the required fields and ordering from config
+        csq_fields = get_config()['csq']['csq_string']
 
         return hl.delimit(
             [hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|'
@@ -830,6 +819,9 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     logging.info(f'Samples in MatrixTable: {len(matrix_samples)}')
     logging.info(f'Common Samples: {len(common_samples)}')
 
+    if len(common_samples) == 0:
+        raise Exception('No samples shared between pedigree and MT')
+
     # full overlap = no filtering
     if common_samples == matrix_samples:
         return mt
@@ -842,14 +834,13 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     return mt
 
 
-def main(mt_path: str, panelapp: str, config_path: str, plink: str):
+def main(mt_path: str, panelapp: str, plink: str):
     """
     Read the MT from disk
     Do filtering and class annotation
     Export as a VCF
     :param mt_path: path to the MT directory
     :param panelapp: path to the panelapp data dump
-    :param config_path: path to the config json
     :param plink: pedigree filepath in PLINK format
     """
 
@@ -860,16 +851,12 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     checkpoint_number = 0
 
     # get the run configuration JSON
-    logging.info(f'Reading config dict from "{config_path}"')
-    config_dict = read_json_from_path(config_path)
+    logging.info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # get temp suffix from the config (can be None or missing)
     checkpoint_root = output_path(
-        'hail_matrix.mt', config_dict.get('tmp_suffix') or None
+        'hail_matrix.mt', get_config()['buckets'].get('tmp_suffix')
     )
-
-    # find the config area specific to hail operations
-    hail_config = config_dict.get('filter')
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from "{panelapp}"')
@@ -878,12 +865,10 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
 
-    logging.info(
-        f'Starting Hail with reference genome "{hail_config.get("ref_genome")}"'
-    )
+    logging.info('Starting Hail with reference genome GRCh38')
 
     # if we already generated the annotated output, load instead
-    if not AnyPath(mt_path.rstrip('/') + '/').exists():
+    if not to_path(mt_path.rstrip('/') + '/').exists():
         raise Exception(f'Input MatrixTable doesn\'t exist: {mt_path}')
 
     mt = hl.read_matrix_table(mt_path)
@@ -922,7 +907,7 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     checkpoint_number = checkpoint_number + 1
 
     mt = extract_annotations(mt)
-    mt = filter_to_population_rare(mt=mt, config=hail_config)
+    mt = filter_to_population_rare(mt=mt)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
     mt = checkpoint_and_repartition(
@@ -939,11 +924,11 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
     logging.info('Applying categories')
     mt = annotate_category_1(mt)
-    mt = annotate_category_2(mt, config=hail_config, new_genes=new_expression)
-    mt = annotate_category_3(mt, config=hail_config)
-    mt = annotate_category_5(mt, config=hail_config)
-    mt = annotate_category_4(mt, config=hail_config, plink_family_file=plink)
-    mt = annotate_category_support(mt, hail_config)
+    mt = annotate_category_2(mt, new_genes=new_expression)
+    mt = annotate_category_3(mt)
+    mt = annotate_category_5(mt)
+    mt = annotate_category_4(mt, plink_family_file=plink)
+    mt = annotate_category_support(mt)
 
     mt = filter_to_categorised(mt)
     mt = checkpoint_and_repartition(
@@ -957,9 +942,7 @@ def main(mt_path: str, panelapp: str, config_path: str, plink: str):
     # also take the single gene_id (from the exploded attribute)
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            CSQ=vep_struct_to_csq(
-                mt.vep, csq_fields=config_dict['variant_object'].get('csq_string')
-            ),
+            CSQ=vep_struct_to_csq(mt.vep),
             gene_id=mt.geneIds,
         )
     )
@@ -978,12 +961,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--mt', required=True, help='path to input MT')
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
-    parser.add_argument('--config_path', type=str)
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
     args = parser.parse_args()
-    main(
-        mt_path=args.mt,
-        panelapp=args.panelapp,
-        config_path=args.config_path,
-        plink=args.plink,
-    )
+    main(mt_path=args.mt, panelapp=args.panelapp, plink=args.plink)

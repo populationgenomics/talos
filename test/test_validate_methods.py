@@ -52,7 +52,6 @@ def test_update_results_meta(peddy_ped):
     """
 
     results = {}
-    config = {'input_file': 'foo', 'latest_run': 'bar', 'cohort': 'cohort'}
     panelapp = {
         'metadata': [
             {'name': 'biff', 'version': 'pow', 'id': 'wallop'},
@@ -64,15 +63,18 @@ def test_update_results_meta(peddy_ped):
 
     big_results = update_result_meta(
         results=results,
-        config=config,
         pedigree=peddy_ped,
         panelapp=panelapp,
         samples=ped_samples,
+        input_path='this',
     )
+
+    # either this or mock the entry
+    del big_results['metadata']['run_datetime']
+
     assert big_results == {
         'metadata': {
-            'run_datetime': 'bar',
-            'input_file': 'foo',
+            'input_file': 'this',
             'cohort': 'cohort',
             'family_breakdown': {
                 'affected': 2,
