@@ -62,10 +62,7 @@ def test_get_clean_pedigree_fails():
 
     with pytest.raises(Exception):
         get_ped_with_permutations(
-            pedigree_dicts=ped,
-            sample_to_cpg_dict={},
-            make_singletons=False,
-            plink_format=False,
+            pedigree_dicts=ped, sample_to_cpg_dict={}, make_singletons=False
         )
 
 
@@ -78,7 +75,6 @@ def test_get_clean_pedigree():
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
         make_singletons=False,
-        plink_format=False,
     )
     assert cleaned == [
         {
@@ -101,14 +97,13 @@ def test_get_clean_pedigree_singles():
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
         make_singletons=True,
-        plink_format=False,
     )
     assert cleaned == [
         {
             'family_id': '1',
             'individual_id': ['cpg1'],
-            'paternal_id': [''],
-            'maternal_id': [''],
+            'paternal_id': ['0'],
+            'maternal_id': ['0'],
             'sex': 1,
             'affected': 1,
         }
@@ -124,7 +119,6 @@ def test_get_clean_pedigree_singles_plink():
         pedigree_dicts=deepcopy(DIRTY_PED),
         sample_to_cpg_dict=SAMPLE_TO_CPG,
         make_singletons=True,
-        plink_format=True,
     )
     assert cleaned == [
         {
