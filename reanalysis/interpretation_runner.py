@@ -500,8 +500,10 @@ def main(
 
     # write pedigree content to the output folder
     to_path(pedigree).copy(
-        output_path(f'pedigree_{EXECUTION_TIME}.fam'),
-        get_config()['buckets'].get('analysis_suffix'),
+        output_path(
+            f'pedigree_{EXECUTION_TIME}.fam',
+            get_config()['buckets'].get('analysis_suffix'),
+        )
     )
     # endregion
 
