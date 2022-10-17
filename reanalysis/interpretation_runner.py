@@ -304,12 +304,6 @@ def handle_results_job(
     return results_job
 
 
-# def cpg_utils_resolve_blob_name_as_hail_path(blob_name: str) -> str:
-#     account = 'sevgen002'
-#     container = 'cpg-severalgenomes-main'
-#     return f'hail-az://{account}/{container}/{blob_name.lstrip("/")}'
-
-
 @click.command()
 @click.option(
     '--input_path', help='variant matrix table or VCF to analyse', required=True
@@ -521,7 +515,7 @@ def main(
 
     # save the json file into the batch output, with latest run details
     with AnyPath(output_path('latest_config.json')).open('w') as handle:
-        json.dump(config_dict, handle , indent=True)
+        json.dump(config_dict, handle, indent=True)
 
     # write pedigree content to the output folder
     with AnyPath(output_path('latest_pedigree.fam')).open('w') as handle:
