@@ -54,7 +54,9 @@ INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 ANNOTATED_MT = output_path('annotated_variants.mt')
 
 # panelapp query results
-PANELAPP_JSON_OUT = output_path('panelapp_data')
+PANELAPP_JSON_OUT = output_path(
+    'panelapp_data', get_config()['buckets'].get('analysis_suffix')
+)
 
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
@@ -346,13 +348,17 @@ def main(
             'web_html': output_path(
                 'summary_output.html', get_config()['buckets'].get('web_suffix')
             ),
-            'results': output_path('summary_results'),
+            'results': output_path(
+                'summary_results', get_config()['buckets'].get('analysis_suffix')
+            ),
         },
         'singletons': {
             'web_html': output_path(
                 'singleton_output.html', get_config()['buckets'].get('web_suffix')
             ),
-            'results': output_path('singleton_results'),
+            'results': output_path(
+                'singleton_results', get_config()['buckets'].get('analysis_suffix')
+            ),
         },
     }
     # endregion
@@ -456,7 +462,12 @@ def main(
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and to_path(singletons).exists():
-        to_path(singletons).copy(output_path(f'singletons_{EXECUTION_TIME}.fam'))
+        to_path(singletons).copy(
+            output_path(
+                f'singletons_{EXECUTION_TIME}.fam',
+                get_config()['buckets'].get('analysis_suffix'),
+            )
+        )
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
     # endregion
@@ -481,11 +492,19 @@ def main(
     # include datetime to differentiate output files and prevent clashes
     if participant_panels:
         to_path(participant_panels).copy(
-            output_path(f'pid_to_panels_{EXECUTION_TIME}.json')
+            output_path(
+                f'pid_to_panels_{EXECUTION_TIME}.json',
+                get_config()['buckets'].get('analysis_suffix'),
+            )
         )
 
     # write pedigree content to the output folder
-    to_path(pedigree).copy(output_path(f'pedigree_{EXECUTION_TIME}.fam'))
+    to_path(pedigree).copy(
+        output_path(
+            f'pedigree_{EXECUTION_TIME}.fam',
+            get_config()['buckets'].get('analysis_suffix'),
+        )
+    )
     # endregion
 
     batch.run(wait=False)
