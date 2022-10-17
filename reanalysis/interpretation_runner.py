@@ -23,6 +23,7 @@ from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
 
 from cpg_utils.config import get_config
+from cpg_utils.deploy_config import get_deploy_config
 from cpg_utils.git import (
     prepare_git_job,
     get_git_commit_ref_of_current_repository,
@@ -42,18 +43,21 @@ import annotation
 from utils import read_json_from_path, FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
-
+# BIG TODO, HACK HERE
+def fix_output_path(input: str) -> str:
+    return input.replace('/severalgenomes', '/cpg-severalgenomes', 1)
+    
 # static paths to write outputs
-INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
+INPUT_AS_VCF = fix_output_path(output_path('prior_to_annotation.vcf.bgz'))
 
 # phases of annotation
-ANNOTATED_MT = output_path('annotated_variants.mt')
+ANNOTATED_MT = fix_output_path(output_path('annotated_variants.mt'))
 
 # panelapp query results
-PANELAPP_JSON_OUT = output_path('panelapp_data.json')
+PANELAPP_JSON_OUT = fix_output_path(output_path('panelapp_data.json'))
 
 # output of labelling task in Hail
-HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
+HAIL_VCF_OUT = fix_output_path(output_path('hail_categorised.vcf.bgz'))
 
 
 # local script references
@@ -86,7 +90,13 @@ def set_job_resources(
         job.depends_on(prior_job)
 
     if auth:
-        authenticate_cloud_credentials_in_job(job)
+        # TODO, the cloud check should really be done in CPG utils, also there's a question of whether this is actually necessary - I think it's done
+        # in GCP to handle use of AnyPath. We may not actually need this because of how HailAzureCloudPath handles auth.
+        cloud = get_deploy_config().to_dict()['cloud']
+        if cloud == 'gcp':
+            authenticate_cloud_credentials_in_job(job)
+        elif cloud == 'azure':
+            raise NotImplementedError()
 
     if git:
         # copy the relevant scripts into a Driver container instance
@@ -106,7 +116,8 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     :return:
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
-    set_job_resources(mt_to_vcf_job, git=True, auth=True)
+    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
+    set_job_resources(mt_to_vcf_job, git=True, auth=auth)
 
     job_cmd = (
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
@@ -196,7 +207,8 @@ def handle_panelapp_job(
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
-    set_job_resources(panelapp_job, auth=True, git=True, prior_job=prior_job)
+    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
+    set_job_resources(panelapp_job, auth=auth, git=True, prior_job=prior_job)
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
     if gene_list is not None:
@@ -230,8 +242,9 @@ def handle_hail_filtering(
     """
 
     labelling_job = batch.new_job(name='hail filtering')
+    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
     set_job_resources(
-        labelling_job, auth=True, git=True, prior_job=prior_job, memory='16Gi'
+        labelling_job, auth=auth, git=True, prior_job=prior_job, memory='16Gi'
     )
     labelling_command = (
         f'pip install . && '
@@ -269,6 +282,7 @@ def handle_results_job(
     """
 
     results_job = batch.new_job(name='finalise_results')
+    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
     set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
     results_command = (
         'pip install . && '
@@ -288,6 +302,12 @@ def handle_results_job(
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
     return results_job
+
+
+# def cpg_utils_resolve_blob_name_as_hail_path(blob_name: str) -> str:
+#     account = 'sevgen002'
+#     container = 'cpg-severalgenomes-main'
+#     return f'hail-az://{account}/{container}/{blob_name.lstrip("/")}'
 
 
 @click.command()
@@ -442,17 +462,23 @@ def main(
         prior_job.depends_on(*annotation_jobs)
 
         config_dict.update({'aip_annotated': True})
+    else:
+        logging.info("Using previously-annotated MT")
 
     # -------------------------------- #
     # query panelapp for panel details #
     # -------------------------------- #
+
     if not AnyPath(PANELAPP_JSON_OUT).exists():
+        logging.info(f"PanelApp JSON {PANELAPP_JSON_OUT} doesn\'t exist, generating.")
         prior_job = handle_panelapp_job(
             batch=batch,
             extra_panel=extra_panel,
             gene_list=panel_genes,
             prior_job=prior_job,
         )
+    else:
+        logging.info("Using previous PanelApp JSON")
 
     # ----------------------- #
     # run hail categorisation #
@@ -465,6 +491,8 @@ def main(
             prior_job=prior_job,
             plink_file=pedigree_in_batch,
         )
+    else:
+        logging.info(f"Using previous labelled VCF: {HAIL_VCF_OUT}")
 
     # read that VCF into the batch as a local file
     labelled_vcf_in_batch = batch.read_input_group(
@@ -476,6 +504,8 @@ def main(
     if singletons and AnyPath(singletons).exists():
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
+    else:
+        logging.info("Skipping singleton analysis")
 
     # pointing this analysis at the updated config file, including input metadata
     for relationships, analysis_index in analysis_rounds:
@@ -491,7 +521,7 @@ def main(
 
     # save the json file into the batch output, with latest run details
     with AnyPath(output_path('latest_config.json')).open('w') as handle:
-        json.dump(config_dict, handle, indent=True)
+        json.dump(config_dict, handle , indent=True)
 
     # write pedigree content to the output folder
     with AnyPath(output_path('latest_pedigree.fam')).open('w') as handle:

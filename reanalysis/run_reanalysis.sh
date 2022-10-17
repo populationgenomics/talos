@@ -6,12 +6,14 @@ set -ex
 PAP_DATE=${1:-"2011-11-11"}
 
 analysis-runner \
-  --dataset acute-care \
+  --dataset severalgenomes \
   --description "AIP runtime test" \
   -o "reanalysis/${PAP_DATE}" \
   --access-level test \
+  --env CPG_CONFIG_PATH="hail-az://sevgen002sa/cpg-severalgenomes-test/cpg-config.toml" \
   reanalysis/interpretation_runner.py \
-    --config_json gs://cpg-acute-care-test/reanalysis/reanalysis_conf.json \
-    --input_path gs://cpg-acute-care-test/reanalysis/2011-11-11/prior_to_annotation.vcf.bgz \
-    --panel_genes gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json \
-    --plink_file gs://cpg-acute-care-test/reanalysis/acute-care-plink.fam
+    --config_json hail-az://sevgen002sa/cpg-severalgenomes-test/reanalysis/reanalysis_conf.json \
+    --input_path hail-az://sevgen002sa/cpg-severalgenomes-test/reanalysis/986d792a448c66a8a5cfba65434e7d1ce9b1ff_1051-validation.mt \
+    --panel_genes hail-az://sevgen002sa/cpg-severalgenomes-test/reanalysis/pre_panelapp_mendeliome.json \
+    --plink_file hail-az://sevgen002sa/cpg-severalgenomes-test/reanalysis/pedigree.fam \
+    --skip_annotation

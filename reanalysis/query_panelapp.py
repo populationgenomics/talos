@@ -27,7 +27,8 @@ from argparse import ArgumentParser
 
 import requests
 from cloudpathlib import AnyPath
-
+# Necessary to register HailAzureCloudPath
+import cpg_utils 
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
