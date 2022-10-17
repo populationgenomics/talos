@@ -38,19 +38,6 @@ support_category_keys = [
     'gerp',
     'eigen',
 ]
-
-category_conf = {
-    'critical_csq': ['frameshift_variant'],
-    'in_silico': {
-        'cadd': 28.0,
-        'revel': 0.4,
-        'polyphen': 0.85,
-        'sift': 0.05,
-        'gerp': 1.0,
-        'eigen': 0.25,
-    },
-}
-
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
@@ -100,8 +87,8 @@ def test_class_1_assignment(values, classified, hail_matrix):
         ([hl_locus, 'pathogenic', 99.0, 1.0, 'RED', 'frameshift_variant'], 0),
         ([hl_locus, 'pathogenic', 99.0, 1.0, 'GREEN', 'frameshift_variant'], 1),
         ([hl_locus, 'benign', 30.0, 0.0, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 'meh', 28.01, 0.0, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 'meh', 0, 0.41, 'GREEN', 'synonymous'], 1),
+        ([hl_locus, 'meh', 28.11, 0.0, 'GREEN', 'synonymous'], 1),
+        ([hl_locus, 'meh', 0, 0.8, 'GREEN', 'synonymous'], 1),
         ([hl_locus, 'meh', 0, 0.0, 'GREEN', 'synonymous'], 0),
     ],
 )
@@ -135,9 +122,7 @@ def test_class_2_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_2(
-        anno_matrix, config=category_conf, new_genes=hl.set(['GREEN'])
-    )
+    anno_matrix = annotate_category_2(anno_matrix, new_genes=hl.set(['GREEN']))
     assert anno_matrix.info.categoryboolean2.collect() == [classified]
 
 
@@ -183,7 +168,7 @@ def test_class_3_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_3(anno_matrix, config=category_conf)
+    anno_matrix = annotate_category_3(anno_matrix)
     assert anno_matrix.info.categoryboolean3.collect() == [classified]
 
 
@@ -200,8 +185,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, hail_matrix):
     matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(splice_ai_delta=spliceai_score)
     )
-    conf = {'spliceai_full': 0.5}
-    matrix = annotate_category_5(matrix, conf)
+    matrix = annotate_category_5(matrix)
     assert matrix.info.categoryboolean5.collect() == [flag]
 
 
@@ -215,7 +199,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, hail_matrix):
         ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.0, 1.0, 0.0], 0),
         ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 1.0, 0.0], 0),
         ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 0.0, 0.0], 0),
-        ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 0.0, 0.9], 1),
+        ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 0.0, 1], 1),
     ],
 )
 def test_support_assignment(values, classified, hail_matrix):
@@ -254,7 +238,7 @@ def test_support_assignment(values, classified, hail_matrix):
         ),
     )
 
-    anno_matrix = annotate_category_support(anno_matrix, config=category_conf)
+    anno_matrix = annotate_category_support(anno_matrix)
     assert anno_matrix.info.categorysupport.collect() == [classified]
 
 
@@ -285,7 +269,7 @@ def test_green_and_new_from_panelapp(panel_changes):
     [
         (0, 0, 1),
         (1.0, 0, 0),
-        (0.04, 0.04, 1),
+        (0.0001, 0.0001, 1),
     ],
 )
 def test_filter_rows_for_rare(exomes, genomes, length, hail_matrix):
@@ -293,14 +277,13 @@ def test_filter_rows_for_rare(exomes, genomes, length, hail_matrix):
     :param hail_matrix:
     :return:
     """
-    conf = {'af_semi_rare': 0.05}
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
             gnomad_ex_af=exomes,
             gnomad_af=genomes,
         )
     )
-    matrix = filter_to_population_rare(anno_matrix, conf)
+    matrix = filter_to_population_rare(anno_matrix)
     assert matrix.count_rows() == length
 
 

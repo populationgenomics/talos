@@ -11,6 +11,7 @@ Makes them into a JSON list of forbidden content
 (to be scrubbed out of any report)
 """
 
+
 import json
 import sys
 
@@ -18,7 +19,7 @@ import requests
 
 
 if __name__ == '__main__':
-    inci = requests.get('https://panelapp.agha.umccr.org/api/v1/panels/126')
+    inci = requests.get('https://panelapp.agha.umccr.org/api/v1/panels/126', timeout=10)
     inci.raise_for_status()
     panel_json = inci.json()
 

@@ -1,0 +1,49 @@
+format-version: 1.2
+ontology: test.ob
+
+[Term]
+id: HP:1
+name: Philosopher's Stone
+comment: root node
+
+[Term]
+id: HP:2
+name: Chamber of Secrets
+comment: first sub_node
+is_a: HP:1
+
+[Term]
+id: HP:3
+name: Prisoner of Azkaban
+comment: where my Hippogriff at?
+is_a: HP:2
+
+[Term]
+id: HP:4
+name: Goblet of Fire
+comment: https://www.youtube.com/watch?v=2g3xrYjreN4
+is_a: HP:3
+
+[Term]
+id: HP:5
+name: Order of the phoenix
+comment: https://www.youtube.com/watch?v=5JqY-6q-RNA
+is_a: HP:4
+
+[Term]
+id: HP:6
+name: Half-blood Prince
+comment: TL;DR it was Snape
+is_a: HP:5
+
+[Term]
+id: HP:7a
+name: Deathly Hallows
+comment: the one with the cool cartoon intro
+is_a: HP:6
+
+[Term]
+id: HP:7b
+name: Deathly Hallows 2
+comment: it's all ogre now
+is_a: HP:6

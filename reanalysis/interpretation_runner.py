@@ -12,16 +12,17 @@ Steps are run only where the specified output does not exist
 i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
+
+
+from argparse import ArgumentParser
 from datetime import datetime
-import json
 import logging
 import os
 import sys
 
-import click
-from cloudpathlib import AnyPath, CloudPath
 import hailtop.batch as hb
 
+from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.deploy_config import get_deploy_config
 from cpg_utils.git import (
@@ -40,13 +41,17 @@ from cpg_utils.hail_batch import (
 )
 
 import annotation
-from utils import read_json_from_path, FileTypes, identify_file_type
+from utils import FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
 # BIG TODO, HACK HERE
 def fix_output_path(input: str) -> str:
     return input.replace('/severalgenomes', '/cpg-severalgenomes', 1)
     
+
+# exact time that this run occurred
+EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
+
 # static paths to write outputs
 INPUT_AS_VCF = fix_output_path(output_path('prior_to_annotation.vcf.bgz'))
 
@@ -54,7 +59,9 @@ INPUT_AS_VCF = fix_output_path(output_path('prior_to_annotation.vcf.bgz'))
 ANNOTATED_MT = fix_output_path(output_path('annotated_variants.mt'))
 
 # panelapp query results
-PANELAPP_JSON_OUT = fix_output_path(output_path('panelapp_data.json'))
+PANELAPP_JSON_OUT = fix_output_path(output_path(
+    'panelapp_data', get_config()['buckets'].get('analysis_suffix')
+))
 
 # output of labelling task in Hail
 HAIL_VCF_OUT = fix_output_path(output_path('hail_categorised.vcf.bgz'))
@@ -85,6 +92,10 @@ def set_job_resources(
     """
     # apply all settings
     job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
+
+    # copy the env variables into the container
+    # specifically the CPG_CONFIG_PATH value
+    copy_common_env(job)
 
     if prior_job is not None:
         job.depends_on(prior_job)
@@ -126,7 +137,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     )
 
     logging.info(f'Command used to convert MT: {job_cmd}')
-    copy_common_env(mt_to_vcf_job)
     mt_to_vcf_job.command(job_cmd)
     return mt_to_vcf_job
 
@@ -134,7 +144,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
 def annotate_vcf(
     input_vcf: str,
     batch: hb.Batch,
-    vep_temp: str,
     vep_out: str,
     seq_type: SequencingType = SequencingType.GENOME,
 ) -> list[hb.batch.job.Job]:
@@ -147,7 +156,6 @@ def annotate_vcf(
 
     :param input_vcf:
     :param batch:
-    :param vep_temp:
     :param vep_out:
     :param seq_type:
     :return:
@@ -156,9 +164,11 @@ def annotate_vcf(
     # generate the jobs which run VEP & collect the results
     return vep_jobs(
         b=batch,
-        vcf_path=AnyPath(input_vcf),
-        tmp_bucket=AnyPath(vep_temp),
-        out_path=AnyPath(vep_out),
+        vcf_path=to_path(input_vcf),
+        tmp_bucket=to_path(
+            output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
+        ),
+        out_path=to_path(vep_out),
         overwrite=False,  # don't re-run annotation on completed chunks
         sequencing_type=seq_type,
         job_attrs={},
@@ -195,15 +205,15 @@ def annotated_mt_from_ht_and_vcf(
 
 def handle_panelapp_job(
     batch: hb.Batch,
-    extra_panel: tuple[str],
-    gene_list: str | None = None,
+    extra_panels: list[str] | None = None,
+    participant_panels: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
 
     :param batch:
-    :param extra_panel:
-    :param gene_list:
+    :param extra_panels:
+    :param participant_panels:
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
@@ -211,10 +221,12 @@ def handle_panelapp_job(
     set_job_resources(panelapp_job, auth=auth, git=True, prior_job=prior_job)
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
-    if gene_list is not None:
-        panelapp_command += f'--gene_list {gene_list} '
-    if extra_panel is not None and len(extra_panel) != 0:
-        panelapp_command += f'-p {" ".join(extra_panel)} '
+
+    if extra_panels:
+        panelapp_command += f'-p {" ".join(extra_panels)} '
+
+    if participant_panels:
+        panelapp_command += f'--panel_file {participant_panels} '
 
     if prior_job is not None:
         panelapp_job.depends_on(prior_job)
@@ -226,7 +238,6 @@ def handle_panelapp_job(
 
 def handle_hail_filtering(
     batch: hb.Batch,
-    config: str,
     plink_file: str,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.BashJob:
@@ -235,7 +246,6 @@ def handle_hail_filtering(
     use the init query service instead of running inside dataproc
 
     :param batch:
-    :param config:
     :param plink_file:
     :param prior_job:
     :return:
@@ -250,52 +260,69 @@ def handle_hail_filtering(
         f'pip install . && '
         f'python3 {HAIL_FILTER} '
         f'--mt {ANNOTATED_MT} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
-        f'--config_path {config} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--plink {plink_file}'
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
-    copy_common_env(labelling_job)
     return labelling_job
 
 
 def handle_results_job(
     batch: hb.Batch,
-    config: str,
     labelled_vcf: str,
     pedigree: str,
     output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
+    participant_panels: str | None = None,
+    input_path: str | None = None,
 ) -> hb.batch.job.Job:
     """
     one container to run the MOI checks, and the presentation
 
     :param batch:
-    :param config:
     :param labelled_vcf:
     :param pedigree:
     :param output_dict: paths to the
     :param prior_job:
+    :param participant_panels: JSON of relevant panels per participant
+    :param input_path: source file for the analysis process
     :return:
     """
 
     results_job = batch.new_job(name='finalise_results')
     auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
     set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
+
+    gene_filter_files = (
+        (
+            f'--participant_panels {participant_panels} '
+            f'--panel_genes {PANELAPP_JSON_OUT}_per_panel.json '
+        )
+        if participant_panels
+        else ''
+    )
+
+    report_from_file = (
+        f'--results {output_dict["results"]}_panel_filtered.json '
+        if participant_panels
+        else f'--results {output_dict["results"]}_full.json '
+    )
+
+    path_input = f'--input_path {input_path} ' if input_path else ''
+
     results_command = (
         'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
-        f'--config_path {config} '
         f'--labelled_vcf {labelled_vcf} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
-        f'--out_json {output_dict["results"]} && '
+        f'--out_json {output_dict["results"]} '
+        f'{gene_filter_files} {path_input} && '
         f'python3 {HTML_SCRIPT} '
-        f'--results {output_dict["results"]} '
-        f'--config_path {config} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'{report_from_file} '
+        f'--panelapp {PANELAPP_JSON_OUT}.json '
         f'--pedigree {pedigree} '
         f'--out_path {output_dict["web_html"]}'
     )
@@ -304,37 +331,11 @@ def handle_results_job(
     return results_job
 
 
-@click.command()
-@click.option(
-    '--input_path', help='variant matrix table or VCF to analyse', required=True
-)
-@click.option('--config_json', help='JSON dict of runtime settings', required=True)
-@click.option('--plink_file', help='Plink file path for the cohort', required=True)
-@click.option(
-    '--extra_panel',
-    help='Any additional panelapp IDs to add to the Mendeliome. '
-    'Multiple can be added as "--extra_panel 123 --extra_panel 456',
-    required=False,
-    multiple=True,
-)
-@click.option(
-    '--panel_genes', help='JSON Gene list for use in analysis', required=False
-)
-@click.option(
-    '--singletons', help='location of a plink file for the singletons', required=False
-)
-@click.option(
-    '--skip_annotation',
-    help='if set, a MT with appropriate annotations can be provided',
-    is_flag=True,
-    default=False,
-)
 def main(
     input_path: str,
-    config_json: str,
-    plink_file: str,
-    extra_panel: tuple[str],
-    panel_genes: str | None = None,
+    pedigree: str,
+    extra_panels: list[str],
+    participant_panels: str | None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -342,53 +343,42 @@ def main(
     main method, which runs the full reanalysis process
 
     :param input_path: annotated input matrix table or VCF
-    :param config_json:
-    :param plink_file:
-    :param panel_genes:
-    :param extra_panel:
+    :param pedigree:
+    :param extra_panels:
+    :param participant_panels:
     :param singletons:
     :param skip_annotation:
     """
 
-    if not AnyPath(input_path).exists():
-        raise Exception(
-            f'The provided path "{input_path}" does not exist or is inaccessible'
-        )
+    assert to_path(
+        input_path
+    ).exists(), f'The provided path "{input_path}" does not exist or is inaccessible'
 
     logging.info('Starting the reanalysis batch')
 
-    config_dict = read_json_from_path(config_json)
-    config_dict.update(
-        {
-            'latest_run': f'{datetime.now():%Y-%m-%d %H:%M:%S%z}',
-            'input_file': input_path,
-            'panelapp_file': PANELAPP_JSON_OUT,
-            'cohort': get_config()['workflow']['dataset'],
-        }
-    )
-
-    # create output paths with optional suffixes
-    vep_stage_tmp = output_path('vep_temp', config_dict.get('tmp_suffix') or None)
-    vep_ht_tmp = output_path(
-        'vep_annotations.ht', config_dict.get('tmp_suffix') or None
-    )
-
+    # region: output files lookup
     # separate paths for familial and singleton analysis
     output_dict = {
         'default': {
             'web_html': output_path(
-                'summary_output.html', config_dict.get('web_suffix') or None
+                'summary_output.html', get_config()['buckets'].get('web_suffix')
             ),
-            'results': output_path('summary_results.json'),
+            'results': output_path(
+                'summary_results', get_config()['buckets'].get('analysis_suffix')
+            ),
         },
         'singletons': {
             'web_html': output_path(
-                'singleton_output.html', config_dict.get('web_suffix') or None
+                'singleton_output.html', get_config()['buckets'].get('web_suffix')
             ),
-            'results': output_path('singleton_results.json'),
+            'results': output_path(
+                'singleton_results', get_config()['buckets'].get('analysis_suffix')
+            ),
         },
     }
+    # endregion
 
+    # region: batch instantiation
     service_backend = hb.ServiceBackend(
         billing_project=get_config()['hail']['billing_project'],
         remote_tmpdir=remote_tmpdir(),
@@ -400,16 +390,15 @@ def main(
         default_timeout=6000,
         default_memory='highmem',
     )
+    # endregion
 
     # read the ped file into the Batch
-    pedigree_in_batch = batch.read_input(plink_file)
+    pedigree_in_batch = batch.read_input(pedigree)
 
     # set a first job in this batch
     prior_job = None
 
-    # -------------------------- #
-    # Convert MT to a VCF format #
-    # -------------------------- #
+    # region: MT to VCF
     # determine the input type - if MT, decompose to VCF prior to annotation
     input_file_type = identify_file_type(input_path)
     assert input_file_type in [
@@ -423,26 +412,25 @@ def main(
 
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
-            config_dict.update({'aip_annotated': False})
             # overwrite the expected annotation output path
             global ANNOTATED_MT  # pylint: disable=W0603
             ANNOTATED_MT = input_path
 
         else:
             prior_job = mt_to_vcf(batch=batch, input_file=input_path)
-            config_dict.update({'vcf_created': INPUT_AS_VCF})
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
+    # endregion
 
-    # ------------------------------------- #
-    # split the VCF, and annotate using VEP #
-    # ------------------------------------- #
-    if not CloudPath(ANNOTATED_MT).exists():
+    # region: split & annotate VCF
+    if not to_path(ANNOTATED_MT).exists():
         # need to run the annotation phase
         # uses default values from RefData
-        annotation_jobs = annotate_vcf(
-            input_path, batch=batch, vep_temp=vep_stage_tmp, vep_out=vep_ht_tmp
+
+        vep_ht_tmp = output_path(
+            'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
         )
+        annotation_jobs = annotate_vcf(input_path, batch=batch, vep_out=vep_ht_tmp)
 
         # if convert-to-VCF job exists, assign as an annotation dependency
         if prior_job:
@@ -455,75 +443,84 @@ def main(
         )
         prior_job.depends_on(*annotation_jobs)
 
-        config_dict.update({'aip_annotated': True})
-    else:
-        logging.info("Using previously-annotated MT")
+    # endregion
 
-    # -------------------------------- #
-    # query panelapp for panel details #
-    # -------------------------------- #
-
-    if not AnyPath(PANELAPP_JSON_OUT).exists():
-        logging.info(f"PanelApp JSON {PANELAPP_JSON_OUT} doesn\'t exist, generating.")
+    #  region: query panelapp
+    if (not to_path(f'{PANELAPP_JSON_OUT}.json').exists()) or (
+        participant_panels
+        and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
+    ):
         prior_job = handle_panelapp_job(
             batch=batch,
-            extra_panel=extra_panel,
-            gene_list=panel_genes,
+            extra_panels=extra_panels,
+            participant_panels=participant_panels,
             prior_job=prior_job,
         )
-    else:
-        logging.info("Using previous PanelApp JSON")
+    # endregion
 
-    # ----------------------- #
-    # run hail categorisation #
-    # ----------------------- #
-    if not AnyPath(HAIL_VCF_OUT).exists():
+    # region: hail categorisation
+    if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
         prior_job = handle_hail_filtering(
             batch=batch,
-            config=config_json,
             prior_job=prior_job,
             plink_file=pedigree_in_batch,
         )
-    else:
-        logging.info(f"Using previous labelled VCF: {HAIL_VCF_OUT}")
+    # endregion
 
-    # read that VCF into the batch as a local file
+    # read VCF into the batch as a local file
     labelled_vcf_in_batch = batch.read_input_group(
         vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi'
     ).vcf
 
+    # region: singleton decisions
     # if singleton PED supplied, also run as singletons w/separate outputs
     analysis_rounds = [(pedigree_in_batch, 'default')]
-    if singletons and AnyPath(singletons).exists():
+    if singletons and to_path(singletons).exists():
+        to_path(singletons).copy(
+            output_path(
+                f'singletons_{EXECUTION_TIME}.fam',
+                get_config()['buckets'].get('analysis_suffix'),
+            )
+        )
         pedigree_singletons = batch.read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
-    else:
-        logging.info("Skipping singleton analysis")
+    # endregion
 
+    # region: run results job
     # pointing this analysis at the updated config file, including input metadata
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
         _results_job = handle_results_job(
             batch=batch,
-            config=output_path('latest_config.json'),
             labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
+            participant_panels=participant_panels,
+            input_path=input_path,
+        )
+    # endregion
+
+    # region: copy data out
+    # if we ran with per-participant panel data, copy to output folder
+    # include datetime to differentiate output files and prevent clashes
+    if participant_panels:
+        to_path(participant_panels).copy(
+            output_path(
+                f'pid_to_panels_{EXECUTION_TIME}.json',
+                get_config()['buckets'].get('analysis_suffix'),
+            )
         )
 
-    # save the json file into the batch output, with latest run details
-    with AnyPath(output_path('latest_config.json')).open('w') as handle:
-        json.dump(config_dict, handle, indent=True)
-
     # write pedigree content to the output folder
-    with AnyPath(output_path('latest_pedigree.fam')).open('w') as handle:
-        handle.writelines(AnyPath(plink_file).open().readlines())
-
-    if singletons:
-        with AnyPath(output_path('latest_singletons.fam')).open('w') as handle:
-            handle.writelines(AnyPath(singletons).open().readlines())
+    to_path(pedigree).copy(
+        output_path(
+            f'pedigree_{EXECUTION_TIME}.fam',
+            get_config()['buckets'].get('analysis_suffix'),
+        )
+    )
+    # endregion
 
     batch.run(wait=False)
 
@@ -535,4 +532,29 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument('-i', help='variant data to analyse', required=True)
+    parser.add_argument('--pedigree', help='in Plink format', required=True)
+    parser.add_argument('--singletons', help='singletons in Plink format')
+    panel_args = parser.add_mutually_exclusive_group()
+    panel_args.add_argument(
+        '--extra_panels', help='any additional panel IDs', nargs='+', default=[]
+    )
+    panel_args.add_argument(
+        '--participant_panels',
+        help='JSON file containing per-participant panel details',
+    )
+    parser.add_argument(
+        '--skip_annotation',
+        help='if set, annotation will not be repeated',
+        action='store_true',
+    )
+    args = parser.parse_args()
+    main(
+        input_path=args.i,
+        pedigree=args.pedigree,
+        extra_panels=args.extra_panels,
+        participant_panels=args.participant_panels,
+        skip_annotation=args.skip_annotation,
+    )

@@ -13,7 +13,6 @@ from reanalysis.utils import (
     gather_gene_dict_from_contig,
     get_non_ref_samples,
     get_simple_moi,
-    read_json_from_path,
     identify_file_type,
     FileTypes,
     ReportedVariant,
@@ -110,18 +109,6 @@ def test_file_types_exception():
         identify_file_type('i/am/a/mystery.file.type')
 
 
-def test_read_json(conf_json_path):
-    """
-
-    :return:
-    """
-    parsed_json = read_json_from_path(conf_json_path)
-    assert 'moi_tests' in parsed_json.keys()
-
-    with pytest.raises(FileNotFoundError):
-        read_json_from_path('not_a_real_path')
-
-
 @pytest.mark.parametrize(
     'string,expected',
     [
@@ -198,19 +185,17 @@ def test_av_phase(trio_abs_variant: AbstractVariant):
     assert trio_abs_variant.phased == {}
 
 
-def test_gene_dict(two_trio_variants_vcf, conf_json_path):
+def test_gene_dict(two_trio_variants_vcf):
     """
     gene = ENSG00000075043
     :param two_trio_variants_vcf:
-    :param conf_json_path:
     :return:
     """
-    conf = read_json_from_path(conf_json_path)
     reader = VCFReader(two_trio_variants_vcf)
     contig = 'chr20'
     panel_data = {'ENSG00000075043': {'new': True}}
     var_dict = gather_gene_dict_from_contig(
-        contig=contig, config=conf, variant_source=reader, panelapp_data=panel_data
+        contig=contig, variant_source=reader, panelapp_data=panel_data
     )
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
@@ -237,18 +222,16 @@ def test_comp_hets(two_trio_abs_variants: list[AbstractVariant], peddy_ped):
     assert results[key_2][0].coords.string_format == key_1
 
 
-def test_phased_dict(phased_vcf_path, conf_json_path):
+def test_phased_dict(phased_vcf_path):
     """
     gene = ENSG00000075043
     :param phased_vcf_path:
-    :param conf_json_path:
     :return:
     """
-    conf = read_json_from_path(conf_json_path)
     reader = VCFReader(phased_vcf_path)
     panel_data = {'ENSG00000075043': {'new': True}}
     var_dict = gather_gene_dict_from_contig(
-        contig='chr20', config=conf, variant_source=reader, panelapp_data=panel_data
+        contig='chr20', variant_source=reader, panelapp_data=panel_data
     )
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
