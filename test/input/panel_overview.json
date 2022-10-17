@@ -1,0 +1,31 @@
+{
+    "count": 275,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 1,
+            "name": "Achromatopsia",
+            "disease_group": "Ophthalmological disorders",
+            "version_created": "2022-08-31",
+            "relevant_disorders": ["HP:4 is the HPO term"],
+            "stats": {
+                "number_of_genes": 1
+            }
+        },
+        {
+            "id": 2,
+            "name": "B-chromatopsia",
+            "disease_group": "",
+            "version_created": "2022-08-31",
+            "relevant_disorders": [
+                "HP:1 ",
+                "AND ALSO",
+                "HP:6"
+            ],
+            "stats": {
+                "number_of_genes": 2
+            }
+        }
+    ]
+}

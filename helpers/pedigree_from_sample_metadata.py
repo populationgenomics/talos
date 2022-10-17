@@ -2,8 +2,11 @@
 generate a ped file on the fly using the sample-metadata api client
 optional argument will remove all family associations
     - family structure removal enforces singleton structure during this MVP
-optional argument will replace missing parents with '0' to be valid PLINK structure
+
+PED output replaces missing parents with '0'
 """
+
+
 import os
 from collections import defaultdict
 from itertools import product
@@ -12,7 +15,8 @@ import json
 import logging
 from typing import Union
 
-import click
+from argparse import ArgumentParser
+
 from cloudpathlib import AnyPath
 
 from sample_metadata.apis import FamilyApi, ParticipantApi
@@ -33,7 +37,6 @@ def get_ped_with_permutations(
     pedigree_dicts: list[dict[str, Union[str, list[str]]]],
     sample_to_cpg_dict: dict[str, list[str]],
     make_singletons: bool,
-    plink_format: bool,
 ) -> list[dict[str, list[str]]]:
     """
     Take the pedigree entry representations from the pedigree endpoint
@@ -44,7 +47,6 @@ def get_ped_with_permutations(
     :param pedigree_dicts:
     :param sample_to_cpg_dict:
     :param make_singletons: make all members unrelated singletons
-    :param plink_format: substitute missing member IDs for '0'
     :return:
     """
 
@@ -61,16 +63,16 @@ def get_ped_with_permutations(
 
         # remove parents and assign an individual sample ID
         if make_singletons:
-            ped_entry['paternal_id'] = ['0' if plink_format else '']
-            ped_entry['maternal_id'] = ['0' if plink_format else '']
+            ped_entry['paternal_id'] = ['0']
+            ped_entry['maternal_id'] = ['0']
             ped_entry['family_id'] = str(counter)
 
         else:
             ped_entry['paternal_id'] = sample_to_cpg_dict.get(
-                ped_entry['paternal_id'], ['0' if plink_format else '']
+                ped_entry['paternal_id'], ['0']
             )
             ped_entry['maternal_id'] = sample_to_cpg_dict.get(
-                ped_entry['maternal_id'], ['0' if plink_format else '']
+                ped_entry['maternal_id'], ['0']
             )
 
         new_entries.append(ped_entry)
@@ -189,38 +191,10 @@ def hash_reduce_dicts(
     return reduced_pedigree
 
 
-@click.command()
-@click.option('--project', help='Project name to use in API queries')
-@click.option(
-    '--singletons',
-    default=False,
-    is_flag=True,
-    help='remake the pedigree as singletons',
-)
-@click.option(
-    '--plink',
-    default=False,
-    is_flag=True,
-    help='make a plink format file (.fam, .ped is the default)',
-)
-@click.option('--output', help='prefix for writing all outputs to')
-@click.option(
-    '--hash_threshold',
-    help=(
-        'Integer 0-100 representing the % of families to include, e.g. 15'
-        'will result in the retention of 15% of families'
-    ),
-    default=None,
-    type=int,
-)
-@click.option(
-    '--copy', help='If used, copy directly to GCP', is_flag=True, default=False
-)
 def main(
     project: str,
-    singletons: bool,
-    plink: bool,
     output: str,
+    singletons: bool,
     hash_threshold: int | None = None,
     copy: bool = False,
 ):
@@ -228,7 +202,6 @@ def main(
 
     :param project: may be able to retrieve this from the environment
     :param singletons: whether to split the pedigree(s) into singletons
-    :param plink: whether to write the file as PLINK.fam format
     :param output: path to write new PED file
     :param hash_threshold:
     :param copy: if True, copy directly to GCP, or error
@@ -252,7 +225,6 @@ def main(
         pedigree_dicts=pedigree_dicts,
         sample_to_cpg_dict=sample_to_cpg_dict,
         make_singletons=singletons,
-        plink_format=plink,
     )
 
     # store a way of reversing this lookup in future
@@ -261,7 +233,7 @@ def main(
     with open(lookup_path, 'w', encoding='utf-8') as handle:
         json.dump(reverse_lookup, handle, indent=4)
 
-    pedigree_output_path = f'{output}.{"fam" if plink else "ped"}'
+    pedigree_output_path = f'{output}.ped'
     logging.info('writing new PED file to "%s"', pedigree_output_path)
     ped_line = get_ped_lines(ped_with_permutations)
 
@@ -270,7 +242,7 @@ def main(
 
     output_folder = f'gs://cpg-{project}-test/reanalysis'
     if copy:
-        with AnyPath(os.path.join(output_folder, 'pedigree.fam')).open('w') as handle:
+        with AnyPath(os.path.join(output_folder, 'pedigree.ped')).open('w') as handle:
             handle.write(ped_line)
         with AnyPath(os.path.join(output_folder, 'external_lookup.json')).open(
             'w'
@@ -280,4 +252,36 @@ def main(
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    main()  # pylint: disable=E1120
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--project', help='Project name to use in API queries', required=True
+    )
+    parser.add_argument(
+        '--output', help='prefix for writing all outputs to', required=True
+    )
+    parser.add_argument(
+        '--singletons',
+        help='Flag, recreate pedigree as singletons',
+        action='store_true',
+    )
+    parser.add_argument(
+        '--hash_threshold',
+        help=(
+            'Integer 0-100 representing the percentage of families to '
+            'include, e.g. 15 will result in the retention of 15pc of families'
+        ),
+        type=int,
+        default=100,
+    )
+    parser.add_argument(
+        '--copy', help='If used, copy directly to GCP', action='store_true'
+    )
+    args = parser.parse_args()
+    main(
+        project=args.project,
+        output=args.output,
+        singletons=args.singletons,
+        hash_threshold=args.hash_threshold,
+        copy=args.copy,
+    )
