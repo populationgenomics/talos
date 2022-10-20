@@ -109,14 +109,15 @@ def apply_annotations(
     ref_ht = hl.read_table(str(ref_ht_path))
     clinvar_ht = hl.read_table(str(clinvar_ht_path))
 
-    if not all(field in mt.info for field in ['AC', 'AF', 'AN']):
-        mt = add_call_stats(mt)
+    # if not all(field in mt.info for field in ['AC', 'AF', 'AN']):
+    #
+    #     mt = add_call_stats(mt)
 
     logger.info('Annotating with seqr-loader fields: round 1')
     mt = mt.annotate_rows(
-        AC=mt.info.AC,
-        AF=mt.info.AF[mt.a_index - 1],
-        AN=mt.info.AN,
+        # AC=mt.info.AC,
+        # AF=mt.info.AF[mt.a_index - 1],
+        # AN=mt.info.AN,
         aIndex=mt.a_index,
         wasSplit=mt.was_split,
         originalAltAlleles=get_expr_for_variant_ids(mt.locus_old, mt.alleles_old),
