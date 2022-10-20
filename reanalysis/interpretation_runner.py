@@ -174,7 +174,7 @@ def annotated_mt_from_ht_and_vcf(
     apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
 
     copy_common_env(apply_anno_job)
-    apply_anno_job.image(image_path('hail'))
+    apply_anno_job.image(get_config()['workflow']['driver_image'])
 
     cmd = query_command(
         annotation,
