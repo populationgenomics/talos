@@ -338,6 +338,7 @@ def gather_vep_json_to_ht(
         [str(p) for p in vep_results_paths],
         str(out_path),
         setup_gcp=True,
+        setup_hail=True,
     )
     j.command(cmd)
     return j
