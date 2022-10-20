@@ -36,7 +36,6 @@ from cpg_utils.hail_batch import (
     output_path,
     query_command,
     remote_tmpdir,
-    image_path,
 )
 
 import annotation
@@ -84,7 +83,9 @@ def set_job_resources(
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
+    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
+        '20G'
+    )
 
     # copy the env variables into the container
     # specifically the CPG_CONFIG_PATH value
