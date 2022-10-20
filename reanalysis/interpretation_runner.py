@@ -367,7 +367,6 @@ def main(
         name='AIP batch',
         backend=service_backend,
         cancel_after_n_failures=1,
-        default_timeout=12000,
         default_memory='highmem',
     )
     # endregion
