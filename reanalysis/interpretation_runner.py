@@ -184,6 +184,7 @@ def annotated_mt_from_ht_and_vcf(
         vep_ht,
         ANNOTATED_MT,
         setup_gcp=True,
+        setup_hail=True,
         packages=['seqr-loader==1.2.5'],
     )
     apply_anno_job.command(cmd)
