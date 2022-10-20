@@ -173,7 +173,6 @@ def annotated_mt_from_ht_and_vcf(
     :return:
     """
     apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
-
     copy_common_env(apply_anno_job)
     apply_anno_job.image(get_config()['workflow']['driver_image'])
 

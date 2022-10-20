@@ -15,6 +15,7 @@ from hailtop.batch import Batch
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
+    copy_common_env,
     image_path,
     reference_path,
     authenticate_cloud_credentials_in_job,
@@ -332,6 +333,7 @@ def gather_vep_json_to_ht(
     and write into a Hail Table using a Batch job.
     """
     j = b.new_job('VEP json to Hail table', job_attrs)
+    copy_common_env(j)
     j.image(get_config()['workflow']['driver_image'])
     cmd = query_command(
         query,
