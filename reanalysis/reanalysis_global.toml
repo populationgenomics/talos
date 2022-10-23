@@ -1,6 +1,7 @@
 [buckets]
 web_suffix = "web"
 tmp_suffix = "tmp"
+analysis_suffix = "analysis"
 
 [moi_tests]
 description = "thresholds for different filters during the MOI checks"
