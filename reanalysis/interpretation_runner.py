@@ -153,7 +153,7 @@ def annotate_vcf(
     return vep_jobs(
         b=batch,
         vcf_path=to_path(input_vcf),
-        tmp_bucket=to_path(
+        tmp_prefix=to_path(
             output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
         ),
         out_path=to_path(vep_out),
