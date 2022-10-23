@@ -2,47 +2,55 @@
 
 
 """
-PanelApp Parser for Reanalysis project
+PanelApp Parser
 
- Takes a panel ID
+Creates the gene panel content for AIP
 Pulls latest 'green' content; Symbol, ENSG, and MOI
 
-Optionally user can provide a panel version number in the past
-Pull all details from the earlier version
-Annotate all discrepancies between earlier and current
+Bases analyses on the Mendeliome panel, querying PanelApp
+for the current version at runtime.
 
-Optionally user can provide path to a JSON gene list
-Annotate all genes in current panel and not the gene list
+Optionally user can provide a list of PanelIDs, with content
+from all panels being joined together to form the analysis ROI
 
-Write all output to a JSON dictionary
+- instead -
+
+Optionally user can provide a file of per-participant panels,
+which results in 2 files:
+
+- the union of all panel data
+- a file of per-panel gene lists (for downstream result filtering)
+
+User can also provide a gene list representing previous panel content.
+All genes from PanelApp will be marked as 'new' if not in this list
 """
 
 
 from typing import Any, Union
 import logging
 import json
+import os
 import sys
-
 from argparse import ArgumentParser
 
 import requests
-from cloudpathlib import AnyPath
+
+from cpg_utils import to_path
 
 
 MENDELIOME = '137'
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
+PRE_PANELAPP = os.path.join(os.path.dirname(__file__), 'pre_panelapp_mendeliome.json')
 PanelData = dict[str, dict | list[dict]]
 
 
-def parse_gene_list(path_to_list: str) -> set[str]:
+def read_json_from_path(bucket_path: str) -> dict[str, Any]:
     """
-    parses a json file (GCP or local), extracting a set of genes
-    required format: a json list of strings
-    :param path_to_list:
+    take a path to a JSON file, read into an object
+    :param bucket_path:
     """
-    logging.info(f'Loading gene list from {path_to_list}')
-    with open(AnyPath(path_to_list), encoding='utf-8') as handle:
-        return set(json.load(handle))
+    with to_path(bucket_path).open() as handle:
+        return json.load(handle)
 
 
 def get_json_response(url: str) -> dict[str, Any]:
@@ -60,7 +68,20 @@ def get_json_response(url: str) -> dict[str, Any]:
     return response.json()
 
 
-def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
+def parse_gene_list(path_to_list: str) -> set[str]:
+    """
+    parses a json file (GCP or local), extracting a set of genes
+    required format: a json list of strings
+    :param path_to_list:
+    """
+    logging.info(f'Loading gene list from {path_to_list}')
+    with open(to_path(path_to_list), encoding='utf-8') as handle:
+        return set(json.load(handle))
+
+
+def get_panel_green(
+    panel_id: str = MENDELIOME,
+) -> dict[str, dict[str, Union[str, bool]]]:
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
     For each gene, keep the MOI, symbol, ENSG (where present)
@@ -70,9 +91,7 @@ def get_panel_green(panel_id: str) -> dict[str, dict[str, Union[str, bool]]]:
 
     # prepare the query URL
     panel_app_genes_url = f'{PANELAPP_BASE}{panel_id}'
-    panel_response = requests.get(panel_app_genes_url, timeout=60)
-    panel_response.raise_for_status()
-    panel_json = panel_response.json()
+    panel_json = get_json_response(panel_app_genes_url)
 
     panel_version = panel_json.get('version')
     panel_name = panel_json.get('name')
@@ -149,14 +168,14 @@ def gene_list_differences(latest_content: PanelData, previous_genes: set[str]):
 def write_output_json(output_path: str, object_to_write: Any):
     """
     writes object to a json file
-    AnyPath provides platform abstraction
+    to_path provides platform abstraction
 
     :param output_path:
     :param object_to_write:
     """
 
     logging.info(f'Writing output JSON file to {output_path}')
-    out_route = AnyPath(output_path)
+    out_route = to_path(output_path)
 
     if out_route.exists():
         logging.info(f'Output path "{output_path}" exists, will be overwritten')
@@ -201,7 +220,43 @@ def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: Pane
             }
 
 
-def main(additional_panels: list[str], out_path: str, gene_list: str | None):
+def get_list_from_participants(participant_panels) -> set[str]:
+    """
+    takes the per-participant panels and extracts the panel list
+
+    Parameters
+    ----------
+    participant_panels : the dictionary of per-participant fam_id, hpo & panels
+
+    Returns
+    -------
+    list of all unique panels
+    """
+
+    panel_set = set()
+    for details in participant_panels.values():
+        panel_set.update(details.get('panels', []))
+
+    return panel_set
+
+
+def grab_genes_only(panel_data: PanelData) -> list[str]:
+    """
+    takes panelapp data for a panel and grabs the gene IDs
+
+    Parameters
+    ----------
+    panel_data : a full set of data from a panel
+
+    Returns
+    -------
+    a list of only the ENSG IDs
+    """
+
+    return [key for key in panel_data.keys() if key != 'metadata']
+
+
+def main(panel_list: list[str] | set[str], panel_file: str, out_path: str):
     """
     Base assumption here is that we are always using the Mendeliome
     Optionally, additional panel IDs can be specified to expand the gene list
@@ -213,31 +268,51 @@ def main(additional_panels: list[str], out_path: str, gene_list: str | None):
     optionally take a reference to a JSON gene list, records all genes:
         - green in current panelapp
         - absent in provided gene list
-    :param additional_panels: op
+    :param panel_list: iterable of panelapp IDs
+    :param panel_file: json file of panel IDs per participant
     :param out_path: path to write a JSON object out to
-    :param gene_list: alternative to prior data, give a strict gene list file
     :return:
     """
 
     logging.info('Starting PanelApp Query Stage')
 
     # get latest Mendeliome data
-    panel_dict = get_panel_green(panel_id=MENDELIOME)
+    panel_dict = get_panel_green()
 
-    if additional_panels:
-        for additional_panel_id in additional_panels:
+    # create this to stop the linter complaining
+    panel_master = {}
+
+    # we can merge functionality here
+    if panel_file:
+        # load the json dictionary
+        participant_panels = read_json_from_path(panel_file)
+        panel_list = get_list_from_participants(participant_panels)
+        panel_master = {'default': grab_genes_only(panel_dict)}
+
+    if panel_list:
+        for additional_panel_id in panel_list:
             ad_panel = get_panel_green(panel_id=additional_panel_id)
             combine_mendeliome_with_other_panels(
                 panel_dict=panel_dict, additional=ad_panel
             )
 
-    if gene_list is not None:
-        logging.info(f'A Gene_List was selected: {gene_list}')
-        gene_list_contents = parse_gene_list(gene_list)
+            # if we are finding per-panel gene lists, store the genes for
+            # this panel in the X-cohort master dict
+            if panel_file:
+                panel_master[str(additional_panel_id)] = grab_genes_only(ad_panel)
+
+    if to_path(PRE_PANELAPP).exists():
+        logging.info(f'A Gene List was provided: {PRE_PANELAPP}')
+        gene_list_contents = parse_gene_list(PRE_PANELAPP)
         logging.info(f'Length of gene list: {len(gene_list_contents)}')
         gene_list_differences(panel_dict, gene_list_contents)
 
-    write_output_json(output_path=out_path, object_to_write=panel_dict)
+    write_output_json(f'{out_path}.json', panel_dict)
+
+    # if we populated panel master content - write that too
+    # trying not to make the API too messy... but this is an optional output file
+    if panel_master:
+        write_output_json(f'{out_path}_per_panel.json', panel_master)
 
 
 if __name__ == '__main__':
@@ -249,24 +324,20 @@ if __name__ == '__main__':
     )
 
     parser = ArgumentParser()
-    parser.add_argument(
+    panel_input = parser.add_mutually_exclusive_group()
+    panel_input.add_argument_group()
+    panel_input.add_argument(
         '-p',
         nargs='+',
-        required=False,
+        default=[],
         help='Panelapp IDs of any additional panels to query for',
     )
+    panel_input.add_argument(
+        '--panel_file', type=str, help='json file containing per-participant panels'
+    )
+
     parser.add_argument(
         '--out_path', type=str, required=True, help='Path to write output JSON to'
     )
-    parser.add_argument(
-        '--gene_list',
-        type=str,
-        required=False,
-        help='If a gene list is being used as a comparison ',
-    )
     args = parser.parse_args()
-    main(
-        additional_panels=args.p,
-        out_path=args.out_path,
-        gene_list=args.gene_list,
-    )
+    main(panel_list=args.p, panel_file=args.panel_file, out_path=args.out_path)

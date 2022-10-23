@@ -12,6 +12,8 @@ from reanalysis.query_panelapp import (
     get_panel_green,
     parse_gene_list,
     combine_mendeliome_with_other_panels,
+    grab_genes_only,
+    get_list_from_participants,
 )
 
 
@@ -155,3 +157,28 @@ def test_second_panel_no_overlap():
     assert len(main['metadata']) == 2
     assert main['metadata'][0]['version'] == '1.0'
     assert main['metadata'][1]['version'] == '1.1'
+
+
+def test_genes_only():
+    """
+    tests the method for getting genes from panel data
+    """
+    panel_data = {
+        'metadata': [{'name': 'ADD', 'version': '1.1', 'id': '2'}],
+        'ensg2': {'entity_name': '2', 'moi': 'REALLY_BIG'},
+        'ensg3': {'entity_name': '3', 'moi': 'REALLY_LITTLE'},
+        'ensgn': {'entity_name': 'n', 'moi': 'CARDBOARD_BOX'},
+    }
+    assert grab_genes_only(panel_data) == ['ensg2', 'ensg3', 'ensgn']
+
+
+def test_get_list_from_participants():
+    """
+    tests the unique panel finder
+    """
+    party_data = {
+        'i': {'panels': [1, 2], 'what': 'does'},
+        'am': {'panels': [1, 3], 'the': 'fox'},
+        'sam': {'panels': [9, 99], 'say?': 'Wa-pa-pa-pa-pa-pa-pow!'},
+    }
+    assert get_list_from_participants(party_data) == {1, 2, 3, 9, 99}

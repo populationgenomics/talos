@@ -22,6 +22,7 @@ from cyvcf2 import VCFReader
 import hail as hl
 from peddy import Ped
 
+from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch
 
 from reanalysis.hail_filter_and_label import (
@@ -430,14 +431,16 @@ def check_gene_is_green(
     return matrix.filter_rows(green_genes.contains(matrix.geneIds))
 
 
-def run_ac_check(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
+def run_ac_check(matrix: hl.MatrixTable) -> list[str]:
     """
     if there are enough samples in the joint call, run the AC test
     :param matrix:
-    :param config:
     :return:
     """
-    if filter_matrix_by_ac(matrix, config['ac_threshold']).count_rows() == 0:
+    if (
+        filter_matrix_by_ac(matrix, get_config()['filter']['ac_threshold']).count_rows()
+        == 0
+    ):
         return ['QC: AC too high in joint call']
     return []
 
@@ -481,16 +484,13 @@ def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
     return []
 
 
-def check_population_rare(
-    matrix: hl.MatrixTable, config: dict[str, Any]
-) -> tuple[hl.MatrixTable, list[str]]:
+def check_population_rare(matrix: hl.MatrixTable) -> tuple[hl.MatrixTable, list[str]]:
     """
     filter out all rare variants, return fail reason if everything is removed
     :param matrix:
-    :param config:
     :return:
     """
-    matrix = filter_to_population_rare(matrix, config)
+    matrix = filter_to_population_rare(matrix)
 
     if matrix.count_rows() == 0:
         return matrix, ['AF: No variants remain after Rare filter']
@@ -524,21 +524,22 @@ def check_cat_1(matrix: hl.MatrixTable) -> list[str]:
     return reasons
 
 
-def filter_csq_to_set(
-    matrix: hl.MatrixTable, consequences: hl.SetExpression
-) -> hl.MatrixTable:
+def filter_csq_to_set(matrix: hl.MatrixTable) -> hl.MatrixTable:
     """
     overwrite the transcript consequences by only retaining those which
     have a consequence term overlapping with the supplied set
     :param matrix:
-    :param consequences:
     :return:
     """
+    critical_consequences = hl.set(get_config()['filter']['critical_csq'])
+
     # consequence_terms is an array - cast as a set
     csq_mt = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: hl.len(consequences.intersection(hl.set(x.consequence_terms)))
+                lambda x: hl.len(
+                    critical_consequences.intersection(hl.set(x.consequence_terms))
+                )
                 > 0
             )
         )
@@ -548,25 +549,22 @@ def filter_csq_to_set(
     return csq_mt.filter_rows(hl.len(csq_mt.vep.transcript_consequences) > 0)
 
 
-def check_cadd_revel(matrix: hl.MatrixTable, config: dict[str, Any]) -> int:
+def check_cadd_revel(matrix: hl.MatrixTable) -> int:
     """
     :param matrix:
-    :param config:
     :return:
     """
+
     return matrix.filter_rows(
-        (matrix.info.cadd > config['in_silico']['cadd'])
-        | (matrix.info.revel > config['in_silico']['revel'])
+        (matrix.info.cadd > get_config()['filter']['in_silico']['cadd'])
+        | (matrix.info.revel > get_config()['filter']['in_silico']['revel'])
     ).count_rows()
 
 
-def check_cat_2(
-    matrix: hl.MatrixTable, config: dict[str, Any], new_genes: hl.SetExpression
-) -> list[str]:
+def check_cat_2(matrix: hl.MatrixTable, new_genes: hl.SetExpression) -> list[str]:
     """
     test against all conditions of category 2
     :param matrix:
-    :param config:
     :param new_genes:
     :return:
     """
@@ -575,9 +573,7 @@ def check_cat_2(
         reasons.append('C2: Gene was not New in PanelApp')
 
     # filter to high CSQ, so count_rows shows whether there were rows left
-    csq_filtered = filter_csq_to_set(
-        matrix=matrix, consequences=hl.set(config.get('critical_csq'))
-    )
+    csq_filtered = filter_csq_to_set(matrix=matrix)
     if not csq_filtered.count_rows():
         reasons.append('C2: No HIGH CSQs')
 
@@ -592,17 +588,16 @@ def check_cat_2(
     ):
         reasons.append('C2: Not ClinVar Pathogenic')
 
-    if check_cadd_revel(matrix, config) == 0:
+    if check_cadd_revel(matrix) == 0:
         reasons.append('C2: CADD & REVEL not significant')
 
     return reasons
 
 
-def check_cat_3(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
+def check_cat_3(matrix: hl.MatrixTable) -> list[str]:
     """
     test against all conditions of category 3
     :param matrix:
-    :param config:
     :return:
     """
     reasons: list[str] = []
@@ -616,9 +611,7 @@ def check_cat_3(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
     ):
         reasons.append('C3: No ClinVar Pathogenic')
 
-    csq_filtered = filter_csq_to_set(
-        matrix=matrix, consequences=hl.set(config.get('critical_csq'))
-    )
+    csq_filtered = filter_csq_to_set(matrix=matrix)
     # if there are no high consequences, no more rows to test; continue
     if not csq_filtered.count_rows():
         reasons.append('C3: No HIGH CSQs')
@@ -638,21 +631,20 @@ def check_cat_3(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
     return reasons
 
 
-def check_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[str]:
+def check_cat_support(matrix: hl.MatrixTable) -> list[str]:
     """
     test against all conditions of support category
     :param matrix:
-    :param config:
     :return:
     """
     reasons: list[str] = []
 
-    if check_cadd_revel(matrix, config) == 0:
+    if check_cadd_revel(matrix) == 0:
         reasons.append('Support: CADD & REVEL not significant')
     if (
         matrix.filter_rows(
             matrix.vep.transcript_consequences.any(
-                lambda x: x.sift_score <= config['in_silico'].get('sift')
+                lambda x: x.sift_score <= get_config()['filter']['in_silico']['sift']
             )
         ).count_rows()
         == 0
@@ -662,7 +654,8 @@ def check_cat_support(matrix: hl.MatrixTable, config: dict[str, Any]) -> list[st
     if (
         matrix.filter_rows(
             matrix.vep.transcript_consequences.any(
-                lambda x: x.polyphen_score >= config['in_silico'].get('polyphen')
+                lambda x: x.polyphen_score
+                >= get_config()['filter']['in_silico']['polyphen']
             )
         ).count_rows()
         == 0
@@ -709,7 +702,6 @@ def prepare_mt(matrix: hl.MatrixTable) -> hl.MatrixTable:
 def check_mt(
     matrix: hl.MatrixTable,
     variants: CommonDict,
-    config: dict[str, Any],
     green_genes: hl.SetExpression,
     new_genes: hl.SetExpression,
 ) -> tuple[CommonDict, ReasonDict]:
@@ -721,7 +713,6 @@ def check_mt(
 
     :param matrix:
     :param variants:
-    :param config:
     :param green_genes:
     :param new_genes:
     :return:
@@ -750,7 +741,7 @@ def check_mt(
         reasons: list[str] = []
 
         # run all methods relating to the quality of the variant call
-        reasons.extend(run_ac_check(var_mt, config))
+        reasons.extend(run_ac_check(var_mt))
         reasons.extend(run_quality_flag_check(var_mt))
         reasons.extend(check_variant_was_normalised(var_mt))
         # # not actually a reason for failing
@@ -765,7 +756,7 @@ def check_mt(
             continue
 
         # remove common variants
-        var_mt, af_reason = check_population_rare(var_mt, config)
+        var_mt, af_reason = check_population_rare(var_mt)
 
         # break early if we find a CSQ failure?
         if af_reason:
@@ -775,9 +766,9 @@ def check_mt(
 
         # pass through the classification methods
         reasons.extend(check_cat_1(matrix=var_mt))
-        reasons.extend(check_cat_2(matrix=var_mt, config=config, new_genes=new_genes))
-        reasons.extend(check_cat_3(matrix=var_mt, config=config))
-        reasons.extend(check_cat_support(matrix=var_mt, config=config))
+        reasons.extend(check_cat_2(matrix=var_mt, new_genes=new_genes))
+        reasons.extend(check_cat_3(matrix=var_mt))
+        reasons.extend(check_cat_support(matrix=var_mt))
 
         # log all reasons, even if the list is empty
         untiered[sample].append((variant, reasons))
@@ -826,11 +817,6 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
         logging.info('All variants resolved!')
         sys.exit(0)
 
-    # retain only the 'filter' index of the config file
-    config_dict = read_json_from_path(
-        os.path.join(results_folder, 'latest_config.json')
-    )['filter']
-
     # load and digest panel data
     panel_dict = read_json_from_path(os.path.join(results_folder, 'panelapp_data.json'))
     green_genes, new_genes = green_and_new_from_panelapp(panel_dict)
@@ -863,7 +849,6 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     not_present, untiered = check_mt(
         matrix=matrix,
         variants=not_in_vcf,
-        config=config_dict,
         green_genes=green_genes,
         new_genes=new_genes,
     )

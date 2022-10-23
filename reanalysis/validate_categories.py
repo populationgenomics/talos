@@ -16,11 +16,15 @@ import json
 import logging
 from argparse import ArgumentParser
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from copy import deepcopy
+from typing import Dict, List, Union
+from datetime import datetime
 
-from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
+
+from cpg_utils import to_path
+from cpg_utils.config import get_config
 
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
@@ -37,7 +41,6 @@ from reanalysis.utils import (
 
 def set_up_inheritance_filters(
     panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
-    config: Dict[str, Any],
     pedigree: Ped,
 ) -> Dict[str, MOIRunner]:
     """
@@ -61,7 +64,6 @@ def set_up_inheritance_filters(
     This dictionary format means we only have to set up each once
     A billion variants, 6 MOI = 6 test instances, each created once
     :param panelapp_data:
-    :param config:
     :param pedigree:
     :return:
     """
@@ -81,9 +83,7 @@ def set_up_inheritance_filters(
         if gene_moi not in moi_dictionary:
 
             # get a MOIRunner with the relevant filters
-            moi_dictionary[gene_moi] = MOIRunner(
-                pedigree=pedigree, target_moi=gene_moi, config=config['moi_tests']
-            )
+            moi_dictionary[gene_moi] = MOIRunner(pedigree=pedigree, target_moi=gene_moi)
 
     return moi_dictionary
 
@@ -198,8 +198,56 @@ def clean_initial_results(
     return clean_results
 
 
+def gene_clean_results(
+    party_panels: str, panel_genes: str, cleaned_data: dict[str, list[ReportedVariant]]
+) -> dict[str, list[ReportedVariant]]:
+    """
+    takes the unique-ified data from the previous cleaning
+    applies gene panel filters per-participant
+    the only remaining data should be relevant to the participant's panel list
+
+    Parameters
+    ----------
+    party_panels : JSON file containing the panels per participant
+    panel_genes : JSON file containing the genes on each panel
+    cleaned_data : the reportable variants, indexed per participant
+
+    Returns
+    -------
+    a gene-list filtered version of the reportable data
+    """
+
+    gene_cleaned_data = {}
+
+    # read the input files
+    panels_per_participant = read_json_from_path(party_panels)
+    genes_per_panel = read_json_from_path(panel_genes)
+
+    # set of genes on the mendeliome
+    default_genes = set(genes_per_panel['default'])
+
+    # the lookup is generated so the primary index is on CPG ID, so as to be compatible
+    for sample, variants in cleaned_data.items():
+
+        if sample == 'metadata':
+            gene_cleaned_data[sample] = variants
+            continue
+
+        # always keep default (mendeliome), and supplement with HPO-matched panel genes
+        sample_genes = deepcopy(default_genes)
+        for panel in panels_per_participant.get(sample, {}).get('panels', []):
+            sample_genes.update(genes_per_panel[str(panel)])
+
+        # keep only panel-relevant reportable varaints
+        gene_cleaned_data[sample] = [
+            var for var in variants if var.gene in sample_genes
+        ]
+
+    return gene_cleaned_data
+
+
 def update_result_meta(
-    results: dict, config: dict, pedigree: Ped, panelapp: dict, samples: list[str]
+    results: dict, pedigree: Ped, panelapp: dict, samples: list[str], input_path: str
 ) -> dict:
     """
     takes the 'cleaned' results, and adds in a metadata key
@@ -223,9 +271,9 @@ def update_result_meta(
         family_counter[str(len(pedigree.families[family].samples))] += 1
 
     results['metadata'] = {
-        'cohort': config['cohort'],
-        'input_file': config['input_file'],
-        'run_datetime': config['latest_run'],
+        'input_file': input_path,
+        'cohort': get_config()['workflow']['dataset'],
+        'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
         'family_breakdown': dict(family_counter),
         'panels': panelapp['metadata'],
     }
@@ -235,10 +283,12 @@ def update_result_meta(
 
 def main(
     labelled_vcf: str,
-    config_path: Union[str, Dict[str, Any]],
     out_json: str,
     panelapp: str,
     pedigree: str,
+    input_path: str,
+    participant_panels: str | None = None,
+    panel_genes: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -247,14 +297,13 @@ def main(
     the cohort; if the variant number is large, the classes should be refined
     We expect approximately linear scaling with participants in the joint call
     :param labelled_vcf:
-    :param config_path:
-    :param out_json:
+    :param out_json: a prefix, used for both the full and panel-filtered results
     :param panelapp:
     :param pedigree:
+    :param input_path: data file used as input
+    :param participant_panels: the json of panels per participant
+    :param panel_genes: path to file; genes assc. with each panel
     """
-
-    # check if this is a singleton pedigree
-    singletons = 'singleton' in pedigree
 
     # parse the pedigree from the file
     pedigree_digest = Ped(pedigree)
@@ -262,28 +311,13 @@ def main(
     # parse panelapp data from dict
     panelapp_data = read_json_from_path(panelapp)
 
-    # get the runtime configuration
-    if isinstance(config_path, dict):
-        config_dict = config_path
-    elif isinstance(config_path, str):
-        config_dict = read_json_from_path(config_path)
-    else:
-        raise Exception(
-            f'What is the conf path then?? "{config_path}": {type(config_path)}'
-        )
-
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
-        panelapp_data=panelapp_data, pedigree=pedigree_digest, config=config_dict
+        panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
-
-    # permit a blacklist to exclude known artefacts
-    variant_blacklist = None
-    if 'variant_blacklist' in config_dict:
-        variant_blacklist = read_json_from_path(config_dict['variant_blacklist'])
 
     results = []
 
@@ -294,10 +328,8 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            config=config_dict,
             panelapp_data=panelapp_data,
-            singletons=singletons,
-            blacklist=variant_blacklist,
+            singletons=bool('singleton' in pedigree),
         )
 
         results.extend(
@@ -317,30 +349,47 @@ def main(
     # add metadata into the results
     meta_results = update_result_meta(
         cleaned_results,
-        config_dict,
         pedigree=pedigree_digest,
         panelapp=panelapp_data,
         samples=vcf_opened.samples,
+        input_path=input_path,
     )
 
+    # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
-    with AnyPath(out_json).open('w') as fh:
+    with to_path(f'{out_json}_full.json').open('w') as fh:
         json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
+
+    # cleanest results - reported variants are matched to panel ROI
+    if participant_panels and panel_genes:
+        meta_results = gene_clean_results(
+            party_panels=participant_panels,
+            panel_genes=panel_genes,
+            cleaned_data=meta_results,
+        )
+
+        # dump results using the custom-encoder to transform sets & DataClasses
+        with to_path(f'{out_json}_panel_filtered.json').open('w') as fh:
+            json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     parser = ArgumentParser()
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--config_path', help='path to the runtime JSON config')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--out_json', help='Path to write JSON results to')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to')
+    parser.add_argument('--participant_panels', help='dict of panels per participant')
+    parser.add_argument('--panel_genes', help='dict of genes in each panel')
+    parser.add_argument('--input_path', help='source data', default='Not supplied')
     args = parser.parse_args()
     main(
         labelled_vcf=args.labelled_vcf,
-        config_path=args.config_path,
         out_json=args.out_json,
         panelapp=args.panelapp,
         pedigree=args.pedigree,
+        participant_panels=args.participant_panels,
+        panel_genes=args.panel_genes,
+        input_path=args.input_path,
     )
