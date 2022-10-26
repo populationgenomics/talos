@@ -14,14 +14,13 @@ re-run currently requires the deletion of previous outputs
 """
 
 
-from argparse import ArgumentParser
-from datetime import datetime
 import logging
 import os
 import sys
+from argparse import ArgumentParser
+from datetime import datetime
 
 import hailtop.batch as hb
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.git import (
@@ -34,15 +33,13 @@ from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     output_path,
-    query_command,
-    remote_tmpdir,
     image_path,
 )
+from cpg_workflows.batch import get_batch
+from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
+from cpg_workflows.jobs.vep import add_vep_jobs
 
-import annotation
 from utils import FileTypes, identify_file_type
-from vep.jobs import vep_jobs, SequencingType
-
 
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
@@ -127,68 +124,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     logging.info(f'Command used to convert MT: {job_cmd}')
     mt_to_vcf_job.command(job_cmd)
     return mt_to_vcf_job
-
-
-def annotate_vcf(
-    input_vcf: str,
-    batch: hb.Batch,
-    vep_out: str,
-    seq_type: SequencingType = SequencingType.GENOME,
-) -> list[hb.batch.job.Job]:
-    """
-    takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
-
-    should this be separated out into a script and run end2end, or should we
-    continue in this same runtime? These jobs are scheduled into this batch with
-    appropriate dependencies, so keeping this structure seems valid
-
-    :param input_vcf:
-    :param batch:
-    :param vep_out:
-    :param seq_type:
-    :return:
-    """
-
-    # generate the jobs which run VEP & collect the results
-    return vep_jobs(
-        b=batch,
-        vcf_path=to_path(input_vcf),
-        tmp_prefix=to_path(
-            output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
-        ),
-        out_path=to_path(vep_out),
-        overwrite=False,  # don't re-run annotation on completed chunks
-        sequencing_type=seq_type,
-        job_attrs={},
-    )
-
-
-def annotated_mt_from_ht_and_vcf(
-    input_vcf: str,
-    batch: hb.Batch,
-    vep_ht: str,
-    job_attrs: dict | None = None,
-) -> hb.batch.job.Job:
-    """
-    apply the HT of annotations to the VCF, save as MT
-    :return:
-    """
-    apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
-
-    copy_common_env(apply_anno_job)
-    apply_anno_job.image(image_path('hail'))
-
-    cmd = query_command(
-        annotation,
-        annotation.apply_annotations.__name__,
-        input_vcf,
-        vep_ht,
-        ANNOTATED_MT,
-        setup_gcp=True,
-        packages=['seqr-loader==1.2.5'],
-    )
-    apply_anno_job.command(cmd)
-    return apply_anno_job
 
 
 def handle_panelapp_job(
@@ -363,23 +298,6 @@ def main(
     }
     # endregion
 
-    # region: batch instantiation
-    service_backend = hb.ServiceBackend(
-        billing_project=get_config()['hail']['billing_project'],
-        remote_tmpdir=remote_tmpdir(),
-    )
-    batch = hb.Batch(
-        name='AIP batch',
-        backend=service_backend,
-        cancel_after_n_failures=1,
-        default_timeout=6000,
-        default_memory='highmem',
-    )
-    # endregion
-
-    # read the ped file into the Batch
-    pedigree_in_batch = batch.read_input(pedigree)
-
     # set a first job in this batch
     prior_job = None
 
@@ -402,7 +320,7 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            prior_job = mt_to_vcf(batch=batch, input_file=input_path)
+            prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
     # endregion
@@ -415,18 +333,30 @@ def main(
         vep_ht_tmp = output_path(
             'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
         )
-        annotation_jobs = annotate_vcf(input_path, batch=batch, vep_out=vep_ht_tmp)
+        # generate the jobs which run VEP & collect the results
+        vep_jobs = add_vep_jobs(
+            b=get_batch(),
+            vcf_path=to_path(input_path),
+            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+            scatter_count=get_config()['workflow'].get('scatter_count', 50),
+            out_path=to_path(vep_ht_tmp),
+        )
 
         # if convert-to-VCF job exists, assign as an annotation dependency
         if prior_job:
-            for job in annotation_jobs:
+            for job in vep_jobs:
                 job.depends_on(prior_job)
 
-        # apply annotations
-        prior_job = annotated_mt_from_ht_and_vcf(
-            input_vcf=input_path, batch=batch, job_attrs={}, vep_ht=vep_ht_tmp
+        # Apply the HT of annotations to the VCF, save as MT
+        anno_job = annotate_cohort_jobs(
+            b=get_batch(),
+            vcf_path=to_path(input_path),
+            vep_ht_path=to_path(vep_ht_tmp),
+            out_mt_path=to_path(ANNOTATED_MT),
+            checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),
+            depends_on=vep_jobs,
         )
-        prior_job.depends_on(*annotation_jobs)
+        prior_job = anno_job[-1]
 
     # endregion
 
@@ -436,27 +366,30 @@ def main(
         and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
     ):
         prior_job = handle_panelapp_job(
-            batch=batch,
+            batch=get_batch(),
             extra_panels=extra_panels,
             participant_panels=participant_panels,
             prior_job=prior_job,
         )
     # endregion
 
+    # read the ped file into the Batch
+    pedigree_in_batch = get_batch().read_input(pedigree)
+
     # region: hail categorisation
     if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
         prior_job = handle_hail_filtering(
-            batch=batch,
+            batch=get_batch(),
             prior_job=prior_job,
             plink_file=pedigree_in_batch,
         )
     # endregion
 
     # read VCF into the batch as a local file
-    labelled_vcf_in_batch = batch.read_input_group(
-        vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi'
-    ).vcf
+    labelled_vcf_in_batch = (
+        get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
+    )
 
     # region: singleton decisions
     # if singleton PED supplied, also run as singletons w/separate outputs
@@ -468,7 +401,7 @@ def main(
                 get_config()['buckets'].get('analysis_suffix'),
             )
         )
-        pedigree_singletons = batch.read_input(singletons)
+        pedigree_singletons = get_batch().read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
     # endregion
 
@@ -477,7 +410,7 @@ def main(
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
         _results_job = handle_results_job(
-            batch=batch,
+            batch=get_batch(),
             labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
@@ -507,7 +440,7 @@ def main(
     )
     # endregion
 
-    batch.run(wait=False)
+    get_batch().run(wait=False)
 
 
 if __name__ == '__main__':
