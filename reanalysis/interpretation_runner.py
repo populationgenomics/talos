@@ -353,7 +353,7 @@ def main(
             vcf_path=to_path(input_path),
             vep_ht_path=to_path(vep_ht_tmp),
             out_mt_path=to_path(ANNOTATED_MT),
-            checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),
+            checkpoint_prefix=to_path(output_path('annotation_temp', get_config()['buckets'].get('tmp_suffix'))),
             depends_on=vep_jobs,
         )
         prior_job = anno_job[-1]
