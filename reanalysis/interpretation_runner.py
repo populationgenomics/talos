@@ -361,6 +361,7 @@ def main(
                 )
             ),
             depends_on=vep_jobs,
+            use_dataproc=False,
         )
         prior_job = anno_job[-1]
 
