@@ -337,7 +337,9 @@ def main(
         vep_jobs = add_vep_jobs(
             b=get_batch(),
             vcf_path=to_path(input_path),
-            tmp_prefix=to_path(output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))),
+            tmp_prefix=to_path(
+                output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
+            ),
             scatter_count=get_config()['workflow'].get('scatter_count', 50),
             out_path=to_path(vep_ht_tmp),
         )
@@ -353,7 +355,11 @@ def main(
             vcf_path=to_path(input_path),
             vep_ht_path=to_path(vep_ht_tmp),
             out_mt_path=to_path(ANNOTATED_MT),
-            checkpoint_prefix=to_path(output_path('annotation_temp', get_config()['buckets'].get('tmp_suffix'))),
+            checkpoint_prefix=to_path(
+                output_path(
+                    'annotation_temp', get_config()['buckets'].get('tmp_suffix')
+                )
+            ),
             depends_on=vep_jobs,
         )
         prior_job = anno_job[-1]
