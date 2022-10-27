@@ -337,7 +337,7 @@ def main(
         vep_jobs = add_vep_jobs(
             b=get_batch(),
             vcf_path=to_path(input_path),
-            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+            tmp_prefix=to_path(output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))),
             scatter_count=get_config()['workflow'].get('scatter_count', 50),
             out_path=to_path(vep_ht_tmp),
         )
