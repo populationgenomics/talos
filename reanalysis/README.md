@@ -27,13 +27,17 @@ tmp_suffix = "tmp"
 analysis_suffix = "analysis"
 
 [workflow]
-dataset = "fewgenomes"
-access_level = "test"
-output_prefix = ""
+dataset_path = "cpgfewgenomes00fd84e4/test"
+output_prefix = "output"
+path_scheme = "hail-az"
+image_registry_prefix = "cpghailimages.azurecr.io"
 
 [hail]
 billing_project = "fewgenomes"
 bucket = "hail-az://cpgfewgenomes00fd84e4/test"
+
+[images]
+hail = "hailgenetics/hail:0.2.93"
 EOF
 set -x CPG_CONFIG_PATH (realpath master.toml)
 ```
