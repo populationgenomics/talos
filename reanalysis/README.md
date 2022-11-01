@@ -42,12 +42,7 @@ EOF
 set -x CPG_CONFIG_PATH (realpath master.toml)
 ```
 
-3) Set CLOUD to correct backend
-```bash
-set -x CLOUD 'azure'
-```
-
-4) Run the following command
+3) Run the following command
 
 > Note: The storage account does not need to be in the string since
 > the AZURE_STORAGE_CONNECTION_STRING encodes that information
