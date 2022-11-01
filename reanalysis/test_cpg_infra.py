@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
-'''Simple script to test whether the CPG infrastructure and permissions are configured appropriately to permit running AIP.'''
+"""
+    Simple script to test whether the CPG infrastructure and permissions are
+    configured appropriately to permit running AIP.
+"""
 
 import click
-import random
 
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import remote_tmpdir
 import hailtop.batch as hb
 
-# docker run -e CPG_CONFIG_PATH=/root/aip/reanalysis/master.toml -v $(realpath our-aip):/root/aip -v $(realpath $HOME/.hail):/root/.hail/ -w /root/aip -it hail
 
 @click.command()
-@click.option(
-    '--blob', help='thing to process', required=False
-)
-def main(
-    blob: str
-):
+@click.option('--blob', help='thing to process', required=False)
+def main(blob: str):
     """
     main
     """
