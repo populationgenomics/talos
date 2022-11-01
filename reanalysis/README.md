@@ -1,5 +1,11 @@
 # Running on Azure Hail Batch
 
+0) Get the right repos/branches cloned and installed all into a single conda env
+
+populationgenomics/automated-interpretation-pipeline:syan
+gregsmi/cpg-utils:main
+jeremiahwander/analysis-runner-azcpg004:main
+
 1) Get the Storage Account Connection String
 
 Go to your Storage Account on Azure then:
