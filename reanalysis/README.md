@@ -10,14 +10,41 @@ Copy then set the following environment variable:
 set -x AZURE_STORAGE_CONNECTION_STRING 'DefaultEndpointsProtocol=https;AccountName=blablah;AccountKey=longkyestringthing;EndpointSuffix=core.windows.net'
 ```
 
-2) Run the following command
+2) Create the cpg_config toml file for the run and set the env
+   variable appropriately
+
+```bash
+cat > master.toml <<EOF
+[buckets]
+web_suffix = "web"
+tmp_suffix = "tmp"
+analysis_suffix = "analysis"
+
+[workflow]
+dataset = "fewgenomes"
+access_level = "test"
+output_prefix = ""
+
+[hail]
+billing_project = "fewgenomes"
+bucket = "hail-az://cpgfewgenomes00fd84e4/test"
+EOF
+set -x CPG_CONFIG_PATH (realpath master.toml)
+```
+
+3) Set CLOUD to correct backend
+```bash
+set -x CLOUD 'azure'
+```
+
+4) Run the following command
 
 > Note: The storage account does not need to be in the string since
 > the AZURE_STORAGE_CONNECTION_STRING encodes that information
 
 ```bash
 ./aip/reanalysis/interpretation_runner.py \
-    -i az://test/annotated-file.mt \
+    -i az://test/986d792a448c66a8a5cfba65434e7d1ce9b1ff_1051-validation.mt \
     --pedigree az://test/pedigree.fam \
     --skip_annotation
 ````

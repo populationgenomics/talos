@@ -43,7 +43,6 @@ import annotation
 from utils import FileTypes, identify_file_type
 from vep.jobs import vep_jobs, SequencingType
 
-
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
 

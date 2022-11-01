@@ -8,11 +8,11 @@ DATE=${1:-$(date +%F)}
 analysis-runner \
   --config reanalysis/reanalysis_global.toml \
   --config reanalysis/reanalysis_cohort.toml \
-  --dataset acute-care \
+  --dataset fewgenomes \
   --description "AIP run" \
   -o "reanalysis/${DATE}" \
   --access-level test \
   reanalysis/interpretation_runner.py \
-    --i gs://cpg-acute-care-test/reanalysis/2011-11-11/prior_to_annotation.vcf.bgz \
-    --pedigree gs://cpg-acute-care-test/reanalysis/acute-care-plink.fam \
+    -i az://test/986d792a448c66a8a5cfba65434e7d1ce9b1ff_1051-validation.mt \
+    --pedigree az://test/pedigree.fam \
     --skip_annotation
