@@ -6,7 +6,19 @@ populationgenomics/automated-interpretation-pipeline:syan
 gregsmi/cpg-utils:main
 jeremiahwander/analysis-runner-azcpg004:main
 
-1) Get the Storage Account Connection String
+1) Set the hail backend to Azure
+
+```bash
+cat > ~/.hail/deploy-config.json <<EOF
+{
+  "location": "external",
+  "default_namespace": "default",
+  "domain": "azhail.popgen.rocks"
+}
+EOF
+```
+
+2) Get the Storage Account Connection String
 
 Go to your Storage Account on Azure then:
 <Storage Account> > Access keys > Connection string
@@ -16,7 +28,7 @@ Copy then set the following environment variable:
 set -x AZURE_STORAGE_CONNECTION_STRING 'DefaultEndpointsProtocol=https;AccountName=blablah;AccountKey=longkyestringthing;EndpointSuffix=core.windows.net'
 ```
 
-2) Create the cpg_config toml file for the run and set the env
+3) Create the cpg_config toml file for the run and set the env
    variable appropriately
 
 ```bash
@@ -42,7 +54,7 @@ EOF
 set -x CPG_CONFIG_PATH (realpath master.toml)
 ```
 
-3) Run the following command
+4) Run the following command
 
 > Note: The storage account does not need to be in the string since
 > the AZURE_STORAGE_CONNECTION_STRING encodes that information
