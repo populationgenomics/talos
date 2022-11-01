@@ -13,7 +13,7 @@ import hailtop.batch as hb
 
 @click.command()
 @click.option('--blob', help='thing to process', required=False)
-def main(blob: str):
+def main():
     """
     main
     """
