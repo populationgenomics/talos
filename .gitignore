@@ -3,6 +3,7 @@
 # hail logs
 hail*.log
 inputs
+hail-az:
 
 # local run files
 reanalysis/input
