@@ -154,10 +154,12 @@ class HTMLBuilder:
             {
                 ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
                 for ensg in set(
-                    read_json_from_path(get_config()['dataset_specific']['forbidden'])
+                    read_json_from_path(
+                        get_config().get('dataset_specific', {})['forbidden']
+                    )
                 )
             }
-            if get_config()['dataset_specific'].get('forbidden')
+            if get_config().get('dataset_specific', {}).get('forbidden')
             else {}
         )
 
@@ -167,11 +169,11 @@ class HTMLBuilder:
         self.results = self.remove_forbidden_genes(read_json_from_path(results))
 
         # map of internal:external IDs for translation in results (optional)
-        ext_lookup = get_config()['dataset_specific'].get('external_lookup')
+        ext_lookup = get_config().get('dataset_specific', {}).get('external_lookup')
         self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = get_config()['dataset_specific'].get('seqr_lookup')
+        seqr_path = get_config().get('dataset_specific', {}).get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path:
@@ -179,8 +181,8 @@ class HTMLBuilder:
 
             # force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert get_config()['dataset_specific'].get(
-                    seqr_key
+                assert (
+                    get_config().get('dataset_specific', {}).get(seqr_key)
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
     def remove_forbidden_genes(
@@ -340,8 +342,10 @@ class HTMLBuilder:
         for sample, table in html_tables.items():
             if sample in self.external_map and sample in self.seqr:
                 sample_string = FAMILY_TEMPLATE.format(
-                    seqr=get_config()['dataset_specific'].get('seqr_instance'),
-                    project=get_config()['dataset_specific'].get('seqr_project'),
+                    seqr=get_config().get('dataset_specific', {}).get('seqr_instance'),
+                    project=get_config()
+                    .get('dataset_specific', {})
+                    .get('seqr_project'),
                     family=self.seqr[sample],
                     sample=self.external_map[sample],
                 )
@@ -450,7 +454,7 @@ class HTMLBuilder:
         if sample not in self.seqr:
             return var_string
         return SEQR_TEMPLATE.format(
-            seqr=get_config()['dataset_specific'].get('seqr_instance'),
+            seqr=get_config().get('dataset_specific', {}).get('seqr_instance'),
             variant=var_string,
             family=self.seqr.get(sample),
         )
