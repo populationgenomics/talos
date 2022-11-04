@@ -33,7 +33,6 @@ from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     output_path,
-    image_path,
 )
 from cpg_workflows.batch import get_batch
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
@@ -83,7 +82,9 @@ def set_job_resources(
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
+    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
+        '20G'
+    )
 
     # copy the env variables into the container
     # specifically the CPG_CONFIG_PATH value
