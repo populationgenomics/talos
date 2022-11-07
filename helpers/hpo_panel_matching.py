@@ -20,7 +20,7 @@ from sample_metadata.apis import SeqrApi
 
 from cpg_utils import to_path
 
-from helpers.pedigree_from_sample_metadata import ext_to_int_sample_map
+from helpers.prepare_aip_cohort import ext_to_int_sample_map
 from reanalysis.utils import get_json_response
 
 

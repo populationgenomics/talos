@@ -1,25 +1,74 @@
 """
-generate a ped file on the fly using the sample-metadata api client
-optional argument will remove all family associations
-    - family structure removal enforces singleton structure during this MVP
+master script for preparing a run
 
-PED output replaces missing parents with '0'
+- takes a category; exomes or genomes
+- queries for & builds the pedigree
+- optionally takes a seqr metadata file
+- copies relevant files to GCP
+- generates the cohort-specific TOML file
 """
 
 
-import os
+from argparse import ArgumentParser
 from collections import defaultdict
 from itertools import product
 import hashlib
 import json
 import logging
-from typing import Union
+import os
 
-from argparse import ArgumentParser
+import toml
 
-from cloudpathlib import AnyPath
-
+from cpg_utils import to_path, Path
 from sample_metadata.apis import FamilyApi, ParticipantApi
+
+from reanalysis.utils import read_json_from_path
+
+
+BUCKET_TEMPLATE = 'gs://cpg-{dataset}-test/reanalysis'
+LOCAL_TEMPLATE = 'inputs/{dataset}'
+
+
+def get_seqr_details(seqr_meta: str, local_root, remote_root) -> tuple[str, str]:
+    """
+    process the seqr data, write locally, copy remotely
+    Args:
+        seqr_meta ():
+        local_root ():
+        remote_root ():
+
+    Returns:
+
+    """
+
+    if not os.path.exists(seqr_meta):
+        raise Exception(f'Input file {seqr_meta} inaccessible')
+
+    details_dict = read_json_from_path(seqr_meta)
+
+    # map CPG ID to individual GUID
+    parsed = {
+        sample['sampleId']: sample['familyGuid']
+        for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
+    }
+
+    project_id = {
+        sample['projectGuid'] for sample in details_dict['samplesByGuid'].values()
+    }
+    assert len(project_id) == 1, f'Multiple projects identified: {project_id}'
+    project_id = project_id.pop()
+
+    logging.info(f'{len(parsed)} families in seqr metadata')
+    filename = f'seqr_{"exome_" if "exome" in project_id else ""}processed.json'
+
+    local_path = local_root / filename
+    remote_path = remote_root / filename
+    with local_path.open('w') as handle:
+        json.dump(parsed, handle, indent=4, sort_keys=True)
+    with remote_path.open('w') as handle:
+        json.dump(parsed, handle, indent=4, sort_keys=True)
+
+    return project_id, str(remote_path)
 
 
 # the keys provided by the SM API, in the order to write in output
@@ -34,10 +83,9 @@ PED_KEYS = [
 
 
 def get_ped_with_permutations(
-    pedigree_dicts: list[dict[str, Union[str, list[str]]]],
-    sample_to_cpg_dict: dict[str, list[str]],
-    make_singletons: bool,
-) -> list[dict[str, list[str]]]:
+    pedigree_dicts: list[dict],
+    sample_to_cpg_dict: dict,
+) -> list[dict]:
     """
     Take the pedigree entry representations from the pedigree endpoint
     translates sample IDs of all members to CPG values
@@ -46,14 +94,13 @@ def get_ped_with_permutations(
 
     :param pedigree_dicts:
     :param sample_to_cpg_dict:
-    :param make_singletons: make all members unrelated singletons
     :return:
     """
 
     new_entries = []
     failures: list[str] = []
 
-    for counter, ped_entry in enumerate(pedigree_dicts, 1):
+    for ped_entry in pedigree_dicts:
 
         if ped_entry['individual_id'] not in sample_to_cpg_dict:
             failures.append(ped_entry['individual_id'])
@@ -62,18 +109,12 @@ def get_ped_with_permutations(
         ped_entry['individual_id'] = sample_to_cpg_dict[ped_entry['individual_id']]
 
         # remove parents and assign an individual sample ID
-        if make_singletons:
-            ped_entry['paternal_id'] = ['0']
-            ped_entry['maternal_id'] = ['0']
-            ped_entry['family_id'] = str(counter)
-
-        else:
-            ped_entry['paternal_id'] = sample_to_cpg_dict.get(
-                ped_entry['paternal_id'], ['0']
-            )
-            ped_entry['maternal_id'] = sample_to_cpg_dict.get(
-                ped_entry['maternal_id'], ['0']
-            )
+        ped_entry['paternal_id'] = sample_to_cpg_dict.get(
+            ped_entry['paternal_id'], ['0']
+        )
+        ped_entry['maternal_id'] = sample_to_cpg_dict.get(
+            ped_entry['maternal_id'], ['0']
+        )
 
         new_entries.append(ped_entry)
 
@@ -85,13 +126,22 @@ def get_ped_with_permutations(
     return new_entries
 
 
-def get_ped_lines(ped_with_permutations: list[dict[str, list[str]]]) -> str:
+def process_pedigree(
+    ped_with_permutations: list[dict], local_dir: Path, remote_dir: Path
+) -> str:
     """
     take the pedigree data, and write out as a correctly formatted PED file
     this permits the situation where we have multiple possible samples per individual
 
-    :param ped_with_permutations: the PED content with sample lists
+    Args:
+        ped_with_permutations (): the PED content with sample lists
+        local_dir ():
+        remote_dir ():
+
+    Returns:
+        The path we're writing the remote data to
     """
+
     ped_lines = []
     for entry in ped_with_permutations:
         for sample, mother, father in product(
@@ -110,7 +160,20 @@ def get_ped_lines(ped_with_permutations: list[dict[str, list[str]]]) -> str:
                 )
                 + '\n'
             )
-    return ''.join(ped_lines)
+
+    # condense all lines into one
+    single_line = ''.join(ped_lines)
+
+    # write to a local file
+    (local_dir / 'pedigree.ped').write_text(single_line)
+
+    # also write to the remote path
+    remote_path = remote_dir / 'pedigree.ped'
+    remote_path.write_text(single_line)
+    logging.info(f'Wrote pedigree with {len(ped_lines)} lines to {remote_path}')
+
+    # pass back the remote file path
+    return str(remote_path)
 
 
 def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
@@ -152,22 +215,37 @@ def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     return sample_map
 
 
-def generate_reverse_lookup(mapping_digest: dict[str, list[str]]) -> dict[str, str]:
-    """
-    :param mapping_digest: created by ext_to_int_sample_map
-    :return:
+def process_reverse_lookup(
+    mapping_digest: dict[str, list], local_dir: Path, remote_dir: Path
+) -> str:
     """
 
-    return {
+    Args:
+        mapping_digest ():
+        local_dir ():
+        remote_dir ():
+
+    Returns:
+
+    """
+
+    clean_dict = {
         sample: participant
         for participant, samples in mapping_digest.items()
         for sample in samples
     }
+    local_lookup = to_path(local_dir) / 'external_lookup.json'
+    with local_lookup.open('w') as handle:
+        json.dump(clean_dict, handle, indent=4)
+
+    remote_lookup = to_path(remote_dir) / 'external_lookup.json'
+    with remote_lookup.open('w') as handle:
+        json.dump(clean_dict, handle, indent=4)
+
+    return str(remote_lookup)
 
 
-def hash_reduce_dicts(
-    pedigree_dicts: list[dict[str, str]], hash_threshold: int
-) -> list[dict[str, str]]:
+def hash_reduce_dicts(pedigree_dicts: list[dict], hash_threshold: int) -> list[dict]:
     """
     hashes the family ID of each member of the Pedigree
     Normalises the Hash value to the range 0 - 99
@@ -191,21 +269,24 @@ def hash_reduce_dicts(
     return reduced_pedigree
 
 
-def main(
-    project: str,
-    output: str,
-    singletons: bool,
-    hash_threshold: int | None = None,
-    copy: bool = False,
-):
+def main(project: str, hash_threshold: int = 100, seqr_file: str | None = None):
+    """
+    Who runs the world? main()
+    Returns:
+
     """
 
-    :param project: may be able to retrieve this from the environment
-    :param singletons: whether to split the pedigree(s) into singletons
-    :param output: path to write new PED file
-    :param hash_threshold:
-    :param copy: if True, copy directly to GCP, or error
-    """
+    local_root = to_path(LOCAL_TEMPLATE.format(dataset=project))
+    remote_root = to_path(BUCKET_TEMPLATE.format(dataset=project))
+
+    cohort_config = {'dataset_specific': {}}
+    if seqr_file:
+        project_id, seqr_file = get_seqr_details(seqr_file, local_root, remote_root)
+        cohort_config['dataset_specific'] = {
+            'seqr_instance': 'https://seqr.populationgenomics.org.au',
+            'seqr_project': project_id,
+            'seqr_lookup': seqr_file,
+        }
 
     # get the list of all pedigree members as list of dictionaries
     logging.info('Pulling all pedigree members')
@@ -224,46 +305,31 @@ def main(
     ped_with_permutations = get_ped_with_permutations(
         pedigree_dicts=pedigree_dicts,
         sample_to_cpg_dict=sample_to_cpg_dict,
-        make_singletons=singletons,
     )
 
     # store a way of reversing this lookup in future
-    reverse_lookup = generate_reverse_lookup(sample_to_cpg_dict)
-    lookup_path = f'{output}_external_lookup.json'
-    with open(lookup_path, 'w', encoding='utf-8') as handle:
-        json.dump(reverse_lookup, handle, indent=4)
+    reverse_lookup = process_reverse_lookup(sample_to_cpg_dict, local_root, remote_root)
+    cohort_config['dataset_specific']['external_lookup'] = reverse_lookup
 
-    pedigree_output_path = f'{output}.ped'
-    logging.info('writing new PED file to "%s"', pedigree_output_path)
-    ped_line = get_ped_lines(ped_with_permutations)
+    ped_file = process_pedigree(ped_with_permutations, local_root, remote_root)
 
-    with open(pedigree_output_path, 'w', encoding='utf-8') as handle:
-        handle.write(ped_line)
+    local_config = local_root / 'cohort_config.toml'
+    with local_config.open('w') as handle:
+        toml.dump(cohort_config, handle)
 
-    output_folder = f'gs://cpg-{project}-test/reanalysis'
-    if copy:
-        with AnyPath(os.path.join(output_folder, 'pedigree.ped')).open('w') as handle:
-            handle.write(ped_line)
-        with AnyPath(os.path.join(output_folder, 'external_lookup.json')).open(
-            'w'
-        ) as handle:
-            json.dump(reverse_lookup, handle)
+    print(
+        f"""
+    --config {local_config}
+    --pedigree {ped_file}
+    """
+    )
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-
     parser = ArgumentParser()
     parser.add_argument(
         '--project', help='Project name to use in API queries', required=True
-    )
-    parser.add_argument(
-        '--output', help='prefix for writing all outputs to', required=True
-    )
-    parser.add_argument(
-        '--singletons',
-        help='Flag, recreate pedigree as singletons',
-        action='store_true',
     )
     parser.add_argument(
         '--hash_threshold',
@@ -274,14 +340,6 @@ if __name__ == '__main__':
         type=int,
         default=100,
     )
-    parser.add_argument(
-        '--copy', help='If used, copy directly to GCP', action='store_true'
-    )
+    parser.add_argument('--seqr', help='optional, seqr JSON file', required=False)
     args = parser.parse_args()
-    main(
-        project=args.project,
-        output=args.output,
-        singletons=args.singletons,
-        hash_threshold=args.hash_threshold,
-        copy=args.copy,
-    )
+    main(project=args.project, hash_threshold=args.hash_threshold, seqr_file=args.seqr)
