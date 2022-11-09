@@ -44,6 +44,7 @@ MEGA_BLACKLIST = [
 ]
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
+STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
 
 # published Nov 2015, available pre-print since March 2015
 # assumed to be influential since 2016
@@ -206,8 +207,8 @@ def county_county(subs: list[Submission]) -> Consequence:
 
     for each_sub in subs:
 
-        # for 3/4 star ratings, don't look any further
-        if each_sub.review_status in ['practice guideline', 'reviewed by expert panel']:
+        # for 3/4-star ratings, don't look any further
+        if each_sub.review_status in STRONG_REVIEWS:
             return each_sub.classification
 
         total += 1
@@ -289,51 +290,6 @@ def process_line(data: str) -> tuple[str, Submission]:
     return allele_id, Submission(date, sub, classification, rev_status)
 
 
-def get_rating_dict(
-    subs: list[Submission], allele_id: str, allele_map: dict
-) -> list[dict]:
-    """
-    take the dictionaries of consequences and allele data
-    for the given allele_id:
-     - obtain a summary decision for all the submissions
-     - obtain a star rating based on the submissions
-     - match the decision to the chr/ref/alt/alleleID
-
-    Args:
-        subs ():
-        allele_id ():
-        allele_map (): link to variationID, chrom, ref, alt
-
-    Returns:
-        a dictionary of the aggregated information
-    """
-
-    # sorted-by-date order may be utilised in future
-    # subs = sorted(all_consequences[allele_id], key=lambda x: x.date)
-
-    # filter against ACMG date
-    subs = acmg_filter_submissions(subs)
-    rating = county_county(subs)
-
-    # for now, skip over variants which are not relevant to AIP
-    if rating in [Consequence.UNCERTAIN, Consequence.UNKNOWN]:
-        return []
-
-    return [
-        dict(
-            id=allele_id,
-            rating=rating.value,
-            stars=check_stars(subs),
-            allele_id=allele_map[allele_id]['allele'],
-            locus=hl.Locus(
-                contig=allele_map[allele_id]['chrom'],
-                position=allele_map[allele_id]['pos'],
-            ),
-            alleles=[allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
-        )
-    ]
-
-
 def dict_list_to_ht(list_of_dicts: list) -> hl.Table:
     """
     takes the per-allele results and aggregates into a hl.Table
@@ -350,9 +306,7 @@ def dict_list_to_ht(list_of_dicts: list) -> hl.Table:
     pdf = pd.DataFrame(list_of_dicts)
 
     # convert DataFrame to a Table, keyed on Locus & Alleles
-    ht = hl.Table.from_pandas(pdf, key=['locus', 'alleles'])
-
-    return ht
+    return hl.Table.from_pandas(pdf, key=['locus', 'alleles'])
 
 
 def get_all_decisions(
@@ -410,17 +364,23 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     if not
         - return all submissions
 
-    get_rating_dict(csq_dict, a_id, allele_map)
+    Just to remove the possibility of removing expert curations, we won't
+    date filter any expert/manual entries this way
 
     Args:
         subs (): date-sorted list of submissions
 
     Returns:
-
+        either all submissions if none are after the ACMG cut-off
+        or, if newer entries exist, only those after cut-off
     """
 
     # apply the date threshold to all submissions
-    date_filt_subs = [sub for sub in subs if sub.date >= ACMG_THRESHOLD]
+    date_filt_subs = [
+        sub
+        for sub in subs
+        if sub.date >= ACMG_THRESHOLD or sub.review_status in STRONG_REVIEWS
+    ]
 
     # if this contains results, return only those
     if date_filt_subs:
@@ -466,7 +426,7 @@ def main(
     """
 
     logging.info('Getting all alleleID-VariantID-Loci from variant summary')
-    allele_mapping, all_contigs = get_allele_locus_map(summary)
+    allele_map, all_contigs = get_allele_locus_map(summary)
 
     # ordered list of all the loci actually identified
     ordered_alleles = [
@@ -477,18 +437,39 @@ def main(
     decision_dict = get_all_decisions(
         submission_file=submissions_file,
         threshold_date=threshold_date,
-        allele_ids=set(allele_mapping.keys()),
+        allele_ids=set(allele_map.keys()),
     )
 
     # placeholder to fill wth per-allele decisions
     all_decisions = []
 
     # now filter each set of decisions per allele
-    for allele_id, allele_submissions in decision_dict.items():
-        all_decisions.extend(
-            get_rating_dict(
-                subs=allele_submissions, allele_id=allele_id, allele_map=allele_mapping
-            )
+    for allele_id, submissions in decision_dict.items():
+        # filter against ACMG date
+        submissions = acmg_filter_submissions(submissions)
+
+        # obtain an aggregate rating
+        rating = county_county(submissions)
+
+        # assess stars in remaining entries
+        stars = check_stars(submissions)
+
+        # for now, skip over variants which are not relevant to AIP
+        if rating in [Consequence.UNCERTAIN, Consequence.UNKNOWN]:
+            continue
+
+        all_decisions.append(
+            {
+                'id': allele_id,
+                'rating': rating,
+                'stars': stars,
+                'allele_id': allele_map[allele_id]['allele'],
+                'locus': hl.Locus(
+                    contig=allele_map[allele_id]['chrom'],
+                    position=allele_map[allele_id]['pos'],
+                ),
+                'alleles': [allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
+            }
         )
 
     # placeholder for hail table

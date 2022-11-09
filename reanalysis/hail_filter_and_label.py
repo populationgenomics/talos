@@ -12,6 +12,8 @@ Read, filter, annotate, classify, and write Genetic data
 This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
+
+
 import os
 import logging
 import sys
@@ -24,6 +26,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, output_path
 
+from reanalysis.hail_audit import fields_audit, vep_audit
 from reanalysis.utils import read_json_from_path
 
 
@@ -99,73 +102,50 @@ VEP_TX_FIELDS_REQUIRED = [
 ]
 
 
-def fields_audit(mt: hl.MatrixTable) -> bool:
+def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    checks that the required fields are all present before continuing
-    """
-    problems = []
-    # iterate over top-level attributes
-    for annotation, datatype in BASE_FIELDS_REQUIRED:
-        if annotation in mt.row_value or annotation in mt.row_key:
-            if not isinstance(mt[annotation], datatype):
-                problems.append(f'{annotation}: {datatype}/{type(mt[annotation])}')
-        else:
-            problems.append(f'{annotation}:missing')
-
-    for field_group, group_types in FIELDS_REQUIRED.items():
-        if field_group not in mt.row_value:
-            problems.append(f'{field_group}:missing')
-        else:
-            for annotation, datatype in group_types:
-                if annotation in mt[field_group]:
-                    if not isinstance(mt[field_group][annotation], datatype):
-                        problems.append(
-                            f'{annotation}:'
-                            f'{datatype}/'
-                            f'{type(mt[field_group][annotation])}'
-                        )
-                else:
-                    problems.append(f'{annotation}:missing')
-    for problem in problems:
-        logging.error(f'MT field: \t{problem}')
-    return len(problems) == 0
-
-
-def vep_audit(mt: hl.MatrixTable) -> bool:
-    """
-    check that the required VEP annotations are present
-    True if the 'audit' passes (all required fields present)
+    instead of making a separate decision about whether the clinvar
+    annotation(s) are meaningful during each test, add a single value
+    early on. This accomplishes two things:
+    1. reduces the logic of each individual test
+    2. allows us to use other clinvar consequences at this codon
+        (see issue #140)
+    3. allows us to replace the clinvar annotation with our private
+        annotations (see issue #147)
+    Args:
+        mt (): the MatrixTable of all variants
+    Returns:
+        The same MatrixTable but with additional annotations
     """
 
-    problems = []
-    # now the content of the transcript_consequences
-    if 'vep' not in mt.row_value:
-        problems.append('VEP:missing')
-    elif 'transcript_consequences' not in mt.vep:
-        problems.append('transcript_consequences:missing')
-    else:
-        fields_and_types = dict(mt.vep.transcript_consequences[0].items())
-        for field, field_type in VEP_TX_FIELDS_REQUIRED:
-            if field in fields_and_types:
-                if not isinstance(fields_and_types[field], field_type):
-                    problems.append(
-                        f'{field}:{field_type}/{type(fields_and_types[field])}'
-                    )
-            else:
-                problems.append(f'{field}:missing')
+    # do not consider stars - this is handled differently elsewhere
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            clinvar_aip=hl.if_else(
+                (
+                    (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
+                    & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            clinvar_adjacent=MISSING_INT,
+        )
+    )
 
-    for problem in problems:
-        logging.error(f'VEP field: {problem}')
+    # if we have the extra file... use it
 
-    return len(problems) == 0
+    # filter out benigns
+    mt = mt.filter_rows(mt.info.clinvar_sig.lower().contains(BENIGN))
+    return mt
 
 
 def filter_matrix_by_ac(
     mt: hl.MatrixTable, ac_threshold: float | None = 0.01
 ) -> hl.MatrixTable:
     """
-    if called, this method will remove all variants in the joint call where the
-    AlleleCount as a proportion is higher than the provided threshold
+    Remove variants with AC in joint-call over threshold
     :param mt:
     :param ac_threshold:
     :return: reduced MatrixTable
@@ -224,10 +204,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean1=hl.if_else(
-                (mt.info.clinvar_stars > 0)
-                & (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                & ~(mt.info.clinvar_sig.lower().contains(BENIGN)),
+                (mt.info.clinvar_stars > 0) & (mt.info.clinvar_aip == ONE_INT),
                 ONE_INT,
                 MISSING_INT,
             )
@@ -269,11 +246,7 @@ def annotate_category_2(
                         )
                         > 0
                     )
-                    | (
-                        (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                        & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                        & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
-                    )
+                    | (mt.info.clinvar_aip == ONE_INT)
                     | (
                         (mt.info.cadd > get_config()['filter']['cadd'])
                         | (mt.info.revel > get_config()['filter']['revel'])
@@ -336,11 +309,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
                         )
                         > 0
                     )
-                    | (
-                        (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                        & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                        & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
-                    )
+                    | (mt.info.clinvar_aip == ONE_INT)
                 ),
                 ONE_INT,
                 MISSING_INT,
@@ -692,8 +661,8 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
                 mt.splice_ai.splice_consequence, MISSING_STRING
             ).replace(' ', '_'),
             cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            clinvar_sig=hl.or_else(mt.clinvar.clinical_significance, MISSING_STRING),
-            clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
+            # clinvar_sig=hl.or_else(mt.clinvar.clinical_significance, MISSING_STRING),
+            # clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
             # these next 3 are per-transcript, with ';' to delimit
             # pulling these annotations into INFO with ';' to separate
             # will break INFO parsing for most tools
@@ -873,7 +842,12 @@ def main(mt_path: str, panelapp: str, plink: str):
 
     mt = hl.read_matrix_table(mt_path)
 
-    if not (fields_audit(mt) and vep_audit(mt)):
+    if not (
+        fields_audit(
+            mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED
+        )
+        and vep_audit(mt, VEP_TX_FIELDS_REQUIRED)
+    ):
         raise Exception('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
@@ -907,6 +881,7 @@ def main(mt_path: str, panelapp: str, plink: str):
     checkpoint_number = checkpoint_number + 1
 
     mt = extract_annotations(mt)
+    mt = annotate_aip_clinvar(mt)
     mt = filter_to_population_rare(mt=mt)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 

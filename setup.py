@@ -36,7 +36,7 @@ setup(
         'full': [
             'cloudpathlib[all]==0.9.0',
             'cpg-utils>=4.7.0',
-            'cpg_workflows',
+            'cpg_workflows>=1.1.4',
             'dill==0.3.5.1',
             'hail>=0.2.105',
             'Jinja2==3.0.3',
