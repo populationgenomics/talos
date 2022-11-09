@@ -2,6 +2,8 @@
 reads over the clinvar submissions
 identifies consensus and disagreements
 
+Requires two files from https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/
+
 submission_summary.txt
  - all individual submissions to ClinVar
 relevant fields:
@@ -9,6 +11,9 @@ relevant fields:
 2.  ClinicalSignificance:
 7.  ReviewStatus: the level of review for this submission, namely
 10. Submitter
+
+variant_summary.txt
+ - links clinvar AlleleID, Variant ID, position and alleles
 """
 
 
@@ -85,9 +90,12 @@ def chunks(iterable, chunk_size):
     """
     Yield successive n-sized chunks from an iterable
 
-    :param iterable: presumably a list, could be a string or other type
-    :param chunk_size: size of the chunks we want to return
-    :return: increments through the provided iterable
+    Args:
+        iterable (): any iterable - tuple, str, list, set
+        chunk_size (): size of intervals to return
+
+    Returns:
+        intervals of requested size across the collection
     """
 
     if isinstance(iterable, set):
@@ -101,8 +109,12 @@ def generator_chunks(generator, size):
     """
     Iterates across a generator, returning specifically sized chunks
 
-    :param generator: any generator or method implementing yield
-    :param size: size of iterator to return
+    Args:
+        generator (): any generator or method implementing yield
+        size (): size of iterator to return
+
+    Returns:
+        a subset of the generator results
     """
     iterator = iter(generator)
     for first in iterator:
