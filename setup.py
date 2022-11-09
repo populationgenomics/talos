@@ -1,8 +1,10 @@
 """
 automated installation instructions
-moving away from requirements.txt
 """
+
+
 from setuptools import find_packages, setup
+
 
 setup(
     name='automated-interpretation-pipeline',
