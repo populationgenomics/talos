@@ -473,7 +473,7 @@ def main(
         all_decisions.append(
             {
                 'id': allele_id,
-                'rating': rating,
+                'rating': rating.value,
                 'stars': stars,
                 'allele_id': allele_map[allele_id]['allele'],
                 'locus': hl.Locus(
