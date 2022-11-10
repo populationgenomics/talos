@@ -127,7 +127,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
             info=mt.info.annotate(
                 clinvar_sig=ht[mt.row_key].rating,
                 clinvar_stars=ht[mt.row_key].stars,
-                clinvar_allele=ht[mt.row_key].allele,
+                clinvar_allele=ht[mt.row_key].allele_id,
             )
         )
 
