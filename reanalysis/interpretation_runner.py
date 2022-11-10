@@ -450,6 +450,16 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
+    logging.info(
+        r"""Welcome To
+          ___  _____ ______
+         / _ \|_   _|| ___ \
+        / /_\ \ | |  | |_/ /
+        |  _  | | |  |  __/
+        | | | |_| |_ | |
+        \_| |_/\___/ \_|
+        """
+    )
 
     parser = ArgumentParser()
     parser.add_argument('-i', help='variant data to analyse', required=True)

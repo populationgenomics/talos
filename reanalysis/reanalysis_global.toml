@@ -46,6 +46,9 @@ hail = 'driver:e9c567eb2a00e2050feddae810c0115b98c8ef81-hail-3c66763eb4e49ad7d20
 vep_mount = 'vep/105.0/mount'
 genome_build = 'GRCh38'
 
+[references.broad]
+
+
 [references.seqr]
 prefix = 'seqr/v0-1'
 combined_reference = 'combined_reference_data_grch38-2.0.4.ht'
