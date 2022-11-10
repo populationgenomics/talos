@@ -62,6 +62,7 @@ def check_for_second_hit(
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
         return []
+
     sample_dict = comp_hets.get(sample)
     return sample_dict.get(first_variant, [])
 
@@ -441,9 +442,15 @@ class RecessiveAutosomal(BaseMoi):
             ):
 
                 # categorised for this specific sample, allow support in partner
+                # - also screen out high-AF partners
                 if not (
                     partner_variant.sample_specific_category_check(sample_id)
                     or partner_variant.has_support
+                ) or any(
+                    {
+                        partner_variant.info.get(hom_key, 0) >= self.hom_threshold
+                        for hom_key in INFO_HOMS
+                    }
                 ):
                     continue
 
@@ -663,10 +670,15 @@ class XRecessive(BaseMoi):
                 sample=sample_id,
             ):
 
-                # allow for de novo check
+                # allow for de novo check - also screen out high-AF partners
                 if not (
                     partner_variant.sample_specific_category_check(sample_id)
                     or partner_variant.has_support
+                ) or any(
+                    {
+                        partner_variant.info.get(hom_key, 0) >= self.hom_rec_threshold
+                        for hom_key in INFO_HOMS
+                    }
                 ):
                     continue
 

@@ -10,14 +10,14 @@ scatter_count = 50
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
 gnomad_dominant = 0.001
-gnomad_max_homs_dominant = 1
-gnomad_max_homs_recessive = 2
-gnomad_max_ac_dominant = 50
-gnomad_max_hemi = 2
+gnomad_max_homs_dominant = 0
+gnomad_max_homs_recessive = 1
+gnomad_max_ac_dominant = 10
+gnomad_max_hemi = 1
 
 [csq]
 description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
-csq_string = [ 'allele', 'consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'amino_acids', 'codons', 'allele_num', 'variant_class', 'tsl', 'appris', 'ccds', 'ensp', 'swissprot', 'trembl', 'uniparc', 'gene_pheno', 'sift', 'polyphen', 'lof', 'lof_filter', 'lof_flags',]
+csq_string = ['allele', 'consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'amino_acids', 'codons', 'allele_num', 'variant_class', 'tsl', 'appris', 'ccds', 'ensp', 'swissprot', 'trembl', 'uniparc', 'gene_pheno', 'sift', 'polyphen', 'lof', 'lof_filter', 'lof_flags',]
 
 [filter]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
@@ -40,14 +40,16 @@ default_memory = 'highmem'
 
 [images]
 vep = 'vep:105.0'
-hail = 'driver:e9c567eb2a00e2050feddae810c0115b98c8ef81-hail-3c66763eb4e49ad7d20fc01b00f307e1c5fc5abb'
+hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
 
 [references]
 vep_mount = 'vep/105.0/mount'
 genome_build = 'GRCh38'
 
 [references.broad]
-
+prefix = 'hg38/v0'
+ref_fasta = 'dragen_reference/Homo_sapiens_assembly38_masked.fasta'
+genome_calling_interval_lists = 'wgs_calling_regions.hg38.interval_list'
 
 [references.seqr]
 prefix = 'seqr/v0-1'

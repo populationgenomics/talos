@@ -108,7 +108,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     annotation(s) are meaningful during each test, add a single value
     early on. This accomplishes two things:
     1. reduces the logic of each individual test
-    2. allows us to use other clinvar consequences at this codon
+    2. allows us to use other clinvar consequences for this codon
         (see issue #140)
     3. allows us to replace the clinvar annotation with our private
         annotations (see issue #147)
@@ -118,26 +118,64 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         The same MatrixTable but with additional annotations
     """
 
-    # do not consider stars - this is handled differently elsewhere
+    # if there's private clinvar annotations - use them
+    private_clinvar = get_config()['hail'].get('private_clinvar')
+    if private_clinvar:
+        ht = hl.read_table(private_clinvar)
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                clinvar_sig=ht[mt.row_key].rating,
+                clinvar_stars=ht[mt.row_key].stars,
+                clinvar_allele=ht[mt.row_key].allele,
+            )
+        )
+
+        # remove all confident benign (only confident in this ht)
+        mt = mt.filter_rows(mt.info.clinvar_sig.lower().contains(BENIGN), keep=False)
+
+    # use default annotations
+    else:
+
+        # remove all confidently benign
+        mt = mt.filter_rows(
+            (mt.clinvar.clinical_significance.lower().contains(BENIGN))
+            & (mt.clinvar.gold_stars > 0),
+            keep=False,
+        )
+
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                clinvar_sig=hl.or_else(
+                    mt.clinvar.clinical_significance, MISSING_STRING
+                ),
+                clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
+                clinvar_allele=hl.or_else(mt.clinvar.allele_id, MISSING_INT),
+            )
+        )
+
+    # annotate as either strong or regular
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             clinvar_aip=hl.if_else(
                 (
                     (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
                     & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                    & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
                 ),
                 ONE_INT,
                 MISSING_INT,
             ),
-            clinvar_adjacent=MISSING_INT,
+            clinvar_aip_strong=hl.if_else(
+                (
+                    (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
+                    & ~(mt.info.clinvar_stars > 0)
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
         )
     )
 
-    # if we have the extra file... use it
-
-    # filter out benigns
-    mt = mt.filter_rows(mt.info.clinvar_sig.lower().contains(BENIGN))
     return mt
 
 
@@ -204,7 +242,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean1=hl.if_else(
-                (mt.info.clinvar_stars > 0) & (mt.info.clinvar_aip == ONE_INT),
+                mt.info.clinvar_aip_strong == ONE_INT,
                 ONE_INT,
                 MISSING_INT,
             )
@@ -320,7 +358,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    - reduce the per-row transcript consequences to a limited group
+    - reduce the per-row transcript CSQ to a limited group
     - reduce the rows to ones where there are remaining tx consequences
     :param mt:
     :return: reduced matrix
@@ -465,45 +503,21 @@ def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def transform_variant_string(locus_details: hl.Struct) -> str:
-    """
-    takes an object
-    Struct(
-        locus=Locus(
-            contig='chr1',
-            position=10,
-            reference_genome='GRCh38'
-        ),
-        alleles=['GC', 'G'],
-        category_4_only=0
-    )
-    transform into simplified 1-10-GC-G
-    drop the category_4_only attribute
-    :param locus_details:
-    :return:
-    """
-    return '-'.join(
-        [
-            locus_details.locus.contig.replace('chr', ''),
-            str(locus_details.locus.position),
-            *locus_details.alleles,
-        ]
-    )
-
-
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad Exomes and Genomes
-    :param mt:
-    :return:
+    allow clinvar pathogenic to slip through this filter
     """
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
     # 'semi-rare' as dominant filters will be more strictly filtered later
     rare_af_threshold = get_config()['filter']['af_semi_rare']
     return mt.filter_rows(
-        (mt.info.gnomad_ex_af < rare_af_threshold)
-        & (mt.info.gnomad_af < rare_af_threshold)
+        (
+            (mt.info.gnomad_ex_af < rare_af_threshold)
+            & (mt.info.gnomad_af < rare_af_threshold)
+        )
+        | (mt.info.clinvar_aip_strong == ONE_INT)
     )
 
 
@@ -524,7 +538,7 @@ def split_rows_by_gene_and_filter_to_green(
     # filter rows without a green gene (removes empty geneIds)
     mt = mt.filter_rows(green_genes.contains(mt.geneIds))
 
-    # limit the per-row transcript consequences to those relevant to the single
+    # limit the per-row transcript CSQ to those relevant to the single
     # gene now present on each row
     mt = mt.annotate_rows(
         vep=mt.vep.annotate(
@@ -881,7 +895,10 @@ def main(mt_path: str, panelapp: str, plink: str):
     checkpoint_number = checkpoint_number + 1
 
     mt = extract_annotations(mt)
+
+    # swap out the default clinvar annotations with private clinvar
     mt = annotate_aip_clinvar(mt)
+
     mt = filter_to_population_rare(mt=mt)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
