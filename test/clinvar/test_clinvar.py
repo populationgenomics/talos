@@ -167,3 +167,12 @@ def test_county_uncertain_from_majority():
     """VUS if 50% or more VUS"""
     subs = ([PATH_SUB] * 5) + ([UNCERTAIN_SUB] * 6)
     assert county_county(subs) == Consequence.UNCERTAIN
+
+
+def test_county_take_reviewed():
+    """VUS if 50% or more VUS"""
+    sub1 = deepcopy(BASIC_SUB)
+    sub1.review_status = 'reviewed by expert panel'
+    sub1.classification = Consequence.PATHOGENIC
+    subs = [sub1] + ([BENIGN_SUB] * 6)
+    assert county_county(subs) == Consequence.PATHOGENIC
