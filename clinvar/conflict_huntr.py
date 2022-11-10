@@ -438,12 +438,12 @@ def main(
     """
 
     logging.info('Getting all alleleID-VariantID-Loci from variant summary')
-    allele_map, _all_contigs = get_allele_locus_map(summary)
+    allele_map, all_contigs = get_allele_locus_map(summary)
 
-    # # ordered list of all the loci actually identified
-    # ordered_alleles = [
-    #     f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y'] if f'chr{x}' in all_contigs
-    # ]
+    # ordered list of all the loci actually identified
+    ordered_alleles = [
+        f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y'] if f'chr{x}' in all_contigs
+    ]
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
@@ -484,38 +484,35 @@ def main(
             }
         )
 
-    ht = dict_list_to_ht(all_decisions)
-    ht.write(output_path(out_path), overwrite=True)
+    # placeholder for hail table
+    base_table = None
 
-    # # placeholder for hail table
-    # base_table = None
-    #
-    # # process each contig's entries into a Hail Table
-    # # write to disk separately, and append to a master table
-    # for contig in ordered_alleles:
-    #     logging.info(f'Processing Contig {contig}')
-    #     write_path = output_path(f'{contig}_{out_path}')
-    #     if to_path(write_path).exists():
-    #         logging.info(f'{write_path} already exists, reading')
-    #         ht = hl.read_table(write_path)
-    #
-    #     else:
-    #         # save a hail table of this contig to disk
-    #         ht = ht_from_contig(contig, all_decisions)
-    #         if ht.count() > 0:
-    #             ht.write(output=write_path, overwrite=True)
-    #         else:
-    #             logging.info(f'No entries on {contig}')
-    #             continue
-    #
-    #     # update the whole-genome table
-    #     if base_table is None:
-    #         base_table = ht
-    #     else:
-    #         base_table = base_table.union(ht)
-    #
-    # # write out the aggregated table
-    # base_table.write(output_path(out_path), overwrite=True)
+    # process each contig's entries into a Hail Table
+    # write to disk separately, and append to a master table
+    for contig in ordered_alleles:
+        logging.info(f'Processing Contig {contig}')
+        write_path = output_path(f'{contig}_{out_path}')
+        if to_path(write_path).exists():
+            logging.info(f'{write_path} already exists, reading')
+            ht = hl.read_table(write_path)
+
+        else:
+            # save a hail table of this contig to disk
+            ht = ht_from_contig(contig, all_decisions)
+            if ht.count() > 0:
+                ht.write(output=write_path, overwrite=True)
+            else:
+                logging.info(f'No entries on {contig}')
+                continue
+
+        # update the whole-genome table
+        if base_table is None:
+            base_table = ht
+        else:
+            base_table = base_table.union(ht)
+
+    # write out the aggregated table
+    base_table.write(output_path(out_path), overwrite=True)
 
 
 if __name__ == '__main__':

@@ -640,7 +640,7 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
         )
     )
 
-    # prior filtering on consequence will make this caution unnecessary
+    # previous consequence filters may make this caution unnecessary
     return hl.or_missing(hl.len(csq) > 0, csq)
 
 
