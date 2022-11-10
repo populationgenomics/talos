@@ -134,9 +134,8 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         # remove all confident benign (only confident in this ht)
         # allow this to be missing?
         mt = mt.filter_rows(
-            (mt.info.clinvar_sig.lower().contains(BENIGN))
-            & hl.is_missing(mt.info.clinvar_sig),
-            keep=False,
+            ~(mt.info.clinvar_sig.lower().contains(BENIGN))
+            | hl.is_missing(mt.info.clinvar_sig)
         )
 
     # use default annotations
