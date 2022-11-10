@@ -121,6 +121,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     # if there's private clinvar annotations - use them
     private_clinvar = get_config()['hail'].get('private_clinvar')
     if private_clinvar:
+        logging.info(f'loading private clinvar annotations from {private_clinvar}')
         ht = hl.read_table(private_clinvar)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
@@ -135,6 +136,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # use default annotations
     else:
+        logging.info(f'no private annotations, using default contents')
 
         # remove all confidently benign
         mt = mt.filter_rows(
