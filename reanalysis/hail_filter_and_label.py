@@ -523,7 +523,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
             (mt.info.gnomad_ex_af < rare_af_threshold)
             & (mt.info.gnomad_af < rare_af_threshold)
         )
-        | (mt.info.clinvar_aip_strong == ONE_INT)
+        | (mt.info.clinvar_aip == ONE_INT)
     )
 
 
