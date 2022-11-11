@@ -124,9 +124,9 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         ht = hl.read_table(private_clinvar)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                clinvar_sig=ht[mt.row_key].rating,
-                clinvar_stars=ht[mt.row_key].stars,
-                clinvar_allele=ht[mt.row_key].allele_id,
+                clinvar_sig=hl.or_else(ht[mt.row_key].rating, MISSING_STRING),
+                clinvar_stars=hl.or_else(ht[mt.row_key].stars, MISSING_INT),
+                clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_STRING),
             )
         )
 
@@ -143,8 +143,11 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
 
         # remove all confidently benign
         mt = mt.filter_rows(
-            (mt.clinvar.clinical_significance.lower().contains(BENIGN))
-            & (mt.clinvar.gold_stars > 0),
+            (
+                (mt.clinvar.clinical_significance.lower().contains(BENIGN))
+                | (hl.is_missing(mt.clinvar.clinical_significance))
+            )
+            & ((mt.clinvar.gold_stars > 0) | (hl.is_missing(mt.clinvar.gold_stars))),
             keep=False,
         )
 
