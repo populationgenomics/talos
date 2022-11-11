@@ -17,6 +17,7 @@ from reanalysis.hail_filter_and_label import (
     filter_to_population_rare,
     split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
+    annotate_aip_clinvar,
 )
 
 
@@ -370,3 +371,10 @@ def test_filter_to_classified(
     )
     matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
+
+
+def test_annotate_aip_clinvar():
+    """
+    DO IT
+    """
+    print(annotate_aip_clinvar)
