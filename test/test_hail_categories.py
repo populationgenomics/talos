@@ -20,16 +20,16 @@ from reanalysis.hail_filter_and_label import (
 )
 
 
-category_1_keys = ['locus', 'clinvar_sig', 'clinvar_stars']
+category_1_keys = ['locus', 'clinvar_aip_strong']
 category_2_keys = [
     'locus',
-    'clinvar_sig',
+    'clinvar_aip',
     'cadd',
     'revel',
     'geneIds',
     'consequence_terms',
 ]
-category_3_keys = ['locus', 'clinvar_sig', 'lof', 'consequence_terms']
+category_3_keys = ['locus', 'clinvar_aip', 'lof', 'consequence_terms']
 support_category_keys = [
     'locus',
     'cadd',
@@ -44,12 +44,9 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 @pytest.mark.parametrize(
     'values,classified',
     [
-        ([hl_locus, 'pathogenic', 0], 0),
-        ([hl_locus, 'pathogenic', 1], 1),
-        ([hl_locus, 'conflicting_interpretations_of_pathogenicity', 1], 0),
-        ([hl_locus, 'benign', 1], 0),
-        ([hl_locus, 'pathogenic&something&else', 2], 1),
-        ([hl_locus, 'pathogenic&sbenignng&else', 2], 0),
+        ([hl_locus, 0], 0),
+        ([hl_locus, 1], 1),
+        ([hl_locus, 2], 0),
     ],
 )
 def test_class_1_assignment(values, classified, hail_matrix):
@@ -57,9 +54,6 @@ def test_class_1_assignment(values, classified, hail_matrix):
     use some fake annotations, apply to the single fake variant
     check that the classification process works as expected based
     on the provided annotations
-    :param values:
-    :param classified:
-    :param hail_matrix:
     """
     # cast the input as a dictionary
     row_dict = dict(zip(category_1_keys, values))
@@ -70,8 +64,7 @@ def test_class_1_assignment(values, classified, hail_matrix):
     hail_table = hl.Table.from_pandas(dataframe, key='locus')
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            clinvar_sig=hail_table[hail_matrix.locus].clinvar_sig,
-            clinvar_stars=hail_table[hail_matrix.locus].clinvar_stars,
+            clinvar_aip_strong=hail_table[hail_matrix.locus].clinvar_aip_strong,
         )
     )
 
@@ -82,14 +75,13 @@ def test_class_1_assignment(values, classified, hail_matrix):
 @pytest.mark.parametrize(
     'values,classified',
     [
-        ([hl_locus, 'pathogenic', 0.0, 0.0, 'GREEN', 'missense'], 1),
-        ([hl_locus, 'benign', 0.0, 0.0, 'GREEN', 'missense'], 0),
-        ([hl_locus, 'pathogenic', 99.0, 1.0, 'RED', 'frameshift_variant'], 0),
-        ([hl_locus, 'pathogenic', 99.0, 1.0, 'GREEN', 'frameshift_variant'], 1),
-        ([hl_locus, 'benign', 30.0, 0.0, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 'meh', 28.11, 0.0, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 'meh', 0, 0.8, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 'meh', 0, 0.0, 'GREEN', 'synonymous'], 0),
+        ([hl_locus, 1, 0.0, 0.0, 'GREEN', 'missense'], 1),
+        ([hl_locus, 0, 0.0, 0.0, 'GREEN', 'missense'], 0),
+        ([hl_locus, 1, 99.0, 1.0, 'RED', 'frameshift_variant'], 0),
+        ([hl_locus, 1, 99.0, 1.0, 'GREEN', 'frameshift_variant'], 1),
+        ([hl_locus, 0, 28.11, 0.0, 'GREEN', 'synonymous'], 1),
+        ([hl_locus, 0, 0, 0.8, 'GREEN', 'synonymous'], 1),
+        ([hl_locus, 0, 0, 0.0, 'GREEN', 'synonymous'], 0),
     ],
 )
 def test_class_2_assignment(values, classified, hail_matrix):
@@ -111,7 +103,7 @@ def test_class_2_assignment(values, classified, hail_matrix):
     anno_matrix = hail_matrix.annotate_rows(
         geneIds=hail_table[hail_matrix.locus].geneIds,
         info=hail_matrix.info.annotate(
-            clinvar_sig=hail_table[hail_matrix.locus].clinvar_sig,
+            clinvar_aip=hail_table[hail_matrix.locus].clinvar_aip,
             cadd=hail_table[hail_matrix.locus].cadd,
             revel=hail_table[hail_matrix.locus].revel,
         ),
@@ -129,10 +121,10 @@ def test_class_2_assignment(values, classified, hail_matrix):
 @pytest.mark.parametrize(
     'values,classified',
     [
-        ([hl_locus, 'benign', 'hc', 'frameshift_variant'], 0),
-        ([hl_locus, 'benign', 'HC', 'frameshift_variant'], 1),
-        ([hl_locus, 'pathogenic', 'lc', 'frameshift_variant'], 1),
-        ([hl_locus, 'pathogenic', hl.missing(hl.tstr), 'frameshift_variant'], 1),
+        ([hl_locus, 0, 'hc', 'frameshift_variant'], 0),
+        ([hl_locus, 0, 'HC', 'frameshift_variant'], 1),
+        ([hl_locus, 1, 'lc', 'frameshift_variant'], 1),
+        ([hl_locus, 1, hl.missing(hl.tstr), 'frameshift_variant'], 1),
     ],
 )
 def test_class_3_assignment(values, classified, hail_matrix):
@@ -154,7 +146,7 @@ def test_class_3_assignment(values, classified, hail_matrix):
     hail_table = hl.Table.from_pandas(dataframe, key='locus')
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            clinvar_sig=hail_table[hail_matrix.locus].clinvar_sig,
+            clinvar_aip=hail_table[hail_matrix.locus].clinvar_aip,
         ),
         vep=hl.Struct(
             transcript_consequences=hl.array(
@@ -265,22 +257,23 @@ def test_green_and_new_from_panelapp(panel_changes):
 
 
 @pytest.mark.parametrize(
-    'exomes,genomes,length',
+    'exomes,genomes,clinvar,length',
     [
-        (0, 0, 1),
-        (1.0, 0, 0),
-        (0.0001, 0.0001, 1),
+        (0, 0, 0, 1),
+        (1.0, 0, 0, 0),
+        (1.0, 0, 1, 1),
+        (0.0001, 0.0001, 0, 1),
+        (0.0001, 0.0001, 1, 1),
     ],
 )
-def test_filter_rows_for_rare(exomes, genomes, length, hail_matrix):
+def test_filter_rows_for_rare(exomes, genomes, clinvar, length, hail_matrix):
     """
     :param hail_matrix:
     :return:
     """
     anno_matrix = hail_matrix.annotate_rows(
         info=hail_matrix.info.annotate(
-            gnomad_ex_af=exomes,
-            gnomad_af=genomes,
+            gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_aip=clinvar
         )
     )
     matrix = filter_to_population_rare(anno_matrix)

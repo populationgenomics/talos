@@ -213,27 +213,6 @@ def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.filter_rows((hl.len(mt.alleles) == 2) & (mt.alleles[1] != '*'))
 
 
-def filter_by_ab_ratio(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    filters HomRef, Het, and HomAlt by appropriate AB ratio bins
-
-    NOTE: This is a broken implementation, as it will replace the
-    true genotype calls with missing values. This has implications for
-    MOI testing downstream, as the corresponding genotypes in family
-    members can be absent, despite being called in the VCF
-
-    This can also cause rows in the resulting VCF to be
-    only WT/missing calls, removing all actual variant calls
-    :param mt:
-    """
-    ab = mt.AD[1] / hl.sum(mt.AD)
-    return mt.filter_entries(
-        (mt.GT.is_hom_ref() & (ab <= 0.15))
-        | (mt.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-        | (mt.GT.is_hom_var() & (ab >= 0.85))
-    )
-
-
 def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category1 annotation
@@ -886,9 +865,6 @@ def main(mt_path: str, panelapp: str, plink: str):
     # die if there are no variants remaining
     if mt.count_rows() == 0:
         raise Exception('No remaining rows to process!')
-
-    # see method docstring, currently disabled
-    # matrix = filter_by_ab_ratio(matrix)
 
     mt = checkpoint_and_repartition(
         mt,
