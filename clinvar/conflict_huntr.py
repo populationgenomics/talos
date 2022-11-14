@@ -2,7 +2,8 @@
 reads over the clinvar submissions
 identifies consensus and disagreements
 
-Requires two files from https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/
+Requires two files from
+https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/
 
 submission_summary.txt
  - all individual submissions to ClinVar
@@ -102,7 +103,7 @@ def chunks(iterable, chunk_size):
         iterable = list(iterable)
 
     for i in range(0, len(iterable), chunk_size):
-        yield iterable[i : i + chunk_size]
+        yield iterable[i : (i + chunk_size)]
 
 
 def generator_chunks(generator, size):

@@ -6,6 +6,7 @@ analysis_suffix = 'analysis'
 [workflow]
 name = 'AIP'
 scatter_count = 50
+sequencing_type = 'genome'
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
@@ -37,10 +38,15 @@ spliceai = 0.5
 cancel_after_n_failures = 1
 default_timeout = 6000
 default_memory = 'highmem'
+private_clinvar = 'gs://cpg-acute-care-test/clinvar_01-01-2022/clinvar_reprocessed.ht'
 
 [images]
 vep = 'vep:105.0'
+gatk = 'gatk:4.2.6.1'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
 hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
+picard = 'picard_samtools:v0'
+picard_samtools = 'picard_samtools:v0'
 
 [references]
 vep_mount = 'vep/105.0/mount'
