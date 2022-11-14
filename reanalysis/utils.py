@@ -6,7 +6,7 @@ which may be shared across reanalysis components
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass
 from enum import Enum
-from itertools import combinations_with_replacement
+from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
 from typing import Any, Union
 
@@ -40,6 +40,41 @@ CHROM_ORDER = list(map(str, range(1, 23))) + [
 
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
+
+
+def chunks(iterable, chunk_size):
+    """
+    Yield successive n-sized chunks from an iterable
+
+    Args:
+        iterable (): any iterable - tuple, str, list, set
+        chunk_size (): size of intervals to return
+
+    Returns:
+        intervals of requested size across the collection
+    """
+
+    if isinstance(iterable, set):
+        iterable = list(iterable)
+
+    for i in range(0, len(iterable), chunk_size):
+        yield iterable[i : (i + chunk_size)]
+
+
+def generator_chunks(generator, size):
+    """
+    Iterates across a generator, returning specifically sized chunks
+
+    Args:
+        generator (): any generator or method implementing yield
+        size (): size of iterator to return
+
+    Returns:
+        a subset of the generator results
+    """
+    iterator = iter(generator)
+    for first in iterator:
+        yield list(chain([first], islice(iterator, size - 1)))
 
 
 class FileTypes(Enum):

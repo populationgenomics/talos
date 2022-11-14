@@ -25,7 +25,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from itertools import chain, islice
 
 import hail as hl
 import pandas as pd
@@ -51,6 +50,7 @@ MEGA_BLACKLIST = [
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
+ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y', 'M']]
 
 # published Nov 2015, available pre-print since March 2015
 # assumed to be influential since 2016
@@ -85,41 +85,6 @@ class Submission:
     submitter: str
     classification: Consequence
     review_status: str
-
-
-def chunks(iterable, chunk_size):
-    """
-    Yield successive n-sized chunks from an iterable
-
-    Args:
-        iterable (): any iterable - tuple, str, list, set
-        chunk_size (): size of intervals to return
-
-    Returns:
-        intervals of requested size across the collection
-    """
-
-    if isinstance(iterable, set):
-        iterable = list(iterable)
-
-    for i in range(0, len(iterable), chunk_size):
-        yield iterable[i : (i + chunk_size)]
-
-
-def generator_chunks(generator, size):
-    """
-    Iterates across a generator, returning specifically sized chunks
-
-    Args:
-        generator (): any generator or method implementing yield
-        size (): size of iterator to return
-
-    Returns:
-        a subset of the generator results
-    """
-    iterator = iter(generator)
-    for first in iterator:
-        yield list(chain([first], islice(iterator, size - 1)))
 
 
 def get_allele_locus_map(summary_file: str) -> tuple[dict, set]:
@@ -423,6 +388,20 @@ def ht_from_contig(contig: str, all_decisions: list[dict]) -> hl.Table:
     return dict_list_to_ht(contig_decisions)
 
 
+def sort_decisions(all_subs: list[dict]) -> list[dict]:
+    """
+    applies dual-layer sorting to the list of all decisions
+    Args:
+        all_subs ():
+
+    Returns:
+
+    """
+    return sorted(
+        all_subs, key=lambda x: (ORDERED_ALLELES.index(x['contig']), x['position'])
+    )
+
+
 def main(
     submissions_file: str,
     summary: str,
@@ -440,11 +419,6 @@ def main(
 
     logging.info('Getting all alleleID-VariantID-Loci from variant summary')
     allele_map, all_contigs = get_allele_locus_map(summary)
-
-    # ordered list of all the loci actually identified
-    ordered_alleles = [
-        f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y'] if f'chr{x}' in all_contigs
-    ]
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
@@ -473,24 +447,34 @@ def main(
 
         all_decisions.append(
             {
-                'id': allele_id,
-                'rating': rating.value,
-                'stars': stars,
-                'allele_id': allele_map[allele_id]['allele'],
                 'locus': hl.Locus(
                     contig=allele_map[allele_id]['chrom'],
                     position=allele_map[allele_id]['pos'],
                 ),
                 'alleles': [allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
+                'contig': allele_map[allele_id]['chrom'],
+                'position': allele_map[allele_id]['pos'],
+                'id': allele_id,
+                'rating': rating.value,
+                'stars': stars,
+                'allele_id': allele_map[allele_id]['allele'],
             }
         )
+
+    # sort all collected decisions, trying to reduce overhead in HT later
+    all_decisions = sort_decisions(all_decisions)
 
     # placeholder for hail table
     base_table = None
 
     # process each contig's entries into a Hail Table
     # write to disk separately, and append to a master table
-    for contig in ordered_alleles:
+    for contig in ORDERED_ALLELES:
+
+        # only process contigs with submissions
+        if contig not in all_contigs:
+            continue
+
         logging.info(f'Processing Contig {contig}')
         write_path = output_path(f'{contig}_{out_path}')
         if to_path(write_path).exists():

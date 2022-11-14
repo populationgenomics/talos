@@ -13,6 +13,7 @@ from clinvar.conflict_huntr import (
     county_county,
     check_stars,
     acmg_filter_submissions,
+    sort_decisions,
 )
 
 
@@ -176,3 +177,22 @@ def test_county_take_reviewed():
     sub1.classification = Consequence.PATHOGENIC
     subs = [sub1] + ([BENIGN_SUB] * 6)
     assert county_county(subs) == Consequence.PATHOGENIC
+
+
+def test_sort_decisions():
+    """blah"""
+
+    subs = [
+        {'contig': 'chr1', 'position': 1234},
+        {'contig': 'chr3', 'position': 1234},
+        {'contig': 'chrM', 'position': 1234},
+        {'contig': 'chr2', 'position': 1234},
+        {'contig': 'chr2', 'position': 1},
+    ]
+    assert sort_decisions(subs) == [
+        {'contig': 'chr1', 'position': 1234},
+        {'contig': 'chr2', 'position': 1},
+        {'contig': 'chr2', 'position': 1234},
+        {'contig': 'chr3', 'position': 1234},
+        {'contig': 'chrM', 'position': 1234},
+    ]
