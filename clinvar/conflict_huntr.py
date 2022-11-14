@@ -368,26 +368,6 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     return subs
 
 
-def ht_from_contig(contig: str, all_decisions: list[dict]) -> hl.Table:
-    """
-    filters to this contig only, generates table
-    Args:
-        contig ():
-        all_decisions ():
-
-    Returns:
-        a Hail Table of the relevant decisions
-    """
-
-    logging.info(f'Generating a Hail Table from {contig}')
-
-    contig_decisions = [
-        each_dict for each_dict in all_decisions if each_dict['locus'].contig == contig
-    ]
-
-    return dict_list_to_ht(contig_decisions)
-
-
 def sort_decisions(all_subs: list[dict]) -> list[dict]:
     """
     applies dual-layer sorting to the list of all decisions
@@ -395,7 +375,7 @@ def sort_decisions(all_subs: list[dict]) -> list[dict]:
         all_subs ():
 
     Returns:
-
+        a list of submissions, sorted hierarchically on chr & pos
     """
     return sorted(
         all_subs, key=lambda x: (ORDERED_ALLELES.index(x['contig']), x['position'])
@@ -483,12 +463,18 @@ def main(
 
         else:
             # save a hail table of this contig to disk
-            ht = ht_from_contig(contig, all_decisions)
-            if ht.count() > 0:
-                ht.write(output=write_path, overwrite=True)
-            else:
+            contig_decisions = [
+                each_dict
+                for each_dict in all_decisions
+                if each_dict['locus'].contig == contig
+            ]
+
+            if len(contig_decisions) == 0:
                 logging.info(f'No entries on {contig}')
                 continue
+
+            ht = dict_list_to_ht(contig_decisions)
+            ht.write(output=write_path, overwrite=True)
 
         # update the whole-genome table
         if base_table is None:
