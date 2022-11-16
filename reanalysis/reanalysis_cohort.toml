@@ -1,10 +1,18 @@
 [dataset_specific]
 description = "variables affecting how the final HTML report appears"
-seqr_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/parsed_seqr.json"
-external_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.json"
-seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
-seqr_project = "e.g. R0011_acute_care"
+seqr_lookup = ""
+external_lookup = ""
+seqr_instance = "https://this.is.a/placeholder"
+seqr_project = "placeholder"
 forbidden = ""
 
 [workflow]
 dataset = "cohort"
+
+[images]
+hail = "hail-driver:latest"
+vep = "vep:105.0"
+
+[references]
+genome_build = 'GRCh38'
+vep_mount = "vep/105.0"

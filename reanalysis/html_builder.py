@@ -170,13 +170,15 @@ class HTMLBuilder:
 
         # map of internal:external IDs for translation in results (optional)
         ext_lookup = get_config().get('dataset_specific', {}).get('external_lookup')
-        self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
+        self.external_map = {}
+        if ext_lookup and to_path(ext_lookup).exists():
+            self.external_map = read_json_from_path(ext_lookup)
 
         # use config to find CPG-to-Seqr ID JSON; allow to fail
         seqr_path = get_config().get('dataset_specific', {}).get('seqr_lookup')
         self.seqr = {}
 
-        if seqr_path:
+        if seqr_path and to_path(seqr_path).exists():
             self.seqr = read_json_from_path(seqr_path)
 
             # force user to correct config file if seqr URL/project are missing
@@ -230,7 +232,7 @@ class HTMLBuilder:
                 continue
 
             if len(variants) == 0:
-                samples_with_no_variants.append(self.external_map.get(sample, sample))
+                samples_with_no_variants.append(self.external_map.get(sample, sample) if sample in self.external_map else sample)
 
             sample_variants = {key: set() for key in CATEGORY_ORDERING}
 
@@ -350,7 +352,7 @@ class HTMLBuilder:
                     sample=self.external_map[sample],
                 )
             else:
-                sample_string = self.external_map.get(sample, sample)
+                sample_string = self.external_map.get(sample, sample) if sample in self.external_map else sample
 
             html_lines.append(fr'<h3>Sample: {sample_string}</h3>')
             html_lines.append(table)

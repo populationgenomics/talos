@@ -24,12 +24,7 @@ from peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import output_path
-
-# BIG TODO, HACK HERE
-def fix_output_path(input: str) -> str:
-    return input.replace('/severalgenomes', '/cpg-severalgenomes', 1)
-    
+from cpg_utils.hail_batch import output_path, init_batch
 
 from reanalysis.utils import read_json_from_path
 
@@ -736,7 +731,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
 
     # this temp file needs to be in GCP, not local
     # otherwise the batch that generates the file won't be able to read
-    additional_cloud_path = fix_output_path(output_path('additional_header.txt', 'tmp'))
+    additional_cloud_path = output_path('additional_header.txt', 'tmp')
     with to_path(additional_cloud_path).open('w') as handle:
         handle.write(
             '##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: '
@@ -745,7 +740,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
             'allele_num|variant_class|tsl|appris|ccds|ensp|swissprot|trembl|uniparc|'
             'gene_pheno|sift|polyphen|lof|lof_filter|lof_flags">'
         )
-    vcf_out = fix_output_path(output_path('hail_categorised.vcf.bgz'))
+    vcf_out = output_path('hail_categorised.vcf.bgz')
     logging.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
 
@@ -852,18 +847,7 @@ def main(mt_path: str, panelapp: str, plink: str):
     """
 
     # # initiate Hail with defined driver spec.
-    # init_batch(driver_cores=8, driver_memory='highmem')
-
-    asyncio.get_event_loop().run_until_complete(
-        hl.init_batch(
-            billing_project=get_config()['hail']['billing_project'], 
-            remote_tmpdir='hail-az://sevgen002sa/cpg-severalgenomes-hail',
-            jar_url="hail-az://hailms02batch/query/jars/1078abac8b8e1c14fe7743aa58bc25118b4108de.jar",
-            driver_memory="highmem",
-            driver_cores=8
-        )
-    )
-
+    init_batch(driver_cores=8, driver_memory='highmem')
 
     # checkpoints should be kept independent
     checkpoint_number = 0
@@ -872,9 +856,7 @@ def main(mt_path: str, panelapp: str, plink: str):
     logging.info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # get temp suffix from the config (can be None or missing)
-    checkpoint_root = fix_output_path(output_path(
-        'hail_matrix.mt', get_config()['buckets'].get('tmp_suffix'))
-    )
+    checkpoint_root = output_path('hail_matrix.mt', get_config()['buckets'].get('tmp_suffix'))
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from "{panelapp}"')
