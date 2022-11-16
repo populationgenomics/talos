@@ -14,14 +14,13 @@ re-run currently requires the deletion of previous outputs
 """
 
 
-from argparse import ArgumentParser
-from datetime import datetime
 import logging
 import os
 import sys
+from argparse import ArgumentParser
+from datetime import datetime
 
 import hailtop.batch as hb
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.deploy_config import get_deploy_config
@@ -35,36 +34,29 @@ from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     output_path,
-    query_command,
-    remote_tmpdir,
-    image_path,
 )
+from cpg_workflows.batch import get_batch
+from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
+from cpg_workflows.jobs.vep import add_vep_jobs
 
-import annotation
 from utils import FileTypes, identify_file_type
-from vep.jobs import vep_jobs, SequencingType
-
-# BIG TODO, HACK HERE
-def fix_output_path(input: str) -> str:
-    return input.replace('/severalgenomes', '/cpg-severalgenomes', 1)
-    
 
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
 
 # static paths to write outputs
-INPUT_AS_VCF = fix_output_path(output_path('prior_to_annotation.vcf.bgz'))
+INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 
 # phases of annotation
-ANNOTATED_MT = fix_output_path(output_path('annotated_variants.mt'))
+ANNOTATED_MT = output_path('annotated_variants.mt')
 
 # panelapp query results
-PANELAPP_JSON_OUT = fix_output_path(output_path(
+PANELAPP_JSON_OUT = output_path(
     'panelapp_data', get_config()['buckets'].get('analysis_suffix')
-))
+)
 
 # output of labelling task in Hail
-HAIL_VCF_OUT = fix_output_path(output_path('hail_categorised.vcf.bgz'))
+HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
 
 # local script references
@@ -77,21 +69,19 @@ MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
 
 def set_job_resources(
     job: hb.batch.job.Job,
-    auth=False,
-    git=False,
     prior_job: hb.batch.job.Job | None = None,
     memory: str = 'standard',
 ):
     """
     applied resources to the job
     :param job:
-    :param auth: if true, authenticate gcloud in this container
-    :param git: if true, pull this repository into container
     :param prior_job:
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(image_path('hail')).memory(memory).storage('20G')
+    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
+        '20G'
+    )
 
     # copy the env variables into the container
     # specifically the CPG_CONFIG_PATH value
@@ -100,23 +90,15 @@ def set_job_resources(
     if prior_job is not None:
         job.depends_on(prior_job)
 
-    if auth:
-        # TODO, the cloud check should really be done in CPG utils, also there's a question of whether this is actually necessary - I think it's done
-        # in GCP to handle use of AnyPath. We may not actually need this because of how HailAzureCloudPath handles auth.
-        cloud = get_deploy_config().to_dict()['cloud']
-        if cloud == 'gcp':
-            authenticate_cloud_credentials_in_job(job)
-        elif cloud == 'azure':
-            raise NotImplementedError()
+    authenticate_cloud_credentials_in_job(job)
 
-    if git:
-        # copy the relevant scripts into a Driver container instance
-        prepare_git_job(
-            job=job,
-            organisation=get_organisation_name_from_current_directory(),
-            repo_name=get_repo_name_from_current_directory(),
-            commit=get_git_commit_ref_of_current_repository(),
-        )
+    # copy the relevant scripts into a Driver container instance
+    prepare_git_job(
+        job=job,
+        organisation=get_organisation_name_from_current_directory(),
+        repo_name=get_repo_name_from_current_directory(),
+        commit=get_git_commit_ref_of_current_repository(),
+    )
 
 
 def mt_to_vcf(batch: hb.Batch, input_file: str):
@@ -127,8 +109,7 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     :return:
     """
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
-    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
-    set_job_resources(mt_to_vcf_job, git=True, auth=auth)
+    set_job_resources(mt_to_vcf_job)
 
     job_cmd = (
         f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
@@ -139,68 +120,6 @@ def mt_to_vcf(batch: hb.Batch, input_file: str):
     logging.info(f'Command used to convert MT: {job_cmd}')
     mt_to_vcf_job.command(job_cmd)
     return mt_to_vcf_job
-
-
-def annotate_vcf(
-    input_vcf: str,
-    batch: hb.Batch,
-    vep_out: str,
-    seq_type: SequencingType = SequencingType.GENOME,
-) -> list[hb.batch.job.Job]:
-    """
-    takes the VCF path, schedules all annotation jobs, creates MT with VEP annos.
-
-    should this be separated out into a script and run end2end, or should we
-    continue in this same runtime? These jobs are scheduled into this batch with
-    appropriate dependencies, so keeping this structure seems valid
-
-    :param input_vcf:
-    :param batch:
-    :param vep_out:
-    :param seq_type:
-    :return:
-    """
-
-    # generate the jobs which run VEP & collect the results
-    return vep_jobs(
-        b=batch,
-        vcf_path=to_path(input_vcf),
-        tmp_bucket=to_path(
-            output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
-        ),
-        out_path=to_path(vep_out),
-        overwrite=False,  # don't re-run annotation on completed chunks
-        sequencing_type=seq_type,
-        job_attrs={},
-    )
-
-
-def annotated_mt_from_ht_and_vcf(
-    input_vcf: str,
-    batch: hb.Batch,
-    vep_ht: str,
-    job_attrs: dict | None = None,
-) -> hb.batch.job.Job:
-    """
-    apply the HT of annotations to the VCF, save as MT
-    :return:
-    """
-    apply_anno_job = batch.new_job('HT + VCF = MT', job_attrs)
-
-    copy_common_env(apply_anno_job)
-    apply_anno_job.image(image_path('hail'))
-
-    cmd = query_command(
-        annotation,
-        annotation.apply_annotations.__name__,
-        input_vcf,
-        vep_ht,
-        ANNOTATED_MT,
-        setup_gcp=True,
-        packages=['seqr-loader==1.2.5'],
-    )
-    apply_anno_job.command(cmd)
-    return apply_anno_job
 
 
 def handle_panelapp_job(
@@ -217,8 +136,7 @@ def handle_panelapp_job(
     :param prior_job:
     """
     panelapp_job = batch.new_job(name='query panelapp')
-    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
-    set_job_resources(panelapp_job, auth=auth, git=True, prior_job=prior_job)
+    set_job_resources(panelapp_job, prior_job=prior_job)
 
     panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
 
@@ -252,10 +170,7 @@ def handle_hail_filtering(
     """
 
     labelling_job = batch.new_job(name='hail filtering')
-    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
-    set_job_resources(
-        labelling_job, auth=auth, git=True, prior_job=prior_job, memory='16Gi'
-    )
+    set_job_resources(labelling_job, prior_job=prior_job, memory='16Gi')
     labelling_command = (
         f'pip install . && '
         f'python3 {HAIL_FILTER} '
@@ -292,8 +207,7 @@ def handle_results_job(
     """
 
     results_job = batch.new_job(name='finalise_results')
-    auth = get_deploy_config().to_dict()['cloud'] == 'gcp'
-    set_job_resources(results_job, auth=True, git=True, prior_job=prior_job)
+    set_job_resources(results_job, prior_job=prior_job)
 
     gene_filter_files = (
         (
@@ -378,23 +292,6 @@ def main(
     }
     # endregion
 
-    # region: batch instantiation
-    service_backend = hb.ServiceBackend(
-        billing_project=get_config()['hail']['billing_project'],
-        remote_tmpdir=remote_tmpdir(),
-    )
-    batch = hb.Batch(
-        name='AIP batch',
-        backend=service_backend,
-        cancel_after_n_failures=1,
-        default_timeout=6000,
-        default_memory='highmem',
-    )
-    # endregion
-
-    # read the ped file into the Batch
-    pedigree_in_batch = batch.read_input(pedigree)
-
     # set a first job in this batch
     prior_job = None
 
@@ -417,7 +314,7 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            prior_job = mt_to_vcf(batch=batch, input_file=input_path)
+            prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
     # endregion
@@ -430,18 +327,37 @@ def main(
         vep_ht_tmp = output_path(
             'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
         )
-        annotation_jobs = annotate_vcf(input_path, batch=batch, vep_out=vep_ht_tmp)
+        # generate the jobs which run VEP & collect the results
+        vep_jobs = add_vep_jobs(
+            b=get_batch(),
+            vcf_path=to_path(input_path),
+            tmp_prefix=to_path(
+                output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
+            ),
+            scatter_count=get_config()['workflow'].get('scatter_count', 50),
+            out_path=to_path(vep_ht_tmp),
+        )
 
         # if convert-to-VCF job exists, assign as an annotation dependency
         if prior_job:
-            for job in annotation_jobs:
+            for job in vep_jobs:
                 job.depends_on(prior_job)
 
-        # apply annotations
-        prior_job = annotated_mt_from_ht_and_vcf(
-            input_vcf=input_path, batch=batch, job_attrs={}, vep_ht=vep_ht_tmp
+        # Apply the HT of annotations to the VCF, save as MT
+        anno_job = annotate_cohort_jobs(
+            b=get_batch(),
+            vcf_path=to_path(input_path),
+            vep_ht_path=to_path(vep_ht_tmp),
+            out_mt_path=to_path(ANNOTATED_MT),
+            checkpoint_prefix=to_path(
+                output_path(
+                    'annotation_temp', get_config()['buckets'].get('tmp_suffix')
+                )
+            ),
+            depends_on=vep_jobs,
+            use_dataproc=False,
         )
-        prior_job.depends_on(*annotation_jobs)
+        prior_job = anno_job[-1]
 
     # endregion
 
@@ -451,27 +367,30 @@ def main(
         and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
     ):
         prior_job = handle_panelapp_job(
-            batch=batch,
+            batch=get_batch(),
             extra_panels=extra_panels,
             participant_panels=participant_panels,
             prior_job=prior_job,
         )
     # endregion
 
+    # read the ped file into the Batch
+    pedigree_in_batch = get_batch().read_input(pedigree)
+
     # region: hail categorisation
     if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
         prior_job = handle_hail_filtering(
-            batch=batch,
+            batch=get_batch(),
             prior_job=prior_job,
             plink_file=pedigree_in_batch,
         )
     # endregion
 
     # read VCF into the batch as a local file
-    labelled_vcf_in_batch = batch.read_input_group(
-        vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi'
-    ).vcf
+    labelled_vcf_in_batch = (
+        get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
+    )
 
     # region: singleton decisions
     # if singleton PED supplied, also run as singletons w/separate outputs
@@ -483,7 +402,7 @@ def main(
                 get_config()['buckets'].get('analysis_suffix'),
             )
         )
-        pedigree_singletons = batch.read_input(singletons)
+        pedigree_singletons = get_batch().read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
     # endregion
 
@@ -492,7 +411,7 @@ def main(
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
         _results_job = handle_results_job(
-            batch=batch,
+            batch=get_batch(),
             labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
             output_dict=output_dict[analysis_index],
@@ -522,7 +441,7 @@ def main(
     )
     # endregion
 
-    batch.run(wait=False)
+    get_batch().run(wait=False)
 
 
 if __name__ == '__main__':

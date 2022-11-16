@@ -3,6 +3,10 @@ web_suffix = "web"
 tmp_suffix = "tmp"
 analysis_suffix = "analysis"
 
+[workflow]
+name = "AIP"
+scatter_count = 50
+
 [moi_tests]
 description = "thresholds for different filters during the MOI checks"
 gnomad_dominant = 0.001
@@ -28,3 +32,8 @@ polyphen = 0.99
 revel = 0.77
 sift = 0.0
 spliceai = 0.5
+
+[hail]
+cancel_after_n_failures = 1
+default_timeout = 6000
+default_memory = "highmem"
