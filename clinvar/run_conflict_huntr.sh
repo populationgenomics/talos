@@ -7,7 +7,7 @@ DATE=${1:-$(date +%F)}
 
 # run
 analysis-runner \
-    --config clinvar/config.toml \
+    --config clinvar/clinvar.toml \
     --dataset acute-care \
     --description "Process clinvar annotations" \
     -o "clinvar_${DATE}" \
