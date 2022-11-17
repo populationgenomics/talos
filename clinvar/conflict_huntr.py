@@ -19,7 +19,6 @@ variant_summary.txt
 
 
 import gzip
-import json
 import logging
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -399,7 +398,7 @@ def main(
     """
 
     logging.info('Getting all alleleID-VariantID-Loci from variant summary')
-    allele_map, _all_contigs = get_allele_locus_map(summary)
+    allele_map, all_contigs = get_allele_locus_map(summary)
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
@@ -428,10 +427,10 @@ def main(
 
         all_decisions.append(
             {
-                # 'locus': hl.Locus(
-                #     contig=allele_map[allele_id]['chrom'],
-                #     position=allele_map[allele_id]['pos'],
-                # ),
+                'locus': hl.Locus(
+                    contig=allele_map[allele_id]['chrom'],
+                    position=allele_map[allele_id]['pos'],
+                ),
                 'alleles': [allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
                 'contig': allele_map[allele_id]['chrom'],
                 'position': allele_map[allele_id]['pos'],
@@ -445,13 +444,46 @@ def main(
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
-    with to_path(output_path(out_path).replace('.mt', '.json')).open('w') as handle:
-        json.dump(all_decisions, handle)
+    # placeholder for hail table
+    base_table = None
 
-    ht = dict_list_to_ht(all_decisions)
+    # process each contig's entries into a Hail Table
+    # write to disk separately, and append to a master table
+    for contig in ORDERED_ALLELES:
+
+        # only process contigs with submissions
+        if contig not in all_contigs:
+            continue
+
+        logging.info(f'Processing Contig {contig}')
+        write_path = output_path(f'{contig}_{out_path}')
+        if to_path(write_path).exists():
+            logging.info(f'{write_path} already exists, reading')
+            ht = hl.read_table(write_path)
+
+        else:
+            # save a hail table of this contig to disk
+            contig_decisions = [
+                each_dict
+                for each_dict in all_decisions
+                if each_dict['locus'].contig == contig
+            ]
+
+            if len(contig_decisions) == 0:
+                logging.info(f'No entries on {contig}')
+                continue
+
+            ht = dict_list_to_ht(contig_decisions)
+            ht.write(output=write_path, overwrite=True)
+
+        # update the whole-genome table
+        if base_table is None:
+            base_table = ht
+        else:
+            base_table = base_table.union(ht)
 
     # write out the aggregated table
-    ht.write(output_path(out_path), overwrite=True)
+    base_table.write(output_path(out_path), overwrite=True)
 
 
 if __name__ == '__main__':
@@ -473,7 +505,7 @@ if __name__ == '__main__':
         datetime.strptime(args.d, '%d-%m-%Y') if isinstance(args.d, str) else args.d
     )
 
-    init_batch(worker_memory='highmem', worker_cores=8)
+    init_batch()
 
     main(
         submissions_file=args.s,
