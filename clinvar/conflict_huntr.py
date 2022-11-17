@@ -19,6 +19,7 @@ variant_summary.txt
 
 
 import gzip
+import json
 import logging
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -443,6 +444,9 @@ def main(
 
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
+
+    with to_path(output_path(out_path).replace('.mt', '.json')).open('w') as handle:
+        json.dump(all_decisions, handle)
 
     ht = dict_list_to_ht(all_decisions)
 
