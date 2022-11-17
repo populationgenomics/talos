@@ -469,7 +469,7 @@ if __name__ == '__main__':
         datetime.strptime(args.d, '%d-%m-%Y') if isinstance(args.d, str) else args.d
     )
 
-    init_batch()
+    init_batch(worker_memory='highmem', worker_cores=8)
 
     main(
         submissions_file=args.s,
