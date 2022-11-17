@@ -428,10 +428,10 @@ def main(
 
         all_decisions.append(
             {
-                'locus': hl.Locus(
-                    contig=allele_map[allele_id]['chrom'],
-                    position=allele_map[allele_id]['pos'],
-                ),
+                # 'locus': hl.Locus(
+                #     contig=allele_map[allele_id]['chrom'],
+                #     position=allele_map[allele_id]['pos'],
+                # ),
                 'alleles': [allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
                 'contig': allele_map[allele_id]['chrom'],
                 'position': allele_map[allele_id]['pos'],
