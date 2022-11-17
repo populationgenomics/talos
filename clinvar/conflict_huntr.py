@@ -398,7 +398,7 @@ def main(
     """
 
     logging.info('Getting all alleleID-VariantID-Loci from variant summary')
-    allele_map, all_contigs = get_allele_locus_map(summary)
+    allele_map, _all_contigs = get_allele_locus_map(summary)
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
@@ -444,46 +444,10 @@ def main(
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
-    # placeholder for hail table
-    base_table = None
-
-    # process each contig's entries into a Hail Table
-    # write to disk separately, and append to a master table
-    for contig in ORDERED_ALLELES:
-
-        # only process contigs with submissions
-        if contig not in all_contigs:
-            continue
-
-        logging.info(f'Processing Contig {contig}')
-        write_path = output_path(f'{contig}_{out_path}')
-        if to_path(write_path).exists():
-            logging.info(f'{write_path} already exists, reading')
-            ht = hl.read_table(write_path)
-
-        else:
-            # save a hail table of this contig to disk
-            contig_decisions = [
-                each_dict
-                for each_dict in all_decisions
-                if each_dict['locus'].contig == contig
-            ]
-
-            if len(contig_decisions) == 0:
-                logging.info(f'No entries on {contig}')
-                continue
-
-            ht = dict_list_to_ht(contig_decisions)
-            ht.write(output=write_path, overwrite=True)
-
-        # update the whole-genome table
-        if base_table is None:
-            base_table = ht
-        else:
-            base_table = base_table.union(ht)
+    ht = dict_list_to_ht(all_decisions)
 
     # write out the aggregated table
-    base_table.write(output_path(out_path), overwrite=True)
+    ht.write(output_path(out_path), overwrite=True)
 
 
 if __name__ == '__main__':
