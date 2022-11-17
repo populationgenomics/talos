@@ -40,9 +40,9 @@ def get_seqr_details(seqr_meta: str) -> dict[str, dict[str, str]]:
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-i', type=str, help='input JSON file')
-    parser.add_argument('-o', type=str, help='JSON path to write output on')
     args = parser.parse_args()
 
     json_digest = get_seqr_details(args.i)
-    with open(args.o, 'w', encoding='utf-8') as handle:
+    output_path = args.i.replace('.json', '_processed.json')
+    with open(output_path, 'w', encoding='utf-8') as handle:
         json.dump(json_digest, handle, indent=4, sort_keys=True)

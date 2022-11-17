@@ -6,7 +6,7 @@ from copy import deepcopy
 from unittest.mock import patch
 import pytest
 
-from helpers.pedigree_from_sample_metadata import (
+from helpers.prepare_aip_cohort import (
     ext_to_int_sample_map,
     get_ped_with_permutations,
     hash_reduce_dicts,
@@ -32,7 +32,7 @@ DIRTY_PED = [
 
 
 @patch(
-    'helpers.pedigree_from_sample_metadata.ParticipantApi.'
+    'helpers.prepare_aip_cohort.ParticipantApi.'
     'get_external_participant_id_to_internal_sample_id'
 )
 def test_ext_to_int_sample_map(map_mock, sm_lookup):
@@ -61,9 +61,7 @@ def test_get_clean_pedigree_fails():
     ped = [{'individual_id': 'plink'}]
 
     with pytest.raises(Exception):
-        get_ped_with_permutations(
-            pedigree_dicts=ped, sample_to_cpg_dict={}, make_singletons=False
-        )
+        get_ped_with_permutations(pedigree_dicts=ped, sample_to_cpg_dict={})
 
 
 def test_get_clean_pedigree():
@@ -72,9 +70,7 @@ def test_get_clean_pedigree():
     :return:
     """
     cleaned = get_ped_with_permutations(
-        pedigree_dicts=deepcopy(DIRTY_PED),
-        sample_to_cpg_dict=SAMPLE_TO_CPG,
-        make_singletons=False,
+        pedigree_dicts=deepcopy(DIRTY_PED), sample_to_cpg_dict=SAMPLE_TO_CPG
     )
     assert cleaned == [
         {
@@ -82,50 +78,6 @@ def test_get_clean_pedigree():
             'individual_id': ['cpg1'],
             'paternal_id': ['cpg2'],
             'maternal_id': ['cpg3'],
-            'sex': 1,
-            'affected': 1,
-        }
-    ]
-
-
-def test_get_clean_pedigree_singles():
-    """
-
-    :return:
-    """
-    cleaned = get_ped_with_permutations(
-        pedigree_dicts=deepcopy(DIRTY_PED),
-        sample_to_cpg_dict=SAMPLE_TO_CPG,
-        make_singletons=True,
-    )
-    assert cleaned == [
-        {
-            'family_id': '1',
-            'individual_id': ['cpg1'],
-            'paternal_id': ['0'],
-            'maternal_id': ['0'],
-            'sex': 1,
-            'affected': 1,
-        }
-    ]
-
-
-def test_get_clean_pedigree_singles_plink():
-    """
-
-    :return:
-    """
-    cleaned = get_ped_with_permutations(
-        pedigree_dicts=deepcopy(DIRTY_PED),
-        sample_to_cpg_dict=SAMPLE_TO_CPG,
-        make_singletons=True,
-    )
-    assert cleaned == [
-        {
-            'family_id': '1',
-            'individual_id': ['cpg1'],
-            'paternal_id': ['0'],
-            'maternal_id': ['0'],
             'sex': 1,
             'affected': 1,
         }

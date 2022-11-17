@@ -34,15 +34,16 @@ setup(
         'full': [
             'cloudpathlib[all]==0.9.0',
             'cpg-utils>=4.7.0',
+            'cpg_workflows',
             'dill==0.3.5.1',
-            'hail==0.2.96',
+            'hail>=0.2.105',
             'Jinja2==3.0.3',
             'networkx==2.8.3',
             'obonet==0.3.0',
             'pandas==1.4.3',
             'peddy==0.4.8',
             'requests==2.25.1',
-            'sample-metadata==4.18.0',
+            'sample-metadata>=5',
             'seqr-loader==1.2.5',
         ],
         'test': [
