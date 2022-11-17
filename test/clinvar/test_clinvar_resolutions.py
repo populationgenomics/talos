@@ -10,7 +10,7 @@ from clinvar.conflict_huntr import (
     ACMG_THRESHOLD,
     Consequence,
     Submission,
-    county_county,
+    consequence_decision,
     check_stars,
     acmg_filter_submissions,
     sort_decisions,
@@ -98,76 +98,76 @@ def tests_acmg_filter_gte():
 
 def test_county_empty():
     """No entries == Uncertain"""
-    assert county_county(subs=[]) == Consequence.UNCERTAIN
+    assert consequence_decision(subs=[]) == Consequence.UNCERTAIN
 
 
 def test_county_all_path():
     """pathogenic if everything is pathogenic"""
-    assert county_county([PATH_SUB] * 10) == Consequence.PATHOGENIC
+    assert consequence_decision([PATH_SUB] * 10) == Consequence.PATHOGENIC
 
 
 def test_county_all_benign():
     """benign if everything is benign"""
-    assert county_county([BENIGN_SUB] * 10) == Consequence.BENIGN
+    assert consequence_decision([BENIGN_SUB] * 10) == Consequence.BENIGN
 
 
 def test_county_all_uncertain():
     """uncertain if everything is uncertain"""
-    assert county_county([UNCERTAIN_SUB] * 10) == Consequence.UNCERTAIN
+    assert consequence_decision([UNCERTAIN_SUB] * 10) == Consequence.UNCERTAIN
 
 
 def test_county_equal_path_benign():
     """equal path and benign == conflicting"""
     subs = ([BENIGN_SUB] * 10) + ([PATH_SUB] * 10)
-    assert county_county(subs) == Consequence.CONFLICTING
+    assert consequence_decision(subs) == Consequence.CONFLICTING
 
 
 def test_county_path_majority():
     """path on 60-20 split"""
     subs = ([BENIGN_SUB] * 2) + ([PATH_SUB] * 6) + ([UNCERTAIN_SUB] * 2)
-    assert county_county(subs) == Consequence.PATHOGENIC
+    assert consequence_decision(subs) == Consequence.PATHOGENIC
 
 
 def test_county_path_almost_majority():
     """conflicting on borderline ratios"""
     subs = ([BENIGN_SUB] * 2) + ([PATH_SUB] * 5) + ([UNCERTAIN_SUB] * 2)
-    assert county_county(subs) == Consequence.CONFLICTING
+    assert consequence_decision(subs) == Consequence.CONFLICTING
 
 
 def test_county_benign_majority():
     """benign on 60-20 split"""
     subs = ([BENIGN_SUB] * 6) + ([PATH_SUB] * 2) + ([UNCERTAIN_SUB] * 2)
-    assert county_county(subs) == Consequence.BENIGN
+    assert consequence_decision(subs) == Consequence.BENIGN
 
 
 def test_county_benign_almost_majority():
     """conflicting on borderline ratios"""
     subs = ([BENIGN_SUB] * 5) + ([PATH_SUB] * 2) + ([UNCERTAIN_SUB] * 2)
-    assert county_county(subs) == Consequence.CONFLICTING
+    assert consequence_decision(subs) == Consequence.CONFLICTING
 
 
 def test_county_benign_vs_unknown():
     """benign on slim majority vs VUS"""
     subs = ([BENIGN_SUB] * 5) + ([UNCERTAIN_SUB] * 4)
-    assert county_county(subs) == Consequence.BENIGN
+    assert consequence_decision(subs) == Consequence.BENIGN
 
 
 def test_county_pathogenic_vs_unknown():
     """pathogenic on slim majority vs VUS"""
     subs = ([PATH_SUB] * 5) + ([UNCERTAIN_SUB] * 4)
-    assert county_county(subs) == Consequence.PATHOGENIC
+    assert consequence_decision(subs) == Consequence.PATHOGENIC
 
 
 def test_county_uncertain_from_mix():
     """VUS if 50% or more VUS"""
     subs = ([PATH_SUB] * 5) + ([UNCERTAIN_SUB] * 5)
-    assert county_county(subs) == Consequence.UNCERTAIN
+    assert consequence_decision(subs) == Consequence.UNCERTAIN
 
 
 def test_county_uncertain_from_majority():
     """VUS if 50% or more VUS"""
     subs = ([PATH_SUB] * 5) + ([UNCERTAIN_SUB] * 6)
-    assert county_county(subs) == Consequence.UNCERTAIN
+    assert consequence_decision(subs) == Consequence.UNCERTAIN
 
 
 def test_county_take_reviewed():
@@ -176,7 +176,7 @@ def test_county_take_reviewed():
     sub1.review_status = 'reviewed by expert panel'
     sub1.classification = Consequence.PATHOGENIC
     subs = [sub1] + ([BENIGN_SUB] * 6)
-    assert county_county(subs) == Consequence.PATHOGENIC
+    assert consequence_decision(subs) == Consequence.PATHOGENIC
 
 
 def test_sort_decisions():

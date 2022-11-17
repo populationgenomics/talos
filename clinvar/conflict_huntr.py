@@ -168,9 +168,16 @@ def lines_from_gzip(filename: str) -> str:
             yield line.rstrip().split('\t')
 
 
-def county_county(subs: list[Submission]) -> Consequence:
+def consequence_decision(subs: list[Submission]) -> Consequence:
     """
-    count different consequence assignments
+    determine overall consequence assignment based on
+    remaining submissions
+
+    Args:
+        subs (): a list of submission objects for this allele
+
+    Returns:
+        a single Consequence object
     """
     # pylint: disable=R0912
 
@@ -416,7 +423,7 @@ def main(
         submissions = acmg_filter_submissions(submissions)
 
         # obtain an aggregate rating
-        rating = county_county(submissions)
+        rating = consequence_decision(submissions)
 
         # assess stars in remaining entries
         stars = check_stars(submissions)
