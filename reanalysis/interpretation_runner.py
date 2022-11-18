@@ -451,7 +451,7 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
     logging.info(
-        r"""Welcome To
+        r"""Welcome To The
           ___  _____ ______
          / _ \|_   _|| ___ \
         / /_\ \ | |  | |_/ /

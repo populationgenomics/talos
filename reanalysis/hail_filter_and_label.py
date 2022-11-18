@@ -374,6 +374,7 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
     """
     Category based on de novo MOI, restricted to a group of consequences
     uses the Hail builtin method (very strict)
+
     :param mt: the whole joint-call MatrixTable
     :param plink_family_file: path to a pedigree in PLINK format
     :return: mt with Category4 annotations
@@ -657,8 +658,6 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
                 mt.splice_ai.splice_consequence, MISSING_STRING
             ).replace(' ', '_'),
             cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            # clinvar_sig=hl.or_else(mt.clinvar.clinical_significance, MISSING_STRING),
-            # clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
             # these next 3 are per-transcript, with ';' to delimit
             # pulling these annotations into INFO with ';' to separate
             # will break INFO parsing for most tools
@@ -873,10 +872,9 @@ def main(mt_path: str, panelapp: str, plink: str):
 
     checkpoint_number = checkpoint_number + 1
 
-    mt = extract_annotations(mt)
-
     # swap out the default clinvar annotations with private clinvar
     mt = annotate_aip_clinvar(mt)
+    mt = extract_annotations(mt)
 
     mt = filter_to_population_rare(mt=mt)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
