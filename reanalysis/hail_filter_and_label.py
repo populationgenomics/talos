@@ -141,15 +141,8 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     else:
         logging.info(f'no private annotations, using default contents')
 
-        # remove all confidently benign
-        mt = mt.filter_rows(
-            (
-                ~(mt.clinvar.clinical_significance.lower().contains(BENIGN))
-                & (mt.clinvar.gold_stars > 0)
-            )
-            | (hl.is_missing(mt.clinvar.clinical_significance))
-        )
-
+        # do this annotation first, as hail can't string filter against
+        # missing contents
         mt = mt.annotate_rows(
             info=mt.info.annotate(
                 clinvar_sig=hl.or_else(
@@ -158,6 +151,12 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
                 clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
                 clinvar_allele=hl.or_else(mt.clinvar.allele_id, MISSING_INT),
             )
+        )
+
+        # remove all confidently benign
+        mt = mt.filter_rows(
+            (~(mt.info.clin_sig.lower().contains(BENIGN)) & (mt.info.clinvar_stars > 0))
+            | (hl.is_missing(mt.clinvar.clinical_significance))
         )
 
     # annotate as either strong or regular
