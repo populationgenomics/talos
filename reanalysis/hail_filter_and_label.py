@@ -155,8 +155,8 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
 
         # remove all confidently benign
         mt = mt.filter_rows(
-            (~(mt.info.clin_sig.lower().contains(BENIGN)) & (mt.info.clinvar_stars > 0))
-            | (hl.is_missing(mt.clinvar.clinical_significance))
+            ~(mt.info.clinvar_sig.lower().contains(BENIGN))
+            & (mt.info.clinvar_stars > 0)
         )
 
     # annotate as either strong or regular
