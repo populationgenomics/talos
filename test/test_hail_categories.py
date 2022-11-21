@@ -2,12 +2,16 @@
 unit testing collection for the hail MT methods
 """
 
+
+import toml
 import pytest
 
 import hail as hl
 import pandas as pd
 
+from cpg_utils.config import append_config_paths
 from reanalysis.hail_filter_and_label import (
+    annotate_aip_clinvar,
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,
@@ -17,7 +21,6 @@ from reanalysis.hail_filter_and_label import (
     filter_to_population_rare,
     split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
-    annotate_aip_clinvar,
 )
 
 
@@ -373,8 +376,69 @@ def test_filter_to_classified(
     assert matrix.count_rows() == length
 
 
-def test_annotate_aip_clinvar():
+@pytest.mark.parametrize(
+    'rating,stars,rows,regular,strong',
+    [
+        ('benign', 0, 1, 0, 0),  # with private data, any benign is removed
+        ('benign', 1, 1, 0, 0),
+        ('other', 7, 2, 0, 0),
+        ('pathogenic', 0, 2, 1, 0),
+        ('pathogenic', 1, 2, 1, 1),
+    ],
+)
+def test_annotate_aip_clinvar(
+    rating, stars, rows, regular, strong, tmp_path, clinvar_prepared_mt
+):
     """
-    DO IT
+    Test intention
+    - take a VCF of two variants - no default clinvar
+    - write out into temp
     """
-    print(annotate_aip_clinvar)
+
+    # make into a data frame
+    table = hl.Table.from_pandas(
+        pd.DataFrame(
+            [
+                {
+                    'locus': hl.Locus(contig='chr20', position=63406931),
+                    'alleles': ['C', 'CGG'],
+                    'rating': rating,
+                    'stars': stars,
+                    'allele_id': 'pass',
+                }
+            ]
+        ),
+        key=['locus', 'alleles'],
+    )
+    table_path = str(tmp_path / 'anno.ht')
+    table.write(table_path)
+
+    new_toml = str(tmp_path / 'clinvar.toml')
+    with open(new_toml, 'w', encoding='utf-8') as handle:
+        toml.dump({'hail': {'private_clinvar': table_path}}, handle)
+
+    append_config_paths([new_toml])
+
+    returned_table = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    assert returned_table.count_rows() == rows
+    assert (
+        len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular
+    )
+    assert (
+        len([x for x in returned_table.info.clinvar_aip_strong.collect() if x == 1])
+        == strong
+    )
+
+
+def test_aip_clinvar_default(clinvar_prepared_mt):
+    """
+    no private annotations applied
+    Args:
+        clinvar_prepared_mt ():
+    """
+
+    mt = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    assert mt.count_rows() == 2
+    mt.rows().show()
+    assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
+    assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]

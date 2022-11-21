@@ -149,9 +149,9 @@ def get_allele_locus_map(summary_file: str) -> tuple[dict, set]:
             continue
 
         # pull values from the line
-        allele_id = line[0]
+        allele_id = int(line[0])
         chromosome = line[18] if 'chr' in line[18] else f'chr{line[18]}'
-        var_id = line[30]
+        var_id = int(line[30])
         pos = int(line[31])
         ref = line[32]
         alt = line[33]
