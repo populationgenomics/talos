@@ -27,7 +27,6 @@ from cpg_utils.hail_batch import init_batch
 
 from reanalysis.hail_filter_and_label import (
     extract_annotations,
-    filter_by_ab_ratio,
     filter_matrix_by_ac,
     filter_on_quality_flags,
     filter_to_population_rare,
@@ -465,22 +464,6 @@ def check_variant_was_normalised(matrix: hl.MatrixTable) -> list[str]:
 
     if filter_to_well_normalised(matrix).count_rows() == 0:
         return ['QC: Variant not well normalised']
-    return []
-
-
-def filter_sample_by_ab(matrix: hl.MatrixTable, sample_id: str) -> list[str]:
-    """
-
-    :param matrix:
-    :param sample_id:
-    :return:
-    """
-
-    # evaluating the AB test has to be sample ID specific
-    ab_filt_mt = filter_by_ab_ratio(matrix)
-    if len(ab_filt_mt.filter_cols(ab_filt_mt.s == sample_id).entries().collect()) == 0:
-        return ['QC: Variant fails AB ratio']
-
     return []
 
 

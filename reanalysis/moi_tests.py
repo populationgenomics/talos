@@ -62,6 +62,7 @@ def check_for_second_hit(
     # check if the sample has any comp-hets
     if sample not in comp_hets.keys():
         return []
+
     sample_dict = comp_hets.get(sample)
     return sample_dict.get(first_variant, [])
 
@@ -307,7 +308,7 @@ class DominantAutosomal(BaseMoi):
                 }
             )
             or principal_var.info.get('gnomad_ac', 0) > self.ac_threshold
-        ):
+        ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
         # autosomal dominant doesn't require support, but consider het and hom
@@ -389,7 +390,7 @@ class RecessiveAutosomal(BaseMoi):
                 principal_var.info.get(hom_key, 0) >= self.hom_threshold
                 for hom_key in INFO_HOMS
             }
-        ):
+        ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
         # homozygous is relevant directly
@@ -441,9 +442,19 @@ class RecessiveAutosomal(BaseMoi):
             ):
 
                 # categorised for this specific sample, allow support in partner
-                if not (
-                    partner_variant.sample_specific_category_check(sample_id)
-                    or partner_variant.has_support
+                # - also screen out high-AF partners
+                if (
+                    not (
+                        partner_variant.sample_specific_category_check(sample_id)
+                        or partner_variant.has_support
+                    )
+                    or any(  # allow for clinvar here
+                        {
+                            partner_variant.info.get(hom_key, 0) >= self.hom_threshold
+                            for hom_key in INFO_HOMS
+                        }
+                    )
+                    and not principal_var.info.get('categoryboolean1')
                 ):
                     continue
 
@@ -530,7 +541,7 @@ class XDominant(BaseMoi):
                     for hemi_key in INFO_HEMI
                 }
             )
-        ):
+        ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
         # all samples which have a variant call
@@ -622,7 +633,7 @@ class XRecessive(BaseMoi):
                 principal_var.info.get(hom_key, 0) >= self.hom_dom_threshold
                 for hom_key in INFO_HOMS
             }
-        ):
+        ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
         # X-relevant, we separate out male and females
@@ -663,10 +674,20 @@ class XRecessive(BaseMoi):
                 sample=sample_id,
             ):
 
-                # allow for de novo check
-                if not (
-                    partner_variant.sample_specific_category_check(sample_id)
-                    or partner_variant.has_support
+                # allow for de novo check - also screen out high-AF partners
+                if (
+                    not (
+                        partner_variant.sample_specific_category_check(sample_id)
+                        or partner_variant.has_support
+                    )
+                    or any(
+                        {
+                            partner_variant.info.get(hom_key, 0)
+                            >= self.hom_rec_threshold
+                            for hom_key in INFO_HOMS
+                        }
+                    )
+                    and not principal_var.info.get('categoryboolean1')
                 ):
                     continue
 
@@ -697,7 +718,7 @@ class XRecessive(BaseMoi):
                 principal_var.info.get(hom_key, 0) >= self.hom_rec_threshold
                 for hom_key in INFO_HOMS
             }
-        ):
+        ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
         # find all het males and hom females

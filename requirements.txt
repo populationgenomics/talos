@@ -3,7 +3,7 @@ cpg-utils>=4.7.0
 cpg-workflows>=1.1.0
 cyvcf2==0.30.15
 dill==0.3.5.1
-hail==0.2.96
+hail>=0.2.105
 Jinja2==3.0.3
 networkx==2.8.3
 obonet==0.3.0

@@ -14,6 +14,7 @@ from peddy.peddy import Ped
 from cpg_utils.config import set_config_paths
 
 from reanalysis.utils import AbstractVariant, read_json_from_path
+from reanalysis.hail_filter_and_label import MISSING_INT, MISSING_STRING
 
 
 PWD = os.path.dirname(__file__)
@@ -34,6 +35,41 @@ FAKE_OBO = os.path.join(INPUT, 'hpo_test.obo')
 FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
 CONF_BASE = os.path.join(INPUT, 'reanalysis_global.toml')
 CONF_COHORT = os.path.join(INPUT, 'reanalysis_cohort.toml')
+
+
+# can I force this to come first?
+hl.init(default_reference='GRCh38')
+
+
+@pytest.fixture(name='cleanup', scope='session', autouse=True)
+def fixture_hail_cleanup():
+    """
+    a fixture to clean up hail log files
+    irrelevant in CI, a right pain for local testing
+    auto-use + session + immediate yield means this is the last method call
+    :return:
+    """
+
+    # start hail once for the whole runtime
+    try:
+        hl.init(default_reference='GRCh38')
+    except FatalError:
+        print('failure - hail already initiated')
+
+    # yield something to suspend
+    yield ''
+
+    parent_dir = os.path.join(PWD, os.pardir)
+
+    log_files = [
+        filename
+        for filename in os.listdir(parent_dir)
+        if filename.startswith('hail') and os.path.splitext(filename)[1] == '.log'
+    ]
+
+    # remove all hail log files
+    for filename in log_files:
+        os.remove(os.path.join(parent_dir, filename))
 
 
 @pytest.fixture(name='config_setup', scope='session', autouse=True)
@@ -83,37 +119,6 @@ def fixture_peddy_ped() -> Ped:
     :return: Ped
     """
     return Ped(PED_FILE)
-
-
-@pytest.fixture(name='cleanup', scope='session', autouse=True)
-def fixture_hail_cleanup():
-    """
-    a fixture to clean up hail log files
-    irrelevant in CI, a right pain for local testing
-    auto-use + session + immediate yield means this is the last method call
-    :return:
-    """
-
-    # start hail once for the whole runtime
-    try:
-        hl.init(default_reference='GRCh38')
-    except FatalError:
-        print('failure - hail already initiated')
-
-    # yield something to suspend
-    yield ''
-
-    parent_dir = os.path.join(PWD, os.pardir)
-
-    log_files = [
-        filename
-        for filename in os.listdir(parent_dir)
-        if filename.startswith('hail') and os.path.splitext(filename)[1] == '.log'
-    ]
-
-    # remove all hail log files
-    for filename in log_files:
-        os.remove(os.path.join(parent_dir, filename))
 
 
 @pytest.fixture(name='hail_matrix', scope='session')
@@ -241,41 +246,78 @@ def fixture_output_seqr_tsv():
     return SEQR_OUTPUT
 
 
-@pytest.fixture(
-    params=[
-        ('x', 'x', 'frameshift_variant', 'protein_coding', '', 1),
-        ('x', 'x', 'frameshift_variant', '', 'NM_relevant', 1),
-        ('x', 'o', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
-        ('x', 'x', 'frameshift_variant', '', '', 0),
-    ],
-    name='csq_matrix',
-    scope='session',
-)
-def fixture_csq_matrix(request, hail_matrix):
+@pytest.fixture(scope='session')
+def clinvar_prepared_mt(tmp_path_factory):
     """
+    write the clinvar attributes into the MT once
+    fast write to disc in temp, then a read
+    Args:
+        tmp_path_factory ():
 
-    :param request: the keyword for access to fixture.params
-    :param hail_matrix:
-    :return:
+    Returns:
+
     """
-
-    gene_ids, gene_id, consequences, biotype, mane_select, row = request.param
-
-    return (
-        hail_matrix.annotate_rows(
-            geneIds=gene_ids,
-            vep=hl.Struct(
-                transcript_consequences=hl.array(
-                    [
-                        hl.Struct(
-                            consequence_terms=hl.set([consequences]),
-                            biotype=biotype,
-                            gene_id=gene_id,
-                            mane_select=mane_select,
-                        )
-                    ]
-                ),
-            ),
-        ),
-        row,
+    mt = hl.import_vcf(PHASED_TRIO)
+    mt = mt.annotate_rows(
+        clinvar=hl.Struct(
+            clinical_significance=MISSING_STRING,
+            allele_id=MISSING_INT,
+            gold_stars=MISSING_INT,
+        )
     )
+    tmp_mt = str(tmp_path_factory.mktemp('mt_path') / 'default.mt')
+    # write to this path, and serve the path as a fixture
+    # ensures each process loads a fresh copy
+    mt.write(tmp_mt)
+    return tmp_mt
+
+
+# @pytest.fixture(scope='session')
+# def session_temp_dir(tmp_path_factory):
+#     """
+#     session-scoped template path
+#     return a tempdir base
+#     disparate tests can share a tempdir
+#     """
+#
+#     return tmp_path_factory.mktemp('TEMP')
+
+
+# @pytest.fixture(
+#     params=[
+#         ('x', 'x', 'frameshift_variant', 'protein_coding', '', 1),
+#         ('x', 'x', 'frameshift_variant', '', 'NM_relevant', 1),
+#         ('x', 'o', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
+#         ('x', 'x', 'frameshift_variant', '', '', 0),
+#     ],
+#     name='csq_matrix',
+#     scope='session',
+# )
+# def fixture_csq_matrix(request, hail_matrix):
+#     """
+#     I guess I wrote this, but I don't remember why
+#     :param request: the keyword for access to fixture.params
+#     :param hail_matrix:
+#     :return:
+#     """
+#
+#     gene_ids, gene_id, consequences, biotype, mane_select, row = request.param
+#
+#     return (
+#         hail_matrix.annotate_rows(
+#             geneIds=gene_ids,
+#             vep=hl.Struct(
+#                 transcript_consequences=hl.array(
+#                     [
+#                         hl.Struct(
+#                             consequence_terms=hl.set([consequences]),
+#                             biotype=biotype,
+#                             gene_id=gene_id,
+#                             mane_select=mane_select,
+#                         )
+#                     ]
+#                 ),
+#             ),
+#         ),
+#         row,
+#     )
