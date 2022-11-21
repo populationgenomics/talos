@@ -7,7 +7,7 @@ seqr_project = "placeholder"
 forbidden = ""
 
 [workflow]
-dataset = "cohort"
+sequencing_type = "genome"
 
 [images]
 hail = "hail-driver:latest"
