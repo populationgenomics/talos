@@ -287,12 +287,12 @@ def check_stars(subs: list[Submission]) -> int:
     return minimum
 
 
-def process_line(data: str) -> tuple[str, Submission]:
+def process_line(data: str) -> tuple[int, Submission]:
     """
     takes a line array and strips out useful content
     :param data: the un-split TSV content
     """
-    allele_id = data[0]
+    allele_id = int(data[0])
     if data[1] in PATH_SIGS:
         classification = Consequence.PATHOGENIC
     elif data[1] in BENIGN_SIGS:
