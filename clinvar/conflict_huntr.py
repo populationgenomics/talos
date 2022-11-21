@@ -51,6 +51,7 @@ MEGA_BLACKLIST = [
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
+ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y', 'M']]
 
 # published Nov 2015, available pre-print since March 2015
 # assumed to be influential since 2016
@@ -406,24 +407,17 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     return subs
 
 
-def ht_from_contig(contig: str, all_decisions: list[dict]) -> hl.Table:
+def sort_decisions(all_subs: list[dict]) -> list[dict]:
     """
-    filters to this contig only, generates table
+    applies dual-layer sorting to the list of all decisions
     Args:
-        contig ():
-        all_decisions ():
-
+        all_subs ():
     Returns:
-        a Hail Table of the relevant decisions
+        a list of submissions, sorted hierarchically on chr & pos
     """
-
-    logging.info(f'Generating a Hail Table from {contig}')
-
-    contig_decisions = [
-        each_dict for each_dict in all_decisions if each_dict['locus'].contig == contig
-    ]
-
-    return dict_list_to_ht(contig_decisions)
+    return sorted(
+        all_subs, key=lambda x: (ORDERED_ALLELES.index(x['contig']), x['position'])
+    )
 
 
 def main(
@@ -443,11 +437,6 @@ def main(
 
     logging.info('Getting all alleleID-VariantID-Loci from variant summary')
     allele_map, all_contigs = get_allele_locus_map(summary)
-
-    # ordered list of all the loci actually identified
-    ordered_alleles = [
-        f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y'] if f'chr{x}' in all_contigs
-    ]
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
@@ -476,24 +465,34 @@ def main(
 
         all_decisions.append(
             {
-                'id': allele_id,
-                'rating': rating.value,
-                'stars': stars,
-                'allele_id': allele_map[allele_id]['allele'],
                 'locus': hl.Locus(
                     contig=allele_map[allele_id]['chrom'],
                     position=allele_map[allele_id]['pos'],
                 ),
                 'alleles': [allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
+                'contig': allele_map[allele_id]['chrom'],
+                'position': allele_map[allele_id]['pos'],
+                'id': allele_id,
+                'rating': rating.value,
+                'stars': stars,
+                'allele_id': allele_map[allele_id]['allele'],
             }
         )
+
+    # sort all collected decisions, trying to reduce overhead in HT later
+    all_decisions = sort_decisions(all_decisions)
 
     # placeholder for hail table
     base_table = None
 
     # process each contig's entries into a Hail Table
     # write to disk separately, and append to a master table
-    for contig in ordered_alleles:
+    for contig in ORDERED_ALLELES:
+
+        # only process contigs with submissions
+        if contig not in all_contigs:
+            continue
+
         logging.info(f'Processing Contig {contig}')
         write_path = output_path(f'{contig}_{out_path}')
         if to_path(write_path).exists():
@@ -501,13 +500,20 @@ def main(
             ht = hl.read_table(write_path)
 
         else:
-            # save a hail table of this contig to disk
-            ht = ht_from_contig(contig, all_decisions)
-            if ht.count() > 0:
-                ht.write(output=write_path, overwrite=True)
-            else:
+            # don't run this contig unless we have at least one sub left
+            contig_decisions = [
+                each_dict
+                for each_dict in all_decisions
+                if each_dict['locus'].contig == contig
+            ]
+
+            if len(contig_decisions) == 0:
                 logging.info(f'No entries on {contig}')
                 continue
+
+            # save a hail table of this contig to disk
+            ht = dict_list_to_ht(contig_decisions)
+            ht.write(output=write_path, overwrite=True)
 
         # update the whole-genome table
         if base_table is None:
