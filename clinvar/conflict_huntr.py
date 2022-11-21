@@ -522,6 +522,8 @@ def main(
             base_table = base_table.union(ht)
 
     # write out the aggregated table
+    if base_table is None:
+        raise Exception('There were no alleles with submissions')
     base_table.write(output_path(out_path), overwrite=True)
 
 
