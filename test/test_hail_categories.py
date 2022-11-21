@@ -376,6 +376,19 @@ def test_filter_to_classified(
     assert matrix.count_rows() == length
 
 
+def test_aip_clinvar_default(clinvar_prepared_mt):
+    """
+    no private annotations applied
+    Args:
+        clinvar_prepared_mt ():
+    """
+
+    mt = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    assert mt.count_rows() == 2
+    assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
+    assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
+
+
 @pytest.mark.parametrize(
     'rating,stars,rows,regular,strong',
     [
@@ -391,8 +404,9 @@ def test_annotate_aip_clinvar(
 ):
     """
     Test intention
-    - take a VCF of two variants - no default clinvar
-    - write out into temp
+    - take a VCF of two variants w/default clinvar annotations
+    - create a single variant annotation table with each run
+    - apply the parametrized annotations to the table
     """
 
     # make into a data frame
@@ -428,17 +442,3 @@ def test_annotate_aip_clinvar(
         len([x for x in returned_table.info.clinvar_aip_strong.collect() if x == 1])
         == strong
     )
-
-
-def test_aip_clinvar_default(clinvar_prepared_mt):
-    """
-    no private annotations applied
-    Args:
-        clinvar_prepared_mt ():
-    """
-
-    mt = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
-    assert mt.count_rows() == 2
-    mt.rows().show()
-    assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
-    assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
