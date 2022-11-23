@@ -107,9 +107,7 @@ def get_current_variants_canonical(project: str, header: dict[str, str]) -> dict
     # create a container for these variant details
     tagged_variants = defaultdict(dict)
 
-    seqr_variant_url = (
-        f'{SEQR_INSTANCE}/{VARIANTS_ENDPOINT.format(projectGuid=project)}'
-    )
+    seqr_variant_url = f'{SEQR_INSTANCE}{VARIANTS_ENDPOINT.format(projectGuid=project)}'
 
     saved_var_request = requests.get(seqr_variant_url, headers=header, timeout=60)
     saved_var_request.raise_for_status()
@@ -154,7 +152,7 @@ def get_current_variants_aip_redux(project: str, header: dict[str, str]) -> dict
 
     # use the private endpoint
     seqr_variant_url = (
-        f'{SEQR_INSTANCE}/{AIP_VARIANTS_ENDPOINT.format(projectGuid=project)}'
+        f'{SEQR_INSTANCE}{AIP_VARIANTS_ENDPOINT.format(projectGuid=project)}'
     )
 
     saved_var_request = requests.get(seqr_variant_url, headers=header, timeout=60)
