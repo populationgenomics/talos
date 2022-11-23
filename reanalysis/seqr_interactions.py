@@ -85,10 +85,7 @@ def get_project_from_metamist() -> str | None:
 
     project = projects[0]
 
-    if proj_seqr_key in project['meta'] and project['meta'].get('is_seqr'):
-        return project['meta'].get(proj_seqr_key)
-
-    return None
+    return project['meta'].get(proj_seqr_key)
 
 
 def get_current_variants_canonical(project: str, header: dict[str, str]) -> dict[dict]:
@@ -285,7 +282,6 @@ def filter_aip_to_new_flags(aip_digest: dict, extant_flags: dict) -> list:
                 flags_to_add.append(
                     {'family': family_id, 'tag': tag, 'variant': variant_id}
                 )
-            continue
 
     return flags_to_add
 
