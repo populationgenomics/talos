@@ -18,7 +18,7 @@ gnomad_max_hemi = 1
 
 [csq]
 description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
-csq_string = ['allele', 'consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'amino_acids', 'codons', 'allele_num', 'variant_class', 'tsl', 'appris', 'ccds', 'ensp', 'swissprot', 'trembl', 'uniparc', 'gene_pheno', 'sift', 'polyphen', 'lof', 'lof_filter', 'lof_flags',]
+csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'variant_class', 'ensp', 'lof']
 
 [filter]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
@@ -38,7 +38,6 @@ spliceai = 0.5
 cancel_after_n_failures = 1
 default_timeout = 6000
 default_memory = 'highmem'
-private_clinvar = 'gs://cpg-acute-care-test/clinvar_01-01-2022/clinvar_reprocessed.ht'
 
 [images]
 vep = 'vep:105.0'
