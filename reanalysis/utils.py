@@ -241,6 +241,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
+        self.categories = []
 
     def __str__(self):
         return repr(self)

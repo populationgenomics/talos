@@ -281,6 +281,35 @@ def update_result_meta(
     return results
 
 
+def minimise(
+    clean_results: dict[str, list[ReportedVariant]]
+) -> dict[str, list[ReportedVariant]]:
+    """
+    removes a number of fields we don't want or need in the persisted JSON
+    Args:
+        clean_results ():
+
+    Returns:
+        same objects, minus a few attributes
+    """
+
+    var_fields_to_remove = [
+        'het_samples',
+        'hom_samples',
+        'boolean_categories',
+        'sample_categories',
+        'sample_support',
+        'ab_ratios',
+    ]
+    for sample, variants in clean_results.items():
+        for variant in variants:
+            var_obj = variant.var_data
+            var_obj.categories = var_obj.category_values(sample=sample)
+            for key in var_fields_to_remove:
+                del var_obj.__dict__[key]
+    return clean_results
+
+
 def main(
     labelled_vcf: str,
     out_json: str,
@@ -346,9 +375,11 @@ def main(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
+    minimised_data = minimise(cleaned_results)
+
     # add metadata into the results
     meta_results = update_result_meta(
-        cleaned_results,
+        minimised_data,
         pedigree=pedigree_digest,
         panelapp=panelapp_data,
         samples=vcf_opened.samples,
