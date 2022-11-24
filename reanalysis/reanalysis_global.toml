@@ -38,7 +38,6 @@ spliceai = 0.5
 cancel_after_n_failures = 1
 default_timeout = 6000
 default_memory = 'highmem'
-private_clinvar = 'gs://cpg-acute-care-test/clinvar_01-01-2022/clinvar_reprocessed.ht'
 
 [images]
 vep = 'vep:105.0'
