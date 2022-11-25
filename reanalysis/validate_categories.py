@@ -386,6 +386,8 @@ def main(
         input_path=input_path,
     )
 
+    # remove previously seen results
+
     # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
     with to_path(f'{out_json}_full.json').open('w') as fh:
