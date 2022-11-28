@@ -23,7 +23,6 @@ from datetime import datetime
 import hailtop.batch as hb
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.deploy_config import get_deploy_config
 from cpg_utils.git import (
     prepare_git_job,
     get_git_commit_ref_of_current_repository,
