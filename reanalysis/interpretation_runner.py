@@ -100,13 +100,14 @@ def set_job_resources(
     )
 
 
-def mt_to_vcf(batch: hb.Batch, input_file: str):
+def mt_to_vcf(batch: hb.Batch, input_file: str) -> hb.batch.job.Job:
     """
     takes a MT and converts to VCF
     :param batch:
     :param input_file:
     :return:
     """
+
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
     set_job_resources(mt_to_vcf_job)
 
@@ -313,7 +314,9 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
+            if not to_path(INPUT_AS_VCF).exists():
+                prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
+
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
     # endregion
