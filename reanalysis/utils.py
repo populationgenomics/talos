@@ -677,3 +677,30 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
                 ).append(var_1)
 
     return comp_het_results
+
+
+def filter_results(results: dict) -> dict:
+    """
+    takes a set of results
+    loads the most recent prior result set (if it exists)
+    subtract
+    write two files (total, and latest - previous)
+    p.stat().st_mtime to find latest
+    Args:
+        results ():
+
+    Returns:
+
+    """
+    # try to pull out the historic results folder
+    try:
+        if (
+            historic := get_config()['dataset_specific'].get('historic_results')
+        ) is None:
+            return results
+    except KeyError:
+        logging.info('No `dataset_specific` key in config - not filtering took place')
+        return results
+
+    print(historic)
+    return results
