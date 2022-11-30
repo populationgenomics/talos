@@ -20,7 +20,7 @@ GNOMAD_TEMPLATE = (
     '{variant}?dataset=gnomad_r3" target="_blank">{value:.5f}</a>'
 )
 PANELAPP_TEMPLATE = (
-    '<a href="https://panelapp.agha.umccr.org/panels/137/gene/{symbol}/" '
+    '<a href="https://panelapp.agha.umccr.org/panels/entities/{symbol}/" '
     'target="_blank">{symbol}</a>'
 )
 SEQR_TEMPLATE = (
