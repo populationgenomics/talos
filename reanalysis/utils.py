@@ -856,7 +856,7 @@ def subtract_results(
             if cats := [
                 cat
                 for cat in variant.var_data.categories
-                if cat not in cumulative[sample][var_id]['categories']
+                if cat not in cumulative[sample][var_id]['categories'].keys()
             ]:
                 # reduce the categories of interest for this round
                 variant.var_data.categories = cats

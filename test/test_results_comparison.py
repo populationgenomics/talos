@@ -73,7 +73,9 @@ def test_subtraction_one_exact():
         'sample': [GENERIC_REPORT],
         'sample2': [GENERIC_REPORT],
     }
-    old = {'sample': {COORD_1.string_format: {'categories': ['1'], 'support_vars': []}}}
+    old = {
+        'sample': {COORD_1.string_format: {'categories': {'1': 1}, 'support_vars': []}}
+    }
     assert subtract_results(new, old) == {'sample': [], 'sample2': [GENERIC_REPORT]}
 
 
@@ -82,7 +84,9 @@ def test_subtraction_match_no_categories():
     variant matches, but categories do not
     """
     new = {'sample': [GENERIC_REPORT]}
-    old = {'sample': {COORD_1.string_format: {'categories': ['2'], 'support_vars': []}}}
+    old = {
+        'sample': {COORD_1.string_format: {'categories': {'2': 1}, 'support_vars': []}}
+    }
     assert subtract_results(new, old) == new
 
 
@@ -91,7 +95,7 @@ def test_subtraction_partial_categories():
     variant matches, but categories only partially match
     """
     new = {'sample': [MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))]}
-    old = {'sample': {COORD_1.string_format: {'categories': ['2']}}}
+    old = {'sample': {COORD_1.string_format: {'categories': {'2': 1}}}}
     assert subtract_results(new, old) == {
         'sample': [MiniReport(MiniVariant(categories=['1'], coords=COORD_1))]
     }
