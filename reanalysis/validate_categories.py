@@ -29,6 +29,7 @@ from cpg_utils.config import get_config
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
+    filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_simple_moi,
@@ -154,7 +155,7 @@ def clean_initial_results(
     result_list: list[ReportedVariant], samples: list[str], pedigree: Ped
 ) -> dict[str, list[ReportedVariant]]:
     """
-    Possibility 1 variant can be classified multiple ways
+    It's possible 1 variant can be classified multiple ways
     This cleans those to unique for final report
     Join all possible classes for the condensed variants
     :param result_list:
@@ -199,8 +200,10 @@ def clean_initial_results(
 
 
 def gene_clean_results(
-    party_panels: str, panel_genes: str, cleaned_data: dict[str, list[ReportedVariant]]
-) -> dict[str, list[ReportedVariant]]:
+    party_panels: str,
+    panel_genes: str,
+    cleaned_data: dict,
+) -> dict:
     """
     takes the unique-ified data from the previous cleaning
     applies gene panel filters per-participant
@@ -246,13 +249,18 @@ def gene_clean_results(
     return gene_cleaned_data
 
 
-def update_result_meta(
-    results: dict, pedigree: Ped, panelapp: dict, samples: list[str], input_path: str
-) -> dict:
+def count_families(pedigree: Ped, samples: list[str]) -> dict:
     """
-    takes the 'cleaned' results, and adds in a metadata key
-    the key is used to set the results in context, and will be parsed
-    during generation of the report
+    add metadata to results
+    parsed during generation of the report
+    most of these inputs aren't used...
+
+    Args:
+        pedigree ():
+        samples ():
+
+    Returns:
+
     """
     family_counter = defaultdict(int)
     for family in pedigree.families:
@@ -270,20 +278,10 @@ def update_result_meta(
             family_counter['quads'] += quads
         family_counter[str(len(pedigree.families[family].samples))] += 1
 
-    results['metadata'] = {
-        'input_file': input_path,
-        'cohort': get_config()['workflow']['dataset'],
-        'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
-        'family_breakdown': dict(family_counter),
-        'panels': panelapp['metadata'],
-    }
-
-    return results
+    return dict(family_counter)
 
 
-def minimise(
-    clean_results: dict[str, list[ReportedVariant]]
-) -> dict[str, list[ReportedVariant]]:
+def minimise(clean_results: dict) -> dict:
     """
     removes a number of fields we don't want or need in the persisted JSON
     Args:
@@ -375,33 +373,38 @@ def main(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
+    # shrink the final on-file representation by cutting fields
+    # maybe this could be done using the CustomEncoder?
     minimised_data = minimise(cleaned_results)
 
-    # add metadata into the results
-    meta_results = update_result_meta(
-        minimised_data,
-        pedigree=pedigree_digest,
-        panelapp=panelapp_data,
-        samples=vcf_opened.samples,
-        input_path=input_path,
-    )
+    # remove previously seen results using cumulative data files
+    incremental_data = filter_results(minimised_data)
+
+    # add summary metadata to the dict
+    incremental_data['metadata'] = {
+        'input_file': input_path,
+        'cohort': get_config()['workflow']['dataset'],
+        'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
+        'family_breakdown': count_families(pedigree_digest, samples=vcf_opened.samples),
+        'panels': panelapp_data['metadata'],
+    }
 
     # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
     with to_path(f'{out_json}_full.json').open('w') as fh:
-        json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
+        json.dump(incremental_data, fh, cls=CustomEncoder, indent=4)
 
     # cleanest results - reported variants are matched to panel ROI
     if participant_panels and panel_genes:
-        meta_results = gene_clean_results(
+        final_results = gene_clean_results(
             party_panels=participant_panels,
             panel_genes=panel_genes,
-            cleaned_data=meta_results,
+            cleaned_data=incremental_data,
         )
 
         # dump results using the custom-encoder to transform sets & DataClasses
         with to_path(f'{out_json}_panel_filtered.json').open('w') as fh:
-            json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
+            json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':

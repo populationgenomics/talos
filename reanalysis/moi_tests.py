@@ -339,7 +339,6 @@ class DominantAutosomal(BaseMoi):
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={self.applied_moi},
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -419,7 +418,6 @@ class RecessiveAutosomal(BaseMoi):
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={f'{self.applied_moi} Homozygous'},
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -577,7 +575,6 @@ class XDominant(BaseMoi):
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -706,9 +703,8 @@ class XRecessive(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=principal_var.get_sample_flags(sample_id).extend(
-                            partner_variant.get_sample_flags(sample_id),
-                        ),
+                        flags=principal_var.get_sample_flags(sample_id)
+                        + partner_variant.get_sample_flags(sample_id),
                     )
                 )
 
@@ -758,7 +754,6 @@ class XRecessive(BaseMoi):
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -843,7 +838,6 @@ class YHemi(BaseMoi):
                     gene=principal_var.info.get('gene_id'),
                     var_data=principal_var,
                     reasons={self.applied_moi},
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
