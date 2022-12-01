@@ -706,8 +706,12 @@ def filter_results(results: dict) -> dict:
         logging.info('No `dataset_specific` key in config - no filtering took place')
         return results
 
+    logging.info(f'filtering current results against data in {historic}')
     # get the latest result file from the folder
     latest_results = find_latest(results_folder=historic)
+
+    logging.info(f'latest results: {latest_results}')
+
     if latest_results is None:
         # no results to subtract - current data IS cumulative data
         mini_results = make_cumulative_representation(results)
@@ -761,7 +765,7 @@ def save_new_cumulative(directory: str, results: dict):
         results ():
     """
 
-    new_file = to_path(directory) / f'{datetime.now():%Y-%m-%d_%H:%M}'
+    new_file = to_path(directory) / f'{datetime.now():%Y-%m-%d_%H:%M}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4)
     logging.info(f'Wrote new cumulative data to {str(new_file)}')
@@ -834,16 +838,19 @@ def subtract_results(
 
             # if supported, allow if the support is new
             if variant.support_vars:
+
+                # if novel supporting variants, don't need to check
+                # categories, we want to show this. WALRUS
                 if sups := [
                     sup
                     for sup in variant.support_vars
                     if sup not in cumulative[sample][var_id]['support_vars']
                 ]:
                     variant.support_vars = sups
-                return_results[sample].append(variant)
-                continue
+                    return_results[sample].append(variant)
+                    continue
 
-            # if seen, check for novel categories
+            # if seen, check for novel categories. Also, WALRUS
             if cats := [
                 cat
                 for cat in variant.var_data.categories
