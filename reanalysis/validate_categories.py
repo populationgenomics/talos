@@ -29,6 +29,7 @@ from cpg_utils.config import get_config
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
+    filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_simple_moi,
@@ -154,7 +155,7 @@ def clean_initial_results(
     result_list: list[ReportedVariant], samples: list[str], pedigree: Ped
 ) -> dict[str, list[ReportedVariant]]:
     """
-    Possibility 1 variant can be classified multiple ways
+    It's possible 1 variant can be classified multiple ways
     This cleans those to unique for final report
     Join all possible classes for the condensed variants
     :param result_list:
@@ -372,9 +373,15 @@ def main(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
+    # shrink the final on-file representation by cutting fields
+    # maybe this could be done using the CustomEncoder?
     minimised_data = minimise(cleaned_results)
 
-    minimised_data['metadata'] = {
+    # remove previously seen results using cumulative data files
+    incremental_data = filter_results(minimised_data)
+
+    # add summary metadata to the dict
+    incremental_data['metadata'] = {
         'input_file': input_path,
         'cohort': get_config()['workflow']['dataset'],
         'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
@@ -382,24 +389,22 @@ def main(
         'panels': panelapp_data['metadata'],
     }
 
-    # remove previously seen results
-
     # store a full version of the results here
     # dump results using the custom-encoder to transform sets & DataClasses
     with to_path(f'{out_json}_full.json').open('w') as fh:
-        json.dump(minimised_data, fh, cls=CustomEncoder, indent=4)
+        json.dump(incremental_data, fh, cls=CustomEncoder, indent=4)
 
     # cleanest results - reported variants are matched to panel ROI
     if participant_panels and panel_genes:
-        meta_results = gene_clean_results(
+        final_results = gene_clean_results(
             party_panels=participant_panels,
             panel_genes=panel_genes,
-            cleaned_data=minimised_data,
+            cleaned_data=incremental_data,
         )
 
         # dump results using the custom-encoder to transform sets & DataClasses
         with to_path(f'{out_json}_panel_filtered.json').open('w') as fh:
-            json.dump(meta_results, fh, cls=CustomEncoder, indent=4)
+            json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':

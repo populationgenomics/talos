@@ -41,7 +41,7 @@ from cpg_workflows.jobs.vep import add_vep_jobs
 from utils import FileTypes, identify_file_type
 
 # exact time that this run occurred
-EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
+EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 
 # static paths to write outputs
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
