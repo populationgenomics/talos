@@ -42,6 +42,8 @@ CHROM_ORDER = list(map(str, range(1, 23))) + [
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
 
+TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
+
 
 class FileTypes(Enum):
     """
@@ -765,7 +767,7 @@ def save_new_cumulative(directory: str, results: dict):
         results ():
     """
 
-    new_file = to_path(directory) / f'{datetime.now():%Y-%m-%d_%H:%M}.json'
+    new_file = to_path(directory) / f'{TODAY}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4)
     logging.info(f'Wrote new cumulative data to {str(new_file)}')
@@ -869,6 +871,7 @@ def add_results(current: dict[str, list[ReportedVariant]], cumulative: dict):
     """
     take datasets of new and previous results (cumulative for this cohort)
     integrate the new results to form a new cumulative dataset
+    the first time each variant-category is seen, add the current date
 
     Args:
         current (): results produced by this run
@@ -894,18 +897,19 @@ def add_results(current: dict[str, list[ReportedVariant]], cumulative: dict):
             # not seen - take in full
             if var_id not in cumulative[sample]:
                 cumulative[sample][var_id] = {
-                    'categories': variant.var_data.categories,
+                    'categories': {cat: TODAY for cat in variant.var_data.categories},
                     'support_vars': variant.support_vars,
                 }
 
             else:
 
                 # if seen, check for novel categories
-                cumulative[sample][var_id]['categories'] = sorted(
-                    set(
-                        variant.var_data.categories
-                        + cumulative[sample][var_id]['categories']
-                    )
+                cumulative[sample][var_id]['categories'].update(
+                    {
+                        cat: TODAY
+                        for cat in set(variant.var_data.categories)
+                        - set(cumulative[sample][var_id]['categories'].keys())
+                    }
                 )
                 cumulative[sample][var_id]['support_vars'] = sorted(
                     set(

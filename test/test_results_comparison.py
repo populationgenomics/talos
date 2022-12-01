@@ -6,7 +6,13 @@ from dataclasses import dataclass, field
 from os.path import join
 from time import sleep
 
-from reanalysis.utils import subtract_results, add_results, find_latest, Coordinates
+from reanalysis.utils import (
+    subtract_results,
+    add_results,
+    find_latest,
+    Coordinates,
+    TODAY,
+)
 
 
 # pylint: disable=consider-using-with
@@ -104,7 +110,7 @@ def test_subtraction_new_partner():
     }
     old = {
         'sample': {
-            COORD_1.string_format: {'categories': ['1'], 'support_vars': ['bar']}
+            COORD_1.string_format: {'categories': {'1': 1}, 'support_vars': ['bar']}
         }
     }
     assert subtract_results(new, old) == {
@@ -124,7 +130,9 @@ def test_add_new_sample():
     new = {'sample': [GENERIC_REPORT]}
     add_results(new, cum)
     assert cum == {
-        'sample': {COORD_1.string_format: {'categories': ['1'], 'support_vars': []}}
+        'sample': {
+            COORD_1.string_format: {'categories': {'1': TODAY}, 'support_vars': []}
+        }
     }
 
 
@@ -137,7 +145,7 @@ def test_add_new_sample_variant():
     add_results(new, cum)
     assert cum == {
         'sample': {
-            COORD_1.string_format: {'categories': ['1'], 'support_vars': []},
+            COORD_1.string_format: {'categories': {'1': TODAY}, 'support_vars': []},
             '1': {'2'},
         }
     }
@@ -153,7 +161,10 @@ def test_add_new_category_vardup():
     add_results(new, cum)
     assert cum == {
         'sample': {
-            COORD_1.string_format: {'categories': ['1', '2'], 'support_vars': []}
+            COORD_1.string_format: {
+                'categories': {'1': TODAY, '2': TODAY},
+                'support_vars': [],
+            }
         }
     }
 
@@ -173,14 +184,17 @@ def test_add_support_vars():
     }
     cum = {
         'sample': {
-            COORD_1.string_format: {'categories': ['1', '2'], 'support_vars': []}
+            COORD_1.string_format: {
+                'categories': {'1': 1, '2': 1},
+                'support_vars': [],
+            }
         }
     }
     add_results(new, cum)
     assert cum == {
         'sample': {
             COORD_1.string_format: {
-                'categories': ['1', '2', '999'],
+                'categories': {'1': 1, '2': 1, '999': TODAY},
                 'support_vars': ['foobar'],
             }
         }
@@ -210,31 +224,36 @@ def test_add_various():
     }
     cum = {
         'sample': {
-            COORD_1.string_format: {'categories': ['A', 'C'], 'support_vars': []},
-            COORD_2.string_format: {'categories': ['1'], 'support_vars': ['foo']},
-            COORD_3.string_format: {'categories': ['A', 'B', 'C'], 'support_vars': []},
+            COORD_1.string_format: {'categories': {'A': 1, 'C': 2}, 'support_vars': []},
+            COORD_2.string_format: {'categories': {'1': 1}, 'support_vars': ['foo']},
+            COORD_3.string_format: {
+                'categories': {'A': 1, 'B': 2, 'C': 3},
+                'support_vars': [],
+            },
         },
         'sample3': {
-            COORD_3.string_format: {'categories': ['B'], 'support_vars': ['batman']}
+            COORD_3.string_format: {'categories': {'B': 1}, 'support_vars': ['batman']}
         },
     }
     add_results(new, cum)
     assert cum == {
         'sample': {
             COORD_1.string_format: {
-                'categories': ['999', 'A', 'B', 'C'],
+                'categories': {'A': 1, 'B': TODAY, 'C': 2, '999': TODAY},
                 'support_vars': ['foobar'],
             },
-            COORD_2.string_format: {'categories': ['1'], 'support_vars': ['foo']},
+            COORD_2.string_format: {'categories': {'1': 1}, 'support_vars': ['foo']},
             COORD_3.string_format: {
-                'categories': ['A', 'B', 'C'],
+                'categories': {'A': 1, 'B': 2, 'C': 3},
                 'support_vars': [],
             },
         },
-        'sample2': {COORD_1.string_format: {'categories': ['1'], 'support_vars': []}},
+        'sample2': {
+            COORD_1.string_format: {'categories': {'1': TODAY}, 'support_vars': []}
+        },
         'sample3': {
             COORD_3.string_format: {
-                'categories': ['B'],
+                'categories': {'B': 1},
                 'support_vars': ['batman', 'foobar'],
             }
         },
