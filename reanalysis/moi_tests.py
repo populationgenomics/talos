@@ -12,6 +12,7 @@ to a Monogenic MOI
 
 import logging
 from abc import abstractmethod
+from copy import deepcopy
 
 from peddy.peddy import Ped, PHENOTYPE
 
@@ -337,7 +338,7 @@ class DominantAutosomal(BaseMoi):
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    var_data=deepcopy(principal_var),
                     reasons={self.applied_moi},
                     flags=principal_var.get_sample_flags(sample_id),
                 )
@@ -416,7 +417,7 @@ class RecessiveAutosomal(BaseMoi):
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    var_data=deepcopy(principal_var),
                     reasons={f'{self.applied_moi} Homozygous'},
                     flags=principal_var.get_sample_flags(sample_id),
                 )
@@ -467,7 +468,7 @@ class RecessiveAutosomal(BaseMoi):
                     ReportedVariant(
                         sample=sample_id,
                         gene=principal_var.info.get('gene_id'),
-                        var_data=principal_var,
+                        var_data=deepcopy(principal_var),
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
@@ -570,7 +571,7 @@ class XDominant(BaseMoi):
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    var_data=deepcopy(principal_var),
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
@@ -699,7 +700,7 @@ class XRecessive(BaseMoi):
                     ReportedVariant(
                         sample=sample_id,
                         gene=principal_var.info.get('gene_id'),
-                        var_data=principal_var,
+                        var_data=deepcopy(principal_var),
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
@@ -749,7 +750,7 @@ class XRecessive(BaseMoi):
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    var_data=deepcopy(principal_var),
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
@@ -836,7 +837,7 @@ class YHemi(BaseMoi):
                 ReportedVariant(
                     sample=sample_id,
                     gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    var_data=deepcopy(principal_var),
                     reasons={self.applied_moi},
                     flags=principal_var.get_sample_flags(sample_id),
                 )
