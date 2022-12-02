@@ -63,7 +63,7 @@ class SimpleVariant:
 
 
 @dataclass
-class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
+class RecessiveSimpleVariant:
     """
     a fake version of AbstractVariant
     """
