@@ -55,11 +55,11 @@ class SimpleVariant:
             pass
         return []
 
-    def category_values(self, sample_id):
+    def category_values(self, sample):
         """
         quick mock method
         """
-        return [sample_id]
+        return [sample]
 
 
 @dataclass
@@ -113,11 +113,11 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
         """
         return self.check_ab_ratio(sample)
 
-    def category_values(self, sample_id):
+    def category_values(self, sample):
         """
         quick mock method
         """
-        return [sample_id]
+        return [sample]
 
 
 @pytest.mark.parametrize(
