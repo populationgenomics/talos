@@ -367,7 +367,7 @@ class DominantAutosomal(BaseMoi):
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
                     reasons={self.applied_moi},
-                    flags=var_copy.get_sample_flags(sample_id),
+                    flags=principal_var.get_sample_flags(sample_id),
                 )
             )
 
@@ -447,7 +447,7 @@ class RecessiveAutosomal(BaseMoi):
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
                     reasons={f'{self.applied_moi} Homozygous'},
-                    flags=var_copy.get_sample_flags(sample_id),
+                    flags=principal_var.get_sample_flags(sample_id),
                 )
             )
 
@@ -502,7 +502,7 @@ class RecessiveAutosomal(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=var_copy.get_sample_flags(sample_id)
+                        flags=principal_var.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
                     ),
                 )
@@ -608,7 +608,7 @@ class XDominant(BaseMoi):
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    flags=var_copy.get_sample_flags(sample_id),
+                    flags=principal_var.get_sample_flags(sample_id),
                 )
             )
         return classifications
@@ -737,7 +737,7 @@ class XRecessive(BaseMoi):
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=var_copy.get_sample_flags(sample_id)
+                        flags=principal_var.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
                     )
                 )
@@ -789,7 +789,7 @@ class XRecessive(BaseMoi):
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    flags=var_copy.get_sample_flags(sample_id),
+                    flags=principal_var.get_sample_flags(sample_id),
                 )
             )
         return classifications
@@ -875,7 +875,7 @@ class YHemi(BaseMoi):
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
                     reasons={self.applied_moi},
-                    flags=var_copy.get_sample_flags(sample_id),
+                    flags=principal_var.get_sample_flags(sample_id),
                 )
             )
 
