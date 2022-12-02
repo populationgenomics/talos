@@ -55,9 +55,15 @@ class SimpleVariant:
             pass
         return []
 
+    def category_values(self, sample):
+        """
+        quick mock method
+        """
+        return [sample]
+
 
 @dataclass
-class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
+class RecessiveSimpleVariant:
     """
     a fake version of AbstractVariant
     """
@@ -106,6 +112,12 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
         gets all report flags for this sample
         """
         return self.check_ab_ratio(sample)
+
+    def category_values(self, sample):
+        """
+        quick mock method
+        """
+        return [sample]
 
 
 @pytest.mark.parametrize(

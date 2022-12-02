@@ -260,7 +260,7 @@ class HTMLBuilder:
             ),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
-                for key in ['cohort', 'input_file', 'run_datetime']
+                for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
             ).to_html(index=False, escape=False),
             'Families': pd.DataFrame(
                 [
