@@ -281,34 +281,6 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
     return dict(family_counter)
 
 
-def minimise(clean_results: dict) -> dict:
-    """
-    removes a number of fields we don't want or need in the persisted JSON
-    Args:
-        clean_results ():
-
-    Returns:
-        same objects, minus a few attributes
-    """
-
-    var_fields_to_remove = [
-        'het_samples',
-        'hom_samples',
-        'boolean_categories',
-        'sample_categories',
-        'sample_support',
-        'ab_ratios',
-    ]
-    for sample, variants in clean_results.items():
-        for variant in variants:
-            print(variant)
-            var_obj = variant.var_data
-            var_obj.categories = var_obj.category_values(sample=sample)
-            for key in var_fields_to_remove:
-                del var_obj.__dict__[key]
-    return clean_results
-
-
 def main(
     labelled_vcf: str,
     out_json: str,
@@ -374,12 +346,8 @@ def main(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
-    # shrink the final on-file representation by cutting fields
-    # maybe this could be done using the CustomEncoder?
-    minimised_data = minimise(cleaned_results)
-
     # remove previously seen results using cumulative data files
-    incremental_data = filter_results(minimised_data)
+    incremental_data = filter_results(cleaned_results)
 
     # add summary metadata to the dict
     incremental_data['metadata'] = {

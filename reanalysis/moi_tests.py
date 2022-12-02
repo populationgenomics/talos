@@ -34,6 +34,32 @@ GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
 INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
 INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
 PEDDY_AFFECTED = PHENOTYPE().AFFECTED
+VAR_FIELDS_TO_REMOVE = [
+    'het_samples',
+    'hom_samples',
+    'boolean_categories',
+    'sample_categories',
+    'sample_support',
+    'ab_ratios',
+]
+
+
+def minimise_variant(variant: AbstractVariant, sample_id: str) -> AbstractVariant:
+    """
+    When we find a matching MOI, store a sample-specific
+    duplicate of the variant details
+    Args:
+        variant ():
+        sample_id ():
+
+    Returns:
+
+    """
+    var_copy = deepcopy(variant)
+    var_copy.categories = var_copy.category_values(sample=sample_id)
+    for key in VAR_FIELDS_TO_REMOVE:
+        del var_copy.__dict__[key]
+    return var_copy
 
 
 def check_for_second_hit(
@@ -334,13 +360,14 @@ class DominantAutosomal(BaseMoi):
             ):
                 continue
 
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=deepcopy(principal_var),
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={self.applied_moi},
-                    flags=principal_var.get_sample_flags(sample_id),
+                    flags=var_copy.get_sample_flags(sample_id),
                 )
             )
 
@@ -413,13 +440,14 @@ class RecessiveAutosomal(BaseMoi):
             ):
                 continue
 
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=deepcopy(principal_var),
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={f'{self.applied_moi} Homozygous'},
-                    flags=principal_var.get_sample_flags(sample_id),
+                    flags=var_copy.get_sample_flags(sample_id),
                 )
             )
 
@@ -464,15 +492,17 @@ class RecessiveAutosomal(BaseMoi):
                     variant_2=partner_variant,
                 ):
                     continue
+
+                var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
-                        gene=principal_var.info.get('gene_id'),
-                        var_data=deepcopy(principal_var),
+                        gene=var_copy.info.get('gene_id'),
+                        var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=principal_var.get_sample_flags(sample_id)
+                        flags=var_copy.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
                     ),
                 )
@@ -567,16 +597,18 @@ class XDominant(BaseMoi):
                 continue
 
             # passed inheritance test, create the record
+
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=deepcopy(principal_var),
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    flags=principal_var.get_sample_flags(sample_id),
+                    flags=var_copy.get_sample_flags(sample_id),
                 )
             )
         return classifications
@@ -696,15 +728,16 @@ class XRecessive(BaseMoi):
                 ):
                     continue
 
+                var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
-                        gene=principal_var.info.get('gene_id'),
-                        var_data=deepcopy(principal_var),
+                        gene=var_copy.info.get('gene_id'),
+                        var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=principal_var.get_sample_flags(sample_id)
+                        flags=var_copy.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
                     )
                 )
@@ -746,16 +779,17 @@ class XRecessive(BaseMoi):
             ):
                 continue
 
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=deepcopy(principal_var),
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    flags=principal_var.get_sample_flags(sample_id),
+                    flags=var_copy.get_sample_flags(sample_id),
                 )
             )
         return classifications
@@ -833,13 +867,15 @@ class YHemi(BaseMoi):
 
             if self.pedigree[sample_id].sex == 'female':
                 logging.error(f'Sample {sample_id} is a female with call on Y')
+
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=deepcopy(principal_var),
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={self.applied_moi},
-                    flags=principal_var.get_sample_flags(sample_id),
+                    flags=var_copy.get_sample_flags(sample_id),
                 )
             )
 
