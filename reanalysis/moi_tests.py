@@ -386,7 +386,7 @@ class RecessiveAutosomal(BaseMoi):
         # no stricter AF here - if we choose to, we can apply while labelling
         if any(
             {
-                principal_var.info.get(hom_key, 0) >= self.hom_threshold
+                principal_var.info.get(hom_key, 0) > self.hom_threshold
                 for hom_key in INFO_HOMS
             }
         ) and not principal_var.info.get('categoryboolean1'):
@@ -448,7 +448,7 @@ class RecessiveAutosomal(BaseMoi):
                     )
                     or any(  # allow for clinvar here
                         {
-                            partner_variant.info.get(hom_key, 0) >= self.hom_threshold
+                            partner_variant.info.get(hom_key, 0) > self.hom_threshold
                             for hom_key in INFO_HOMS
                         }
                     )
@@ -627,7 +627,7 @@ class XRecessive(BaseMoi):
         # remove from analysis if too many homs are present in population databases
         if any(
             {
-                principal_var.info.get(hom_key, 0) >= self.hom_dom_threshold
+                principal_var.info.get(hom_key, 0) > self.hom_dom_threshold
                 for hom_key in INFO_HOMS
             }
         ) and not principal_var.info.get('categoryboolean1'):
@@ -711,7 +711,7 @@ class XRecessive(BaseMoi):
         # remove from analysis if too many homs are present in population databases
         if any(
             {
-                principal_var.info.get(hom_key, 0) >= self.hom_rec_threshold
+                principal_var.info.get(hom_key, 0) > self.hom_rec_threshold
                 for hom_key in INFO_HOMS
             }
         ) and not principal_var.info.get('categoryboolean1'):
@@ -803,8 +803,8 @@ class YHemi(BaseMoi):
 
         # more stringent Pop.Freq checks for dominant
         if (
-            principal_var.info.get('gnomad_af') >= self.ad_threshold
-            or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+            principal_var.info.get('gnomad_af') > self.ad_threshold
+            or principal_var.info.get('gnomad_ac') > self.ac_threshold
             or any(
                 {
                     principal_var.info.get(hemi_key, 0) > self.hemi_threshold
