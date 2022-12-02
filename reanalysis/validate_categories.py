@@ -25,6 +25,7 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+from cpg_utils.git import get_git_commit_ref_of_current_repository
 
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
@@ -356,6 +357,7 @@ def main(
         'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
         'family_breakdown': count_families(pedigree_digest, samples=vcf_opened.samples),
         'panels': panelapp_data['metadata'],
+        'commit_id': get_git_commit_ref_of_current_repository(),
     }
 
     # store a full version of the results here
