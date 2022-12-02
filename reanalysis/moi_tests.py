@@ -58,7 +58,8 @@ def minimise_variant(variant: AbstractVariant, sample_id: str) -> AbstractVarian
     var_copy = deepcopy(variant)
     var_copy.categories = var_copy.category_values(sample=sample_id)
     for key in VAR_FIELDS_TO_REMOVE:
-        del var_copy.__dict__[key]
+        if key in var_copy.__dict__:
+            del var_copy.__dict__[key]
     return var_copy
 
 
