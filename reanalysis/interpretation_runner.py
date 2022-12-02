@@ -488,4 +488,5 @@ if __name__ == '__main__':
         extra_panels=args.extra_panels,
         participant_panels=args.participant_panels,
         skip_annotation=args.skip_annotation,
+        singletons=args.singletons,
     )
