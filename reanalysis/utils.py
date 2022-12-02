@@ -751,7 +751,7 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     for sample, variants in results.items():
         for var in variants:
             mini_results[sample][var.var_data.coords.string_format] = {
-                'categories': var.var_data.categories,
+                'categories': {cat: TODAY for cat in var.var_data.categories},
                 'support_vars': var.support_vars,
             }
     return mini_results
