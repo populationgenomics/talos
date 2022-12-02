@@ -361,7 +361,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
     )
 
 
-@pytest.mark.parametrize('info', [{'gnomad_hom': 2}])
+@pytest.mark.parametrize('info', [{'gnomad_hom': 3}])  # threshold is 2
 def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
     check that when the info values are failures
