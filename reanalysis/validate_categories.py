@@ -301,6 +301,7 @@ def minimise(clean_results: dict) -> dict:
     ]
     for sample, variants in clean_results.items():
         for variant in variants:
+            print(variant)
             var_obj = variant.var_data
             var_obj.categories = var_obj.category_values(sample=sample)
             for key in var_fields_to_remove:
