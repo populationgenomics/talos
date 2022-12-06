@@ -332,7 +332,7 @@ def main(
         # generate the jobs which run VEP & collect the results
         vep_jobs = add_vep_jobs(
             b=get_batch(),
-            input_siteonly_vcf_path=to_path(input_path),
+            vcf_path=to_path(input_path),
             tmp_prefix=to_path(
                 output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
             ),

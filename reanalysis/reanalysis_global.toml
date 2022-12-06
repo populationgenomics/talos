@@ -41,23 +41,7 @@ default_timeout = 6000
 default_memory = 'highmem'
 
 [images]
-vep = 'vep:105.0'
-gatk = 'gatk:4.2.6.1'
-cpg_workflows = 'cpg_workflows:latest'
-hail = 'cpg_workflows:latest'
-picard = 'picard_samtools:v0'
-picard_samtools = 'picard_samtools:v0'
+hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
 
 [references]
-vep_mount = 'vep/105.0/mount'
 genome_build = 'GRCh38'
-
-[references.broad]
-prefix = 'hg38/v0'
-ref_fasta = 'dragen_reference/Homo_sapiens_assembly38_masked.fasta'
-genome_calling_interval_lists = 'wgs_calling_regions.hg38.interval_list'
-
-[references.seqr]
-prefix = 'seqr/v0-1'
-combined_reference = 'combined_reference_data_grch38-2.0.4.ht'
-clinvar = 'clinvar.GRCh38.ht'
