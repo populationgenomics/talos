@@ -53,6 +53,10 @@ CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
 
 @dataclass()
 class DataTable:
+    """
+    Representation of a DataTables table that the Jinja2 templating system renders.
+    """
+
     id: str
     columns: list[str]
     rows: list[Any]
@@ -259,7 +263,7 @@ class HTMLBuilder:
         ]
 
         df = pd.DataFrame(summary_dicts)
-        df["Mean/sample"] = df['Mean/sample'].round(3)
+        df['Mean/sample'] = df['Mean/sample'].round(3)
         return (df, samples_with_no_variants)
 
     def read_metadata(self) -> dict[str, pd.DataFrame]:
@@ -292,17 +296,17 @@ class HTMLBuilder:
         html_tables = self.create_html_tables()
 
         template_context = {
-            "meta_tables": [],
-            "forbidden_genes": [],
-            "zero_categorised_samples": [],
-            "summary_table": None,
-            "sample_tables": [],
+            'meta_tables': [],
+            'forbidden_genes': [],
+            'zero_categorised_samples': [],
+            'summary_table': None,
+            'sample_tables': [],
         }
 
         for title, meta_table in self.read_metadata().items():
             template_context['meta_tables'].append(
                 DataTable(
-                    id=f"{title.lower()}-table",
+                    id=f'{title.lower()}-table',
                     heading=title,
                     description='',
                     columns=list(meta_table.columns),
@@ -322,8 +326,8 @@ class HTMLBuilder:
             template_context['zero_categorised_samples'] = zero_categorised_samples
 
         template_context['summary_table'] = DataTable(
-            id="summary-table",
-            heading="Per-Category Summary",
+            id='summary-table',
+            heading='Per-Category Summary',
             description=None,
             columns=list(summary_table.columns),
             rows=list(summary_table.to_records(index=False)),
@@ -342,10 +346,10 @@ class HTMLBuilder:
             else:
                 sample_string = self.external_map.get(sample, sample)
 
-            tid = f"{sample_string}-variants-table"
+            tid = f'{sample_string}-variants-table'
             table = DataTable(
                 id=tid,
-                heading=f"Sample: {sample_string}",
+                heading=f'Sample: {sample_string}',
                 description=None,
                 columns=list(table.columns),
                 rows=list(table.to_records(index=False)),
@@ -356,9 +360,11 @@ class HTMLBuilder:
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
         )
-        template = env.get_template("index.html.jinja")
+        template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        to_path(output_path).write_text("\n".join(l for l in content.split("\n") if l.strip()))
+        to_path(output_path).write_text(
+            '\n'.join(line for line in content.split('\n') if line.strip())
+        )
 
     def create_html_tables(self) -> dict[str, pd.DataFrame]:
         """
