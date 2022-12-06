@@ -1,9 +1,3 @@
-[storage.severalgenomes]
-default = "hail-az://sevgen002sa/test"
-web = "hail-az://sevgen002sa/test-web"
-analysis = "hail-az://sevgen002sa/test-analysis"
-tmp = "hail-az://sevgen002sa/test-tmp"
-
 [buckets]
 web_suffix = "web"
 tmp_suffix = "tmp"
