@@ -5,16 +5,21 @@ import logging
 import sys
 from collections import defaultdict
 from argparse import ArgumentParser
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+import jinja2
 import pandas as pd
 from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-from reanalysis.utils import read_json_from_path
+from utils import read_json_from_path
 
+
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 GNOMAD_TEMPLATE = (
     '<a href="https://gnomad.broadinstitute.org/variant/'
@@ -44,6 +49,15 @@ COLORS = {
     'support': '#00FF08',
 }
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
+
+
+@dataclass()
+class DataTable:
+    id: str
+    columns: list[str]
+    rows: list[Any]
+    heading: str = None
+    description: str = None
 
 
 def make_coord_string(var_coord: dict[str, str]) -> str:
@@ -191,7 +205,7 @@ class HTMLBuilder:
 
     def get_summary_stats(
         self,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[pd.DataFrame, list[str]]:
         """
         run the numbers across all variant categories
         :return:
@@ -244,23 +258,20 @@ class HTMLBuilder:
             if category_count[key]
         ]
 
-        return (
-            pd.DataFrame(summary_dicts).to_html(index=False, escape=False),
-            samples_with_no_variants,
-        )
+        df = pd.DataFrame(summary_dicts)
+        df["Mean/sample"] = df['Mean/sample'].round(3)
+        return (df, samples_with_no_variants)
 
-    def read_metadata(self) -> dict[str, str]:
+    def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
         parses into a general table and a panel table
         """
         tables = {
-            'Panels': pd.DataFrame(self.results['metadata']['panels']).to_html(
-                index=False, escape=False
-            ),
+            'Panels': pd.DataFrame(self.results['metadata']['panels']),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
                 for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
-            ).to_html(index=False, escape=False),
+            ),
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
@@ -268,7 +279,7 @@ class HTMLBuilder:
                         self.results['metadata']['family_breakdown'].items()
                     )
                 ]
-            ).to_html(index=False, escape=False),
+            ),
         }
         return tables
 
@@ -280,12 +291,24 @@ class HTMLBuilder:
         summary_table, zero_categorised_samples = self.get_summary_stats()
         html_tables = self.create_html_tables()
 
-        html_lines = ['<head></head>\n<body>\n']
+        template_context = {
+            "meta_tables": [],
+            "forbidden_genes": [],
+            "zero_categorised_samples": [],
+            "summary_table": None,
+            "sample_tables": [],
+        }
 
         for title, meta_table in self.read_metadata().items():
-            html_lines.append(f'<h3>{title}</h3>')
-            html_lines.append(meta_table)
-            html_lines.append('<br/>')
+            template_context['meta_tables'].append(
+                DataTable(
+                    id=f"{title.lower()}-table",
+                    heading=title,
+                    description='',
+                    columns=list(meta_table.columns),
+                    rows=list(meta_table.to_records(index=False)),
+                )
+            )
 
         if self.forbidden_genes:
             # this should be sorted/arranged better
@@ -293,27 +316,18 @@ class HTMLBuilder:
                 f'{ensg} ({self.forbidden_genes[ensg]})'
                 for ensg in self.forbidden_genes.keys()
             ]
-            html_lines.append('<h3>Forbidden Gene IDs:</h3>')
-            html_lines.append(f'<h4>{", ".join(forbidden_list)}</h4>')
-        else:
-            html_lines.append('<h3>No Forbidden Genes</h3>')
-        html_lines.append('<br/>')
+            template_context['forbidden_genes'] = forbidden_list
 
         if len(zero_categorised_samples) > 0:
-            html_lines.append('<h3>Samples with no Reportable Variants</h3>')
-            html_lines.append(f'<h4>{", ".join(zero_categorised_samples)}</h3>')
-        html_lines.append('<br/>')
+            template_context['zero_categorised_samples'] = zero_categorised_samples
 
-        html_lines.append('<h3>Per-Category summary</h3>')
-        html_lines.append(summary_table)
-        html_lines.append('<br/>')
-
-        html_lines.append('<h1>Per Sample Results</h1>')
-        html_lines.append(
-            '<br/>Note: "csq" shows all unique csq from all protein_coding txs'
+        template_context['summary_table'] = DataTable(
+            id="summary-table",
+            heading="Per-Category Summary",
+            description=None,
+            columns=list(summary_table.columns),
+            rows=list(summary_table.to_records(index=False)),
         )
-        html_lines.append('<br/>Any black "csq" appear on a MANE transcript')
-        html_lines.append('<br/>Any red "csq" don\'t appear on a MANE transcript<br/>')
 
         for sample, table in html_tables.items():
             if sample in self.external_map and sample in self.seqr:
@@ -328,14 +342,25 @@ class HTMLBuilder:
             else:
                 sample_string = self.external_map.get(sample, sample)
 
-            html_lines.append(fr'<h3>Sample: {sample_string}</h3>')
-            html_lines.append(table)
-        html_lines.append('\n</body>')
+            tid = f"{sample_string}-variants-table"
+            table = DataTable(
+                id=tid,
+                heading=f"Sample: {sample_string}",
+                description=None,
+                columns=list(table.columns),
+                rows=list(table.to_records(index=False)),
+            )
+            template_context['sample_tables'].append(table)
 
         # write all HTML content to the output file in one go
-        to_path(output_path).write_text(''.join(html_lines))
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
+        )
+        template = env.get_template("index.html.jinja")
+        content = template.render(**template_context)
+        to_path(output_path).write_text("\n".join(l for l in content.split("\n") if l.strip()))
 
-    def create_html_tables(self):
+    def create_html_tables(self) -> dict[str, pd.DataFrame]:
         """
         make a table describing the outputs
         :return:
@@ -409,9 +434,7 @@ class HTMLBuilder:
                 )
 
         for sample, variants in candidate_dictionaries.items():
-            sample_tables[sample] = pd.DataFrame(variants).to_html(
-                index=False, render_links=True, escape=False
-            )
+            sample_tables[sample] = pd.DataFrame(variants)
 
         return sample_tables
 
