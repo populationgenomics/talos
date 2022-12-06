@@ -57,13 +57,13 @@ PANELAPP_JSON_OUT = output_path(
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
-
+DIR_NAME = 'reanalysis'
 # local script references
-HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
-HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
-QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
-RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
-MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
+HAIL_FILTER = os.path.join(DIR_NAME, 'hail_filter_and_label.py')
+HTML_SCRIPT = os.path.join(DIR_NAME, 'html_builder.py')
+QUERY_PANELAPP = os.path.join(DIR_NAME, 'query_panelapp.py')
+RESULTS_SCRIPT = os.path.join(DIR_NAME, 'validate_categories.py')
+MT_TO_VCF_SCRIPT = os.path.join(DIR_NAME, 'mt_to_vcf.py')
 
 
 def set_job_resources(
