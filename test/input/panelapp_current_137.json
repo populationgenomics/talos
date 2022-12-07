@@ -18,7 +18,7 @@
       "entity_type": "gene",
       "entity_name": "ABCD",
       "confidence_level": "3",
-      "mode_of_inheritance": "BIALLELIC"
+      "mode_of_inheritance": "Biallelic"
     },
     {
       "gene_data": {
@@ -33,7 +33,7 @@
       "entity_type": "gene",
       "entity_name": "EFGH",
       "confidence_level": "3",
-      "mode_of_inheritance": "MONOALLELIC"
+      "mode_of_inheritance": "Monoallelic"
     },
     {
       "gene_data": {
@@ -48,7 +48,7 @@
       "entity_type": "gene",
       "entity_name": "IJKL",
       "confidence_level": "3",
-      "mode_of_inheritance": "BOTH"
+      "mode_of_inheritance": "Monoallelic_And_Biallelic"
     },
     {
       "gene_data": {

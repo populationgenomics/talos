@@ -4,26 +4,31 @@
    "version": "0.11088",
    "name": "Mendeliome",
    "id": 137
+  },
+  {
+   "version": "0.12345",
+   "name": "Incidentalome",
+   "id": 126
   }
  ],
  "genes": {
   "ENSG00ABCD": {
    "symbol": "ABCD",
-   "moi": "Monoallelic",
-   "new": false,
-   "panels": [137]
-  },
-  "ENSG00EFGH": {
-   "symbol": "EFGH",
-   "moi": "Monoallelic",
-   "new": false,
-   "panels": [137]
+   "moi": "Mono_And_Biallelic",
+   "new": true,
+   "panels": [137, 126]
   },
   "ENSG00IJKL": {
    "symbol": "IJKL",
    "moi": "Mono_And_Biallelic",
    "new": true,
    "panels": [137]
+  },
+  "ENSG00MNOP": {
+   "symbol": "MNOP",
+   "moi": "Mono_And_Biallelic",
+   "new": true,
+   "panels": [126]
   }
  }
 }

@@ -30,6 +30,7 @@ AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
 PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
+PANEL_UPDATES = os.path.join(INPUT, 'mendeliome_and_incidentalome_expected.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
 FAKE_OBO = os.path.join(INPUT, 'hpo_test.obo')
 FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
@@ -110,6 +111,14 @@ def fixture_panel_with_new_gene_updates() -> dict[str, Any]:
     :return: Ped
     """
     return read_json_from_path(PANELAPP_CHANGES)
+
+
+@pytest.fixture(name='panel_updates', scope='session')
+def fixture_panel_with_incidentalome_updates() -> dict:
+    """
+    :return: Ped
+    """
+    return read_json_from_path(PANEL_UPDATES)
 
 
 @pytest.fixture(name='peddy_ped', scope='session')

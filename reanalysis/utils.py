@@ -509,7 +509,37 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
         return json.load(handle)
 
 
-def get_simple_moi(panel_app_moi: str) -> str:
+# most lenient to most conservative
+# usage = if we have two MOIs for the same gene, take the broadest
+ORDERED_MOIS = [
+    'Mono_And_Biallelic',
+    'Monoallelic',
+    'Hemi_Mono_In_Female',
+    'Hemi_Bi_In_Female',
+    'Biallelic',
+]
+
+
+def write_output_json(output_path: str, object_to_write: dict):
+    """
+    writes object to a json file, to_path provides platform abstraction
+
+    Args:
+        output_path ():
+        object_to_write ():
+    """
+
+    logging.info(f'Writing output JSON file to {output_path}')
+    out_route = to_path(output_path)
+
+    if out_route.exists():
+        logging.info(f'Output path "{output_path}" exists, will be overwritten')
+
+    with out_route.open('w') as fh:
+        json.dump(object_to_write, fh, indent=4, default=str)
+
+
+def get_simple_moi(panel_app_moi: str | None) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a reduced
     range of cases which can be easily implemented in RD analysis
@@ -521,24 +551,25 @@ def get_simple_moi(panel_app_moi: str) -> str:
         Monoallelic: [all MOI to be interpreted as monoallelic]
     }
 
-    :param panel_app_moi: full PanelApp string
+    :param panel_app_moi: full PanelApp string or None
     :return: a simplified representation
     """
 
     # default to considering both. NOTE! Many genes have Unknown MOI!
     simple_moi = 'Mono_And_Biallelic'
-    if panel_app_moi is None or panel_app_moi == 'Unknown':
+    lower_moi = panel_app_moi.lower()
+    if lower_moi is None or lower_moi == 'unknown':
         # exit iteration, all simple moi considered
         return simple_moi
 
     # ideal for match-case, coming to a python 3.10 near you!
-    if panel_app_moi.startswith('BIALLELIC'):
+    if lower_moi.startswith('biallelic'):
         simple_moi = 'Biallelic'
-    if panel_app_moi.startswith('BOTH'):
+    elif lower_moi.startswith('both'):
         simple_moi = 'Mono_And_Biallelic'
-    if panel_app_moi.startswith('MONO'):
+    elif lower_moi.startswith('mono'):
         simple_moi = 'Monoallelic'
-    if panel_app_moi.startswith('X-LINKED'):
+    elif lower_moi.startswith('x-linked'):
         if 'biallelic' in panel_app_moi:
             simple_moi = 'Hemi_Bi_In_Female'
         else:
