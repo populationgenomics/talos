@@ -12,6 +12,7 @@ to a Monogenic MOI
 
 import logging
 from abc import abstractmethod
+from copy import deepcopy
 
 from peddy.peddy import Ped, PHENOTYPE
 
@@ -33,6 +34,33 @@ GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
 INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
 INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
 PEDDY_AFFECTED = PHENOTYPE().AFFECTED
+VAR_FIELDS_TO_REMOVE = [
+    'het_samples',
+    'hom_samples',
+    'boolean_categories',
+    'sample_categories',
+    'sample_support',
+    'ab_ratios',
+]
+
+
+def minimise_variant(variant: AbstractVariant, sample_id: str) -> AbstractVariant:
+    """
+    When we find a matching MOI, store a sample-specific
+    duplicate of the variant details
+    Args:
+        variant ():
+        sample_id ():
+
+    Returns:
+
+    """
+    var_copy = deepcopy(variant)
+    var_copy.categories = var_copy.category_values(sample=sample_id)
+    for key in VAR_FIELDS_TO_REMOVE:
+        if key in var_copy.__dict__:
+            del var_copy.__dict__[key]
+    return var_copy
 
 
 def check_for_second_hit(
@@ -333,13 +361,13 @@ class DominantAutosomal(BaseMoi):
             ):
                 continue
 
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={self.applied_moi},
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -387,7 +415,7 @@ class RecessiveAutosomal(BaseMoi):
         # no stricter AF here - if we choose to, we can apply while labelling
         if any(
             {
-                principal_var.info.get(hom_key, 0) >= self.hom_threshold
+                principal_var.info.get(hom_key, 0) > self.hom_threshold
                 for hom_key in INFO_HOMS
             }
         ) and not principal_var.info.get('categoryboolean1'):
@@ -413,13 +441,13 @@ class RecessiveAutosomal(BaseMoi):
             ):
                 continue
 
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={f'{self.applied_moi} Homozygous'},
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -450,7 +478,7 @@ class RecessiveAutosomal(BaseMoi):
                     )
                     or any(  # allow for clinvar here
                         {
-                            partner_variant.info.get(hom_key, 0) >= self.hom_threshold
+                            partner_variant.info.get(hom_key, 0) > self.hom_threshold
                             for hom_key in INFO_HOMS
                         }
                     )
@@ -465,11 +493,13 @@ class RecessiveAutosomal(BaseMoi):
                     variant_2=partner_variant,
                 ):
                     continue
+
+                var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
-                        gene=principal_var.info.get('gene_id'),
-                        var_data=principal_var,
+                        gene=var_copy.info.get('gene_id'),
+                        var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
@@ -568,16 +598,17 @@ class XDominant(BaseMoi):
                 continue
 
             # passed inheritance test, create the record
+
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -630,7 +661,7 @@ class XRecessive(BaseMoi):
         # remove from analysis if too many homs are present in population databases
         if any(
             {
-                principal_var.info.get(hom_key, 0) >= self.hom_dom_threshold
+                principal_var.info.get(hom_key, 0) > self.hom_dom_threshold
                 for hom_key in INFO_HOMS
             }
         ) and not principal_var.info.get('categoryboolean1'):
@@ -698,24 +729,24 @@ class XRecessive(BaseMoi):
                 ):
                     continue
 
+                var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
-                        gene=principal_var.info.get('gene_id'),
-                        var_data=principal_var,
+                        gene=var_copy.info.get('gene_id'),
+                        var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
                         support_vars=[partner_variant.coords.string_format],
-                        flags=principal_var.get_sample_flags(sample_id).extend(
-                            partner_variant.get_sample_flags(sample_id),
-                        ),
+                        flags=principal_var.get_sample_flags(sample_id)
+                        + partner_variant.get_sample_flags(sample_id),
                     )
                 )
 
         # remove from analysis if too many homs are present in population databases
         if any(
             {
-                principal_var.info.get(hom_key, 0) >= self.hom_rec_threshold
+                principal_var.info.get(hom_key, 0) > self.hom_rec_threshold
                 for hom_key in INFO_HOMS
             }
         ) and not principal_var.info.get('categoryboolean1'):
@@ -749,16 +780,16 @@ class XRecessive(BaseMoi):
             ):
                 continue
 
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -808,8 +839,8 @@ class YHemi(BaseMoi):
 
         # more stringent Pop.Freq checks for dominant
         if (
-            principal_var.info.get('gnomad_af') >= self.ad_threshold
-            or principal_var.info.get('gnomad_ac') >= self.ac_threshold
+            principal_var.info.get('gnomad_af') > self.ad_threshold
+            or principal_var.info.get('gnomad_ac') > self.ac_threshold
             or any(
                 {
                     principal_var.info.get(hemi_key, 0) > self.hemi_threshold
@@ -837,13 +868,14 @@ class YHemi(BaseMoi):
 
             if self.pedigree[sample_id].sex == 'female':
                 logging.error(f'Sample {sample_id} is a female with call on Y')
+
+            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
-                    gene=principal_var.info.get('gene_id'),
-                    var_data=principal_var,
+                    gene=var_copy.info.get('gene_id'),
+                    var_data=var_copy,
                     reasons={self.applied_moi},
-                    supported=False,
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )

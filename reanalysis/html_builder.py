@@ -25,7 +25,7 @@ GNOMAD_TEMPLATE = (
     '{variant}?dataset=gnomad_r3" target="_blank">{value:.5f}</a>'
 )
 PANELAPP_TEMPLATE = (
-    '<a href="https://panelapp.agha.umccr.org/panels/137/gene/{symbol}/" '
+    '<a href="https://panelapp.agha.umccr.org/panels/entities/{symbol}/" '
     'target="_blank">{symbol}</a>'
 )
 SEQR_TEMPLATE = (
@@ -275,7 +275,7 @@ class HTMLBuilder:
             'Panels': pd.DataFrame(self.results['metadata']['panels']),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
-                for key in ['cohort', 'input_file', 'run_datetime']
+                for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
             ),
             'Families': pd.DataFrame(
                 [
