@@ -557,9 +557,13 @@ def get_simple_moi(panel_app_moi: str | None) -> str:
 
     # default to considering both. NOTE! Many genes have Unknown MOI!
     simple_moi = 'Mono_And_Biallelic'
-    lower_moi = panel_app_moi.lower()
-    if lower_moi is None or lower_moi == 'unknown':
-        # exit iteration, all simple moi considered
+    # try-except permits the moi to be None
+    try:
+        lower_moi = panel_app_moi.lower()
+        if lower_moi is None or lower_moi == 'unknown':
+            # exit iteration, all simple moi considered
+            return simple_moi
+    except AttributeError:
         return simple_moi
 
     # ideal for match-case, coming to a python 3.10 near you!

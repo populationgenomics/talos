@@ -9,7 +9,7 @@
  "genes": {
   "ENSG00ABCD": {
    "symbol": "ABCD",
-   "moi": "Monoallelic",
+   "moi": "Biallelic",
    "new": false,
    "panels": [137]
   },

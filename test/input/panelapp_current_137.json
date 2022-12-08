@@ -48,7 +48,7 @@
       "entity_type": "gene",
       "entity_name": "IJKL",
       "confidence_level": "3",
-      "mode_of_inheritance": "Monoallelic_And_Biallelic"
+      "mode_of_inheritance": "BOTH"
     },
     {
       "gene_data": {

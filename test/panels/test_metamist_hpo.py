@@ -3,7 +3,6 @@ test file for metamist panel-participant matching
 """
 
 
-import json
 import pytest
 
 import networkx
@@ -27,12 +26,11 @@ def fixture_fake_panelapp_overview(requests_mock, fake_panelapp_overview):
     :param requests_mock:
     :param fake_panelapp_overview:
     """
-    with open(fake_panelapp_overview, encoding='utf-8') as handle:
-        requests_mock.register_uri(
-            'GET',
-            PANELAPP,
-            json=json.load(handle),
-        )
+    requests_mock.register_uri(
+        'GET',
+        PANELAPP,
+        json=fake_panelapp_overview,
+    )
 
 
 def test_get_panels(fake_panelapp_overview):  # pylint: disable=unused-argument
