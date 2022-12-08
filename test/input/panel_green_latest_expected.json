@@ -10,19 +10,19 @@
   "ENSG00ABCD": {
    "symbol": "ABCD",
    "moi": "Biallelic",
-   "new": false,
-   "panels": [137]
+   "new": [137],
+   "panels": ["pink", 137]
   },
   "ENSG00EFGH": {
    "symbol": "EFGH",
    "moi": "Monoallelic",
-   "new": false,
+   "new": [],
    "panels": [137]
   },
   "ENSG00IJKL": {
    "symbol": "IJKL",
    "moi": "Mono_And_Biallelic",
-   "new": true,
+   "new": [137],
    "panels": [137]
   }
  }

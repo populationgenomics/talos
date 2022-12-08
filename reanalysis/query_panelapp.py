@@ -25,30 +25,6 @@ PanelData = dict[str, dict | list[dict]]
 OLD_DATA = {'genes': {}}
 
 
-def is_this_gene_new(gene_id: str, panel_id: int) -> bool:
-    """
-    check against the historic data to see if this gene is new
-    this is an interesting one - should we permit an 'all' panelID
-    Args:
-        gene_id (): ENSG***
-        panel_id (): integer panelID
-
-    Returns:
-        True if the gene was not seen in the previous data
-        otherwise, False
-    """
-    if gene_id not in OLD_DATA['genes']:
-        return True
-
-    # it's new if the panel ID or 'all' wasn't already associated
-    return not any(
-        {
-            pan in OLD_DATA['genes'][gene_id].get('panels', [])
-            for pan in [panel_id, 'all']
-        }
-    )
-
-
 def request_panel_data(url: str) -> tuple[str, str, list]:
     """
     just takes care of the panelapp query
@@ -125,9 +101,13 @@ def get_panel_green(gene_dict: PanelData = None, panel_id: int | None = None):
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = is_this_gene_new(ensg, panel_id)
+        # all panels previously containing this gene
+        gene_panels_for_this_gene = OLD_DATA['genes'].get(ensg, {}).get('panels', [])
+        gene_prev_in_panel = panel_id in gene_panels_for_this_gene
+        if not gene_prev_in_panel:
+            gene_panels_for_this_gene.append(panel_id)
+
         moi = get_simple_moi(gene.get('mode_of_inheritance'))
-        print(ensg, new_gene, moi)
 
         # either update or add a new entry
         if ensg in gene_dict['genes'].keys():
@@ -146,19 +126,19 @@ def get_panel_green(gene_dict: PanelData = None, panel_id: int | None = None):
                 key=lambda x: ORDERED_MOIS.index(x),
             )[0]
 
-            # add this panel to the list
-            this_gene['panels'].append(panel_id)
-
             # if this is/was new - it's new
-            this_gene['new'] = this_gene['new'] or new_gene
+            if not gene_prev_in_panel:
+                this_gene['panels'].append(panel_id)
+                this_gene['new'].append(panel_id)
 
         else:
+
             # save the entity into the final dictionary
             gene_dict['genes'][ensg] = {
                 'symbol': symbol,
                 'moi': moi,
-                'new': new_gene,
-                'panels': [panel_id],
+                'new': [] if gene_prev_in_panel else [panel_id],
+                'panels': gene_panels_for_this_gene,
             }
 
 

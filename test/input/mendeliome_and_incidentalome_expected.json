@@ -15,19 +15,19 @@
   "ENSG00ABCD": {
    "symbol": "ABCD",
    "moi": "Mono_And_Biallelic",
-   "new": true,
+   "new": [126],
    "panels": [137, 126]
   },
   "ENSG00IJKL": {
    "symbol": "IJKL",
    "moi": "Mono_And_Biallelic",
-   "new": true,
-   "panels": [137]
+   "new": [137],
+   "panels": [123, 137]
   },
   "ENSG00MNOP": {
    "symbol": "MNOP",
    "moi": "Mono_And_Biallelic",
-   "new": true,
+   "new": [126],
    "panels": [126]
   }
  }

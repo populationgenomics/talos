@@ -9,7 +9,6 @@ import pytest
 
 from reanalysis.query_panelapp import (
     get_panel_green,
-    is_this_gene_new,
     read_panels_from_participant_file,
 )
 
@@ -37,8 +36,8 @@ def fixture_fake_panelapp(requests_mock, latest_mendeliome, latest_incidentalome
 
 
 @patch(
-    'reanalysis.new_panelapp_query.OLD_DATA',
-    {'genes': {'ENSG00ABCD': {'panels': ['all']}, 'ENSG00EFGH': {'panels': ['all']}}},
+    'reanalysis.query_panelapp.OLD_DATA',
+    {'genes': {'ENSG00ABCD': {'panels': ['pink']}, 'ENSG00EFGH': {'panels': [137]}}},
 )
 def test_panel_query(
     fake_panelapp, mendeliome_expected
@@ -55,11 +54,10 @@ def test_panel_query(
 
 
 @patch(
-    'reanalysis.new_panelapp_query.OLD_DATA',
+    'reanalysis.query_panelapp.OLD_DATA',
     {
         'genes': {
-            'ENSG00ABCD': {'panels': [137]},
-            'ENSG00EFGH': {'panels': [137]},
+            'ENSG00EFGH': {'panels': [123]},
             'ENSG00IJKL': {'panels': [137]},
         },
     },
@@ -79,14 +77,14 @@ def test_panel_query_addition(
             'ENSG00ABCD': {
                 'symbol': 'ABCD',
                 'moi': 'Monoallelic',
-                'new': True,
+                'new': [],
                 'panels': [137],
             },
             'ENSG00IJKL': {
                 'symbol': 'IJKL',
                 'moi': 'Mono_And_Biallelic',
-                'new': True,
-                'panels': [137],
+                'new': [137],
+                'panels': [123, 137],
             },
         },
     }
@@ -108,24 +106,4 @@ def test_get_list_from_participants(tmp_path):
     tmp_json = tmp_path / 'temp.json'
     with open(tmp_json, 'w', encoding='utf-8') as handle:
         json.dump(party_data, handle)
-    assert read_panels_from_participant_file(tmp_json) == {1, 2, 3, 9, 99}
-
-
-@patch('reanalysis.new_panelapp_query.OLD_DATA', {'genes': {'ABC': {'panels': [1]}}})
-def test_do_stuff():
-    """
-    mock in the historical data and check for when a gene is new
-    """
-    assert is_this_gene_new('ABC', 12)
-    assert not is_this_gene_new('ABC', 1)
-
-
-@patch(
-    'reanalysis.new_panelapp_query.OLD_DATA', {'genes': {'ABC': {'panels': ['all']}}}
-)
-def test_do_stuff_all():
-    """
-    historical data says this gene is perceived as in 'all panels'
-    """
-    assert not is_this_gene_new('ABC', 12)
-    assert not is_this_gene_new('ABC', 1)
+    assert read_panels_from_participant_file(str(tmp_json)) == {1, 2, 3, 9, 99}
