@@ -10,7 +10,7 @@ CONFIG_PATH=hail-az://sevgen002sa/test/config-$(LC_ALL=C tr -dc A-Za-z0-9 </dev/
 python3 generate_workflow_config.py \
   --dataset severalgenomes \
   --access_level test \
-  --driver_image azcpg001acr.azurecr.io/cpg-common/images/hail-driver:latest \
+  --driver_image azcpg001acr.azurecr.io/cpg-common/images/cpg_workflows:latest \
   --output_prefix "reanalysis/${DATE}" \
   --extra_datasets severalgenomes rgp \
   --extra_configs reanalysis_global.toml reanalysis_cohort.toml \
