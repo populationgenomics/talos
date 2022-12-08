@@ -700,7 +700,9 @@ def green_and_new_from_panelapp(
     logging.info(f'Extracted {len(green_genes)} green genes')
     green_gene_set_expression = hl.literal(green_genes)
 
-    new_genes = {gene for gene in green_genes if panel_genes[gene].get('new')}
+    new_genes = {
+        gene for gene in green_genes if len(panel_genes[gene].get('new', [])) > 0
+    }
     logging.info(f'Extracted {len(new_genes)} NEW genes')
     new_gene_set_expression = hl.literal(new_genes)
 

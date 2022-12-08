@@ -259,7 +259,7 @@ def test_green_and_new_from_panelapp(mendeliome_expected):
         'ENSG00EFGH',
         'ENSG00IJKL',
     ]
-    assert new_expression.collect()[0] == {'ENSG00IJKL'}
+    assert new_expression.collect()[0] == {'ENSG00ABCD', 'ENSG00IJKL'}
 
 
 @pytest.mark.parametrize(
