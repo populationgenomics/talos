@@ -7,7 +7,7 @@ analysis_suffix = 'analysis'
 name = 'AIP'
 scatter_count = 50
 sequencing_type = 'genome'
-default_panel = 126
+default_panel = 137
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
