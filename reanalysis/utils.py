@@ -717,7 +717,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     return comp_het_results
 
 
-def filter_results(results: dict) -> dict:
+def filter_results(results: dict, singletons: bool) -> dict:
     """
     takes a set of results
     loads the most recent prior result set (if it exists)
@@ -726,9 +726,10 @@ def filter_results(results: dict) -> dict:
     p.stat().st_mtime to find latest
     Args:
         results (): the results produced during this run
+        singletons (bool): whether to read/write a singleton specific file
 
     Returns:
-
+        the same results back-filtered to remove previous results
     """
     # try to pull out the historic results folder
     try:
@@ -745,7 +746,7 @@ def filter_results(results: dict) -> dict:
 
     logging.info(f'filtering current results against data in {historic}')
     # get the latest result file from the folder
-    latest_results = find_latest(results_folder=historic)
+    latest_results = find_latest(results_folder=historic, singletons=singletons)
 
     logging.info(f'latest results: {latest_results}')
 
@@ -753,7 +754,9 @@ def filter_results(results: dict) -> dict:
         # no results to subtract - current data IS cumulative data
         mini_results = make_cumulative_representation(results)
 
-        save_new_cumulative(directory=historic, results=mini_results)
+        save_new_cumulative(
+            directory=historic, results=mini_results, singletons=singletons
+        )
 
     else:
         cum_results = read_json_from_path(bucket_path=latest_results)
@@ -765,7 +768,9 @@ def filter_results(results: dict) -> dict:
         add_results(results, cum_results)
 
         # save updated cumulative results
-        save_new_cumulative(directory=historic, results=cum_results)
+        save_new_cumulative(
+            directory=historic, results=cum_results, singletons=singletons
+        )
 
     return results
 
@@ -792,7 +797,7 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     return mini_results
 
 
-def save_new_cumulative(directory: str, results: dict):
+def save_new_cumulative(directory: str, results: dict, singletons: bool):
     """
     save the new cumulative results in the results dir
     include time & date in filename
@@ -800,19 +805,21 @@ def save_new_cumulative(directory: str, results: dict):
     Args:
         directory ():
         results ():
+        singletons (bool): whether to save this file as singleton-specific
     """
 
-    new_file = to_path(directory) / f'{TODAY}.json'
+    new_file = to_path(directory) / f'{"singletons_" if singletons else ""}{TODAY}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4)
     logging.info(f'Wrote new cumulative data to {str(new_file)}')
 
 
-def find_latest(results_folder: str, ext: str = 'json') -> str | None:
+def find_latest(results_folder: str, singletons: bool, ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
         results_folder (): local or remote folder
+        singletons (bool): find singleton-specific files
         ext (): the type of files we're looking for
 
     Returns:
@@ -820,7 +827,7 @@ def find_latest(results_folder: str, ext: str = 'json') -> str | None:
     """
 
     date_sorted_files = sorted(
-        to_path(results_folder).glob(f'*.{ext}'),
+        to_path(results_folder).glob(f'{"singletons_" if singletons else ""}*.{ext}'),
         key=lambda x: x.stat().st_mtime,
         reverse=True,
     )

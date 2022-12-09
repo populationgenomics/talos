@@ -142,12 +142,12 @@ def test_match_participants_to_panels():
             'external_id': 'participant1',
             'family_id': 'fam1',
             'hpo_terms': {'HP:1', 'HP:2'},
-            'panels': {'room', '101', '2002'},
+            'panels': {137, 'room', '101', '2002'},
         },
         'participant2': {
             'external_id': 'participant2',
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
-            'panels': {'room', '101', '666'},
+            'panels': {137, 'room', '101', '666'},
         },
     }

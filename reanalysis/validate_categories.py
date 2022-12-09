@@ -16,9 +16,9 @@ import json
 import logging
 from argparse import ArgumentParser
 from collections import defaultdict
-from copy import deepcopy
-from typing import Dict, List, Union
 from datetime import datetime
+from functools import lru_cache
+from typing import Dict, List, Union
 
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
@@ -200,20 +200,39 @@ def clean_initial_results(
     return clean_results
 
 
+@lru_cache(120)
+def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
+    """
+    get each gene's assc. panels only once
+    Args:
+        gene_details ():
+        gene ():
+
+    Returns:
+
+    """
+    gene_details = gene_details['genes'][gene]
+    all_panels = set(gene_details['panels'])
+    new_panels = set(gene_details['new'])
+    return all_panels, new_panels
+
+
 def gene_clean_results(
     party_panels: str,
-    panel_genes: str,
-    cleaned_data: dict,
+    panel_app_data: dict,
+    cleaned_data: dict[str, list[ReportedVariant]],
 ) -> dict:
     """
     takes the unique-ified data from the previous cleaning
     applies gene panel filters per-participant
     the only remaining data should be relevant to the participant's panel list
 
+    This might be a bit heavy, but very few variants remain so runtime is meh
+
     Parameters
     ----------
     party_panels : JSON file containing the panels per participant
-    panel_genes : JSON file containing the genes on each panel
+    panel_app_data : dict containing all the panelapp results
     cleaned_data : the reportable variants, indexed per participant
 
     Returns
@@ -221,33 +240,37 @@ def gene_clean_results(
     a gene-list filtered version of the reportable data
     """
 
-    gene_cleaned_data = {}
+    gene_cleaned_data = defaultdict(list)
 
     # read the input files
     panels_per_participant = read_json_from_path(party_panels)
-    genes_per_panel = read_json_from_path(panel_genes)
 
-    # set of genes on the mendeliome
-    default_genes = set(genes_per_panel['default'])
-
-    # the lookup is generated so the primary index is on CPG ID, so as to be compatible
+    # panel lookup index is CPG ID
     for sample, variants in cleaned_data.items():
 
-        if sample == 'metadata':
-            gene_cleaned_data[sample] = variants
-            continue
+        participant_panels = set(panels_per_participant[sample]['panels'])
+        for variant in variants:
+            all_panels, new_panels = get_gene_panel_sets(panel_app_data, variant.gene)
 
-        # always keep default (mendeliome), and supplement with HPO-matched panel genes
-        sample_genes = deepcopy(default_genes)
-        for panel in panels_per_participant.get(sample, {}).get('panels', []):
-            sample_genes.update(genes_per_panel[str(panel)])
+            if not bool(participant_panels.intersection(all_panels)):
+                # this gene is not relevant for this participant
+                continue
 
-        # keep only panel-relevant reportable varaints
-        gene_cleaned_data[sample] = [
-            var for var in variants if var.gene in sample_genes
-        ]
+            # now check if Cat 2 is present - requires new gene status
+            if '2' in variant.var_data.categories and not bool(
+                participant_panels.intersection(new_panels)
+            ):
+                # pop it out
+                _ = variant.var_data.categories.pop(
+                    variant.var_data.categories.index('2')
+                )
+                # should not be treated as new
+                logging.info(f'Removing category 2 in {variant.gene} for {sample}')
+            # if categories still remain, add the variant
+            if variant.var_data.categories:
+                gene_cleaned_data[sample].append(variant)
 
-    return gene_cleaned_data
+    return dict(gene_cleaned_data)
 
 
 def count_families(pedigree: Ped, samples: list[str]) -> dict:
@@ -289,7 +312,6 @@ def main(
     pedigree: str,
     input_path: str,
     participant_panels: str | None = None,
-    panel_genes: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -303,7 +325,6 @@ def main(
     :param pedigree:
     :param input_path: data file used as input
     :param participant_panels: the json of panels per participant
-    :param panel_genes: path to file; genes assc. with each panel
     """
 
     # parse the pedigree from the file
@@ -342,40 +363,41 @@ def main(
             )
         )
 
-    # remove duplicate variants
-    cleaned_results = clean_initial_results(
+    # remove duplicate variants (better solution pls)
+    analysis_results = clean_initial_results(
         results, samples=vcf_opened.samples, pedigree=pedigree_digest
     )
 
     # remove previously seen results using cumulative data files
-    incremental_data = filter_results(cleaned_results)
+    analysis_results = filter_results(
+        analysis_results, singletons=bool('singleton' in pedigree)
+    )
 
-    # add summary metadata to the dict
-    incremental_data['metadata'] = {
-        'input_file': input_path,
-        'cohort': get_config()['workflow']['dataset'],
-        'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
-        'family_breakdown': count_families(pedigree_digest, samples=vcf_opened.samples),
-        'panels': panelapp_data['metadata'],
-        'commit_id': get_git_commit_ref_of_current_repository(),
-    }
-
-    # store a full version of the results here
-    # dump results using the custom-encoder to transform sets & DataClasses
-    with to_path(f'{out_json}_full.json').open('w') as fh:
-        json.dump(incremental_data, fh, cls=CustomEncoder, indent=4)
-
-    # cleanest results - reported variants are matched to panel ROI
-    if participant_panels and panel_genes:
-        final_results = gene_clean_results(
+    # do we need to do multi-panel filtering?
+    if participant_panels:
+        analysis_results = gene_clean_results(
             party_panels=participant_panels,
-            panel_genes=panel_genes,
-            cleaned_data=incremental_data,
+            panel_app_data=panelapp_data,
+            cleaned_data=analysis_results,
         )
 
-        # dump results using the custom-encoder to transform sets & DataClasses
-        with to_path(f'{out_json}_panel_filtered.json').open('w') as fh:
-            json.dump(final_results, fh, cls=CustomEncoder, indent=4)
+    final_results = {
+        'results': analysis_results,
+        'metadata': {
+            'input_file': input_path,
+            'cohort': get_config()['workflow']['dataset'],
+            'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
+            'family_breakdown': count_families(
+                pedigree_digest, samples=vcf_opened.samples
+            ),
+            'panels': panelapp_data['metadata'],
+            'commit_id': get_git_commit_ref_of_current_repository(),
+        },
+    }
+
+    # store results using the custom-encoder to transform sets & DataClasses
+    with to_path(f'{out_json}.json').open('w') as fh:
+        json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 
 if __name__ == '__main__':
@@ -386,7 +408,6 @@ if __name__ == '__main__':
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
     parser.add_argument('--out_json', help='Prefix to write JSON results to')
     parser.add_argument('--participant_panels', help='dict of panels per participant')
-    parser.add_argument('--panel_genes', help='dict of genes in each panel')
     parser.add_argument('--input_path', help='source data', default='Not supplied')
     args = parser.parse_args()
     main(
@@ -395,6 +416,5 @@ if __name__ == '__main__':
         panelapp=args.panelapp,
         pedigree=args.pedigree,
         participant_panels=args.participant_panels,
-        panel_genes=args.panel_genes,
         input_path=args.input_path,
     )

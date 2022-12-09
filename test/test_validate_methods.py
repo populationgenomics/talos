@@ -24,7 +24,6 @@ def test_gene_clean_results(tmpdir):
     messy test, write and pass file paths
     """
     dirty_data = {
-        'metadata': {'foo': 'bar'},
         'sam1': [PicoVariant('ENSG1'), PicoVariant('ENSG2')],
         'sam2': [PicoVariant('ENSG3'), PicoVariant('ENSG3')],
         'sam3': [PicoVariant('ENSG4'), PicoVariant('ENSG5')],

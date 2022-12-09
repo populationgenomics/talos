@@ -241,7 +241,7 @@ def match_participants_to_panels(
     for participant, party_data in participant_hpos.items():
         for participant_key in participant_map.get(participant, [participant]):
             final_dict[participant_key] = {
-                'panels': set(),
+                'panels': {137},  # always default to mendeliome
                 'external_id': participant,
                 **party_data,
             }
