@@ -337,8 +337,8 @@ def main(
             storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
         )
 
-        vep_ht_tmp = to_path(
-            output_path('vep_annotations.ht', get_config()['buckets'].get('tmp_suffix'))
+        vep_ht_tmp = output_path(
+            'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
         )
         # generate the jobs which run VEP & collect the results
         vep_jobs = add_vep_jobs(
@@ -348,7 +348,7 @@ def main(
                 output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
             ),
             scatter_count=get_config()['workflow'].get('scatter_count', 50),
-            out_path=vep_ht_tmp,
+            out_path=to_path(vep_ht_tmp),
         )
 
         # if convert-to-VCF job exists, assign as an annotation dependency
@@ -360,7 +360,7 @@ def main(
         anno_job = annotate_cohort_jobs(
             b=get_batch(),
             vcf_path=to_path(input_path),
-            vep_ht_path=vep_ht_tmp,
+            vep_ht_path=to_path(vep_ht_tmp),
             out_mt_path=to_path(ANNOTATED_MT),
             checkpoint_prefix=to_path(
                 output_path(
