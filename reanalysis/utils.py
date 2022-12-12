@@ -9,7 +9,7 @@ from datetime import datetime
 from enum import Enum
 from itertools import combinations_with_replacement
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import json
 import logging
@@ -19,9 +19,6 @@ import requests
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-
-InfoDict = dict[str, Union[str, dict[str, str]]]
-PanelAppDict = dict[str, dict[str, Union[str, bool]]]
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -61,8 +58,11 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     """
     return type of the file, if present in FileTypes enum
 
-    :param file_path:
-    :return:
+    Args:
+        file_path (str):
+
+    Returns:
+        A matching file type, or die
     """
     pl_filepath = Path(file_path)
 
@@ -119,6 +119,15 @@ class Coordinates:
         return False
 
     def __eq__(self, other):
+        """
+        equivalence check
+        Args:
+            other (Coordinates):
+
+        Returns:
+            true if self == other
+
+        """
         return (
             self.chrom == other.chrom
             and self.pos == other.pos
@@ -133,8 +142,11 @@ def get_json_response(url: str) -> dict[str, Any]:
     For this purpose we only expect a dictionary return
     List use-case (activities endpoint) no longer supported
 
-    :param url:
-    :return: python object from JSON response
+    Args:
+        url ():
+
+    Returns:
+
     """
 
     response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
@@ -145,6 +157,13 @@ def get_json_response(url: str) -> dict[str, Any]:
 def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
+
+    Args:
+        samples ():
+        var ():
+
+    Returns:
+
     """
     phased_dict = defaultdict(dict)
 
@@ -184,10 +203,11 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         as_singletons=False,
     ):
         """
-        var is a cyvcf2.Variant
-        :param var:
-        :param samples:
-        :param as_singletons:
+
+        Args:
+            var (cyvcf2.Variant):
+            samples (list):
+            as_singletons (bool):
         """
 
         # extract the coordinates into a separate object
@@ -432,10 +452,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 
 
 def gather_gene_dict_from_contig(
-    contig: str,
-    variant_source,
-    panelapp_data: PanelAppDict,
-    singletons: bool = False,
+    contig: str, variant_source, panelapp_data: dict, singletons: bool = False
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -475,15 +492,11 @@ def gather_gene_dict_from_contig(
             )
             continue
 
-        # if the gene isn't 'new' in PanelApp, remove Class2 flag
+        # if the gene isn't 'new' in any panel, remove Cat2 flag
         if abs_var.info.get('categoryboolean2'):
-            gene_id = abs_var.info.get('gene_id')
-            gene_data = panelapp_data.get(gene_id, False)
-            if not gene_data:
-                continue
-
-            if not gene_data.get('new', False):
-                abs_var.info['categoryboolean2'] = False
+            abs_var.info['categoryboolean2'] = (
+                len(panelapp_data[abs_var.info.get('gene_id')].get('new', [])) > 0
+            )
 
         # if unclassified, skip the whole variant
         if not abs_var.is_classified:
