@@ -38,7 +38,6 @@ from cpg_workflows.batch import get_batch
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
 from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
-from cpg_workflows.resources import storage_for_joint_vcf
 
 from utils import FileTypes, identify_file_type
 
@@ -335,7 +334,7 @@ def main(
             b=get_batch(),
             input_vcf=get_batch().read_input(input_path),
             output_vcf_path=siteonly_vcf_path,
-            storage_gb=300,
+            storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
         )
 
         vep_ht_tmp = to_path(

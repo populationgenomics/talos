@@ -6,6 +6,7 @@ analysis_suffix = 'analysis'
 [workflow]
 name = 'AIP'
 scatter_count = 50
+vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
 
 [moi_tests]
