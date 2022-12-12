@@ -746,7 +746,9 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     logging.info(f'filtering current results against data in {historic}')
     # get the latest result file from the folder
-    latest_results = find_latest(results_folder=historic, singletons=singletons)
+    latest_results = find_latest(
+        results_folder=historic, start='singletons' if singletons else ''
+    )
 
     logging.info(f'latest results: {latest_results}')
 
@@ -814,12 +816,12 @@ def save_new_cumulative(directory: str, results: dict, singletons: bool):
     logging.info(f'Wrote new cumulative data to {str(new_file)}')
 
 
-def find_latest(results_folder: str, singletons: bool, ext: str = 'json') -> str | None:
+def find_latest(results_folder: str, start: str = '', ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
         results_folder (): local or remote folder
-        singletons (bool): find singleton-specific files
+        start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
 
     Returns:
@@ -827,7 +829,7 @@ def find_latest(results_folder: str, singletons: bool, ext: str = 'json') -> str
     """
 
     date_sorted_files = sorted(
-        to_path(results_folder).glob(f'{"singletons_" if singletons else ""}*.{ext}'),
+        to_path(results_folder).glob(f'{start}*.{ext}'),
         key=lambda x: x.stat().st_mtime,
         reverse=True,
     )

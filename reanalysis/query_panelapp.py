@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Start over...
+Complete revision
 """
 
 
@@ -22,7 +22,6 @@ from reanalysis.utils import (
 
 
 PanelData = dict[str, dict | list[dict]]
-OLD_DATA = {'genes': {}}
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -48,13 +47,14 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     return panel_name, panel_version, panel_genes
 
 
-def get_panel_green(gene_dict: PanelData = None, panel_id: int | None = None):
+def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None = None):
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
     For each gene, keep the MOI, symbol, ENSG (where present)
 
     Args:
         gene_dict (): dictionary to continue populating
+        old_data ():
         panel_id (): specific panel or 'base' (e.g. 137)
     """
 
@@ -102,7 +102,7 @@ def get_panel_green(gene_dict: PanelData = None, panel_id: int | None = None):
 
         # check if this is a new gene in this analysis
         # all panels previously containing this gene
-        gene_panels_for_this_gene = OLD_DATA['genes'].get(ensg, {}).get('panels', [])
+        gene_panels_for_this_gene = old_data['genes'].get(ensg, {}).get('panels', [])
         gene_prev_in_panel = panel_id in gene_panels_for_this_gene
         if not gene_prev_in_panel:
             gene_panels_for_this_gene.append(panel_id)
@@ -177,30 +177,30 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     logging.info('Starting PanelApp Query Stage')
 
-    # update OLD_DATA global object - needs to be a json in this format
+    # create old_data - needs to be a json in this format
     # absolutely no need for this to be global?
     # {'genes': {'ENSG***': {'panels': [1, 2, 3]}}}
-    # pylint: disable=global-statement
-    global OLD_DATA
+
     if prev := previous:
-        OLD_DATA = read_json_from_path(prev)
+        old_data = read_json_from_path(prev)
     elif prev := get_config()['workflow'].get('pre_panelapp'):
-        OLD_DATA = read_json_from_path(prev)
+        old_data = read_json_from_path(prev)
     else:
+        old_data = {'genes': {}}
         logging.info('No prior data found, all genes are new...')
 
     # set up the gene dict
     gene_dict: PanelData = {'metadata': [], 'genes': {}}
 
     # first add the base content
-    get_panel_green(gene_dict)
+    get_panel_green(gene_dict, old_data=old_data)
 
     # if participant panels were provided, add each of those to the gene data
     if panels is not None:
         panel_list = read_panels_from_participant_file(panels)
         logging.info(f'All additional panels: {", ".join(map(str, panel_list))}')
         for panel in panel_list:
-            get_panel_green(gene_dict=gene_dict, panel_id=panel)
+            get_panel_green(gene_dict=gene_dict, old_data=old_data, panel_id=panel)
 
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)

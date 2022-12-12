@@ -14,11 +14,12 @@ participants relative to the MOI described in PanelApp
 
 import json
 import logging
-from argparse import ArgumentParser
 from collections import defaultdict
 from datetime import datetime
 from functools import lru_cache
 from typing import Dict, List, Union
+
+import click
 
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
@@ -97,14 +98,17 @@ def apply_moi_to_variants(
     pedigree: Ped,
 ) -> List[ReportedVariant]:
     """
-    take a collection of all variants on a given contig & MOI filters
+    take all variants on a given contig & MOI filters
     find all variants/compound hets which fit the PanelApp MOI
 
-    :param variant_dict:
-    :param moi_lookup:
-    :param panelapp_data:
-    :param pedigree:
-    :return:
+    Args:
+        variant_dict ():
+        moi_lookup ():
+        panelapp_data ():
+        pedigree ():
+
+    Returns:
+
     """
 
     results = []
@@ -203,13 +207,17 @@ def clean_initial_results(
 @lru_cache(120)
 def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
     """
-    get each gene's assc. panels only once
+    get each gene's associated panels only once
+
+    shove in some lru_cache'ing here, so we don't keep generating the sets
+
     Args:
         gene_details ():
         gene ():
 
     Returns:
-
+        set of all panels for this gene,
+        set of new panels for this gene
     """
     gene_details = gene_details['genes'][gene]
     all_panels = set(gene_details['panels'])
@@ -223,21 +231,19 @@ def gene_clean_results(
     cleaned_data: dict[str, list[ReportedVariant]],
 ) -> dict:
     """
-    takes the unique-ified data from the previous cleaning
+    takes the unique'd data from the previous cleaning
     applies gene panel filters per-participant
     the only remaining data should be relevant to the participant's panel list
 
     This might be a bit heavy, but very few variants remain so runtime is meh
 
-    Parameters
-    ----------
-    party_panels : JSON file containing the panels per participant
-    panel_app_data : dict containing all the panelapp results
-    cleaned_data : the reportable variants, indexed per participant
+    Args:
+        party_panels (): JSON file containing the panels per participant
+        panel_app_data (): all panelapp results
+        cleaned_data (): reportable variants, indexed per participant
 
-    Returns
-    -------
-    a gene-list filtered version of the reportable data
+    Returns:
+        a gene-list filtered version of the reportable data
     """
 
     gene_cleaned_data = defaultdict(list)
@@ -257,10 +263,10 @@ def gene_clean_results(
                 continue
 
             # now check if Cat 2 is present - requires new gene status
+            # pop it out - surprisingly faster than a simple loop
             if '2' in variant.var_data.categories and not bool(
                 participant_panels.intersection(new_panels)
             ):
-                # pop it out
                 _ = variant.var_data.categories.pop(
                     variant.var_data.categories.index('2')
                 )
@@ -278,6 +284,9 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
     add metadata to results
     parsed during generation of the report
     most of these inputs aren't used...
+
+    affected, male, female, and family sizes all at the same level
+    maybe re-think this output structure for the report
 
     Args:
         pedigree ():
@@ -305,6 +314,19 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
     return dict(family_counter)
 
 
+@click.command
+@click.option('--labelled_vcf', help='Category-labelled VCF')
+@click.option('--out_json', help='Prefix to write JSON results to')
+@click.option('--panelapp', help='Path to JSON file of PanelApp data')
+@click.option('--pedigree', help='Path to joint-call PED file')
+@click.option(
+    '--input_path', help='source data', default='Not supplied', show_default=True
+)
+@click.option(
+    '--participant_panels',
+    help='dict of panels per participant',
+    default=None,
+)
 def main(
     labelled_vcf: str,
     out_json: str,
@@ -402,19 +424,4 @@ def main(
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    parser = ArgumentParser()
-    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--pedigree', help='Path to joint-call PED file')
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--out_json', help='Prefix to write JSON results to')
-    parser.add_argument('--participant_panels', help='dict of panels per participant')
-    parser.add_argument('--input_path', help='source data', default='Not supplied')
-    args = parser.parse_args()
-    main(
-        labelled_vcf=args.labelled_vcf,
-        out_json=args.out_json,
-        panelapp=args.panelapp,
-        pedigree=args.pedigree,
-        participant_panels=args.participant_panels,
-        input_path=args.input_path,
-    )
+    main()  # pylint: disable=no-value-for-parameter
