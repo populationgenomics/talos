@@ -227,11 +227,11 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {output_dict["results"]}.json '
+        f'--out_json {output_dict["results"]} '
         f'--input_path {input_path} '
         f'{gene_filter_files} && '
         f'python3 {HTML_SCRIPT} '
-        f'--results {output_dict["results"]}.json '
+        f'--results {output_dict["results"]} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_path {output_dict["web_html"]}'
@@ -274,7 +274,7 @@ def main(
                 'summary_output.html', get_config()['buckets'].get('web_suffix')
             ),
             'results': output_path(
-                'summary_results', get_config()['buckets'].get('analysis_suffix')
+                'summary_results.json', get_config()['buckets'].get('analysis_suffix')
             ),
         },
         'singletons': {
@@ -282,7 +282,7 @@ def main(
                 'singleton_output.html', get_config()['buckets'].get('web_suffix')
             ),
             'results': output_path(
-                'singleton_results', get_config()['buckets'].get('analysis_suffix')
+                'singleton_results.json', get_config()['buckets'].get('analysis_suffix')
             ),
         },
     }

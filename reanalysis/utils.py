@@ -761,33 +761,28 @@ def filter_results(results: dict, singletons: bool) -> dict:
         the same results back-filtered to remove previous results
     """
     # try to pull out the historic results folder
-    try:
-        if (
-            historic := get_config()['dataset_specific'].get('historic_results')
-        ) is None:
-            logging.info(
-                'No `historic_results` key in config - no filtering took place'
-            )
-            return results
-    except KeyError:
-        logging.info('No `dataset_specific` key in config - no filtering took place')
+    if (
+        historic := get_config().get('dataset_specific', {}).get('historic_results')
+    ) is None:
+        logging.info(
+            '`dataset_specific.historic_results` key not in config - no filtering done'
+        )
         return results
 
     logging.info(f'filtering current results against data in {historic}')
+
     # get the latest result file from the folder
-    latest_results = find_latest(
-        results_folder=historic, start='singletons' if singletons else ''
-    )
+    latest_results = find_latest_file(start='singletons' if singletons else '')
 
     logging.info(f'latest results: {latest_results}')
+
+    prefix = 'singletons_' if singletons else ''
 
     if latest_results is None:
         # no results to subtract - current data IS cumulative data
         mini_results = make_cumulative_representation(results)
 
-        save_new_cumulative(
-            directory=historic, results=mini_results, singletons=singletons
-        )
+        save_new_cumulative(results=mini_results, prefix=prefix)
 
     else:
         cum_results = read_json_from_path(bucket_path=latest_results)
@@ -799,9 +794,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
         add_results(results, cum_results)
 
         # save updated cumulative results
-        save_new_cumulative(
-            directory=historic, results=cum_results, singletons=singletons
-        )
+        save_new_cumulative(results=cum_results, prefix=prefix)
 
     return results
 
@@ -828,24 +821,29 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     return mini_results
 
 
-def save_new_cumulative(directory: str, results: dict, singletons: bool):
+def save_new_cumulative(results: dict, prefix: str = '', directory: str | None = None):
     """
     save the new cumulative results in the results dir
     include time & date in filename
 
     Args:
-        directory ():
-        results ():
-        singletons (bool): whether to save this file as singleton-specific
+        results (): object to save as a JSON file
+        prefix (str): name prefix for this file
+        directory (): defaults to historic_data from config
     """
 
-    new_file = to_path(directory) / f'{"singletons_" if singletons else ""}{TODAY}.json'
+    if directory is None:
+        directory = get_config().get('dataset_specific', {}).get('historic_results')
+
+    new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4)
-    logging.info(f'Wrote new cumulative data to {str(new_file)}')
+    logging.info(f'Wrote new data to {str(new_file)}')
 
 
-def find_latest(results_folder: str, start: str = '', ext: str = 'json') -> str | None:
+def find_latest_file(
+    results_folder: str | None = None, start: str = '', ext: str = 'json'
+) -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
@@ -854,8 +852,13 @@ def find_latest(results_folder: str, start: str = '', ext: str = 'json') -> str 
         ext (): the type of files we're looking for
 
     Returns:
-        timestamp-sorted latest file path, or None
+        most recent file path, or None
     """
+
+    if results_folder is None:
+        results_folder = (
+            get_config().get('dataset_specific', {}).get('historic_results')
+        )
 
     date_sorted_files = sorted(
         to_path(results_folder).glob(f'{start}*.{ext}'),

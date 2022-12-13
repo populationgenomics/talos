@@ -258,7 +258,7 @@ def gene_clean_results(
                 continue
 
             # now check if Cat 2 is present - requires new gene status
-            # pop it out - surprisingly faster than a simple loop
+            # pop it out if cat2 doesn't apply for this participant
             if '2' in variant.var_data.categories and not bool(
                 participant_panels.intersection(new_panels)
             ):
@@ -338,7 +338,7 @@ def main(
     the cohort; if the variant number is large, the classes should be refined
     We expect approximately linear scaling with participants in the joint call
     :param labelled_vcf:
-    :param out_json: a prefix, used for both the full and panel-filtered results
+    :param out_json:
     :param panelapp:
     :param pedigree:
     :param input_path: data file used as input
@@ -414,7 +414,7 @@ def main(
     }
 
     # store results using the custom-encoder to transform sets & DataClasses
-    with to_path(f'{out_json}.json').open('w') as fh:
+    with to_path(out_json).open('w') as fh:
         json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 
