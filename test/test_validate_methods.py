@@ -2,8 +2,6 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-import json
-import os
 from dataclasses import dataclass
 
 from reanalysis.validate_categories import gene_clean_results, count_families
@@ -12,37 +10,58 @@ from reanalysis.validate_categories import gene_clean_results, count_families
 @dataclass
 class PicoVariant:
     """
+    some categories
+    """
+
+    categories: list
+
+
+@dataclass
+class PicoReport:
+    """
     smallest Reportable variant object for this test
     """
 
     gene: str
+    var_data: PicoVariant
 
 
-def test_gene_clean_results(tmpdir):
+def test_gene_clean_results():
     """
     tests the per-participant gene-filtering of results
     messy test, write and pass file paths
     """
-    dirty_data = {
-        'sam1': [PicoVariant('ENSG1'), PicoVariant('ENSG2')],
-        'sam2': [PicoVariant('ENSG3'), PicoVariant('ENSG3')],
-        'sam3': [PicoVariant('ENSG4'), PicoVariant('ENSG5')],
-    }
-    panel_genes = os.path.join(tmpdir, 'panel_genes.json')
-    with open(panel_genes, 'w', encoding='utf-8') as handle:
-        json.dump({'default': ['ENSG1'], '2': ['ENSG3'], '3': ['ENSG5']}, handle)
+    cat_1 = PicoVariant(['1'])
+    cat_2 = PicoVariant(['2'])
 
-    party_panels = os.path.join(tmpdir, 'party_panels.json')
-    with open(party_panels, 'w', encoding='utf-8') as handle:
-        json.dump({'sam2': {'panels': ['2']}, 'sam3': {'panels': ['3']}}, handle)
+    dirty_data = {
+        'sam1': [PicoReport('ENSG1', cat_1), PicoReport('ENSG2', cat_1)],
+        'sam2': [PicoReport('ENSG3', cat_1), PicoReport('ENSG3', cat_1)],
+        'sam3': [PicoReport('ENSG4', cat_2), PicoReport('ENSG5', cat_1)],
+    }
+    panel_genes = {
+        'genes': {
+            'ENSG1': {'panels': ['1'], 'new': []},
+            'ENSG2': {'panels': [], 'new': []},
+            'ENSG3': {'panels': ['2'], 'new': []},
+            'ENSG4': {'panels': ['3'], 'new': ['3']},
+            'ENSG5': {'panels': ['3'], 'new': []},
+        }
+    }
+
+    party_panels = {
+        'sam1': {'panels': ['1']},
+        'sam2': {'panels': ['2']},
+        'sam3': {'panels': ['3']},
+    }
 
     clean = gene_clean_results(party_panels, panel_genes, dirty_data)
     assert len(clean['sam1']) == 1
     assert clean['sam1'][0].gene == 'ENSG1'
     assert len(clean['sam2']) == 2
     assert clean['sam2'][0].gene == 'ENSG3'
-    assert len(clean['sam3']) == 1
-    assert clean['sam3'][0].gene == 'ENSG5'
+    assert len(clean['sam3']) == 2
+    assert {x.gene for x in clean['sam3']} == {'ENSG4', 'ENSG5'}
 
 
 def test_update_results_meta(peddy_ped):

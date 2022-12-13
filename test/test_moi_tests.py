@@ -1,6 +1,7 @@
 """
 tests relating to the MOI filters
 """
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -74,7 +75,6 @@ class RecessiveSimpleVariant:
     het_samples: set[str] = field(default_factory=set)
     hom_samples: set[str] = field(default_factory=set)
     categorysample4: list[str] = field(default_factory=list)
-    # add category default
     categoryboolean1: bool = True
 
     def sample_de_novo(self, sample):
@@ -84,11 +84,17 @@ class RecessiveSimpleVariant:
         """
         return sample in self.categorysample4
 
-    def sample_specific_category_check(self, sample):
+    def sample_specific_category_check(self, sample, support: bool = False):
         """
-        :param sample:
-        :return:
+
+        Args:
+            sample ():
+            support (bool): just for the consistent API
+
+        Returns:
+            a boooool
         """
+        logging.debug(support)
         return (sample in self.categorysample4) or self.categoryboolean1
 
     def check_ab_ratio(self, sample) -> list[str]:

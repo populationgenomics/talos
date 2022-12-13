@@ -16,7 +16,6 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from functools import lru_cache
 from typing import Dict, List, Union
 
 import click
@@ -204,7 +203,6 @@ def clean_initial_results(
     return clean_results
 
 
-@lru_cache(120)
 def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
     """
     get each gene's associated panels only once
@@ -219,14 +217,14 @@ def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
         set of all panels for this gene,
         set of new panels for this gene
     """
-    gene_details = gene_details['genes'][gene]
-    all_panels = set(gene_details['panels'])
-    new_panels = set(gene_details['new'])
+    single_gene_details = gene_details['genes'][gene]
+    all_panels = set(single_gene_details['panels'])
+    new_panels = set(single_gene_details['new'])
     return all_panels, new_panels
 
 
 def gene_clean_results(
-    party_panels: str,
+    party_panels: dict,
     panel_app_data: dict,
     cleaned_data: dict[str, list[ReportedVariant]],
 ) -> dict:
@@ -248,13 +246,10 @@ def gene_clean_results(
 
     gene_cleaned_data = defaultdict(list)
 
-    # read the input files
-    panels_per_participant = read_json_from_path(party_panels)
-
     # panel lookup index is CPG ID
     for sample, variants in cleaned_data.items():
 
-        participant_panels = set(panels_per_participant[sample]['panels'])
+        participant_panels = set(party_panels[sample]['panels'])
         for variant in variants:
             all_panels, new_panels = get_gene_panel_sets(panel_app_data, variant.gene)
 
@@ -272,6 +267,7 @@ def gene_clean_results(
                 )
                 # should not be treated as new
                 logging.info(f'Removing category 2 in {variant.gene} for {sample}')
+
             # if categories still remain, add the variant
             if variant.var_data.categories:
                 gene_cleaned_data[sample].append(variant)
@@ -398,7 +394,7 @@ def main(
     # do we need to do multi-panel filtering?
     if participant_panels:
         analysis_results = gene_clean_results(
-            party_panels=participant_panels,
+            party_panels=read_json_from_path(participant_panels),
             panel_app_data=panelapp_data,
             cleaned_data=analysis_results,
         )

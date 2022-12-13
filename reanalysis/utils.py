@@ -294,6 +294,8 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def has_support(self) -> bool:
         """
         check for a True flag in any CategorySupport* attribute
+        Returns:
+            True if variant is support
         """
         return any(self.info[value] for value in self.sample_support)
 
@@ -301,7 +303,8 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def category_non_support(self) -> bool:
         """
         check the variant has at least one non-support category assigned
-        :return:
+        Returns:
+            True if var has a non-support category assigned
         """
         return self.has_sample_categories or self.has_boolean_categories
 
@@ -346,20 +349,33 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         takes a specific sample ID, to check if the sample has a de novo call
 
-        :param sample_id:
-        :return:
+        Args:
+            sample_id ():
+
+        Returns:
+
         """
         return any(
             sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
         )
 
-    def sample_specific_category_check(self, sample_id: str) -> bool:
+    def sample_specific_category_check(
+        self, sample_id: str, allow_support: bool = False
+    ) -> bool:
         """
+        Check for all other
 
-        :param sample_id:
-        :return:
+        Args:
+            sample_id (str):
+            allow_support: (bool) also check for support
+
+        Returns:
+
         """
-        return self.category_non_support or self.sample_de_novo(sample_id)
+        big_cat = self.category_non_support or self.sample_de_novo(sample_id)
+        if allow_support:
+            return big_cat or self.has_support
+        return big_cat
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
