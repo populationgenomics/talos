@@ -468,6 +468,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--previous',
         help='JSON file containing Gene Panel details from a prior run',
+        default=None,
     )
     parser.add_argument(
         '--skip_annotation',
