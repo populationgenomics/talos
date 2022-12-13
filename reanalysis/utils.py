@@ -782,7 +782,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
         # no results to subtract - current data IS cumulative data
         mini_results = make_cumulative_representation(results)
 
-        save_new_cumulative(results=mini_results, prefix=prefix)
+        save_new_historic(results=mini_results, prefix=prefix)
 
     else:
         cum_results = read_json_from_path(bucket_path=latest_results)
@@ -794,7 +794,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
         add_results(results, cum_results)
 
         # save updated cumulative results
-        save_new_cumulative(results=cum_results, prefix=prefix)
+        save_new_historic(results=cum_results, prefix=prefix)
 
     return results
 
@@ -821,24 +821,25 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     return mini_results
 
 
-def save_new_cumulative(results: dict, prefix: str = '', directory: str | None = None):
+def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
     """
-    save the new cumulative results in the results dir
+    save the new results in the historic results dir
     include time & date in filename
 
     Args:
         results (): object to save as a JSON file
-        prefix (str): name prefix for this file
+        prefix (str): name prefix for this file (optional)
         directory (): defaults to historic_data from config
     """
 
     if directory is None:
-        directory = get_config().get('dataset_specific', {}).get('historic_results')
+        directory = get_config()['dataset_specific']['historic_results']
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4)
-    logging.info(f'Wrote new data to {str(new_file)}')
+
+    logging.info(f'Wrote new data to {new_file}')
 
 
 def find_latest_file(

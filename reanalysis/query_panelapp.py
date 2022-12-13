@@ -13,9 +13,11 @@ import click
 from cpg_utils.config import get_config
 
 from reanalysis.utils import (
-    read_json_from_path,
+    find_latest_file,
     get_json_response,
     get_simple_moi,
+    read_json_from_path,
+    save_new_historic,
     write_output_json,
     ORDERED_MOIS,
 )
@@ -180,13 +182,14 @@ def main(panels: str | None, out_path: str, previous: str | None):
     # create old_data - needs to be a json in this format
     # absolutely no need for this to be global?
     # {'genes': {'ENSG***': {'panels': [1, 2, 3]}}}
-
+    old_data = {'genes': {}}
     if prev := previous:
         old_data = read_json_from_path(prev)
-    elif prev := get_config()['workflow'].get('pre_panelapp'):
-        old_data = read_json_from_path(prev)
+    elif prev := get_config()['workflow'].get('historic_results'):
+        old_file = find_latest_file(start='panel_')
+        if old_file is not None:
+            old_data = read_json_from_path(old_file)
     else:
-        old_data = {'genes': {}}
         logging.info('No prior data found, all genes are new...')
 
     # set up the gene dict
@@ -204,6 +207,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)
+    save_new_historic(gene_dict, prefix='panel_')
 
 
 if __name__ == '__main__':

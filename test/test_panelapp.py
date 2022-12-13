@@ -3,7 +3,6 @@ tests for the PanelApp parser
 """
 
 import json
-from unittest.mock import patch
 
 import pytest
 
@@ -35,10 +34,6 @@ def fixture_fake_panelapp(requests_mock, latest_mendeliome, latest_incidentalome
     )
 
 
-@patch(
-    'reanalysis.query_panelapp.OLD_DATA',
-    {'genes': {'ENSG00ABCD': {'panels': ['pink']}, 'ENSG00EFGH': {'panels': [137]}}},
-)
 def test_panel_query(
     fake_panelapp, mendeliome_expected
 ):  # pylint: disable=unused-argument
@@ -49,19 +44,19 @@ def test_panel_query(
     """
 
     gd = {'genes': {}, 'metadata': []}
-    get_panel_green(gd, panel_id=137)
+    get_panel_green(
+        gd,
+        panel_id=137,
+        old_data={
+            'genes': {
+                'ENSG00ABCD': {'panels': ['pink']},
+                'ENSG00EFGH': {'panels': [137]},
+            }
+        },
+    )
     assert gd == mendeliome_expected
 
 
-@patch(
-    'reanalysis.query_panelapp.OLD_DATA',
-    {
-        'genes': {
-            'ENSG00EFGH': {'panels': [123]},
-            'ENSG00IJKL': {'panels': [137]},
-        },
-    },
-)
 def test_panel_query_addition(
     fake_panelapp, panel_updates
 ):  # pylint: disable=unused-argument
@@ -90,7 +85,16 @@ def test_panel_query_addition(
     }
 
     # should query for and integrate the incidentalome content
-    get_panel_green(gd, panel_id=126)
+    get_panel_green(
+        gd,
+        panel_id=126,
+        old_data={
+            'genes': {
+                'ENSG00EFGH': {'panels': [123]},
+                'ENSG00IJKL': {'panels': [137]},
+            },
+        },
+    )
     assert gd == panel_updates
 
 
