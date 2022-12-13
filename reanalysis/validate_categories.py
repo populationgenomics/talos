@@ -353,7 +353,7 @@ def main(
 
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
-        panelapp_data=panelapp_data, pedigree=pedigree_digest
+        panelapp_data=panelapp_data['genes'], pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
@@ -368,7 +368,7 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            panelapp_data=panelapp_data,
+            panelapp_data=panelapp_data['genes'],
             singletons=bool('singleton' in pedigree),
         )
 
@@ -376,7 +376,7 @@ def main(
             apply_moi_to_variants(
                 variant_dict=contig_dict,
                 moi_lookup=moi_lookup,
-                panelapp_data=panelapp_data,
+                panelapp_data=panelapp_data['genes'],
                 pedigree=pedigree_digest,
             )
         )
