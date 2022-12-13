@@ -142,8 +142,11 @@ def handle_panelapp_job(
     """
     panelapp_job = batch.new_job(name='query panelapp')
     set_job_resources(panelapp_job, prior_job=prior_job)
+    copy_common_env(panelapp_job)
 
-    panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
+    panelapp_command = (
+        f'pip install . && ' f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
+    )
 
     if participant_panels is not None:
         panelapp_command += f'--panels {participant_panels} '
