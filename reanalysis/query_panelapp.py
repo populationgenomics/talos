@@ -187,7 +187,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
         logging.info(f'Reading legacy data from {previous}')
         old_data = read_json_from_path(previous)
 
-    elif get_config()['workflow'].get('historic_results'):
+    elif get_config()['dataset_specific'].get('historic_results'):
         old_file = find_latest_file(start='panel_')
         if old_file is not None:
             logging.info(f'Grabbing legacy panel data from {old_file}')
