@@ -183,12 +183,16 @@ def main(panels: str | None, out_path: str, previous: str | None):
     # absolutely no need for this to be global?
     # {'genes': {'ENSG***': {'panels': [1, 2, 3]}}}
     old_data = {'genes': {}}
-    if prev := previous:
-        old_data = read_json_from_path(prev)
-    elif prev := get_config()['workflow'].get('historic_results'):
+    if previous:
+        logging.info(f'Reading legacy data from {previous}')
+        old_data = read_json_from_path(previous)
+
+    elif get_config()['workflow'].get('historic_results'):
         old_file = find_latest_file(start='panel_')
         if old_file is not None:
+            logging.info(f'Grabbing legacy panel data from {old_file}')
             old_data = read_json_from_path(old_file)
+
     else:
         logging.info('No prior data found, all genes are new...')
 
@@ -203,6 +207,11 @@ def main(panels: str | None, out_path: str, previous: str | None):
         panel_list = read_panels_from_participant_file(panels)
         logging.info(f'All additional panels: {", ".join(map(str, panel_list))}')
         for panel in panel_list:
+
+            # skip mendeliome
+            if panel == get_config()['workflow'].get('default_panel', 137):
+                continue
+
             get_panel_green(gene_dict=gene_dict, old_data=old_data, panel_id=panel)
 
     # write the output to long term storage
