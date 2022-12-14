@@ -2,9 +2,9 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from reanalysis.validate_categories import gene_clean_results, count_families
+from reanalysis.validate_categories import clean_and_filter, count_families
 
 
 @dataclass
@@ -23,7 +23,16 @@ class PicoReport:
     """
 
     gene: str
+    sample: str
     var_data: PicoVariant
+    reasons: set[str] = field(default_factory=set)
+    flags: list[str] = field(default_factory=list)
+
+    def __lt__(self, other):
+        return True
+
+    def __eq__(self, other):
+        return False
 
 
 def test_gene_clean_results():
@@ -34,28 +43,29 @@ def test_gene_clean_results():
     cat_1 = PicoVariant(['1'])
     cat_2 = PicoVariant(['2'])
 
-    dirty_data = {
-        'sam1': [PicoReport('ENSG1', cat_1), PicoReport('ENSG2', cat_1)],
-        'sam2': [PicoReport('ENSG3', cat_1), PicoReport('ENSG3', cat_1)],
-        'sam3': [PicoReport('ENSG4', cat_2), PicoReport('ENSG5', cat_1)],
-    }
+    dirty_data = [
+        PicoReport('ENSG1', 'sam1', cat_1),
+        PicoReport('ENSG2', 'sam1', cat_1),
+        PicoReport('ENSG3', 'sam2', cat_1),
+        PicoReport('ENSG3', 'sam2', cat_1),
+        PicoReport('ENSG4', 'sam3', cat_2),
+        PicoReport('ENSG5', 'sam3', cat_1),
+    ]
     panel_genes = {
-        'genes': {
-            'ENSG1': {'panels': ['1'], 'new': []},
-            'ENSG2': {'panels': [], 'new': []},
-            'ENSG3': {'panels': ['2'], 'new': []},
-            'ENSG4': {'panels': ['3'], 'new': ['3']},
-            'ENSG5': {'panels': ['3'], 'new': []},
-        }
+        'ENSG1': {'panels': [137, 1], 'new': []},
+        'ENSG2': {'panels': [], 'new': []},
+        'ENSG3': {'panels': [2], 'new': []},
+        'ENSG4': {'panels': [3], 'new': [3]},
+        'ENSG5': {'panels': [4], 'new': []},
     }
 
     party_panels = {
-        'sam1': {'panels': ['1']},
-        'sam2': {'panels': ['2']},
-        'sam3': {'panels': ['3']},
+        'sam1': {'panels': [1]},
+        'sam2': {'panels': [2]},
+        'sam3': {'panels': [3, 4]},
     }
 
-    clean = gene_clean_results(party_panels, panel_genes, dirty_data)
+    clean = clean_and_filter(dirty_data, panel_genes, party_panels)
     assert len(clean['sam1']) == 1
     assert clean['sam1'][0].gene == 'ENSG1'
     assert len(clean['sam2']) == 2

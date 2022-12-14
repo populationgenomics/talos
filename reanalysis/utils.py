@@ -760,18 +760,11 @@ def filter_results(results: dict, singletons: bool) -> dict:
     Returns:
         the same results back-filtered to remove previous results
     """
-    # try to pull out the historic results folder
-    if (
-        historic := get_config().get('dataset_specific', {}).get('historic_results')
-    ) is None:
-        logging.info(
-            '`dataset_specific.historic_results` key not in config - no filtering done'
-        )
-        return results
 
-    logging.info(f'filtering current results against data in {historic}')
+    logging.info('Attempting to filter current results against historic')
 
     # get the latest result file from the folder
+    # this will be none if the folder doesn't exist or is empty
     latest_results = find_latest_file(start='singletons' if singletons else '')
 
     logging.info(f'latest results: {latest_results}')
@@ -781,7 +774,6 @@ def filter_results(results: dict, singletons: bool) -> dict:
     if latest_results is None:
         # no results to subtract - current data IS cumulative data
         mini_results = make_cumulative_representation(results)
-
         save_new_historic(results=mini_results, prefix=prefix)
 
     else:
@@ -857,9 +849,14 @@ def find_latest_file(
     """
 
     if results_folder is None:
-        results_folder = (
-            get_config().get('dataset_specific', {}).get('historic_results')
-        )
+        if (
+            results_folder := (
+                get_config().get('dataset_specific', {}).get('historic_results')
+            )
+            is None
+        ):
+            logging.info('`historic_results` not present in config')
+            return None
 
     date_sorted_files = sorted(
         to_path(results_folder).glob(f'{start}*.{ext}'),

@@ -155,52 +155,90 @@ def apply_moi_to_variants(
     return results
 
 
-def clean_initial_results(
-    result_list: list[ReportedVariant], samples: list[str], pedigree: Ped
+def clean_and_filter(
+    result_list: list[ReportedVariant],
+    panelapp_data: dict,
+    participant_panels: dict | None = None,
 ) -> dict[str, list[ReportedVariant]]:
     """
     It's possible 1 variant can be classified multiple ways
+    e.g. different MOIs (dominant and comp het)
+    e.g. the same variant with annotation from two genes
+
     This cleans those to unique for final report
-    Join all possible classes for the condensed variants
-    :param result_list:
-    :param samples: all samples from the VCF
-    :param pedigree:
+
+    Args:
+        result_list (): list of all ReportedVariant events
+        panelapp_data ():
+        participant_panels ():
+
+    Returns:
+
     """
 
-    clean_results = defaultdict(list)
+    clean = defaultdict(list)
+
+    # if we have a lookup, grab the relevant information
+    if participant_panels is not None:
+        participant_panels = {
+            sample: set(content['panels'])
+            for sample, content in participant_panels.items()
+        }
+
+    gene_details = {}
 
     for each_event in result_list:
-        if each_event not in clean_results[each_event.sample]:
-            clean_results[each_event.sample].append(each_event)
+
+        # grab some attributes from the event
+        sample = each_event.sample
+        gene = each_event.gene
+        variant = each_event.var_data
+
+        # don't re-cast sets for every single variant
+        if gene in gene_details:
+            all_panels, new_panels = gene_details[gene]
         else:
-            prev_event_index = clean_results[each_event.sample].index(each_event)
-            prev_event = clean_results[each_event.sample][prev_event_index]
+            all_panels, new_panels = get_gene_panel_sets(panelapp_data, gene)
+            gene_details[gene] = (all_panels, new_panels)
+
+        # check that the gene is in a panel of interest, and confirm new
+        # neither step is required if no custom panel data is supplied
+        if participant_panels is not None:
+
+            # is this a valid gene for this participant?
+            if not bool(participant_panels[sample].intersection(all_panels)):
+
+                # this gene is not relevant for this participant
+                continue
+
+            if '2' in variant.categories and not bool(
+                participant_panels[sample].intersection(new_panels)
+            ):
+                _ = variant.categories.pop(variant.categories.index('2'))
+
+                # should not be treated as new
+                logging.info(f'Removing category 2 in {gene} for {sample}')
+
+        # no classifications = not interesting
+        if not variant.categories:
+            continue
+
+        if each_event not in clean[sample]:
+            clean[sample].append(each_event)
+        else:
+            prev_event = clean[sample][clean[sample].index(each_event)]
             prev_event.reasons.update(each_event.reasons)
             prev_genes = set(prev_event.gene.split(','))
             prev_genes.add(each_event.gene)
-            prev_event.gene = ','.join(prev_genes)
+            prev_event.gene = ','.join(prev_genes)  # here
             prev_event.flags.extend(each_event.flags)
             prev_event.flags = list(set(prev_event.flags))
 
     # organise the variants by chromosomal location
-    for sample in clean_results:
-        clean_results[sample].sort()
+    for sample in clean:
+        clean[sample].sort()
 
-    # Empty list for 0 variant samples with affected status
-    # explicitly record samples checked in this analysis
-    # the PED could have more samples than a joint call, due to sub-setting or QC.
-    # When presenting results, we want all samples with negative findings, without
-    # comparing both VCF and PED files
-    affected_samples = [
-        sam.sample_id
-        for sam in pedigree.samples()
-        if sam.affected == PEDDY_AFFECTED and sam.sample_id in samples
-    ]
-    for sample in affected_samples:
-        if sample not in clean_results:
-            clean_results[sample] = []
-
-    return clean_results
+    return clean
 
 
 def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
@@ -217,62 +255,10 @@ def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
         set of all panels for this gene,
         set of new panels for this gene
     """
-    single_gene_details = gene_details['genes'][gene]
+    single_gene_details = gene_details[gene]
     all_panels = set(single_gene_details['panels'])
     new_panels = set(single_gene_details['new'])
     return all_panels, new_panels
-
-
-def gene_clean_results(
-    party_panels: dict,
-    panel_app_data: dict,
-    cleaned_data: dict[str, list[ReportedVariant]],
-) -> dict:
-    """
-    takes the unique'd data from the previous cleaning
-    applies gene panel filters per-participant
-    the only remaining data should be relevant to the participant's panel list
-
-    This might be a bit heavy, but very few variants remain so runtime is meh
-
-    Args:
-        party_panels (): JSON file containing the panels per participant
-        panel_app_data (): all panelapp results
-        cleaned_data (): reportable variants, indexed per participant
-
-    Returns:
-        a gene-list filtered version of the reportable data
-    """
-
-    gene_cleaned_data = defaultdict(list)
-
-    # panel lookup index is CPG ID
-    for sample, variants in cleaned_data.items():
-
-        participant_panels = set(party_panels[sample]['panels'])
-        for variant in variants:
-            all_panels, new_panels = get_gene_panel_sets(panel_app_data, variant.gene)
-
-            if not bool(participant_panels.intersection(all_panels)):
-                # this gene is not relevant for this participant
-                continue
-
-            # now check if Cat 2 is present - requires new gene status
-            # pop it out if cat2 doesn't apply for this participant
-            if '2' in variant.var_data.categories and not bool(
-                participant_panels.intersection(new_panels)
-            ):
-                _ = variant.var_data.categories.pop(
-                    variant.var_data.categories.index('2')
-                )
-                # should not be treated as new
-                logging.info(f'Removing category 2 in {variant.gene} for {sample}')
-
-            # if categories still remain, add the variant
-            if variant.var_data.categories:
-                gene_cleaned_data[sample].append(variant)
-
-    return dict(gene_cleaned_data)
 
 
 def count_families(pedigree: Ped, samples: list[str]) -> dict:
@@ -359,7 +345,7 @@ def main(
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
 
-    results = []
+    result_list = []
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -372,7 +358,7 @@ def main(
             singletons=bool('singleton' in pedigree),
         )
 
-        results.extend(
+        result_list.extend(
             apply_moi_to_variants(
                 variant_dict=contig_dict,
                 moi_lookup=moi_lookup,
@@ -381,23 +367,31 @@ def main(
             )
         )
 
-    # remove duplicate variants (better solution pls)
-    analysis_results = clean_initial_results(
-        results, samples=vcf_opened.samples, pedigree=pedigree_digest
+    # remove duplicate and invalid variants
+    analysis_results = clean_and_filter(
+        result_list,
+        panelapp_data=panelapp_data['genes'],
+        participant_panels=read_json_from_path(participant_panels),
     )
 
-    # remove previously seen results using cumulative data files
+    # Empty list for 0 variant samples with affected status
+    # explicitly record samples checked in this analysis
+    # the PED could have more samples than a joint call, due to sub-setting or QC.
+    # When presenting results, we want all samples with negative findings, without
+    # comparing both VCF and PED files
+    affected_samples = [
+        sam.sample_id
+        for sam in pedigree_digest.samples()
+        if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_opened.samples
+    ]
+    for sample in affected_samples:
+        if sample not in analysis_results:
+            analysis_results[sample] = []
+
+    # remove previously seen results using cumulative data file(s)
     analysis_results = filter_results(
         analysis_results, singletons=bool('singleton' in pedigree)
     )
-
-    # do we need to do multi-panel filtering?
-    if participant_panels:
-        analysis_results = gene_clean_results(
-            party_panels=read_json_from_path(participant_panels),
-            panel_app_data=panelapp_data,
-            cleaned_data=analysis_results,
-        )
 
     final_results = {
         'results': analysis_results,
