@@ -16,7 +16,7 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Union
+from typing import Union
 
 import click
 
@@ -42,9 +42,9 @@ from reanalysis.utils import (
 
 
 def set_up_inheritance_filters(
-    panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
+    panelapp_data: dict[str, dict[str, Union[str, bool]]],
     pedigree: Ped,
-) -> Dict[str, MOIRunner]:
+) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -92,10 +92,10 @@ def set_up_inheritance_filters(
 
 def apply_moi_to_variants(
     variant_dict: GeneDict,
-    moi_lookup: Dict[str, MOIRunner],
-    panelapp_data: Dict[str, Dict[str, Union[str, bool]]],
+    moi_lookup: dict[str, MOIRunner],
+    panelapp_data: dict[str, dict[str, Union[str, bool]]],
     pedigree: Ped,
-) -> List[ReportedVariant]:
+) -> list[ReportedVariant]:
     """
     take all variants on a given contig & MOI filters
     find all variants/compound hets which fit the PanelApp MOI
