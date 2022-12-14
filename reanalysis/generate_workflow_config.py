@@ -26,7 +26,7 @@ import json
 
 import toml
 from cpg_utils.config import read_configs, update_dict
-from cpg_utils.deploy_config import DeployConfig, get_deploy_config, get_workflow_config, set_deploy_config, set_server_config
+from cpg_utils.deploy_config import DeployConfig, get_deploy_config, set_deploy_config, set_server_config
 from cpg_utils.storage import get_dataset_bucket_config, get_dataset_bucket_url
 from cpg_utils import to_path
 
@@ -56,7 +56,12 @@ assert args.access_level == "test" or args.access_level == "main"
 print("generating workflow toml... using deploy_config:")
 print(json.dumps(get_deploy_config().to_dict(include_datasets=True), indent=2))
 
-workflow_config = get_workflow_config(args.dataset, args.access_level, args.driver_image, args.output_prefix)
+workflow_config = {
+    'access_level': args.access_level,
+    'dataset': args.dataset,
+    'driver_image': args.driver_image,
+    'output_prefix': args.output_prefix
+}
 
 hail_config = {
     "bucket": get_dataset_bucket_url(args.dataset, "hail"),
