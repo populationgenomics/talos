@@ -849,14 +849,14 @@ def find_latest_file(
     """
 
     if results_folder is None:
-        if (
-            results_folder := (
-                get_config().get('dataset_specific', {}).get('historic_results')
-            )
-            is None
-        ):
+        results_folder = (
+            get_config().get('dataset_specific', {}).get('historic_results')
+        )
+        if results_folder is None:
             logging.info('`historic_results` not present in config')
             return None
+
+    logging.info(f'Using results from {results_folder}')
 
     date_sorted_files = sorted(
         to_path(results_folder).glob(f'{start}*.{ext}'),
