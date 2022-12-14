@@ -35,19 +35,19 @@ class PicoReport:
         return False
 
 
-def test_gene_clean_results():
+def test_gene_clean_results_no_personal():
     """
     tests the per-participant gene-filtering of results
     messy test, write and pass file paths
     """
     cat_1 = PicoVariant(['1'])
     cat_2 = PicoVariant(['2'])
+    cat_none = PicoVariant([])
 
     dirty_data = [
-        PicoReport('ENSG1', 'sam1', cat_1),
+        PicoReport('ENSG1', 'sam1', cat_none),
         PicoReport('ENSG2', 'sam1', cat_1),
-        PicoReport('ENSG3', 'sam2', cat_1),
-        PicoReport('ENSG3', 'sam2', cat_1),
+        PicoReport('ENSG3', 'sam2', cat_none),
         PicoReport('ENSG4', 'sam3', cat_2),
         PicoReport('ENSG5', 'sam3', cat_1),
     ]
@@ -59,17 +59,10 @@ def test_gene_clean_results():
         'ENSG5': {'panels': [4], 'new': []},
     }
 
-    party_panels = {
-        'sam1': {'panels': [1]},
-        'sam2': {'panels': [2]},
-        'sam3': {'panels': [3, 4]},
-    }
-
-    clean = clean_and_filter(dirty_data, panel_genes, party_panels)
+    clean = clean_and_filter(dirty_data, panel_genes, None)
     assert len(clean['sam1']) == 1
-    assert clean['sam1'][0].gene == 'ENSG1'
-    assert len(clean['sam2']) == 2
-    assert clean['sam2'][0].gene == 'ENSG3'
+    assert {x.gene for x in clean['sam1']} == {'ENSG2'}
+    assert 'sam2' not in clean
     assert len(clean['sam3']) == 2
     assert {x.gene for x in clean['sam3']} == {'ENSG4', 'ENSG5'}
 

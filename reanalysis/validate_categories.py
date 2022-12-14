@@ -194,16 +194,17 @@ def clean_and_filter(
         gene = each_event.gene
         variant = each_event.var_data
 
-        # don't re-cast sets for every single variant
-        if gene in gene_details:
-            all_panels, new_panels = gene_details[gene]
-        else:
-            all_panels, new_panels = get_gene_panel_sets(panelapp_data, gene)
-            gene_details[gene] = (all_panels, new_panels)
-
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
+
+            # don't re-cast sets for every single variant
+            if gene in gene_details:
+                all_panels, new_panels = gene_details[gene]
+
+            else:
+                all_panels, new_panels = get_gene_panel_sets(panelapp_data, gene)
+                gene_details[gene] = (all_panels, new_panels)
 
             # is this a valid gene for this participant?
             if not bool(participant_panels[sample].intersection(all_panels)):
