@@ -38,11 +38,12 @@ from cpg_utils.hail_batch import (
 from cpg_workflows.batch import get_batch
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
+from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 
 from utils import FileTypes, identify_file_type
 
 # exact time that this run occurred
-EXECUTION_TIME = f'{datetime.now():%Y-%m-%d %H:%M}'
+EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 
 # static paths to write outputs
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
@@ -101,13 +102,14 @@ def set_job_resources(
     )
 
 
-def mt_to_vcf(batch: hb.Batch, input_file: str):
+def mt_to_vcf(batch: hb.Batch, input_file: str) -> hb.batch.job.Job:
     """
     takes a MT and converts to VCF
     :param batch:
     :param input_file:
     :return:
     """
+
     mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
     set_job_resources(mt_to_vcf_job)
 
@@ -314,7 +316,9 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
+            if not to_path(INPUT_AS_VCF).exists():
+                prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
+
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
     # endregion
@@ -324,13 +328,23 @@ def main(
         # need to run the annotation phase
         # uses default values from RefData
 
+        siteonly_vcf_path = to_path(
+            output_path('siteonly.vcf.gz', get_config()['buckets'].get('tmp_suffix'))
+        )
+        add_make_sitesonly_job(
+            b=get_batch(),
+            input_vcf=get_batch().read_input(input_path),
+            output_vcf_path=siteonly_vcf_path,
+            storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
+        )
+
         vep_ht_tmp = output_path(
             'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
         )
         # generate the jobs which run VEP & collect the results
         vep_jobs = add_vep_jobs(
             b=get_batch(),
-            input_siteonly_vcf_path=to_path(input_path),
+            input_siteonly_vcf_path=siteonly_vcf_path,
             tmp_prefix=to_path(
                 output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
             ),
@@ -451,6 +465,16 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
+    logging.info(
+        r"""Welcome To The
+          ___  _____ ______
+         / _ \|_   _|| ___ \
+        / /_\ \ | |  | |_/ /
+        |  _  | | |  |  __/
+        | | | |_| |_ | |
+        \_| |_/\___/ \_|
+        """
+    )
 
     parser = ArgumentParser()
     parser.add_argument('-i', help='variant data to analyse', required=True)
@@ -476,4 +500,5 @@ if __name__ == '__main__':
         extra_panels=args.extra_panels,
         participant_panels=args.participant_panels,
         skip_annotation=args.skip_annotation,
+        singletons=args.singletons,
     )

@@ -12,6 +12,8 @@ Read, filter, annotate, classify, and write Genetic data
 This doesn't include applying inheritance pattern filters
 Categories applied here are treated as unconfirmed
 """
+
+
 import os
 import logging
 import sys
@@ -26,6 +28,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path, init_batch
 
+from reanalysis.hail_audit import fields_audit, vep_audit
 from reanalysis.utils import read_json_from_path
 
 
@@ -101,73 +104,91 @@ VEP_TX_FIELDS_REQUIRED = [
 ]
 
 
-def fields_audit(mt: hl.MatrixTable) -> bool:
+def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    checks that the required fields are all present before continuing
-    """
-    problems = []
-    # iterate over top-level attributes
-    for annotation, datatype in BASE_FIELDS_REQUIRED:
-        if annotation in mt.row_value or annotation in mt.row_key:
-            if not isinstance(mt[annotation], datatype):
-                problems.append(f'{annotation}: {datatype}/{type(mt[annotation])}')
-        else:
-            problems.append(f'{annotation}:missing')
-
-    for field_group, group_types in FIELDS_REQUIRED.items():
-        if field_group not in mt.row_value:
-            problems.append(f'{field_group}:missing')
-        else:
-            for annotation, datatype in group_types:
-                if annotation in mt[field_group]:
-                    if not isinstance(mt[field_group][annotation], datatype):
-                        problems.append(
-                            f'{annotation}:'
-                            f'{datatype}/'
-                            f'{type(mt[field_group][annotation])}'
-                        )
-                else:
-                    problems.append(f'{annotation}:missing')
-    for problem in problems:
-        logging.error(f'MT field: \t{problem}')
-    return len(problems) == 0
-
-
-def vep_audit(mt: hl.MatrixTable) -> bool:
-    """
-    check that the required VEP annotations are present
-    True if the 'audit' passes (all required fields present)
+    instead of making a separate decision about whether the clinvar
+    annotation(s) are meaningful during each test, add a single value
+    early on. This accomplishes two things:
+    1. reduces the logic of each individual test
+    2. allows us to use other clinvar consequences for this codon
+        (see issue #140)
+    3. allows us to replace the clinvar annotation with our private
+        annotations (see issue #147)
+    Args:
+        mt (): the MatrixTable of all variants
+    Returns:
+        The same MatrixTable but with additional annotations
     """
 
-    problems = []
-    # now the content of the transcript_consequences
-    if 'vep' not in mt.row_value:
-        problems.append('VEP:missing')
-    elif 'transcript_consequences' not in mt.vep:
-        problems.append('transcript_consequences:missing')
+    # if there's private clinvar annotations - use them
+    if private_clinvar := get_config().get('hail', {}).get('private_clinvar'):
+        logging.info(f'loading private clinvar annotations from {private_clinvar}')
+        ht = hl.read_table(private_clinvar)
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                clinvar_sig=hl.or_else(ht[mt.row_key].rating, MISSING_STRING),
+                clinvar_stars=hl.or_else(ht[mt.row_key].stars, MISSING_INT),
+                clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_STRING),
+            )
+        )
+
+        # remove all confident benign (only confident in this ht)
+        mt = mt.filter_rows(mt.info.clinvar_sig.lower().contains(BENIGN), keep=False)
+
+    # use default annotations
     else:
-        fields_and_types = dict(mt.vep.transcript_consequences[0].items())
-        for field, field_type in VEP_TX_FIELDS_REQUIRED:
-            if field in fields_and_types:
-                if not isinstance(fields_and_types[field], field_type):
-                    problems.append(
-                        f'{field}:{field_type}/{type(fields_and_types[field])}'
-                    )
-            else:
-                problems.append(f'{field}:missing')
+        logging.info(f'no private annotations, using default contents')
 
-    for problem in problems:
-        logging.error(f'VEP field: {problem}')
+        # do this annotation first, as hail can't string filter against
+        # missing contents
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                clinvar_sig=hl.or_else(
+                    mt.clinvar.clinical_significance, MISSING_STRING
+                ),
+                clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
+                clinvar_allele=hl.or_else(mt.clinvar.allele_id, MISSING_INT),
+            )
+        )
 
-    return len(problems) == 0
+        # remove all confidently benign
+        mt = mt.filter_rows(
+            (mt.info.clinvar_sig.lower().contains(BENIGN))
+            & (mt.info.clinvar_stars > 0),
+            keep=False,
+        )
+
+    # annotate as either strong or regular
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            clinvar_aip=hl.if_else(
+                (
+                    (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            clinvar_aip_strong=hl.if_else(
+                (
+                    (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
+                    & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
+                    & (mt.info.clinvar_stars > 0)
+                ),
+                ONE_INT,
+                MISSING_INT,
+            ),
+        )
+    )
+
+    return mt
 
 
 def filter_matrix_by_ac(
     mt: hl.MatrixTable, ac_threshold: float | None = 0.01
 ) -> hl.MatrixTable:
     """
-    if called, this method will remove all variants in the joint call where the
-    AlleleCount as a proportion is higher than the provided threshold
+    Remove variants with AC in joint-call over threshold
     :param mt:
     :param ac_threshold:
     :return: reduced MatrixTable
@@ -192,27 +213,6 @@ def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.filter_rows((hl.len(mt.alleles) == 2) & (mt.alleles[1] != '*'))
 
 
-def filter_by_ab_ratio(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    filters HomRef, Het, and HomAlt by appropriate AB ratio bins
-
-    NOTE: This is a broken implementation, as it will replace the
-    true genotype calls with missing values. This has implications for
-    MOI testing downstream, as the corresponding genotypes in family
-    members can be absent, despite being called in the VCF
-
-    This can also cause rows in the resulting VCF to be
-    only WT/missing calls, removing all actual variant calls
-    :param mt:
-    """
-    ab = mt.AD[1] / hl.sum(mt.AD)
-    return mt.filter_entries(
-        (mt.GT.is_hom_ref() & (ab <= 0.15))
-        | (mt.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-        | (mt.GT.is_hom_var() & (ab >= 0.85))
-    )
-
-
 def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category1 annotation
@@ -226,10 +226,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean1=hl.if_else(
-                (mt.info.clinvar_stars > 0)
-                & (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                & ~(mt.info.clinvar_sig.lower().contains(BENIGN)),
+                mt.info.clinvar_aip_strong == ONE_INT,
                 ONE_INT,
                 MISSING_INT,
             )
@@ -271,11 +268,7 @@ def annotate_category_2(
                         )
                         > 0
                     )
-                    | (
-                        (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                        & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                        & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
-                    )
+                    | (mt.info.clinvar_aip == ONE_INT)
                     | (
                         (mt.info.cadd > get_config()['filter']['cadd'])
                         | (mt.info.revel > get_config()['filter']['revel'])
@@ -338,11 +331,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
                         )
                         > 0
                     )
-                    | (
-                        (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                        & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
-                        & ~(mt.info.clinvar_sig.lower().contains(BENIGN))
-                    )
+                    | (mt.info.clinvar_aip == ONE_INT)
                 ),
                 ONE_INT,
                 MISSING_INT,
@@ -353,7 +342,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    - reduce the per-row transcript consequences to a limited group
+    - reduce the per-row transcript CSQ to a limited group
     - reduce the rows to ones where there are remaining tx consequences
     :param mt:
     :return: reduced matrix
@@ -387,6 +376,7 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
     """
     Category based on de novo MOI, restricted to a group of consequences
     uses the Hail builtin method (very strict)
+
     :param mt: the whole joint-call MatrixTable
     :param plink_family_file: path to a pedigree in PLINK format
     :return: mt with Category4 annotations
@@ -498,45 +488,21 @@ def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def transform_variant_string(locus_details: hl.Struct) -> str:
-    """
-    takes an object
-    Struct(
-        locus=Locus(
-            contig='chr1',
-            position=10,
-            reference_genome='GRCh38'
-        ),
-        alleles=['GC', 'G'],
-        category_4_only=0
-    )
-    transform into simplified 1-10-GC-G
-    drop the category_4_only attribute
-    :param locus_details:
-    :return:
-    """
-    return '-'.join(
-        [
-            locus_details.locus.contig.replace('chr', ''),
-            str(locus_details.locus.position),
-            *locus_details.alleles,
-        ]
-    )
-
-
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad Exomes and Genomes
-    :param mt:
-    :return:
+    allow clinvar pathogenic to slip through this filter
     """
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
     # 'semi-rare' as dominant filters will be more strictly filtered later
     rare_af_threshold = get_config()['filter']['af_semi_rare']
     return mt.filter_rows(
-        (mt.info.gnomad_ex_af < rare_af_threshold)
-        & (mt.info.gnomad_af < rare_af_threshold)
+        (
+            (mt.info.gnomad_ex_af < rare_af_threshold)
+            & (mt.info.gnomad_af < rare_af_threshold)
+        )
+        | (mt.info.clinvar_aip == ONE_INT)
     )
 
 
@@ -557,7 +523,7 @@ def split_rows_by_gene_and_filter_to_green(
     # filter rows without a green gene (removes empty geneIds)
     mt = mt.filter_rows(green_genes.contains(mt.geneIds))
 
-    # limit the per-row transcript consequences to those relevant to the single
+    # limit the per-row transcript CSQ to those relevant to the single
     # gene now present on each row
     mt = mt.annotate_rows(
         vep=mt.vep.annotate(
@@ -585,7 +551,7 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
     """
 
     def get_csq_from_struct(
-        element: hl.expr.StructExpression, feature_type: str
+        element: hl.expr.StructExpression,
     ) -> hl.expr.StringExpression:
 
         # Most fields are 1-1, just lowercase
@@ -594,42 +560,12 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
         # Add general exceptions
         fields.update(
             {
-                'allele': element.variant_allele,
                 'consequence': hl.delimit(element.consequence_terms, delimiter='&'),
-                'feature_type': feature_type,
-                'feature': (
-                    element.transcript_id
-                    if 'transcript_id' in element
-                    else element.regulatory_feature_id
-                    if 'regulatory_feature_id' in element
-                    else element.motif_feature_id
-                    if 'motif_feature_id' in element
-                    else ''
-                ),
+                'feature': element.transcript_id,
                 'variant_class': vep_expr.variant_class,
-                'canonical': hl.if_else(element.canonical == 1, 'YES', ''),
                 'ensp': element.protein_id,
                 'gene': element.gene_id,
                 'symbol': element.gene_symbol,
-                'symbol_source': element.gene_symbol_source,
-                'cdna_position': hl.str(element.cdna_start)
-                + hl.if_else(
-                    element.cdna_start == element.cdna_end,
-                    '',
-                    '-' + hl.str(element.cdna_end),
-                ),
-                'cds_position': hl.str(element.cds_start)
-                + hl.if_else(
-                    element.cds_start == element.cds_end,
-                    '',
-                    '-' + hl.str(element.cds_end),
-                ),
-                'protein_position': hl.str(element.protein_start)
-                + hl.if_else(
-                    element.protein_start == element.protein_end,
-                    '',
-                    '-' + hl.str(element.protein_end),
-                ),
                 'sift': element.sift_prediction
                 + '('
                 + hl.format('%.3f', element.sift_score)
@@ -650,16 +586,15 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
         )
 
     csq = hl.empty_array(hl.tstr)
+    # pylint: disable=unnecessary-lambda
     csq = csq.extend(
         hl.or_else(
-            vep_expr['transcript_consequences'].map(
-                lambda x: get_csq_from_struct(x, feature_type='Transcript')
-            ),
+            vep_expr['transcript_consequences'].map(lambda x: get_csq_from_struct(x)),
             hl.empty_array(hl.tstr),
         )
     )
 
-    # prior filtering on consequence will make this caution unnecessary
+    # previous consequence filters may make this caution unnecessary
     return hl.or_missing(hl.len(csq) > 0, csq)
 
 
@@ -694,8 +629,6 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
                 mt.splice_ai.splice_consequence, MISSING_STRING
             ).replace(' ', '_'),
             cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            clinvar_sig=hl.or_else(mt.clinvar.clinical_significance, MISSING_STRING),
-            clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
             # these next 3 are per-transcript, with ';' to delimit
             # pulling these annotations into INFO with ';' to separate
             # will break INFO parsing for most tools
@@ -873,7 +806,12 @@ def main(mt_path: str, panelapp: str, plink: str):
 
     mt = hl.read_matrix_table(mt_path)
 
-    if not (fields_audit(mt) and vep_audit(mt)):
+    if not (
+        fields_audit(
+            mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED
+        )
+        and vep_audit(mt, VEP_TX_FIELDS_REQUIRED)
+    ):
         raise Exception('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
@@ -894,9 +832,6 @@ def main(mt_path: str, panelapp: str, plink: str):
     if mt.count_rows() == 0:
         raise Exception('No remaining rows to process!')
 
-    # see method docstring, currently disabled
-    # matrix = filter_by_ab_ratio(matrix)
-
     mt = checkpoint_and_repartition(
         mt,
         checkpoint_root=checkpoint_root,
@@ -906,7 +841,10 @@ def main(mt_path: str, panelapp: str, plink: str):
 
     checkpoint_number = checkpoint_number + 1
 
+    # swap out the default clinvar annotations with private clinvar
+    mt = annotate_aip_clinvar(mt)
     mt = extract_annotations(mt)
+
     mt = filter_to_population_rare(mt=mt)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 

@@ -20,7 +20,7 @@ GNOMAD_TEMPLATE = (
     '{variant}?dataset=gnomad_r3" target="_blank">{value:.5f}</a>'
 )
 PANELAPP_TEMPLATE = (
-    '<a href="https://panelapp.agha.umccr.org/panels/137/gene/{symbol}/" '
+    '<a href="https://panelapp.agha.umccr.org/panels/entities/{symbol}/" '
     'target="_blank">{symbol}</a>'
 )
 SEQR_TEMPLATE = (
@@ -52,27 +52,6 @@ def make_coord_string(var_coord: dict[str, str]) -> str:
     return (
         f'{var_coord["chrom"]}-{var_coord["pos"]}-{var_coord["ref"]}-{var_coord["alt"]}'
     )
-
-
-def category_strings(var_data: dict[str, Any], sample: str) -> list[str]:
-    """
-    get a list of strings representing the categories present on this variant
-    :param var_data:
-    :param sample:
-    :return:
-    """
-    strings = [
-        cat.replace('categoryboolean', '')
-        for cat in var_data['info'].keys()
-        if cat.startswith('categoryboolean') and var_data['info'][cat]
-    ]
-    if var_data['info'].get('categorysupport'):
-        strings.append('support')
-
-    if sample in var_data['info'].get('categorysample4', []):
-        strings.append('de_novo')
-
-    return strings
 
 
 def color_csq(all_csq: set[str], mane_csq: set[str]) -> str:
@@ -244,9 +223,7 @@ class HTMLBuilder:
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
-                for category_value in category_strings(
-                    variant['var_data'], sample=sample
-                ):
+                for category_value in variant['var_data'].get('categories'):
                     if category_value == 'support':
                         continue
                     sample_variants[category_value].add(var_string)
@@ -285,7 +262,7 @@ class HTMLBuilder:
             ),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
-                for key in ['cohort', 'input_file', 'run_datetime']
+                for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
             ).to_html(index=False, escape=False),
             'Families': pd.DataFrame(
                 [
@@ -379,11 +356,6 @@ class HTMLBuilder:
                 # pull out the string representation
                 var_string = make_coord_string(variant['var_data']['coords'])
 
-                # find list of all categories assigned
-                variant_categories = category_strings(
-                    variant['var_data'], sample=sample
-                )
-
                 csq_string, mane_string = get_csq_details(variant)
                 candidate_dictionaries.setdefault(variant['sample'], []).append(
                     {
@@ -397,7 +369,7 @@ class HTMLBuilder:
                                     lambda x: COLOR_STRING.format(
                                         color=COLORS[x], content=x
                                     ),
-                                    variant_categories,
+                                    variant['var_data']['categories'],
                                 )
                             )
                         ),

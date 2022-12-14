@@ -17,7 +17,6 @@ from comparison.comparison import (
     common_format_aip,
     common_format_seqr,
     find_affected_samples,
-    filter_sample_by_ab,
     find_missing,
     find_variant_in_mt,
     run_ac_check,
@@ -372,26 +371,3 @@ def test_variant_is_normalised(
     """
     anno_mt = hail_matrix.key_rows_by(hail_matrix.locus).annotate_rows(alleles=alleles)
     assert check_variant_was_normalised(anno_mt) == results
-
-
-@pytest.mark.parametrize(
-    'gt,ad,result',
-    [
-        ('1/0', [20, 80], ['QC: Variant fails AB ratio']),
-        ('1/0', [50, 50], []),
-        ('0/0', [80, 20], ['QC: Variant fails AB ratio']),
-        ('1/1', [80, 20], ['QC: Variant fails AB ratio']),
-        ('1|1', [80, 20], ['QC: Variant fails AB ratio']),
-    ],
-)
-def test_filter_sample_by_ab(gt, ad, result, hail_matrix):
-    """
-
-    :param gt:
-    :param ad:
-    :param result:
-    :return:
-    """
-
-    anno_mt = hail_matrix.annotate_entries(AD=hl.array(ad), GT=hl.parse_call(gt))
-    assert filter_sample_by_ab(anno_mt, 'SAMPLE') == result

@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass
 
-from reanalysis.validate_categories import gene_clean_results, update_result_meta
+from reanalysis.validate_categories import gene_clean_results, count_families
 
 
 @dataclass
@@ -51,41 +51,12 @@ def test_update_results_meta(peddy_ped):
     testing the dict update
     """
 
-    results = {}
-    panelapp = {
-        'metadata': [
-            {'name': 'biff', 'version': 'pow', 'id': 'wallop'},
-            {'name': 'extra_panel', 'version': 'extra_version', 'id': 2},
-        ]
-    }
-
     ped_samples = ['male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2']
 
-    big_results = update_result_meta(
-        results=results,
-        pedigree=peddy_ped,
-        panelapp=panelapp,
-        samples=ped_samples,
-        input_path='this',
-    )
-
-    # either this or mock the entry
-    del big_results['metadata']['run_datetime']
-
-    assert big_results == {
-        'metadata': {
-            'input_file': 'this',
-            'cohort': 'cohort',
-            'family_breakdown': {
-                'affected': 2,
-                'male': 3,
-                'female': 3,
-                'trios': 2,
-                '3': 2,
-            },
-            'panels': [
-                {'name': 'biff', 'version': 'pow', 'id': 'wallop'},
-                {'name': 'extra_panel', 'version': 'extra_version', 'id': 2},
-            ],
-        }
+    assert count_families(pedigree=peddy_ped, samples=ped_samples,) == {
+        'affected': 2,
+        'male': 3,
+        'female': 3,
+        'trios': 2,
+        '3': 2,
     }

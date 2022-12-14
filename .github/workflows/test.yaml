@@ -20,4 +20,4 @@ jobs:
         pip install .[full,test]
 
     - name: test
-      run: pytest -n auto -m "not gcp" .
+      run: pytest -n auto .
