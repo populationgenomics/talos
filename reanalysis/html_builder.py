@@ -2,6 +2,7 @@
 Methods for taking the final output and generating static report content
 """
 import logging
+import sys
 from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
@@ -431,6 +432,13 @@ class HTMLBuilder:
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
 
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)

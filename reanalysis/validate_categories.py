@@ -14,12 +14,12 @@ participants relative to the MOI described in PanelApp
 
 import json
 import logging
+import sys
 from collections import defaultdict
 from datetime import datetime
 from typing import Union
 
 import click
-
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
@@ -414,5 +414,10 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
     main()  # pylint: disable=no-value-for-parameter
