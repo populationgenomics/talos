@@ -131,7 +131,7 @@ class HTMLBuilder:
         # if it exists, read the forbidden genes as a dict
         self.forbidden_genes = (
             {
-                ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
+                ensg: self.panelapp['genes'].get(ensg, {}).get('symbol', ensg)
                 for ensg in set(
                     read_json_from_path(
                         get_config().get('dataset_specific', {})['forbidden']
@@ -170,7 +170,7 @@ class HTMLBuilder:
         """
         takes the results from the analysis and purges forbidden-gene variants
         """
-        clean_results = defaultdict(list[dict[str, Any]])
+        clean_results = defaultdict(list)
         for sample, content in variant_dictionary.items():
             if sample == 'metadata':
                 clean_results['metadata'] = content
@@ -375,7 +375,7 @@ class HTMLBuilder:
                         'symbol': ','.join(
                             [
                                 PANELAPP_TEMPLATE.format(
-                                    symbol=self.panelapp[symbol]['symbol']
+                                    symbol=self.panelapp['genes'][symbol]['symbol']
                                 )
                                 for symbol in variant['gene'].split(',')
                             ]
