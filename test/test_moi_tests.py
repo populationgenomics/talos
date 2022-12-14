@@ -55,9 +55,15 @@ class SimpleVariant:
             pass
         return []
 
+    def category_values(self, sample):
+        """
+        quick mock method
+        """
+        return [sample]
+
 
 @dataclass
-class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
+class RecessiveSimpleVariant:
     """
     a fake version of AbstractVariant
     """
@@ -106,6 +112,12 @@ class RecessiveSimpleVariant:  # pylint: disable=too-many-instance-attributes
         gets all report flags for this sample
         """
         return self.check_ab_ratio(sample)
+
+    def category_values(self, sample):
+        """
+        quick mock method
+        """
+        return [sample]
 
 
 @pytest.mark.parametrize(
@@ -361,7 +373,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
     )
 
 
-@pytest.mark.parametrize('info', [{'gnomad_hom': 2}])
+@pytest.mark.parametrize('info', [{'gnomad_hom': 3}])  # threshold is 2
 def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
     check that when the info values are failures

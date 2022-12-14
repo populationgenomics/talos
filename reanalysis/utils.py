@@ -4,7 +4,8 @@ which may be shared across reanalysis components
 """
 
 from collections import defaultdict
-from dataclasses import dataclass, is_dataclass
+from dataclasses import dataclass, is_dataclass, field
+from datetime import datetime
 from enum import Enum
 from itertools import combinations_with_replacement
 from pathlib import Path
@@ -40,6 +41,8 @@ CHROM_ORDER = list(map(str, range(1, 23))) + [
 
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
+
+TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
 
 class FileTypes(Enum):
@@ -241,6 +244,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
+        self.categories = []
 
     def __str__(self):
         return repr(self)
@@ -387,16 +391,16 @@ class ReportedVariant:
     gene: str
     var_data: AbstractVariant
     reasons: set[str]
-    supported: bool
-    support_vars: list[str] | None = None
-    flags: list[str] | None = None
+    supported: bool = field(default=False)
+    support_vars: list[str] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
 
     def __eq__(self, other):
         """
         makes reported variants comparable
         """
-        self_supvar = set() if self.support_vars is None else set(self.support_vars)
-        other_supvar = set() if other.support_vars is None else set(other.support_vars)
+        self_supvar = set(self.support_vars)
+        other_supvar = set(other.support_vars)
         return (
             self.sample == other.sample
             and self.var_data.coords == other.var_data.coords
@@ -676,3 +680,240 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
                 ).append(var_1)
 
     return comp_het_results
+
+
+def filter_results(results: dict) -> dict:
+    """
+    takes a set of results
+    loads the most recent prior result set (if it exists)
+    subtract
+    write two files (total, and latest - previous)
+    p.stat().st_mtime to find latest
+    Args:
+        results (): the results produced during this run
+
+    Returns:
+
+    """
+    # try to pull out the historic results folder
+    try:
+        if (
+            historic := get_config()['dataset_specific'].get('historic_results')
+        ) is None:
+            logging.info(
+                'No `historic_results` key in config - no filtering took place'
+            )
+            return results
+    except KeyError:
+        logging.info('No `dataset_specific` key in config - no filtering took place')
+        return results
+
+    logging.info(f'filtering current results against data in {historic}')
+    # get the latest result file from the folder
+    latest_results = find_latest(results_folder=historic)
+
+    logging.info(f'latest results: {latest_results}')
+
+    if latest_results is None:
+        # no results to subtract - current data IS cumulative data
+        mini_results = make_cumulative_representation(results)
+
+        save_new_cumulative(directory=historic, results=mini_results)
+
+    else:
+        cum_results = read_json_from_path(bucket_path=latest_results)
+
+        # remove previously seen entries
+        results = subtract_results(current=results, cumulative=cum_results)
+
+        # add new entries into cumulative results
+        add_results(results, cum_results)
+
+        # save updated cumulative results
+        save_new_cumulative(directory=historic, results=cum_results)
+
+    return results
+
+
+def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) -> dict:
+    """
+    for the 'cumulative' representation, keep a minimised format
+    the first time we generate a minimal format we need to translate
+
+    Args:
+        results (): the full results of the current run
+
+    Returns:
+        minimised form
+    """
+
+    mini_results = defaultdict(dict)
+    for sample, variants in results.items():
+        for var in variants:
+            mini_results[sample][var.var_data.coords.string_format] = {
+                'categories': {cat: TODAY for cat in var.var_data.categories},
+                'support_vars': var.support_vars,
+            }
+    return mini_results
+
+
+def save_new_cumulative(directory: str, results: dict):
+    """
+    save the new cumulative results in the results dir
+    include time & date in filename
+
+    Args:
+        directory ():
+        results ():
+    """
+
+    new_file = to_path(directory) / f'{TODAY}.json'
+    with new_file.open('w') as handle:
+        json.dump(results, handle, indent=4)
+    logging.info(f'Wrote new cumulative data to {str(new_file)}')
+
+
+def find_latest(results_folder: str, ext: str = 'json') -> str | None:
+    """
+    takes a directory of files, and finds the latest
+    Args:
+        results_folder (): local or remote folder
+        ext (): the type of files we're looking for
+
+    Returns:
+        timestamp-sorted latest file path, or None
+    """
+
+    date_sorted_files = sorted(
+        to_path(results_folder).glob(f'*.{ext}'),
+        key=lambda x: x.stat().st_mtime,
+        reverse=True,
+    )
+    if not date_sorted_files:
+        return None
+
+    return str(date_sorted_files[0].absolute())
+
+
+def subtract_results(
+    current: dict[str, list[ReportedVariant]], cumulative: dict
+) -> dict[str, list[ReportedVariant]]:
+    """
+    take datasets of new and previous results (cumulative for this cohort)
+    subtract all the previously seen results (exact)
+        i.e. comp-het with a new partner should appear?
+            - how does this gel with the category subtraction...
+            - new partner = show all categories
+    return the new-only
+
+    Args:
+        current (): results produced by this run
+        cumulative (): results previously seen
+
+    Returns:
+        a diff between the two
+    """
+
+    # create a dict to contain novel results
+    return_results = defaultdict(list)
+
+    # iterate over all samples and their variants
+    for sample, variants in current.items():
+
+        # sample not seen before - take all variants
+        if sample not in cumulative:
+            return_results[sample] = variants
+            continue
+
+        # otherwise get ready to contain some variants
+        return_results[sample] = []
+
+        # check what has previously been reported for this sample
+        for variant in variants:
+
+            var_id = variant.var_data.coords.string_format
+
+            # not seen - take in full
+            if var_id not in cumulative[sample]:
+                return_results[sample].append(variant)
+                continue
+
+            # if supported, allow if the support is new
+            if variant.support_vars:
+
+                # if novel supporting variants, don't need to check
+                # categories, we want to show this. WALRUS
+                if sups := [
+                    sup
+                    for sup in variant.support_vars
+                    if sup not in cumulative[sample][var_id]['support_vars']
+                ]:
+                    variant.support_vars = sups
+                    return_results[sample].append(variant)
+                    continue
+
+            # if seen, check for novel categories. Also, WALRUS
+            if cats := [
+                cat
+                for cat in variant.var_data.categories
+                if cat not in cumulative[sample][var_id]['categories'].keys()
+            ]:
+                # reduce the categories of interest for this round
+                variant.var_data.categories = cats
+
+                # and append the variant
+                return_results[sample].append(variant)
+
+    return dict(return_results)
+
+
+def add_results(current: dict[str, list[ReportedVariant]], cumulative: dict):
+    """
+    take datasets of new and previous results (cumulative for this cohort)
+    integrate the new results to form a new cumulative dataset
+    the first time each variant-category is seen, add the current date
+
+    Args:
+        current (): results produced by this run
+        cumulative (): results previously seen
+
+    Returns:
+        N/A - in place modification
+        a union of all results, inc new categories for prev. variants
+    """
+
+    # iterate over all samples and their variants
+    for sample, variants in current.items():
+
+        # sample not seen before - take all variants
+        if sample not in cumulative:
+            cumulative[sample] = {}
+
+        # each variant is an AbstractVariant
+        for variant in variants:
+
+            var_id = variant.var_data.coords.string_format
+
+            # not seen - take in full
+            if var_id not in cumulative[sample]:
+                cumulative[sample][var_id] = {
+                    'categories': {cat: TODAY for cat in variant.var_data.categories},
+                    'support_vars': variant.support_vars,
+                }
+
+            else:
+
+                # if seen, check for novel categories
+                cumulative[sample][var_id]['categories'].update(
+                    {
+                        cat: TODAY
+                        for cat in set(variant.var_data.categories)
+                        - set(cumulative[sample][var_id]['categories'].keys())
+                    }
+                )
+                cumulative[sample][var_id]['support_vars'] = sorted(
+                    set(
+                        variant.support_vars
+                        + cumulative[sample][var_id]['support_vars']
+                    )
+                )
