@@ -171,10 +171,8 @@ class HTMLBuilder:
         takes the results from the analysis and purges forbidden-gene variants
         """
         clean_results = defaultdict(list)
-        for sample, content in variant_dictionary.items():
-            if sample == 'metadata':
-                clean_results['metadata'] = content
-                continue
+        clean_results['metadata'] = variant_dictionary['metadata']
+        for sample, content in variant_dictionary['results'].items():
             sample_vars = []
             for variant in content:
                 skip_variant = False
