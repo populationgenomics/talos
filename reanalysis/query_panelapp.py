@@ -106,29 +106,14 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
         # all panels previously containing this gene
         gene_panels_for_this_gene = old_data['genes'].get(ensg, {}).get('panels', [])
         gene_prev_in_panel = panel_id in gene_panels_for_this_gene
+
         if not gene_prev_in_panel:
             gene_panels_for_this_gene.append(panel_id)
 
         # either update or add a new entry
         if ensg in gene_dict['genes'].keys():
-
             this_gene = gene_dict['genes'][ensg]
-            moi_this_panel = gene.get('mode_of_inheritance')
-
-            if moi_this_panel in [None, 'Unknown']:
-
-                # defer to an earlier result
-                moi_this_panel = this_gene['moi']
-
-            else:
-                moi_this_panel = get_simple_moi(moi_this_panel)
-
-            # pylint: disable=unnecessary-lambda
-            # take the more lenient of the gene MOI options
-            this_gene['moi'] = sorted(
-                [moi_this_panel, this_gene['moi']],
-                key=lambda x: ORDERED_MOIS.index(x),
-            )[0]
+            this_gene['moi'].add(gene.get('mode_of_inheritance', 'Unknown'))
 
             # if this is/was new - it's new
             if not gene_prev_in_panel:
@@ -137,16 +122,39 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
 
         else:
 
-            # first time we've seen this moi
-            moi = get_simple_moi(gene.get('mode_of_inheritance'))
-
             # save the entity into the final dictionary
             gene_dict['genes'][ensg] = {
                 'symbol': symbol,
-                'moi': moi,
+                'moi': {gene.get('mode_of_inheritance', 'Unknown')},
                 'new': [] if gene_prev_in_panel else [panel_id],
                 'panels': gene_panels_for_this_gene,
             }
+
+
+def get_best_moi(gene_dict: dict):
+    """
+    From the collected set of all MOIs, take the most lenient
+    If Unknown was found:
+        - only Unknown? accept unknown
+        - unknown and others? remove unknown then check remaining
+
+    Args:
+        gene_dict (): the 'genes' index of the collected dict
+    """
+
+    for content in gene_dict.values():
+
+        # only accept Unknown MOI if all are MOI
+        if content['moi'] == {'Unknown'}:
+            content['moi'] = get_simple_moi(None)
+            continue
+
+        # otherwise accept the most lenient valid MOI
+        moi_set = {get_simple_moi(moi) for moi in (content['moi'] - {'Unknown'})}
+
+        # pylint: disable=unnecessary-lambda
+        # take the more lenient of the gene MOI options
+        content['moi'] = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
 def read_panels_from_participant_file(panel_json: str) -> set[int]:
@@ -218,6 +226,9 @@ def main(panels: str | None, out_path: str, previous: str | None):
                 continue
 
             get_panel_green(gene_dict=gene_dict, old_data=old_data, panel_id=panel)
+
+    # now get the best MOI
+    get_best_moi(gene_dict['genes'])
 
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)
