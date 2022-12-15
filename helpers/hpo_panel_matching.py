@@ -49,7 +49,7 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
             # can be split over multiple strings
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
-                hpo_dict[match].add(str(panel['id']))
+                hpo_dict[match].add(int(panel['id']))
 
         # cycle through additional pages
         # why don't GEL make the panelapp API public...
@@ -241,7 +241,7 @@ def match_participants_to_panels(
     for participant, party_data in participant_hpos.items():
         for participant_key in participant_map.get(participant, [participant]):
             final_dict[participant_key] = {
-                'panels': set(),
+                'panels': {137},  # always default to mendeliome
                 'external_id': participant,
                 **party_data,
             }

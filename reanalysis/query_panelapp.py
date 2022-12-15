@@ -1,117 +1,88 @@
 #!/usr/bin/env python3
 
-
 """
-PanelApp Parser
-
-Creates the gene panel content for AIP
-Pulls latest 'green' content; Symbol, ENSG, and MOI
-
-Bases analyses on the Mendeliome panel, querying PanelApp
-for the current version at runtime.
-
-Optionally user can provide a list of PanelIDs, with content
-from all panels being joined together to form the analysis ROI
-
-- instead -
-
-Optionally user can provide a file of per-participant panels,
-which results in 2 files:
-
-- the union of all panel data
-- a file of per-panel gene lists (for downstream result filtering)
-
-User can also provide a gene list representing previous panel content.
-All genes from PanelApp will be marked as 'new' if not in this list
+Complete revision
 """
 
 
-from typing import Any, Union
 import logging
-import json
-import os
 import sys
-from argparse import ArgumentParser
 
-import requests
+import click
 
-from cpg_utils import to_path
+from cpg_utils.config import get_config
+
+from reanalysis.utils import (
+    find_latest_file,
+    get_json_response,
+    get_simple_moi,
+    read_json_from_path,
+    save_new_historic,
+    write_output_json,
+    ORDERED_MOIS,
+)
 
 
-MENDELIOME = '137'
-PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels/'
-PRE_PANELAPP = os.path.join(os.path.dirname(__file__), 'pre_panelapp_mendeliome.json')
 PanelData = dict[str, dict | list[dict]]
 
 
-def read_json_from_path(bucket_path: str) -> dict[str, Any]:
+def request_panel_data(url: str) -> tuple[str, str, list]:
     """
-    take a path to a JSON file, read into an object
-    :param bucket_path:
-    """
-    with to_path(bucket_path).open() as handle:
-        return json.load(handle)
+    just takes care of the panelapp query
+    Args:
+        url ():
 
-
-def get_json_response(url: str) -> dict[str, Any]:
-    """
-    takes a request URL, checks for healthy response, returns the JSON
-    For this purpose we only expect a dictionary return
-    List use-case (activities endpoint) no longer supported
-
-    :param url:
-    :return: python object from JSON response
+    Returns:
+        components of the panelapp response
     """
 
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()
-    return response.json()
+    panel_json = get_json_response(url)
+
+    # steal attributes
+    panel_name = panel_json.get('name')
+    panel_version = panel_json.get('version')
+    panel_genes = panel_json.get('genes')
+
+    # log name and version
+    logging.info(f'Current {panel_name} version: {panel_version}')
+
+    return panel_name, panel_version, panel_genes
 
 
-def parse_gene_list(path_to_list: str) -> set[str]:
-    """
-    parses a json file (GCP or local), extracting a set of genes
-    required format: a json list of strings
-    :param path_to_list:
-    """
-    logging.info(f'Loading gene list from {path_to_list}')
-    with open(to_path(path_to_list), encoding='utf-8') as handle:
-        return set(json.load(handle))
-
-
-def get_panel_green(
-    panel_id: str = MENDELIOME,
-) -> dict[str, dict[str, Union[str, bool]]]:
+def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None = None):
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
     For each gene, keep the MOI, symbol, ENSG (where present)
 
-    :param panel_id: defaults to the PanelAppAU Mendeliome
+    Args:
+        gene_dict (): dictionary to continue populating
+        old_data ():
+        panel_id (): specific panel or 'base' (e.g. 137)
     """
 
+    if panel_id is None:
+        panel_id = get_config()['workflow'].get('default_panel', 137)
+
     # prepare the query URL
-    panel_app_genes_url = f'{PANELAPP_BASE}{panel_id}'
-    panel_json = get_json_response(panel_app_genes_url)
-
-    panel_version = panel_json.get('version')
-    panel_name = panel_json.get('name')
-
-    # pop the version in logging if not manually defined
-    logging.info(
-        f'Current {panel_name} panel version: {panel_version}',
+    panelapp_base = get_config()['workflow'].get(
+        'panelapp', 'https://panelapp.agha.umccr.org/api/v1/panels/'
     )
 
-    gene_dict = {
-        'metadata': [
-            {
-                'name': panel_name,
-                'version': panel_version,
-                'id': panel_id,
-            }
-        ]
-    }
+    panel_name, panel_version, panel_genes = request_panel_data(
+        f'{panelapp_base}{panel_id}'
+    )
 
-    for gene in panel_json['genes']:
+    # add metadata for this panel & version
+    gene_dict['metadata'].append(
+        {
+            'name': panel_name,
+            'version': panel_version,
+            'id': panel_id,
+        }
+    )
+
+    # iterate over the genes in this panel result
+    for gene in panel_genes:
 
         # only retain green genes
         if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene':
@@ -119,9 +90,6 @@ def get_panel_green(
 
         ensg = None
         symbol = gene.get('entity_name')
-
-        # take the PanelApp MOI, don't simplify
-        moi = gene.get('mode_of_inheritance', None)
 
         # for some reason the build is capitalised oddly in panelapp
         # at least one entry doesn't have an ENSG annotation
@@ -134,105 +102,71 @@ def get_panel_green(
             logging.info(f'Gene "{symbol} lacks an ENSG ID, so it is being excluded')
             continue
 
-        # save the entity into the final dictionary
-        # include fields to recognise altered gene data
-        gene_dict[ensg] = {
-            'symbol': symbol,
-            'moi': moi,
-            'new': False,
-            'flags': [],
-        }
+        # check if this is a new gene in this analysis
+        # all panels previously containing this gene
+        gene_panels_for_this_gene = old_data['genes'].get(ensg, {}).get('panels', [])
+        gene_prev_in_panel = panel_id in gene_panels_for_this_gene
 
-    return gene_dict
+        if not gene_prev_in_panel:
+            gene_panels_for_this_gene.append(panel_id)
 
+        # either update or add a new entry
+        if ensg in gene_dict['genes'].keys():
+            this_gene = gene_dict['genes'][ensg]
+            this_gene['moi'].add(gene.get('mode_of_inheritance', 'Unknown'))
 
-def gene_list_differences(latest_content: PanelData, previous_genes: set[str]):
-    """
-    takes a gene list representing prior data,
-    identifies genes as 'new' where absent in that reference data
-
-    :param latest_content:
-    :param previous_genes:
-    :return: None, updates object in place
-    """
-    new_genes = 0
-    for content in [
-        content for ensg, content in latest_content.items() if ensg != 'metadata'
-    ]:
-        if content['symbol'] not in previous_genes:
-            content['new'] = True
-            new_genes += 1
-    logging.info(f'{new_genes} genes were not present in the gene list')
-
-
-def write_output_json(output_path: str, object_to_write: Any):
-    """
-    writes object to a json file
-    to_path provides platform abstraction
-
-    :param output_path:
-    :param object_to_write:
-    """
-
-    logging.info(f'Writing output JSON file to {output_path}')
-    out_route = to_path(output_path)
-
-    if out_route.exists():
-        logging.info(f'Output path "{output_path}" exists, will be overwritten')
-
-    with out_route.open('w') as fh:
-        json.dump(object_to_write, fh, indent=4, default=str)
-
-
-def combine_mendeliome_with_other_panels(panel_dict: PanelData, additional: PanelData):
-    """
-    takes the main panel data and an additional panel dict
-
-    :param panel_dict:
-    :param additional:
-    """
-
-    additional_name = additional['metadata'][0]['name']
-    panel_dict['metadata'].append(
-        {
-            'name': additional['metadata'][0]['name'],
-            'version': additional['metadata'][0]['version'],
-            'id': additional['metadata'][0]['id'],
-        }
-    )
-    panel_keys = panel_dict.keys()
-    for ensg in additional.keys():
-        if ensg == 'metadata':
-            continue
-
-        if ensg in panel_keys:
-            # update MOI if None
-            if panel_dict[ensg]['moi'] is None:
-                panel_dict[ensg]['moi'] = additional[ensg].get('moi', None)
-            panel_dict[ensg]['flags'].append(additional_name)
+            # if this is/was new - it's new
+            if not gene_prev_in_panel:
+                this_gene['panels'].append(panel_id)
+                this_gene['new'].append(panel_id)
 
         else:
-            panel_dict[ensg] = {
-                'symbol': additional[ensg].get('symbol'),
-                'moi': additional[ensg].get('moi', None),
-                'new': False,
-                'flags': [additional_name],
+
+            # save the entity into the final dictionary
+            gene_dict['genes'][ensg] = {
+                'symbol': symbol,
+                'moi': {gene.get('mode_of_inheritance', 'Unknown')},
+                'new': [] if gene_prev_in_panel else [panel_id],
+                'panels': gene_panels_for_this_gene,
             }
 
 
-def get_list_from_participants(participant_panels) -> set[str]:
+def get_best_moi(gene_dict: dict):
     """
-    takes the per-participant panels and extracts the panel list
+    From the collected set of all MOIs, take the most lenient
+    If Unknown was found:
+        - only Unknown? accept unknown
+        - unknown and others? remove unknown then check remaining
 
-    Parameters
-    ----------
-    participant_panels : the dictionary of per-participant fam_id, hpo & panels
-
-    Returns
-    -------
-    list of all unique panels
+    Args:
+        gene_dict (): the 'genes' index of the collected dict
     """
 
+    for content in gene_dict.values():
+
+        # only accept Unknown MOI if all are MOI
+        if content['moi'] == {'Unknown'}:
+            content['moi'] = get_simple_moi(None)
+            continue
+
+        # otherwise accept the most lenient valid MOI
+        moi_set = {get_simple_moi(moi) for moi in (content['moi'] - {'Unknown'})}
+
+        # pylint: disable=unnecessary-lambda
+        # take the more lenient of the gene MOI options
+        content['moi'] = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
+
+
+def read_panels_from_participant_file(panel_json: str) -> set[int]:
+    """
+    reads the per-participants panels into a set
+    Args:
+        panel_json (): path to a per-participant panel dump
+
+    Returns:
+        set of all the panels across all participants
+    """
+    participant_panels = read_json_from_path(panel_json)
     panel_set = set()
     for details in participant_panels.values():
         panel_set.update(details.get('panels', []))
@@ -240,82 +174,69 @@ def get_list_from_participants(participant_panels) -> set[str]:
     return panel_set
 
 
-def grab_genes_only(panel_data: PanelData) -> list[str]:
+@click.command()
+@click.option('--panels', help='JSON of per-participant panels')
+@click.option('--out_path', required=True, help='destination for results')
+@click.option('--previous', help="previous data for finding 'new' genes")
+def main(panels: str | None, out_path: str, previous: str | None):
     """
-    takes panelapp data for a panel and grabs the gene IDs
+    if present, reads in any prior reference data
+    if present, reads additional panels to use
+    queries panelapp for each panel in turn, aggregating results
 
-    Parameters
-    ----------
-    panel_data : a full set of data from a panel
-
-    Returns
-    -------
-    a list of only the ENSG IDs
-    """
-
-    return [key for key in panel_data.keys() if key != 'metadata']
-
-
-def main(panel_list: list[str] | set[str], panel_file: str, out_path: str):
-    """
-    Base assumption here is that we are always using the Mendeliome
-    Optionally, additional panel IDs can be specified to expand the gene list
-
-    Finds all latest panel data from the API
-    optionally take a prior version argument, records all panel differences
-        - new genes
-        - altered MOI
-    optionally take a reference to a JSON gene list, records all genes:
-        - green in current panelapp
-        - absent in provided gene list
-    :param panel_list: iterable of panelapp IDs
-    :param panel_file: json file of panel IDs per participant
-    :param out_path: path to write a JSON object out to
-    :return:
+    Args:
+        panels ():
+        out_path ():
+        previous ():
     """
 
     logging.info('Starting PanelApp Query Stage')
 
-    # get latest Mendeliome data
-    panel_dict = get_panel_green()
+    # create old_data - needs to be a json in this format
+    # absolutely no need for this to be global?
+    # {'genes': {'ENSG***': {'panels': [1, 2, 3]}}}
+    old_data = {'genes': {}}
+    if previous:
+        logging.info(f'Reading legacy data from {previous}')
+        old_data = read_json_from_path(previous)
 
-    # create this to stop the linter complaining
-    panel_master = {}
+    elif get_config()['dataset_specific'].get('historic_results'):
+        old_file = find_latest_file(start='panel_')
+        if old_file is not None:
+            logging.info(f'Grabbing legacy panel data from {old_file}')
+            old_data = read_json_from_path(old_file)
 
-    # we can merge functionality here
-    if panel_file:
-        # load the json dictionary
-        participant_panels = read_json_from_path(panel_file)
-        panel_list = get_list_from_participants(participant_panels)
-        panel_master = {'default': grab_genes_only(panel_dict)}
+    else:
+        logging.info('No prior data found, all genes are new...')
 
-    if panel_list:
-        for additional_panel_id in panel_list:
-            ad_panel = get_panel_green(panel_id=additional_panel_id)
-            combine_mendeliome_with_other_panels(
-                panel_dict=panel_dict, additional=ad_panel
-            )
+    # set up the gene dict
+    gene_dict: PanelData = {'metadata': [], 'genes': {}}
 
-            # if we are finding per-panel gene lists, store the genes for
-            # this panel in the X-cohort master dict
-            if panel_file:
-                panel_master[str(additional_panel_id)] = grab_genes_only(ad_panel)
+    # first add the base content
+    get_panel_green(gene_dict, old_data=old_data)
 
-    if to_path(PRE_PANELAPP).exists():
-        logging.info(f'A Gene List was provided: {PRE_PANELAPP}')
-        gene_list_contents = parse_gene_list(PRE_PANELAPP)
-        logging.info(f'Length of gene list: {len(gene_list_contents)}')
-        gene_list_differences(panel_dict, gene_list_contents)
+    # if participant panels were provided, add each of those to the gene data
+    if panels is not None:
+        panel_list = read_panels_from_participant_file(panels)
+        logging.info(f'All additional panels: {", ".join(map(str, panel_list))}')
+        for panel in panel_list:
 
-    write_output_json(f'{out_path}.json', panel_dict)
+            # skip mendeliome
+            if panel == get_config()['workflow'].get('default_panel', 137):
+                continue
 
-    # if we populated panel master content - write that too
-    # trying not to make the API too messy... but this is an optional output file
-    if panel_master:
-        write_output_json(f'{out_path}_per_panel.json', panel_master)
+            get_panel_green(gene_dict=gene_dict, old_data=old_data, panel_id=panel)
+
+    # now get the best MOI
+    get_best_moi(gene_dict['genes'])
+
+    # write the output to long term storage
+    write_output_json(output_path=out_path, object_to_write=gene_dict)
+    save_new_historic(gene_dict, prefix='panel_')
 
 
 if __name__ == '__main__':
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
@@ -323,21 +244,4 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
 
-    parser = ArgumentParser()
-    panel_input = parser.add_mutually_exclusive_group()
-    panel_input.add_argument_group()
-    panel_input.add_argument(
-        '-p',
-        nargs='+',
-        default=[],
-        help='Panelapp IDs of any additional panels to query for',
-    )
-    panel_input.add_argument(
-        '--panel_file', type=str, help='json file containing per-participant panels'
-    )
-
-    parser.add_argument(
-        '--out_path', type=str, required=True, help='Path to write output JSON to'
-    )
-    args = parser.parse_args()
-    main(panel_list=args.p, panel_file=args.panel_file, out_path=args.out_path)
+    main()  # pylint: disable=no-value-for-parameter

@@ -34,6 +34,7 @@ setup(
     install_requires=['peddy==0.4.8', 'cyvcf2==0.30.18'],
     extras_require={
         'full': [
+            'click',
             'cloudpathlib[all]==0.9.0',
             'cpg-utils>=4.7.0',
             'cpg_workflows>=1.1.4',

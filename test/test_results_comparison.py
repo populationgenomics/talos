@@ -9,7 +9,7 @@ from time import sleep
 from reanalysis.utils import (
     subtract_results,
     add_results,
-    find_latest,
+    find_latest_file,
     Coordinates,
     TODAY,
 )
@@ -268,21 +268,37 @@ def test_find_latest(tmp_path):
     """
     check that we find the correct latest file
     """
-    open(join(str(tmp_path), 'file1.json'), 'w', encoding='utf-8')
+    tmp_str = str(tmp_path)
+
+    open(join(tmp_str, 'file1.json'), 'w', encoding='utf-8')
     sleep(0.2)
-    open(join(str(tmp_path), 'file2.json'), 'w', encoding='utf-8')
+    open(join(tmp_str, 'file2.json'), 'w', encoding='utf-8')
     sleep(0.2)
-    open(join(str(tmp_path), 'file3.json'), 'w', encoding='utf-8')
-    assert 'file3.json' in find_latest(str(tmp_path))
+    open(join(tmp_str, 'file3.json'), 'w', encoding='utf-8')
+    assert 'file3.json' in find_latest_file(tmp_str)
+
+
+def test_find_latest_singletons(tmp_path):
+    """
+    check that we find the correct latest file
+    """
+    tmp_str = str(tmp_path)
+    open(join(tmp_str, 'singletons_file1.json'), 'w', encoding='utf-8')
+    sleep(0.2)
+    open(join(tmp_str, 'file2.json'), 'w', encoding='utf-8')
+    sleep(0.2)
+    open(join(tmp_str, 'file3.json'), 'w', encoding='utf-8')
+    assert 'singletons_file1.json' in find_latest_file(tmp_str, start='singletons')
 
 
 def test_find_latest_with_ext(tmp_path):
     """
     check that we find the correct latest file
     """
-    open(join(str(tmp_path), 'file1.txt'), 'w', encoding='utf-8')
+    tmp_str = str(tmp_path)
+    open(join(tmp_str, 'file1.txt'), 'w', encoding='utf-8')
     sleep(0.2)
-    open(join(str(tmp_path), 'file2.txt'), 'w', encoding='utf-8')
+    open(join(tmp_str, 'file2.txt'), 'w', encoding='utf-8')
     sleep(0.2)
-    open(join(str(tmp_path), 'file3.txt'), 'w', encoding='utf-8')
-    assert 'file3.txt' in find_latest(str(tmp_path), ext='txt')
+    open(join(tmp_str, 'file3.txt'), 'w', encoding='utf-8')
+    assert 'file3.txt' in find_latest_file(tmp_str, ext='txt')

@@ -657,7 +657,12 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
 def write_matrix_to_vcf(mt: hl.MatrixTable):
     """
     write the remaining MatrixTable content to file as a VCF
-    :param mt: the MT to write to file
+
+    Args:
+        mt (): the whole MatrixTable
+
+    Returns:
+        path to write MT out to
     """
 
     # this temp file needs to be in GCP, not local
@@ -677,21 +682,27 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
 
 
 def green_and_new_from_panelapp(
-    panel_data: dict[str, dict[str, str]]
+    panel_genes: dict[str, dict[str, str]]
 ) -> tuple[hl.SetExpression, hl.SetExpression]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
     Also identify the subset of those genes which relate to NEW in panel
-    :param panel_data:
-    :return: two set expressions, green genes and new genes
+
+    Args:
+        panel_genes (): the 'genes' contents from the panelapp dictionary
+
+    Returns:
+        two set expressions - Green, and (Green and New) genes
     """
 
     # take all the green genes, remove the metadata
-    green_genes = set(panel_data.keys()) - {'metadata'}
+    green_genes = set(panel_genes.keys())
     logging.info(f'Extracted {len(green_genes)} green genes')
     green_gene_set_expression = hl.literal(green_genes)
 
-    new_genes = {gene for gene in green_genes if panel_data[gene].get('new')}
+    new_genes = {
+        gene for gene in green_genes if len(panel_genes[gene].get('new', [])) > 0
+    }
     logging.info(f'Extracted {len(new_genes)} NEW genes')
     new_gene_set_expression = hl.literal(new_genes)
 
@@ -705,15 +716,19 @@ def checkpoint_and_repartition(
     extra_logging: str | None = '',
 ) -> hl.MatrixTable:
     """
-    uses an estimate of row size to inform the repartitioning of a MT
+    uses estimated row data size to repartition MT
     aiming for a target partition size of ~10MB
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
-    :param mt:
-    :param checkpoint_root:
-    :param checkpoint_num:
-    :param extra_logging: any additional context
-    :return: repartitioned, post-checkpoint matrix
+
+    Args:
+        mt (): All data
+        checkpoint_root (): where to write the checkpoint to
+        checkpoint_num (): the checkpoint increment (insert into file path)
+        extra_logging (): informative statement to add to logging counts/partitions
+
+    Returns:
+        the MT after checkpointing, re-reading, and repartitioning
     """
     checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
@@ -733,9 +748,13 @@ def checkpoint_and_repartition(
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
     """
     remove any columns from the MT which are not represented in the Pedigree
-    :param mt:
-    :param pedigree:
-    :return:
+
+    Args:
+        mt ():
+        pedigree ():
+
+    Returns:
+
     """
 
     # individual IDs from pedigree
@@ -770,7 +789,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
 def main(mt_path: str, panelapp: str, plink: str):
     """
     Read the MT from disk
-    Do filtering and class annotation
+    Do filtering and category annotation
     Export as a VCF
     :param mt_path: path to the MT directory
     :param panelapp: path to the panelapp data dump
@@ -793,7 +812,7 @@ def main(mt_path: str, panelapp: str, plink: str):
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from "{panelapp}"')
-    panelapp = read_json_from_path(panelapp)
+    panelapp = read_json_from_path(panelapp)['genes']
 
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)

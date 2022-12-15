@@ -9,7 +9,7 @@ from datetime import datetime
 from enum import Enum
 from itertools import combinations_with_replacement
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import json
 import logging
@@ -19,9 +19,6 @@ import requests
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-
-InfoDict = dict[str, Union[str, dict[str, str]]]
-PanelAppDict = dict[str, dict[str, Union[str, bool]]]
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -61,8 +58,11 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     """
     return type of the file, if present in FileTypes enum
 
-    :param file_path:
-    :return:
+    Args:
+        file_path (str):
+
+    Returns:
+        A matching file type, or die
     """
     pl_filepath = Path(file_path)
 
@@ -119,6 +119,15 @@ class Coordinates:
         return False
 
     def __eq__(self, other):
+        """
+        equivalence check
+        Args:
+            other (Coordinates):
+
+        Returns:
+            true if self == other
+
+        """
         return (
             self.chrom == other.chrom
             and self.pos == other.pos
@@ -133,8 +142,11 @@ def get_json_response(url: str) -> dict[str, Any]:
     For this purpose we only expect a dictionary return
     List use-case (activities endpoint) no longer supported
 
-    :param url:
-    :return: python object from JSON response
+    Args:
+        url ():
+
+    Returns:
+
     """
 
     response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
@@ -145,6 +157,13 @@ def get_json_response(url: str) -> dict[str, Any]:
 def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
+
+    Args:
+        samples ():
+        var ():
+
+    Returns:
+
     """
     phased_dict = defaultdict(dict)
 
@@ -184,10 +203,11 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         as_singletons=False,
     ):
         """
-        var is a cyvcf2.Variant
-        :param var:
-        :param samples:
-        :param as_singletons:
+
+        Args:
+            var (cyvcf2.Variant):
+            samples (list):
+            as_singletons (bool):
         """
 
         # extract the coordinates into a separate object
@@ -274,6 +294,8 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def has_support(self) -> bool:
         """
         check for a True flag in any CategorySupport* attribute
+        Returns:
+            True if variant is support
         """
         return any(self.info[value] for value in self.sample_support)
 
@@ -281,7 +303,8 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def category_non_support(self) -> bool:
         """
         check the variant has at least one non-support category assigned
-        :return:
+        Returns:
+            True if var has a non-support category assigned
         """
         return self.has_sample_categories or self.has_boolean_categories
 
@@ -326,20 +349,33 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         takes a specific sample ID, to check if the sample has a de novo call
 
-        :param sample_id:
-        :return:
+        Args:
+            sample_id ():
+
+        Returns:
+
         """
         return any(
             sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
         )
 
-    def sample_specific_category_check(self, sample_id: str) -> bool:
+    def sample_specific_category_check(
+        self, sample_id: str, allow_support: bool = False
+    ) -> bool:
         """
+        Check for all other
 
-        :param sample_id:
-        :return:
+        Args:
+            sample_id (str):
+            allow_support: (bool) also check for support
+
+        Returns:
+
         """
-        return self.category_non_support or self.sample_de_novo(sample_id)
+        big_cat = self.category_non_support or self.sample_de_novo(sample_id)
+        if allow_support:
+            return big_cat or self.has_support
+        return big_cat
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
@@ -432,10 +468,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 
 
 def gather_gene_dict_from_contig(
-    contig: str,
-    variant_source,
-    panelapp_data: PanelAppDict,
-    singletons: bool = False,
+    contig: str, variant_source, panelapp_data: dict, singletons: bool = False
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -475,15 +508,11 @@ def gather_gene_dict_from_contig(
             )
             continue
 
-        # if the gene isn't 'new' in PanelApp, remove Class2 flag
+        # if the gene isn't 'new' in any panel, remove Cat2 flag
         if abs_var.info.get('categoryboolean2'):
-            gene_id = abs_var.info.get('gene_id')
-            gene_data = panelapp_data.get(gene_id, False)
-            if not gene_data:
-                continue
-
-            if not gene_data.get('new', False):
-                abs_var.info['categoryboolean2'] = False
+            abs_var.info['categoryboolean2'] = (
+                len(panelapp_data[abs_var.info.get('gene_id')].get('new', [])) > 0
+            )
 
         # if unclassified, skip the whole variant
         if not abs_var.is_classified:
@@ -509,7 +538,38 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any]:
         return json.load(handle)
 
 
-def get_simple_moi(panel_app_moi: str) -> str:
+# most lenient to most conservative
+# usage = if we have two MOIs for the same gene, take the broadest
+ORDERED_MOIS = [
+    'Mono_And_Biallelic',
+    'Monoallelic',
+    'Hemi_Mono_In_Female',
+    'Hemi_Bi_In_Female',
+    'Biallelic',
+    'Unknown',
+]
+
+
+def write_output_json(output_path: str, object_to_write: dict):
+    """
+    writes object to a json file, to_path provides platform abstraction
+
+    Args:
+        output_path ():
+        object_to_write ():
+    """
+
+    logging.info(f'Writing output JSON file to {output_path}')
+    out_route = to_path(output_path)
+
+    if out_route.exists():
+        logging.info(f'Output path "{output_path}" exists, will be overwritten')
+
+    with out_route.open('w') as fh:
+        json.dump(object_to_write, fh, indent=4, default=str)
+
+
+def get_simple_moi(panel_app_moi: str | None) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a reduced
     range of cases which can be easily implemented in RD analysis
@@ -521,24 +581,30 @@ def get_simple_moi(panel_app_moi: str) -> str:
         Monoallelic: [all MOI to be interpreted as monoallelic]
     }
 
-    :param panel_app_moi: full PanelApp string
+    :param panel_app_moi: full PanelApp string or None
     :return: a simplified representation
     """
 
     # default to considering both. NOTE! Many genes have Unknown MOI!
     simple_moi = 'Mono_And_Biallelic'
-    if panel_app_moi is None or panel_app_moi == 'Unknown':
-        # exit iteration, all simple moi considered
+
+    # try-except permits the moi to be None
+    try:
+        lower_moi = panel_app_moi.lower()
+        if lower_moi is None or lower_moi == 'unknown':
+            # exit iteration, all moi considered
+            return simple_moi
+    except AttributeError:
         return simple_moi
 
     # ideal for match-case, coming to a python 3.10 near you!
-    if panel_app_moi.startswith('BIALLELIC'):
+    if lower_moi.startswith('biallelic'):
         simple_moi = 'Biallelic'
-    if panel_app_moi.startswith('BOTH'):
+    elif lower_moi.startswith('both'):
         simple_moi = 'Mono_And_Biallelic'
-    if panel_app_moi.startswith('MONO'):
+    elif lower_moi.startswith('mono'):
         simple_moi = 'Monoallelic'
-    if panel_app_moi.startswith('X-LINKED'):
+    elif lower_moi.startswith('x-linked'):
         if 'biallelic' in panel_app_moi:
             simple_moi = 'Hemi_Bi_In_Female'
         else:
@@ -682,7 +748,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     return comp_het_results
 
 
-def filter_results(results: dict) -> dict:
+def filter_results(results: dict, singletons: bool) -> dict:
     """
     takes a set of results
     loads the most recent prior result set (if it exists)
@@ -691,34 +757,26 @@ def filter_results(results: dict) -> dict:
     p.stat().st_mtime to find latest
     Args:
         results (): the results produced during this run
+        singletons (bool): whether to read/write a singleton specific file
 
     Returns:
-
+        the same results back-filtered to remove previous results
     """
-    # try to pull out the historic results folder
-    try:
-        if (
-            historic := get_config()['dataset_specific'].get('historic_results')
-        ) is None:
-            logging.info(
-                'No `historic_results` key in config - no filtering took place'
-            )
-            return results
-    except KeyError:
-        logging.info('No `dataset_specific` key in config - no filtering took place')
-        return results
 
-    logging.info(f'filtering current results against data in {historic}')
+    logging.info('Attempting to filter current results against historic')
+
     # get the latest result file from the folder
-    latest_results = find_latest(results_folder=historic)
+    # this will be none if the folder doesn't exist or is empty
+    latest_results = find_latest_file(start='singletons' if singletons else '')
 
     logging.info(f'latest results: {latest_results}')
+
+    prefix = 'singletons_' if singletons else ''
 
     if latest_results is None:
         # no results to subtract - current data IS cumulative data
         mini_results = make_cumulative_representation(results)
-
-        save_new_cumulative(directory=historic, results=mini_results)
+        save_new_historic(results=mini_results, prefix=prefix)
 
     else:
         cum_results = read_json_from_path(bucket_path=latest_results)
@@ -730,7 +788,7 @@ def filter_results(results: dict) -> dict:
         add_results(results, cum_results)
 
         # save updated cumulative results
-        save_new_cumulative(directory=historic, results=cum_results)
+        save_new_historic(results=cum_results, prefix=prefix)
 
     return results
 
@@ -757,35 +815,56 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     return mini_results
 
 
-def save_new_cumulative(directory: str, results: dict):
+def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
     """
-    save the new cumulative results in the results dir
+    save the new results in the historic results dir
     include time & date in filename
 
     Args:
-        directory ():
-        results ():
+        results (): object to save as a JSON file
+        prefix (str): name prefix for this file (optional)
+        directory (): defaults to historic_data from config
     """
 
-    new_file = to_path(directory) / f'{TODAY}.json'
+    if directory is None:
+        directory = get_config()['dataset_specific'].get('historic_results')
+        if directory is None:
+            logging.info('No historic results directory, nothing written')
+            return
+
+    new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4)
-    logging.info(f'Wrote new cumulative data to {str(new_file)}')
+
+    logging.info(f'Wrote new data to {new_file}')
 
 
-def find_latest(results_folder: str, ext: str = 'json') -> str | None:
+def find_latest_file(
+    results_folder: str | None = None, start: str = '', ext: str = 'json'
+) -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
         results_folder (): local or remote folder
+        start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
 
     Returns:
-        timestamp-sorted latest file path, or None
+        most recent file path, or None
     """
 
+    if results_folder is None:
+        results_folder = (
+            get_config().get('dataset_specific', {}).get('historic_results')
+        )
+        if results_folder is None:
+            logging.info('`historic_results` not present in config')
+            return None
+
+    logging.info(f'Using results from {results_folder}')
+
     date_sorted_files = sorted(
-        to_path(results_folder).glob(f'*.{ext}'),
+        to_path(results_folder).glob(f'{start}*.{ext}'),
         key=lambda x: x.stat().st_mtime,
         reverse=True,
     )

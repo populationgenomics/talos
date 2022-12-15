@@ -2,6 +2,7 @@
 Methods for taking the final output and generating static report content
 """
 import logging
+import sys
 from collections import defaultdict
 from argparse import ArgumentParser
 from typing import Any
@@ -20,7 +21,7 @@ GNOMAD_TEMPLATE = (
     '{variant}?dataset=gnomad_r3" target="_blank">{value:.5f}</a>'
 )
 PANELAPP_TEMPLATE = (
-    '<a href="https://panelapp.agha.umccr.org/panels/entities/{symbol}/" '
+    '<a href="https://panelapp.agha.umccr.org/panels/entities/{symbol}" '
     'target="_blank">{symbol}</a>'
 )
 SEQR_TEMPLATE = (
@@ -131,7 +132,7 @@ class HTMLBuilder:
         # if it exists, read the forbidden genes as a dict
         self.forbidden_genes = (
             {
-                ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
+                ensg: self.panelapp['genes'].get(ensg, {}).get('symbol', ensg)
                 for ensg in set(
                     read_json_from_path(
                         get_config().get('dataset_specific', {})['forbidden']
@@ -170,11 +171,9 @@ class HTMLBuilder:
         """
         takes the results from the analysis and purges forbidden-gene variants
         """
-        clean_results = defaultdict(list[dict[str, Any]])
-        for sample, content in variant_dictionary.items():
-            if sample == 'metadata':
-                clean_results['metadata'] = content
-                continue
+        clean_results = defaultdict(list)
+        clean_results['metadata'] = variant_dictionary['metadata']
+        for sample, content in variant_dictionary['results'].items():
             sample_vars = []
             for variant in content:
                 skip_variant = False
@@ -375,7 +374,7 @@ class HTMLBuilder:
                         'symbol': ','.join(
                             [
                                 PANELAPP_TEMPLATE.format(
-                                    symbol=self.panelapp[symbol]['symbol']
+                                    symbol=self.panelapp['genes'][symbol]['symbol']
                                 )
                                 for symbol in variant['gene'].split(',')
                             ]
@@ -433,6 +432,13 @@ class HTMLBuilder:
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
 
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)

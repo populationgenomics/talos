@@ -18,7 +18,22 @@
       "entity_type": "gene",
       "entity_name": "ABCD",
       "confidence_level": "3",
-      "mode_of_inheritance": "REALLY_BIG"
+      "mode_of_inheritance": "Biallelic"
+    },
+    {
+      "gene_data": {
+        "ensembl_genes": {
+          "GRch38": {
+            "90": {
+              "ensembl_id": "ENSG00MNOP"
+            }
+          }
+        }
+      },
+      "entity_type": "gene",
+      "entity_name": "MNOP",
+      "confidence_level": "3",
+      "mode_of_inheritance": "both"
     }
   ]
 }
