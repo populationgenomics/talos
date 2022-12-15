@@ -37,8 +37,6 @@ CONF_COHORT = os.path.join(INPUT, 'reanalysis_cohort.toml')
 # panelapp testing paths
 PANELAPP_LATEST = os.path.join(INPUT, 'panelapp_current_137.json')
 PANELAPP_INCIDENTALOME = os.path.join(INPUT, 'incidentalome.json')
-MENDELIOME_EXPECTED = os.path.join(INPUT, 'panel_green_latest_expected.json')
-PANEL_UPDATES = os.path.join(INPUT, 'mendeliome_and_incidentalome_expected.json')
 FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
 
 
@@ -108,14 +106,6 @@ def fixture_latest_mendeliome() -> Any:
     return read_json_from_path(PANELAPP_LATEST)
 
 
-@pytest.fixture(name='mendeliome_expected', scope='session')
-def fixture_mendeliome_expected() -> Any:
-    """
-    the data we expect to read from the mendeliome
-    """
-    return read_json_from_path(MENDELIOME_EXPECTED)
-
-
 @pytest.fixture(name='latest_incidentalome', scope='session')
 def fixture_latest_incidentalome() -> Any:
     """
@@ -130,14 +120,6 @@ def fixture_sm_api_lookup() -> Any:
     :return: Ped
     """
     return read_json_from_path(LOOKUP_PED)
-
-
-@pytest.fixture(name='panel_updates', scope='session')
-def fixture_panel_with_incidentalome_updates() -> dict:
-    """
-    :return: Ped
-    """
-    return read_json_from_path(PANEL_UPDATES)
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
