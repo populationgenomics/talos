@@ -109,16 +109,24 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
         if not gene_prev_in_panel:
             gene_panels_for_this_gene.append(panel_id)
 
-        moi = get_simple_moi(gene.get('mode_of_inheritance'))
-
         # either update or add a new entry
         if ensg in gene_dict['genes'].keys():
+
             this_gene = gene_dict['genes'][ensg]
+            moi_this_panel = gene.get('mode_of_inheritance')
+
+            if moi_this_panel in [None, 'Unknown']:
+
+                # defer to an earlier result
+                moi_this_panel = this_gene['moi']
+
+            else:
+                moi_this_panel = get_simple_moi(moi_this_panel)
 
             # pylint: disable=unnecessary-lambda
             # take the more lenient of the gene MOI options
             this_gene['moi'] = sorted(
-                [moi, this_gene['moi']],
+                [moi_this_panel, this_gene['moi']],
                 key=lambda x: ORDERED_MOIS.index(x),
             )[0]
 
@@ -128,6 +136,9 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
                 this_gene['new'].append(panel_id)
 
         else:
+
+            # first time we've seen this moi
+            moi = get_simple_moi(gene.get('mode_of_inheritance'))
 
             # save the entity into the final dictionary
             gene_dict['genes'][ensg] = {

@@ -546,6 +546,7 @@ ORDERED_MOIS = [
     'Hemi_Mono_In_Female',
     'Hemi_Bi_In_Female',
     'Biallelic',
+    'Unknown',
 ]
 
 
