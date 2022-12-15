@@ -176,8 +176,7 @@ def clean_and_filter(
     clean = defaultdict(list)
 
     panel_meta = {
-        panel_id: content['name']
-        for panel_id, content in panelapp_data['metadata'].items()
+        content['id']: content['name'] for content in panelapp_data['metadata']
     }
 
     # if we have a lookup, grab the relevant information
@@ -205,7 +204,9 @@ def clean_and_filter(
                 all_panels, new_panels = gene_details[gene]
 
             else:
-                all_panels, new_panels = get_gene_panel_sets(panelapp_data, gene)
+                all_panels, new_panels = get_gene_panel_sets(
+                    panelapp_data['genes'], gene
+                )
                 gene_details[gene] = (all_panels, new_panels)
 
             panel_intersection = participant_panels[sample].intersection(all_panels)
@@ -383,7 +384,7 @@ def main(
     # remove duplicate and invalid variants
     analysis_results = clean_and_filter(
         result_list,
-        panelapp_data=panelapp_data['genes'],
+        panelapp_data=panelapp_data,
         participant_panels=read_json_from_path(participant_panels),
     )
 
