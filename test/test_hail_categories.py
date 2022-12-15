@@ -238,16 +238,19 @@ def test_support_assignment(values, classified, hail_matrix):
     assert anno_matrix.info.categorysupport.collect() == [classified]
 
 
-def test_green_and_new_from_panelapp(mendeliome_expected):
+def test_green_and_new_from_panelapp():
     """
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
     2 set expressions, one for all genes, one for new genes only
-    :param mendeliome_expected:
     """
-    green_expression, new_expression = green_and_new_from_panelapp(
-        mendeliome_expected['genes']
-    )
+
+    mendeliome = {
+        'ENSG00ABCD': {'new': [1]},
+        'ENSG00EFGH': {'new': []},
+        'ENSG00IJKL': {'new': [2]},
+    }
+    green_expression, new_expression = green_and_new_from_panelapp(mendeliome)
 
     # check types
     assert isinstance(green_expression, hl.SetExpression)
