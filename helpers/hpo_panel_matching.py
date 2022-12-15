@@ -49,7 +49,7 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
             # can be split over multiple strings
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
-                hpo_dict[match].add(str(panel['id']))
+                hpo_dict[match].add(int(panel['id']))
 
         # cycle through additional pages
         # why don't GEL make the panelapp API public...

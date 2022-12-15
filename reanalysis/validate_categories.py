@@ -126,7 +126,6 @@ def apply_moi_to_variants(
             continue
 
         simple_moi = get_simple_moi(panel_gene_data.get('moi'))
-        additional_panels = panel_gene_data.get('flags', [])
 
         for variant in variants:
 
@@ -147,8 +146,6 @@ def apply_moi_to_variants(
                     comp_het=comp_het_dict,
                     partial_penetrance=variant.info.get('categoryboolean1', False),
                 )
-                for var in variant_reports:
-                    var.flags.extend(additional_panels)
 
                 results.extend(variant_reports)
 
@@ -178,6 +175,11 @@ def clean_and_filter(
 
     clean = defaultdict(list)
 
+    panel_meta = {
+        panel_id: content['name']
+        for panel_id, content in panelapp_data['metadata'].items()
+    }
+
     # if we have a lookup, grab the relevant information
     if participant_panels is not None:
         participant_panels = {
@@ -206,8 +208,10 @@ def clean_and_filter(
                 all_panels, new_panels = get_gene_panel_sets(panelapp_data, gene)
                 gene_details[gene] = (all_panels, new_panels)
 
+            panel_intersection = participant_panels[sample].intersection(all_panels)
+
             # is this a valid gene for this participant?
-            if not bool(participant_panels[sample].intersection(all_panels)):
+            if not panel_intersection:
 
                 # this gene is not relevant for this participant
                 continue
@@ -220,20 +224,28 @@ def clean_and_filter(
                 # should not be treated as new
                 logging.info(f'Removing category 2 in {gene} for {sample}')
 
+            each_event.flags.extend(
+                [
+                    panel_meta[pid]
+                    for pid in panel_intersection
+                    if pid != get_config()['workflow'].get('default_panel', 137)
+                ]
+            )
+
         # no classifications = not interesting
         if not variant.categories:
             continue
 
         if each_event not in clean[sample]:
             clean[sample].append(each_event)
+
         else:
             prev_event = clean[sample][clean[sample].index(each_event)]
             prev_event.reasons.update(each_event.reasons)
             prev_genes = set(prev_event.gene.split(','))
             prev_genes.add(each_event.gene)
-            prev_event.gene = ','.join(prev_genes)  # here
-            prev_event.flags.extend(each_event.flags)
-            prev_event.flags = list(set(prev_event.flags))
+            prev_event.gene = ','.join(prev_genes)
+            prev_event.flags = sorted(set(prev_event.flags + each_event.flags))
 
     # organise the variants by chromosomal location
     for sample in clean:
