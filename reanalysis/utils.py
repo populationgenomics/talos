@@ -586,11 +586,12 @@ def get_simple_moi(panel_app_moi: str | None) -> str:
 
     # default to considering both. NOTE! Many genes have Unknown MOI!
     simple_moi = 'Mono_And_Biallelic'
+
     # try-except permits the moi to be None
     try:
         lower_moi = panel_app_moi.lower()
         if lower_moi is None or lower_moi == 'unknown':
-            # exit iteration, all simple moi considered
+            # exit iteration, all moi considered
             return simple_moi
     except AttributeError:
         return simple_moi
@@ -825,7 +826,10 @@ def save_new_historic(results: dict, prefix: str = '', directory: str | None = N
     """
 
     if directory is None:
-        directory = get_config()['dataset_specific']['historic_results']
+        directory = get_config()['dataset_specific'].get('historic_results')
+        if directory is None:
+            logging.info('No historic results directory, nothing written')
+            return
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:

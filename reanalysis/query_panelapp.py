@@ -115,12 +115,6 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
         if ensg in gene_dict['genes'].keys():
             this_gene = gene_dict['genes'][ensg]
 
-            # if we have one biallelic, and one monoallelic, merge
-            if all(
-                _moi in ('Biallelic', 'Monoallelic') for _moi in [moi, this_gene['moi']]
-            ):
-                moi = 'Mono_And_Biallelic'
-
             # pylint: disable=unnecessary-lambda
             # take the more lenient of the gene MOI options
             this_gene['moi'] = sorted(
