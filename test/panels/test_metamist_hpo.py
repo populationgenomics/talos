@@ -38,7 +38,7 @@ def test_get_panels(fake_panelapp_overview):  # pylint: disable=unused-argument
     check that the endpoint parser works ok
     """
     panels_parsed = get_panels(PANELAPP)
-    assert panels_parsed == {'HP:1': {'2'}, 'HP:4': {'1'}, 'HP:6': {'2'}}
+    assert panels_parsed == {'HP:1': {2}, 'HP:4': {1}, 'HP:6': {2}}
 
 
 def test_read_hpo_tree(fake_obo_path):
