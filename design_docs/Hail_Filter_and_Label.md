@@ -22,27 +22,27 @@ This shows the progressive filters applied to each variant to reduce the search 
 
 ### Category 1
 
-![CategoryBoolean1](images/category_1.png)
+![CategoryBoolean1](images/Category1.png)
 
 ### Category 2
 
-![CategoryBoolean2](images/category_2.png)
+![CategoryBoolean2](images/Category2.png)
 
 ### Category 3
 
-![CategoryBoolean3](images/category_3.png)
+![CategoryBoolean3](images/Category3.png)
 
 ### Category 4 (de novo)
 
-![CategorySamples4](images/category_4.png)
+![CategorySamples4](images/Category4.png)
 
 ### Category 5
 
-![CategoryBoolean5](images/category_5.png)
+![CategoryBoolean5](images/Category5.png)
 
 ### Category Support
 
-![CategorySupport](images/category_support.png)
+![CategorySupport](images/CategorySupport.png)
 
 For Category 2, a gene being `New` is contextual. The program permits several methods:
 
