@@ -3,10 +3,24 @@ web_suffix = 'web'
 tmp_suffix = 'tmp'
 analysis_suffix = 'analysis'
 
+[storage.rgp]
+default = "hail-az://raregen001sa/test"
+web = "hail-az://raregen001sa/test-web"
+analysis = "hail-az://raregen001sa/test-analysis"
+tmp = "hail-az://raregen001sa/test-tmp"
+web_url = "https://test-web-azcpg001.azurewebsites.net/rgp"
+
+[storage.severalgenomes]
+default = "hail-az://sevgen002sa/test"
+web = "hail-az://sevgen002sa/test-web"
+analysis = "hail-az://sevgen002sa/test-analysis"
+tmp = "hail-az://sevgen002sa/test-tmp"
+web_url = "https://test-web-azcpg001.azurewebsites.net/severalgenomes"
+
 [workflow]
 name = 'AIP'
-scatter_count = 50
-vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
+scatter_count = 10
+vcf_size_in_gb = 1  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
 
 [moi_tests]
@@ -40,20 +54,122 @@ cancel_after_n_failures = 1
 default_timeout = 6000
 default_memory = 'highmem'
 
-[images]
-vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
-gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
-picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
-samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
-hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
-
-[references]
-vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'
-genome_build = 'GRCh38'
-seqr_combined_reference_data = 'gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht'
-seqr_clinvar = 'gs://cpg-common-main/references/seqr/v0/clinvar.GRCh38.ht'
 
 [references.broad]
-ref_fasta = 'gs://cpg-common-main/references/hg38/v0/dragen_reference/Homo_sapiens_assembly38_masked.fasta'
-genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_calling_regions.hg38.interval_list'
+dragmap_prefix = "hail-az://azcpg001sa/reference/hg38/v0/dragen_reference"
+ref_fasta = "hail-az://azcpg001sa/reference/hg38/v0/dragen_reference/Homo_sapiens_assembly38_masked.fasta"
+noalt_bed = "hail-az://azcpg001sa/reference/hg38/v0/sv-resources/resources/v1/primary_contigs_plus_mito.bed.gz"
+genome_calling_interval_lists = "hail-az://azcpg001sa/reference/hg38/v0/wgs_calling_regions.hg38.interval_list"
+exome_calling_interval_lists = "hail-az://azcpg001sa/reference/hg38/v0/exome_calling_regions.v1.interval_list"
+genome_evaluation_interval_lists = "hail-az://azcpg001sa/reference/hg38/v0/wgs_evaluation_regions.hg38.interval_list"
+exome_evaluation_interval_lists = "hail-az://azcpg001sa/reference/hg38/v0/exome_evaluation_regions.v1.interval_list"
+genome_coverage_interval_list = "hail-az://azcpg001sa/reference/hg38/v0/wgs_coverage_regions.hg38.interval_list"
+unpadded_intervals_file = "hail-az://azcpg001sa/reference/hg38/v0/hg38.even.handcurated.20k.intervals"
+dbsnp_vcf = "hail-az://azcpg001sa/reference/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf"
+dbsnp_vcf_index = "hail-az://azcpg001sa/reference/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx"
+hapmap_vcf = "hail-az://azcpg001sa/reference/hg38/v0/hapmap_3.3.hg38.vcf.gz"
+hapmap_vcf_index = "hail-az://azcpg001sa/reference/hg38/v0/hapmap_3.3.hg38.vcf.gz.tbi"
+omni_vcf = "hail-az://azcpg001sa/reference/hg38/v0/1000G_omni2.5.hg38.vcf.gz"
+omni_vcf_index = "hail-az://azcpg001sa/reference/hg38/v0/1000G_omni2.5.hg38.vcf.gz.tbi"
+one_thousand_genomes_vcf = "hail-az://azcpg001sa/reference/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz"
+one_thousand_genomes_vcf_index = "hail-az://azcpg001sa/reference/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi"
+mills_vcf = "hail-az://azcpg001sa/reference/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz"
+mills_vcf_index = "hail-az://azcpg001sa/reference/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi"
+axiom_poly_vcf = "hail-az://azcpg001sa/reference/hg38/v0/Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf.gz"
+axiom_poly_vcf_index = "hail-az://azcpg001sa/reference/hg38/v0/Axiom_Exome_Plus.genotypes.all_populations.poly.hg38.vcf.gz.tbi"
+genome_contam_ud = "hail-az://azcpg001sa/reference/hg38/v0/contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.UD"
+genome_contam_bed = "hail-az://azcpg001sa/reference/hg38/v0/contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.bed"
+genome_contam_mu = "hail-az://azcpg001sa/reference/hg38/v0/contamination-resources/1000g/1000g.phase3.100k.b38.vcf.gz.dat.mu"
+exome_contam_ud = "hail-az://azcpg001sa/reference/hg38/v0/contamination-resources/1000g/whole_exome_illumina_coding_v1.Homo_sapiens_assembly38.1000g.contam.UD"
+exome_contam_bed = "hail-az://azcpg001sa/reference/hg38/v0/contamination-resources/1000g/whole_exome_illumina_coding_v1.Homo_sapiens_assembly38.1000g.contam.bed"
+exome_contam_mu = "hail-az://azcpg001sa/reference/hg38/v0/contamination-resources/1000g/whole_exome_illumina_coding_v1.Homo_sapiens_assembly38.1000g.contam.mu"
+protein_coding_gtf = "hail-az://azcpg001sa/reference/hg38/v0/sv-resources/resources/v1/MANE.GRCh38.v0.95.select_ensembl_genomic.gtf"
+
+[references.gatk_sv]
+wham_include_list_bed_file = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/wham_whitelist.bed"
+primary_contigs_list = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/primary_contigs.list"
+primary_contigs_fai = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/contig.fai"
+preprocessed_intervals = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/preprocessed_intervals.interval_list"
+manta_region_bed = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/primary_contigs_plus_mito.bed.gz"
+melt_standard_vcf_header = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/melt_standard_vcf_header.txt"
+genome_file = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/hg38.genome"
+wgd_scoring_mask = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/wgd_scoring_mask.hg38.gnomad_v3.bed"
+allosomal_contigs = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/allosome.fai"
+contig_ploidy_priors = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/hg38.contig_ploidy_priors_homo_sapiens.tsv"
+inclusion_bed = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/hg38_primary_contigs.bed"
+autosome_file = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/autosome.fai"
+allosome_file = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/allosome.fai"
+cnmops_exclude_list = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/GRCh38_Nmask.bed"
+cytoband = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/cytobands_hg38.bed.gz"
+mei_bed = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/mei_hg38.bed.gz"
+rmsk = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/randomForest_blacklist.withRepMask.bed.gz"
+segdups = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/hg38.SD_gaps_Cen_Tel_Heter_Satellite_lumpy.blacklist.sorted.merged.bed.gz"
+seed_cutoffs = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/seed_cutoff.txt"
+pesr_exclude_list = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/PESR.encode.peri_all.repeats.delly.hg38.blacklist.sorted.bed.gz"
+depth_exclude_list = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/depth_blacklist.sorted.bed.gz"
+bin_exclude = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/bin_exclude.hg38.gatkcov.bed.gz"
+empty_file = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/empty.file"
+protein_coding_gtf = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/resources/v1/MANE.GRCh38.v0.95.select_ensembl_genomic.gtf"
+ped_file = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/1KG/v1/ped/1kg_ref_panel_v1.ped"
+clean_vcf = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/1KG/v1/calls/ref_panel_1kg_v1.cleaned.vcf.gz"
+ref_panel_bincov_matrix = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/1KG/v1/merged_evidence/ref_panel_1kg_v1.bincov.bed.gz"
+qc_definitions = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/1KG/v2/single_sample.qc_definitions.tsv"
+contig_ploidy_model_tar = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/1KG/v2/gcnv/ref_panel_1kg_v2-contig-ploidy-model.tar.gz"
+model_tar_tmpl = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/1KG/v2/gcnv/model_files/ref_panel_1kg_v2-gcnv-model-shard-{shard}.tar.gz"
+ref_panel_PE_file_tmpl = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/tws_SVEvidence/pe/{sample}.pe.txt.gz"
+ref_panel_SR_file_tmpl = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/tws_SVEvidence/sr/{sample}.sr.txt.gz"
+ref_panel_SD_file_tmpl = "hail-az://azcpg001sa/reference/gatk-sv/hg38/v0/sv-resources/ref-panel/tws_SVEvidence/sd/{sample}.sd.txt.gz"
+
+[references.gnomad]
+tel_and_cent_ht = "hail-az://azcpg001sa/reference/gnomad/v0/telomeres_and_centromeres/hg38.telomeresAndMergedCentromeres.ht"
+lcr_intervals_ht = "hail-az://azcpg001sa/reference/gnomad/v0/lcr_intervals/LCRFromHengHg38.ht"
+seg_dup_intervals_ht = "hail-az://azcpg001sa/reference/gnomad/v0/seg_dup_intervals/GRCh38_segdups.ht"
+clinvar_ht = "hail-az://azcpg001sa/reference/gnomad/v0/clinvar/clinvar_20190923.ht"
+hapmap_ht = "hail-az://azcpg001sa/reference/gnomad/v0/hapmap/hapmap_3.3.hg38.ht"
+kgp_omni_ht = "hail-az://azcpg001sa/reference/gnomad/v0/kgp/1000G_omni2.5.hg38.ht"
+kgp_hc_ht = "hail-az://azcpg001sa/reference/gnomad/v0/kgp/1000G_phase1.snps.high_confidence.hg38.ht"
+mills_ht = "hail-az://azcpg001sa/reference/gnomad/v0/mills/Mills_and_1000G_gold_standard.indels.hg38.ht"
+predetermined_qc_variants = "hail-az://azcpg001sa/reference/gnomad/v0/sample_qc/pre_ld_pruning_qc_variants.ht"
+
+[references.syndip]
+truth_vcf = "hail-az://azcpg001sa/reference/validation/syndip/full.38.20180222.vcf.gz"
+regions_bed = "hail-az://azcpg001sa/reference/validation/syndip/syndip.b38_20180222.bed"
+truth_mt = "hail-az://azcpg001sa/reference/validation/syndip/syndip.b38_20180222.mt"
+regions_ht = "hail-az://azcpg001sa/reference/validation/syndip/syndip_b38_20180222_hc_regions.ht"
+
+[references.na12878]
+truth_vcf = "hail-az://azcpg001sa/reference/validation/na12878/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz"
+regions_bed = "hail-az://azcpg001sa/reference/validation/na12878/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel_noCENorHET7.bed"
+truth_mt = "hail-az://azcpg001sa/reference/validation/na12878/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.mt"
+regions_ht = "hail-az://azcpg001sa/reference/validation/na12878/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel_noCENorHET7_hc_regions.ht"
+
+[references]
+genome_build = "GRCh38"
+vep_mount = "hail-az://azcpg001sa/reference/vep/105.0/mount"
+liftover_38_to_37 = "hail-az://azcpg001sa/reference/liftover/grch38_to_grch37.over.chain.gz"
+somalier_sites = "hail-az://azcpg001sa/reference/somalier/sites.hg38.vcf.gz"
+seqr_combined_reference_data = "hail-az://azcpg001sa/reference/seqr/v0/combined_reference_data_grch38.ht"
+seqr_clinvar = "hail-az://azcpg001sa/reference/seqr/v0/clinvar.GRCh38.ht"
+
+[images]
+dragmap = "azcpg001acr.azurecr.io/cpg-common/images/dragmap:1.3.0"
+cpg_workflows = "azcpg001acr.azurecr.io/cpg-common/images/cpg_workflows:cpg_workflows:latest"
+bcftools = "azcpg001acr.azurecr.io/cpg-common/images/bcftools:1.16"
+bedtools = "azcpg001acr.azurecr.io/cpg-common/images/bedtools:2.30.0"
+cellregmap = "azcpg001acr.azurecr.io/cpg-common/images/cellregmap:0.0.3"
+expansionhunter = "azcpg001acr.azurecr.io/cpg-common/images/expansionhunter:5.0.0"
+fastqc = "azcpg001acr.azurecr.io/cpg-common/images/fastqc:0.11.9"
+gatk = "azcpg001acr.azurecr.io/cpg-common/images/gatk:4.2.6.1"
+hap-py = "azcpg001acr.azurecr.io/cpg-common/images/hap-py:0.3.15"
+multipy = "azcpg001acr.azurecr.io/cpg-common/images/multipy:0.16"
+multiqc = "azcpg001acr.azurecr.io/cpg-common/images/multiqc:1.13"
+peer = "azcpg001acr.azurecr.io/cpg-common/images/peer:1.3"
+picard = "azcpg001acr.azurecr.io/cpg-common/images/picard:2.27.4"
+reviewer = "azcpg001acr.azurecr.io/cpg-common/images/reviewer:0.2.7"
+samblaster = "azcpg001acr.azurecr.io/cpg-common/images/samblaster:0.1.26"
+samtools = "azcpg001acr.azurecr.io/cpg-common/images/samtools:1.16.1"
+somalier = "azcpg001acr.azurecr.io/cpg-common/images/somalier:0.2.15"
+trtools = "azcpg001acr.azurecr.io/cpg-common/images/trtools:4.0.2"
+vep = "azcpg001acr.azurecr.io/cpg-common/images/vep:105.0"
+verifybamid = "azcpg001acr.azurecr.io/cpg-common/images/verifybamid:2.0.1"
+stripy = "azcpg001acr.azurecr.io/cpg-common/images/stripy:2.2"

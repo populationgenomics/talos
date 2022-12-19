@@ -5,19 +5,3 @@ external_lookup = ""
 seqr_instance = "https://this.is.a/placeholder"
 seqr_project = "placeholder"
 forbidden = ""
-
-[workflow]
-sequencing_type = "genome"
-
-[images]
-hail = "hail-driver:latest"
-vep = "vep:105.0"
-
-[references]
-genome_build = 'GRCh38'
-vep_mount = "vep/105.0"
-
-[references.seqr]
-prefix = 'seqr/v0-1'
-combined_reference = 'combined_reference_data_grch38.ht'
-clinvar = 'clinvar.GRCh38.ht'
