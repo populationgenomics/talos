@@ -19,8 +19,8 @@ web_url = "https://test-web-azcpg001.azurewebsites.net/severalgenomes"
 
 [workflow]
 name = 'AIP'
-scatter_count = 10
-vcf_size_in_gb = 1  # if the input is a VCF, specify enough storage to fit it
+scatter_count = 100
+vcf_size_in_gb = 18  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
 
 [moi_tests]

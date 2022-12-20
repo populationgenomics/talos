@@ -14,5 +14,5 @@ analysis-runner \
   -o "reanalysis/${DATE}" \
   --access-level test \
   reanalysis/interpretation_runner.py \
-    -i hail-az://raregen001sa/test/inputs/joint-called-vcf_20221114/RGP_tiny.vcf.bgz \
-    --pedigree hail-az://sevgen002sa/test/reanalysis/pedigree.fam
+    -i hail-az://raregen001sa/test/inputs/joint-called-vcf_20221114/RGP_subset_samples.vcf.bgz \
+    --pedigree hail-az://raregen001sa/test/inputs/joint-called-vcf_20221114/RGP_Cases_for_MSFT_AIP_v0_trial.xlsx.fam

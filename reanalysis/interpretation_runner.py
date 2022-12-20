@@ -336,9 +336,8 @@ def main(
             output_vcf_path=siteonly_vcf_path,
             storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
         )
-        #siteonly_job.cpu(2)
-        #siteonly_job.memory('32Gi')
-        siteonly_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
+        if siteonly_job:
+            siteonly_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
 
         if prior_job:
             siteonly_job.depends_on(prior_job)
