@@ -64,9 +64,14 @@
 
       <section id="sample-tables" class="report-section">
         <h1>Per Sample Results</h1>
-        <p>Note: "csq" shows all unique csq from all protein_coding txs</p>
-        <p>Any black "csq" appear on a MANE transcript</p>
-        <p>Any red "csq" don't appear on a MANE transcript</p>
+        <p>Note: CSQ shows protein_coding Transcript Consequences</p>
+        <p>Consequences in Black appear on a MANE transcript, <span style="color: #FF0000"><strong>RED</strong></span> do not</p>
+        <p><span style="color: #FF0000"><strong>Category 1</strong></span> - Clinvar Pathogenic</p>
+        <p><span style="color: #FF9B00"><strong>Category 2</strong></span> - New Disease-Gene associations</p>
+        <p><span style="color: #1B00FF"><strong>Category 3</strong></span> - Moderate-High impact, supported by LOFTEE or Clinvar</p>
+        <p><span style="color: #FF0000"><strong>Category 4/de novo</strong></span> - Moderate-High impact, de novo</p>
+        <p><span style="color: #006e4e"><strong>Category 5</strong></span> - Splice AI</p>
+        <p><span style="color: #00FF08"><strong>Category Support</strong></span> - in silico tools</p>
 
         {% for table in sample_tables %}
           {% include "datatable.html.jinja" %}

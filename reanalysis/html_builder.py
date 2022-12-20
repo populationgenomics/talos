@@ -1,6 +1,8 @@
 """
 Methods for taking the final output and generating static report content
 """
+
+
 import logging
 import sys
 from collections import defaultdict
@@ -43,7 +45,7 @@ COLOR_STRING = '<span style="color: {color}"><strong>{content}</strong></span>'
 COLORS = {
     '1': '#FF0000',
     '2': '#FF9B00',
-    '3': '1B00FF',
+    '3': '#1B00FF',
     'de_novo': '#FF0000',
     '5': '#006e4e',
     'support': '#00FF08',
@@ -119,8 +121,7 @@ def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
 
         # record the transcript ID(s), and CSQ(s)
         # we only expect 1, but set operations are useful
-        mane_trans = each_csq.get('mane_select', '')
-        if mane_trans != '':
+        if mane_trans := each_csq.get('mane_select') is not None:
             mane_csq.update(row_csq)
             mane_transcript.add(mane_trans)
         csq_set.update(row_csq)
@@ -264,7 +265,13 @@ class HTMLBuilder:
 
         df = pd.DataFrame(summary_dicts)
         df['Mean/sample'] = df['Mean/sample'].round(3)
-        return (df, samples_with_no_variants)
+
+        # for some reason this didn't correctly sort the df, so force sort here
+        df.Category = df.Category.astype('category')
+        df.Category = df.Category.cat.set_categories(CATEGORY_ORDERING)
+        df = df.sort_values(by='Category')
+
+        return df, samples_with_no_variants
 
     def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
@@ -328,7 +335,7 @@ class HTMLBuilder:
         template_context['summary_table'] = DataTable(
             id='summary-table',
             heading='Per-Category Summary',
-            description=None,
+            description='',
             columns=list(summary_table.columns),
             rows=list(summary_table.to_records(index=False)),
         )
@@ -350,7 +357,7 @@ class HTMLBuilder:
             table = DataTable(
                 id=tid,
                 heading=f'Sample: {sample_string}',
-                description=None,
+                description='',
                 columns=list(table.columns),
                 rows=list(table.to_records(index=False)),
             )
@@ -410,7 +417,19 @@ class HTMLBuilder:
                                 for symbol in variant['gene'].split(',')
                             ]
                         ),
-                        'csq': csq_string,
+                        'CSQ': csq_string,
+                        'MOIs': ', '.join(variant['reasons']),
+                        'support': ', '.join(
+                            [
+                                self.make_seqr_link(
+                                    var_string=partner,
+                                    sample=sample,
+                                )
+                                for partner in variant['support_vars']
+                            ]
+                        )
+                        if variant['supported']
+                        else 'N/A',
                         'mane_select': mane_string,
                         'gnomad': GNOMAD_TEMPLATE.format(
                             variant=var_string,
@@ -424,18 +443,6 @@ class HTMLBuilder:
                             if 'x' in var_string.lower()
                             else 'N/A'
                         ),
-                        'MOIs': ', '.join(variant['reasons']),
-                        'support': ', '.join(
-                            [
-                                self.make_seqr_link(
-                                    var_string=partner,
-                                    sample=sample,
-                                )
-                                for partner in variant['support_vars']
-                            ]
-                        )
-                        if variant['supported']
-                        else 'N/A',
                     }
                 )
 
