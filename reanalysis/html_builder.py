@@ -2,6 +2,7 @@
 Methods for taking the final output and generating static report content
 """
 
+# pylint: disable=too-many-instance-attributes
 
 import logging
 import sys
@@ -38,6 +39,10 @@ SEQR_TEMPLATE = (
 FAMILY_TEMPLATE = (
     '<a href="{seqr}/project/{project}/family_page/{family}" '
     'target="_blank">{sample}</a>'
+)
+TOOLTIP_TEMPLATE = (
+    '<a href="https://panelapp.agha.umccr.org/panels/{panelid}" '
+    'data-toggle="tooltip" title="{panelname}" target="_blank">{display}</a>'
 )
 
 STRONG_STRING = '<strong>{content}</strong>'
@@ -140,11 +145,11 @@ class HTMLBuilder:
 
     def __init__(self, results: str, panelapp: str, pedigree: Ped):
         """
-        before parsing data, purge any forbidden genes
-
-        :param results:
-        :param panelapp:
-        :param pedigree:
+        pass
+        Args:
+            results ():
+            panelapp ():
+            pedigree ():
         """
         self.panelapp = read_json_from_path(panelapp)
         self.pedigree = Ped(pedigree)
@@ -165,8 +170,13 @@ class HTMLBuilder:
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
+        results_dict = read_json_from_path(results)
+        self.metadata = results_dict['metadata']
+
         # pre-filter the results to remove forbidden genes
-        self.results = self.remove_forbidden_genes(read_json_from_path(results))
+        self.variants = self.remove_forbidden_genes(results_dict['results'])
+
+        self.panel_tooltips = self.generate_tooltips()
 
         # map of internal:external IDs for translation in results (optional)
         ext_lookup = get_config().get('dataset_specific', {}).get('external_lookup')
@@ -184,6 +194,33 @@ class HTMLBuilder:
                 assert (
                     get_config().get('dataset_specific', {}).get(seqr_key)
                 ), f'Seqr-related key required but not present: {seqr_key}'
+
+    def generate_tooltips(self) -> dict:
+        """
+        generate the per-panel tooltip lookups from self.metadata
+
+        Returns:
+            a dictionary of each panel and the corresponding tooltip
+        """
+
+        panel_dict = {}
+
+        # iterate over the list of panels
+        for panel in self.metadata['panels']:
+            panel_dict[panel['id']] = {
+                'star': TOOLTIP_TEMPLATE.format(
+                    panelid=panel['id'],
+                    panelname=f'{panel["name"]} - {panel["version"]}',
+                    display='*',
+                ),
+                'name': TOOLTIP_TEMPLATE.format(
+                    panelid=panel['id'],
+                    panelname=f'{panel["name"]} - {panel["version"]}',
+                    display='*',
+                ),
+            }
+
+        return panel_dict
 
     def remove_forbidden_genes(
         self, variant_dictionary: dict[str, Any]
@@ -222,10 +259,7 @@ class HTMLBuilder:
 
         samples_with_no_variants = []
 
-        for sample, variants in self.results.items():
-
-            if sample == 'metadata':
-                continue
+        for sample, variants in self.variants.items():
 
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
@@ -279,17 +313,23 @@ class HTMLBuilder:
         """
         parses into a general table and a panel table
         """
+
+        # swap those panels out for hyperlinks
+
+        for panel in self.metadata['panels']:
+            panel['name'] = self.panel_tooltips[panel['id']]['name']
+
         tables = {
-            'Panels': pd.DataFrame(self.results['metadata']['panels']),
+            'Panels': pd.DataFrame(self.metadata['panels']),
             'Meta': pd.DataFrame(
-                {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
+                {'Data': key.capitalize(), 'Value': self.metadata[key]}
                 for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
             ),
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
                     for fam_type, fam_count in sorted(
-                        self.results['metadata']['family_breakdown'].items()
+                        self.metadata['family_breakdown'].items()
                     )
                 ]
             ),
@@ -383,10 +423,7 @@ class HTMLBuilder:
         candidate_dictionaries = {}
         sample_tables = {}
 
-        for sample, variants in self.results.items():
-
-            if sample == 'metadata':
-                continue
+        for sample, variants in self.variants.items():
 
             for variant in variants:
 
@@ -399,7 +436,13 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'flags': ', '.join(variant['flags']),
+                        'flags': ' '.join(
+                            [
+                                self.panel_tooltips[flag]['star']
+                                for flag in variant['flags']
+                                if flag in self.panel_tooltips
+                            ]
+                        ),
                         'categories': ', '.join(
                             list(
                                 map(
@@ -456,9 +499,13 @@ class HTMLBuilder:
     def make_seqr_link(self, var_string: str, sample: str) -> str:
         """
         either return just the variant as a string, or a seqr link if possible
-        :param sample:
-        :param var_string:
-        :return:
+
+        Args:
+            var_string ():
+            sample ():
+
+        Returns:
+            a formatting string if possible, else just the variant
         """
         if sample not in self.seqr:
             return var_string
