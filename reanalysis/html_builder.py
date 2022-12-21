@@ -53,7 +53,7 @@ COLORS = {
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
 
 
-@dataclass()
+@dataclass
 class DataTable:
     """
     Representation of a DataTables table that the Jinja2 templating system renders.
@@ -267,7 +267,8 @@ class HTMLBuilder:
         df = pd.DataFrame(summary_dicts)
         df['Mean/sample'] = df['Mean/sample'].round(3)
 
-        # for some reason this didn't correctly sort the df, so force sort here
+        # the table re-sorts when parsed into the DataTable
+        # so this forced ordering doesn't work
         df.Category = df.Category.astype('category')
         df.Category = df.Category.cat.set_categories(CATEGORY_ORDERING)
         df = df.sort_values(by='Category')
