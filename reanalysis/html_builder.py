@@ -44,6 +44,7 @@ TOOLTIP_TEMPLATE = (
     '<a href="https://panelapp.agha.umccr.org/panels/{panelid}" '
     'data-toggle="tooltip" title="{panelname}" target="_blank">{display}</a>'
 )
+STAR = '<span style="font-size:100%;color:yellow;">&starf;</span>'
 
 STRONG_STRING = '<strong>{content}</strong>'
 COLOR_STRING = '<span style="color: {color}"><strong>{content}</strong></span>'
@@ -216,7 +217,7 @@ class HTMLBuilder:
                 'star': TOOLTIP_TEMPLATE.format(
                     panelid=panel['id'],
                     panelname=f'{panel["name"]} - {panel["version"]}',
-                    display='*',
+                    display=STAR,
                 ),
             }
 
