@@ -74,11 +74,7 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
 
     # add metadata for this panel & version
     gene_dict['metadata'].append(
-        {
-            'name': panel_name,
-            'version': panel_version,
-            'id': panel_id,
-        }
+        {'name': panel_name, 'version': panel_version, 'id': panel_id}
     )
 
     # iterate over the genes in this panel result
