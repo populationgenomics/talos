@@ -44,8 +44,7 @@ TOOLTIP_TEMPLATE = (
     '<a href="https://panelapp.agha.umccr.org/panels/{panelid}" '
     'data-toggle="tooltip" title="{panelname}" target="_blank">{display}</a>'
 )
-STAR = '<span style="color:yellow;">&starf;</span>'
-
+STAR = '<span>&#11088;</span>'
 STRONG_STRING = '<strong>{content}</strong>'
 COLOR_STRING = '<span style="color: {color}"><strong>{content}</strong></span>'
 COLORS = {
@@ -217,7 +216,7 @@ class HTMLBuilder:
                 'star': TOOLTIP_TEMPLATE.format(
                     panelid=panel['id'],
                     panelname=f'{panel["name"]} - {panel["version"]}',
-                    display=STAR,
+                    display='&#11088;',
                 ),
             }
 
@@ -395,7 +394,7 @@ class HTMLBuilder:
             else:
                 sample_string = self.external_map.get(sample, sample)
 
-            tid = f'{sample_string}-variants-table'
+            tid = f'{sample}-variants-table'
             table = DataTable(
                 id=tid,
                 heading=f'Sample: {sample_string}',
