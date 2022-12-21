@@ -208,12 +208,12 @@ class HTMLBuilder:
         # iterate over the list of panels
         for panel in self.metadata['panels']:
             panel_dict[panel['id']] = {
-                'star': TOOLTIP_TEMPLATE.format(
+                'name': TOOLTIP_TEMPLATE.format(
                     panelid=panel['id'],
                     panelname=f'{panel["name"]} - {panel["version"]}',
-                    display='*',
+                    display=panel['name'],
                 ),
-                'name': TOOLTIP_TEMPLATE.format(
+                'star': TOOLTIP_TEMPLATE.format(
                     panelid=panel['id'],
                     panelname=f'{panel["name"]} - {panel["version"]}',
                     display='*',
@@ -422,9 +422,22 @@ class HTMLBuilder:
         candidate_dictionaries = {}
         sample_tables = {}
 
+        # get all the panels by ID
+        panels_to_flag = self.panel_tooltips.keys()
+        print(panels_to_flag)
+
         for sample, variants in self.variants.items():
 
             for variant in variants:
+
+                # grotty syntax, doing this the easy way
+                fresh_flags = []
+                print(variant['flags'])
+                for flag in variant['flags']:
+                    if flag in panels_to_flag:
+                        fresh_flags.append(self.panel_tooltips[flag]['star'])
+                    else:
+                        fresh_flags.append(flag)
 
                 # pull out the string representation
                 var_string = make_coord_string(variant['var_data']['coords'])
@@ -435,13 +448,7 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'flags': ' '.join(
-                            [
-                                self.panel_tooltips[flag]['star']
-                                for flag in variant['flags']
-                                if flag in self.panel_tooltips
-                            ]
-                        ),
+                        'flags': ' '.join(fresh_flags),
                         'categories': ', '.join(
                             list(
                                 map(
