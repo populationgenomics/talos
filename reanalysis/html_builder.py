@@ -156,14 +156,7 @@ class HTMLBuilder:
 
         # if it exists, read the forbidden genes as a dict
         self.forbidden_genes = (
-            {
-                ensg: self.panelapp['genes'].get(ensg, {}).get('symbol', ensg)
-                for ensg in set(
-                    read_json_from_path(
-                        get_config().get('dataset_specific', {})['forbidden']
-                    )
-                )
-            }
+            read_json_from_path(get_config().get('dataset_specific', {})['forbidden'])
             if get_config().get('dataset_specific', {}).get('forbidden')
             else {}
         )
@@ -234,9 +227,15 @@ class HTMLBuilder:
             for variant in content:
                 skip_variant = False
                 for gene_id in variant['gene'].split(','):
-                    if gene_id in self.forbidden_genes.keys():
+                    if gene_id in self.forbidden_genes:
                         skip_variant = True
-                        continue
+                        break
+
+                # allow for exclusion by Symbol too
+                for tx_con in variant['var_data']['transcript_consequences']:
+                    if tx_con['symbol'] in self.forbidden_genes:
+                        skip_variant = True
+                        break
                 if not skip_variant:
                     sample_vars.append(variant)
 
@@ -363,12 +362,7 @@ class HTMLBuilder:
             )
 
         if self.forbidden_genes:
-            # this should be sorted/arranged better
-            forbidden_list = [
-                f'{ensg} ({self.forbidden_genes[ensg]})'
-                for ensg in self.forbidden_genes.keys()
-            ]
-            template_context['forbidden_genes'] = forbidden_list
+            template_context['forbidden_genes'] = sorted(self.forbidden_genes)
 
         if len(zero_categorised_samples) > 0:
             template_context['zero_categorised_samples'] = zero_categorised_samples
