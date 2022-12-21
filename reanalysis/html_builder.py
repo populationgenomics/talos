@@ -207,7 +207,7 @@ class HTMLBuilder:
 
         # iterate over the list of panels
         for panel in self.metadata['panels']:
-            panel_dict[panel['id']] = {
+            panel_dict[panel['name']] = {
                 'name': TOOLTIP_TEMPLATE.format(
                     panelid=panel['id'],
                     panelname=f'{panel["name"]} - {panel["version"]}',
@@ -316,7 +316,7 @@ class HTMLBuilder:
         # swap those panels out for hyperlinks
 
         for panel in self.metadata['panels']:
-            panel['name'] = self.panel_tooltips[panel['id']]['name']
+            panel['name'] = self.panel_tooltips[panel['name']]['name']
 
         tables = {
             'Panels': pd.DataFrame(self.metadata['panels']),
@@ -424,7 +424,6 @@ class HTMLBuilder:
 
         # get all the panels by ID
         panels_to_flag = self.panel_tooltips.keys()
-        print(panels_to_flag)
 
         for sample, variants in self.variants.items():
 
@@ -432,7 +431,6 @@ class HTMLBuilder:
 
                 # grotty syntax, doing this the easy way
                 fresh_flags = []
-                print(variant['flags'])
                 for flag in variant['flags']:
                     if flag in panels_to_flag:
                         fresh_flags.append(self.panel_tooltips[flag]['star'])
