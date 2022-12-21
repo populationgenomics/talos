@@ -768,7 +768,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty
     prefix = 'singletons_' if singletons else ''
-    latest_results = find_latest_file(start=prefix)
+    latest_results = find_latest_file(start=prefix or '2')
 
     logging.info(f'latest results: {latest_results}')
 
