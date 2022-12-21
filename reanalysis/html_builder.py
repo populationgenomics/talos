@@ -127,7 +127,7 @@ def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
         # record the transcript ID(s), and CSQ(s)
         # we only expect 1, but set operations are useful
         mane_trans = each_csq.get('mane_select')
-        if mane_trans is not None:
+        if mane_trans:
             mane_csq.update(row_csq)
             mane_transcript.add(mane_trans)
         csq_set.update(row_csq)
