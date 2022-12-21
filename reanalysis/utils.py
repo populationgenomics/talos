@@ -767,11 +767,10 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty
-    latest_results = find_latest_file(start='singletons' if singletons else '')
+    prefix = 'singletons_' if singletons else ''
+    latest_results = find_latest_file(start=prefix)
 
     logging.info(f'latest results: {latest_results}')
-
-    prefix = 'singletons_' if singletons else ''
 
     if latest_results is None:
         # no results to subtract - current data IS cumulative data
