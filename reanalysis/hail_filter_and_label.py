@@ -828,8 +828,8 @@ def main(mt_path: str, panelapp: str, plink: str):
     # running global quality filter steps
     logging.info('filter_matrix_by_ac')
     mt = filter_matrix_by_ac(mt=mt)
-    logging.info('filter_to_well_normalised')
-    mt = filter_to_well_normalised(mt)
+    # logging.info('filter_to_well_normalised')
+    # mt = filter_to_well_normalised(mt)
 
     # die if there are no variants remaining
     if mt.count_rows() == 0:
