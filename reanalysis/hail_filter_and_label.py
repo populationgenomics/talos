@@ -832,14 +832,14 @@ def main(mt_path: str, panelapp: str, plink: str):
     if mt.count_rows() == 0:
         raise Exception('No remaining rows to process!')
 
-    mt = checkpoint_and_repartition(
-        mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after applying quality filters',
-    )
+    # mt = checkpoint_and_repartition(
+    #     mt,
+    #     checkpoint_root=checkpoint_root,
+    #     checkpoint_num=checkpoint_number,
+    #     extra_logging='after applying quality filters',
+    # )
 
-    checkpoint_number = checkpoint_number + 1
+    # checkpoint_number = checkpoint_number + 1
 
     # swap out the default clinvar annotations with private clinvar
     mt = annotate_aip_clinvar(mt)
@@ -848,14 +848,14 @@ def main(mt_path: str, panelapp: str, plink: str):
     mt = filter_to_population_rare(mt=mt)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
-    mt = checkpoint_and_repartition(
-        mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after applying Rare & Green-Gene filters',
-    )
+    # mt = checkpoint_and_repartition(
+    #     mt,
+    #     checkpoint_root=checkpoint_root,
+    #     checkpoint_num=checkpoint_number,
+    #     extra_logging='after applying Rare & Green-Gene filters',
+    # )
 
-    checkpoint_number = checkpoint_number + 1
+    # checkpoint_number = checkpoint_number + 1
 
     # add Classes to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
@@ -869,12 +869,12 @@ def main(mt_path: str, panelapp: str, plink: str):
     mt = annotate_category_support(mt)
 
     mt = filter_to_categorised(mt)
-    mt = checkpoint_and_repartition(
-        mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after filtering to categorised only',
-    )
+    # mt = checkpoint_and_repartition(
+    #     mt,
+    #     checkpoint_root=checkpoint_root,
+    #     checkpoint_num=checkpoint_number,
+    #     extra_logging='after filtering to categorised only',
+    # )
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
@@ -885,6 +885,7 @@ def main(mt_path: str, panelapp: str, plink: str):
         )
     )
 
+    logging.info('Writing VCF')
     write_matrix_to_vcf(mt=mt)
 
 
