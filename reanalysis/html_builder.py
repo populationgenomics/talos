@@ -1,12 +1,18 @@
 """
 Methods for taking the final output and generating static report content
 """
+
+# pylint: disable=too-many-instance-attributes
+
 import logging
 import sys
 from collections import defaultdict
 from argparse import ArgumentParser
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+import jinja2
 import pandas as pd
 from peddy.peddy import Ped
 
@@ -15,6 +21,8 @@ from cpg_utils.config import get_config
 
 from reanalysis.utils import read_json_from_path
 
+
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 GNOMAD_TEMPLATE = (
     '<a href="https://gnomad.broadinstitute.org/variant/'
@@ -32,18 +40,35 @@ FAMILY_TEMPLATE = (
     '<a href="{seqr}/project/{project}/family_page/{family}" '
     'target="_blank">{sample}</a>'
 )
-
+TOOLTIP_TEMPLATE = (
+    '<a href="https://panelapp.agha.umccr.org/panels/{panelid}" '
+    'data-toggle="tooltip" title="{panelname}" target="_blank">{display}</a>'
+)
+STAR = '<span>&#11088;</span>'
 STRONG_STRING = '<strong>{content}</strong>'
 COLOR_STRING = '<span style="color: {color}"><strong>{content}</strong></span>'
 COLORS = {
     '1': '#FF0000',
     '2': '#FF9B00',
-    '3': '1B00FF',
+    '3': '#1B00FF',
     'de_novo': '#FF0000',
     '5': '#006e4e',
     'support': '#00FF08',
 }
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
+
+
+@dataclass
+class DataTable:
+    """
+    Representation of a DataTables table that the Jinja2 templating system renders.
+    """
+
+    id: str
+    columns: list[str]
+    rows: list[Any]
+    heading: str = None
+    description: str = None
 
 
 def make_coord_string(var_coord: dict[str, str]) -> str:
@@ -101,8 +126,8 @@ def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
 
         # record the transcript ID(s), and CSQ(s)
         # we only expect 1, but set operations are useful
-        mane_trans = each_csq.get('mane_select', '')
-        if mane_trans != '':
+        mane_trans = each_csq.get('mane_select')
+        if mane_trans:
             mane_csq.update(row_csq)
             mane_transcript.add(mane_trans)
         csq_set.update(row_csq)
@@ -120,33 +145,31 @@ class HTMLBuilder:
 
     def __init__(self, results: str, panelapp: str, pedigree: Ped):
         """
-        before parsing data, purge any forbidden genes
-
-        :param results:
-        :param panelapp:
-        :param pedigree:
+        pass
+        Args:
+            results ():
+            panelapp ():
+            pedigree ():
         """
         self.panelapp = read_json_from_path(panelapp)
         self.pedigree = Ped(pedigree)
 
         # if it exists, read the forbidden genes as a dict
         self.forbidden_genes = (
-            {
-                ensg: self.panelapp['genes'].get(ensg, {}).get('symbol', ensg)
-                for ensg in set(
-                    read_json_from_path(
-                        get_config().get('dataset_specific', {})['forbidden']
-                    )
-                )
-            }
+            read_json_from_path(get_config().get('dataset_specific', {})['forbidden'])
             if get_config().get('dataset_specific', {}).get('forbidden')
             else {}
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
+        results_dict = read_json_from_path(results)
+        self.metadata = results_dict['metadata']
+
         # pre-filter the results to remove forbidden genes
-        self.results = self.remove_forbidden_genes(read_json_from_path(results))
+        self.variants = self.remove_forbidden_genes(results_dict['results'])
+
+        self.panel_tooltips = self.generate_tooltips()
 
         # map of internal:external IDs for translation in results (optional)
         ext_lookup = get_config().get('dataset_specific', {}).get('external_lookup')
@@ -165,6 +188,33 @@ class HTMLBuilder:
                     get_config().get('dataset_specific', {}).get(seqr_key)
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
+    def generate_tooltips(self) -> dict:
+        """
+        generate the per-panel tooltip lookups from self.metadata
+
+        Returns:
+            a dictionary of each panel and the corresponding tooltip
+        """
+
+        panel_dict = {}
+
+        # iterate over the list of panels
+        for panel in self.metadata['panels']:
+            panel_dict[panel['name']] = {
+                'name': TOOLTIP_TEMPLATE.format(
+                    panelid=panel['id'],
+                    panelname=f'{panel["name"]} - {panel["version"]}',
+                    display=panel['name'],
+                ),
+                'star': TOOLTIP_TEMPLATE.format(
+                    panelid=panel['id'],
+                    panelname=f'{panel["name"]} - {panel["version"]}',
+                    display='&#11088;',
+                ),
+            }
+
+        return panel_dict
+
     def remove_forbidden_genes(
         self, variant_dictionary: dict[str, Any]
     ) -> dict[str, Any]:
@@ -172,15 +222,20 @@ class HTMLBuilder:
         takes the results from the analysis and purges forbidden-gene variants
         """
         clean_results = defaultdict(list)
-        clean_results['metadata'] = variant_dictionary['metadata']
-        for sample, content in variant_dictionary['results'].items():
+        for sample, content in variant_dictionary.items():
             sample_vars = []
             for variant in content:
                 skip_variant = False
                 for gene_id in variant['gene'].split(','):
-                    if gene_id in self.forbidden_genes.keys():
+                    if gene_id in self.forbidden_genes:
                         skip_variant = True
-                        continue
+                        break
+
+                # allow for exclusion by Symbol too
+                for tx_con in variant['var_data']['transcript_consequences']:
+                    if tx_con['symbol'] in self.forbidden_genes:
+                        skip_variant = True
+                        break
                 if not skip_variant:
                     sample_vars.append(variant)
 
@@ -191,7 +246,7 @@ class HTMLBuilder:
 
     def get_summary_stats(
         self,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[pd.DataFrame, list[str]]:
         """
         run the numbers across all variant categories
         :return:
@@ -202,10 +257,7 @@ class HTMLBuilder:
 
         samples_with_no_variants = []
 
-        for sample, variants in self.results.items():
-
-            if sample == 'metadata':
-                continue
+        for sample, variants in self.variants.items():
 
             if len(variants) == 0:
                 samples_with_no_variants.append(self.external_map.get(sample, sample))
@@ -244,31 +296,41 @@ class HTMLBuilder:
             if category_count[key]
         ]
 
-        return (
-            pd.DataFrame(summary_dicts).to_html(index=False, escape=False),
-            samples_with_no_variants,
-        )
+        df = pd.DataFrame(summary_dicts)
+        df['Mean/sample'] = df['Mean/sample'].round(3)
 
-    def read_metadata(self) -> dict[str, str]:
+        # the table re-sorts when parsed into the DataTable
+        # so this forced ordering doesn't work
+        df.Category = df.Category.astype('category')
+        df.Category = df.Category.cat.set_categories(CATEGORY_ORDERING)
+        df = df.sort_values(by='Category')
+
+        return df, samples_with_no_variants
+
+    def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
         parses into a general table and a panel table
         """
+
+        # swap those panels out for hyperlinks
+
+        for panel in self.metadata['panels']:
+            panel['name'] = self.panel_tooltips[panel['name']]['name']
+
         tables = {
-            'Panels': pd.DataFrame(self.results['metadata']['panels']).to_html(
-                index=False, escape=False
-            ),
+            'Panels': pd.DataFrame(self.metadata['panels']),
             'Meta': pd.DataFrame(
-                {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
+                {'Data': key.capitalize(), 'Value': self.metadata[key]}
                 for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
-            ).to_html(index=False, escape=False),
+            ),
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
                     for fam_type, fam_count in sorted(
-                        self.results['metadata']['family_breakdown'].items()
+                        self.metadata['family_breakdown'].items()
                     )
                 ]
-            ).to_html(index=False, escape=False),
+            ),
         }
         return tables
 
@@ -280,40 +342,38 @@ class HTMLBuilder:
         summary_table, zero_categorised_samples = self.get_summary_stats()
         html_tables = self.create_html_tables()
 
-        html_lines = ['<head></head>\n<body>\n']
+        template_context = {
+            'meta_tables': [],
+            'forbidden_genes': [],
+            'zero_categorised_samples': [],
+            'summary_table': None,
+            'sample_tables': [],
+        }
 
         for title, meta_table in self.read_metadata().items():
-            html_lines.append(f'<h3>{title}</h3>')
-            html_lines.append(meta_table)
-            html_lines.append('<br/>')
+            template_context['meta_tables'].append(
+                DataTable(
+                    id=f'{title.lower()}-table',
+                    heading=title,
+                    description='',
+                    columns=list(meta_table.columns),
+                    rows=list(meta_table.to_records(index=False)),
+                )
+            )
 
         if self.forbidden_genes:
-            # this should be sorted/arranged better
-            forbidden_list = [
-                f'{ensg} ({self.forbidden_genes[ensg]})'
-                for ensg in self.forbidden_genes.keys()
-            ]
-            html_lines.append('<h3>Forbidden Gene IDs:</h3>')
-            html_lines.append(f'<h4>{", ".join(forbidden_list)}</h4>')
-        else:
-            html_lines.append('<h3>No Forbidden Genes</h3>')
-        html_lines.append('<br/>')
+            template_context['forbidden_genes'] = sorted(self.forbidden_genes)
 
         if len(zero_categorised_samples) > 0:
-            html_lines.append('<h3>Samples with no Reportable Variants</h3>')
-            html_lines.append(f'<h4>{", ".join(zero_categorised_samples)}</h3>')
-        html_lines.append('<br/>')
+            template_context['zero_categorised_samples'] = zero_categorised_samples
 
-        html_lines.append('<h3>Per-Category summary</h3>')
-        html_lines.append(summary_table)
-        html_lines.append('<br/>')
-
-        html_lines.append('<h1>Per Sample Results</h1>')
-        html_lines.append(
-            '<br/>Note: "csq" shows all unique csq from all protein_coding txs'
+        template_context['summary_table'] = DataTable(
+            id='summary-table',
+            heading='Per-Category Summary',
+            description='',
+            columns=list(summary_table.columns),
+            rows=list(summary_table.to_records(index=False)),
         )
-        html_lines.append('<br/>Any black "csq" appear on a MANE transcript')
-        html_lines.append('<br/>Any red "csq" don\'t appear on a MANE transcript<br/>')
 
         for sample, table in html_tables.items():
             if sample in self.external_map and sample in self.seqr:
@@ -328,14 +388,27 @@ class HTMLBuilder:
             else:
                 sample_string = self.external_map.get(sample, sample)
 
-            html_lines.append(fr'<h3>Sample: {sample_string}</h3>')
-            html_lines.append(table)
-        html_lines.append('\n</body>')
+            tid = f'{sample}-variants-table'
+            table = DataTable(
+                id=tid,
+                heading=f'Sample: {sample_string}',
+                description='',
+                columns=list(table.columns),
+                rows=list(table.to_records(index=False)),
+            )
+            template_context['sample_tables'].append(table)
 
         # write all HTML content to the output file in one go
-        to_path(output_path).write_text(''.join(html_lines))
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
+        )
+        template = env.get_template('index.html.jinja')
+        content = template.render(**template_context)
+        to_path(output_path).write_text(
+            '\n'.join(line for line in content.split('\n') if line.strip())
+        )
 
-    def create_html_tables(self):
+    def create_html_tables(self) -> dict[str, pd.DataFrame]:
         """
         make a table describing the outputs
         :return:
@@ -343,12 +416,20 @@ class HTMLBuilder:
         candidate_dictionaries = {}
         sample_tables = {}
 
-        for sample, variants in self.results.items():
+        # get all the panels by ID
+        panels_to_flag = self.panel_tooltips.keys()
 
-            if sample == 'metadata':
-                continue
+        for sample, variants in self.variants.items():
 
             for variant in variants:
+
+                # grotty syntax, doing this the easy way
+                fresh_flags = []
+                for flag in variant['flags']:
+                    if flag in panels_to_flag:
+                        fresh_flags.append(self.panel_tooltips[flag]['star'])
+                    else:
+                        fresh_flags.append(flag)
 
                 # pull out the string representation
                 var_string = make_coord_string(variant['var_data']['coords'])
@@ -359,7 +440,7 @@ class HTMLBuilder:
                         'variant': self.make_seqr_link(
                             var_string=var_string, sample=sample
                         ),
-                        'flags': ', '.join(variant['flags']),
+                        'flags': ' '.join(fresh_flags),
                         'categories': ', '.join(
                             list(
                                 map(
@@ -379,7 +460,19 @@ class HTMLBuilder:
                                 for symbol in variant['gene'].split(',')
                             ]
                         ),
-                        'csq': csq_string,
+                        'CSQ': csq_string,
+                        'MOIs': ', '.join(variant['reasons']),
+                        'support': ', '.join(
+                            [
+                                self.make_seqr_link(
+                                    var_string=partner,
+                                    sample=sample,
+                                )
+                                for partner in variant['support_vars']
+                            ]
+                        )
+                        if variant['supported']
+                        else 'N/A',
                         'mane_select': mane_string,
                         'gnomad': GNOMAD_TEMPLATE.format(
                             variant=var_string,
@@ -393,34 +486,24 @@ class HTMLBuilder:
                             if 'x' in var_string.lower()
                             else 'N/A'
                         ),
-                        'MOIs': ', '.join(variant['reasons']),
-                        'support': ', '.join(
-                            [
-                                self.make_seqr_link(
-                                    var_string=partner,
-                                    sample=sample,
-                                )
-                                for partner in variant['support_vars']
-                            ]
-                        )
-                        if variant['supported']
-                        else 'N/A',
                     }
                 )
 
         for sample, variants in candidate_dictionaries.items():
-            sample_tables[sample] = pd.DataFrame(variants).to_html(
-                index=False, render_links=True, escape=False
-            )
+            sample_tables[sample] = pd.DataFrame(variants)
 
         return sample_tables
 
     def make_seqr_link(self, var_string: str, sample: str) -> str:
         """
         either return just the variant as a string, or a seqr link if possible
-        :param sample:
-        :param var_string:
-        :return:
+
+        Args:
+            var_string ():
+            sample ():
+
+        Returns:
+            a formatting string if possible, else just the variant
         """
         if sample not in self.seqr:
             return var_string
