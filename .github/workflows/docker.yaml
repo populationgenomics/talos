@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       VERSION:
-        description: 'Tag to use for manual push (default: 0.2.0)'
-        default: 0.2.0
+        description: 'Tag to use for manual push (default: 0.2.1)'
+        default: 0.2.1
 env:
-  VERSION: 0.2.0
+  VERSION: 0.2.1
 
 jobs:
   docker:
