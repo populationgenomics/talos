@@ -23,12 +23,6 @@ from datetime import datetime
 import hailtop.batch as hb
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.git import (
-    prepare_git_job,
-    get_git_commit_ref_of_current_repository,
-    get_organisation_name_from_current_directory,
-    get_repo_name_from_current_directory,
-)
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
@@ -58,13 +52,12 @@ PANELAPP_JSON_OUT = output_path(
 # output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
 
-
 # local script references
-HAIL_FILTER = os.path.join(os.path.dirname(__file__), 'hail_filter_and_label.py')
-HTML_SCRIPT = os.path.join(os.path.dirname(__file__), 'html_builder.py')
-QUERY_PANELAPP = os.path.join(os.path.dirname(__file__), 'query_panelapp.py')
-RESULTS_SCRIPT = os.path.join(os.path.dirname(__file__), 'validate_categories.py')
-MT_TO_VCF_SCRIPT = os.path.join(os.path.dirname(__file__), 'mt_to_vcf.py')
+HAIL_FILTER = os.path.join('reanalysis', 'hail_filter_and_label.py')
+HTML_SCRIPT = os.path.join('reanalysis', 'html_builder.py')
+QUERY_PANELAPP = os.path.join('reanalysis', 'query_panelapp.py')
+RESULTS_SCRIPT = os.path.join('reanalysis', 'validate_categories.py')
+MT_TO_VCF_SCRIPT = os.path.join('reanalysis', 'mt_to_vcf.py')
 
 
 def set_job_resources(
@@ -79,9 +72,7 @@ def set_job_resources(
     :param memory:
     """
     # apply all settings
-    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
-        '20G'
-    )
+    job.cpu(2).image(get_config()['images']['aip']).memory(memory).storage('20G')
 
     # copy the env variables into the container
     # specifically the CPG_CONFIG_PATH value
@@ -91,14 +82,6 @@ def set_job_resources(
         job.depends_on(prior_job)
 
     authenticate_cloud_credentials_in_job(job)
-
-    # copy the relevant scripts into a Driver container instance
-    prepare_git_job(
-        job=job,
-        organisation=get_organisation_name_from_current_directory(),
-        repo_name=get_repo_name_from_current_directory(),
-        commit=get_git_commit_ref_of_current_repository(),
-    )
 
 
 def mt_to_vcf(batch: hb.Batch, input_file: str) -> hb.batch.job.Job:
@@ -145,9 +128,7 @@ def handle_panelapp_job(
     set_job_resources(panelapp_job, prior_job=prior_job)
     copy_common_env(panelapp_job)
 
-    panelapp_command = (
-        f'pip install . && ' f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
-    )
+    panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
 
     if participant_panels is not None:
         panelapp_command += f'--panels {participant_panels} '
@@ -184,7 +165,6 @@ def handle_hail_filtering(
     labelling_job = batch.new_job(name='hail filtering')
     set_job_resources(labelling_job, prior_job=prior_job, memory='16Gi')
     labelling_command = (
-        f'pip install . && '
         f'python3 {HAIL_FILTER} '
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
@@ -226,7 +206,6 @@ def handle_results_job(
     )
 
     results_command = (
-        'pip install . && '
         f'python3 {RESULTS_SCRIPT} '
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '

@@ -8,6 +8,7 @@ on:
 
 env:
   VERSION: 0.2.0
+  IMAGE_NAME: cpg_aip
 
 jobs:
   docker:
@@ -44,11 +45,3 @@ jobs:
     - name: push
       run: |
         docker push $IMAGE_NAME:${{ github.sha }}
-
-    - name: push latest
-      if: ${{ github.event_name != 'pull_request' }}
-      run: |
-        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:$VERSION
-        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
-        docker push $IMAGE_NAME:$VERSION
-        docker push $IMAGE_NAME:latest
