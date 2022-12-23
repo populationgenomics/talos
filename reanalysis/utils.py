@@ -1,6 +1,5 @@
 """
-a collection of classes and methods
-which may be shared across reanalysis components
+classes and methods shared across reanalysis components
 """
 
 from collections import defaultdict
@@ -27,7 +26,6 @@ HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
-
 PHASE_SET_DEFAULT = -2147483648
 CHROM_ORDER = list(map(str, range(1, 23))) + [
     'X',
@@ -38,7 +36,6 @@ CHROM_ORDER = list(map(str, range(1, 23))) + [
 
 X_CHROMOSOME = {'X'}
 NON_HOM_CHROM = {'Y', 'MT', 'M'}
-
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
 
@@ -814,7 +811,11 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     return mini_results
 
 
-def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
+def save_new_historic(
+    results: dict,
+    prefix: str = '',
+    directory: str | None = None,
+):
     """
     save the new results in the historic results dir
     include time & date in filename
