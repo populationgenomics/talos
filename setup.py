@@ -6,8 +6,13 @@ automated installation instructions
 from setuptools import find_packages, setup
 
 
+with open('README.md', encoding='utf-8') as handle:
+    readme = handle.read()
+
 setup(
     name='automated-interpretation-pipeline',
+    description='CPG Variant Prioritisation',
+    long_description=readme,
     version='0.1.0',
     author='Matthew Welland, CPG',
     author_email=(
@@ -15,7 +20,6 @@ setup(
         'cas.simons@populationgenomics.org.au'
     ),
     url='https://github.com/populationgenomics/automated-interpretation-pipeline',
-    description='Variant annotation and prioritisation process',
     license='MIT',
     classifiers=[
         'Environment :: Console',
