@@ -5,7 +5,10 @@ on:
     branches:
       - main
   workflow_dispatch:
-
+    inputs:
+      VERSION:
+        description: 'Tag to use for manual push (default: 0.2.0)'
+        default: 0.2.0
 env:
   VERSION: 0.2.0
 
