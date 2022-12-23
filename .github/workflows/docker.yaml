@@ -8,7 +8,6 @@ on:
 
 env:
   VERSION: 0.2.0
-  IMAGE_NAME: cpg_aip
 
 jobs:
   docker:
@@ -20,11 +19,9 @@ jobs:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows
+      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip
     steps:
     - uses: actions/checkout@main
-      with:
-        submodules: recursive
 
     - name: gcloud auth
       uses: 'google-github-actions/auth@v0'
@@ -42,6 +39,11 @@ jobs:
     - name: build
       run: |
         docker build . -f Dockerfile --tag $IMAGE_NAME:${{ github.sha }}
-    - name: push
+
+    - name: push latest
+      if: ${{ github.event_name != 'pull_request' }}
       run: |
-        docker push $IMAGE_NAME:${{ github.sha }}
+        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:$VERSION
+        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
+        docker push $IMAGE_NAME:$VERSION
+        docker push $IMAGE_NAME:latest
