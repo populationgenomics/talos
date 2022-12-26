@@ -37,12 +37,12 @@ jobs:
         gcloud auth configure-docker australia-southeast1-docker.pkg.dev
     - name: build
       run: |
-        docker build . -f Dockerfile --tag $IMAGE_NAME:${{ github.sha }}
+        docker build . -f Dockerfile --tag $BASE_IMAGE:${{ github.sha }}
 
     - name: push latest
       if: ${{ github.event_name != 'pull_request' }}
       run: |
-        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:$VERSION
-        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
-        docker push $IMAGE_NAME:$VERSION
-        docker push $IMAGE_NAME:latest
+        docker tag $BASE_IMAGE:${{ github.sha }} $BASE_IMAGE:$VERSION
+        docker tag $BASE_IMAGE:${{ github.sha }} $BASE_IMAGE:latest
+        docker push $BASE_IMAGE:$VERSION
+        docker push $BASE_IMAGE:latest
