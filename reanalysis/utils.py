@@ -747,11 +747,9 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
 def filter_results(results: dict, singletons: bool) -> dict:
     """
-    takes a set of results
-    loads the most recent prior result set (if it exists)
-    subtract
-    write two files (total, and latest - previous)
-    p.stat().st_mtime to find latest
+    takes a set of results, subtract the most recent prior result set (if it exists)
+    write two files (total, and [latest - previous])
+    p.stat().st_mtime to find latest in the given folder
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
@@ -765,6 +763,8 @@ def filter_results(results: dict, singletons: bool) -> dict:
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty
     prefix = 'singletons_' if singletons else ''
+
+    # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
     latest_results = find_latest_file(start=prefix or '2')
 
     logging.info(f'latest results: {latest_results}')
