@@ -7,7 +7,7 @@ on:
         default: "test"
 
 jobs:
-  docker:
+  test_docker:
     runs-on: ubuntu-latest
     defaults:
       run:
