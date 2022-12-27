@@ -39,7 +39,7 @@ setup(
     extras_require={
         'full': [
             'click',
-            'cloudpathlib[all]==0.9.0',
+            'cloudpathlib[all]>=0.9.0',
             'cpg-utils>=4.7.0',
             'cpg_workflows>=1.1.4',
             'dill>=0.3.5.1',
@@ -51,12 +51,12 @@ setup(
             'requests>=2.25.1',
             'sample-metadata>=5',
             'seqr-loader>=1.2.5',
+            'tabulate>=0.8.9',
             'toml>=0.10',
         ],
         'test': [
             'pytest>=7.0.0',
             'pytest-cov>=3.0.0',
-            'tabulate>=0.8.9',
             'pytest-xdist>=2.5.0',
             'requests_mock>=1.9.3',
         ],
