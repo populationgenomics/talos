@@ -25,16 +25,12 @@ jobs:
       uses: google-github-actions/setup-gcloud@v0
       with:
         project_id: cpg-common
-
     - name: gcloud docker auth
       run: |
         gcloud auth configure-docker australia-southeast1-docker.pkg.dev
     - name: build
       run: |
         docker build . -f Dockerfile --tag $BASE_IMAGE:test
-
-    - name: push latest
-      if: ${{ github.event_name != 'pull_request' }}
+    - name: push test
       run: |
-        docker tag $BASE_IMAGE:${{ github.sha }} $BASE_IMAGE:test
         docker push $BASE_IMAGE:test
