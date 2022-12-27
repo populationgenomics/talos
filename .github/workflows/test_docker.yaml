@@ -1,6 +1,10 @@
 name: Docker_test
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to use (defaults to "test")'
+        default: "test"
 
 jobs:
   docker:
