@@ -19,7 +19,7 @@
 
 {% for variant in sample.variants %}
 <tr>
-    <td class="{{ sample_row_class }}">
+    <td class="{{ sample_row_class }}" style="white-space: nowrap">
         {# Individual ID #}
         <a href="#" class="toggle"><i class="bi-card-text"></i></a>
         <a href="{{seqr_url}}/project/{{seqr_project}}/family_page/{{sample.seqr_id}}" target="_blank">
