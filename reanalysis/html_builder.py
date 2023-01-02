@@ -33,8 +33,8 @@ class DataTable:
     id: str
     columns: list[str]
     rows: list[Any]
-    heading: str = ""
-    description: str = ""
+    heading: str = ''
+    description: str = ''
 
 
 class Variant:
@@ -48,7 +48,7 @@ class Variant:
     def __init__(
         self,
         variant_dict: dict,
-        sample: "Sample",
+        sample: 'Sample',
         gene_map: dict[str, Any],
     ):
         self.chrom = variant_dict['var_data']['coords']['chrom']
@@ -101,7 +101,7 @@ class Variant:
         mane_hgvsps = set()
 
         for csq in self.var_data.get('transcript_consequences', []):
-            if "consequence" not in csq:
+            if 'consequence' not in csq:
                 continue
 
             # if csq['mane_select'] or csq['mane_plus_clinical']:
@@ -129,7 +129,7 @@ class Sample:
         ext_id,
         seqr_id,
         forbidden_genes,
-        html_builder: "HTMLBuilder",
+        html_builder: 'HTMLBuilder',
     ):
         self.name = name
         self.ext_id = ext_id
