@@ -64,7 +64,7 @@ class Variant:
         self.sample = sample
 
         # List of (gene_id, symbol)
-        self.genes : list[tuple[str, str]] = []
+        self.genes: list[tuple[str, str]] = []
         for gene_id in variant_dict['gene'].split(','):
             symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
             self.genes.append((gene_id, symbol))
@@ -117,6 +117,22 @@ class Variant:
         return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
+def variant_in_forbidden_gene(variant_dict, forbidden_genes):
+    """
+    Check if gene id or gene symbol is on forbidden gene list
+    """
+    for gene_id in variant_dict['gene'].split(','):
+        if gene_id in forbidden_genes:
+            return True
+
+    # Allow for exclusion by Symbol too
+    for tx_con in variant_dict['var_data']['transcript_consequences']:
+        if tx_con['symbol'] in forbidden_genes:
+            return True
+
+    return False
+
+
 class Sample:
     """
     Sample related logic
@@ -139,28 +155,13 @@ class Sample:
         # Ingest variants excluding any on the forbidden gene list
         self.variants = []
         for variant_dict in variants:
-            if not self.variant_in_forbidden_gene(variant_dict, forbidden_genes):
+            if not variant_in_forbidden_gene(variant_dict, forbidden_genes):
                 self.variants.append(
                     Variant(variant_dict, self, html_builder.panelapp['genes'])
                 )
 
     def __str__(self):
         return self.name
-
-    def variant_in_forbidden_gene(self, variant_dict, forbidden_genes):
-        """
-        Check if gene id or gene symbol is on forbidden gene list
-        """
-        for gene_id in variant_dict['gene'].split(','):
-            if gene_id in forbidden_genes:
-                return True
-
-        # Allow for exclusion by Symbol too
-        for tx_con in variant_dict['var_data']['transcript_consequences']:
-            if tx_con['symbol'] in forbidden_genes:
-                return True
-
-        return False
 
 
 class HTMLBuilder:
@@ -241,7 +242,7 @@ class HTMLBuilder:
         for sample in self.samples:
 
             if len(sample.variants) == 0:
-                samples_with_no_variants.append(self.external_map.get(sample, sample))
+                samples_with_no_variants.append(sample.ext_id)
 
             sample_variants = {key: set() for key in CATEGORY_ORDERING}
 

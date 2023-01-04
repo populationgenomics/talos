@@ -4,7 +4,7 @@
     <td colspan="10">
         <div class="row">
             <div class="col-sm-6" >
-                
+
                 {# Variant details #}
                 <div class="card">
                     <div class="card-body">
@@ -46,7 +46,7 @@
 
                             <dt class="col-sm-3">Links</dt>
                             <dd class="col-sm-9">
-                                <a href="{{ macros.spliceai_lookup_url(variant)}}" target="_blank">SpliceAI</a> | 
+                                <a href="{{ macros.spliceai_lookup_url(variant)}}" target="_blank">SpliceAI</a> |
                                 <a href="{{ macros.ucsc_url(variant)}}" target="_blank">UCSC</a> |
                                 <a href="{{ macros.decipher_url(variant.genes.0.0)}}" target="_blank">Decipher</a>
                                 <a href="{{ macros.decipher_url(variant.genes.0.0, protein_view=False)}}" target="_blank">(Clinical)</a> |
@@ -78,7 +78,7 @@
                             {% if  variant.var_data.info.categoryboolean3%}
                             <dt class="col-sm-3">Category 3</dt>
                             <dd class="col-sm-9">
-                                High impact varaint
+                                High impact variant
                             </dd>
                             {% endif %}
 
@@ -92,7 +92,7 @@
                             {% if  variant.var_data.info.categorysample4%}
                             <dt class="col-sm-3">De novo </dt>
                             <dd class="col-sm-9">
-                                De novo varaint
+                                De novo variant
                             </dd>
                             {% endif %}
 
