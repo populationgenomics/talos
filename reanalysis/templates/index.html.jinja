@@ -40,7 +40,7 @@
       <div class="tab-content">
 
         {# Results #}
-        <div class="tab-pane fade show active" id="results-tab-pane" role="tabpanel" tabindex="0">  
+        <div class="tab-pane fade show active" id="results-tab-pane" role="tabpanel" tabindex="0">
           <h1>Variants</h1>
             {% include "variant_table.html.jinja" %}
         </div>
@@ -51,14 +51,14 @@
             <h3>Canditate variant statistics</h3>
             {% with table=summary_table %}
               {% include "datatable.html.jinja" %}
-            {% endwith %} 
+            {% endwith %}
           </div>
 
           <div>
             <h3>Family statistics</h3>
             {% with table=meta_tables['Families'] %}
               {% include "datatable.html.jinja" %}
-            {% endwith %} 
+            {% endwith %}
           </div>
 
           <div>
@@ -81,7 +81,7 @@
             <h3>Run metadata</h3>
             {% with table=meta_tables['Meta'] %}
               {% include "datatable.html.jinja" %}
-            {% endwith %} 
+            {% endwith %}
           </div>
 
           <div>
@@ -101,7 +101,7 @@
             <h3>PanelApp Panels</h3>
             {% with table=meta_tables['Panels'] %}
               {% include "datatable.html.jinja" %}
-            {% endwith %} 
+            {% endwith %}
           </div>
         </div>
       </div>
@@ -133,7 +133,7 @@
           return false;
         });
 
-        // Enable bootstrap tool tips 
+        // Enable bootstrap tool tips
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
         const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
       })
