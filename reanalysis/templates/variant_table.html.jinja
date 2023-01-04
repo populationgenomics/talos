@@ -1,25 +1,23 @@
 <table class="table tablesorter" id="variant-table">
 <thead>
     <tr>
-    <th>Individual </th>
-    <th>Variant</th>
-    <th>Gene (MOI)</th>
-    <th>Categories</th>
-    <th>MANE CSQ</th>
-    <th>Clinvar</th>
-    <th>Flags</th>
-    <th>Support</th>
+    <th class="group-word">Individual </th>
+    <th class="group-false">Variant</th>
+    <th class="group-false">Gene (MOI)</th>
+    <th class="group-false">Categories</th>
+    <th class="group-false">MANE CSQ</th>
+    <th class="group-false">Clinvar</th>
+    <th class="group-false">Flags</th>
+    <th class="group-false">Support</th>
     </tr>
 </thead>
 <tbody>
 {% for sample in samples if sample.variants %}
 
-{# Alternate row colours to indicate new sample #}
-{% set sample_row_class = loop.cycle("", "table-secondary") %}
 
 {% for variant in sample.variants %}
 <tr>
-    <td class="{{ sample_row_class }}" style="white-space: nowrap">
+    <td style="white-space: nowrap">
         {# Individual ID #}
         <a href="#" class="toggle"><i class="bi-card-text"></i></a>
         <a href="{{seqr_url}}/project/{{seqr_project}}/family_page/{{sample.seqr_id}}" target="_blank">
