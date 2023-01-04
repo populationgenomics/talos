@@ -18,11 +18,7 @@ from peddy.peddy import Ped, PHENOTYPE
 
 from cpg_utils.config import get_config
 
-from reanalysis.utils import (
-    AbstractVariant,
-    CompHetDict,
-    ReportedVariant,
-)
+from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant, X_CHROMOSOME
 
 
 # config keys to use for dominant MOI tests
@@ -169,13 +165,6 @@ class MOIRunner:
             )
         return moi_matched
 
-    def send_it(self):
-        """
-        to stop pylint complaining
-        :return:
-        """
-        print(f'Yaaas {self.filter_list}')
-
 
 class BaseMoi:
     """
@@ -253,6 +242,58 @@ class BaseMoi:
 
         return True
 
+    def get_family_genotypes(
+        self, variant: AbstractVariant, sample_id: str
+    ) -> list[str]:
+        """
+
+        Args:
+            variant (AbstractVariant):
+            sample_id (str): the sample ID to gather genotypes for
+
+        Returns:
+            list[str]: a list of all the participants, and details
+        """
+
+        def get_sample_genotype(member_id: str, sex: str) -> str:
+            """
+            for this specific member, find the genotype
+            Args:
+                member_id (str): sample ID in the pedigree
+                sex (str): male/female/unknown
+
+            Returns:
+                str: text representation of this genotype
+            """
+
+            if variant.coords.chrom in X_CHROMOSOME:
+                if sex == 'male' and (
+                    member_id in variant.het_samples or member_id in variant.hom_samples
+                ):
+                    return 'Hemi'
+
+                if member_id in variant.het_samples:
+                    return 'Het'
+                if member_id in variant.hom_samples:
+                    return 'Hom'
+
+            elif member_id in variant.het_samples:
+                return 'Het'
+            elif member_id in variant.hom_samples:
+                return 'Het'
+
+            return 'WT'
+
+        sample_ped_entry = self.pedigree[sample_id]
+        family = self.pedigree.families[sample_ped_entry.family_id]
+        details = []
+        for member in family.samples:
+            sample_gt = get_sample_genotype(member_id=member.sample_id, sex=member.sex)
+            detail_string = f'{member.sample_id} - {sample_gt} - {member.sex}'
+            details.append(detail_string)
+
+        return details
+
     def check_familial_comp_het(
         self, sample_id: str, variant_1: AbstractVariant, variant_2: AbstractVariant
     ) -> bool:
@@ -264,10 +305,13 @@ class BaseMoi:
         compound het is inherently not inherited from a single parent, so rule out
         when either parent has both, or either parent is affected
 
-        :param sample_id:
-        :param variant_1:
-        :param variant_2:
-        :return:
+        Args:
+            sample_id (str): sample ID to check for
+            variant_1 (AbstractVariant): first variant of comp-het pair
+            variant_2 (AbstractVariant): second variant of comp-het pair
+
+        Returns:
+            bool: True if these two variants form a comp-het
         """
 
         # if both vars are present in a single parent: not a compound het
@@ -368,6 +412,9 @@ class DominantAutosomal(BaseMoi):
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
                     reasons={self.applied_moi},
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -447,6 +494,9 @@ class RecessiveAutosomal(BaseMoi):
                     sample=sample_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     reasons={f'{self.applied_moi} Homozygous'},
                     flags=principal_var.get_sample_flags(sample_id),
                 )
@@ -502,6 +552,9 @@ class RecessiveAutosomal(BaseMoi):
                         var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
+                        genotypes=self.get_family_genotypes(
+                            variant=principal_var, sample_id=sample_id
+                        ),
                         support_vars=[partner_variant.coords.string_format],
                         flags=principal_var.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
@@ -609,6 +662,9 @@ class XDominant(BaseMoi):
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -667,7 +723,7 @@ class XRecessive(BaseMoi):
         ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
-        # X-relevant, we separate out male and females
+        # X-relevant, we separate male & females
         # combine het and hom here, we don't trust the variant callers
         # if hemi count is too high, don't consider males
         males = {
@@ -737,6 +793,9 @@ class XRecessive(BaseMoi):
                         var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
+                        genotypes=self.get_family_genotypes(
+                            variant=principal_var, sample_id=sample_id
+                        ),
                         support_vars=[partner_variant.coords.string_format],
                         flags=principal_var.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
@@ -786,6 +845,9 @@ class XRecessive(BaseMoi):
                     sample=sample_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
@@ -875,6 +937,9 @@ class YHemi(BaseMoi):
                     sample=sample_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     reasons={self.applied_moi},
                     flags=principal_var.get_sample_flags(sample_id),
                 )

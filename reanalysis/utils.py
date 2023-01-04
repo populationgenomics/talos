@@ -3,6 +3,7 @@ a collection of classes and methods
 which may be shared across reanalysis components
 """
 
+
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
 from datetime import datetime
@@ -14,6 +15,7 @@ from typing import Any
 import json
 import logging
 import re
+
 import requests
 
 from cpg_utils import to_path
@@ -37,7 +39,7 @@ CHROM_ORDER = list(map(str, range(1, 23))) + [
 ]
 
 X_CHROMOSOME = {'X'}
-NON_HOM_CHROM = {'Y', 'MT', 'M'}
+NON_HOM_CHROM = {'X', 'Y', 'MT', 'M'}
 
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
@@ -350,7 +352,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         takes a specific sample ID, to check if the sample has a de novo call
 
         Args:
-            sample_id ():
+            sample_id (str):
 
         Returns:
 
@@ -423,10 +425,13 @@ class ReportedVariant:
     allows for the presence of flags e.g. Borderline AB ratio
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     sample: str
     gene: str
     var_data: AbstractVariant
     reasons: set[str]
+    genotypes: list[str]
     supported: bool = field(default=False)
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
@@ -712,15 +717,13 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
         if (var_1.coords == var_2.coords) or var_1.coords.chrom in NON_HOM_CHROM:
             continue
 
-        sex_chrom = var_1.coords.chrom in X_CHROMOSOME
-
         # iterate over any samples with a het overlap
         for sample in var_1.het_samples.intersection(var_2.het_samples):
             phased = False
             ped_sample = pedigree.get(sample)
 
             # don't assess male compound hets on sex chromosomes
-            if ped_sample.sex == 'male' and sex_chrom:
+            if ped_sample.sex == 'male' and var_1.coords.chrom in X_CHROMOSOME:
                 continue
 
             # check for both variants being in the same phase set
