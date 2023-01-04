@@ -20,10 +20,10 @@
                             <dt class="col-sm-3">Allele Counts</dt>
                             <dd class="col-sm-9">
                                 This Callset: {{variant.var_data.info.ac}} / {{variant.var_data.info.an}}<br>
-                                Genome V3: <a
+                                Gnomad WGS: <a
                                     href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
                                     target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
-                                Exome V2: <a
+                                Gnomad WES: <a
                                     href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
                                     target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
                             </dd>
@@ -99,6 +99,22 @@
                         </dl>
                     </div>
                 </div>
+                {% if variant.supported %}
+                <div class="card mt-2">
+                    <div class="card-body">
+                        <h5 class="card-title"> Supporting Variants</h5>
+                        <ul>
+                        {% for coords in variant.support_vars %}
+                            <li>
+                            <a href="{{seqr_url}}/variant_search/variant/{{coords}}/family/{{sample.seqr_id}}" target="_blank">
+                                {{coords}}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
