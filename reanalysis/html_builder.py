@@ -60,7 +60,7 @@ class Variant:
         self.support_vars = variant_dict['support_vars']
         self.flags = variant_dict['flags']
         self.reasons = variant_dict['reasons']
-
+        self.genotypes = variant_dict['genotypes']
         self.sample = sample
 
         # List of (gene_id, symbol)
