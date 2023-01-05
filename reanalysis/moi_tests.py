@@ -238,7 +238,9 @@ class BaseMoi:
 
         return True
 
-    def get_family_genotypes(self, variant: AbstractVariant, sample_id: str) -> dict:
+    def get_family_genotypes(
+        self, variant: AbstractVariant, sample_id: str
+    ) -> dict[str, str]:
         """
 
         Args:
@@ -246,7 +248,7 @@ class BaseMoi:
             sample_id (str): the sample ID to gather genotypes for
 
         Returns:
-            list[str]: a list of all the participants, and details
+            list[str]: a list of all the participants, and GTs
         """
 
         def get_sample_genotype(member_id: str, sex: str) -> str:
@@ -280,17 +282,12 @@ class BaseMoi:
 
         sample_ped_entry = self.pedigree[sample_id]
         family = self.pedigree.families[sample_ped_entry.family_id]
-        details = {}
-        for member in family.samples:
-            details[member.sample_id] = {
-                'genotype': get_sample_genotype(
-                    member_id=member.sample_id, sex=member.sex
-                ),
-                'sex': member.sex,
-                'affected': member.affected,
-            }
-
-        return details
+        return {
+            member.sample_id: get_sample_genotype(
+                member_id=member.sample_id, sex=member.sex
+            )
+            for member in family.samples
+        }
 
     def check_familial_comp_het(
         self, sample_id: str, variant_1: AbstractVariant, variant_2: AbstractVariant

@@ -56,7 +56,7 @@
                             <dt class="col-sm-3">Genotypes</dt>
                             <dd class="col-sm-9">
                             {% for sample, gt in variant.genotypes.items() %}
-                            {{ macros.ped_symbol(gt.sex, gt.affected) }}{{sample}} {{gt.genotype}}<br>
+                                {{ macros.ped_symbol(gt.sex, gt.affected) }} {{sample}} {{gt.genotype}}<br>
                             {% endfor %}
                             </dd>
 
