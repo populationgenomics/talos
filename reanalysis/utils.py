@@ -1,6 +1,5 @@
 """
-a collection of classes and methods
-which may be shared across reanalysis components
+a collection of classes and methods shared across reanalysis components
 """
 
 
@@ -31,15 +30,10 @@ HOMALT: int = 3
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 
 PHASE_SET_DEFAULT = -2147483648
-CHROM_ORDER = list(map(str, range(1, 23))) + [
-    'X',
-    'Y',
-    'MT',
-    'M',
-]
+NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
+CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 X_CHROMOSOME = {'X'}
-NON_HOM_CHROM = {'X', 'Y', 'MT', 'M'}
 
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
@@ -107,7 +101,7 @@ class Coordinates:
 
     def __lt__(self, other):
         """
-        positional sorting
+        enables positional sorting
         """
         # this will return False for same chrom and position
         if self.chrom == other.chrom:
@@ -313,25 +307,30 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     @property
     def is_classified(self) -> bool:
         """
-        check that the variant has at least one assigned class
-        supporting category is considered here
-        :return:
+        check for at least one assigned class, inc. support
+        Returns:
+            True if classified
         """
         return self.category_non_support or self.has_support
 
     @property
     def support_only(self) -> bool:
         """
-        checks that the variant was only class 4
-        :return:
+        check that the variant is exclusively cat. support
+        Returns:
+            True if support only
         """
         return self.has_support and not self.category_non_support
 
     def category_values(self, sample: str) -> list[str]:
         """
-        get a list values representing the classes present on this variant
-        for each category, append that number if the class is present
-        - de novo on a per-sample basis
+        get all variant categories; sample-specific checks for de novo
+
+        Args:
+            sample (str): sample id
+
+        Returns:
+            list of all categories applied to this variant
         """
 
         categories = [
@@ -349,13 +348,13 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def sample_de_novo(self, sample_id: str) -> bool:
         """
-        takes a specific sample ID, to check if the sample has a de novo call
+        check if variant is de novo for this sample
 
         Args:
             sample_id (str):
 
         Returns:
-
+            bool: True if this sample forms de novo
         """
         return any(
             sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
@@ -365,14 +364,15 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self, sample_id: str, allow_support: bool = False
     ) -> bool:
         """
-        Check for all other
+        take a specific sample and check for assigned categories
+        optionally, include checks for support category
 
         Args:
             sample_id (str):
             allow_support: (bool) also check for support
 
         Returns:
-
+            True if the variant is categorised for this sample
         """
         big_cat = self.category_non_support or self.sample_de_novo(sample_id)
         if allow_support:
@@ -381,21 +381,18 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
-        gets all report flags for this sample
+        gets all report flags for this sample - currently only one flag
         """
         return self.check_ab_ratio(sample)
 
     def check_ab_ratio(self, sample: str) -> list[str]:
         """
         AB ratio test for this sample's variant call
+        Args:
+            sample (str): sample ID
 
-        ab = matrix.AD[1] / hl.sum(matrix.AD)
-        return matrix.filter_entries(
-            (matrix.GT.is_hom_ref() & (ab <= 0.15))
-            | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-            | (matrix.GT.is_hom_var() & (ab >= 0.85))
-        )
-        :param sample: this affected individual
+        Returns:
+            list[str]: empty, or indicating an AB ratio failure
         """
         het = sample in self.het_samples
         hom = sample in self.hom_samples
@@ -576,7 +573,7 @@ def write_output_json(output_path: str, object_to_write: dict):
 
 def get_simple_moi(panel_app_moi: str | None) -> str:
     """
-    takes the vast range of PanelApp MOIs, and reduces to a reduced
+    takes the vast range of PanelApp MOIs, and reduces to a
     range of cases which can be easily implemented in RD analysis
     This is required to reduce the complexity of an MVP
     Could become a strict enumeration
@@ -620,13 +617,15 @@ def get_simple_moi(panel_app_moi: str | None) -> str:
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
     """
-    variant is a cyvcf2.Variant
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
-    return het, hom, and the union of het and hom
-    :param variant:
-    :param samples:
-    :return:
+
+    Args:
+        variant (cyvcf2.Variant):
+        samples (list[str]):
+
+    Returns:
+        2 sets of strings; het and hom
     """
     het_samples = set()
     hom_samples = set()
