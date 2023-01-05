@@ -142,7 +142,7 @@ def get_json_response(url: str) -> dict[str, Any]:
         url ():
 
     Returns:
-
+        the JSON response from the endpoint
     """
 
     response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
@@ -157,9 +157,6 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     Args:
         samples ():
         var ():
-
-    Returns:
-
     """
     phased_dict = defaultdict(dict)
 
@@ -186,10 +183,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
 @dataclass
 class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     """
-    create a bespoke variant class
-    pull all content out of the cyvcf2 object
-    we could have a separate implementation for pyvcf,
-    or for a direct parser...
+    create class ti contain all content from cyvcf2 object
     """
 
     def __init__(
@@ -199,7 +193,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         as_singletons=False,
     ):
         """
-
         Args:
             var (cyvcf2.Variant):
             samples (list):
@@ -275,7 +268,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def has_boolean_categories(self) -> bool:
         """
         check that the variant has at least one assigned class
-        :return:
         """
         return any(self.info[value] for value in self.boolean_categories)
 
@@ -531,13 +523,23 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str) -> dict[str, Any]:
+def read_json_from_path(bucket_path: str) -> dict[str, Any] | None:
     """
     take a path to a JSON file, read into an object
-    :param bucket_path:
+    if the path doesn't exist - return None
+
+    Args:
+        bucket_path ():
+
+    Returns:
+        either the object from the JSON file, or None
     """
-    with to_path(bucket_path).open() as handle:
-        return json.load(handle)
+    any_path = to_path(bucket_path)
+
+    if any_path.exists():
+        with any_path.open() as handle:
+            return json.load(handle)
+    return None
 
 
 # most lenient to most conservative
@@ -703,7 +705,6 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
     :param var_list:
     :param pedigree: peddy.Ped
-    :return:
     """
 
     # create an empty dictionary
@@ -752,11 +753,10 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
 def filter_results(results: dict, singletons: bool) -> dict:
     """
-    takes a set of results
     loads the most recent prior result set (if it exists)
-    subtract
+    subtract prev. results form current
     write two files (total, and latest - previous)
-    p.stat().st_mtime to find latest
+
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
@@ -819,7 +819,6 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
 def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
     """
     save the new results in the historic results dir
-    include time & date in filename
 
     Args:
         results (): object to save as a JSON file
