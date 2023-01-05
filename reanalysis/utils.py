@@ -417,6 +417,7 @@ class ReportedVariant:
     # pylint: disable=too-many-instance-attributes
 
     sample: str
+    family: str
     gene: str
     var_data: AbstractVariant
     reasons: set[str]

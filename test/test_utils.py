@@ -52,6 +52,7 @@ def test_reported_variant_ordering(trio_abs_variant):
     """
     report_1 = ReportedVariant(
         sample='1',
+        family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
@@ -60,6 +61,7 @@ def test_reported_variant_ordering(trio_abs_variant):
     )
     report_2 = ReportedVariant(
         sample='1',
+        family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
         reasons={'test'},

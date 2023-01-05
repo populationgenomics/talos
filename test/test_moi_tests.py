@@ -174,7 +174,6 @@ def test_check_second_hit(first, comp_hets, sample, values):
             ['XRecessive', 'XDominant'],
         ),
         ('Hemi_Bi_In_Female', ['XRecessive']),
-        ('Y_Chrom_Variant', ['YHemi']),
     ),
 )
 def test_moi_runner(moi_string: str, filters: List[str], peddy_ped):
