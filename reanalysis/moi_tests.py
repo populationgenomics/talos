@@ -244,7 +244,7 @@ class BaseMoi:
 
     def get_family_genotypes(
         self, variant: AbstractVariant, sample_id: str
-    ) -> list[str]:
+    ) -> dict[str, str]:
         """
 
         Args:
@@ -286,11 +286,15 @@ class BaseMoi:
 
         sample_ped_entry = self.pedigree[sample_id]
         family = self.pedigree.families[sample_ped_entry.family_id]
-        details = []
+        details = {}
         for member in family.samples:
-            sample_gt = get_sample_genotype(member_id=member.sample_id, sex=member.sex)
-            detail_string = f'{member.sample_id} - {sample_gt} - {member.sex}'
-            details.append(detail_string)
+            details[member.sample_id] = {
+                'genotype': get_sample_genotype(
+                    member_id=member.sample_id, sex=member.sex
+                ),
+                'sex': member.sex,
+                'affected': member.affected,
+            }
 
         return details
 

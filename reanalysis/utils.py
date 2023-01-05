@@ -420,7 +420,7 @@ class ReportedVariant:
     gene: str
     var_data: AbstractVariant
     reasons: set[str]
-    genotypes: list[str]
+    genotypes: dict[str, str]
     supported: bool = field(default=False)
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)

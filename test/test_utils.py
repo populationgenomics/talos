@@ -56,6 +56,7 @@ def test_reported_variant_ordering(trio_abs_variant):
         var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
         supported=False,
+        genotypes={},
     )
     report_2 = ReportedVariant(
         sample='1',
@@ -63,6 +64,7 @@ def test_reported_variant_ordering(trio_abs_variant):
         var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
         supported=False,
+        genotypes={},
     )
     assert report_1 == report_2
     report_1.support_vars = ['support']

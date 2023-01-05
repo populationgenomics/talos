@@ -74,6 +74,7 @@ def test_gene_clean_results_no_personal():
     assert len(clean['sam1']) == 1
     assert clean['sam1'][0].gene == 'ENSG1'
     assert clean['sam1'][0].flags == []
+    assert clean['sam1'][0].phenotypes == ['not supplied']
     assert 'sam2' not in clean
     assert len(clean['sam3']) == 2
     assert {x.gene for x in clean['sam3']} == {'ENSG4', 'ENSG5'}
@@ -86,18 +87,20 @@ def test_gene_clean_results_personal():
     """
 
     personal_panels = {
-        'sam1': {'panels': [1]},
-        'sam2': {'panels': []},
-        'sam3': {'panels': [3, 4]},
+        'sam1': {'panels': [1], 'hpo_terms': ['HP1']},
+        'sam2': {'panels': [], 'hpo_terms': ['HP2']},
+        'sam3': {'panels': [3, 4], 'hpo_terms': ['HP3']},
     }
 
     clean = clean_and_filter(dirty_data, panel_genes, personal_panels)
     assert len(clean['sam1']) == 1
     assert clean['sam1'][0].gene == 'ENSG1'
     assert clean['sam1'][0].flags == [1]
+    assert clean['sam1'][0].phenotypes == ['HP1']
     assert 'sam2' not in clean
     assert len(clean['sam3']) == 2
     for event in clean['sam3']:
+        assert event.phenotypes == ['HP3']
         if event.gene == 'ENSG4':
             assert event.flags == [3]
         if event.gene == 'ENSG5':
