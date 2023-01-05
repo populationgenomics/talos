@@ -424,6 +424,7 @@ class ReportedVariant:
     supported: bool = field(default=False)
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    phenotypes: list[str] = field(default_factory=list)
 
     def __eq__(self, other):
         """

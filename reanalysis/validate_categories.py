@@ -170,7 +170,7 @@ def clean_and_filter(
         participant_panels ():
 
     Returns:
-
+        cleaned data
     """
 
     clean = defaultdict(list)
@@ -180,7 +180,12 @@ def clean_and_filter(
     }
 
     # if we have a lookup, grab the relevant information
+    participant_hpos = None
     if participant_panels is not None:
+        participant_hpos = {
+            sample: set(content['hpo_terms'])
+            for sample, content in participant_panels.items()
+        }
         participant_panels = {
             sample: set(content['panels'])
             for sample, content in participant_panels.items()
@@ -238,6 +243,7 @@ def clean_and_filter(
             continue
 
         if each_event not in clean[sample]:
+            each_event.phenotypes = participant_hpos[sample]
             clean[sample].append(each_event)
 
         else:
