@@ -18,3 +18,22 @@ https://www.omim.org/search?index=entry&start=1&search={{symbol}}&field=approved
     https://decipher.sanger.ac.uk/gene/{{gene_id}}/overview/clinical-info
 {%- endif %}
 {%- endmacro %}
+
+{% macro ped_symbol(sex, affected) -%}
+    {# Retuen a pedigree icon representation of an individual #}
+    {% if  sex == 'male' or sex == '1' %}
+        {% set shape = 'square' %}
+    {% elif sex == 'female' or sex == '2' %}
+        {% set shape = 'circle' %}
+    {% else %}
+        {% set shape = 'diamond' %}
+    {% endif %}
+    {% if  affected in ['2', 'true', True] %}
+        {% set icon_string = 'bi-' + shape + '-fill' %}
+    {% elif  affected in ['1', 'false', False] %}
+        {% set icon_string = 'bi-' + shape %}
+    {% else %}
+        {% set icon_string = 'bi-question-' + shape %}
+    {% endif %}
+    <i class="{{icon_string}} text-small text-secondary"></i>
+{%- endmacro %}
