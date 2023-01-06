@@ -53,16 +53,6 @@
                                 <a href="{{ macros.omim_gene_search_url(variant.genes.0.1)}} " target="_blank">OMIM</a>
                             </dd>
 
-                            <dt class="col-sm-3">Genotypes</dt>
-                            <dd class="col-sm-9">
-                            {% for sample_id, gt in variant.genotypes.items() %}
-                                {{macros.ped_symbol(
-                                    sample.family_members[sample_id].sex,
-                                    sample.family_members[sample_id].affected
-                                  )}} {{sample_id}} ({{sample.family_members[sample_id].ext_id}}) {{gt}} <br>
-                            {% endfor %}
-                            </dd>
-
                         </dl>
                     </div>
                 </div>

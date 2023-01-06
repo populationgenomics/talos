@@ -150,6 +150,8 @@ class Sample:
         self.family_members = metadata['members']
         self.phenotypes = metadata['phenotypes']
         self.ext_id = metadata['ext_id']
+        self.panel_ids = metadata['panel_ids']
+        self.panel_names = metadata['panel_names']
         self.seqr_id = html_builder.seqr[name]
         self.html_builder = html_builder
 
