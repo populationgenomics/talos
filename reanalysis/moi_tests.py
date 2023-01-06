@@ -10,7 +10,6 @@ to a Monogenic MOI
 """
 
 
-import logging
 from abc import abstractmethod
 from copy import deepcopy
 
@@ -18,11 +17,7 @@ from peddy.peddy import Ped, PHENOTYPE
 
 from cpg_utils.config import get_config
 
-from reanalysis.utils import (
-    AbstractVariant,
-    CompHetDict,
-    ReportedVariant,
-)
+from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant, X_CHROMOSOME
 
 
 # config keys to use for dominant MOI tests
@@ -135,9 +130,6 @@ class MOIRunner:
         elif target_moi == 'Hemi_Bi_In_Female':
             self.filter_list = [XRecessive(pedigree=pedigree)]
 
-        elif target_moi == 'Y_Chrom_Variant':
-            self.filter_list = [YHemi(pedigree=pedigree)]
-
         else:
             raise Exception(f'MOI type {target_moi} is not addressed in MOI')
 
@@ -168,13 +160,6 @@ class MOIRunner:
                 )
             )
         return moi_matched
-
-    def send_it(self):
-        """
-        to stop pylint complaining
-        :return:
-        """
-        print(f'Yaaas {self.filter_list}')
 
 
 class BaseMoi:
@@ -253,6 +238,57 @@ class BaseMoi:
 
         return True
 
+    def get_family_genotypes(
+        self, variant: AbstractVariant, sample_id: str
+    ) -> dict[str, str]:
+        """
+
+        Args:
+            variant (AbstractVariant):
+            sample_id (str): the sample ID to gather genotypes for
+
+        Returns:
+            list[str]: a list of all the participants, and GTs
+        """
+
+        def get_sample_genotype(member_id: str, sex: str) -> str:
+            """
+            for this specific member, find the genotype
+            Args:
+                member_id (str): sample ID in the pedigree
+                sex (str): male/female/unknown
+
+            Returns:
+                str: text representation of this genotype
+            """
+
+            if variant.coords.chrom in X_CHROMOSOME:
+                if sex == 'male' and (
+                    member_id in variant.het_samples or member_id in variant.hom_samples
+                ):
+                    return 'Hemi'
+
+                if member_id in variant.het_samples:
+                    return 'Het'
+                if member_id in variant.hom_samples:
+                    return 'Hom'
+
+            elif member_id in variant.het_samples:
+                return 'Het'
+            elif member_id in variant.hom_samples:
+                return 'Het'
+
+            return 'WT'
+
+        sample_ped_entry = self.pedigree[sample_id]
+        family = self.pedigree.families[sample_ped_entry.family_id]
+        return {
+            member.sample_id: get_sample_genotype(
+                member_id=member.sample_id, sex=member.sex
+            )
+            for member in family.samples
+        }
+
     def check_familial_comp_het(
         self, sample_id: str, variant_1: AbstractVariant, variant_2: AbstractVariant
     ) -> bool:
@@ -264,10 +300,13 @@ class BaseMoi:
         compound het is inherently not inherited from a single parent, so rule out
         when either parent has both, or either parent is affected
 
-        :param sample_id:
-        :param variant_1:
-        :param variant_2:
-        :return:
+        Args:
+            sample_id (str): sample ID to check for
+            variant_1 (AbstractVariant): first variant of comp-het pair
+            variant_2 (AbstractVariant): second variant of comp-het pair
+
+        Returns:
+            bool: True if these two variants form a comp-het
         """
 
         # if both vars are present in a single parent: not a compound het
@@ -365,9 +404,13 @@ class DominantAutosomal(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
+                    family=self.pedigree[sample_id].family_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
                     reasons={self.applied_moi},
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -445,8 +488,12 @@ class RecessiveAutosomal(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
+                    family=self.pedigree[sample_id].family_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     reasons={f'{self.applied_moi} Homozygous'},
                     flags=principal_var.get_sample_flags(sample_id),
                 )
@@ -498,10 +545,14 @@ class RecessiveAutosomal(BaseMoi):
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
+                        family=self.pedigree[sample_id].family_id,
                         gene=var_copy.info.get('gene_id'),
                         var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het'},
                         supported=True,
+                        genotypes=self.get_family_genotypes(
+                            variant=principal_var, sample_id=sample_id
+                        ),
                         support_vars=[partner_variant.coords.string_format],
                         flags=principal_var.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
@@ -603,12 +654,16 @@ class XDominant(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
+                    family=self.pedigree[sample_id].family_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
                     },
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
@@ -667,7 +722,7 @@ class XRecessive(BaseMoi):
         ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
-        # X-relevant, we separate out male and females
+        # X-relevant, we separate male & females
         # combine het and hom here, we don't trust the variant callers
         # if hemi count is too high, don't consider males
         males = {
@@ -733,10 +788,14 @@ class XRecessive(BaseMoi):
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
+                        family=self.pedigree[sample_id].family_id,
                         gene=var_copy.info.get('gene_id'),
                         var_data=var_copy,
                         reasons={f'{self.applied_moi} Compound-Het Female'},
                         supported=True,
+                        genotypes=self.get_family_genotypes(
+                            variant=principal_var, sample_id=sample_id
+                        ),
                         support_vars=[partner_variant.coords.string_format],
                         flags=principal_var.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
@@ -784,8 +843,12 @@ class XRecessive(BaseMoi):
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
+                    family=self.pedigree[sample_id].family_id,
                     gene=var_copy.info.get('gene_id'),
                     var_data=var_copy,
+                    genotypes=self.get_family_genotypes(
+                        variant=principal_var, sample_id=sample_id
+                    ),
                     reasons={
                         f'{self.applied_moi} '
                         f'{self.pedigree[sample_id].sex.capitalize()}'
@@ -793,91 +856,4 @@ class XRecessive(BaseMoi):
                     flags=principal_var.get_sample_flags(sample_id),
                 )
             )
-        return classifications
-
-
-class YHemi(BaseMoi):
-    """
-    so... we should flag any female calls?
-    otherwise treat as AD
-    not expecting to use this
-    """
-
-    def __name__(self):
-        return self.__name__()
-
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'Y_Hemi',
-    ):
-        """
-
-        :param pedigree:
-        :param applied_moi:
-        """
-
-        self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
-        self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
-        self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def run(
-        self,
-        principal_var: AbstractVariant,
-        comp_het: CompHetDict | None = None,
-        partial_penetrance: bool = False,
-    ) -> list[ReportedVariant]:
-        """
-        flag calls on Y which are Hom (maybe ok?) or female (bit weird)
-        :param principal_var:
-        :param comp_het:
-        :param partial_penetrance:
-        :return:
-        """
-        classifications = []
-
-        # more stringent Pop.Freq checks for dominant
-        if (
-            principal_var.info.get('gnomad_af') > self.ad_threshold
-            or principal_var.info.get('gnomad_ac') > self.ac_threshold
-            or any(
-                {
-                    principal_var.info.get(hemi_key, 0) > self.hemi_threshold
-                    for hemi_key in INFO_HEMI
-                }
-            )
-        ):
-            return classifications
-
-        # y chrom... called as hom? Shouldn't be possible
-        # half expecting this with GATK...
-        for sample_id in principal_var.hom_samples:
-            logging.warning(f'Sample {sample_id} is a hom call on Y')
-
-        # we don't expect any confident Y calls in females
-        for sample_id in principal_var.het_samples.union(principal_var.hom_samples):
-
-            # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
-                continue
-
-            # we require this specific sample to be categorised - check Cat 4 contents
-            if not principal_var.sample_specific_category_check(sample_id):
-                continue
-
-            if self.pedigree[sample_id].sex == 'female':
-                logging.error(f'Sample {sample_id} is a female with call on Y')
-
-            var_copy = minimise_variant(variant=principal_var, sample_id=sample_id)
-            classifications.append(
-                ReportedVariant(
-                    sample=sample_id,
-                    gene=var_copy.info.get('gene_id'),
-                    var_data=var_copy,
-                    reasons={self.applied_moi},
-                    flags=principal_var.get_sample_flags(sample_id),
-                )
-            )
-
         return classifications

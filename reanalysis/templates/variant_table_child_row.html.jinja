@@ -99,8 +99,45 @@
                         </dl>
                     </div>
                 </div>
-                {% if variant.supported %}
                 <div class="card mt-2">
+                    <div class="card-body">
+                        <h5 class="card-title"> Family</h5>
+                        <dl class="row">
+
+                            <dt class="col-sm-3">Genotypes</dt>
+                            <dd class="col-sm-9">
+                            {% for sample_id, gt in variant.genotypes.items() %}
+                                {{macros.ped_symbol(
+                                    sample.family_members[sample_id].sex,
+                                    sample.family_members[sample_id].affected
+                                  )}}
+                                {{sample.family_members[sample_id].ext_id}} - {{gt}} <br>
+                            {% endfor %}
+                            </dd>
+
+                            <dt class="col-sm-3">
+                                Phenotypes:
+                            </dt>
+                            <dd class="col-sm-9">
+                            {% for phenotype in sample.phenotypes %}
+                                {{ phenotype }}<br>
+                            {% endfor %}
+                            </dd>
+
+                            <dt class="col-sm-3">
+                                Assigned Panels:
+                            </dt>
+                            <dd class="col-sm-9">
+                            {% for panel in sample.panel_names %}
+                                {{ panel }}<br>
+                            {% endfor %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                {% if variant.supported %}
+                    <div class="card mt-2">
                     <div class="card-body">
                         <h5 class="card-title"> Supporting Variants</h5>
                         <ul>

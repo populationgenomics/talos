@@ -60,7 +60,7 @@ class Variant:
         self.support_vars = variant_dict['support_vars']
         self.flags = variant_dict['flags']
         self.reasons = variant_dict['reasons']
-
+        self.genotypes = variant_dict['genotypes']
         self.sample = sample
 
         # List of (gene_id, symbol)
@@ -141,24 +141,26 @@ class Sample:
     def __init__(
         self,
         name: str,
+        metadata: dict,
         variants: list[dict[str, Any]],
-        ext_id,
-        seqr_id,
-        forbidden_genes,
         html_builder: 'HTMLBuilder',
     ):
         self.name = name
-        self.ext_id = ext_id
-        self.seqr_id = seqr_id
+        self.family_id = metadata['family_id']
+        self.family_members = metadata['members']
+        self.phenotypes = metadata['phenotypes']
+        self.ext_id = metadata['ext_id']
+        self.panel_ids = metadata['panel_ids']
+        self.panel_names = metadata['panel_names']
+        self.seqr_id = html_builder.seqr[name]
         self.html_builder = html_builder
 
         # Ingest variants excluding any on the forbidden gene list
-        self.variants = []
-        for variant_dict in variants:
-            if not variant_in_forbidden_gene(variant_dict, forbidden_genes):
-                self.variants.append(
-                    Variant(variant_dict, self, html_builder.panelapp['genes'])
-                )
+        self.variants = [
+            Variant(variant_dict, self, html_builder.panelapp['genes'])
+            for variant_dict in variants
+            if not variant_in_forbidden_gene(variant_dict, html_builder.forbidden_genes)
+        ]
 
     def __str__(self):
         return self.name
@@ -189,10 +191,6 @@ class HTMLBuilder:
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
-        # Map of internal:external IDs for translation in results (optional)
-        ext_lookup = get_config().get('dataset_specific', {}).get('external_lookup')
-        self.external_map = read_json_from_path(ext_lookup) if ext_lookup else {}
-
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
         seqr_path = get_config().get('dataset_specific', {}).get('seqr_lookup')
         self.seqr = {}
@@ -213,15 +211,13 @@ class HTMLBuilder:
 
         # Process samples and variants
         self.samples = []
-        for sample, variants in results_dict['results'].items():
+        for sample, content in results_dict['results'].items():
             self.samples.append(
                 Sample(
-                    sample,
-                    variants,
-                    self.external_map.get(sample, sample),
-                    self.seqr[sample],
-                    self.forbidden_genes,
-                    self,
+                    name=sample,
+                    metadata=content['metadata'],
+                    variants=content['variants'],
+                    html_builder=self,
                 )
             )
         self.samples.sort(key=lambda x: x.ext_id)

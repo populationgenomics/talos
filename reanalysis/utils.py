@@ -1,7 +1,9 @@
 """
-a collection of classes and methods
-which may be shared across reanalysis components
+a collection of classes and methods shared across reanalysis components
 """
+
+# pylint: disable=too-many-lines
+
 
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
@@ -14,6 +16,7 @@ from typing import Any
 import json
 import logging
 import re
+
 import requests
 
 from cpg_utils import to_path
@@ -29,15 +32,10 @@ HOMALT: int = 3
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 
 PHASE_SET_DEFAULT = -2147483648
-CHROM_ORDER = list(map(str, range(1, 23))) + [
-    'X',
-    'Y',
-    'MT',
-    'M',
-]
+NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
+CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 X_CHROMOSOME = {'X'}
-NON_HOM_CHROM = {'Y', 'MT', 'M'}
 
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
@@ -105,7 +103,7 @@ class Coordinates:
 
     def __lt__(self, other):
         """
-        positional sorting
+        enables positional sorting
         """
         # this will return False for same chrom and position
         if self.chrom == other.chrom:
@@ -146,7 +144,7 @@ def get_json_response(url: str) -> dict[str, Any]:
         url ():
 
     Returns:
-
+        the JSON response from the endpoint
     """
 
     response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
@@ -161,9 +159,6 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     Args:
         samples ():
         var ():
-
-    Returns:
-
     """
     phased_dict = defaultdict(dict)
 
@@ -190,10 +185,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
 @dataclass
 class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     """
-    create a bespoke variant class
-    pull all content out of the cyvcf2 object
-    we could have a separate implementation for pyvcf,
-    or for a direct parser...
+    create class ti contain all content from cyvcf2 object
     """
 
     def __init__(
@@ -203,7 +195,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         as_singletons=False,
     ):
         """
-
         Args:
             var (cyvcf2.Variant):
             samples (list):
@@ -279,7 +270,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     def has_boolean_categories(self) -> bool:
         """
         check that the variant has at least one assigned class
-        :return:
         """
         return any(self.info[value] for value in self.boolean_categories)
 
@@ -311,25 +301,30 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     @property
     def is_classified(self) -> bool:
         """
-        check that the variant has at least one assigned class
-        supporting category is considered here
-        :return:
+        check for at least one assigned class, inc. support
+        Returns:
+            True if classified
         """
         return self.category_non_support or self.has_support
 
     @property
     def support_only(self) -> bool:
         """
-        checks that the variant was only class 4
-        :return:
+        check that the variant is exclusively cat. support
+        Returns:
+            True if support only
         """
         return self.has_support and not self.category_non_support
 
     def category_values(self, sample: str) -> list[str]:
         """
-        get a list values representing the classes present on this variant
-        for each category, append that number if the class is present
-        - de novo on a per-sample basis
+        get all variant categories; sample-specific checks for de novo
+
+        Args:
+            sample (str): sample id
+
+        Returns:
+            list of all categories applied to this variant
         """
 
         categories = [
@@ -347,13 +342,13 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def sample_de_novo(self, sample_id: str) -> bool:
         """
-        takes a specific sample ID, to check if the sample has a de novo call
+        check if variant is de novo for this sample
 
         Args:
-            sample_id ():
+            sample_id (str):
 
         Returns:
-
+            bool: True if this sample forms de novo
         """
         return any(
             sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
@@ -363,14 +358,15 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         self, sample_id: str, allow_support: bool = False
     ) -> bool:
         """
-        Check for all other
+        take a specific sample and check for assigned categories
+        optionally, include checks for support category
 
         Args:
             sample_id (str):
             allow_support: (bool) also check for support
 
         Returns:
-
+            True if the variant is categorised for this sample
         """
         big_cat = self.category_non_support or self.sample_de_novo(sample_id)
         if allow_support:
@@ -379,21 +375,18 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
-        gets all report flags for this sample
+        gets all report flags for this sample - currently only one flag
         """
         return self.check_ab_ratio(sample)
 
     def check_ab_ratio(self, sample: str) -> list[str]:
         """
         AB ratio test for this sample's variant call
+        Args:
+            sample (str): sample ID
 
-        ab = matrix.AD[1] / hl.sum(matrix.AD)
-        return matrix.filter_entries(
-            (matrix.GT.is_hom_ref() & (ab <= 0.15))
-            | (matrix.GT.is_het() & (ab >= 0.25) & (ab <= 0.75))
-            | (matrix.GT.is_hom_var() & (ab >= 0.85))
-        )
-        :param sample: this affected individual
+        Returns:
+            list[str]: empty, or indicating an AB ratio failure
         """
         het = sample in self.het_samples
         hom = sample in self.hom_samples
@@ -423,13 +416,18 @@ class ReportedVariant:
     allows for the presence of flags e.g. Borderline AB ratio
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     sample: str
+    family: str
     gene: str
     var_data: AbstractVariant
     reasons: set[str]
+    genotypes: dict[str, str]
     supported: bool = field(default=False)
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    phenotypes: list[str] = field(default_factory=list)
 
     def __eq__(self, other):
         """
@@ -529,13 +527,24 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str) -> dict[str, Any]:
+def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
-    :param bucket_path:
+    if the path doesn't exist - return the default object
+
+    Args:
+        bucket_path (str):
+        default (Any):
+
+    Returns:
+        either the object from the JSON file, or None
     """
-    with to_path(bucket_path).open() as handle:
-        return json.load(handle)
+    any_path = to_path(bucket_path)
+
+    if any_path.exists():
+        with any_path.open() as handle:
+            return json.load(handle)
+    return default
 
 
 # most lenient to most conservative
@@ -571,7 +580,7 @@ def write_output_json(output_path: str, object_to_write: dict):
 
 def get_simple_moi(panel_app_moi: str | None) -> str:
     """
-    takes the vast range of PanelApp MOIs, and reduces to a reduced
+    takes the vast range of PanelApp MOIs, and reduces to a
     range of cases which can be easily implemented in RD analysis
     This is required to reduce the complexity of an MVP
     Could become a strict enumeration
@@ -615,13 +624,15 @@ def get_simple_moi(panel_app_moi: str | None) -> str:
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
     """
-    variant is a cyvcf2.Variant
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
-    return het, hom, and the union of het and hom
-    :param variant:
-    :param samples:
-    :return:
+
+    Args:
+        variant (cyvcf2.Variant):
+        samples (list[str]):
+
+    Returns:
+        2 sets of strings; het and hom
     """
     het_samples = set()
     hom_samples = set()
@@ -699,7 +710,6 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
     :param var_list:
     :param pedigree: peddy.Ped
-    :return:
     """
 
     # create an empty dictionary
@@ -712,15 +722,13 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
         if (var_1.coords == var_2.coords) or var_1.coords.chrom in NON_HOM_CHROM:
             continue
 
-        sex_chrom = var_1.coords.chrom in X_CHROMOSOME
-
         # iterate over any samples with a het overlap
         for sample in var_1.het_samples.intersection(var_2.het_samples):
             phased = False
             ped_sample = pedigree.get(sample)
 
             # don't assess male compound hets on sex chromosomes
-            if ped_sample.sex == 'male' and sex_chrom:
+            if ped_sample.sex == 'male' and var_1.coords.chrom in X_CHROMOSOME:
                 continue
 
             # check for both variants being in the same phase set
@@ -750,11 +758,10 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
 def filter_results(results: dict, singletons: bool) -> dict:
     """
-    takes a set of results
     loads the most recent prior result set (if it exists)
-    subtract
+    subtract prev. results form current
     write two files (total, and latest - previous)
-    p.stat().st_mtime to find latest
+
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
@@ -762,6 +769,12 @@ def filter_results(results: dict, singletons: bool) -> dict:
     Returns:
         the same results back-filtered to remove previous results
     """
+
+    historic_folder = get_config()['dataset_specific'].get('historic_results')
+
+    if historic_folder is None:
+        logging.info('No historic data folder, no filtering')
+        return results
 
     logging.info('Attempting to filter current results against historic')
 
@@ -792,7 +805,9 @@ def filter_results(results: dict, singletons: bool) -> dict:
     return results
 
 
-def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) -> dict:
+def make_cumulative_representation(
+    results: dict[str, dict[str, list[ReportedVariant]]]
+) -> dict:
     """
     for the 'cumulative' representation, keep a minimised format
     the first time we generate a minimal format we need to translate
@@ -805,8 +820,8 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     """
 
     mini_results = defaultdict(dict)
-    for sample, variants in results.items():
-        for var in variants:
+    for sample, content in results.items():
+        for var in content['variants']:
             mini_results[sample][var.var_data.coords.string_format] = {
                 'categories': {cat: TODAY for cat in var.var_data.categories},
                 'support_vars': var.support_vars,
@@ -817,7 +832,6 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
 def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
     """
     save the new results in the historic results dir
-    include time & date in filename
 
     Args:
         results (): object to save as a JSON file
@@ -873,9 +887,7 @@ def find_latest_file(
     return str(date_sorted_files[0].absolute())
 
 
-def subtract_results(
-    current: dict[str, list[ReportedVariant]], cumulative: dict
-) -> dict[str, list[ReportedVariant]]:
+def subtract_results(current: dict, cumulative: dict) -> dict:
     """
     take datasets of new and previous results (cumulative for this cohort)
     subtract all the previously seen results (exact)
@@ -896,15 +908,18 @@ def subtract_results(
     return_results = defaultdict(list)
 
     # iterate over all samples and their variants
-    for sample, variants in current.items():
+    for sample, content in current.items():
+        return_results[sample] = {'metadata': content['metadata']}
+
+        variants = content['variants']
 
         # sample not seen before - take all variants
         if sample not in cumulative:
-            return_results[sample] = variants
+            return_results[sample]['variants'] = variants
             continue
 
         # otherwise get ready to contain some variants
-        return_results[sample] = []
+        sample_variants = []
 
         # check what has previously been reported for this sample
         for variant in variants:
@@ -913,7 +928,7 @@ def subtract_results(
 
             # not seen - take in full
             if var_id not in cumulative[sample]:
-                return_results[sample].append(variant)
+                sample_variants.append(variant)
                 continue
 
             # if supported, allow if the support is new
@@ -927,7 +942,7 @@ def subtract_results(
                     if sup not in cumulative[sample][var_id]['support_vars']
                 ]:
                     variant.support_vars = sups
-                    return_results[sample].append(variant)
+                    sample_variants.append(variant)
                     continue
 
             # if seen, check for novel categories. Also, WALRUS
@@ -940,7 +955,9 @@ def subtract_results(
                 variant.var_data.categories = cats
 
                 # and append the variant
-                return_results[sample].append(variant)
+                sample_variants.append(variant)
+
+        return_results[sample]['variants'] = sample_variants
 
     return dict(return_results)
 
