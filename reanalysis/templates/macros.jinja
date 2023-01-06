@@ -20,7 +20,7 @@ https://www.omim.org/search?index=entry&start=1&search={{symbol}}&field=approved
 {%- endmacro %}
 
 {% macro ped_symbol(sex, affected) -%}
-    {# Retuen a pedigree icon representation of an individual #}
+    {# Return a pedigree icon representation of an individual #}
     {% if  sex == 'male' or sex == '1' %}
         {% set shape = 'square' %}
     {% elif sex == 'female' or sex == '2' %}
