@@ -321,9 +321,8 @@ def prepare_results_shell(
     Args:
         vcf_samples (): samples in the VCF header
         pedigree (): the Peddy PED object
-        panel_data (): dictionary of gene data
-        panelapp (): dictionary of per-participant panels
-
+        panel_data (): dictionary of per-participant panels
+        panelapp (): dictionary of gene data
     Returns:
         a pre-populated dict with sample metadata filled in
     """
@@ -332,7 +331,7 @@ def prepare_results_shell(
     sample_dict = {}
 
     ext_conf_path = get_config().get('dataset_specific', {}).get('external_lookup')
-    external_map = read_json_from_path(ext_conf_path) if ext_conf_path else {}
+    external_map = read_json_from_path(ext_conf_path, default={})
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
 
     for sample in [
@@ -352,8 +351,9 @@ def prepare_results_shell(
         sample_dict[sample] = {
             'variants': [],
             'metadata': {
+                'ext_id': external_map.get(sample, sample),
+                'family_id': pedigree[sample].family_id,
                 'members': family_members,
-                'panels': panel_data,
                 'phenotypes': panel_data.get(sample, {}).get('hpo_terms', []),
                 'panel_ids': panel_data.get(sample, {}).get('panels', []),
                 'panel_names': [

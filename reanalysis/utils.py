@@ -527,13 +527,14 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str) -> dict[str, Any] | None:
+def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
-    if the path doesn't exist - return None
+    if the path doesn't exist - return the default object
 
     Args:
-        bucket_path ():
+        bucket_path (str):
+        default (Any):
 
     Returns:
         either the object from the JSON file, or None
@@ -543,7 +544,7 @@ def read_json_from_path(bucket_path: str) -> dict[str, Any] | None:
     if any_path.exists():
         with any_path.open() as handle:
             return json.load(handle)
-    return None
+    return default
 
 
 # most lenient to most conservative

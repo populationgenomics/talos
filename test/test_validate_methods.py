@@ -4,7 +4,11 @@ script testing methods within reanalysis/validate_categories.py
 
 from dataclasses import dataclass, field
 
-from reanalysis.validate_categories import clean_and_filter, count_families
+from reanalysis.validate_categories import (
+    clean_and_filter,
+    count_families,
+    prepare_results_shell,
+)
 
 
 @dataclass
@@ -62,6 +66,80 @@ panel_genes = {
         'ENSG5': {'panels': [4], 'new': []},
     },
 }
+
+
+def test_results_shell(peddy_ped):
+    """
+
+    Returns:
+
+    """
+    samples = ['male', 'female', 'irrelevant']
+    sample_panels = {
+        'male': {'panels': [1, 3], 'hpo_terms': ['Boneitis']},
+        'female': {'panels': [1, 2], 'hpo_terms': ['HPfemale']},
+        'other': [4],
+    }
+    panelapp = {
+        'metadata': [
+            {'id': 1, 'name': 'lorem'},
+            {'id': 2, 'name': 'ipsum'},
+            {'id': 3, 'name': 'etc'},
+        ]
+    }
+    shell = prepare_results_shell(samples, peddy_ped, sample_panels, panelapp)
+
+    # top level only has the two affected participants
+    expected = {
+        'male': {
+            'variants': [],
+            'metadata': {
+                'ext_id': 'male',
+                'family_id': 'family_1',
+                'members': {
+                    'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
+                    'father_1': {
+                        'sex': 'male',
+                        'affected': False,
+                        'ext_id': 'father_1',
+                    },
+                    'mother_1': {
+                        'sex': 'female',
+                        'affected': False,
+                        'ext_id': 'mother_1',
+                    },
+                },
+                'phenotypes': ['Boneitis'],
+                'panel_ids': [1, 3],
+                'panel_names': ['lorem', 'etc'],
+            },
+        },
+        'female': {
+            'variants': [],
+            'metadata': {
+                'ext_id': 'female',
+                'family_id': 'family_2',
+                'members': {
+                    'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
+                    'father_2': {
+                        'sex': 'male',
+                        'affected': False,
+                        'ext_id': 'father_2',
+                    },
+                    'mother_2': {
+                        'sex': 'female',
+                        'affected': False,
+                        'ext_id': 'mother_2',
+                    },
+                },
+                'phenotypes': ['HPfemale'],
+                'panel_ids': [1, 2],
+                'panel_names': ['lorem', 'ipsum'],
+            },
+        },
+    }
+
+    assert shell == expected
 
 
 def test_gene_clean_results_no_personal():
