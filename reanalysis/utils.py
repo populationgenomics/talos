@@ -2,6 +2,8 @@
 a collection of classes and methods shared across reanalysis components
 """
 
+# pylint: disable=too-many-lines
+
 
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
@@ -767,6 +769,12 @@ def filter_results(results: dict, singletons: bool) -> dict:
         the same results back-filtered to remove previous results
     """
 
+    historic_folder = get_config()['dataset_specific'].get('historic_results')
+
+    if historic_folder is None:
+        logging.info('No historic data folder, no filtering')
+        return results
+
     logging.info('Attempting to filter current results against historic')
 
     # get the latest result file from the folder
@@ -796,7 +804,9 @@ def filter_results(results: dict, singletons: bool) -> dict:
     return results
 
 
-def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) -> dict:
+def make_cumulative_representation(
+    results: dict[str, dict[str, list[ReportedVariant]]]
+) -> dict:
     """
     for the 'cumulative' representation, keep a minimised format
     the first time we generate a minimal format we need to translate
@@ -809,8 +819,8 @@ def make_cumulative_representation(results: dict[str, list[ReportedVariant]]) ->
     """
 
     mini_results = defaultdict(dict)
-    for sample, variants in results.items():
-        for var in variants:
+    for sample, content in results.items():
+        for var in content['variants']:
             mini_results[sample][var.var_data.coords.string_format] = {
                 'categories': {cat: TODAY for cat in var.var_data.categories},
                 'support_vars': var.support_vars,
@@ -876,9 +886,7 @@ def find_latest_file(
     return str(date_sorted_files[0].absolute())
 
 
-def subtract_results(
-    current: dict[str, list[ReportedVariant]], cumulative: dict
-) -> dict[str, list[ReportedVariant]]:
+def subtract_results(current: dict, cumulative: dict) -> dict:
     """
     take datasets of new and previous results (cumulative for this cohort)
     subtract all the previously seen results (exact)
@@ -899,15 +907,18 @@ def subtract_results(
     return_results = defaultdict(list)
 
     # iterate over all samples and their variants
-    for sample, variants in current.items():
+    for sample, content in current.items():
+        return_results[sample] = {'metadata': content['metadata']}
+
+        variants = content['variants']
 
         # sample not seen before - take all variants
         if sample not in cumulative:
-            return_results[sample] = variants
+            return_results[sample]['variants'] = variants
             continue
 
         # otherwise get ready to contain some variants
-        return_results[sample] = []
+        sample_variants = []
 
         # check what has previously been reported for this sample
         for variant in variants:
@@ -916,7 +927,7 @@ def subtract_results(
 
             # not seen - take in full
             if var_id not in cumulative[sample]:
-                return_results[sample].append(variant)
+                sample_variants.append(variant)
                 continue
 
             # if supported, allow if the support is new
@@ -930,7 +941,7 @@ def subtract_results(
                     if sup not in cumulative[sample][var_id]['support_vars']
                 ]:
                     variant.support_vars = sups
-                    return_results[sample].append(variant)
+                    sample_variants.append(variant)
                     continue
 
             # if seen, check for novel categories. Also, WALRUS
@@ -943,7 +954,9 @@ def subtract_results(
                 variant.var_data.categories = cats
 
                 # and append the variant
-                return_results[sample].append(variant)
+                sample_variants.append(variant)
+
+        return_results[sample]['variants'] = sample_variants
 
     return dict(return_results)
 
