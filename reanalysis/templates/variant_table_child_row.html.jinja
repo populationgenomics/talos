@@ -55,11 +55,11 @@
 
                             <dt class="col-sm-3">Genotypes</dt>
                             <dd class="col-sm-9">
+                            {% for sample_id, member in sample.family_members.items() %}
+                                {{macros.ped_symbol(member.sex, member.affected)}} {{sample_id}} ({{member.ext_id}}) <br>
+                            {% endfor %}
                             {% for sample_id, gt in variant.genotypes.items() %}
-                                {{macros.ped_symbol(
-                                    sample['family_members'].sample_id.sex,
-                                    sample['family_members'].sample_id.affected
-                                  )}} {{sample_id}} ({{sample['family_members'].sample_id.ext_id}}) {{gt}}<br>
+                                {{sample_id}} {{gt}} <br>
                             {% endfor %}
                             </dd>
 
