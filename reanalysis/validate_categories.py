@@ -43,7 +43,7 @@ from reanalysis.utils import (
 
 
 def set_up_inheritance_filters(
-    panelapp_data: dict[str, dict[str, Union[str, bool]]],
+    panelapp_data: dict,
     pedigree: Ped,
 ) -> dict[str, MOIRunner]:
     """
@@ -74,12 +74,9 @@ def set_up_inheritance_filters(
     moi_dictionary = {}
 
     # iterate over all genes
-    for key, gene_data in panelapp_data.items():
+    for gene_data in panelapp_data['genes'].values():
 
-        if key == 'metadata':
-            continue
-
-        # extract the per-gene MOI, and SIMPLIFY
+        # extract the per-gene MOI, don't re-simplify
         gene_moi = get_simple_moi(gene_data.get('moi'))
 
         # if we haven't seen this MOI before, set up the appropriate filter

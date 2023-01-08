@@ -56,7 +56,9 @@ PANELAPP_JSON_OUT = output_path(
 )
 
 # output of labelling task in Hail
-HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
+HAIL_VCF_OUT = output_path(
+    'hail_categorised.vcf.bgz', get_config()['buckets'].get('analysis_suffix')
+)
 
 
 # local script references
