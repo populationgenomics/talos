@@ -189,6 +189,8 @@ def clean_and_filter(
 
     gene_details = {}
 
+    print(result_list)
+
     for each_event in result_list:
 
         # grab some attributes from the event

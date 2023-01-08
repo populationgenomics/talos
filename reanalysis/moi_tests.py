@@ -443,10 +443,14 @@ class RecessiveAutosomal(BaseMoi):
         valid if present as hom, or compound het
         counts as being phased if a compound het is split between parents
         Clarify if we want to consider a homozygous variant as 2 hets
-        :param principal_var:
-        :param comp_het:
-        :param partial_penetrance:
-        :return:
+
+        Args:
+            principal_var (AbstractVariant): main variant being evaluated
+            comp_het (dict): comp-het partners
+            partial_penetrance (bool):
+
+        Returns:
+            list[ReportedVariant]: data object if RecessiveAutosomal fits
         """
 
         if comp_het is None:
