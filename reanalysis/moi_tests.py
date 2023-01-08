@@ -276,7 +276,7 @@ class BaseMoi:
             elif member_id in variant.het_samples:
                 return 'Het'
             elif member_id in variant.hom_samples:
-                return 'Het'
+                return 'Hom'
 
             return 'WT'
 
