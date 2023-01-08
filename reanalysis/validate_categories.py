@@ -76,7 +76,7 @@ def set_up_inheritance_filters(
     # iterate over all genes
     for gene_data in panelapp_data['genes'].values():
 
-        # extract the per-gene MOI, and SIMPLIFY
+        # extract the per-gene MOI, don't re-simplify
         gene_moi = get_simple_moi(gene_data.get('moi'))
 
         # if we haven't seen this MOI before, set up the appropriate filter
