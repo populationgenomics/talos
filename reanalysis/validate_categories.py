@@ -408,7 +408,7 @@ def main(
 
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
-        panelapp_data=panelapp_data['genes'], pedigree=pedigree_digest
+        panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
