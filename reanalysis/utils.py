@@ -758,7 +758,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     loads the most recent prior result set (if it exists)
     subtract prev. results form current
     write two files (total, and latest - previous)
-    
+
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
