@@ -9,7 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
 from datetime import datetime
 from enum import Enum
-from itertools import combinations_with_replacement
+from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +47,41 @@ class FileTypes(Enum):
     VCF = '.vcf'
     VCF_GZ = '.vcf.gz'
     VCF_BGZ = '.vcf.bgz'
+
+
+def chunks(iterable, chunk_size):
+    """
+    Yield successive n-sized chunks from an iterable
+
+    Args:
+        iterable (): any iterable - tuple, str, list, set
+        chunk_size (): size of intervals to return
+
+    Returns:
+        intervals of requested size across the collection
+    """
+
+    if isinstance(iterable, set):
+        iterable = list(iterable)
+
+    for i in range(0, len(iterable), chunk_size):
+        yield iterable[i : (i + chunk_size)]
+
+
+def generator_chunks(generator, size):
+    """
+    Iterates across a generator, returning specifically sized chunks
+
+    Args:
+        generator (): any generator or method implementing yield
+        size (): size of iterator to return
+
+    Returns:
+        a subset of the generator results
+    """
+    iterator = iter(generator)
+    for first in iterator:
+        yield list(chain([first], islice(iterator, size - 1)))
 
 
 def identify_file_type(file_path: str) -> FileTypes | Exception:
@@ -908,7 +943,7 @@ def subtract_results(current: dict, cumulative: dict) -> dict:
     """
 
     # create a dict to contain novel results
-    return_results = defaultdict(list)
+    return_results = defaultdict(dict)
 
     # iterate over all samples and their variants
     for sample, content in current.items():
