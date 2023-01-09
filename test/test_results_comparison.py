@@ -51,7 +51,7 @@ def test_subtraction_null():
     """
     subtraction if nothing to subtract
     """
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'metadata': 'tarantula', 'variants': [GENERIC_REPORT]}}
     old = {}
     assert subtract_results(new, old) == new
 
@@ -60,7 +60,7 @@ def test_subtraction_no_matches():
     """
     no previous results for this sample
     """
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'metadata': 'nomatch', 'variants': [GENERIC_REPORT]}}
     old = {'sample2': [1]}
     assert subtract_results(new, old) == new
 
@@ -70,20 +70,23 @@ def test_subtraction_one_exact():
     one variant fully removed
     """
     new = {
-        'sample': [GENERIC_REPORT],
-        'sample2': [GENERIC_REPORT],
+        'sample': {'metadata': 'sample', 'variants': [GENERIC_REPORT]},
+        'sample2': {'metadata': 'ROFLcopter', 'variants': [GENERIC_REPORT]},
     }
     old = {
         'sample': {COORD_1.string_format: {'categories': {'1': 1}, 'support_vars': []}}
     }
-    assert subtract_results(new, old) == {'sample': [], 'sample2': [GENERIC_REPORT]}
+    assert subtract_results(new, old) == {
+        'sample': {'metadata': 'sample', 'variants': []},
+        'sample2': {'metadata': 'ROFLcopter', 'variants': [GENERIC_REPORT]},
+    }
 
 
 def test_subtraction_match_no_categories():
     """
     variant matches, but categories do not
     """
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'metadata': 'eggplant_emoji', 'variants': [GENERIC_REPORT]}}
     old = {
         'sample': {COORD_1.string_format: {'categories': {'2': 1}, 'support_vars': []}}
     }
@@ -94,10 +97,20 @@ def test_subtraction_partial_categories():
     """
     variant matches, but categories only partially match
     """
-    new = {'sample': [MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))]}
+    new = {
+        'sample': {
+            'metadata': 'salad',
+            'variants': [
+                MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))
+            ],
+        }
+    }
     old = {'sample': {COORD_1.string_format: {'categories': {'2': 1}}}}
     assert subtract_results(new, old) == {
-        'sample': [MiniReport(MiniVariant(categories=['1'], coords=COORD_1))]
+        'sample': {
+            'metadata': 'salad',
+            'variants': [MiniReport(MiniVariant(categories=['1'], coords=COORD_1))],
+        }
     }
 
 
@@ -106,11 +119,14 @@ def test_subtraction_new_partner():
     variant matches, categories match, but new comp-het
     """
     new = {
-        'sample': [
-            MiniReport(
-                MiniVariant(categories=['1'], coords=COORD_1), support_vars=['foo']
-            )
-        ]
+        'sample': {
+            'metadata': 'pickles',
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['1'], coords=COORD_1), support_vars=['foo']
+                )
+            ],
+        }
     }
     old = {
         'sample': {
@@ -118,11 +134,14 @@ def test_subtraction_new_partner():
         }
     }
     assert subtract_results(new, old) == {
-        'sample': [
-            MiniReport(
-                MiniVariant(categories=['1'], coords=COORD_1), support_vars=['foo']
-            )
-        ]
+        'sample': {
+            'metadata': 'pickles',
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['1'], coords=COORD_1), support_vars=['foo']
+                )
+            ],
+        }
     }
 
 
@@ -131,7 +150,7 @@ def test_add_new_sample():
     add a novel sample
     """
     cum = {}
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'variants': [GENERIC_REPORT]}}
     add_results(new, cum)
     assert cum == {
         'sample': {
@@ -144,7 +163,7 @@ def test_add_new_sample_variant():
     """
     integrate a new sample for an existing sample
     """
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'variants': [GENERIC_REPORT]}}
     cum = {'sample': {'1': {'2'}}}
     add_results(new, cum)
     assert cum == {
@@ -160,7 +179,7 @@ def test_add_new_category_vardup():
     integrate a new sample for an existing sample
     """
     # ludicrous situation, but should be manageable
-    new = {'sample': [GENERIC_REPORT, GENERIC_REPORT_12]}
+    new = {'sample': {'variants': [GENERIC_REPORT, GENERIC_REPORT_12]}}
     cum = {'sample': {}}
     add_results(new, cum)
     assert cum == {
@@ -179,12 +198,15 @@ def test_add_support_vars():
     """
     # ludicrous situation, but should be manageable
     new = {
-        'sample': [
-            GENERIC_REPORT,
-            MiniReport(
-                MiniVariant(categories=['999'], coords=COORD_1), support_vars=['foobar']
-            ),
-        ]
+        'sample': {
+            'variants': [
+                GENERIC_REPORT,
+                MiniReport(
+                    MiniVariant(categories=['999'], coords=COORD_1),
+                    support_vars=['foobar'],
+                ),
+            ]
+        }
     }
     cum = {
         'sample': {
@@ -210,21 +232,27 @@ def test_add_various():
     add a bunch of things
     """
     new = {
-        'sample': [
-            MiniReport(
-                MiniVariant(categories=['999'], coords=COORD_1), support_vars=['foobar']
-            ),
-            MiniReport(
-                MiniVariant(categories=['A', 'B'], coords=COORD_1),
-                support_vars=[],
-            ),
-        ],
-        'sample2': [GENERIC_REPORT],
-        'sample3': [
-            MiniReport(
-                MiniVariant(categories=['B'], coords=COORD_3), support_vars=['foobar']
-            )
-        ],
+        'sample': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['999'], coords=COORD_1),
+                    support_vars=['foobar'],
+                ),
+                MiniReport(
+                    MiniVariant(categories=['A', 'B'], coords=COORD_1),
+                    support_vars=[],
+                ),
+            ]
+        },
+        'sample2': {'variants': [GENERIC_REPORT]},
+        'sample3': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['B'], coords=COORD_3),
+                    support_vars=['foobar'],
+                )
+            ]
+        },
     }
     cum = {
         'sample': {

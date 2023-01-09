@@ -86,9 +86,6 @@ def match_hpo_terms(
 
     for live terms we recurse on all parents
 
-    this could benefit from some cache-ing, but that will be hard with the
-    layer argument
-
     relevant usage guide:
     https://github.com/dhimmel/obonet/blob/main/examples/go-obonet.ipynb
     """
@@ -203,14 +200,14 @@ def match_hpos_to_panels(
 def get_unique_hpo_terms(participants_hpo: dict) -> set:
     """
     get all the unique HPO terms across this cohort
-    Parameters
-    ----------
-    participants_hpo :
 
-    Returns
-    -------
-    all unique HPO terms
+    Args:
+        participants_hpo ():
+
+    Returns:
+        set: all unique HPO terms
     """
+
     all_hpos = set()
     for participant_dict in participants_hpo.values():
         all_hpos.update(participant_dict['hpo_terms'])
@@ -227,14 +224,12 @@ def match_participants_to_panels(
     For each participant, find any HPO terms which were matched to panels
     for each matched term, add the panel(s) to the participant's private set
 
-    Parameters
-    ----------
-    participant_hpos :
-    hpo_panels :
-    participant_map : a lookup of external to CPG ID
+    Args:
+        participant_hpos ():
+        hpo_panels ():
+        participant_map ():
 
-    Returns
-    -------
+    Returns:
 
     """
     final_dict = {}

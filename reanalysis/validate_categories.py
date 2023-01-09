@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Union
 
 import click
+import peddy
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
@@ -33,7 +34,6 @@ from reanalysis.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    get_simple_moi,
     read_json_from_path,
     CustomEncoder,
     GeneDict,
@@ -42,7 +42,7 @@ from reanalysis.utils import (
 
 
 def set_up_inheritance_filters(
-    panelapp_data: dict[str, dict[str, Union[str, bool]]],
+    panelapp_data: dict,
     pedigree: Ped,
 ) -> dict[str, MOIRunner]:
     """
@@ -73,13 +73,10 @@ def set_up_inheritance_filters(
     moi_dictionary = {}
 
     # iterate over all genes
-    for key, gene_data in panelapp_data.items():
+    for gene_data in panelapp_data['genes'].values():
 
-        if key == 'metadata':
-            continue
-
-        # extract the per-gene MOI, and SIMPLIFY
-        gene_moi = get_simple_moi(gene_data.get('moi'))
+        # extract the per-gene MOI, don't re-simplify
+        gene_moi = gene_data.get('moi')
 
         # if we haven't seen this MOI before, set up the appropriate filter
         if gene_moi not in moi_dictionary:
@@ -125,8 +122,6 @@ def apply_moi_to_variants(
             logging.error(f'How did this gene creep in? {gene}')
             continue
 
-        simple_moi = get_simple_moi(panel_gene_data.get('moi'))
-
         for variant in variants:
 
             if not (variant.het_samples or variant.hom_samples):
@@ -136,12 +131,10 @@ def apply_moi_to_variants(
             if variant.category_non_support:
 
                 # this variant is a candidate for MOI checks
-                # - find the simplified MOI string
-                # - use to get appropriate MOI model
+                # - use MOI to get appropriate model
                 # - run variant, append relevant classification(s) to the results
-                # NEW - run partially penetrant analysis for Category 1 (clinvar)
-                # adds a flag extension to include any specific panels for this gene
-                variant_reports = moi_lookup[simple_moi].run(
+                # - always run partially penetrant analysis for Category 1 (clinvar)
+                variant_reports = moi_lookup[panel_gene_data.get('moi')].run(
                     principal_var=variant,
                     comp_het=comp_het_dict,
                     partial_penetrance=variant.info.get('categoryboolean1', False),
@@ -153,6 +146,7 @@ def apply_moi_to_variants(
 
 
 def clean_and_filter(
+    results_holder: dict,
     result_list: list[ReportedVariant],
     panelapp_data: dict,
     participant_panels: dict | None = None,
@@ -165,15 +159,14 @@ def clean_and_filter(
     This cleans those to unique for final report
 
     Args:
+        results_holder (): container for all results data
         result_list (): list of all ReportedVariant events
         panelapp_data ():
         participant_panels ():
 
     Returns:
-
+        cleaned data
     """
-
-    clean = defaultdict(list)
 
     panel_meta = {
         content['id']: content['name'] for content in panelapp_data['metadata']
@@ -237,11 +230,13 @@ def clean_and_filter(
         if not variant.categories:
             continue
 
-        if each_event not in clean[sample]:
-            clean[sample].append(each_event)
+        if each_event not in results_holder[sample]['variants']:
+            results_holder[sample]['variants'].append(each_event)
 
         else:
-            prev_event = clean[sample][clean[sample].index(each_event)]
+            prev_event = results_holder[sample]['variants'][
+                results_holder[sample]['variants'].index(each_event)
+            ]
             prev_event.reasons.update(each_event.reasons)
             prev_genes = set(prev_event.gene.split(','))
             prev_genes.add(each_event.gene)
@@ -249,10 +244,10 @@ def clean_and_filter(
             prev_event.flags = sorted(set(prev_event.flags + each_event.flags))
 
     # organise the variants by chromosomal location
-    for sample in clean:
-        clean[sample].sort()
+    for sample in results_holder:
+        results_holder[sample]['variants'].sort()
 
-    return clean
+    return results_holder
 
 
 def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
@@ -310,6 +305,59 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
     return dict(family_counter)
 
 
+def prepare_results_shell(
+    vcf_samples: list[str], pedigree: peddy.Ped, panel_data: dict, panelapp: dict
+) -> dict:
+    """
+    prepare an empty dictionary for the results, feat. participant metadata
+    Args:
+        vcf_samples (): samples in the VCF header
+        pedigree (): the Peddy PED object
+        panel_data (): dictionary of per-participant panels
+        panelapp (): dictionary of gene data
+    Returns:
+        a pre-populated dict with sample metadata filled in
+    """
+
+    # create an empty dict for all the samples
+    sample_dict = {}
+
+    ext_conf_path = get_config().get('dataset_specific', {}).get('external_lookup')
+    external_map = read_json_from_path(ext_conf_path, default={})
+    panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
+
+    for sample in [
+        sam.sample_id
+        for sam in pedigree.samples()
+        if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
+    ]:
+        family = pedigree.families[pedigree[sample].family_id]
+        family_members = {
+            member.sample_id: {
+                'sex': member.sex,
+                'affected': member.affected,
+                'ext_id': external_map.get(member.sample_id, member.sample_id),
+            }
+            for member in family
+        }
+        sample_dict[sample] = {
+            'variants': [],
+            'metadata': {
+                'ext_id': external_map.get(sample, sample),
+                'family_id': pedigree[sample].family_id,
+                'members': family_members,
+                'phenotypes': panel_data.get(sample, {}).get('hpo_terms', []),
+                'panel_ids': panel_data.get(sample, {}).get('panels', []),
+                'panel_names': [
+                    panel_meta[panel_id]
+                    for panel_id in panel_data.get(sample, {}).get('panels', [])
+                ],
+            },
+        }
+
+    return sample_dict
+
+
 @click.command
 @click.option('--labelled_vcf', help='Category-labelled VCF')
 @click.option('--out_json', help='Prefix to write JSON results to')
@@ -337,12 +385,14 @@ def main(
     holding all the variants in memory should not be a challenge, no matter how large
     the cohort; if the variant number is large, the classes should be refined
     We expect approximately linear scaling with participants in the joint call
-    :param labelled_vcf:
-    :param out_json:
-    :param panelapp:
-    :param pedigree:
-    :param input_path: data file used as input
-    :param participant_panels: the json of panels per participant
+
+    Args:
+        labelled_vcf ():
+        out_json ():
+        panelapp ():
+        pedigree ():
+        input_path (): VCF used as input
+        participant_panels (): json of panels per participant
     """
 
     # parse the pedigree from the file
@@ -353,7 +403,7 @@ def main(
 
     # set up the inheritance checks
     moi_lookup = set_up_inheritance_filters(
-        panelapp_data=panelapp_data['genes'], pedigree=pedigree_digest
+        panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
@@ -381,26 +431,21 @@ def main(
             )
         )
 
-    # remove duplicate and invalid variants
-    analysis_results = clean_and_filter(
-        result_list,
-        panelapp_data=panelapp_data,
-        participant_panels=read_json_from_path(participant_panels),
+    per_participant_panels = read_json_from_path(participant_panels)
+    results_shell = prepare_results_shell(
+        vcf_samples=vcf_opened.samples,
+        pedigree=pedigree_digest,
+        panel_data=per_participant_panels,
+        panelapp=panelapp_data,
     )
 
-    # Empty list for 0 variant samples with affected status
-    # explicitly record samples checked in this analysis
-    # the PED could have more samples than a joint call, due to sub-setting or QC.
-    # When presenting results, we want all samples with negative findings, without
-    # comparing both VCF and PED files
-    affected_samples = [
-        sam.sample_id
-        for sam in pedigree_digest.samples()
-        if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_opened.samples
-    ]
-    for sample in affected_samples:
-        if sample not in analysis_results:
-            analysis_results[sample] = []
+    # remove duplicate and invalid variants
+    analysis_results = clean_and_filter(
+        results_holder=results_shell,
+        result_list=result_list,
+        panelapp_data=panelapp_data,
+        participant_panels=per_participant_panels,
+    )
 
     # remove previously seen results using cumulative data file(s)
     analysis_results = filter_results(
