@@ -34,7 +34,6 @@ from reanalysis.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    get_simple_moi,
     read_json_from_path,
     CustomEncoder,
     GeneDict,
@@ -77,7 +76,7 @@ def set_up_inheritance_filters(
     for gene_data in panelapp_data['genes'].values():
 
         # extract the per-gene MOI, don't re-simplify
-        gene_moi = get_simple_moi(gene_data.get('moi'))
+        gene_moi = gene_data.get('moi')
 
         # if we haven't seen this MOI before, set up the appropriate filter
         if gene_moi not in moi_dictionary:
@@ -123,8 +122,6 @@ def apply_moi_to_variants(
             logging.error(f'How did this gene creep in? {gene}')
             continue
 
-        simple_moi = get_simple_moi(panel_gene_data.get('moi'))
-
         for variant in variants:
 
             if not (variant.het_samples or variant.hom_samples):
@@ -134,12 +131,10 @@ def apply_moi_to_variants(
             if variant.category_non_support:
 
                 # this variant is a candidate for MOI checks
-                # - find the simplified MOI string
-                # - use to get appropriate MOI model
+                # - use MOI to get appropriate model
                 # - run variant, append relevant classification(s) to the results
-                # NEW - run partially penetrant analysis for Category 1 (clinvar)
-                # adds a flag extension to include any specific panels for this gene
-                variant_reports = moi_lookup[simple_moi].run(
+                # - always run partially penetrant analysis for Category 1 (clinvar)
+                variant_reports = moi_lookup[panel_gene_data.get('moi')].run(
                     principal_var=variant,
                     comp_het=comp_het_dict,
                     partial_penetrance=variant.info.get('categoryboolean1', False),
