@@ -228,6 +228,13 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)
+
+    # remove edge case where gene is present, missing for one analysis, then
+    # new if it is seen again
+    for gene, data in old_data['genes'].items():
+        if gene not in gene_dict['genes']:
+            gene_dict['genes'][gene] = data
+
     save_new_historic(gene_dict, prefix='panel_')
 
 

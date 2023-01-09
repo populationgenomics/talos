@@ -1,5 +1,5 @@
 """
-a collection of classes and methods shared across reanalysis components
+classes and methods shared across reanalysis components
 """
 
 # pylint: disable=too-many-lines
@@ -30,13 +30,10 @@ HOMALT: int = 3
 
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
-
 PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
-
 X_CHROMOSOME = {'X'}
-
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
 
@@ -781,6 +778,8 @@ def filter_results(results: dict, singletons: bool) -> dict:
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty
     prefix = 'singletons_' if singletons else ''
+
+    # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
     latest_results = find_latest_file(start=prefix or '2')
 
     logging.info(f'latest results: {latest_results}')
@@ -829,7 +828,11 @@ def make_cumulative_representation(
     return mini_results
 
 
-def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
+def save_new_historic(
+    results: dict,
+    prefix: str = '',
+    directory: str | None = None,
+):
     """
     save the new results in the historic results dir
 

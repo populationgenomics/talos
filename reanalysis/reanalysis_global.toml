@@ -48,6 +48,7 @@ cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workf
 picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
 samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
 hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:latest'
 
 [references]
 vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'
