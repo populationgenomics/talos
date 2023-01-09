@@ -150,7 +150,7 @@ def test_add_new_sample():
     add a novel sample
     """
     cum = {}
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'variants': [GENERIC_REPORT]}}
     add_results(new, cum)
     assert cum == {
         'sample': {
@@ -163,7 +163,7 @@ def test_add_new_sample_variant():
     """
     integrate a new sample for an existing sample
     """
-    new = {'sample': [GENERIC_REPORT]}
+    new = {'sample': {'variants': [GENERIC_REPORT]}}
     cum = {'sample': {'1': {'2'}}}
     add_results(new, cum)
     assert cum == {
@@ -179,7 +179,7 @@ def test_add_new_category_vardup():
     integrate a new sample for an existing sample
     """
     # ludicrous situation, but should be manageable
-    new = {'sample': [GENERIC_REPORT, GENERIC_REPORT_12]}
+    new = {'sample': {'variants': [GENERIC_REPORT, GENERIC_REPORT_12]}}
     cum = {'sample': {}}
     add_results(new, cum)
     assert cum == {
@@ -198,12 +198,15 @@ def test_add_support_vars():
     """
     # ludicrous situation, but should be manageable
     new = {
-        'sample': [
-            GENERIC_REPORT,
-            MiniReport(
-                MiniVariant(categories=['999'], coords=COORD_1), support_vars=['foobar']
-            ),
-        ]
+        'sample': {
+            'variants': [
+                GENERIC_REPORT,
+                MiniReport(
+                    MiniVariant(categories=['999'], coords=COORD_1),
+                    support_vars=['foobar'],
+                ),
+            ]
+        }
     }
     cum = {
         'sample': {
@@ -229,21 +232,27 @@ def test_add_various():
     add a bunch of things
     """
     new = {
-        'sample': [
-            MiniReport(
-                MiniVariant(categories=['999'], coords=COORD_1), support_vars=['foobar']
-            ),
-            MiniReport(
-                MiniVariant(categories=['A', 'B'], coords=COORD_1),
-                support_vars=[],
-            ),
-        ],
-        'sample2': [GENERIC_REPORT],
-        'sample3': [
-            MiniReport(
-                MiniVariant(categories=['B'], coords=COORD_3), support_vars=['foobar']
-            )
-        ],
+        'sample': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['999'], coords=COORD_1),
+                    support_vars=['foobar'],
+                ),
+                MiniReport(
+                    MiniVariant(categories=['A', 'B'], coords=COORD_1),
+                    support_vars=[],
+                ),
+            ]
+        },
+        'sample2': {'variants': [GENERIC_REPORT]},
+        'sample3': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['B'], coords=COORD_3),
+                    support_vars=['foobar'],
+                )
+            ]
+        },
     }
     cum = {
         'sample': {

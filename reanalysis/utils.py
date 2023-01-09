@@ -962,7 +962,9 @@ def subtract_results(current: dict, cumulative: dict) -> dict:
     return dict(return_results)
 
 
-def add_results(current: dict[str, list[ReportedVariant]], cumulative: dict):
+def add_results(
+    current: dict[str, dict[str, str | list[ReportedVariant]]], cumulative: dict
+):
     """
     take datasets of new and previous results (cumulative for this cohort)
     integrate the new results to form a new cumulative dataset
@@ -978,14 +980,14 @@ def add_results(current: dict[str, list[ReportedVariant]], cumulative: dict):
     """
 
     # iterate over all samples and their variants
-    for sample, variants in current.items():
+    for sample, data in current.items():
 
         # sample not seen before - take all variants
         if sample not in cumulative:
             cumulative[sample] = {}
 
         # each variant is an AbstractVariant
-        for variant in variants:
+        for variant in data['variants']:
 
             var_id = variant.var_data.coords.string_format
 
