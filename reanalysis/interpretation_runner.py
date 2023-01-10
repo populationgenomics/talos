@@ -75,7 +75,9 @@ def set_job_resources(
         memory ():
     """
     # apply all settings
-    job.cpu(2).image(get_config()['images']['aip']).memory(memory).storage('20G')
+    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
+        '20G'
+    )
 
     # copy the env variables into the container; specifically CPG_CONFIG_PATH
     copy_common_env(job)
