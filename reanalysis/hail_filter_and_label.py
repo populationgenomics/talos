@@ -677,7 +677,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
             'allele_num|variant_class|tsl|appris|ccds|ensp|swissprot|trembl|uniparc|'
             'gene_pheno|sift|polyphen|lof|lof_filter|lof_flags">'
         )
-    vcf_out = output_path('hail_categorised.vcf.bgz')
+    vcf_out = output_path('hail_categorised.vcf.bgz', 'analysis')
     logging.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
 
