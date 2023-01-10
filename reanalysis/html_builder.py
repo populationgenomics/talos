@@ -370,6 +370,8 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
 
+    logging.info(f'Using templates in {JINJA_TEMPLATE_DIR}')
+
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)
     parser.add_argument('--pedigree', help='PED file', required=True)
