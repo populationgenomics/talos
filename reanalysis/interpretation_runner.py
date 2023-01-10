@@ -72,7 +72,7 @@ def set_job_resources(
     Args:
         job ():
         prior_job ():
-        memory ():
+        memory (str): lowmem/standard/highmem
     """
     # apply all settings
     job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
@@ -83,7 +83,10 @@ def set_job_resources(
     copy_common_env(job)
 
     if prior_job is not None:
-        job.depends_on(prior_job)
+        if isinstance(prior_job, list):
+            job.depends_on(*prior_job)
+        else:
+            job.depends_on(prior_job)
 
     authenticate_cloud_credentials_in_job(job)
 
@@ -139,13 +142,13 @@ def handle_clinvar() -> tuple[hb.batch.job.Job | None, str]:
 
 def setup_mt_to_vcf(input_file: str) -> hb.batch.job.Job:
     """
-    sets up a job for converting a MT to a VCF for annotation
+    set up a job MatrixTable conversion to VCF, prior to annotation
 
     Args:
-        input_file (str):
+        input_file (str): path to the MatrixTable
 
     Returns:
-
+        the new job, available for dependency setting
     """
 
     job = get_batch().new_job(name='Convert MT to VCF')
@@ -167,8 +170,8 @@ def handle_panelapp_job(
     creates and runs the panelapp query job
 
     Args:
-        participant_panels ():
-        previous ():
+        participant_panels (str):
+        previous (str): optional, path to a prior gene list
         prior_job ():
 
     Returns:
@@ -186,9 +189,6 @@ def handle_panelapp_job(
     if previous is not None:
         query_cmd += f'--previous {previous} '
 
-    if prior_job is not None:
-        panelapp_job.depends_on(prior_job)
-
     logging.info(f'PanelApp Command: {query_cmd}')
     panelapp_job.command(query_cmd)
     return panelapp_job
@@ -202,8 +202,8 @@ def handle_hail_filtering(
     use the init query service instead of running inside dataproc
 
     Args:
-        plink_file ():
-        clinvar ():
+        plink_file (str): path to a pedigree
+        clinvar (str): path to the clinvar re-summary
         prior_job ():
 
     Returns:
@@ -239,7 +239,7 @@ def handle_results_job(
     Args:
         labelled_vcf ():
         pedigree ():
-        input_path ():
+        input_path (str): path to the input file, logged in metadata
         output_dict ():
         prior_job ():
         participant_panels ():
