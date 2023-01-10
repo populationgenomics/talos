@@ -102,7 +102,7 @@ VEP_TX_FIELDS_REQUIRED = [
 ]
 
 
-def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
     instead of making a separate decision about whether the clinvar
     annotation(s) are meaningful during each test, add a single value
@@ -114,14 +114,15 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         annotations (see issue #147)
     Args:
         mt (): the MatrixTable of all variants
+        clinvar (str): path to custom table
     Returns:
         The same MatrixTable but with additional annotations
     """
 
     # if there's private clinvar annotations - use them
-    if private_clinvar := get_config().get('hail', {}).get('private_clinvar'):
-        logging.info(f'loading private clinvar annotations from {private_clinvar}')
-        ht = hl.read_table(private_clinvar)
+    if clinvar != 'absent':
+        logging.info(f'loading private clinvar annotations from {clinvar}')
+        ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
                 clinvar_sig=hl.or_else(ht[mt.row_key].rating, MISSING_STRING),
@@ -786,14 +787,16 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     return mt
 
 
-def main(mt_path: str, panelapp: str, plink: str):
+def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     """
-    Read the MT from disk
-    Do filtering and category annotation
+    Read MT, filter, and apply category annotation
     Export as a VCF
-    :param mt_path: path to the MT directory
-    :param panelapp: path to the panelapp data dump
-    :param plink: pedigree filepath in PLINK format
+
+    Args:
+        mt_path (str):
+        panelapp ():
+        plink ():
+        clinvar ():
     """
 
     # initiate Hail with defined driver spec.
@@ -861,7 +864,7 @@ def main(mt_path: str, panelapp: str, plink: str):
     checkpoint_number = checkpoint_number + 1
 
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_aip_clinvar(mt)
+    mt = annotate_aip_clinvar(mt, clinvar)
     mt = extract_annotations(mt)
 
     mt = filter_to_population_rare(mt=mt)
@@ -919,5 +922,10 @@ if __name__ == '__main__':
     parser.add_argument('--mt', required=True, help='path to input MT')
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
+    parser.add_argument(
+        '--clinvar', type=str, default='absent', help='Custom Clinvar Summary HT'
+    )
     args = parser.parse_args()
-    main(mt_path=args.mt, panelapp=args.panelapp, plink=args.plink)
+    main(
+        mt_path=args.mt, panelapp=args.panelapp, plink=args.plink, clinvar=args.clinvar
+    )

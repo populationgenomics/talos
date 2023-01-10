@@ -195,7 +195,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     phased_dict = defaultdict(dict)
 
     # first set the numpy.ndarray to be a list of ints
-    # the zip against ordered sample IDs
+    # then zip against ordered sample IDs
     # this might need to store the exact genotype too
     # i.e. 0|1 and 1|0 can be in the same phase-set
     # but are un-phased variants

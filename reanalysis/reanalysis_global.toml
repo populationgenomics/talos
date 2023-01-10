@@ -1,8 +1,3 @@
-[buckets]
-web_suffix = 'web'
-tmp_suffix = 'tmp'
-analysis_suffix = 'analysis'
-
 [workflow]
 name = 'AIP'
 scatter_count = 50
