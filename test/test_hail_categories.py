@@ -423,7 +423,7 @@ def test_annotate_aip_clinvar(
                     'alleles': ['C', 'CGG'],
                     'rating': rating,
                     'stars': stars,
-                    'allele_id': 'pass',
+                    'allele_id': 1,
                 }
             ]
         ),
