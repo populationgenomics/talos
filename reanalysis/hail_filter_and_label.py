@@ -809,9 +809,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     logging.info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # get temp suffix from the config (can be None or missing)
-    checkpoint_root = output_path(
-        'hail_matrix.mt', get_config()['buckets'].get('tmp_suffix')
-    )
+    checkpoint_root = output_path('hail_matrix.mt', 'tmp')
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from "{panelapp}"')

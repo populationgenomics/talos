@@ -116,8 +116,8 @@ def handle_clinvar() -> tuple[hb.batch.job.Job | None, str]:
 
     bash_job.command(
         (
-            f'wget {directory}{sub_file} -O {bash_job.subs} &&'
-            f'wget {directory}{var_file} -O {bash_job.vars}'
+            f'wget -q {directory}{sub_file} -O {bash_job.subs} &&'
+            f'wget -q {directory}{var_file} -O {bash_job.vars}'
         )
     )
 
