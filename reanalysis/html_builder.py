@@ -294,7 +294,7 @@ class HTMLBuilder:
             'Panels': pd.DataFrame(self.metadata['panels']),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.metadata[key]}
-                for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
+                for key in ['cohort', 'input_file', 'run_datetime', 'container']
             ),
             'Families': pd.DataFrame(
                 [

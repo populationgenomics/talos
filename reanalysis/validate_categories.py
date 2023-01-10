@@ -26,7 +26,6 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.git import get_git_commit_ref_of_current_repository
 
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
@@ -462,7 +461,7 @@ def main(
                 pedigree_digest, samples=vcf_opened.samples
             ),
             'panels': panelapp_data['metadata'],
-            'commit_id': get_git_commit_ref_of_current_repository(),
+            'container': get_config()['workflow']['driver_image'],
         },
     }
 
