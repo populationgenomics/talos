@@ -16,7 +16,7 @@ jobs:
         cache: 'pip'
         cache-dependency-path: |
           setup.py
-          requirements*.txt
+          requirements-lint.txt
 
     - name: Install packages
       run: pip install -r requirements-lint.txt
