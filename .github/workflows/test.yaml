@@ -14,7 +14,9 @@ jobs:
       with:
         python-version: '3.10'
         cache: 'pip'
-        key: pip-${{ hashFiles('requirements*.txt') }}
+        cache-dependency-path: |
+          setup.py
+          requirements*.txt
 
     - name: Install packages
       run: |
