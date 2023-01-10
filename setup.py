@@ -44,7 +44,7 @@ setup(
             'cpg-utils>=4.7.0',
             'cpg_workflows>=1.1.4',
             'dill>=0.3.5.1',
-            'hail>=0.3.005',
+            'hail>=0.2.105',
             'Jinja2>=3.0.3',
             'networkx>=2.8.3',
             'obonet>=0.3.0',
