@@ -294,7 +294,7 @@ class HTMLBuilder:
             'Panels': pd.DataFrame(self.metadata['panels']),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.metadata[key]}
-                for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
+                for key in ['cohort', 'input_file', 'run_datetime', 'container']
             ),
             'Families': pd.DataFrame(
                 [
@@ -369,6 +369,8 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
+
+    logging.info(f'Using templates in {JINJA_TEMPLATE_DIR}')
 
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)

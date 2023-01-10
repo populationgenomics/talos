@@ -3,13 +3,11 @@ unit testing collection for the hail MT methods
 """
 
 
-import toml
 import pytest
 
 import hail as hl
 import pandas as pd
 
-from cpg_utils.config import append_config_paths
 from reanalysis.hail_filter_and_label import (
     annotate_aip_clinvar,
     annotate_category_1,
@@ -388,7 +386,9 @@ def test_aip_clinvar_default(clinvar_prepared_mt):
         clinvar_prepared_mt ():
     """
 
-    mt = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    mt = annotate_aip_clinvar(
+        hl.read_matrix_table(clinvar_prepared_mt), clinvar='absent'
+    )
     assert mt.count_rows() == 2
     assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
     assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
@@ -423,7 +423,7 @@ def test_annotate_aip_clinvar(
                     'alleles': ['C', 'CGG'],
                     'rating': rating,
                     'stars': stars,
-                    'allele_id': 'pass',
+                    'allele_id': 1,
                 }
             ]
         ),
@@ -432,13 +432,9 @@ def test_annotate_aip_clinvar(
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    new_toml = str(tmp_path / 'clinvar.toml')
-    with open(new_toml, 'w', encoding='utf-8') as handle:
-        toml.dump({'hail': {'private_clinvar': table_path}}, handle)
-
-    append_config_paths([new_toml])
-
-    returned_table = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    returned_table = annotate_aip_clinvar(
+        hl.read_matrix_table(clinvar_prepared_mt), clinvar=table_path
+    )
     assert returned_table.count_rows() == rows
     assert (
         len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular

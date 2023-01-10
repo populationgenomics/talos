@@ -1,6 +1,5 @@
 """
-reads over the clinvar submissions
-identifies consensus and disagreements
+read clinvar submissions; identify consensus and disagreement
 
 Requires two files from
 https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/
@@ -26,7 +25,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from itertools import chain, islice
 
 import hail as hl
 import pandas as pd
@@ -46,6 +44,9 @@ PATH_SIGS = {
 }
 UNCERTAIN_SIGS = {'Uncertain significance', 'Uncertain risk allele'}
 USELESS_RATINGS = {'no assertion criteria provided'}
+
+# remove all entries from these providers
+# todo move to config?
 MEGA_BLACKLIST = [
     'victorian clinical genetics services,murdoch childrens research institute'
 ]
@@ -88,41 +89,6 @@ class Submission:
     submitter: str
     classification: Consequence
     review_status: str
-
-
-def chunks(iterable, chunk_size):
-    """
-    Yield successive n-sized chunks from an iterable
-
-    Args:
-        iterable (): any iterable - tuple, str, list, set
-        chunk_size (): size of intervals to return
-
-    Returns:
-        intervals of requested size across the collection
-    """
-
-    if isinstance(iterable, set):
-        iterable = list(iterable)
-
-    for i in range(0, len(iterable), chunk_size):
-        yield iterable[i : (i + chunk_size)]
-
-
-def generator_chunks(generator, size):
-    """
-    Iterates across a generator, returning specifically sized chunks
-
-    Args:
-        generator (): any generator or method implementing yield
-        size (): size of iterator to return
-
-    Returns:
-        a subset of the generator results
-    """
-    iterator = iter(generator)
-    for first in iterator:
-        yield list(chain([first], islice(iterator, size - 1)))
 
 
 def get_allele_locus_map(summary_file: str) -> dict:
@@ -181,14 +147,13 @@ def get_allele_locus_map(summary_file: str) -> dict:
 
 def lines_from_gzip(filename: str) -> str:
     """
-    generator for gzip reading
-    copies file to local prior to reading
+    generator for gzip reading, copies file locally before reading
 
     Args:
-        filename (): the gzipped input file
+        filename (str): the gzipped input file
 
     Returns:
-        generator - yields each line
+        generator; yields each line
     """
 
     if isinstance(to_path(filename), CloudPath):
@@ -206,8 +171,10 @@ def lines_from_gzip(filename: str) -> str:
 def consequence_decision(subs: list[Submission]) -> Consequence:
     """
     determine overall consequence assignment based on submissions
+
     Args:
         subs (): a list of submission objects for this allele
+
     Returns:
         a single Consequence object
     """
@@ -268,6 +235,7 @@ def consequence_decision(subs: list[Submission]) -> Consequence:
 def check_stars(subs: list[Submission]) -> int:
     """
     processes the submissions, and assigns a 'gold star' rating
+
     Args:
         subs (): list of all submissions at this allele
 
@@ -472,33 +440,26 @@ def parse_into_table(json_path: str, out_path: str):
     ht = ht.key_by(ht.locus, ht.alleles)
 
     # write out
-    ht.write(output_path(out_path), overwrite=True)
+    ht.write(out_path, overwrite=True)
 
 
-def main(
-    submissions_file: str,
-    summary: str,
-    out_path: str,
-    threshold_date: datetime,
-):
+def main(subs: str, date: datetime, variants: str, out: str):
     """
     Redefines what it is to be a clinvar summary
 
     Args:
-        submissions_file (): file path to all submissions (gzipped)
-        summary (): file path to variant summary (gzipped)
-        out_path (): path to write JSON out to
-        threshold_date (): date threshold to use for filtering submissions
+        subs (): file path to all submissions (gzipped)
+        date (): date threshold to use for filtering submissions
+        variants (): file path to variant summary (gzipped)
+        out (): path to write JSON out to
     """
 
-    logging.info('Getting all alleleID-VariantID-Loci from variant summary')
-    allele_map = get_allele_locus_map(summary)
+    logging.info('Getting alleleID-VariantID-Loci from variant summary')
+    allele_map = get_allele_locus_map(variants)
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
-        submission_file=submissions_file,
-        threshold_date=threshold_date,
-        allele_ids=set(allele_map.keys()),
+        submission_file=subs, threshold_date=date, allele_ids=set(allele_map.keys())
     )
 
     # placeholder to fill wth per-allele decisions
@@ -541,7 +502,7 @@ def main(
         for each_dict in all_decisions:
             handle.write(f'{json.dumps(each_dict)}\n')
 
-    parse_into_table(json_path=temp_output, out_path=out_path)
+    parse_into_table(json_path=temp_output, out_path=out)
 
 
 if __name__ == '__main__':
@@ -550,22 +511,17 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-s', help='submission_summary.txt.gz from NCBI', required=True)
     parser.add_argument('-v', help='variant_summary.txt.gz from NCBI', required=True)
+    parser.add_argument('-o', help='output table name', required=True)
     parser.add_argument(
         '-d',
         help='date, format DD-MM-YYYY - submissions after this date '
         'will be removed. Un-dated submissions will pass this threshold',
         default=datetime.now(),
     )
-    parser.add_argument('-o', help='output filename', required=True)
     args = parser.parse_args()
 
     processed_date = (
         datetime.strptime(args.d, '%d-%m-%Y') if isinstance(args.d, str) else args.d
     )
 
-    main(
-        submissions_file=args.s,
-        summary=args.v,
-        threshold_date=processed_date,
-        out_path=args.o,
-    )
+    main(subs=args.s, date=processed_date, variants=args.v, out=args.o)
