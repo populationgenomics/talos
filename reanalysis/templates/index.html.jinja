@@ -52,7 +52,7 @@
         {# Run statistics #}
         <div class="tab-pane fade" id="stats-tab-pane" role="tabpanel"tabindex="0">
           <div>
-            <h3>Canditate variant statistics</h3>
+            <h3>Candidate variant statistics</h3>
             {% with table=summary_table %}
               {% include "datatable.html.jinja" %}
             {% endwith %}
@@ -66,7 +66,7 @@
           </div>
 
           <div>
-            <h3>Families with no canditate variants</h3>
+            <h3>Families with no candidate variants</h3>
             {% if zero_categorised_samples %}
               <ul>
                 {% for sample in zero_categorised_samples %}

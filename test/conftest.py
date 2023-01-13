@@ -189,7 +189,7 @@ def fixture_quad_ped():
     :return:
     """
 
-    return QUAD_PED
+    return Ped(QUAD_PED)
 
 
 @pytest.fixture(name='trio_abs_variant')

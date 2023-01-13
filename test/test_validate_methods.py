@@ -205,5 +205,30 @@ def test_update_results_meta(peddy_ped):
         'male': 3,
         'female': 3,
         'trios': 2,
-        '3': 2,
     }
+
+
+def test_update_results_missing_father(peddy_ped):
+    """
+    testing the dict update
+    """
+
+    ped_samples = ['male', 'female', 'mother_1', 'mother_2', 'father_2']
+
+    assert count_families(
+        pedigree=peddy_ped,
+        samples=ped_samples,
+    ) == {'affected': 2, 'male': 2, 'female': 3, 'trios': 1, '2': 1}
+
+
+def test_update_results_quad(quad_ped):
+    """
+    testing the dict update
+    """
+
+    ped_samples = ['PROBAND', 'SIBLING', 'FATHER', 'MOTHER']
+
+    assert count_families(
+        pedigree=quad_ped,
+        samples=ped_samples,
+    ) == {'affected': 1, 'male': 3, 'female': 1, 'quads': 1}
