@@ -363,7 +363,7 @@ def prepare_results_shell(
         family_members = {
             member.sample_id: {
                 'sex': member.sex,
-                'affected': member.affected,
+                'affected': member.affected == PEDDY_AFFECTED,
                 'ext_id': external_map.get(member.sample_id, member.sample_id),
             }
             for member in family
