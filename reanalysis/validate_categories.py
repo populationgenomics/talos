@@ -299,7 +299,7 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
         # direct count of # each sex and # affected
         stat_counter[ped_sample.sex] += 1
-        if ped_sample.affected:
+        if ped_sample.affected == PEDDY_AFFECTED:
             stat_counter['affected'] += 1
 
     # now count family sizes and structures
