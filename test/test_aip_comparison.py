@@ -82,11 +82,8 @@ def test_affected_finder_with_sibling(quad_ped):
     tests function to find probands from a Ped file
     contains the same trio as above ^^ plus an unaffected sibling
     :param quad_ped:
-    :return:
     """
-    # digest that Ped
-    ped_parsed = Ped(quad_ped)
-    samples = find_affected_samples(ped_parsed)
+    samples = find_affected_samples(quad_ped)
     assert samples == ['PROBAND']
 
 

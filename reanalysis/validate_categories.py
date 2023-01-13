@@ -279,29 +279,58 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
     maybe re-think this output structure for the report
 
     Args:
-        pedigree ():
-        samples ():
+        pedigree (Ped): the Peddy pedigree object for the family
+        samples (list): all the samples explicitly in this VCF
 
     Returns:
-
+        A breakdown of all the family structures within this VCF
     """
-    family_counter = defaultdict(int)
-    for family in pedigree.families:
-        # don't count families who don't appear in this pedigree subset
-        if not any(sam.sample_id in samples for sam in pedigree.families[family]):
+
+    # contains all sample IDs for the given families
+    family_dict = defaultdict(set)
+
+    # the final dict of counts to return
+    stat_counter = defaultdict(int)
+
+    # iterate over samples in the VCF
+    for sample_id in samples:
+        ped_sample = pedigree[sample_id]
+        family_dict[ped_sample.family_id].add(sample_id)
+
+        # direct count of # each sex and # affected
+        stat_counter[ped_sample.sex] += 1
+        if ped_sample.affected:
+            stat_counter['affected'] += 1
+
+    # now count family sizes and structures
+    for family_id, family_samples in family_dict.items():
+
+        # bool flag - if we found a 'trio' don't also
+        # count as family size 3
+        trio_bool = False
+
+        ped_family = pedigree.families[family_id]
+
+        for trio in ped_family.trios():
+
+            # check for a trio with all samples present
+            if all(each.sample_id in family_samples for each in trio):
+                trio_bool = True
+                # if the proband has a sibling, call this a quad
+                if list(trio[0].full_siblings):
+                    stat_counter['quads'] += 1
+                # otherwise a trio
+                else:
+                    stat_counter['trios'] += 1
+                break
+
+        # if we counted as a trio/quad, don't re-count
+        if trio_bool:
             continue
 
-        affected, sex, trios, quads = pedigree.families[family].summary()
-        family_counter['affected'] += affected[True]
-        family_counter['male'] += sex['male']
-        family_counter['female'] += sex['female']
-        if trios != 0:
-            family_counter['trios'] += trios
-        if quads != 0:
-            family_counter['quads'] += quads
-        family_counter[str(len(pedigree.families[family].samples))] += 1
+        stat_counter[str(len(family_samples))] += 1
 
-    return dict(family_counter)
+    return dict(stat_counter)
 
 
 def prepare_results_shell(
