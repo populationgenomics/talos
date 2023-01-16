@@ -173,7 +173,6 @@ class HTMLBuilder:
 
     def __init__(self, results: str, panelapp: str, pedigree: Ped):
         """
-        pass
         Args:
             results ():
             panelapp ():
@@ -182,9 +181,9 @@ class HTMLBuilder:
         self.panelapp = read_json_from_path(panelapp)
         self.pedigree = Ped(pedigree)
 
-        # If it exists, read the forbidden genes as a dict
+        # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            get_config()['dataset_specific']['forbidden'], set()
+            get_config()['dataset_specific'].get('forbidden', 'missing'), set()
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')

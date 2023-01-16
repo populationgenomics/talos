@@ -500,8 +500,6 @@ def main(
         },
     }
 
-    print(final_results)
-
     # store results using the custom-encoder to transform sets & DataClasses
     with to_path(out_json).open('w') as fh:
         json.dump(final_results, fh, cls=CustomEncoder, indent=4)
