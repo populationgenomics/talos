@@ -47,7 +47,7 @@ setup(
             'hail>=0.2.105',
             'Jinja2>=3.0.3',
             'networkx>=2.8.3',
-            'obonet>=0.3.2',
+            'obonet>=0.3.1',
             'pandas>=1.4.0',
             'requests>=2.25.1',
             'sample-metadata>=5',
