@@ -60,7 +60,7 @@ def test_get_clean_pedigree_fails():
     """
     ped = [{'individual_id': 'plink'}]
 
-    with pytest.raises(Exception):
+    with pytest.raises(KeyError):
         get_ped_with_permutations(pedigree_dicts=ped, sample_to_cpg_dict={})
 
 

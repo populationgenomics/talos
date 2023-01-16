@@ -109,7 +109,7 @@ def test_file_types_exception():
     check 'em
     :return:
     """
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         identify_file_type('i/am/a/mystery.file.type')
 
 

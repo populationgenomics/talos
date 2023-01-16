@@ -292,7 +292,7 @@ def main(
 
     assert to_path(
         input_path
-    ).exists(), f'The provided path "{input_path}" does not exist or is inaccessible'
+    ).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
 
     logging.info('Starting the reanalysis batch')
 
@@ -395,7 +395,7 @@ def main(
 
     # region: hail categorisation
     if not to_path(HAIL_VCF_OUT).exists():
-        logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
+        logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_filtering(
             prior_job=prior_job, plink_file=pedigree_in_batch, clinvar=clinvar_table
         )

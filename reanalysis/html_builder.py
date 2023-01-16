@@ -183,16 +183,14 @@ class HTMLBuilder:
         self.pedigree = Ped(pedigree)
 
         # If it exists, read the forbidden genes as a dict
-        self.forbidden_genes = (
-            read_json_from_path(get_config().get('dataset_specific', {})['forbidden'])
-            if get_config().get('dataset_specific', {}).get('forbidden')
-            else {}
+        self.forbidden_genes = read_json_from_path(
+            get_config()['dataset_specific']['forbidden'], set()
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = get_config().get('dataset_specific', {}).get('seqr_lookup')
+        seqr_path = get_config()['dataset_specific'].get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path:
@@ -200,8 +198,8 @@ class HTMLBuilder:
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert (
-                    get_config().get('dataset_specific', {}).get(seqr_key)
+                assert get_config()['dataset_specific'].get(
+                    seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
         # Read results file
@@ -317,10 +315,8 @@ class HTMLBuilder:
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            'seqr_url': get_config().get('dataset_specific', {}).get('seqr_instance'),
-            'seqr_project': get_config()
-            .get('dataset_specific', {})
-            .get('seqr_project'),
+            'seqr_url': get_config()['dataset_specific'].get('seqr_instance'),
+            'seqr_project': get_config()['dataset_specific'].get('seqr_project'),
             'meta_tables': {},
             'forbidden_genes': [],
             'zero_categorised_samples': [],
