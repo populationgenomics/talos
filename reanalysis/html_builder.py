@@ -183,10 +183,8 @@ class HTMLBuilder:
         self.pedigree = Ped(pedigree)
 
         # If it exists, read the forbidden genes as a dict
-        self.forbidden_genes = (
-            read_json_from_path(get_config()['dataset_specific']['forbidden'])
-            if get_config()['dataset_specific'].get('forbidden')
-            else {}
+        self.forbidden_genes = read_json_from_path(
+            get_config()['dataset_specific']['forbidden'], set()
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
