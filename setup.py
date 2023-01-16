@@ -56,10 +56,10 @@ setup(
             'toml>=0.10.2',
         ],
         'test': [
-            'pytest>=7.0.0',
+            'pytest>=7.2.1',
             'pytest-cov>=3.0.0',
             'pytest-xdist>=2.5.0',
-            'requests_mock>=1.9.3',
+            'requests_mock>=1.10.0',
         ],
     },
 )
