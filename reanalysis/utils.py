@@ -111,7 +111,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
         return FileTypes.VCF_GZ
     if extensions == ['.vcf', '.bgz']:
         return FileTypes.VCF_BGZ
-    raise Exception(f'File cannot be definitively typed: {str(extensions)}')
+    raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
 
 
 @dataclass
@@ -604,7 +604,7 @@ def write_output_json(output_path: str, object_to_write: dict):
     out_route = to_path(output_path)
 
     if out_route.exists():
-        logging.info(f'Output path "{output_path}" exists, will be overwritten')
+        logging.info(f'Output path {output_path!r} exists, will be overwritten')
 
     with out_route.open('w') as fh:
         json.dump(object_to_write, fh, indent=4, default=str)

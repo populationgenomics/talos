@@ -812,7 +812,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     checkpoint_root = output_path('hail_matrix.mt', 'tmp')
 
     # read the parsed panelapp data
-    logging.info(f'Reading PanelApp data from "{panelapp}"')
+    logging.info(f'Reading PanelApp data from {panelapp!r}')
     panelapp = read_json_from_path(panelapp)['genes']
 
     # pull green and new genes from the panelapp data
