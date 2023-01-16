@@ -40,6 +40,9 @@ from reanalysis.utils import (
 )
 
 
+MALE_FEMALE = {'male', 'female'}
+
+
 def set_up_inheritance_filters(
     panelapp_data: dict,
     pedigree: Ped,
@@ -298,7 +301,10 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
         family_dict[ped_sample.family_id].add(sample_id)
 
         # direct count of # each sex and # affected
-        stat_counter[ped_sample.sex] += 1
+        if ped_sample.sex in MALE_FEMALE:
+            stat_counter[ped_sample.sex] += 1
+        else:
+            stat_counter['unknown_sex'] += 1
         if ped_sample.affected == PEDDY_AFFECTED:
             stat_counter['affected'] += 1
 
@@ -493,6 +499,8 @@ def main(
             'container': get_config()['workflow']['driver_image'],
         },
     }
+
+    print(final_results)
 
     # store results using the custom-encoder to transform sets & DataClasses
     with to_path(out_json).open('w') as fh:
