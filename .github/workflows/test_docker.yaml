@@ -37,4 +37,4 @@ jobs:
         docker build . -f Dockerfile --tag $BASE_IMAGE:{{ github.event.inputs.tag }}
     - name: push test
       run: |
-        docker push $BASE_IMAGE:$tag
+        docker push $BASE_IMAGE:{{ github.event.inputs.tag }}
