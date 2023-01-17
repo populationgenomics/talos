@@ -345,12 +345,16 @@ def main(
         # uses default values from RefData
 
         siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
-        add_make_sitesonly_job(
+        sites_job, _sites_vcf = add_make_sitesonly_job(
             b=get_batch(),
             input_vcf=get_batch().read_input(input_path),
             output_vcf_path=siteonly_vcf_path,
             storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
         )
+
+        # set the job dependency and cycle the 'prior' job
+        if prior_job:
+            sites_job.depends_on(prior_job)
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
         # generate the jobs which run VEP & collect the results
@@ -362,10 +366,9 @@ def main(
             out_path=to_path(vep_ht_tmp),
         )
 
-        # if convert-to-VCF job exists, assign as an annotation dependency
-        if prior_job:
-            for job in vep_jobs:
-                job.depends_on(prior_job)
+        # assign sites-only job as an annotation dependency
+        for job in vep_jobs:
+            job.depends_on(sites_job)
 
         # Apply the HT of annotations to the VCF, save as MT
         anno_job = annotate_cohort_jobs(
