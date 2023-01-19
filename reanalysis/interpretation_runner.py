@@ -330,12 +330,17 @@ def main(
         siteonly_vcf_path = to_path(
             output_path('siteonly.vcf.gz', get_config()['buckets'].get('tmp_suffix'))
         )
-        add_make_sitesonly_job(
+        siteonly_job, _ = add_make_sitesonly_job(
             b=get_batch(),
             input_vcf=get_batch().read_input(input_path),
             output_vcf_path=siteonly_vcf_path,
             storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
         )
+        if siteonly_job:
+            siteonly_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
+
+        if prior_job:
+            siteonly_job.depends_on(prior_job)
 
         vep_ht_tmp = output_path(
             'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
@@ -352,9 +357,9 @@ def main(
         )
 
         # if convert-to-VCF job exists, assign as an annotation dependency
-        if prior_job:
+        if siteonly_job:
             for job in vep_jobs:
-                job.depends_on(prior_job)
+                job.depends_on(siteonly_job)
 
         # Apply the HT of annotations to the VCF, save as MT
         anno_job = annotate_cohort_jobs(

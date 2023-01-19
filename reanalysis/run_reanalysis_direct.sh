@@ -2,6 +2,8 @@
 
 set -ex
 
+# Make sure to export CPG_DEPLOY_CONFIG first?
+
 # set the date, or provide a default
 DATE=${1:-$(date +%F)}
 # make a randomized config name
@@ -10,7 +12,7 @@ CONFIG_PATH=hail-az://sevgen002sa/test/config-$(LC_ALL=C tr -dc A-Za-z0-9 </dev/
   # --deploy_config ~/sources/cpg/cpg-deploy/azure/deploy-config.prod.json \
   # --server_config ~/sources/cpg/cpg-deploy/aip/terraform.tfvars.json \
 python3 generate_workflow_config.py \
-  --dataset severalgenomes \
+  --dataset rgp \
   --access_level test \
   --driver_image azcpg001acr.azurecr.io/cpg-common/images/cpg_workflows:latest \
   --output_prefix "reanalysis/${DATE}" \
@@ -22,6 +24,5 @@ python3 generate_workflow_config.py \
   
 export CPG_CONFIG_PATH=${CONFIG_PATH}
 python3 interpretation_runner.py \
-  -i hail-az://sevgen002sa/test/reanalysis/986d792a448c66a8a5cfba65434e7d1ce9b1ff_1051-validation.mt \
-  --pedigree hail-az://sevgen002sa/test/reanalysis/pedigree.fam \
-  --skip_annotation
+  -i hail-az://raregen001sa/test/inputs/joint-called-vcf_20221114/RGP_subset_samples.vcf.bgz \
+  --pedigree hail-az://raregen001sa/test/inputs/joint-called-vcf_20221114/RGP_Cases_for_MSFT_AIP_v0_trial.xlsx.fam
