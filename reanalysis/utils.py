@@ -36,6 +36,17 @@ CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
+# most lenient to most conservative
+# usage = if we have two MOIs for the same gene, take the broadest
+ORDERED_MOIS = [
+    'Mono_And_Biallelic',
+    'Monoallelic',
+    'Hemi_Mono_In_Female',
+    'Hemi_Bi_In_Female',
+    'Biallelic',
+]
+IRRELEVANT_MOI = {'unknown', 'other'}
+
 
 class FileTypes(Enum):
     """
@@ -579,18 +590,6 @@ def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
     return default
 
 
-# most lenient to most conservative
-# usage = if we have two MOIs for the same gene, take the broadest
-ORDERED_MOIS = [
-    'Mono_And_Biallelic',
-    'Monoallelic',
-    'Hemi_Mono_In_Female',
-    'Hemi_Bi_In_Female',
-    'Biallelic',
-    'Unknown',
-]
-
-
 def write_output_json(output_path: str, object_to_write: dict):
     """
     writes object to a json file, to_path provides platform abstraction
@@ -607,51 +606,46 @@ def write_output_json(output_path: str, object_to_write: dict):
         logging.info(f'Output path {output_path!r} exists, will be overwritten')
 
     with out_route.open('w') as fh:
-        json.dump(object_to_write, fh, indent=4, default=str)
+        json.dump(object_to_write, fh, indent=4, default=list)
 
 
-def get_simple_moi(panel_app_moi: str | None) -> str:
+def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
     """
     takes the vast range of PanelApp MOIs, and reduces to a
     range of cases which can be easily implemented in RD analysis
-    This is required to reduce the complexity of an MVP
-    Could become a strict enumeration
 
-    {
-        Biallelic: [all, panelapp, moi, equal, to, biallelic],
-        Monoallelic: [all MOI to be interpreted as monoallelic]
-    }
+    Args:
+        input_moi ():
+        chrom ():
 
-    :param panel_app_moi: full PanelApp string or None
-    :return: a simplified representation
+    Returns:
+
     """
 
-    # default to considering both. NOTE! Many genes have Unknown MOI!
-    simple_moi = 'Mono_And_Biallelic'
+    if input_moi in IRRELEVANT_MOI:
+        raise ValueError("unknown and other shouldn't reach this method")
 
-    # try-except permits the moi to be None
-    try:
-        lower_moi = panel_app_moi.lower()
-        if lower_moi is None or lower_moi == 'unknown':
-            # exit iteration, all moi considered
-            return simple_moi
-    except AttributeError:
-        return simple_moi
+    default = 'Hemi_Mono_In_Female' if chrom in X_CHROMOSOME else 'Mono_And_Biallelic'
 
-    # ideal for match-case, coming to a python 3.10 near you!
-    if lower_moi.startswith('biallelic'):
-        simple_moi = 'Biallelic'
-    elif lower_moi.startswith('both'):
-        simple_moi = 'Mono_And_Biallelic'
-    elif lower_moi.startswith('mono'):
-        simple_moi = 'Monoallelic'
-    elif lower_moi.startswith('x-linked'):
-        if 'biallelic' in panel_app_moi:
-            simple_moi = 'Hemi_Bi_In_Female'
-        else:
-            simple_moi = 'Hemi_Mono_In_Female'
+    if input_moi is None:
+        input_moi = 'default'
 
-    return simple_moi
+    match input_moi.split():
+        case ['biallelic', *_additional]:
+            return 'Biallelic'
+        case ['both', *_additional]:
+            return 'Mono_And_Biallelic'
+        case ['monoallelic', *_additional]:
+            return 'Monoallelic'
+        case [
+            'x-linked',
+            *additional,
+        ] if 'biallelic' in additional:  # pylint: disable='used-before-assignment'
+            return 'Hemi_Bi_In_Female'
+        case ['x-linked', *_additional]:
+            return 'Hemi_Mono_In_Female'
+        case _:
+            return default
 
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
@@ -885,7 +879,7 @@ def save_new_historic(
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
-        json.dump(results, handle, indent=4)
+        json.dump(results, handle, indent=4, default=list)
 
     logging.info(f'Wrote new data to {new_file}')
 

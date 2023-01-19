@@ -54,3 +54,7 @@ seqr_clinvar = 'gs://cpg-common-main/references/seqr/v0/clinvar.GRCh38.ht'
 [references.broad]
 ref_fasta = 'gs://cpg-common-main/references/hg38/v0/dragen_reference/Homo_sapiens_assembly38_masked.fasta'
 genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_calling_regions.hg38.interval_list'
+
+[dataset_specific]
+description = 'placeholder for per-cohort data'
+historic_results = "/Users/mwelland/code/automated-interpretation-pipeline/blah"

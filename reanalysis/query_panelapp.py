@@ -19,6 +19,7 @@ from reanalysis.utils import (
     read_json_from_path,
     save_new_historic,
     write_output_json,
+    IRRELEVANT_MOI,
     ORDERED_MOIS,
 )
 
@@ -86,13 +87,16 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
 
         ensg = None
         symbol = gene.get('entity_name')
+        chrom = None
 
         # for some reason the build is capitalised oddly in panelapp
         # at least one entry doesn't have an ENSG annotation
         for build, content in gene['gene_data']['ensembl_genes'].items():
             if build.lower() == 'grch38':
                 # the ensembl version may alter over time, but will be singular
-                ensg = content[list(content.keys())[0]]['ensembl_id']
+                ensembl_data = content[list(content.keys())[0]]
+                ensg = ensembl_data['ensembl_id']
+                chrom = ensembl_data['location'].split(':')[0]
 
         if ensg is None:
             logging.info(f'Gene "{symbol} lacks an ENSG ID, so it is being excluded')
@@ -106,14 +110,19 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
         if not gene_prev_in_panel:
             gene_panels_for_this_gene.append(panel_id)
 
+        exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
+
         # either update or add a new entry
         if ensg in gene_dict['genes'].keys():
             this_gene = gene_dict['genes'][ensg]
-            this_gene['moi'].add(gene.get('mode_of_inheritance', 'Unknown'))
+
+            # add this moi to the set
+            if exact_moi not in IRRELEVANT_MOI:
+                this_gene['moi'].add(exact_moi)
 
             # if this is/was new - it's new
             if not gene_prev_in_panel:
-                this_gene['panels'].append(panel_id)
+                this_gene['panels'].add(panel_id)
                 this_gene['new'].append(panel_id)
 
         else:
@@ -121,18 +130,19 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
             # save the entity into the final dictionary
             gene_dict['genes'][ensg] = {
                 'symbol': symbol,
-                'moi': {gene.get('mode_of_inheritance', 'Unknown')},
+                'moi': {exact_moi} if exact_moi not in IRRELEVANT_MOI else set(),
                 'new': [] if gene_prev_in_panel else [panel_id],
-                'panels': gene_panels_for_this_gene,
+                'panels': set(map(int, gene_panels_for_this_gene)),
+                'chrom': chrom,
             }
 
 
 def get_best_moi(gene_dict: dict):
     """
     From the collected set of all MOIs, take the most lenient
-    If Unknown was found:
-        - only Unknown? accept unknown
-        - unknown and others? remove unknown then check remaining
+    If set was empty (i.e. no specific MOI found) find the default
+
+    Default is found autosome/sex chrom aware
 
     Args:
         gene_dict (): the 'genes' index of the collected dict
@@ -140,13 +150,15 @@ def get_best_moi(gene_dict: dict):
 
     for content in gene_dict.values():
 
-        # only accept Unknown MOI if all are MOI
-        if content['moi'] == {'Unknown'}:
-            content['moi'] = get_simple_moi(None)
+        # accept the simplest MOI if no exact moi found
+        if not content['moi']:
+            content['moi'] = get_simple_moi(None, chrom=content['chrom'])
             continue
 
         # otherwise accept the most lenient valid MOI
-        moi_set = {get_simple_moi(moi) for moi in (content['moi'] - {'Unknown'})}
+        moi_set = {
+            get_simple_moi(moi, chrom=content['chrom']) for moi in content['moi']
+        }
 
         # pylint: disable=unnecessary-lambda
         # take the more lenient of the gene MOI options
