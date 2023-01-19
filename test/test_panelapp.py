@@ -145,7 +145,7 @@ def test_get_best_moi_mono_and_biallelic():
 
     d = {'ensg1': {'moi': {'monoallelic', 'biallelic'}, 'chrom': '1'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Monoallelic'
+    assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
 
 
 def test_get_best_moi_1():

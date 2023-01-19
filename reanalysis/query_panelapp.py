@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 """
 Complete revision
 """
@@ -25,6 +26,8 @@ from reanalysis.utils import (
 
 
 PanelData = dict[str, dict | list[dict]]
+
+# pylint: disable=no-value-for-parameter,unnecessary-lambda
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -160,9 +163,13 @@ def get_best_moi(gene_dict: dict):
             get_simple_moi(moi, chrom=content['chrom']) for moi in content['moi']
         }
 
-        # pylint: disable=unnecessary-lambda
-        # take the more lenient of the gene MOI options
-        content['moi'] = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
+        # force a combined MOI here
+        if 'Biallelic' in moi_set and 'Monoallelic' in moi_set:
+            content['moi'] = 'Mono_And_Biallelic'
+
+        else:
+            # take the more lenient of the gene MOI options
+            content['moi'] = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
 def read_panels_from_participant_file(panel_json: str) -> set[int]:
@@ -259,4 +266,4 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
 
-    main()  # pylint: disable=no-value-for-parameter
+    main()
