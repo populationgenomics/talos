@@ -57,4 +57,3 @@ genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_cal
 
 [dataset_specific]
 description = 'placeholder for per-cohort data'
-historic_results = "/Users/mwelland/code/automated-interpretation-pipeline/blah"
