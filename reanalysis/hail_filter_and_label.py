@@ -822,13 +822,10 @@ def main(mt_path: str, panelapp: str, plink: str):
     )
 
     # filter out quality failures
-    logging.info('filter_on_quality_flags')
     mt = filter_on_quality_flags(mt)
 
     # running global quality filter steps
-    logging.info('filter_matrix_by_ac')
     mt = filter_matrix_by_ac(mt=mt)
-    logging.info('filter_to_well_normalised')
     mt = filter_to_well_normalised(mt)
 
     # die if there are no variants remaining
@@ -845,7 +842,6 @@ def main(mt_path: str, panelapp: str, plink: str):
     # checkpoint_number = checkpoint_number + 1
 
     # swap out the default clinvar annotations with private clinvar
-    logging.info('annotate_aip_clinvar')
     mt = annotate_aip_clinvar(mt)
     mt = extract_annotations(mt)
 
