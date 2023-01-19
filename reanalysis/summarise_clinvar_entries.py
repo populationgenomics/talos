@@ -1,6 +1,5 @@
 """
-reads over the clinvar submissions
-identifies consensus and disagreements
+read clinvar submissions; identify consensus and disagreement
 
 Requires two files from
 https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/
@@ -20,12 +19,12 @@ variant_summary.txt
 
 import gzip
 import logging
+import json
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from itertools import chain, islice
 
 import hail as hl
 import pandas as pd
@@ -45,6 +44,9 @@ PATH_SIGS = {
 }
 UNCERTAIN_SIGS = {'Uncertain significance', 'Uncertain risk allele'}
 USELESS_RATINGS = {'no assertion criteria provided'}
+
+# remove all entries from these providers
+# todo move to config?
 MEGA_BLACKLIST = [
     'victorian clinical genetics services,murdoch childrens research institute'
 ]
@@ -73,6 +75,7 @@ class Consequence(Enum):
 
 
 # submitters which aren't trusted for a subset of consequences
+# needs to be dropped after Consequence is defined
 QUALIFIED_BLACKLIST = [(Consequence.BENIGN, {'Illumina Laboratory Services; Illumina'})]
 
 
@@ -88,42 +91,7 @@ class Submission:
     review_status: str
 
 
-def chunks(iterable, chunk_size):
-    """
-    Yield successive n-sized chunks from an iterable
-
-    Args:
-        iterable (): any iterable - tuple, str, list, set
-        chunk_size (): size of intervals to return
-
-    Returns:
-        intervals of requested size across the collection
-    """
-
-    if isinstance(iterable, set):
-        iterable = list(iterable)
-
-    for i in range(0, len(iterable), chunk_size):
-        yield iterable[i : (i + chunk_size)]
-
-
-def generator_chunks(generator, size):
-    """
-    Iterates across a generator, returning specifically sized chunks
-
-    Args:
-        generator (): any generator or method implementing yield
-        size (): size of iterator to return
-
-    Returns:
-        a subset of the generator results
-    """
-    iterator = iter(generator)
-    for first in iterator:
-        yield list(chain([first], islice(iterator, size - 1)))
-
-
-def get_allele_locus_map(summary_file: str) -> tuple[dict, set]:
+def get_allele_locus_map(summary_file: str) -> dict:
     """
     Process variant_summary.txt
      - links the allele ID, Locus/Alleles, and variant ID
@@ -139,11 +107,10 @@ def get_allele_locus_map(summary_file: str) -> tuple[dict, set]:
         summary_file (str): path to the gzipped text file
 
     Returns:
-
+        dictionary of each variant ID to the positional details
     """
 
     allele_dict = {}
-    all_contigs = set()
 
     for line in lines_from_gzip(summary_file):
         if 'GRCh37' in line:
@@ -167,8 +134,6 @@ def get_allele_locus_map(summary_file: str) -> tuple[dict, set]:
         ):
             continue
 
-        all_contigs.add(chromosome)
-
         allele_dict[var_id] = {
             'allele': allele_id,
             'chrom': chromosome,
@@ -177,19 +142,18 @@ def get_allele_locus_map(summary_file: str) -> tuple[dict, set]:
             'alt': alt,
         }
 
-    return allele_dict, all_contigs
+    return allele_dict
 
 
 def lines_from_gzip(filename: str) -> str:
     """
-    generator for gzip reading
-    copies file to local prior to reading
+    generator for gzip reading, copies file locally before reading
 
     Args:
-        filename (): the gzipped input file
+        filename (str): the gzipped input file
 
     Returns:
-        generator - yields each line
+        generator; yields each line
     """
 
     if isinstance(to_path(filename), CloudPath):
@@ -207,8 +171,10 @@ def lines_from_gzip(filename: str) -> str:
 def consequence_decision(subs: list[Submission]) -> Consequence:
     """
     determine overall consequence assignment based on submissions
+
     Args:
         subs (): a list of submission objects for this allele
+
     Returns:
         a single Consequence object
     """
@@ -269,6 +235,7 @@ def consequence_decision(subs: list[Submission]) -> Consequence:
 def check_stars(subs: list[Submission]) -> int:
     """
     processes the submissions, and assigns a 'gold star' rating
+
     Args:
         subs (): list of all submissions at this allele
 
@@ -289,8 +256,15 @@ def check_stars(subs: list[Submission]) -> int:
 
 def process_line(data: str) -> tuple[int, Submission]:
     """
-    takes a line array and strips out useful content
-    :param data: the un-split TSV content
+    takes a line,
+    splits into an array,
+    strips out useful content as a 'Submission'
+
+    Args:
+        data (): the un-split TSV content
+
+    Returns:
+        the allele ID and corresponding Submission details
     """
     allele_id = int(data[0])
     if data[1] in PATH_SIGS:
@@ -336,20 +310,21 @@ def get_all_decisions(
         - not after the user-specified date
 
     Args:
-        submission_file ():
-        threshold_date ():
-        allele_ids ():
+        submission_file (): file containing submission-per-line
+        threshold_date (): ignore submissions after this date
+        allele_ids (): only process alleleIDs we have pos data for
 
     Returns:
-        dictionary of all alleles and their corresponding submissions
+        dictionary of alleles and their corresponding submissions
     """
+
     submission_dict = defaultdict(list)
 
     for line in lines_from_gzip(submission_file):
 
         a_id, line_sub = process_line(line)
 
-        # skip any rows where the variantID isn't in this mapping
+        # skip rows where the variantID isn't in this mapping
         # this saves a little effort on haplotypes, CNVs, and SVs
         if (
             (a_id not in allele_ids)
@@ -410,39 +385,81 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
 def sort_decisions(all_subs: list[dict]) -> list[dict]:
     """
     applies dual-layer sorting to the list of all decisions
+
     Args:
-        all_subs ():
+        all_subs (): list of all submissions
+
     Returns:
         a list of submissions, sorted hierarchically on chr & pos
     """
+
     return sorted(
         all_subs, key=lambda x: (ORDERED_ALLELES.index(x['contig']), x['position'])
     )
 
 
-def main(
-    submissions_file: str,
-    summary: str,
-    out_path: str,
-    threshold_date: datetime,
-):
+def parse_into_table(json_path: str, out_path: str):
     """
+    takes the file of one clinvar variant per line
+    processes that line into a table based on the schema
 
     Args:
-        submissions_file (): file path to all submissions (gzipped)
-        summary (): file path to variant summary (gzipped)
-        out_path (): path to write JSON out to
-        threshold_date (): date threshold to use for filtering submissions
+        json_path (): path to the JSON file (temp)
+        out_path (): where to write the Hail table
     """
 
-    logging.info('Getting all alleleID-VariantID-Loci from variant summary')
-    allele_map, all_contigs = get_allele_locus_map(summary)
+    init_batch()
+
+    # define the schema for each written line
+    schema = hl.dtype(
+        'struct{'
+        'alleles:array<str>,'
+        'contig:str,'
+        'position:int32,'
+        'id:int32,'
+        'rating:str,'
+        'stars:int32,'
+        'allele_id:int32'
+        '}'
+    )
+
+    # import the table, and transmute to top-level attributes
+    ht = hl.import_table(json_path, no_header=True, types={'f0': schema})
+    ht = ht.transmute(
+        alleles=ht.f0.alleles,
+        contig=ht.f0.contig,
+        position=ht.f0.position,
+        variant_id=ht.f0.id,
+        rating=ht.f0.rating,
+        stars=ht.f0.stars,
+        allele_id=ht.f0.allele_id,
+    )
+
+    # create a locus and key
+    ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
+    ht = ht.key_by(ht.locus, ht.alleles)
+
+    # write out
+    ht.write(out_path, overwrite=True)
+
+
+def main(subs: str, date: datetime, variants: str, out: str):
+    """
+    Redefines what it is to be a clinvar summary
+
+    Args:
+        subs (): file path to all submissions (gzipped)
+        date (): date threshold to use for filtering submissions
+        variants (): file path to variant summary (gzipped)
+        out (): path to write JSON out to
+    """
+
+    logging.info('Getting alleleID-VariantID-Loci from variant summary')
+    allele_map = get_allele_locus_map(variants)
 
     logging.info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(
-        submission_file=submissions_file,
-        threshold_date=threshold_date,
-        allele_ids=set(allele_map.keys()),
+        submission_file=subs, threshold_date=date, allele_ids=set(allele_map.keys())
     )
 
     # placeholder to fill wth per-allele decisions
@@ -465,10 +482,6 @@ def main(
 
         all_decisions.append(
             {
-                'locus': hl.Locus(
-                    contig=allele_map[allele_id]['chrom'],
-                    position=allele_map[allele_id]['pos'],
-                ),
                 'alleles': [allele_map[allele_id]['ref'], allele_map[allele_id]['alt']],
                 'contig': allele_map[allele_id]['chrom'],
                 'position': allele_map[allele_id]['pos'],
@@ -482,49 +495,14 @@ def main(
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
-    # placeholder for hail table
-    base_table = None
+    temp_output = output_path('temp_clinvar_table.json', category='tmp')
 
-    # process each contig's entries into a Hail Table
-    # write to disk separately, and append to a master table
-    for contig in ORDERED_ALLELES:
+    # open this temp path and write the json contents, line by line
+    with to_path(temp_output).open('w') as handle:
+        for each_dict in all_decisions:
+            handle.write(f'{json.dumps(each_dict)}\n')
 
-        # only process contigs with submissions
-        if contig not in all_contigs:
-            continue
-
-        logging.info(f'Processing Contig {contig}')
-        write_path = output_path(f'{contig}_{out_path}')
-        if to_path(write_path).exists():
-            logging.info(f'{write_path} already exists, reading')
-            ht = hl.read_table(write_path)
-
-        else:
-            # don't run this contig unless we have at least one sub left
-            contig_decisions = [
-                each_dict
-                for each_dict in all_decisions
-                if each_dict['locus'].contig == contig
-            ]
-
-            if len(contig_decisions) == 0:
-                logging.info(f'No entries on {contig}')
-                continue
-
-            # save a hail table of this contig to disk
-            ht = dict_list_to_ht(contig_decisions)
-            ht.write(output=write_path, overwrite=True)
-
-        # update the whole-genome table
-        if base_table is None:
-            base_table = ht
-        else:
-            base_table = base_table.union(ht)
-
-    # write out the aggregated table
-    if base_table is None:
-        raise Exception('There were no alleles with submissions')
-    base_table.write(output_path(out_path), overwrite=True)
+    parse_into_table(json_path=temp_output, out_path=out)
 
 
 if __name__ == '__main__':
@@ -533,24 +511,17 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-s', help='submission_summary.txt.gz from NCBI', required=True)
     parser.add_argument('-v', help='variant_summary.txt.gz from NCBI', required=True)
+    parser.add_argument('-o', help='output table name', required=True)
     parser.add_argument(
         '-d',
         help='date, format DD-MM-YYYY - submissions after this date '
         'will be removed. Un-dated submissions will pass this threshold',
         default=datetime.now(),
     )
-    parser.add_argument('-o', help='output filename', required=True)
     args = parser.parse_args()
 
     processed_date = (
         datetime.strptime(args.d, '%d-%m-%Y') if isinstance(args.d, str) else args.d
     )
 
-    init_batch()
-
-    main(
-        submissions_file=args.s,
-        summary=args.v,
-        threshold_date=processed_date,
-        out_path=args.o,
-    )
+    main(subs=args.s, date=processed_date, variants=args.v, out=args.o)

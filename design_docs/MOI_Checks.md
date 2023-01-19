@@ -23,13 +23,13 @@ Static Objects:
   - When we are assessing each variant, we may choose to apply thresholds (e.f. MAF, frequency in a joint call). These
   may change with each run, so we take those parameters from a central configuration file
 - PanelApp data: associates genes with evidenced inheritance patterns
-  - For each 'green' (high evidence) gene contains inheritance pattern to be applied & if the gene as 'new'
-  (since a given date, or specific gene list).
+  - For each 'green' (high evidence) gene contains inheritance pattern to be applied & panels where the gene is 'new'
+  (if any).
 
 Dynamic Objects:
 
-- AbstractVariant: Each variant in turn is read from the source (VCF) and cast in a custom AbstractVariant Class representation. This is
-for a couple of reasons:
+- AbstractVariant: Each variant in turn is read from the source (VCF) and cast in a custom AbstractVariant Class
+representation. This is for a couple of reasons:
 
   1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly different
   representation. This normalises all logic to a common class, and allows for different sources/parsers to generate a
@@ -48,24 +48,26 @@ following details:
 2. The INFO content as a flat `key:value` Dictionary
 3. Set of all samples Heterozygous at this locus
 4. Set of all samples Homozygous at this locus
-5. A Boolean for each category-label used in reanalysis
-   1. `Category_4` (_de novo_) is slightly different; this value is a list of Strings, identifying all samples which were
-   confirmed to be _de novo_ for this variant call. This doesn't preclude other non-reference samples at this site, but
-   sample ID presence in this list means all criteria of the _de novo_ test in Hail were satisfied.
+5. Lists of all present 'categories', separated by type (boolean, sample, support) - these are checked using methods
+   rather than storing static booleans
 6. If physical phasing is evident for any sample calls, record the numerical phase set ID, and sample-specific GT
     1. Within a phase set ID, two variants are in-phase if their GT is also the same, i.e. for phase set #1, variants
    with the GT `0|1` and `1|0` are explicitly out of phase, so knowing the PS ID alone is not sufficient
 
-The AbstractVariant has a few internal methods
+The AbstractVariant has a few internal methods:
 
-- `is_classified`: returns True if any category was assigned to this variant
-- `category_1_2_3_5`: returns True if any of category 1, 2, 3, or 5 were assigned
-- `support_only`: returns True if only the supporting category was assigned
+- `has_boolean_categories`: True if any binary category is assigned to this variant
+- `has_sample_categories`: True if any sample category is assigned to this variant, takes a sample ID as an argument
+- `has_support`: returns True if the supporting category is assigned
+- `support_only`: returns True if ONLY the supporting category is assigned
+- `category_non_support`: returns True if any non-support category is assigned
+- `is_classified`: returns True if any category is assigned
 - `category_values`: returns a list of strings for each assigned category, i.e.
-  - if a variant is True for category 2 and 3, the return will be `[2, 3]`
-  - if a variant is True for category 2 and 4, the return will be `[2, de_novo]`
+  - if a variant is True for category 2 and 3, the return will be `['2', '3']`
+  - if a variant is True for category 2 and 4, the return will be `['2', 'de_novo']`
 - `sample_specific_category_check`: returns True if the specific sample is _de novo_,
-or if the variant has category 1, 2, 3, or 5 assigned
+or if the variant has a boolean category assigned - accepts a switch to also check for `Support`
+- `get_sample_flags`: checks for any variant flags - currently this only implements one check - AB Ratio test
 
 ## Variant Gathering
 
@@ -74,7 +76,7 @@ The Variant gathering strategy observed in this application is:
  - parse the VCF header to obtain all chromosome names
  - for each contig in turn, extract all variants & create an Abstract representation of each
  - group variants by gene ID, forming a structure `{'gene_name': [Variant1, Variant2, ...], }`
-   - each variant contains exactly one gene annotation, from an earlier MT split, so grouping is accurate
+   - each variant contains exactly one gene annotation, from an earlier split, so grouping is accurate
    - each gene can be processed separately if required, allowing logical parallelisation breaks
  - once all variants on a contig are extracted, iterate over variants grouped by gene
 

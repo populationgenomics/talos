@@ -3,7 +3,6 @@ test file for metamist panel-participant matching
 """
 
 
-import json
 import pytest
 
 import networkx
@@ -27,12 +26,11 @@ def fixture_fake_panelapp_overview(requests_mock, fake_panelapp_overview):
     :param requests_mock:
     :param fake_panelapp_overview:
     """
-    with open(fake_panelapp_overview, encoding='utf-8') as handle:
-        requests_mock.register_uri(
-            'GET',
-            PANELAPP,
-            json=json.load(handle),
-        )
+    requests_mock.register_uri(
+        'GET',
+        PANELAPP,
+        json=fake_panelapp_overview,
+    )
 
 
 def test_get_panels(fake_panelapp_overview):  # pylint: disable=unused-argument
@@ -40,7 +38,7 @@ def test_get_panels(fake_panelapp_overview):  # pylint: disable=unused-argument
     check that the endpoint parser works ok
     """
     panels_parsed = get_panels(PANELAPP)
-    assert panels_parsed == {'HP:1': {'2'}, 'HP:4': {'1'}, 'HP:6': {'2'}}
+    assert panels_parsed == {'HP:1': {2}, 'HP:4': {1}, 'HP:6': {2}}
 
 
 def test_read_hpo_tree(fake_obo_path):
@@ -144,12 +142,12 @@ def test_match_participants_to_panels():
             'external_id': 'participant1',
             'family_id': 'fam1',
             'hpo_terms': {'HP:1', 'HP:2'},
-            'panels': {'room', '101', '2002'},
+            'panels': {137, 'room', '101', '2002'},
         },
         'participant2': {
             'external_id': 'participant2',
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
-            'panels': {'room', '101', '666'},
+            'panels': {137, 'room', '101', '666'},
         },
     }

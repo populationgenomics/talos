@@ -15,6 +15,7 @@ If the file was not processed with VQSR, there are no negatives to including
 this additional header line
 """
 
+
 from argparse import ArgumentParser
 
 import hail as hl
@@ -50,6 +51,13 @@ def main(mt: str, write_path: str):
     mt = mt.filter_rows(mt.filters.length() == 0)
     mt = hl.variant_qc(mt)
     mt = mt.filter_rows(mt.variant_qc.n_non_ref > 0)
+
+    # required to repeat the MT -> VCF -> MT cycle
+    if 'info' in mt.row_value and 'AC' in mt.info:
+        if isinstance(mt['info']['AC'], hl.Int32Expression):
+            mt = mt.annotate_rows(info=mt.info.annotate(AC=[mt.info.AC]))
+        else:
+            mt = mt.annotate_rows(info=mt.info.annotate(AC=[1]))
 
     hl.export_vcf(
         mt,

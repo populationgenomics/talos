@@ -1,202 +1,229 @@
 """
 Methods for taking the final output and generating static report content
 """
+
+# pylint: disable=too-many-instance-attributes
+
 import logging
-from collections import defaultdict
+import sys
 from argparse import ArgumentParser
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+import jinja2
 import pandas as pd
 from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-
 from reanalysis.utils import read_json_from_path
 
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
-GNOMAD_TEMPLATE = (
-    '<a href="https://gnomad.broadinstitute.org/variant/'
-    '{variant}?dataset=gnomad_r3" target="_blank">{value:.5f}</a>'
-)
-PANELAPP_TEMPLATE = (
-    '<a href="https://panelapp.agha.umccr.org/panels/entities/{symbol}/" '
-    'target="_blank">{symbol}</a>'
-)
-SEQR_TEMPLATE = (
-    '<a href="{seqr}/variant_search/variant/{variant}/family/{family}" '
-    'target="_blank">{variant}</a>'
-)
-FAMILY_TEMPLATE = (
-    '<a href="{seqr}/project/{project}/family_page/{family}" '
-    'target="_blank">{sample}</a>'
-)
-
-STRONG_STRING = '<strong>{content}</strong>'
-COLOR_STRING = '<span style="color: {color}"><strong>{content}</strong></span>'
-COLORS = {
-    '1': '#FF0000',
-    '2': '#FF9B00',
-    '3': '1B00FF',
-    'de_novo': '#FF0000',
-    '5': '#006e4e',
-    'support': '#00FF08',
-}
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
 
 
-def make_coord_string(var_coord: dict[str, str]) -> str:
+@dataclass
+class DataTable:
     """
-    make a quick string representation from vardata
-    """
-    return (
-        f'{var_coord["chrom"]}-{var_coord["pos"]}-{var_coord["ref"]}-{var_coord["alt"]}'
-    )
-
-
-def color_csq(all_csq: set[str], mane_csq: set[str]) -> str:
-    """
-    takes the collection of all consequences, and MANE csqs
-    if a CSQ occurs on MANE, write in bold,
-    if non-MANE, write in red
-    return the concatenated string
-
-    NOTE: I really hate how I've implemented this
-    :param all_csq:
-    :param mane_csq:
-    :return: the string filling the consequence box in the HTML
-    """
-    csq_strings = []
-    for csq in all_csq:
-        # bold, in Black
-        if csq in mane_csq:
-            csq_strings.append(STRONG_STRING.format(content=csq))
-
-        # bold, and red
-        else:
-            csq_strings.append(COLOR_STRING.format(color=COLORS['1'], content=csq))
-
-    return ', '.join(csq_strings)
-
-
-def get_csq_details(variant: dict[str, Any]) -> tuple[str, str]:
-    """
-    populates a single string of all relevant consequences
-    UPDATE - take MANE into account
+    Representation of a DataTables table that the Jinja2 templating system renders.
     """
 
-    csq_set = set()
-    mane_transcript = set()
-    mane_csq = set()
+    id: str
+    columns: list[str]
+    rows: list[Any]
+    heading: str = ''
+    description: str = ''
 
-    # iterate over all consequences, special care for MANE
-    for each_csq in variant['var_data'].get('transcript_consequences', []):
 
-        # allow for variants with no transcript CSQs
-        if 'consequence' not in each_csq:
-            continue
+class Variant:
+    """
+    Handle as much of per variant logic as we can here. Hopefully, this is just simple
+    data munging and mapping operations.
 
-        row_csq = set(each_csq['consequence'].split('&'))
+    Try not to put presentation logic here - keep it in the jinja templates
+    """
 
-        # record the transcript ID(s), and CSQ(s)
-        # we only expect 1, but set operations are useful
-        mane_trans = each_csq.get('mane_select', '')
-        if mane_trans != '':
-            mane_csq.update(row_csq)
-            mane_transcript.add(mane_trans)
-        csq_set.update(row_csq)
+    def __init__(
+        self,
+        variant_dict: dict,
+        sample: 'Sample',
+        gene_map: dict[str, Any],
+    ):
+        self.chrom = variant_dict['var_data']['coords']['chrom']
+        self.pos = variant_dict['var_data']['coords']['pos']
+        self.ref = variant_dict['var_data']['coords']['ref']
+        self.alt = variant_dict['var_data']['coords']['alt']
+        self.var_data = variant_dict['var_data']
+        self.supported = variant_dict['supported']
+        self.support_vars = variant_dict['support_vars']
+        self.flags = variant_dict['flags']
+        self.reasons = variant_dict['reasons']
+        self.genotypes = variant_dict['genotypes']
+        self.sample = sample
 
-    # we expect one... but this would make the addition of MANE plus_clinical easy
-    mane_string = STRONG_STRING.format(content=', '.join(mane_transcript))
+        # List of (gene_id, symbol)
+        self.genes: list[tuple[str, str]] = []
+        for gene_id in variant_dict['gene'].split(','):
+            symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
+            self.genes.append((gene_id, symbol))
 
-    return color_csq(csq_set, mane_csq), mane_string
+        # Separate phenotype match flags from waring flags
+        # TODO: should we keep these separate in the report?
+        self.warning_flags = []
+        self.panel_flags = []
+        for flag in variant_dict['flags']:
+            if flag in sample.html_builder.panel_names:
+                self.panel_flags.append(flag)
+            else:
+                self.warning_flags.append(flag)
+
+        # Summaries CSQ strings
+        (
+            self.mane_consequences,
+            self.non_mane_consequences,
+            self.mane_hgvsps,
+        ) = self.parse_csq()
+
+    def __str__(self) -> str:
+        return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
+
+    def parse_csq(self):
+        """
+        Parse CSQ variant string returning:
+            - set of "consequences" from MANE transcripts
+            - set of "consequences" from non-MANE transcripts
+            - Set of variant effects in p. nomenclature (or c. if no p. is available)
+        """
+        mane_consequences = set()
+        non_mane_consequences = set()
+        mane_hgvsps = set()
+
+        for csq in self.var_data.get('transcript_consequences', []):
+            if 'consequence' not in csq:
+                continue
+
+            # if csq['mane_select'] or csq['mane_plus_clinical']:
+            if csq['mane_select']:
+                mane_consequences.update(csq['consequence'].split('&'))
+                if csq['hgvsp']:
+                    mane_hgvsps.add(csq['hgvsp'].split(':')[1])
+                elif csq['hgvsc']:
+                    mane_hgvsps.add(csq['hgvsc'].split(':')[1])
+            else:
+                non_mane_consequences.add(csq['consequence'])
+
+        return mane_consequences, non_mane_consequences, mane_hgvsps
+
+
+def variant_in_forbidden_gene(variant_dict, forbidden_genes):
+    """
+    Check if gene id or gene symbol is on forbidden gene list
+    """
+    for gene_id in variant_dict['gene'].split(','):
+        if gene_id in forbidden_genes:
+            return True
+
+    # Allow for exclusion by Symbol too
+    for tx_con in variant_dict['var_data']['transcript_consequences']:
+        if tx_con['symbol'] in forbidden_genes:
+            return True
+
+    return False
+
+
+class Sample:
+    """
+    Sample related logic
+    """
+
+    def __init__(
+        self,
+        name: str,
+        metadata: dict,
+        variants: list[dict[str, Any]],
+        html_builder: 'HTMLBuilder',
+    ):
+        self.name = name
+        self.family_id = metadata['family_id']
+        self.family_members = metadata['members']
+        self.phenotypes = metadata['phenotypes']
+        self.ext_id = metadata['ext_id']
+        self.panel_ids = metadata['panel_ids']
+        self.panel_names = metadata['panel_names']
+        self.seqr_id = html_builder.seqr.get(name, name)
+        self.html_builder = html_builder
+
+        # Ingest variants excluding any on the forbidden gene list
+        self.variants = [
+            Variant(variant_dict, self, html_builder.panelapp['genes'])
+            for variant_dict in variants
+            if not variant_in_forbidden_gene(variant_dict, html_builder.forbidden_genes)
+        ]
+
+    def __str__(self):
+        return self.name
 
 
 class HTMLBuilder:
     """
-    takes the input, makes the output
+    Takes the input, makes the output
     """
 
     def __init__(self, results: str, panelapp: str, pedigree: Ped):
         """
-        before parsing data, purge any forbidden genes
-
-        :param results:
-        :param panelapp:
-        :param pedigree:
+        Args:
+            results ():
+            panelapp ():
+            pedigree ():
         """
         self.panelapp = read_json_from_path(panelapp)
         self.pedigree = Ped(pedigree)
 
-        # if it exists, read the forbidden genes as a dict
-        self.forbidden_genes = (
-            {
-                ensg: self.panelapp.get(ensg, {}).get('symbol', ensg)
-                for ensg in set(
-                    read_json_from_path(
-                        get_config().get('dataset_specific', {})['forbidden']
-                    )
-                )
-            }
-            if get_config().get('dataset_specific', {}).get('forbidden')
-            else {}
+        # If it exists, read the forbidden genes as a set
+        self.forbidden_genes = read_json_from_path(
+            get_config()['dataset_specific'].get('forbidden', 'missing'), set()
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
-        # pre-filter the results to remove forbidden genes
-        self.results = self.remove_forbidden_genes(read_json_from_path(results))
-
-        # map of internal:external IDs for translation in results (optional)
-        ext_lookup = get_config().get('dataset_specific', {}).get('external_lookup')
-        self.external_map = {}
-        if ext_lookup and to_path(ext_lookup).exists():
-            self.external_map = read_json_from_path(ext_lookup)
-
-        # use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = get_config().get('dataset_specific', {}).get('seqr_lookup')
+        # Use config to find CPG-to-Seqr ID JSON; allow to fail
+        seqr_path = get_config()['dataset_specific'].get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path and to_path(seqr_path).exists():
             self.seqr = read_json_from_path(seqr_path)
 
-            # force user to correct config file if seqr URL/project are missing
+            # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert (
-                    get_config().get('dataset_specific', {}).get(seqr_key)
+                assert get_config()['dataset_specific'].get(
+                    seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
-    def remove_forbidden_genes(
-        self, variant_dictionary: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        takes the results from the analysis and purges forbidden-gene variants
-        """
-        clean_results = defaultdict(list[dict[str, Any]])
-        for sample, content in variant_dictionary.items():
-            if sample == 'metadata':
-                clean_results['metadata'] = content
-                continue
-            sample_vars = []
-            for variant in content:
-                skip_variant = False
-                for gene_id in variant['gene'].split(','):
-                    if gene_id in self.forbidden_genes.keys():
-                        skip_variant = True
-                        continue
-                if not skip_variant:
-                    sample_vars.append(variant)
+        # Read results file
+        results_dict = read_json_from_path(results)
+        self.metadata = results_dict['metadata']
+        self.panel_names = {panel['name'] for panel in self.metadata['panels']}
 
-            # add any retained variants to the new per-sample list
-            clean_results[sample] = sample_vars
-
-        return clean_results
+        # Process samples and variants
+        self.samples = []
+        for sample, content in results_dict['results'].items():
+            self.samples.append(
+                Sample(
+                    name=sample,
+                    metadata=content['metadata'],
+                    variants=content['variants'],
+                    html_builder=self,
+                )
+            )
+        self.samples.sort(key=lambda x: x.ext_id)
 
     def get_summary_stats(
         self,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[pd.DataFrame, list[str]]:
         """
-        run the numbers across all variant categories
+        Run the numbers across all variant categories
         :return:
         """
 
@@ -205,25 +232,22 @@ class HTMLBuilder:
 
         samples_with_no_variants = []
 
-        for sample, variants in self.results.items():
+        for sample in self.samples:
 
-            if sample == 'metadata':
-                continue
-
-            if len(variants) == 0:
-                samples_with_no_variants.append(self.external_map.get(sample, sample) if sample in self.external_map else sample)
+            if len(sample.variants) == 0:
+                samples_with_no_variants.append(sample.ext_id)
 
             sample_variants = {key: set() for key in CATEGORY_ORDERING}
 
             # iterate over the list of variants
-            for variant in variants:
-                var_string = make_coord_string(variant['var_data']['coords'])
+            for variant in sample.variants:
+                var_string = str(variant)
                 unique_variants['any'].add(var_string)
                 sample_variants['any'].add(var_string)
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
-                for category_value in variant['var_data'].get('categories'):
+                for category_value in variant.var_data.get('categories'):
                     if category_value == 'support':
                         continue
                     sample_variants[category_value].add(var_string)
@@ -247,194 +271,101 @@ class HTMLBuilder:
             if category_count[key]
         ]
 
-        return (
-            pd.DataFrame(summary_dicts).to_html(index=False, escape=False),
-            samples_with_no_variants,
-        )
+        df = pd.DataFrame(summary_dicts)
+        df['Mean/sample'] = df['Mean/sample'].round(3)
 
-    def read_metadata(self) -> dict[str, str]:
+        # the table re-sorts when parsed into the DataTable
+        # so this forced ordering doesn't work
+        df.Category = df.Category.astype('category')
+        df.Category = df.Category.cat.set_categories(CATEGORY_ORDERING)
+        df = df.sort_values(by='Category')
+
+        return df, samples_with_no_variants
+
+    def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
         parses into a general table and a panel table
         """
+
         tables = {
-            'Panels': pd.DataFrame(self.results['metadata']['panels']).to_html(
-                index=False, escape=False
-            ),
+            'Panels': pd.DataFrame(self.metadata['panels']),
             'Meta': pd.DataFrame(
-                {'Data': key.capitalize(), 'Value': self.results['metadata'][key]}
-                for key in ['cohort', 'input_file', 'run_datetime', 'commit_id']
-            ).to_html(index=False, escape=False),
+                {'Data': key.capitalize(), 'Value': self.metadata[key]}
+                for key in ['cohort', 'input_file', 'run_datetime', 'container']
+            ),
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
                     for fam_type, fam_count in sorted(
-                        self.results['metadata']['family_breakdown'].items()
+                        self.metadata['family_breakdown'].items()
                     )
                 ]
-            ).to_html(index=False, escape=False),
+            ),
         }
         return tables
 
     def write_html(self, output_path: str):
         """
-        uses the results to create the HTML tables
+        Uses the results to create the HTML tables
         writes all content to the output path
         """
         summary_table, zero_categorised_samples = self.get_summary_stats()
-        html_tables = self.create_html_tables()
 
-        html_lines = ['<head></head>\n<body>\n']
+        template_context = {
+            'metadata': self.metadata,
+            'samples': self.samples,
+            'seqr_url': get_config()['dataset_specific'].get('seqr_instance'),
+            'seqr_project': get_config()['dataset_specific'].get('seqr_project'),
+            'meta_tables': {},
+            'forbidden_genes': [],
+            'zero_categorised_samples': [],
+            'summary_table': None,
+        }
 
         for title, meta_table in self.read_metadata().items():
-            html_lines.append(f'<h3>{title}</h3>')
-            html_lines.append(meta_table)
-            html_lines.append('<br/>')
-
-        if self.forbidden_genes:
-            # this should be sorted/arranged better
-            forbidden_list = [
-                f'{ensg} ({self.forbidden_genes[ensg]})'
-                for ensg in self.forbidden_genes.keys()
-            ]
-            html_lines.append('<h3>Forbidden Gene IDs:</h3>')
-            html_lines.append(f'<h4>{", ".join(forbidden_list)}</h4>')
-        else:
-            html_lines.append('<h3>No Forbidden Genes</h3>')
-        html_lines.append('<br/>')
-
-        if len(zero_categorised_samples) > 0:
-            html_lines.append('<h3>Samples with no Reportable Variants</h3>')
-            html_lines.append(f'<h4>{", ".join(zero_categorised_samples)}</h3>')
-        html_lines.append('<br/>')
-
-        html_lines.append('<h3>Per-Category summary</h3>')
-        html_lines.append(summary_table)
-        html_lines.append('<br/>')
-
-        html_lines.append('<h1>Per Sample Results</h1>')
-        html_lines.append(
-            '<br/>Note: "csq" shows all unique csq from all protein_coding txs'
-        )
-        html_lines.append('<br/>Any black "csq" appear on a MANE transcript')
-        html_lines.append('<br/>Any red "csq" don\'t appear on a MANE transcript<br/>')
-
-        for sample, table in html_tables.items():
-            if sample in self.external_map and sample in self.seqr:
-                sample_string = FAMILY_TEMPLATE.format(
-                    seqr=get_config().get('dataset_specific', {}).get('seqr_instance'),
-                    project=get_config()
-                    .get('dataset_specific', {})
-                    .get('seqr_project'),
-                    family=self.seqr[sample],
-                    sample=self.external_map[sample],
-                )
-            else:
-                sample_string = self.external_map.get(sample, sample) if sample in self.external_map else sample
-
-            html_lines.append(fr'<h3>Sample: {sample_string}</h3>')
-            html_lines.append(table)
-        html_lines.append('\n</body>')
-
-        # write all HTML content to the output file in one go
-        to_path(output_path).write_text(''.join(html_lines))
-
-    def create_html_tables(self):
-        """
-        make a table describing the outputs
-        :return:
-        """
-        candidate_dictionaries = {}
-        sample_tables = {}
-
-        for sample, variants in self.results.items():
-
-            if sample == 'metadata':
-                continue
-
-            for variant in variants:
-
-                # pull out the string representation
-                var_string = make_coord_string(variant['var_data']['coords'])
-
-                csq_string, mane_string = get_csq_details(variant)
-                candidate_dictionaries.setdefault(variant['sample'], []).append(
-                    {
-                        'variant': self.make_seqr_link(
-                            var_string=var_string, sample=sample
-                        ),
-                        'flags': ', '.join(variant['flags']),
-                        'categories': ', '.join(
-                            list(
-                                map(
-                                    lambda x: COLOR_STRING.format(
-                                        color=COLORS[x], content=x
-                                    ),
-                                    variant['var_data']['categories'],
-                                )
-                            )
-                        ),
-                        # allow for multiple symbols on the same row
-                        'symbol': ','.join(
-                            [
-                                PANELAPP_TEMPLATE.format(
-                                    symbol=self.panelapp[symbol]['symbol']
-                                )
-                                for symbol in variant['gene'].split(',')
-                            ]
-                        ),
-                        'csq': csq_string,
-                        'mane_select': mane_string,
-                        'gnomad': GNOMAD_TEMPLATE.format(
-                            variant=var_string,
-                            value=float(variant['var_data']['info']['gnomad_af']),
-                        ),
-                        'gnomad_AC': variant['var_data']['info']['gnomad_ac'],
-                        'exomes_hom': variant['var_data']['info']['gnomad_ex_hom'],
-                        'genomes_hom': variant['var_data']['info']['gnomad_hom'],
-                        'gnomad_hemi': (
-                            variant['var_data']['info']['gnomad_hemi']
-                            if 'x' in var_string.lower()
-                            else 'N/A'
-                        ),
-                        'MOIs': ', '.join(variant['reasons']),
-                        'support': ', '.join(
-                            [
-                                self.make_seqr_link(
-                                    var_string=partner,
-                                    sample=sample,
-                                )
-                                for partner in variant['support_vars']
-                            ]
-                        )
-                        if variant['supported']
-                        else 'N/A',
-                    }
-                )
-
-        for sample, variants in candidate_dictionaries.items():
-            sample_tables[sample] = pd.DataFrame(variants).to_html(
-                index=False, render_links=True, escape=False
+            template_context['meta_tables'][title] = DataTable(
+                id=f'{title.lower()}-table',
+                heading=title,
+                description='',
+                columns=list(meta_table.columns),
+                rows=list(meta_table.to_records(index=False)),
             )
 
-        return sample_tables
+        if self.forbidden_genes:
+            template_context['forbidden_genes'] = sorted(self.forbidden_genes)
 
-    def make_seqr_link(self, var_string: str, sample: str) -> str:
-        """
-        either return just the variant as a string, or a seqr link if possible
-        :param sample:
-        :param var_string:
-        :return:
-        """
-        if sample not in self.seqr:
-            return var_string
-        return SEQR_TEMPLATE.format(
-            seqr=get_config().get('dataset_specific', {}).get('seqr_instance'),
-            variant=var_string,
-            family=self.seqr.get(sample),
+        if len(zero_categorised_samples) > 0:
+            template_context['zero_categorised_samples'] = zero_categorised_samples
+
+        template_context['summary_table'] = DataTable(
+            id='summary-table',
+            heading='Per-Category Summary',
+            description='',
+            columns=list(summary_table.columns),
+            rows=list(summary_table.to_records(index=False)),
+        )
+
+        # write all HTML content to the output file in one go
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
+        )
+        template = env.get_template('index.html.jinja')
+        content = template.render(**template_context)
+        to_path(output_path).write_text(
+            '\n'.join(line for line in content.split('\n') if line.strip())
         )
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
+
+    logging.info(f'Using templates in {JINJA_TEMPLATE_DIR}')
 
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)
