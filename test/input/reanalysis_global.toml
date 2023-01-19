@@ -27,3 +27,9 @@ polyphen = 0.99
 revel = 0.77
 sift = 0.0
 spliceai = 0.5
+
+[workflow]
+name = 'AIP'
+scatter_count = 50
+sequencing_type = 'genome'
+default_panel = 137

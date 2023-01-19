@@ -6,7 +6,7 @@ tests for clinvar manual summaries
 from copy import deepcopy
 from datetime import datetime
 
-from clinvar.conflict_huntr import (
+from reanalysis.summarise_clinvar_entries import (
     ACMG_THRESHOLD,
     Consequence,
     Submission,

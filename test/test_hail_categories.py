@@ -3,13 +3,11 @@ unit testing collection for the hail MT methods
 """
 
 
-import toml
 import pytest
 
 import hail as hl
 import pandas as pd
 
-from cpg_utils.config import append_config_paths
 from reanalysis.hail_filter_and_label import (
     annotate_aip_clinvar,
     annotate_category_1,
@@ -238,26 +236,31 @@ def test_support_assignment(values, classified, hail_matrix):
     assert anno_matrix.info.categorysupport.collect() == [classified]
 
 
-def test_green_and_new_from_panelapp(panel_changes):
+def test_green_and_new_from_panelapp():
     """
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
     2 set expressions, one for all genes, one for new genes only
-    :param panel_changes:
     """
-    green_expression, new_expression = green_and_new_from_panelapp(panel_changes)
+
+    mendeliome = {
+        'ENSG00ABCD': {'new': [1]},
+        'ENSG00EFGH': {'new': []},
+        'ENSG00IJKL': {'new': [2]},
+    }
+    green_expression, new_expression = green_and_new_from_panelapp(mendeliome)
 
     # check types
     assert isinstance(green_expression, hl.SetExpression)
     assert isinstance(new_expression, hl.SetExpression)
 
     # check content by collecting
-    assert sorted(list(green_expression.collect()[0])) == [
+    assert sorted(green_expression.collect()[0]) == [
         'ENSG00ABCD',
         'ENSG00EFGH',
         'ENSG00IJKL',
     ]
-    assert list(new_expression.collect()[0]) == ['ENSG00EFGH']
+    assert new_expression.collect()[0] == {'ENSG00ABCD', 'ENSG00IJKL'}
 
 
 @pytest.mark.parametrize(
@@ -383,7 +386,9 @@ def test_aip_clinvar_default(clinvar_prepared_mt):
         clinvar_prepared_mt ():
     """
 
-    mt = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    mt = annotate_aip_clinvar(
+        hl.read_matrix_table(clinvar_prepared_mt), clinvar='absent'
+    )
     assert mt.count_rows() == 2
     assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
     assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
@@ -418,7 +423,7 @@ def test_annotate_aip_clinvar(
                     'alleles': ['C', 'CGG'],
                     'rating': rating,
                     'stars': stars,
-                    'allele_id': 'pass',
+                    'allele_id': 1,
                 }
             ]
         ),
@@ -427,13 +432,9 @@ def test_annotate_aip_clinvar(
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    new_toml = str(tmp_path / 'clinvar.toml')
-    with open(new_toml, 'w', encoding='utf-8') as handle:
-        toml.dump({'hail': {'private_clinvar': table_path}}, handle)
-
-    append_config_paths([new_toml])
-
-    returned_table = annotate_aip_clinvar(hl.read_matrix_table(clinvar_prepared_mt))
+    returned_table = annotate_aip_clinvar(
+        hl.read_matrix_table(clinvar_prepared_mt), clinvar=table_path
+    )
     assert returned_table.count_rows() == rows
     assert (
         len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular

@@ -104,7 +104,7 @@ VEP_TX_FIELDS_REQUIRED = [
 ]
 
 
-def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
     instead of making a separate decision about whether the clinvar
     annotation(s) are meaningful during each test, add a single value
@@ -116,19 +116,20 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         annotations (see issue #147)
     Args:
         mt (): the MatrixTable of all variants
+        clinvar (str): path to custom table
     Returns:
         The same MatrixTable but with additional annotations
     """
 
     # if there's private clinvar annotations - use them
-    if private_clinvar := get_config().get('hail', {}).get('private_clinvar'):
-        logging.info(f'loading private clinvar annotations from {private_clinvar}')
-        ht = hl.read_table(private_clinvar)
+    if clinvar != 'absent':
+        logging.info(f'loading private clinvar annotations from {clinvar}')
+        ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
                 clinvar_sig=hl.or_else(ht[mt.row_key].rating, MISSING_STRING),
                 clinvar_stars=hl.or_else(ht[mt.row_key].stars, MISSING_INT),
-                clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_STRING),
+                clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_INT),
             )
         )
 
@@ -659,7 +660,12 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
 def write_matrix_to_vcf(mt: hl.MatrixTable):
     """
     write the remaining MatrixTable content to file as a VCF
-    :param mt: the MT to write to file
+
+    Args:
+        mt (): the whole MatrixTable
+
+    Returns:
+        path to write MT out to
     """
 
     # this temp file needs to be in GCP, not local
@@ -673,27 +679,33 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
             'allele_num|variant_class|tsl|appris|ccds|ensp|swissprot|trembl|uniparc|'
             'gene_pheno|sift|polyphen|lof|lof_filter|lof_flags">'
         )
-    vcf_out = output_path('hail_categorised.vcf.bgz')
+    vcf_out = output_path('hail_categorised.vcf.bgz', 'analysis')
     logging.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
 
 
 def green_and_new_from_panelapp(
-    panel_data: dict[str, dict[str, str]]
+    panel_genes: dict[str, dict[str, str]]
 ) -> tuple[hl.SetExpression, hl.SetExpression]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
     Also identify the subset of those genes which relate to NEW in panel
-    :param panel_data:
-    :return: two set expressions, green genes and new genes
+
+    Args:
+        panel_genes (): the 'genes' contents from the panelapp dictionary
+
+    Returns:
+        two set expressions - Green, and (Green and New) genes
     """
 
     # take all the green genes, remove the metadata
-    green_genes = set(panel_data.keys()) - {'metadata'}
+    green_genes = set(panel_genes.keys())
     logging.info(f'Extracted {len(green_genes)} green genes')
     green_gene_set_expression = hl.literal(green_genes)
 
-    new_genes = {gene for gene in green_genes if panel_data[gene].get('new')}
+    new_genes = {
+        gene for gene in green_genes if len(panel_genes[gene].get('new', [])) > 0
+    }
     logging.info(f'Extracted {len(new_genes)} NEW genes')
     new_gene_set_expression = hl.literal(new_genes)
 
@@ -707,15 +719,19 @@ def checkpoint_and_repartition(
     extra_logging: str | None = '',
 ) -> hl.MatrixTable:
     """
-    uses an estimate of row size to inform the repartitioning of a MT
+    uses estimated row data size to repartition MT
     aiming for a target partition size of ~10MB
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
-    :param mt:
-    :param checkpoint_root:
-    :param checkpoint_num:
-    :param extra_logging: any additional context
-    :return: repartitioned, post-checkpoint matrix
+
+    Args:
+        mt (): All data
+        checkpoint_root (): where to write the checkpoint to
+        checkpoint_num (): the checkpoint increment (insert into file path)
+        extra_logging (): informative statement to add to logging counts/partitions
+
+    Returns:
+        the MT after checkpointing, re-reading, and repartitioning
     """
     checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
@@ -735,9 +751,13 @@ def checkpoint_and_repartition(
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
     """
     remove any columns from the MT which are not represented in the Pedigree
-    :param mt:
-    :param pedigree:
-    :return:
+
+    Args:
+        mt ():
+        pedigree ():
+
+    Returns:
+
     """
 
     # individual IDs from pedigree
@@ -769,14 +789,16 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     return mt
 
 
-def main(mt_path: str, panelapp: str, plink: str):
+def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     """
-    Read the MT from disk
-    Do filtering and class annotation
+    Read MT, filter, and apply category annotation
     Export as a VCF
-    :param mt_path: path to the MT directory
-    :param panelapp: path to the panelapp data dump
-    :param plink: pedigree filepath in PLINK format
+
+    Args:
+        mt_path (str):
+        panelapp ():
+        plink ():
+        clinvar ():
     """
 
     # # initiate Hail with defined driver spec.
@@ -789,11 +811,11 @@ def main(mt_path: str, panelapp: str, plink: str):
     logging.info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # get temp suffix from the config (can be None or missing)
-    checkpoint_root = output_path('hail_matrix.mt', get_config()['buckets'].get('tmp_suffix'))
+    checkpoint_root = output_path('hail_matrix.mt', 'tmp')
 
     # read the parsed panelapp data
-    logging.info(f'Reading PanelApp data from "{panelapp}"')
-    panelapp = read_json_from_path(panelapp)
+    logging.info(f'Reading PanelApp data from {panelapp!r}')
+    panelapp = read_json_from_path(panelapp)['genes']
 
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
@@ -842,7 +864,7 @@ def main(mt_path: str, panelapp: str, plink: str):
     # checkpoint_number = checkpoint_number + 1
 
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_aip_clinvar(mt)
+    mt = annotate_aip_clinvar(mt, clinvar)
     mt = extract_annotations(mt)
 
     mt = filter_to_population_rare(mt=mt)
@@ -901,5 +923,10 @@ if __name__ == '__main__':
     parser.add_argument('--mt', required=True, help='path to input MT')
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
+    parser.add_argument(
+        '--clinvar', type=str, default='absent', help='Custom Clinvar Summary HT'
+    )
     args = parser.parse_args()
-    main(mt_path=args.mt, panelapp=args.panelapp, plink=args.plink)
+    main(
+        mt_path=args.mt, panelapp=args.panelapp, plink=args.plink, clinvar=args.clinvar
+    )

@@ -29,12 +29,15 @@ PED_FILE = os.path.join(INPUT, 'pedfile.ped')
 AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')
 SEQR_OUTPUT = os.path.join(INPUT, 'seqr_tags.tsv')
 PHASED_TRIO = os.path.join(INPUT, 'phased_trio.vcf.bgz')
-PANELAPP_CHANGES = os.path.join(INPUT, 'panel_changes_expected.json')
 LOOKUP_PED = os.path.join(INPUT, 'mock_sm_lookup.json')
 FAKE_OBO = os.path.join(INPUT, 'hpo_test.obo')
-FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
 CONF_BASE = os.path.join(INPUT, 'reanalysis_global.toml')
 CONF_COHORT = os.path.join(INPUT, 'reanalysis_cohort.toml')
+
+# panelapp testing paths
+PANELAPP_LATEST = os.path.join(INPUT, 'panelapp_current_137.json')
+PANELAPP_INCIDENTALOME = os.path.join(INPUT, 'incidentalome.json')
+FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
 
 
 # can I force this to come first?
@@ -47,7 +50,6 @@ def fixture_hail_cleanup():
     a fixture to clean up hail log files
     irrelevant in CI, a right pain for local testing
     auto-use + session + immediate yield means this is the last method call
-    :return:
     """
 
     # start hail once for the whole runtime
@@ -89,27 +91,35 @@ def fixture_fake_obo() -> str:
 
 
 @pytest.fixture(name='fake_panelapp_overview', scope='session')
-def fixture_panelapp_overview() -> str:
+def fixture_panelapp_overview() -> Any:
     """
     path to panelapp_overview json
     """
-    return FAKE_PANELAPP_OVERVIEW
+    return read_json_from_path(FAKE_PANELAPP_OVERVIEW)
+
+
+@pytest.fixture(name='latest_mendeliome', scope='session')
+def fixture_latest_mendeliome() -> Any:
+    """
+    path to incidentalome json
+    """
+    return read_json_from_path(PANELAPP_LATEST)
+
+
+@pytest.fixture(name='latest_incidentalome', scope='session')
+def fixture_latest_incidentalome() -> Any:
+    """
+    path to mendeliome json
+    """
+    return read_json_from_path(PANELAPP_INCIDENTALOME)
 
 
 @pytest.fixture(name='sm_lookup', scope='session')
-def fixture_sm_api_lookup() -> dict[str, Any]:
+def fixture_sm_api_lookup() -> Any:
     """
     :return: Ped
     """
     return read_json_from_path(LOOKUP_PED)
-
-
-@pytest.fixture(name='panel_changes', scope='session')
-def fixture_panel_with_new_gene_updates() -> dict[str, Any]:
-    """
-    :return: Ped
-    """
-    return read_json_from_path(PANELAPP_CHANGES)
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
@@ -179,7 +189,7 @@ def fixture_quad_ped():
     :return:
     """
 
-    return QUAD_PED
+    return Ped(QUAD_PED)
 
 
 @pytest.fixture(name='trio_abs_variant')

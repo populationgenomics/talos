@@ -23,15 +23,10 @@ from datetime import datetime
 import hailtop.batch as hb
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.git import (
-    prepare_git_job,
-    get_git_commit_ref_of_current_repository,
-    get_organisation_name_from_current_directory,
-    get_repo_name_from_current_directory,
-)
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
+    dataset_path,
     output_path,
 )
 from cpg_workflows.batch import get_batch
@@ -39,7 +34,16 @@ from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
 from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 
-from utils import FileTypes, identify_file_type
+from reanalysis import (
+    hail_filter_and_label,
+    html_builder,
+    mt_to_vcf,
+    query_panelapp,
+    summarise_clinvar_entries,
+    validate_categories,
+)
+from reanalysis.utils import FileTypes, identify_file_type
+
 
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
@@ -51,20 +55,10 @@ INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 ANNOTATED_MT = output_path('annotated_variants.mt')
 
 # panelapp query results
-PANELAPP_JSON_OUT = output_path(
-    'panelapp_data', get_config()['buckets'].get('analysis_suffix')
-)
+PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
 
 # output of labelling task in Hail
-HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz')
-
-DIR_NAME = 'reanalysis'
-# local script references
-HAIL_FILTER = os.path.join(DIR_NAME, 'hail_filter_and_label.py')
-HTML_SCRIPT = os.path.join(DIR_NAME, 'html_builder.py')
-QUERY_PANELAPP = os.path.join(DIR_NAME, 'query_panelapp.py')
-RESULTS_SCRIPT = os.path.join(DIR_NAME, 'validate_categories.py')
-MT_TO_VCF_SCRIPT = os.path.join(DIR_NAME, 'mt_to_vcf.py')
+HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 
 
 def set_job_resources(
@@ -74,110 +68,156 @@ def set_job_resources(
 ):
     """
     applied resources to the job
-    :param job:
-    :param prior_job:
-    :param memory:
+
+    Args:
+        job ():
+        prior_job ():
+        memory (str): lowmem/standard/highmem
     """
     # apply all settings
     job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
         '20G'
     )
 
-    # copy the env variables into the container
-    # specifically the CPG_CONFIG_PATH value
+    # copy the env variables into the container; specifically CPG_CONFIG_PATH
     copy_common_env(job)
 
     if prior_job is not None:
-        job.depends_on(prior_job)
+        if isinstance(prior_job, list):
+            job.depends_on(*prior_job)
+        else:
+            job.depends_on(prior_job)
 
     authenticate_cloud_credentials_in_job(job)
 
-    # copy the relevant scripts into a Driver container instance
-    prepare_git_job(
-        job=job,
-        organisation=get_organisation_name_from_current_directory(),
-        repo_name=get_repo_name_from_current_directory(),
-        commit=get_git_commit_ref_of_current_repository(),
-    )
 
-
-def mt_to_vcf(batch: hb.Batch, input_file: str) -> hb.batch.job.Job:
+def handle_clinvar() -> tuple[hb.batch.job.Job | None, str]:
     """
-    takes a MT and converts to VCF
-    :param batch:
-    :param input_file:
-    :return:
+    set up a job to handle the clinvar summarising
+
+    Returns:
+        the batch job for creating the new summary
+        the path to the current clinvar summary file
     """
 
-    mt_to_vcf_job = batch.new_job(name='Convert MT to VCF')
-    set_job_resources(mt_to_vcf_job)
+    # is it time to re-process clinvar?
+    clinvar_prefix = dataset_path(
+        f'clinvar_summaries/{datetime.now().strftime("%Y_%m")}'
+    )
+    clinvar_summary = os.path.join(clinvar_prefix, 'clinvar.ht')
 
-    job_cmd = (
-        f'PYTHONPATH=$(pwd) python3 {MT_TO_VCF_SCRIPT} '
-        f'--input {input_file} '
-        f'--output {INPUT_AS_VCF}'
+    if to_path(clinvar_summary).exists():
+        return None, clinvar_summary
+
+    # create a bash job to copy data from remote
+    bash_job = get_batch().new_bash_job(name='copy clinvar files to local')
+    set_job_resources(bash_job)
+
+    directory = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/'
+    sub_file = 'submission_summary.txt.gz'
+    var_file = 'variant_summary.txt.gz'
+
+    bash_job.command(
+        (
+            f'wget -q {directory}{sub_file} -O {bash_job.subs} && '
+            f'wget -q {directory}{var_file} -O {bash_job.vars}'
+        )
     )
 
-    logging.info(f'Command used to convert MT: {job_cmd}')
-    mt_to_vcf_job.command(job_cmd)
-    return mt_to_vcf_job
+    # write output files
+    get_batch().write_output(bash_job.subs, os.path.join(clinvar_prefix, sub_file))
+    get_batch().write_output(bash_job.vars, os.path.join(clinvar_prefix, var_file))
+
+    # create a job to run the summary
+    summarise = get_batch().new_job(name='summarise clinvar')
+    set_job_resources(summarise, prior_job=bash_job)
+    summarise.command(
+        f'python3 {summarise_clinvar_entries.__file__} '
+        f'-s {bash_job.subs} '
+        f'-v {bash_job.vars} '
+        f'-o {os.path.join(clinvar_prefix, "clinvar.ht")}'
+    )
+    return summarise, clinvar_summary
+
+
+def setup_mt_to_vcf(input_file: str) -> hb.batch.job.Job:
+    """
+    set up a job MatrixTable conversion to VCF, prior to annotation
+
+    Args:
+        input_file (str): path to the MatrixTable
+
+    Returns:
+        the new job, available for dependency setting
+    """
+
+    job = get_batch().new_job(name='Convert MT to VCF')
+    set_job_resources(job)
+
+    cmd = f'python3 {mt_to_vcf.__file__} --input {input_file} --output {INPUT_AS_VCF}'
+
+    logging.info(f'Command used to convert MT: {cmd}')
+    job.command(cmd)
+    return job
 
 
 def handle_panelapp_job(
-    batch: hb.Batch,
-    extra_panels: list[str] | None = None,
     participant_panels: str | None = None,
+    previous: str | None = None,
     prior_job: hb.batch.job.Job | None = None,
 ) -> hb.batch.job.Job:
     """
+    creates and runs the panelapp query job
 
-    :param batch:
-    :param extra_panels:
-    :param participant_panels:
-    :param prior_job:
+    Args:
+        participant_panels (str):
+        previous (str): optional, path to a prior gene list
+        prior_job ():
+
+    Returns:
+        the Job, which other parts of the workflow may become dependent on
     """
-    panelapp_job = batch.new_job(name='query panelapp')
+    panelapp_job = get_batch().new_job(name='query panelapp')
     set_job_resources(panelapp_job, prior_job=prior_job)
+    copy_common_env(panelapp_job)
 
-    panelapp_command = f'python3 {QUERY_PANELAPP} --out_path {PANELAPP_JSON_OUT} '
+    query_cmd = f'python3 {query_panelapp.__file__} --out_path {PANELAPP_JSON_OUT} '
 
-    if extra_panels:
-        panelapp_command += f'-p {" ".join(extra_panels)} '
+    if participant_panels is not None:
+        query_cmd += f'--panels {participant_panels} '
 
-    if participant_panels:
-        panelapp_command += f'--panel_file {participant_panels} '
+    if previous is not None:
+        query_cmd += f'--previous {previous} '
 
-    if prior_job is not None:
-        panelapp_job.depends_on(prior_job)
-
-    logging.info(f'PanelApp Command: {panelapp_command}')
-    panelapp_job.command(panelapp_command)
+    logging.info(f'PanelApp Command: {query_cmd}')
+    panelapp_job.command(query_cmd)
     return panelapp_job
 
 
 def handle_hail_filtering(
-    batch: hb.Batch,
-    plink_file: str,
-    prior_job: hb.batch.job.Job | None = None,
+    plink_file: str, clinvar: str, prior_job: hb.batch.job.Job | None = None
 ) -> hb.batch.job.BashJob:
     """
     hail-query backend version of the filtering implementation
     use the init query service instead of running inside dataproc
 
-    :param batch:
-    :param plink_file:
-    :param prior_job:
-    :return:
+    Args:
+        plink_file (str): path to a pedigree
+        clinvar (str): path to the clinvar re-summary
+        prior_job ():
+
+    Returns:
+        the Batch job running the hail filtering process
     """
 
-    labelling_job = batch.new_job(name='hail filtering')
+    labelling_job = get_batch().new_job(name='hail filtering')
     set_job_resources(labelling_job, prior_job=prior_job, memory='16Gi')
     labelling_command = (
-        f'pip install . && '
-        f'python3 {HAIL_FILTER} '
+        f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
-        f'--panelapp {PANELAPP_JSON_OUT}.json '
-        f'--plink {plink_file}'
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--plink {plink_file} '
+        f'--clinvar {clinvar} '
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
@@ -186,88 +226,73 @@ def handle_hail_filtering(
 
 
 def handle_results_job(
-    batch: hb.Batch,
     labelled_vcf: str,
     pedigree: str,
+    input_path: str,
     output_dict: dict[str, dict[str, str]],
     prior_job: hb.batch.job.Job | None = None,
     participant_panels: str | None = None,
-    input_path: str | None = None,
-) -> hb.batch.job.Job:
+):
     """
     one container to run the MOI checks, and the presentation
 
-    :param batch:
-    :param labelled_vcf:
-    :param pedigree:
-    :param output_dict: paths to the
-    :param prior_job:
-    :param participant_panels: JSON of relevant panels per participant
-    :param input_path: source file for the analysis process
-    :return:
+    Args:
+        labelled_vcf ():
+        pedigree ():
+        input_path (str): path to the input file, logged in metadata
+        output_dict ():
+        prior_job ():
+        participant_panels ():
     """
 
-    results_job = batch.new_job(name='finalise_results')
+    results_job = get_batch().new_job(name='finalise_results')
     set_job_resources(results_job, prior_job=prior_job)
 
     gene_filter_files = (
-        (
-            f'--participant_panels {participant_panels} '
-            f'--panel_genes {PANELAPP_JSON_OUT}_per_panel.json '
-        )
-        if participant_panels
-        else ''
+        f'--participant_panels {participant_panels} ' if participant_panels else ''
     )
-
-    report_from_file = (
-        f'--results {output_dict["results"]}_panel_filtered.json '
-        if participant_panels
-        else f'--results {output_dict["results"]}_full.json '
-    )
-
-    path_input = f'--input_path {input_path} ' if input_path else ''
 
     results_command = (
-        'pip install . && '
-        f'python3 {RESULTS_SCRIPT} '
+        f'python3 {validate_categories.__file__} '
         f'--labelled_vcf {labelled_vcf} '
-        f'--panelapp {PANELAPP_JSON_OUT}.json '
+        f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {output_dict["results"]} '
-        f'{gene_filter_files} {path_input} && '
-        f'python3 {HTML_SCRIPT} '
-        f'{report_from_file} '
-        f'--panelapp {PANELAPP_JSON_OUT}.json '
+        f'--input_path {input_path} '
+        f'{gene_filter_files} && '
+        f'python3 {html_builder.__file__} '
+        f'--results {output_dict["results"]} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_path {output_dict["web_html"]}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
-    return results_job
 
 
 def main(
     input_path: str,
     pedigree: str,
-    extra_panels: list[str],
     participant_panels: str | None,
+    previous: str | None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
     """
     main method, which runs the full reanalysis process
 
-    :param input_path: annotated input matrix table or VCF
-    :param pedigree:
-    :param extra_panels:
-    :param participant_panels:
-    :param singletons:
-    :param skip_annotation:
+    Args:
+        input_path (): path to the VCF/MT
+        pedigree (): family file for this analysis
+        participant_panels (): file containing panels-per-family (optional)
+        previous (): gene panel data from prior analysis (optional)
+        singletons (): optional second Pedigree file without families
+        skip_annotation (): if the input is annotated, don't re-run
     """
 
     assert to_path(
         input_path
-    ).exists(), f'The provided path "{input_path}" does not exist or is inaccessible'
+    ).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
 
     logging.info('Starting the reanalysis batch')
 
@@ -275,26 +300,18 @@ def main(
     # separate paths for familial and singleton analysis
     output_dict = {
         'default': {
-            'web_html': output_path(
-                'summary_output.html', get_config()['buckets'].get('web_suffix')
-            ),
-            'results': output_path(
-                'summary_results', get_config()['buckets'].get('analysis_suffix')
-            ),
+            'web_html': output_path('summary_output.html', 'web'),
+            'results': output_path('summary_results.json', 'analysis'),
         },
         'singletons': {
-            'web_html': output_path(
-                'singleton_output.html', get_config()['buckets'].get('web_suffix')
-            ),
-            'results': output_path(
-                'singleton_results', get_config()['buckets'].get('analysis_suffix')
-            ),
+            'web_html': output_path('singleton_output.html', 'web'),
+            'results': output_path('singleton_results.json', 'analysis'),
         },
     }
     # endregion
 
-    # set a first job in this batch
-    prior_job = None
+    # find clinvar table, and re-process if required
+    prior_job, clinvar_table = handle_clinvar()
 
     # region: MT to VCF
     # determine the input type - if MT, decompose to VCF prior to annotation
@@ -305,7 +322,7 @@ def main(
         FileTypes.MATRIX_TABLE,
     ], (
         f'inappropriate input type provided: {input_file_type}; '
-        f'this is designed for MT or compressed VCF only'
+        'this is designed for MT or compressed VCF only'
     )
 
     if input_file_type == FileTypes.MATRIX_TABLE:
@@ -316,7 +333,7 @@ def main(
 
         else:
             if not to_path(INPUT_AS_VCF).exists():
-                prior_job = mt_to_vcf(batch=get_batch(), input_file=input_path)
+                prior_job = setup_mt_to_vcf(input_file=input_path)
 
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
@@ -327,39 +344,33 @@ def main(
         # need to run the annotation phase
         # uses default values from RefData
 
-        siteonly_vcf_path = to_path(
-            output_path('siteonly.vcf.gz', get_config()['buckets'].get('tmp_suffix'))
-        )
-        siteonly_job, _ = add_make_sitesonly_job(
+        siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
+        sites_job, _sites_vcf = add_make_sitesonly_job(
             b=get_batch(),
             input_vcf=get_batch().read_input(input_path),
             output_vcf_path=siteonly_vcf_path,
             storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
         )
-        if siteonly_job:
-            siteonly_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
+        if sites_job:
+            sites_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
 
+        # set the job dependency and cycle the 'prior' job
         if prior_job:
-            siteonly_job.depends_on(prior_job)
+            sites_job.depends_on(prior_job)
 
-        vep_ht_tmp = output_path(
-            'vep_annotations.ht', get_config()['buckets'].get('tmp_suffix')
-        )
+        vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
         # generate the jobs which run VEP & collect the results
         vep_jobs = add_vep_jobs(
             b=get_batch(),
             input_siteonly_vcf_path=siteonly_vcf_path,
-            tmp_prefix=to_path(
-                output_path('vep_temp', get_config()['buckets'].get('tmp_suffix'))
-            ),
+            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
             scatter_count=get_config()['workflow'].get('scatter_count', 50),
             out_path=to_path(vep_ht_tmp),
         )
 
-        # if convert-to-VCF job exists, assign as an annotation dependency
-        if siteonly_job:
-            for job in vep_jobs:
-                job.depends_on(siteonly_job)
+        # assign sites-only job as an annotation dependency
+        for job in vep_jobs:
+            job.depends_on(sites_job)
 
         # Apply the HT of annotations to the VCF, save as MT
         anno_job = annotate_cohort_jobs(
@@ -367,11 +378,7 @@ def main(
             vcf_path=to_path(input_path),
             vep_ht_path=to_path(vep_ht_tmp),
             out_mt_path=to_path(ANNOTATED_MT),
-            checkpoint_prefix=to_path(
-                output_path(
-                    'annotation_temp', get_config()['buckets'].get('tmp_suffix')
-                )
-            ),
+            checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),
             depends_on=vep_jobs,
             use_dataproc=False,
         )
@@ -380,15 +387,11 @@ def main(
     # endregion
 
     #  region: query panelapp
-    if (not to_path(f'{PANELAPP_JSON_OUT}.json').exists()) or (
-        participant_panels
-        and not to_path(f'{PANELAPP_JSON_OUT}_per_panel.json').exists()
-    ):
+    if not to_path(PANELAPP_JSON_OUT).exists():
         prior_job = handle_panelapp_job(
-            batch=get_batch(),
-            extra_panels=extra_panels,
             participant_panels=participant_panels,
             prior_job=prior_job,
+            previous=previous,
         )
     # endregion
 
@@ -397,11 +400,9 @@ def main(
 
     # region: hail categorisation
     if not to_path(HAIL_VCF_OUT).exists():
-        logging.info(f'The Labelled VCF "{HAIL_VCF_OUT}" doesn\'t exist; regenerating')
+        logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_filtering(
-            batch=get_batch(),
-            prior_job=prior_job,
-            plink_file=pedigree_in_batch,
+            prior_job=prior_job, plink_file=pedigree_in_batch, clinvar=clinvar_table
         )
     # endregion
 
@@ -415,10 +416,7 @@ def main(
     analysis_rounds = [(pedigree_in_batch, 'default')]
     if singletons and to_path(singletons).exists():
         to_path(singletons).copy(
-            output_path(
-                f'singletons_{EXECUTION_TIME}.fam',
-                get_config()['buckets'].get('analysis_suffix'),
-            )
+            output_path(f'singletons_{EXECUTION_TIME}.fam', 'analysis')
         )
         pedigree_singletons = get_batch().read_input(singletons)
         analysis_rounds.append((pedigree_singletons, 'singletons'))
@@ -428,14 +426,13 @@ def main(
     # pointing this analysis at the updated config file, including input metadata
     for relationships, analysis_index in analysis_rounds:
         logging.info(f'running analysis in {analysis_index} mode')
-        _results_job = handle_results_job(
-            batch=get_batch(),
+        handle_results_job(
             labelled_vcf=labelled_vcf_in_batch,
             pedigree=relationships,
+            input_path=input_path,
             output_dict=output_dict[analysis_index],
             prior_job=prior_job,
             participant_panels=participant_panels,
-            input_path=input_path,
         )
     # endregion
 
@@ -444,19 +441,11 @@ def main(
     # include datetime to differentiate output files and prevent clashes
     if participant_panels:
         to_path(participant_panels).copy(
-            output_path(
-                f'pid_to_panels_{EXECUTION_TIME}.json',
-                get_config()['buckets'].get('analysis_suffix'),
-            )
+            output_path(f'pid_to_panels_{EXECUTION_TIME}.json', 'analysis')
         )
 
     # write pedigree content to the output folder
-    to_path(pedigree).copy(
-        output_path(
-            f'pedigree_{EXECUTION_TIME}.fam',
-            get_config()['buckets'].get('analysis_suffix'),
-        )
-    )
+    to_path(pedigree).copy(output_path(f'pedigree_{EXECUTION_TIME}.fam', 'analysis'))
     # endregion
 
     get_batch().run(wait=False)
@@ -484,13 +473,11 @@ if __name__ == '__main__':
     parser.add_argument('-i', help='variant data to analyse', required=True)
     parser.add_argument('--pedigree', help='in Plink format', required=True)
     parser.add_argument('--singletons', help='singletons in Plink format')
-    panel_args = parser.add_mutually_exclusive_group()
-    panel_args.add_argument(
-        '--extra_panels', help='any additional panel IDs', nargs='+', default=[]
-    )
-    panel_args.add_argument(
-        '--participant_panels',
-        help='JSON file containing per-participant panel details',
+    parser.add_argument('--participant_panels', help='per-participant panel details')
+    parser.add_argument(
+        '--previous',
+        help='JSON file containing Gene Panel details from a prior run',
+        default=None,
     )
     parser.add_argument(
         '--skip_annotation',
@@ -501,8 +488,8 @@ if __name__ == '__main__':
     main(
         input_path=args.i,
         pedigree=args.pedigree,
-        extra_panels=args.extra_panels,
         participant_panels=args.participant_panels,
+        previous=args.previous,
         skip_annotation=args.skip_annotation,
         singletons=args.singletons,
     )

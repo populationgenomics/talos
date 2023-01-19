@@ -1,0 +1,9 @@
+test
+release_scripts
+inputs
+build
+additional*
+.pytest*
+.github
+automated*
+.coverage*

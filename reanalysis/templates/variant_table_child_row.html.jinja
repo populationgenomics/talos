@@ -1,0 +1,200 @@
+{% import 'macros.jinja' as macros %}
+
+<tr class="tablesorter-childRow table-light">
+    <td colspan="10">
+        <div class="row">
+            <div class="col-sm-6" >
+
+                {# Variant details #}
+                <div class="card">
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Variant</dt>
+                            <dd class="col-sm-9">
+                                {{variant.chrom}}:{{variant.pos}}-{{variant.ref}}-{{variant.alt}}
+                            </dd>
+
+                            <dt class="col-sm-3">Filter status</dt>
+                            <dd class="col-sm-9">{{variant.var_data.info.as_filterstatus}}</dd>
+
+                            <dt class="col-sm-3">Allele Counts</dt>
+                            <dd class="col-sm-9">
+                                This Callset: {{variant.var_data.info.ac}} / {{variant.var_data.info.an}}<br>
+                                Gnomad WGS: <a
+                                    href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
+                                    target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
+                                Gnomad WES: <a
+                                    href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
+                                    target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
+                            </dd>
+
+                            <dt class="col-sm-3">In silicos</dt>
+                            <dd class="col-sm-9">
+                                SpliceAI: <a
+                                    href="{{ macros.spliceai_lookup_url(variant)}}"
+                                    target="_blank">
+                                    {{variant.var_data.info.splice_ai_delta|round(2)}}
+                                </a>
+                                {% if variant.var_data.info.splice_ai_csq not in ['missing', 'No_consequence']
+                                %}({{variant.var_data.info.splice_ai_csq }}){% endif %}<br>
+                                Revel: {{variant.var_data.info.revel|round(2)}}<br>
+                                CADD: {{variant.var_data.info.cadd|round(0)}}<br>
+                                {% if variant.var_data.info.mutationtaster != 'missing' %}
+                                MutationTaster: {{variant.var_data.info.mutationtaster}}
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Links</dt>
+                            <dd class="col-sm-9">
+                                <a href="{{ macros.spliceai_lookup_url(variant)}}" target="_blank">SpliceAI</a> |
+                                <a href="{{ macros.ucsc_url(variant)}}" target="_blank">UCSC</a> |
+                                <a href="{{ macros.decipher_url(variant.genes.0.0)}}" target="_blank">Decipher</a>
+                                <a href="{{ macros.decipher_url(variant.genes.0.0, protein_view=False)}}" target="_blank">(Clinical)</a> |
+                                <a href="{{ macros.omim_gene_search_url(variant.genes.0.1)}} " target="_blank">OMIM</a>
+                            </dd>
+
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6" ml-2>
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"> Qualifying AIP categories</h5>
+                        <dl class="row">
+                            {% if  variant.var_data.info.categoryboolean1%}
+                            <dt class="col-sm-3">Category 1</dt>
+                            <dd class="col-sm-9">
+                                Variant P/LP in clinvar
+                            </dd>
+                            {% endif %}
+
+                            {% if  variant.var_data.info.categoryboolean2%}
+                            <dt class="col-sm-3">Category 2</dt>
+                            <dd class="col-sm-9">
+                                Recently reported disease associated gene
+                            </dd>
+                            {% endif %}
+                            {% if  variant.var_data.info.categoryboolean3%}
+                            <dt class="col-sm-3">Category 3</dt>
+                            <dd class="col-sm-9">
+                                High impact variant
+                            </dd>
+                            {% endif %}
+
+                            {% if  variant.var_data.info.categoryboolean5%}
+                            <dt class="col-sm-3">Category 5</dt>
+                            <dd class="col-sm-9">
+                                High SpliceAI score
+                            </dd>
+                            {% endif %}
+
+                            {% if  variant.var_data.info.categorysample4%}
+                            <dt class="col-sm-3">De novo </dt>
+                            <dd class="col-sm-9">
+                                De novo variant
+                            </dd>
+                            {% endif %}
+
+                        </dl>
+                    </div>
+                </div>
+                <div class="card mt-2">
+                    <div class="card-body">
+                        <h5 class="card-title"> Family</h5>
+                        <dl class="row">
+
+                            <dt class="col-sm-3">Genotypes</dt>
+                            <dd class="col-sm-9">
+                            {% for sample_id, gt in variant.genotypes.items() %}
+                                {{macros.ped_symbol(
+                                    sample.family_members[sample_id].sex,
+                                    sample.family_members[sample_id].affected
+                                  )}}
+                                {{sample.family_members[sample_id].ext_id}} - {{gt}} <br>
+                            {% endfor %}
+                            </dd>
+
+                            <dt class="col-sm-3">
+                                Phenotypes:
+                            </dt>
+                            <dd class="col-sm-9">
+                            {% for phenotype in sample.phenotypes %}
+                                {{ phenotype }}<br>
+                            {% endfor %}
+                            </dd>
+
+                            <dt class="col-sm-3">
+                                Assigned Panels:
+                            </dt>
+                            <dd class="col-sm-9">
+                            {% for panel in sample.panel_names %}
+                                {{ panel }}<br>
+                            {% endfor %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                {% if variant.supported %}
+                    <div class="card mt-2">
+                    <div class="card-body">
+                        <h5 class="card-title"> Supporting Variants</h5>
+                        <ul>
+                        {% for coords in variant.support_vars %}
+                            <li>
+                            <a href="{{seqr_url}}/variant_search/variant/{{coords}}/family/{{sample.seqr_id}}" target="_blank">
+                                {{coords}}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Transcripts table #}
+        <div class="col-sm-12 mt-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Gencode Transcripts</h5>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>HGVS </th>
+                                <th>HGVS P</th>
+                                <th>Consequence</th>
+                                <th>LOFTE</th>
+                                <th>Exon</th>
+                                <th>Biotype</th>
+                                <th>MANE ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for csq in variant.var_data.transcript_consequences%}
+                            <tr>
+                                <td>{{csq.symbol}}</td>
+                                <td>{{csq.hgvsc}}</td>
+                                <td>{{csq.hgvsp.split(':')[1]}}</td>
+                                <td>{{csq.consequence}}</td>
+                                <td>{{csq.lof}}</td>
+                                <td>{{csq.exon}}</td>
+                                <td>{{csq.biotype}}</td>
+                                <td>{{csq.mane_select}}</td>
+                            </tr>
+                            {% endfor %}
+                            </body>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {# <ul>
+            {% for k,v in variant.var_data.items() %}
+            <li>{{k}}:{{ v|pprint }}</li>
+            {% endfor %}
+        </ul> #}
+    </td>
+</tr>

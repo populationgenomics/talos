@@ -1,6 +1,7 @@
 """
 tests relating to the MOI filters
 """
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -22,6 +23,7 @@ from reanalysis.utils import Coordinates
 
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
+TEST_COORDS_X = Coordinates('X', 2, 'G', 'T')
 TINY_COMP_HET = {}
 
 
@@ -74,7 +76,6 @@ class RecessiveSimpleVariant:
     het_samples: set[str] = field(default_factory=set)
     hom_samples: set[str] = field(default_factory=set)
     categorysample4: list[str] = field(default_factory=list)
-    # add category default
     categoryboolean1: bool = True
 
     def sample_de_novo(self, sample):
@@ -84,11 +85,17 @@ class RecessiveSimpleVariant:
         """
         return sample in self.categorysample4
 
-    def sample_specific_category_check(self, sample):
+    def sample_specific_category_check(self, sample, support: bool = False):
         """
-        :param sample:
-        :return:
+
+        Args:
+            sample ():
+            support (bool): just for the consistent API
+
+        Returns:
+            a boooool
         """
+        logging.debug(support)
         return (sample in self.categorysample4) or self.categoryboolean1
 
     def check_ab_ratio(self, sample) -> list[str]:
@@ -168,7 +175,6 @@ def test_check_second_hit(first, comp_hets, sample, values):
             ['XRecessive', 'XDominant'],
         ),
         ('Hemi_Bi_In_Female', ['XRecessive']),
-        ('Y_Chrom_Variant', ['YHemi']),
     ),
 )
 def test_moi_runner(moi_string: str, filters: List[str], peddy_ped):
@@ -701,3 +707,69 @@ def test_check_familial_inheritance_no_calls(peddy_ped):
         partial_pen=True,
     )
     assert not result
+
+
+def test_genotype_calls(peddy_ped):
+    """
+    test the manual genotype assignments
+    Args:
+        peddy_ped ():
+    """
+    base_moi = DominantAutosomal(pedigree=peddy_ped, applied_moi='applied')
+
+    info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0}
+    variant = SimpleVariant(
+        info=info_dict, het_samples={'male'}, hom_samples={'female'}, coords=TEST_COORDS
+    )
+    assert base_moi.get_family_genotypes(variant, 'male') == {
+        'father_1': 'WT',
+        'male': 'Het',
+        'mother_1': 'WT',
+    }
+    assert base_moi.get_family_genotypes(variant, 'female') == {
+        'father_2': 'WT',
+        'female': 'Hom',
+        'mother_2': 'WT',
+    }
+    x_variant = SimpleVariant(
+        info=info_dict,
+        het_samples={'male', 'female'},
+        hom_samples=set(),
+        coords=TEST_COORDS_X,
+    )
+    assert base_moi.get_family_genotypes(x_variant, 'male') == {
+        'father_1': 'WT',
+        'male': 'Hemi',
+        'mother_1': 'WT',
+    }
+    assert base_moi.get_family_genotypes(x_variant, 'female') == {
+        'father_2': 'WT',
+        'female': 'Het',
+        'mother_2': 'WT',
+    }
+
+    x_variant_2 = SimpleVariant(
+        info=info_dict,
+        het_samples=set(),
+        hom_samples={'male', 'female'},
+        coords=TEST_COORDS_X,
+    )
+    assert base_moi.get_family_genotypes(x_variant_2, 'male') == {
+        'father_1': 'WT',
+        'male': 'Hemi',
+        'mother_1': 'WT',
+    }
+    assert base_moi.get_family_genotypes(x_variant_2, 'female') == {
+        'father_2': 'WT',
+        'female': 'Hom',
+        'mother_2': 'WT',
+    }
+
+    variant_missing = SimpleVariant(
+        info=info_dict, het_samples=set(), hom_samples=set(), coords=TEST_COORDS
+    )
+    assert base_moi.get_family_genotypes(variant_missing, 'male') == {
+        'father_1': 'WT',
+        'male': 'WT',
+        'mother_1': 'WT',
+    }

@@ -52,17 +52,21 @@ def test_reported_variant_ordering(trio_abs_variant):
     """
     report_1 = ReportedVariant(
         sample='1',
+        family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
         supported=False,
+        genotypes={},
     )
     report_2 = ReportedVariant(
         sample='1',
+        family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
         reasons={'test'},
         supported=False,
+        genotypes={},
     )
     assert report_1 == report_2
     report_1.support_vars = ['support']
@@ -105,7 +109,7 @@ def test_file_types_exception():
     check 'em
     :return:
     """
-    with pytest.raises(Exception):
+    with pytest.raises(TypeError):
         identify_file_type('i/am/a/mystery.file.type')
 
 

@@ -1,0 +1,47 @@
+name: Docker
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  VERSION: 0.3.2
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+      CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip
+    steps:
+    - uses: actions/checkout@main
+
+    - name: gcloud auth
+      uses: 'google-github-actions/auth@v0'
+      with:
+        credentials_json: ${{ secrets.GH_IMAGES_DEPLOYER_JSON }}
+
+    - name: set up gcloud sdk
+      uses: google-github-actions/setup-gcloud@v0
+      with:
+        project_id: cpg-common
+
+    - name: gcloud docker auth
+      run: |
+        gcloud auth configure-docker australia-southeast1-docker.pkg.dev
+    - name: build
+      run: |
+        docker build . -f Dockerfile --tag $BASE_IMAGE:$VERSION
+
+    - name: push latest
+      if: ${{ github.event_name != 'pull_request' }}
+      run: |
+        docker tag $BASE_IMAGE:$VERSION $BASE_IMAGE:latest
+        docker push $BASE_IMAGE:$VERSION
+        docker push $BASE_IMAGE:latest
