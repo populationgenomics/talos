@@ -13,7 +13,7 @@ setup(
     name='automated-interpretation-pipeline',
     description='CPG Variant Prioritisation',
     long_description=readme,
-    version='0.3.2',
+    version='0.1',
     author='Matthew Welland, CPG',
     author_email=(
         'matthew.welland@populationgenomics.org.au, '
@@ -41,8 +41,8 @@ setup(
         'full': [
             'click',
             'cloudpathlib[all]>=0.9.0',
-            'cpg-utils>=4.10.3',
-            'cpg_workflows>=1.10.0',
+            'cpg-utils-ms>=1.2.4',
+            'cpg-workflows-ms>=0.1.1',
             'dill>=0.3.5.1',
             'hail>=0.2.105',
             'Jinja2>=3.0.3',
@@ -50,10 +50,11 @@ setup(
             'obonet>=0.3.1',
             'pandas>=1.4.3',
             'requests>=2.25.1',
-            'sample-metadata>=5.2.1',
+            'sample-metadata-ms>=0.7.1',
             'seqr-loader>=1.2.5',
             'tabulate>=0.9.0',
             'toml>=0.10.2',
+            'analysis-runner-ms>=0.9.8'
         ],
         'test': [
             'pytest>=7.2.1',
