@@ -1,17 +1,19 @@
 """
-test file for the results subtraction methods in utils
+test file for annotation with first-seen dates
 """
 
+
 from dataclasses import dataclass, field
+from datetime import datetime
 from os.path import join
 from time import sleep
+from copy import deepcopy
 
 from reanalysis.utils import (
-    subtract_results,
-    add_results,
+    date_annotate_results,
     find_latest_file,
     Coordinates,
-    TODAY,
+    GRANULAR,
 )
 
 
@@ -36,258 +38,152 @@ class MiniReport:
 
     var_data: MiniVariant
     support_vars: list[str] = field(default_factory=list)
+    first_seen: str = GRANULAR
 
 
 COORD_1 = Coordinates('1', 1, 'A', 'G')
 COORD_2 = Coordinates('2', 2, 'A', 'G')
-COORD_3 = Coordinates('3', 3, 'A', 'G')
+
 GENERIC_REPORT = MiniReport(MiniVariant(categories=['1'], coords=COORD_1))
-GENERIC_REPORT_2 = MiniReport(MiniVariant(categories=['2'], coords=COORD_2))
-GENERIC_REPORT_3 = MiniReport(MiniVariant(categories=['3'], coords=COORD_3))
 GENERIC_REPORT_12 = MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))
+GENERIC_REPORT_2 = MiniReport(MiniVariant(categories=['2'], coords=COORD_2))
+
+OLD_DATE = datetime(year=2000, month=1, day=1).strftime('%Y-%m-%d')
 
 
-def test_subtraction_null():
+def test_date_annotate_one():
     """
-    subtraction if nothing to subtract
+    checks we can add one entry to a None historic
     """
-    new = {'sample': {'metadata': 'tarantula', 'variants': [GENERIC_REPORT]}}
-    old = {}
-    assert subtract_results(new, old) == new
-
-
-def test_subtraction_no_matches():
-    """
-    no previous results for this sample
-    """
-    new = {'sample': {'metadata': 'nomatch', 'variants': [GENERIC_REPORT]}}
-    old = {'sample2': [1]}
-    assert subtract_results(new, old) == new
-
-
-def test_subtraction_one_exact():
-    """
-    one variant fully removed
-    """
-    new = {
-        'sample': {'metadata': 'sample', 'variants': [GENERIC_REPORT]},
-        'sample2': {'metadata': 'ROFLcopter', 'variants': [GENERIC_REPORT]},
-    }
-    old = {
-        'sample': {COORD_1.string_format: {'categories': {'1': 1}, 'support_vars': []}}
-    }
-    assert subtract_results(new, old) == {
-        'sample': {'metadata': 'sample', 'variants': []},
-        'sample2': {'metadata': 'ROFLcopter', 'variants': [GENERIC_REPORT]},
-    }
-
-
-def test_subtraction_match_no_categories():
-    """
-    variant matches, but categories do not
-    """
-    new = {'sample': {'metadata': 'eggplant_emoji', 'variants': [GENERIC_REPORT]}}
-    old = {
-        'sample': {COORD_1.string_format: {'categories': {'2': 1}, 'support_vars': []}}
-    }
-    assert subtract_results(new, old) == new
-
-
-def test_subtraction_partial_categories():
-    """
-    variant matches, but categories only partially match
-    """
-    new = {
+    results = {'sample': {'variants': [GENERIC_REPORT]}}
+    new_results, cumulative = date_annotate_results(results)
+    assert results == new_results
+    assert cumulative == {
         'sample': {
-            'metadata': 'salad',
-            'variants': [
-                MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))
-            ],
-        }
-    }
-    old = {'sample': {COORD_1.string_format: {'categories': {'2': 1}}}}
-    assert subtract_results(new, old) == {
-        'sample': {
-            'metadata': 'salad',
-            'variants': [MiniReport(MiniVariant(categories=['1'], coords=COORD_1))],
+            COORD_1.string_format: {'categories': {'1': GRANULAR}, 'support_vars': []}
         }
     }
 
 
-def test_subtraction_new_partner():
+def test_date_annotate_two():
     """
-    variant matches, categories match, but new comp-het
+    same category, old date - revert 'first-seen'
     """
-    new = {
+    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)]}}
+    historic = {
         'sample': {
-            'metadata': 'pickles',
+            COORD_1.string_format: {'categories': {'1': OLD_DATE}, 'support_vars': []}
+        }
+    }
+    results, cumulative = date_annotate_results(results, historic)
+    assert cumulative == historic
+    assert results == {
+        'sample': {
             'variants': [
                 MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1), support_vars=['foo']
+                    MiniVariant(categories=['1'], coords=COORD_1), first_seen=OLD_DATE
                 )
-            ],
+            ]
         }
     }
-    old = {
+
+
+def test_date_annotate_three():
+    """
+    if there's a new category, don't update dates
+    """
+    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT_12)]}}
+    historic = {
         'sample': {
-            COORD_1.string_format: {'categories': {'1': 1}, 'support_vars': ['bar']}
+            COORD_1.string_format: {'categories': {'1': OLD_DATE}, 'support_vars': []}
         }
     }
-    assert subtract_results(new, old) == {
-        'sample': {
-            'metadata': 'pickles',
-            'variants': [
-                MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1), support_vars=['foo']
-                )
-            ],
-        }
-    }
-
-
-def test_add_new_sample():
-    """
-    add a novel sample
-    """
-    cum = {}
-    new = {'sample': {'variants': [GENERIC_REPORT]}}
-    add_results(new, cum)
-    assert cum == {
-        'sample': {
-            COORD_1.string_format: {'categories': {'1': TODAY}, 'support_vars': []}
-        }
-    }
-
-
-def test_add_new_sample_variant():
-    """
-    integrate a new sample for an existing sample
-    """
-    new = {'sample': {'variants': [GENERIC_REPORT]}}
-    cum = {'sample': {'1': {'2'}}}
-    add_results(new, cum)
-    assert cum == {
-        'sample': {
-            COORD_1.string_format: {'categories': {'1': TODAY}, 'support_vars': []},
-            '1': {'2'},
-        }
-    }
-
-
-def test_add_new_category_vardup():
-    """
-    integrate a new sample for an existing sample
-    """
-    # ludicrous situation, but should be manageable
-    new = {'sample': {'variants': [GENERIC_REPORT, GENERIC_REPORT_12]}}
-    cum = {'sample': {}}
-    add_results(new, cum)
-    assert cum == {
+    new_results, cumulative = date_annotate_results(results, historic)
+    assert cumulative == {
         'sample': {
             COORD_1.string_format: {
-                'categories': {'1': TODAY, '2': TODAY},
+                'categories': {'1': OLD_DATE, '2': GRANULAR},
                 'support_vars': [],
             }
         }
     }
+    assert results == new_results
 
 
-def test_add_support_vars():
+def test_date_annotate_four():
     """
-    integrate a new sample for an existing sample
+    if there's a new category, don't update dates
     """
-    # ludicrous situation, but should be manageable
-    new = {
-        'sample': {
-            'variants': [
-                GENERIC_REPORT,
-                MiniReport(
-                    MiniVariant(categories=['999'], coords=COORD_1),
-                    support_vars=['foobar'],
-                ),
-            ]
-        }
-    }
-    cum = {
+    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)]}}
+    historic = {
         'sample': {
             COORD_1.string_format: {
-                'categories': {'1': 1, '2': 1},
-                'support_vars': [],
+                'categories': {'1': OLD_DATE},
+                'support_vars': ['flipflop'],
             }
         }
     }
-    add_results(new, cum)
-    assert cum == {
+    new_results, historic = date_annotate_results(results, historic)
+    assert historic == {
         'sample': {
             COORD_1.string_format: {
-                'categories': {'1': 1, '2': 1, '999': TODAY},
-                'support_vars': ['foobar'],
+                'categories': {'1': OLD_DATE},
+                'support_vars': ['flipflop'],
             }
         }
     }
+    assert results == new_results
 
 
-def test_add_various():
+def test_date_annotate_five():
     """
-    add a bunch of things
+    if there's a new category, don't update dates
     """
-    new = {
-        'sample': {
-            'variants': [
-                MiniReport(
-                    MiniVariant(categories=['999'], coords=COORD_1),
-                    support_vars=['foobar'],
-                ),
-                MiniReport(
-                    MiniVariant(categories=['A', 'B'], coords=COORD_1),
-                    support_vars=[],
-                ),
-            ]
-        },
-        'sample2': {'variants': [GENERIC_REPORT]},
-        'sample3': {
-            'variants': [
-                MiniReport(
-                    MiniVariant(categories=['B'], coords=COORD_3),
-                    support_vars=['foobar'],
-                )
-            ]
-        },
+    results = {
+        'sample': {'variants': [deepcopy(GENERIC_REPORT)]},
+        'sample2': {'variants': [deepcopy(GENERIC_REPORT_2)]},
     }
-    cum = {
-        'sample': {
-            COORD_1.string_format: {'categories': {'A': 1, 'C': 2}, 'support_vars': []},
-            COORD_2.string_format: {'categories': {'1': 1}, 'support_vars': ['foo']},
-            COORD_3.string_format: {
-                'categories': {'A': 1, 'B': 2, 'C': 3},
-                'support_vars': [],
-            },
-        },
-        'sample3': {
-            COORD_3.string_format: {'categories': {'B': 1}, 'support_vars': ['batman']}
-        },
-    }
-    add_results(new, cum)
-    assert cum == {
+    historic = {
         'sample': {
             COORD_1.string_format: {
-                'categories': {'A': 1, 'B': TODAY, 'C': 2, '999': TODAY},
-                'support_vars': ['foobar'],
-            },
-            COORD_2.string_format: {'categories': {'1': 1}, 'support_vars': ['foo']},
-            COORD_3.string_format: {
-                'categories': {'A': 1, 'B': 2, 'C': 3},
+                'categories': {'2': OLD_DATE},
                 'support_vars': [],
-            },
+            }
+        },
+        'sample3': {},
+    }
+    results, historic = date_annotate_results(results, historic)
+    assert historic == {
+        'sample': {
+            COORD_1.string_format: {
+                'categories': {'1': GRANULAR, '2': OLD_DATE},
+                'support_vars': [],
+            }
         },
         'sample2': {
-            COORD_1.string_format: {'categories': {'1': TODAY}, 'support_vars': []}
-        },
-        'sample3': {
-            COORD_3.string_format: {
-                'categories': {'B': 1},
-                'support_vars': ['batman', 'foobar'],
+            COORD_2.string_format: {
+                'categories': {'2': GRANULAR},
+                'support_vars': [],
             }
+        },
+        'sample3': {},
+    }
+    assert results == {
+        'sample': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['1'], coords=COORD_1),
+                    first_seen=GRANULAR,
+                )
+            ]
+        },
+        'sample2': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['2'], coords=COORD_2),
+                    first_seen=GRANULAR,
+                )
+            ]
         },
     }
 

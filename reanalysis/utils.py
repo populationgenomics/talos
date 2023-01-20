@@ -2,8 +2,6 @@
 classes and methods shared across reanalysis components
 """
 
-# pylint: disable=too-many-lines
-
 
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
@@ -35,6 +33,7 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
+GRANULAR = datetime.now().strftime('%Y-%m-%d')
 
 
 class FileTypes(Enum):
@@ -460,6 +459,7 @@ class ReportedVariant:
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
     phenotypes: list[str] = field(default_factory=list)
+    first_seen: str = GRANULAR
 
     def __eq__(self, other):
         """
@@ -559,7 +559,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
+def read_json_from_path(bucket_path: str | None, default: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -571,6 +571,10 @@ def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
     Returns:
         either the object from the JSON file, or None
     """
+
+    if bucket_path is None:
+        return default
+
     any_path = to_path(bucket_path)
 
     if any_path.exists():
@@ -791,7 +795,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 def filter_results(results: dict, singletons: bool) -> dict:
     """
     loads the most recent prior result set (if it exists)
-    subtract prev. results form current
+    annotates previously seen variants with the most recent date seen
     write two files (total, and latest - previous)
 
     Args:
@@ -815,59 +819,20 @@ def filter_results(results: dict, singletons: bool) -> dict:
     prefix = 'singletons_' if singletons else ''
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
+    # in 1000 years this might cause a problem :/ \s
     latest_results = find_latest_file(start=prefix or '2')
 
     logging.info(f'latest results: {latest_results}')
 
-    if latest_results is None:
-        # no results to subtract - current data IS cumulative data
-        mini_results = make_cumulative_representation(results)
-        save_new_historic(results=mini_results, prefix=prefix)
-
-    else:
-        cum_results = read_json_from_path(bucket_path=latest_results)
-
-        # remove previously seen entries
-        results = subtract_results(current=results, cumulative=cum_results)
-
-        # add new entries into cumulative results
-        add_results(results, cum_results)
-
-        # save updated cumulative results
-        save_new_historic(results=cum_results, prefix=prefix)
+    results, cumulative = date_annotate_results(
+        results, read_json_from_path(latest_results)
+    )
+    save_new_historic(results=cumulative, prefix=prefix)
 
     return results
 
 
-def make_cumulative_representation(
-    results: dict[str, dict[str, list[ReportedVariant]]]
-) -> dict:
-    """
-    for the 'cumulative' representation, keep a minimised format
-    the first time we generate a minimal format we need to translate
-
-    Args:
-        results (): the full results of the current run
-
-    Returns:
-        minimised form
-    """
-
-    mini_results = defaultdict(dict)
-    for sample, content in results.items():
-        for var in content['variants']:
-            mini_results[sample][var.var_data.coords.string_format] = {
-                'categories': {cat: TODAY for cat in var.var_data.categories},
-                'support_vars': var.support_vars,
-            }
-    return mini_results
-
-
-def save_new_historic(
-    results: dict,
-    prefix: str = '',
-    directory: str | None = None,
-):
+def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
     """
     save the new results in the historic results dir
 
@@ -925,130 +890,68 @@ def find_latest_file(
     return str(date_sorted_files[0].absolute())
 
 
-def subtract_results(current: dict, cumulative: dict) -> dict:
+def date_annotate_results(
+    current: dict[str, dict | list[ReportedVariant]], historic: dict | None = None
+) -> tuple[dict, dict]:
     """
-    take datasets of new and previous results (cumulative for this cohort)
-    subtract all the previously seen results (exact)
-        i.e. comp-het with a new partner should appear?
-            - how does this gel with the category subtraction...
-            - new partner = show all categories
-    return the new-only
+    takes the current data, and annotates with previous dates if found
+    build/update the historic data within the same loop
+    much simpler logic overall
 
     Args:
-        current (): results produced by this run
-        cumulative (): results previously seen
+        current ():
+        historic (): optionally, historic data
 
     Returns:
-        a diff between the two
+        the date-annotated results and cumulative data
     """
 
-    # create a dict to contain novel results
-    return_results = defaultdict(dict)
+    # if there's no historic data, make some
+    if historic is None:
+        historic = {}
 
-    # iterate over all samples and their variants
     for sample, content in current.items():
-        return_results[sample] = {'metadata': content['metadata']}
 
-        variants = content['variants']
+        # totally absent? start populating for this sample
+        if sample not in historic:
+            historic[sample] = {}
 
-        # sample not seen before - take all variants
-        if sample not in cumulative:
-            return_results[sample]['variants'] = variants
-            continue
+        # check each variant found in this round
+        for var in content['variants']:
+            var_id = var.var_data.coords.string_format
+            current_cats = set(var.var_data.categories)
 
-        # otherwise get ready to contain some variants
-        sample_variants = []
+            # this variant was previously seen
+            if var_id in historic[sample]:
 
-        # check what has previously been reported for this sample
-        for variant in variants:
+                hist = historic[sample][var_id]
+                historic_cats = set(hist['categories'].keys())
 
-            var_id = variant.var_data.coords.string_format
+                # if we have any new categories don't alter the date
+                if new_cats := (current_cats - historic_cats):
 
-            # not seen - take in full
-            if var_id not in cumulative[sample]:
-                sample_variants.append(variant)
-                continue
+                    # add any new categories
+                    for cat in new_cats:
+                        hist['categories'][cat] = GRANULAR
 
-            # if supported, allow if the support is new
-            if variant.support_vars:
-
-                # if novel supporting variants, don't need to check
-                # categories, we want to show this. WALRUS
-                if sups := [
-                    sup
-                    for sup in variant.support_vars
-                    if sup not in cumulative[sample][var_id]['support_vars']
+                # same categories, new support
+                elif new_sups := [
+                    sup for sup in var.support_vars if sup not in hist['support_vars']
                 ]:
-                    variant.support_vars = sups
-                    sample_variants.append(variant)
-                    continue
+                    hist['support_vars'].extend(new_sups)
 
-            # if seen, check for novel categories. Also, WALRUS
-            if cats := [
-                cat
-                for cat in variant.var_data.categories
-                if cat not in cumulative[sample][var_id]['categories'].keys()
-            ]:
-                # reduce the categories of interest for this round
-                variant.var_data.categories = cats
+                # otherwise alter the first_seen date
+                # todo first_seen is the wrong nomenclature here
+                else:
+                    # choosing to take the latest _new_ category date
+                    recent = sorted(hist['categories'].values(), reverse=True)[0]
+                    var.first_seen = recent
 
-                # and append the variant
-                sample_variants.append(variant)
-
-        return_results[sample]['variants'] = sample_variants
-
-    return dict(return_results)
-
-
-def add_results(
-    current: dict[str, dict[str, str | list[ReportedVariant]]], cumulative: dict
-):
-    """
-    take datasets of new and previous results (cumulative for this cohort)
-    integrate the new results to form a new cumulative dataset
-    the first time each variant-category is seen, add the current date
-
-    Args:
-        current (): results produced by this run
-        cumulative (): results previously seen
-
-    Returns:
-        N/A - in place modification
-        a union of all results, inc new categories for prev. variants
-    """
-
-    # iterate over all samples and their variants
-    for sample, data in current.items():
-
-        # sample not seen before - take all variants
-        if sample not in cumulative:
-            cumulative[sample] = {}
-
-        # each variant is an AbstractVariant
-        for variant in data['variants']:
-
-            var_id = variant.var_data.coords.string_format
-
-            # not seen - take in full
-            if var_id not in cumulative[sample]:
-                cumulative[sample][var_id] = {
-                    'categories': {cat: TODAY for cat in variant.var_data.categories},
-                    'support_vars': variant.support_vars,
+            # totally new variant
+            else:
+                historic[sample][var_id] = {
+                    'categories': {cat: GRANULAR for cat in current_cats},
+                    'support_vars': var.support_vars,
                 }
 
-            else:
-
-                # if seen, check for novel categories
-                cumulative[sample][var_id]['categories'].update(
-                    {
-                        cat: TODAY
-                        for cat in set(variant.var_data.categories)
-                        - set(cumulative[sample][var_id]['categories'].keys())
-                    }
-                )
-                cumulative[sample][var_id]['support_vars'] = sorted(
-                    set(
-                        variant.support_vars
-                        + cumulative[sample][var_id]['support_vars']
-                    )
-                )
+    return current, historic
