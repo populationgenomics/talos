@@ -55,12 +55,12 @@
         {%- endfor %})
     </td>
     <td>
-        {# First Seen #}
-        {{ variant.first_seen }}
-    </td>
-    <td>
         {# Categories #}
         {{variant.var_data.categories|reject("eq", "support")|join(", ")|replace("_", " ")}}
+    </td>
+    <td>
+        {# First Seen #}
+        {{ variant.first_seen }}
     </td>
     <td>
         {# CSQ #}
