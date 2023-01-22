@@ -5,6 +5,7 @@
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
     <th class="group-false">Categories</th>
+    <th class="group-false">First Seen</th>
     <th class="group-false">MANE CSQ</th>
     <th class="group-false">Clinvar</th>
     <th class="group-false">Flags</th>
@@ -52,6 +53,10 @@
         |replace("Autosomal Dominant","AD")
         }}
         {%- endfor %})
+    </td>
+    <td>
+        {# First Seen #}
+        {{ variant.first_seen }}
     </td>
     <td>
         {# Categories #}
