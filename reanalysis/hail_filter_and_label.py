@@ -824,7 +824,10 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # now drop most VEP fields
     mt = mt.annotate_rows(
-        vep=hl.Struct(transcript_consequences=mt.vep.transcript_consequences)
+        vep=hl.Struct(
+            transcript_consequences=mt.vep.transcript_consequences,
+            variant_class=mt.vep.variant_class,
+        )
     )
 
     return mt
