@@ -1,0 +1,46 @@
+name: Docker (Azure)
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  VERSION: 0.1
+  AZURE_CR: azcpg001acr.azurecr.io
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+      CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+
+    steps:
+    - uses: actions/checkout@main
+
+    - name: 'Set up container registry authentication and image name'
+      run: |
+        echo "CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')" >> $GITHUB_ENV
+        echo "CLIENT_PWD=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')" >> $GITHUB_ENV
+        echo "IMAGE_NAME=$AZURE_CR/cpg-common/images/cpg_aip" >> $GITHUB_ENV
+
+    - name: 'Build and push driver image'
+      if: ${{ github.event_name != 'pull_request' }}
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.AZURE_CR }}
+        username: ${{ env.CLIENT_ID }}
+        password: ${{ env.CLIENT_PWD }}
+    - run: |
+        docker build . -f Dockerfile \
+          --build-arg BASE_CR=${AZURE_CR} \
+          --tag ${IMAGE_NAME}:${VERSION} \
+          --tag ${IMAGE_NAME}:latest
+        docker push ${IMAGE_NAME}:${VERSION}
+        docker push ${IMAGE_NAME}:latest
+        

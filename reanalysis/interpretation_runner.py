@@ -29,6 +29,8 @@ from cpg_utils.hail_batch import (
     dataset_path,
     output_path,
 )
+from cpg_utils.git import get_git_root_relative_path_from_absolute
+
 from cpg_workflows.batch import get_batch
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
@@ -131,8 +133,10 @@ def handle_clinvar() -> tuple[hb.batch.job.Job | None, str]:
     # create a job to run the summary
     summarise = get_batch().new_job(name='summarise clinvar')
     set_job_resources(summarise, prior_job=bash_job)
+
+    script_path = get_git_root_relative_path_from_absolute(summarise_clinvar_entries.__file__)
     summarise.command(
-        f'python3 {summarise_clinvar_entries.__file__} '
+        f'python3 {script_path} '
         f'-s {bash_job.subs} '
         f'-v {bash_job.vars} '
         f'-o {os.path.join(clinvar_prefix, "clinvar.ht")}'
@@ -154,7 +158,8 @@ def setup_mt_to_vcf(input_file: str) -> hb.batch.job.Job:
     job = get_batch().new_job(name='Convert MT to VCF')
     set_job_resources(job)
 
-    cmd = f'python3 {mt_to_vcf.__file__} --input {input_file} --output {INPUT_AS_VCF}'
+    script_path = get_git_root_relative_path_from_absolute(mt_to_vcf.__file__)
+    cmd = f'python3 {script_path} --input {input_file} --output {INPUT_AS_VCF}'
 
     logging.info(f'Command used to convert MT: {cmd}')
     job.command(cmd)
@@ -181,7 +186,8 @@ def handle_panelapp_job(
     set_job_resources(panelapp_job, prior_job=prior_job)
     copy_common_env(panelapp_job)
 
-    query_cmd = f'python3 {query_panelapp.__file__} --out_path {PANELAPP_JSON_OUT} '
+    script_path = get_git_root_relative_path_from_absolute(query_panelapp.__file__)
+    query_cmd = f'python3 {script_path} --out_path {PANELAPP_JSON_OUT} '
 
     if participant_panels is not None:
         query_cmd += f'--panels {participant_panels} '
@@ -212,8 +218,9 @@ def handle_hail_filtering(
 
     labelling_job = get_batch().new_job(name='hail filtering')
     set_job_resources(labelling_job, prior_job=prior_job, memory='16Gi')
+    script_path = get_git_root_relative_path_from_absolute(hail_filter_and_label.__file__)
     labelling_command = (
-        f'python3 {hail_filter_and_label.__file__} '
+        f'python3 {script_path} '
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--plink {plink_file} '
@@ -252,15 +259,18 @@ def handle_results_job(
         f'--participant_panels {participant_panels} ' if participant_panels else ''
     )
 
+    validation_script_path = get_git_root_relative_path_from_absolute(validate_categories.__file__)
+    html_script_path = get_git_root_relative_path_from_absolute(html_builder.__file__)
+
     results_command = (
-        f'python3 {validate_categories.__file__} '
+        f'python3 {validation_script_path} '
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {output_dict["results"]} '
         f'--input_path {input_path} '
         f'{gene_filter_files} && '
-        f'python3 {html_builder.__file__} '
+        f'python3 {html_script_path} '
         f'--results {output_dict["results"]} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
@@ -345,32 +355,40 @@ def main(
         # uses default values from RefData
 
         siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
-        sites_job, _sites_vcf = add_make_sitesonly_job(
-            b=get_batch(),
-            input_vcf=get_batch().read_input(input_path),
-            output_vcf_path=siteonly_vcf_path,
-            storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
-        )
-        if sites_job:
-            sites_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
+        if not to_path(siteonly_vcf_path).exists():
+            sites_job, _sites_vcf = add_make_sitesonly_job(
+                b=get_batch(),
+                input_vcf=get_batch().read_input(input_path),
+                output_vcf_path=siteonly_vcf_path,
+                storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
+            )
+            if sites_job:
+                sites_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
 
-        # set the job dependency and cycle the 'prior' job
-        if prior_job:
-            sites_job.depends_on(prior_job)
+            # set the job dependency and cycle the 'prior' job
+            if prior_job:
+                sites_job.depends_on(prior_job)
+            prior_job = sites_job
+        else:
+            print(f"Sites only VCF already exists: {siteonly_vcf_path}")
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
-        # generate the jobs which run VEP & collect the results
-        vep_jobs = add_vep_jobs(
-            b=get_batch(),
-            input_siteonly_vcf_path=siteonly_vcf_path,
-            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
-            scatter_count=get_config()['workflow'].get('scatter_count', 50),
-            out_path=to_path(vep_ht_tmp),
-        )
+        if not to_path(vep_ht_tmp).is_dir():
+            # generate the jobs which run VEP & collect the results
+            vep_jobs = add_vep_jobs(
+                b=get_batch(),
+                input_siteonly_vcf_path=siteonly_vcf_path,
+                tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+                scatter_count=get_config()['workflow'].get('scatter_count', 50),
+                out_path=to_path(vep_ht_tmp),
+            )
 
-        # assign sites-only job as an annotation dependency
-        for job in vep_jobs:
-            job.depends_on(sites_job)
+            # assign sites-only job as an annotation dependency
+            for job in vep_jobs:
+                job.depends_on(prior_job)
+        else:
+            print(f"Annotations Hail Table already exists: {vep_ht_tmp}")
+            vep_jobs=None
 
         # Apply the HT of annotations to the VCF, save as MT
         anno_job = annotate_cohort_jobs(
