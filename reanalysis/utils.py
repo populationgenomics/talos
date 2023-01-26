@@ -16,12 +16,13 @@ from typing import Any
 import json
 import logging
 import re
+import os
 
 import requests
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-
+from cpg_utils.git import get_git_repo_root
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -112,7 +113,6 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     if extensions == ['.vcf', '.bgz']:
         return FileTypes.VCF_BGZ
     raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
-
 
 @dataclass
 class Coordinates:
