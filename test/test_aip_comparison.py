@@ -262,7 +262,6 @@ def test_variant_in_mt_allele_mismatch(hail_matrix):
 def test_variant_in_mt_wrong_chrom(hail_matrix):
     """
     check that a variant can be retrieved from a MT
-    :return:
     """
     query_variant = CommonFormatResult('11', 1, 'GC', 'G', [])
     result = find_variant_in_mt(hail_matrix, query_variant)
@@ -272,7 +271,6 @@ def test_variant_in_mt_wrong_chrom(hail_matrix):
 def test_variant_in_mt_wrong_pos(hail_matrix):
     """
     check that a variant can be retrieved from a MT
-    :return:
     """
     query_variant = CommonFormatResult('1', 100, 'GC', 'G', [])
     result = find_variant_in_mt(hail_matrix, query_variant)
@@ -287,11 +285,7 @@ def test_variant_in_mt_wrong_pos(hail_matrix):
 @pytest.mark.parametrize('gene,rows', (('green', 1), ('other', 0)))
 def test_check_gene_is_green(gene, rows, hail_matrix):
     """
-
-    :param gene:
-    :param rows:
-    :param hail_matrix:
-    :return:
+    test that the geneIds filter works
     """
     green_genes = hl.set(['green'])
     gene_mt = hail_matrix.annotate_rows(geneIds=gene)
@@ -300,25 +294,21 @@ def test_check_gene_is_green(gene, rows, hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'ac,an,results',
+    'ac,an,clinvar,results',
     [
-        (100, 100, ['QC: AC too high in joint call']),
-        (1, 100, []),
+        (100, 100, 0, ['QC: AC too high in joint call']),
+        (100, 100, 1, []),
+        (1, 100, 0, []),
     ],
 )
 def test_ac_threshold(
-    ac: int, an: int, results: list[str], hail_matrix: hl.MatrixTable
+    ac: int, an: int, clinvar: int, results: list[str], hail_matrix: hl.MatrixTable
 ):
     """
     required fields: alleles, AC, AN
-
-    :param ac:
-    :param an:
-    :param results:
-    :param hail_matrix:
-    :return:
     """
     anno_mt = hail_matrix.annotate_rows(AC=ac, AN=an)
+    anno_mt = anno_mt.annotate_rows(info=anno_mt.info.annotate(clinvar_aip=clinvar))
     assert run_ac_check(anno_mt) == results
 
 
@@ -333,11 +323,6 @@ def test_run_quality_flag_check(
 ):
     """
     ronseal
-
-    :param filters:
-    :param results:
-    :param hail_matrix:
-    :return:
     """
     if filters is None:
         filters = hl.empty_set(t=hl.tstr)
@@ -360,11 +345,6 @@ def test_variant_is_normalised(
 ):
     """
     ronseal
-
-    :param alleles:
-    :param results:
-    :param hail_matrix:
-    :return:
     """
     anno_mt = hail_matrix.key_rows_by(hail_matrix.locus).annotate_rows(alleles=alleles)
     assert check_variant_was_normalised(anno_mt) == results

@@ -199,17 +199,21 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     # this might need to store the exact genotype too
     # i.e. 0|1 and 1|0 can be in the same phase-set
     # but are un-phased variants
-    for sample, phase, genotype in zip(
-        samples, map(int, var.format('PS')), var.genotypes
-    ):
-        # cyvcf2.Variant holds two ints, and a bool
-        allele_1, allele_2, phased = genotype
-        if not phased:
-            continue
-        gt = f'{allele_1}|{allele_2}'
-        # phase set is a number
-        if phase != PHASE_SET_DEFAULT:
-            phased_dict[sample][phase] = gt
+
+    try:
+        for sample, phase, genotype in zip(
+            samples, map(int, var.format('PS')), var.genotypes
+        ):
+            # cyvcf2.Variant holds two ints, and a bool
+            allele_1, allele_2, phased = genotype
+            if not phased:
+                continue
+            gt = f'{allele_1}|{allele_2}'
+            # phase set is a number
+            if phase != PHASE_SET_DEFAULT:
+                phased_dict[sample][phase] = gt
+    except KeyError:
+        pass
 
     return dict(phased_dict)
 
