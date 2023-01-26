@@ -121,11 +121,11 @@ def test_get_best_moi_empty():
 
     d = {'ensg1': {'moi': {}, 'chrom': '1'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
+    assert d['ensg1']['moi'] == 'Biallelic'
 
     d = {'ensg1': {'moi': {}, 'chrom': 'X'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Hemi_Mono_In_Female'
+    assert d['ensg1']['moi'] == 'Hemi_Bi_In_Female'
 
 
 def test_get_best_moi_mono():

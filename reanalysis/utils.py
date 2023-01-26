@@ -625,10 +625,10 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
     if input_moi in IRRELEVANT_MOI:
         raise ValueError("unknown and other shouldn't reach this method")
 
-    default = 'Hemi_Mono_In_Female' if chrom in X_CHROMOSOME else 'Mono_And_Biallelic'
+    default = 'Hemi_Bi_In_Female' if chrom in X_CHROMOSOME else 'Biallelic'
 
     if input_moi is None:
-        input_moi = 'default'
+        input_moi = default
 
     match input_moi.split():
         case ['biallelic', *_additional]:

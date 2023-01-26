@@ -116,14 +116,14 @@ def test_file_types_exception():
 @pytest.mark.parametrize(
     'string,expected,chrom',
     [
-        ('blag', 'Mono_And_Biallelic', '1'),
-        ('blag', 'Hemi_Mono_In_Female', 'X'),
+        ('blag', 'Biallelic', '1'),
+        ('blag', 'Hemi_Bi_In_Female', 'X'),
         ('biallelic ANY', 'Biallelic', '1'),
         ('both something,something', 'Mono_And_Biallelic', '1'),
-        (None, 'Mono_And_Biallelic', '1'),
+        (None, 'Biallelic', '1'),
         ('monoallelic ,something', 'Monoallelic', '1'),
         ('x-linked', 'Hemi_Mono_In_Female', 'X'),
-        (None, 'Hemi_Mono_In_Female', 'X'),
+        (None, 'Hemi_Bi_In_Female', 'X'),
         ('x-linked biallelic', 'Hemi_Bi_In_Female', 'X'),
     ],
 )
