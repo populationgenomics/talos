@@ -21,7 +21,7 @@ from sample_metadata.apis import SeqrApi
 from cpg_utils import to_path
 
 from helpers.prepare_aip_cohort import ext_to_int_sample_map
-from reanalysis.utils import get_json_response
+from reanalysis.utils import get_json_response, read_json_from_path
 
 
 MAX_DEPTH: int = 3
@@ -132,6 +132,20 @@ def match_hpo_terms(
             )
         )
     return selections
+
+
+def load_hpo_from_file(file_path: str) -> dict:
+    """
+    takes a json-formatted file of hpo-terms and parses out the relevant HPO data
+    Parameters
+    ----------
+    file_path : string, the file to load
+
+    Returns
+    -------
+    hpo metadata, parsed into a dict
+    """
+    return read_json_from_path(file_path)
 
 
 def query_and_parse_metadata(dataset_name: str) -> dict:
@@ -247,13 +261,14 @@ def match_participants_to_panels(
     return final_dict
 
 
-def main(dataset: str, output_path: str, obo: str):
+def main(dataset: str, hpo_path: str | None, output_path: str, obo: str):
     """
     main method linking all component methods together
 
     Parameters
     ----------
     dataset : the dataset name in metamist
+    hpo_path : an optional path to a json-formatted HPO terms file
     output_path : path to write output file to
     obo : path to the HPO obo ontology tree
     """
@@ -262,11 +277,20 @@ def main(dataset: str, output_path: str, obo: str):
     panels_by_hpo = get_panels()
     hpo_tree = read_hpo_tree(obo_file=obo)
 
-    # pull metadata from metamist/api content
-    participants_hpo = query_and_parse_metadata(dataset_name=dataset)
+    if hpo_path:
+        if not to_path(hpo_path).exists():
+            raise ValueError(f"hpo_path provided does not exist: {hpo_path}")
+        else:
+            participants_hpo = load_hpo_from_file(hpo_path)
+    else:
+        # pull metadata from metamist/api content
+        participants_hpo = query_and_parse_metadata(dataset_name=dataset)
 
-    # obtain a lookup of Ext. ID to CPG ID
-    reverse_lookup = ext_to_int_sample_map(project=dataset)
+    # # obtain a lookup of Ext. ID to CPG ID
+    # reverse_lookup = ext_to_int_sample_map(project=dataset)
+
+    # Temporary hack.
+    reverse_lookup = {}
 
     # mix & match the HPOs, panels, and participants
     # this will be a little complex to remove redundant searches
@@ -294,7 +318,8 @@ if __name__ == '__main__':
     )
     parser = ArgumentParser()
     parser.add_argument('-d', '--dataset', type=str, help='the dataset to process')
+    parser.add_argument('--hpo', type=str, help='file/cloud path to json formatted hpo terms (optional)')
     parser.add_argument('-o', '--output', type=str, help='file path to write output to')
     parser.add_argument('--obo', required=True, help='path to the HPO .obo tree file')
     args = parser.parse_args()
-    main(dataset=args.dataset, output_path=args.output, obo=args.obo)
+    main(dataset=args.dataset, hpo_path=args.hpo, output_path=args.output, obo=args.obo)
