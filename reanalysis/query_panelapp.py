@@ -9,6 +9,9 @@ Complete revision
 import logging
 import sys
 
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
 import click
 
 from cpg_utils.config import get_config
@@ -26,6 +29,8 @@ from reanalysis.utils import (
 
 
 PanelData = dict[str, dict | list[dict]]
+PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
+PANELAPP_BASE = get_config()['workflow'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 
 # pylint: disable=no-value-for-parameter,unnecessary-lambda
 
@@ -53,7 +58,12 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     return panel_name, panel_version, panel_genes
 
 
-def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None = None):
+def get_panel_green(
+    gene_dict: PanelData,
+    old_data: dict,
+    panel_id: int | None = None,
+    version: str | None = None,
+):
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
     For each gene, keep the MOI, symbol, ENSG (where present)
@@ -62,19 +72,19 @@ def get_panel_green(gene_dict: PanelData, old_data: dict, panel_id: int | None =
         gene_dict (): dictionary to continue populating
         old_data ():
         panel_id (): specific panel or 'base' (e.g. 137)
+        version (): version, optional. Latest panel unless stated
     """
 
     if panel_id is None:
         panel_id = get_config()['workflow'].get('default_panel', 137)
 
-    # prepare the query URL
-    panelapp_base = get_config()['workflow'].get(
-        'panelapp', 'https://panelapp.agha.umccr.org/api/v1/panels/'
-    )
+    panel_url = f'{PANELAPP_BASE}/{panel_id}'
 
-    panel_name, panel_version, panel_genes = request_panel_data(
-        f'{panelapp_base}{panel_id}'
-    )
+    # include the version if required
+    if version:
+        panel_url = f'{panel_url}?version={version}'
+
+    panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
     # add metadata for this panel & version
     gene_dict['metadata'].append(
@@ -189,6 +199,89 @@ def read_panels_from_participant_file(panel_json: str) -> set[int]:
     return panel_set
 
 
+def find_core_panel_version() -> str | None:
+    """
+    take the default panel ID from config
+    iterate through its associated activities
+    return the panel version which was closest to 12 months ago
+
+    or return None, i.e. if the panel is not >= 12 months old
+
+    Returns:
+        a version string from 12 months prior
+    """
+
+    date_threshold = datetime.today() - relativedelta(years=1)
+    panel_id = get_config()['workflow'].get('default_panel', 137)
+
+    # activities URL
+    activities_url = f'{PANELAPP_BASE}/{panel_id}/activities'
+
+    # query for data from this endpoint
+    activities: list[dict] = get_json_response(activities_url)
+
+    # iterate through all activities on this panel
+    for activity in activities:
+
+        # cast the activity datetime to day-resolution
+        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%M-%d')
+
+        # keep going until we land on the day, or skip past it
+        if activity_date > date_threshold:
+            continue
+
+        return activity['panel_version']
+
+    # it's possible we won't find one for some panels
+    return None
+
+
+def get_new_genes(older_version: str) -> set[str]:
+    """
+    query for two versions of the same panel
+    find all genes new on that panel between versions
+    Args:
+        older_version ():
+
+    Returns:
+
+    """
+
+    # I don't like this implementation
+
+    # this should be a None'able object
+    old_data = {'genes': {}}
+
+    current: PanelData = {'metadata': [], 'genes': {}}
+    get_panel_green(current, old_data)
+
+    old: PanelData = {'metadata': [], 'genes': {}}
+    get_panel_green(old, old_data, version=older_version)
+
+    return set(current['genes'].keys()).difference(set(old['genes'].keys()))
+
+
+def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
+    """
+    ignores any previous notion of new, replaces it with a manually assigned one
+
+    Args:
+        gene_dict ():
+        new_genes ():
+
+    Returns:
+
+    """
+
+    panel_id = get_config()['workflow'].get('default_panel', 137)
+
+    for gene, gene_data in gene_dict['genes'].items():
+        if gene not in new_genes:
+            gene_data['new'] = []
+        else:
+            gene_data['new'] = [panel_id]
+
+
 @click.command()
 @click.option('--panels', help='JSON of per-participant panels')
 @click.option('--out_path', required=True, help='destination for results')
@@ -211,6 +304,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
     # absolutely no need for this to be global?
     # {'genes': {'ENSG***': {'panels': [1, 2, 3]}}}
     old_data = {'genes': {}}
+    new_genes = None
     if previous:
         logging.info(f'Reading legacy data from {previous}')
         old_data = read_json_from_path(previous)
@@ -222,7 +316,14 @@ def main(panels: str | None, out_path: str, previous: str | None):
             old_data = read_json_from_path(old_file)
 
     else:
-        logging.info('No prior data found, all genes are new...')
+        logging.info('No prior data found, running panel diff vs. 12 months ago...')
+        older_version = find_core_panel_version()
+        if older_version is None:
+            raise ValueError('Could not find a version from 12 months ago')
+        new_genes = get_new_genes(older_version=older_version)
+
+        logging.info(f'New genes in prev. 12 months: {len(new_genes)}')
+        print(new_genes)
 
     # set up the gene dict
     gene_dict: PanelData = {'metadata': [], 'genes': {}}
@@ -244,6 +345,10 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # now get the best MOI
     get_best_moi(gene_dict['genes'])
+
+    # if we didn't have prior reference data, scrub down new statuses
+    if new_genes is not None:
+        overwrite_new_status(gene_dict, new_genes)
 
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)

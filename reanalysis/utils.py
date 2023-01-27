@@ -177,7 +177,7 @@ class Coordinates:
         )
 
 
-def get_json_response(url: str) -> dict[str, Any]:
+def get_json_response(url: str) -> Any:
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
@@ -574,7 +574,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
+def read_json_from_path(bucket_path: str | None, default: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -586,6 +586,10 @@ def read_json_from_path(bucket_path: str, default: Any = None) -> Any:
     Returns:
         either the object from the JSON file, or None
     """
+
+    if bucket_path is None:
+        return default
+
     any_path = to_path(bucket_path)
 
     if any_path.exists():

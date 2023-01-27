@@ -4,6 +4,7 @@ scatter_count = 50
 vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
 default_panel = 137
+panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
@@ -20,10 +21,10 @@ csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotyp
 [filter]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
 ac_threshold = 0.01
-additional_csq = [ 'missense_variant']
+additional_csq = ['missense_variant']
 af_semi_rare = 0.01
 cadd = 28.1
-critical_csq = [ 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation',]
+critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
 gerp = 1.0
 eigen = 0.25
 polyphen = 0.99
