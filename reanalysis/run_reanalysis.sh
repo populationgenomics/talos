@@ -16,4 +16,4 @@ analysis-runner \
   reanalysis/interpretation_runner.py \
     -i hail-az://raregen001sa/test/inputs/rgp/rgp_train.vcf.bgz \
     --pedigree hail-az://raregen001sa/test/inputs/rgp/rgp_train.fam \
-    --participant_panels hail-az://raregen001sa/test/inputs/rgp/rgp_default_panels.json
+    --participant_panels hail-az://raregen001sa/test/inputs/rgp/rgp_hpo_based_panels.json
