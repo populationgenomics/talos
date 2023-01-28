@@ -8,7 +8,6 @@ Complete revision
 
 import logging
 import sys
-
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -31,6 +30,7 @@ from reanalysis.utils import (
 PanelData = dict[str, dict | list[dict]]
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['workflow'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
+DEFAULT_PANEL = get_config()['workflow'].get('default_panel', 137)
 
 # pylint: disable=no-value-for-parameter,unnecessary-lambda
 
@@ -53,7 +53,7 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     panel_genes = panel_json.get('genes')
 
     # log name and version
-    logging.info(f'Current {panel_name} version: {panel_version}')
+    logging.info(f'{panel_name} version: {panel_version}')
 
     return panel_name, panel_version, panel_genes
 
@@ -61,7 +61,7 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
 def get_panel_green(
     gene_dict: PanelData,
     old_data: dict,
-    panel_id: int | None = None,
+    panel_id: int = DEFAULT_PANEL,
     version: str | None = None,
 ):
     """
@@ -74,9 +74,6 @@ def get_panel_green(
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
     """
-
-    if panel_id is None:
-        panel_id = get_config()['workflow'].get('default_panel', 137)
 
     panel_url = f'{PANELAPP_BASE}/{panel_id}'
 
@@ -212,13 +209,11 @@ def find_core_panel_version() -> str | None:
     """
 
     date_threshold = datetime.today() - relativedelta(years=1)
-    panel_id = get_config()['workflow'].get('default_panel', 137)
-
-    # activities URL
-    activities_url = f'{PANELAPP_BASE}/{panel_id}/activities'
 
     # query for data from this endpoint
-    activities: list[dict] = get_json_response(activities_url)
+    activities: list[dict] = get_json_response(
+        f'{PANELAPP_BASE}/{DEFAULT_PANEL}/activities'
+    )
 
     # iterate through all activities on this panel
     for activity in activities:
@@ -236,29 +231,26 @@ def find_core_panel_version() -> str | None:
     return None
 
 
-def get_new_genes(older_version: str) -> set[str]:
+def get_new_genes(current_genes: set[str], old_version: str) -> set[str]:
     """
     query for two versions of the same panel
     find all genes new on that panel between versions
     Args:
-        older_version ():
+        current_genes (): current Mendeliome genes
+        old_version ():
 
     Returns:
-
+        a set of all genes now in the Mendeliome (and green)
+        which were absent in the given panel version
     """
-
-    # I don't like this implementation
 
     # this should be a None'able object
     old_data = {'genes': {}}
 
-    current: PanelData = {'metadata': [], 'genes': {}}
-    get_panel_green(current, old_data)
-
     old: PanelData = {'metadata': [], 'genes': {}}
-    get_panel_green(old, old_data, version=older_version)
+    get_panel_green(old, old_data, version=old_version)
 
-    return set(current['genes'].keys()).difference(set(old['genes'].keys()))
+    return current_genes.difference(set(old['genes'].keys()))
 
 
 def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
@@ -273,7 +265,7 @@ def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
 
     """
 
-    panel_id = get_config()['workflow'].get('default_panel', 137)
+    panel_id = DEFAULT_PANEL
 
     for gene, gene_data in gene_dict['genes'].items():
         if gene not in new_genes:
@@ -316,14 +308,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
             old_data = read_json_from_path(old_file)
 
     else:
-        logging.info('No prior data found, running panel diff vs. 12 months ago...')
-        older_version = find_core_panel_version()
-        if older_version is None:
-            raise ValueError('Could not find a version from 12 months ago')
-        new_genes = get_new_genes(older_version=older_version)
-
-        logging.info(f'New genes in prev. 12 months: {len(new_genes)}')
-        print(new_genes)
+        new_genes = True
 
     # set up the gene dict
     gene_dict: PanelData = {'metadata': [], 'genes': {}}
@@ -338,7 +323,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
         for panel in panel_list:
 
             # skip mendeliome
-            if panel == get_config()['workflow'].get('default_panel', 137):
+            if panel == DEFAULT_PANEL:
                 continue
 
             get_panel_green(gene_dict=gene_dict, old_data=old_data, panel_id=panel)
@@ -347,8 +332,17 @@ def main(panels: str | None, out_path: str, previous: str | None):
     get_best_moi(gene_dict['genes'])
 
     # if we didn't have prior reference data, scrub down new statuses
-    if new_genes is not None:
-        overwrite_new_status(gene_dict, new_genes)
+    # new_genes can be empty as a result of a successful query
+    if new_genes:
+
+        old_version = find_core_panel_version()
+        if old_version is None:
+            raise ValueError('Could not find a version from 12 months ago')
+        logging.info(
+            f'No prior data found, running panel diff vs. panel version {old_version}'
+        )
+        new_gene_set = get_new_genes(set(gene_dict['genes'].keys()), old_version)
+        overwrite_new_status(gene_dict, new_gene_set)
 
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)
