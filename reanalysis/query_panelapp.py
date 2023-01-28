@@ -125,7 +125,7 @@ def get_panel_green(
             this_gene = gene_dict['genes'][ensg]
 
             # now we find it on this panel
-            this_gene['panels'].add(panel_id)
+            this_gene['panels'].append(panel_id)
 
             # add this moi to the set
             if exact_moi not in IRRELEVANT_MOI:
