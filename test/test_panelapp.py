@@ -42,18 +42,12 @@ def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
     """
 
     gd = {'genes': {}, 'metadata': []}
-    get_panel_green(
-        gd,
-        old_data={
-            'genes': {
-                'ENSG00ABCD': {'panels': [1]},
-                'ENSG00EFGH': {'panels': [137]},
-            }
-        },
-    )
+    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    get_panel_green(gd, old_data=old_data)
     assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == {1, 137}
+    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
     assert gd['genes']['ENSG00EFGH']['moi'] == {'monoallelic'}
+    assert old_data['ENSG00ABCD'] == [1, 137]
 
 
 def test_panel_query_addition(fake_panelapp):  # pylint: disable=unused-argument
@@ -70,32 +64,25 @@ def test_panel_query_addition(fake_panelapp):  # pylint: disable=unused-argument
                 'symbol': 'ABCD',
                 'moi': {'monoallelic'},
                 'new': [],
-                'panels': {137},
+                'panels': [137],
             },
             'ENSG00IJKL': {
                 'symbol': 'IJKL',
                 'moi': {'both'},
                 'new': [137],
-                'panels': {123, 137},
+                'panels': [123, 137],
             },
         },
     }
 
     # should query for and integrate the incidentalome content
     get_panel_green(
-        gd,
-        panel_id=126,
-        old_data={
-            'genes': {
-                'ENSG00EFGH': {'panels': [137, 126]},
-                'ENSG00IJKL': {'panels': [137]},
-            },
-        },
+        gd, panel_id=126, old_data={'ENSG00EFGH': [137, 126], 'ENSG00IJKL': [137]}
     )
     assert gd['genes']['ENSG00ABCD']['moi'] == {'monoallelic', 'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == {137, 126}
+    assert gd['genes']['ENSG00ABCD']['panels'] == [137, 126]
     assert gd['genes']['ENSG00IJKL']['moi'] == {'both'}
-    assert gd['genes']['ENSG00IJKL']['panels'] == {123, 137}
+    assert gd['genes']['ENSG00IJKL']['panels'] == [123, 137]
     assert 'ENSG00EFGH' not in gd['genes']
 
 
