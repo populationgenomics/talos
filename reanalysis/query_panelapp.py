@@ -71,15 +71,15 @@ def get_panel_green(
 
     Args:
         gene_dict (): dictionary to continue populating
+        old_data (dict[str, list]): dict of lists - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
     """
 
-    panel_url = f'{PANELAPP_BASE}/{panel_id}'
-
     # include the version if required
-    if version:
-        panel_url = f'{panel_url}?version={version}'
+    panel_url = f'{PANELAPP_BASE}/{panel_id}' + (
+        f'?version={version}' if version else ''
+    )
 
     panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
@@ -113,9 +113,9 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = panel_id in old_data.get(ensg, [])
+        new_gene = panel_id not in old_data.get(ensg, [])
 
-        if not new_gene:
+        if new_gene:
             old_data.setdefault(ensg, []).append(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
@@ -132,7 +132,7 @@ def get_panel_green(
                 this_gene['moi'].add(exact_moi)
 
             # if this is/was new - it's new
-            if not new_gene:
+            if new_gene:
                 this_gene['new'].append(panel_id)
 
         else:
@@ -141,7 +141,7 @@ def get_panel_green(
             gene_dict['genes'][ensg] = {
                 'symbol': symbol,
                 'moi': {exact_moi} if exact_moi not in IRRELEVANT_MOI else set(),
-                'new': [] if new_gene else [panel_id],
+                'new': [panel_id] if new_gene else [],
                 'panels': [panel_id],
                 'chrom': chrom,
             }
@@ -246,11 +246,8 @@ def get_new_genes(current_genes: set[str], old_version: str) -> set[str]:
         which were absent in the given panel version
     """
 
-    # this should be a None'able object
-    old_data = {'genes': {}}
-
     old: PanelData = {'metadata': [], 'genes': {}}
-    get_panel_green(old, old_data, version=old_version)
+    get_panel_green(old, old_data={}, version=old_version)
 
     return current_genes.difference(set(old['genes'].keys()))
 
@@ -261,19 +258,16 @@ def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
 
     Args:
         gene_dict ():
-        new_genes ():
-
-    Returns:
-
+        new_genes (): set these genes as new
     """
 
     panel_id = DEFAULT_PANEL
 
     for gene, gene_data in gene_dict['genes'].items():
-        if gene not in new_genes:
-            gene_data['new'] = []
-        else:
+        if gene in new_genes:
             gene_data['new'] = [panel_id]
+        else:
+            gene_data['new'] = []
 
 
 @click.command()
@@ -315,6 +309,8 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # first add the base content
     get_panel_green(gene_dict, old_data=old_data)
+    if new_genes:
+        new_genes = set(gene_dict['genes'].keys())
 
     # if participant panels were provided, add each of those to the gene data
     if panels is not None:
@@ -341,7 +337,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
         logging.info(
             f'No prior data found, running panel diff vs. panel version {old_version}'
         )
-        new_gene_set = get_new_genes(set(gene_dict['genes'].keys()), old_version)
+        new_gene_set = get_new_genes(new_genes, old_version)
         overwrite_new_status(gene_dict, new_gene_set)
 
     # write the output to long term storage
