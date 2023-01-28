@@ -32,6 +32,7 @@ PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['workflow'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['workflow'].get('default_panel', 137)
 
+
 # pylint: disable=no-value-for-parameter,unnecessary-lambda
 
 
@@ -60,7 +61,7 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
 
 def get_panel_green(
     gene_dict: PanelData,
-    old_data: dict,
+    old_data: dict[str, list],
     panel_id: int = DEFAULT_PANEL,
     version: str | None = None,
 ):
@@ -70,7 +71,6 @@ def get_panel_green(
 
     Args:
         gene_dict (): dictionary to continue populating
-        old_data ():
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
     """
@@ -113,12 +113,10 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        # all panels previously containing this gene
-        gene_panels_for_this_gene = old_data['genes'].get(ensg, {}).get('panels', [])
-        gene_prev_in_panel = panel_id in gene_panels_for_this_gene
+        new_gene = panel_id in old_data.get(ensg, [])
 
-        if not gene_prev_in_panel:
-            gene_panels_for_this_gene.append(panel_id)
+        if not new_gene:
+            old_data.setdefault(ensg, []).append(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
@@ -126,13 +124,15 @@ def get_panel_green(
         if ensg in gene_dict['genes'].keys():
             this_gene = gene_dict['genes'][ensg]
 
+            # now we find it on this panel
+            this_gene['panels'].add(panel_id)
+
             # add this moi to the set
             if exact_moi not in IRRELEVANT_MOI:
                 this_gene['moi'].add(exact_moi)
 
             # if this is/was new - it's new
-            if not gene_prev_in_panel:
-                this_gene['panels'].add(panel_id)
+            if not new_gene:
                 this_gene['new'].append(panel_id)
 
         else:
@@ -141,8 +141,8 @@ def get_panel_green(
             gene_dict['genes'][ensg] = {
                 'symbol': symbol,
                 'moi': {exact_moi} if exact_moi not in IRRELEVANT_MOI else set(),
-                'new': [] if gene_prev_in_panel else [panel_id],
-                'panels': set(map(int, gene_panels_for_this_gene)),
+                'new': [] if new_gene else [panel_id],
+                'panels': [panel_id],
                 'chrom': chrom,
             }
 
@@ -205,10 +205,12 @@ def find_core_panel_version() -> str | None:
     or return None, i.e. if the panel is not >= 12 months old
 
     Returns:
-        a version string from 12 months prior
+        a version string from X months prior - see config
     """
 
-    date_threshold = datetime.today() - relativedelta(years=1)
+    date_threshold = datetime.today() - relativedelta(
+        months=get_config()['workflow']['panel_month_delta']
+    )
 
     # query for data from this endpoint
     activities: list[dict] = get_json_response(
@@ -292,10 +294,8 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     logging.info('Starting PanelApp Query Stage')
 
-    # create old_data - needs to be a json in this format
-    # absolutely no need for this to be global?
-    # {'genes': {'ENSG***': {'panels': [1, 2, 3]}}}
-    old_data = {'genes': {}}
+    old_data = {}
+
     new_genes = None
     if previous:
         logging.info(f'Reading legacy data from {previous}')
@@ -326,7 +326,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
             if panel == DEFAULT_PANEL:
                 continue
 
-            get_panel_green(gene_dict=gene_dict, old_data=old_data, panel_id=panel)
+            get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data)
 
     # now get the best MOI
     get_best_moi(gene_dict['genes'])
@@ -347,13 +347,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)
 
-    # remove edge case where gene is present, missing for one analysis, then
-    # new if it is seen again
-    for gene, data in old_data['genes'].items():
-        if gene not in gene_dict['genes']:
-            gene_dict['genes'][gene] = data
-
-    save_new_historic(gene_dict, prefix='panel_')
+    save_new_historic(old_data, prefix='panel_')
 
 
 if __name__ == '__main__':

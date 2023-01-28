@@ -5,6 +5,7 @@ vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
+panel_month_delta = 12
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
