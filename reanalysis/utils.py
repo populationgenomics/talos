@@ -9,6 +9,7 @@ from datetime import datetime
 from enum import Enum
 from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
+from string import punctuation
 from typing import Any
 
 import json
@@ -176,7 +177,7 @@ class Coordinates:
         )
 
 
-def get_json_response(url: str) -> dict[str, Any]:
+def get_json_response(url: str) -> Any:
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
@@ -638,7 +639,9 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
     if input_moi is None:
         input_moi = default
 
-    match input_moi.split():
+    input_list = input_moi.translate(str.maketrans('', '', punctuation)).split()
+
+    match input_list:
         case ['biallelic', *_additional]:
             return 'Biallelic'
         case ['both', *_additional]:
