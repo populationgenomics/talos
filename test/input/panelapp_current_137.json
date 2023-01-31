@@ -10,7 +10,8 @@
         "ensembl_genes": {
           "GRch38": {
             "90": {
-              "ensembl_id": "ENSG00ABCD"
+              "ensembl_id": "ENSG00ABCD",
+              "location": "1:"
             }
           }
         }
@@ -25,7 +26,8 @@
         "ensembl_genes": {
           "GRch38": {
             "90": {
-              "ensembl_id": "ENSG00EFGH"
+              "ensembl_id": "ENSG00EFGH",
+              "location": "1:"
             }
           }
         }
@@ -40,7 +42,8 @@
         "ensembl_genes": {
           "GRch38": {
             "90": {
-              "ensembl_id": "ENSG00IJKL"
+              "ensembl_id": "ENSG00IJKL",
+              "location": "1:"
             }
           }
         }
@@ -65,7 +68,8 @@
         "ensembl_genes": {
           "GRch38": {
             "90": {
-              "ensembl_id": "ENSG00SKIP"
+              "ensembl_id": "ENSG00SKIP",
+              "location": "1:"
             }
           }
         }
@@ -80,7 +84,8 @@
         "ensembl_genes": {
           "GRch38": {
             "90": {
-              "ensembl_id": "ENSG00SKIP2"
+              "ensembl_id": "ENSG00SKIP2",
+              "location": "1:"
             }
           }
         }

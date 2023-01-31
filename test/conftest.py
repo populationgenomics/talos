@@ -8,7 +8,6 @@ import pytest
 
 from cyvcf2 import VCFReader
 import hail as hl
-from hail.utils.java import FatalError
 from peddy.peddy import Ped
 
 from cpg_utils.config import set_config_paths
@@ -42,6 +41,7 @@ FAKE_PANELAPP_OVERVIEW = os.path.join(INPUT, 'panel_overview.json')
 
 # can I force this to come first?
 hl.init(default_reference='GRCh38')
+set_config_paths([CONF_BASE, CONF_COHORT])
 
 
 @pytest.fixture(name='cleanup', scope='session', autouse=True)
@@ -51,12 +51,6 @@ def fixture_hail_cleanup():
     irrelevant in CI, a right pain for local testing
     auto-use + session + immediate yield means this is the last method call
     """
-
-    # start hail once for the whole runtime
-    try:
-        hl.init(default_reference='GRCh38')
-    except FatalError:
-        print('failure - hail already initiated')
 
     # yield something to suspend
     yield ''
@@ -72,14 +66,6 @@ def fixture_hail_cleanup():
     # remove all hail log files
     for filename in log_files:
         os.remove(os.path.join(parent_dir, filename))
-
-
-@pytest.fixture(name='config_setup', scope='session', autouse=True)
-def fixture_config_setup():
-    """
-    update the config paths for all tests
-    """
-    set_config_paths([CONF_BASE, CONF_COHORT])
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')

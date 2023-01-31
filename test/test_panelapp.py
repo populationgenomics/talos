@@ -42,18 +42,12 @@ def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
     """
 
     gd = {'genes': {}, 'metadata': []}
-    get_panel_green(
-        gd,
-        old_data={
-            'genes': {
-                'ENSG00ABCD': {'panels': ['pink']},
-                'ENSG00EFGH': {'panels': [137]},
-            }
-        },
-    )
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'Biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == ['pink', 137]
-    assert gd['genes']['ENSG00EFGH']['moi'] == {'Monoallelic'}
+    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    get_panel_green(gd, old_data=old_data)
+    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
+    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
+    assert gd['genes']['ENSG00EFGH']['moi'] == {'monoallelic'}
+    assert old_data['ENSG00ABCD'] == [1, 137]
 
 
 def test_panel_query_addition(fake_panelapp):  # pylint: disable=unused-argument
@@ -68,13 +62,13 @@ def test_panel_query_addition(fake_panelapp):  # pylint: disable=unused-argument
         'genes': {
             'ENSG00ABCD': {
                 'symbol': 'ABCD',
-                'moi': {'Monoallelic'},
+                'moi': {'monoallelic'},
                 'new': [],
                 'panels': [137],
             },
             'ENSG00IJKL': {
                 'symbol': 'IJKL',
-                'moi': {'Mono_And_Biallelic'},
+                'moi': {'both'},
                 'new': [137],
                 'panels': [123, 137],
             },
@@ -83,18 +77,11 @@ def test_panel_query_addition(fake_panelapp):  # pylint: disable=unused-argument
 
     # should query for and integrate the incidentalome content
     get_panel_green(
-        gd,
-        panel_id=126,
-        old_data={
-            'genes': {
-                'ENSG00EFGH': {'panels': [137, 126]},
-                'ENSG00IJKL': {'panels': [137]},
-            },
-        },
+        gd, panel_id=126, old_data={'ENSG00EFGH': [137, 126], 'ENSG00IJKL': [137]}
     )
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'Monoallelic', 'Biallelic'}
+    assert gd['genes']['ENSG00ABCD']['moi'] == {'monoallelic', 'biallelic'}
     assert gd['genes']['ENSG00ABCD']['panels'] == [137, 126]
-    assert gd['genes']['ENSG00IJKL']['moi'] == {'Mono_And_Biallelic'}
+    assert gd['genes']['ENSG00IJKL']['moi'] == {'both'}
     assert gd['genes']['ENSG00IJKL']['panels'] == [123, 137]
     assert 'ENSG00EFGH' not in gd['genes']
 
@@ -114,14 +101,18 @@ def test_get_list_from_participants(tmp_path):
     assert read_panels_from_participant_file(str(tmp_json)) == {1, 2, 3, 9, 99}
 
 
-def test_get_best_moi_unknown():
+def test_get_best_moi_empty():
     """
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'Unknown'}}}
+    d = {'ensg1': {'moi': {}, 'chrom': '1'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
+    assert d['ensg1']['moi'] == 'Biallelic'
+
+    d = {'ensg1': {'moi': {}, 'chrom': 'X'}}
+    get_best_moi(d)
+    assert d['ensg1']['moi'] == 'Hemi_Bi_In_Female'
 
 
 def test_get_best_moi_mono():
@@ -129,7 +120,7 @@ def test_get_best_moi_mono():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'Monoallelic'}}}
+    d = {'ensg1': {'moi': {'monoallelic'}, 'chrom': '1'}}
     get_best_moi(d)
     assert d['ensg1']['moi'] == 'Monoallelic'
 
@@ -139,9 +130,9 @@ def test_get_best_moi_mono_and_biallelic():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'Monoallelic', 'Biallelic'}}}
+    d = {'ensg1': {'moi': {'monoallelic', 'biallelic'}, 'chrom': '1'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Monoallelic'
+    assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
 
 
 def test_get_best_moi_1():
@@ -149,7 +140,7 @@ def test_get_best_moi_1():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'Monoallelic', 'Biallelic', 'both'}}}
+    d = {'ensg1': {'moi': {'Monoallelic', 'Biallelic', 'both'}, 'chrom': '1'}}
     get_best_moi(d)
     assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
 
@@ -159,6 +150,6 @@ def test_get_best_moi_x():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'x-linked biallelic', 'x-linked'}}}
+    d = {'ensg1': {'moi': {'x-linked biallelic', 'x-linked'}, 'chrom': 'X'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Hemi_Mono_In_Female'
+    assert d['ensg1']['moi'] == 'Hemi_Bi_In_Female'

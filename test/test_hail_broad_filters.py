@@ -16,21 +16,28 @@ from reanalysis.hail_filter_and_label import (
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
-@pytest.mark.parametrize(
-    'ac,an,threshold,rows',
+@pytest.mark.parametrize(  # needs clinvar
+    'ac,an,clinvar,threshold,rows',
     [
-        (1, 1, 0.01, 1),
-        (6, 1, 0.01, 0),
-        (6, 70, 0.1, 1),
-        (50, 999999, 0.01, 1),
-        (50, 50, 0.01, 0),
+        (1, 1, 0, 0.01, 1),
+        (6, 1, 0, 0.01, 0),
+        (6, 1, 1, 0.01, 1),
+        (6, 70, 0, 0.1, 1),
+        (50, 999999, 0, 0.01, 1),
+        (50, 50, 0, 0.01, 0),
+        (50, 50, 1, 0.01, 1),
     ],
 )
-def test_ac_filter_no_filt(ac: int, an: int, threshold: float, rows: int, hail_matrix):
+def test_ac_filter_no_filt(
+    ac: int, an: int, clinvar: int, threshold: float, rows: int, hail_matrix
+):
     """
     run tests on the ac filtering method
+    check that a clinvar pathogenic overrides the AC test
     """
     matrix = hail_matrix.annotate_rows(AC=ac, AN=an)
+    matrix = matrix.annotate_rows(info=matrix.info.annotate(clinvar_aip=clinvar))
+
     assert filter_matrix_by_ac(matrix, threshold).count_rows() == rows
 
 

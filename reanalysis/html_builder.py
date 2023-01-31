@@ -19,9 +19,9 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from reanalysis.utils import read_json_from_path
 
-JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 
 @dataclass
@@ -35,86 +35,6 @@ class DataTable:
     rows: list[Any]
     heading: str = ''
     description: str = ''
-
-
-class Variant:
-    """
-    Handle as much of per variant logic as we can here. Hopefully, this is just simple
-    data munging and mapping operations.
-
-    Try not to put presentation logic here - keep it in the jinja templates
-    """
-
-    def __init__(
-        self,
-        variant_dict: dict,
-        sample: 'Sample',
-        gene_map: dict[str, Any],
-    ):
-        self.chrom = variant_dict['var_data']['coords']['chrom']
-        self.pos = variant_dict['var_data']['coords']['pos']
-        self.ref = variant_dict['var_data']['coords']['ref']
-        self.alt = variant_dict['var_data']['coords']['alt']
-        self.var_data = variant_dict['var_data']
-        self.supported = variant_dict['supported']
-        self.support_vars = variant_dict['support_vars']
-        self.flags = variant_dict['flags']
-        self.reasons = variant_dict['reasons']
-        self.genotypes = variant_dict['genotypes']
-        self.sample = sample
-
-        # List of (gene_id, symbol)
-        self.genes: list[tuple[str, str]] = []
-        for gene_id in variant_dict['gene'].split(','):
-            symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
-            self.genes.append((gene_id, symbol))
-
-        # Separate phenotype match flags from waring flags
-        # TODO: should we keep these separate in the report?
-        self.warning_flags = []
-        self.panel_flags = []
-        for flag in variant_dict['flags']:
-            if flag in sample.html_builder.panel_names:
-                self.panel_flags.append(flag)
-            else:
-                self.warning_flags.append(flag)
-
-        # Summaries CSQ strings
-        (
-            self.mane_consequences,
-            self.non_mane_consequences,
-            self.mane_hgvsps,
-        ) = self.parse_csq()
-
-    def __str__(self) -> str:
-        return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
-
-    def parse_csq(self):
-        """
-        Parse CSQ variant string returning:
-            - set of "consequences" from MANE transcripts
-            - set of "consequences" from non-MANE transcripts
-            - Set of variant effects in p. nomenclature (or c. if no p. is available)
-        """
-        mane_consequences = set()
-        non_mane_consequences = set()
-        mane_hgvsps = set()
-
-        for csq in self.var_data.get('transcript_consequences', []):
-            if 'consequence' not in csq:
-                continue
-
-            # if csq['mane_select'] or csq['mane_plus_clinical']:
-            if csq['mane_select']:
-                mane_consequences.update(csq['consequence'].split('&'))
-                if csq['hgvsp']:
-                    mane_hgvsps.add(csq['hgvsp'].split(':')[1])
-                elif csq['hgvsc']:
-                    mane_hgvsps.add(csq['hgvsc'].split(':')[1])
-            else:
-                non_mane_consequences.add(csq['consequence'])
-
-        return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
 def variant_in_forbidden_gene(variant_dict, forbidden_genes):
@@ -131,39 +51,6 @@ def variant_in_forbidden_gene(variant_dict, forbidden_genes):
             return True
 
     return False
-
-
-class Sample:
-    """
-    Sample related logic
-    """
-
-    def __init__(
-        self,
-        name: str,
-        metadata: dict,
-        variants: list[dict[str, Any]],
-        html_builder: 'HTMLBuilder',
-    ):
-        self.name = name
-        self.family_id = metadata['family_id']
-        self.family_members = metadata['members']
-        self.phenotypes = metadata['phenotypes']
-        self.ext_id = metadata['ext_id']
-        self.panel_ids = metadata['panel_ids']
-        self.panel_names = metadata['panel_names']
-        self.seqr_id = html_builder.seqr.get(name, name)
-        self.html_builder = html_builder
-
-        # Ingest variants excluding any on the forbidden gene list
-        self.variants = [
-            Variant(variant_dict, self, html_builder.panelapp['genes'])
-            for variant_dict in variants
-            if not variant_in_forbidden_gene(variant_dict, html_builder.forbidden_genes)
-        ]
-
-    def __str__(self):
-        return self.name
 
 
 class HTMLBuilder:
@@ -354,6 +241,120 @@ class HTMLBuilder:
         to_path(output_path).write_text(
             '\n'.join(line for line in content.split('\n') if line.strip())
         )
+
+
+class Sample:
+    """
+    Sample related logic
+    """
+
+    def __init__(
+        self,
+        name: str,
+        metadata: dict,
+        variants: list[dict[str, Any]],
+        html_builder: HTMLBuilder,
+    ):
+        self.name = name
+        self.family_id = metadata['family_id']
+        self.family_members = metadata['members']
+        self.phenotypes = metadata['phenotypes']
+        self.ext_id = metadata['ext_id']
+        self.panel_ids = metadata['panel_ids']
+        self.panel_names = metadata['panel_names']
+        self.seqr_id = html_builder.seqr.get(name, name)
+        self.html_builder = html_builder
+
+        # Ingest variants excluding any on the forbidden gene list
+        self.variants = [
+            Variant(variant_dict, self, html_builder.panelapp['genes'])
+            for variant_dict in variants
+            if not variant_in_forbidden_gene(variant_dict, html_builder.forbidden_genes)
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Variant:
+    """
+    Handle as much of per variant logic as we can here. Hopefully, this is just simple
+    data munging and mapping operations.
+
+    Try not to put presentation logic here - keep it in the jinja templates
+    """
+
+    def __init__(
+        self,
+        variant_dict: dict,
+        sample: Sample,
+        gene_map: dict[str, Any],
+    ):
+        self.chrom = variant_dict['var_data']['coords']['chrom']
+        self.pos = variant_dict['var_data']['coords']['pos']
+        self.ref = variant_dict['var_data']['coords']['ref']
+        self.alt = variant_dict['var_data']['coords']['alt']
+        self.first_seen: str = variant_dict['first_seen']
+        self.var_data = variant_dict['var_data']
+        self.supported = variant_dict['supported']
+        self.support_vars = variant_dict['support_vars']
+        self.flags = variant_dict['flags']
+        self.reasons = variant_dict['reasons']
+        self.genotypes = variant_dict['genotypes']
+        self.sample = sample
+
+        # List of (gene_id, symbol)
+        self.genes: list[tuple[str, str]] = []
+        for gene_id in variant_dict['gene'].split(','):
+            symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
+            self.genes.append((gene_id, symbol))
+
+        # Separate phenotype match flags from waring flags
+        # TODO: should we keep these separate in the report?
+        self.warning_flags = []
+        self.panel_flags = []
+        for flag in variant_dict['flags']:
+            if flag in sample.html_builder.panel_names:
+                self.panel_flags.append(flag)
+            else:
+                self.warning_flags.append(flag)
+
+        # Summaries CSQ strings
+        (
+            self.mane_consequences,
+            self.non_mane_consequences,
+            self.mane_hgvsps,
+        ) = self.parse_csq()
+
+    def __str__(self) -> str:
+        return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
+
+    def parse_csq(self):
+        """
+        Parse CSQ variant string returning:
+            - set of "consequences" from MANE transcripts
+            - set of "consequences" from non-MANE transcripts
+            - Set of variant effects in p. nomenclature (or c. if no p. is available)
+        """
+        mane_consequences = set()
+        non_mane_consequences = set()
+        mane_hgvsps = set()
+
+        for csq in self.var_data.get('transcript_consequences', []):
+            if 'consequence' not in csq:
+                continue
+
+            # if csq['mane_select'] or csq['mane_plus_clinical']:
+            if csq['mane_select']:
+                mane_consequences.update(csq['consequence'].split('&'))
+                if csq['hgvsp']:
+                    mane_hgvsps.add(csq['hgvsp'].split(':')[1])
+                elif csq['hgvsc']:
+                    mane_hgvsps.add(csq['hgvsc'].split(':')[1])
+            else:
+                non_mane_consequences.add(csq['consequence'])
+
+        return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
 if __name__ == '__main__':
