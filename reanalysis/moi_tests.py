@@ -354,13 +354,11 @@ class DominantAutosomal(BaseMoi):
         partial_penetrance: bool = False,
     ) -> list[ReportedVariant]:
         """
-        simplest
-        if variant is present and sufficiently rare, we take it
-
-        :param principal_var:
-        :param comp_het:
-        :param partial_penetrance:
-        :return:
+        Simplest MOI, exclusions based on HOM count and AF
+        Args:
+            principal_var ():
+            comp_het ():
+            partial_penetrance ():
         """
 
         classifications = []

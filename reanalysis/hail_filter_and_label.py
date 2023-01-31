@@ -353,11 +353,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
-    uses the Hail builtin method (very strict)
-
-    :param mt: the whole joint-call MatrixTable
-    :param plink_family_file:
-    :return: mt with Category4 annotations
+    default uses the Hail builtin method (very strict)
+    config switch to use the lenient version
 
     Args:
         mt ():
@@ -374,12 +371,23 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
 
     pedigree = hl.Pedigree.read(plink_family_file)
 
-    dn_table = hl.de_novo(
-        de_novo_matrix,
-        pedigree,
-        pop_frequency_prior=de_novo_matrix.info.gnomad_af,
-        ignore_in_sample_allele_frequency=True,
-    )
+    if get_config()['filter'].get('lenient_de_novo', False):
+        # pylint: disable=import-outside-toplevel
+        from homebrewed import (
+            custom_de_novo,
+        )
+
+        logging.info('Using lenient de novo test')
+
+        dn_table = custom_de_novo(matrix=de_novo_matrix, pedigree=pedigree)
+
+    else:
+        dn_table = hl.de_novo(
+            de_novo_matrix,
+            pedigree,
+            pop_frequency_prior=de_novo_matrix.info.gnomad_af,
+            ignore_in_sample_allele_frequency=True,
+        )
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
     dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
@@ -932,6 +940,8 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     mt = annotate_category_2(mt=mt, new_genes=new_expression)
     mt = annotate_category_3(mt=mt)
     mt = annotate_category_5(mt=mt)
+
+    # cat. 4 can run in 2 modes - config contains a switch
     mt = annotate_category_4(mt=mt, plink_family_file=plink)
     mt = annotate_category_support(mt=mt)
 

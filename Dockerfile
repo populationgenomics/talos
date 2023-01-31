@@ -1,4 +1,4 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows
+FROM australia-southeast1-docker.pkg.dev/analysis-runner/images/driver
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
