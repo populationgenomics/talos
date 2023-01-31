@@ -114,26 +114,27 @@ def test_file_types_exception():
 
 
 @pytest.mark.parametrize(
-    'string,expected',
+    'string,expected,chrom',
     [
-        ('blag', 'Mono_And_Biallelic'),
-        (None, 'Mono_And_Biallelic'),
-        ('Unknown', 'Mono_And_Biallelic'),
-        ('BIALLELIC_ANY', 'Biallelic'),
-        ('BOTH_something,something', 'Mono_And_Biallelic'),
-        ('MONO,something', 'Monoallelic'),
-        ('X-LINKED', 'Hemi_Mono_In_Female'),
-        ('X-LINKED biallelic', 'Hemi_Bi_In_Female'),
+        ('blag', 'Biallelic', '1'),
+        ('blag', 'Hemi_Bi_In_Female', 'X'),
+        ('biallelic ANY', 'Biallelic', '1'),
+        ('both something,something', 'Mono_And_Biallelic', '1'),
+        (None, 'Biallelic', '1'),
+        ('monoallelic, something', 'Monoallelic', '1'),
+        ('x-linked', 'Hemi_Bi_In_Female', 'X'),
+        (None, 'Hemi_Bi_In_Female', 'X'),
+        ('x-linked biallelic', 'Hemi_Bi_In_Female', 'X'),
     ],
 )
-def test_get_simple_moi(string: str, expected: str):
+def test_get_simple_moi(string: str, expected: str, chrom: str):
     """
-
+    Tests the string parsing down to simple representation
     :param string:
     :param expected:
-    :return:
+    :param chrom:
     """
-    assert get_simple_moi(string) == expected
+    assert get_simple_moi(string, chrom) == expected
 
 
 def test_get_non_ref_samples():

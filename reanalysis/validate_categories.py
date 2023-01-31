@@ -340,18 +340,21 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
 
 def prepare_results_shell(
-    vcf_samples: list[str], pedigree: peddy.Ped, panel_data: dict, panelapp: dict
+    vcf_samples: list[str], pedigree: peddy.Ped, panel_data: dict | None, panelapp: dict
 ) -> dict:
     """
     prepare an empty dictionary for the results, feat. participant metadata
     Args:
         vcf_samples (): samples in the VCF header
         pedigree (): the Peddy PED object
-        panel_data (): dictionary of per-participant panels
+        panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
     Returns:
         a pre-populated dict with sample metadata filled in
     """
+
+    if panel_data is None:
+        panel_data = {}
 
     # create an empty dict for all the samples
     sample_dict = {}

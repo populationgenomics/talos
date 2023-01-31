@@ -34,7 +34,7 @@ jobs:
         gcloud auth configure-docker australia-southeast1-docker.pkg.dev
     - name: build
       run: |
-        docker build . -f Dockerfile --tag $BASE_IMAGE:{{ github.event.inputs.tag }}
+        docker build . -f Dockerfile --tag $BASE_IMAGE:${{ github.event.inputs.tag }}
     - name: push test
       run: |
-        docker push $BASE_IMAGE:{{ github.event.inputs.tag }}
+        docker push $BASE_IMAGE:${{ github.event.inputs.tag }}
