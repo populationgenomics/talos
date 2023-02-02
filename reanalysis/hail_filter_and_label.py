@@ -372,22 +372,23 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
     pedigree = hl.Pedigree.read(plink_family_file)
 
     if get_config()['filter'].get('lenient_de_novo', False):
-        # pylint: disable=import-outside-toplevel
-        from homebrewed import (
-            custom_de_novo,
-        )
-
+        # # pylint: disable=import-outside-toplevel
+        # from homebrewed import (
+        #     custom_de_novo,
+        # )
+        #
         logging.info('Using lenient de novo test')
+        #
+        # dn_table = custom_de_novo(matrix=de_novo_matrix, pedigree=pedigree)
+        fake_pl = hl.literal([0, 400, 4000])
+        de_novo_matrix = de_novo_matrix.annotate_entries(PL=hl.or_else(mt.PL, fake_pl))
 
-        dn_table = custom_de_novo(matrix=de_novo_matrix, pedigree=pedigree)
-
-    else:
-        dn_table = hl.de_novo(
-            de_novo_matrix,
-            pedigree,
-            pop_frequency_prior=de_novo_matrix.info.gnomad_af,
-            ignore_in_sample_allele_frequency=True,
-        )
+    dn_table = hl.de_novo(
+        de_novo_matrix,
+        pedigree,
+        pop_frequency_prior=de_novo_matrix.info.gnomad_af,
+        ignore_in_sample_allele_frequency=True,
+    )
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
     dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
