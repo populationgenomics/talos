@@ -344,7 +344,9 @@ def main(
         # need to run the annotation phase
         # uses default values from RefData
 
-        input_vcf = get_batch().read_input(input_path)
+        input_vcf = get_batch().read_input_group(
+            **{'vcf.gz': input_path, 'vcf.gz.tbi': f'{input_path}.tbi'}
+        )
 
         siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
         sites_job, _sites_vcf = add_make_sitesonly_job(
