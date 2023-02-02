@@ -299,7 +299,9 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # identify variant sets phased with this one
         # cyvcf2 uses a default value for the phase set, skip that
         # this is restricted to a single int for phase_set
-        self.phased = get_phase_data(samples, var)
+        self.phased = {}
+        # TODO reimplement with PID/PGT or PS
+        # self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
         self.categories = []

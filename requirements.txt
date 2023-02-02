@@ -1,6 +1,6 @@
 cloudpathlib[all]>=0.9.0
 cpg-utils>=4.7.0
-cpg-workflows>=1.1.0
+cpg_workflows==1.4.1
 cyvcf2>=0.30.18
 dill>=0.3.5.1
 hail>=0.2.105
