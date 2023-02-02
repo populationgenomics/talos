@@ -224,7 +224,16 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
     except KeyError:
-        pass
+        logging.info('failed to find PS phase attributes')
+        try:
+            # retry using PGT & PID
+            for sample, phase_gt, phase_id in zip(
+                samples, var.format('PGT'), var.format('PID')
+            ):
+                if phase_gt != '.' and phase_id != '.':
+                    phased_dict[sample][phase_id] = phase_gt
+        except KeyError:
+            logging.info('also failed using PID and PGT')
 
     return dict(phased_dict)
 
@@ -299,9 +308,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # identify variant sets phased with this one
         # cyvcf2 uses a default value for the phase set, skip that
         # this is restricted to a single int for phase_set
-        self.phased = {}
-        # TODO reimplement with PID/PGT or PS
-        # self.phased = get_phase_data(samples, var)
+        self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
         self.categories = []
