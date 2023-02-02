@@ -7,6 +7,10 @@ default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
 
+[clinvar]
+filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute']
+filter_benign = ['Illumina Laboratory Services; Illumina']
+
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
 gnomad_dominant = 0.001
