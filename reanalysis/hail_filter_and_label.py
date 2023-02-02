@@ -380,8 +380,15 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
         logging.info('Using lenient de novo test')
         #
         # dn_table = custom_de_novo(matrix=de_novo_matrix, pedigree=pedigree)
-        fake_pl = hl.literal([0, 400, 4000])
-        de_novo_matrix = de_novo_matrix.annotate_entries(PL=hl.or_else(mt.PL, fake_pl))
+        fake_pl = hl.literal([0, 200, 1000])
+
+        # pylint: disable=invalid-unary-operand-type
+        de_novo_matrix = de_novo_matrix.annotate_entries(
+            PL=hl.case()
+            .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
+            .when(de_novo_matrix.GT.is_non_ref(), hl.missing('array<int32>'))
+            .default(fake_pl)
+        )
 
     dn_table = hl.de_novo(
         de_novo_matrix,
