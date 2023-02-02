@@ -23,7 +23,7 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
-import hailtop as hb
+from hailtop.batch import ResourceFile
 from hailtop.batch.job import BashJob, Job
 
 from cpg_utils import to_path, Path
@@ -274,7 +274,7 @@ def handle_results_job(
 
 
 def add_make_sitesonly_job(
-    input_vcf: hb.ResourceFile, output_vcf_path: Path, storage_gb: int
+    input_vcf: ResourceFile, output_vcf_path: Path, storage_gb: int
 ) -> Job:
     """
     Create sites-only VCF with only site-level annotations.
