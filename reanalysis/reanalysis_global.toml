@@ -9,7 +9,7 @@ panel_month_delta = 12
 
 [clinvar]
 filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute']
-filter_benign = ['Illumina Laboratory Services; Illumina']
+filter_benign = ['illumina laboratory services; illumina']
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
