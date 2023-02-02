@@ -295,9 +295,7 @@ def add_make_sitesonly_job(
             f"""
     bcftools view -G -Oz -o {j.output_vcf['vcf.gz']} \\
     -I {input_vcf} \\
-    if [[ ! -e {j.output_vcf['vcf.gz.tbi']} ]]; then
-        tabix -p vcf {j.output_vcf['vcf.gz']}
-    fi
+    tabix -p vcf -f {j.output_vcf['vcf.gz']}
     """
         )
     )
