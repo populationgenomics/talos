@@ -131,7 +131,7 @@ class MOIRunner:
             self.filter_list = [XRecessive(pedigree=pedigree)]
 
         else:
-            raise Exception(f'MOI type {target_moi} is not addressed in MOI')
+            raise KeyError(f'MOI type {target_moi} is not addressed in MOI')
 
     def run(
         self,
@@ -172,7 +172,7 @@ class BaseMoi:
         base class
         """
         if applied_moi is None:
-            raise Exception('An applied MOI needs to reach the Base Class')
+            raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
 
@@ -604,7 +604,7 @@ class XDominant(BaseMoi):
         classifications = []
 
         if principal_var.coords.chrom.lower() != 'x':
-            raise Exception(
+            raise ValueError(
                 f'X-Chromosome MOI given for variant on {principal_var.coords.chrom}'
             )
 

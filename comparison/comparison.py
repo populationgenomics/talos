@@ -112,7 +112,7 @@ class CommonFormatResult:
             string_chr = f'chr{self.chr}'
 
         if string_chr not in contigs:
-            raise Exception(
+            raise ValueError(
                 f'Contigs in this VCF not compatible with provided locus: {self}'
             )
         return string_chr, f'{string_chr}:{self.pos}-{self.pos}'

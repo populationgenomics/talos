@@ -801,7 +801,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     )
 
     if len(common_samples) == 0:
-        raise Exception('No samples shared between pedigree and MT')
+        raise ValueError('No samples shared between pedigree and MT')
 
     # full overlap = no filtering
     if common_samples == matrix_samples:
@@ -873,7 +873,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     # if we already generated the annotated output, load instead
     if not to_path(mt_path.rstrip('/') + '/').exists():
-        raise Exception(f'Input MatrixTable doesn\'t exist: {mt_path}')
+        raise FileExistsError(f'Input MatrixTable doesn\'t exist: {mt_path}')
 
     mt = hl.read_matrix_table(mt_path)
 
@@ -884,7 +884,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
         )
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
-        raise Exception('Fields were missing from the input Matrix')
+        raise KeyError('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=plink)
@@ -911,7 +911,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     # die if there are no variants remaining
     if mt.count_rows() == 0:
-        raise Exception('No remaining rows to process!')
+        raise ValueError('No remaining rows to process!')
 
     checkpoint_number = checkpoint_number + 1
 
