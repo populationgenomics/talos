@@ -126,23 +126,25 @@ def apply_moi_to_variants(
 
         for variant in variants:
 
+            # is this even possible?
             if not (variant.het_samples or variant.hom_samples):
                 continue
 
-            # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
-            if variant.category_non_support:
-
-                # this variant is a candidate for MOI checks
-                # - use MOI to get appropriate model
-                # - run variant, append relevant classification(s) to the results
-                # - always run partially penetrant analysis for Category 1 (clinvar)
-                variant_reports = moi_lookup[panel_gene_data.get('moi')].run(
+            # this variant is a candidate for MOI checks
+            # - use MOI to get appropriate model
+            # - run variant, append relevant classification(s) to the results
+            # - always run partially penetrant analysis for Category 1 (clinvar)
+            # pass on whether this variant is support only
+            # - no dominant MOI
+            # - discarded if two support-only form a comp-het
+            results.extend(
+                moi_lookup[panel_gene_data.get('moi')].run(
                     principal_var=variant,
                     comp_het=comp_het_dict,
                     partial_penetrance=variant.info.get('categoryboolean1', False),
+                    support=variant.support_only,
                 )
-
-                results.extend(variant_reports)
+            )
 
     return results
 

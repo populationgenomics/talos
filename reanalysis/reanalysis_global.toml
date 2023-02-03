@@ -8,7 +8,7 @@ panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
 
 [clinvar]
-filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute']
+filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute', 'laboratory for molecular medicine; mass general brigham personalized medicine']
 filter_benign = ['illumina laboratory services; illumina']
 
 [moi_tests]
