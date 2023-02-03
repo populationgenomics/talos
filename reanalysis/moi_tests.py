@@ -371,6 +371,7 @@ class DominantAutosomal(BaseMoi):
         classifications = []
 
         # more stringent Pop.Freq checks for dominant
+        # reject support for dominant MOI
         if support or (
             (
                 principal_var.info.get('gnomad_af', 0) > self.ad_threshold
