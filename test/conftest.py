@@ -23,6 +23,8 @@ HAIL_VCF = os.path.join(INPUT, 'single_hail.vcf.bgz')
 DE_NOVO_TRIO = os.path.join(INPUT, 'de_novo.vcf.bgz')
 DE_NOVO_PED = os.path.join(INPUT, 'de_novo_ped.fam')
 QUAD_PED = os.path.join(INPUT, 'trio_plus_sibling.fam')
+
+# todo change this - category4b still present
 LABELLED = os.path.join(INPUT, '1_labelled_variant.vcf.bgz')
 PED_FILE = os.path.join(INPUT, 'pedfile.ped')
 AIP_OUTPUT = os.path.join(INPUT, 'aip_output_example.json')

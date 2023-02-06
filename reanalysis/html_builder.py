@@ -20,7 +20,7 @@ from cpg_utils.config import get_config
 from reanalysis.utils import read_json_from_path
 
 
-CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
+CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 

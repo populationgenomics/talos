@@ -33,6 +33,7 @@ from reanalysis.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
     GeneDict,
@@ -43,7 +44,7 @@ from reanalysis.utils import (
 MALE_FEMALE = {'male', 'female'}
 
 
-def set_up_inheritance_filters(
+def set_up_moi_filters(
     panelapp_data: dict,
     pedigree: Ped,
 ) -> dict[str, MOIRunner]:
@@ -198,13 +199,11 @@ def clean_and_filter(
 
             # don't re-cast sets for every single variant
             if gene in gene_details:
-                all_panels, new_panels = gene_details[gene]
+                all_panels = gene_details[gene]
 
             else:
-                all_panels, new_panels = get_gene_panel_sets(
-                    panelapp_data['genes'], gene
-                )
-                gene_details[gene] = (all_panels, new_panels)
+                all_panels = set(panelapp_data['genes'][gene]['panels'])
+                gene_details[gene] = all_panels
 
             panel_intersection = participant_panels[sample].intersection(all_panels)
 
@@ -213,14 +212,6 @@ def clean_and_filter(
 
                 # this gene is not relevant for this participant
                 continue
-
-            if '2' in variant.categories and not bool(
-                participant_panels[sample].intersection(new_panels)
-            ):
-                _ = variant.categories.pop(variant.categories.index('2'))
-
-                # should not be treated as new
-                logging.info(f'Removing category 2 in {gene} for {sample}')
 
             each_event.flags.extend(
                 [
@@ -252,26 +243,6 @@ def clean_and_filter(
         results_holder[sample]['variants'].sort()
 
     return results_holder
-
-
-def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
-    """
-    get each gene's associated panels only once
-
-    shove in some lru_cache'ing here, so we don't keep generating the sets
-
-    Args:
-        gene_details ():
-        gene ():
-
-    Returns:
-        set of all panels for this gene,
-        set of new panels for this gene
-    """
-    single_gene_details = gene_details[gene]
-    all_panels = set(single_gene_details['panels'])
-    new_panels = set(single_gene_details['new'])
-    return all_panels, new_panels
 
 
 def count_families(pedigree: Ped, samples: list[str]) -> dict:
@@ -441,12 +412,17 @@ def main(
     panelapp_data = read_json_from_path(panelapp)
 
     # set up the inheritance checks
-    moi_lookup = set_up_inheritance_filters(
+    moi_lookup = set_up_moi_filters(
         panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
+
+    # create the new gene map
+    new_gene_map = get_new_gene_map(
+        panelapp_data=panelapp_data, pheno_panels=participant_panels
+    )
 
     result_list = []
 
@@ -457,7 +433,7 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            panelapp_data=panelapp_data['genes'],
+            new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
 
