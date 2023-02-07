@@ -464,6 +464,8 @@ class RecessiveAutosomalCH(BaseMoi):
         Returns:
             list[ReportedVariant]: data object if RecessiveAutosomal fits
         """
+        print(comp_het)
+        input(principal_var.coords.string_format)
 
         if comp_het is None:
             comp_het = {}
@@ -487,6 +489,8 @@ class RecessiveAutosomalCH(BaseMoi):
                 sample=sample_id,
             ):
 
+                print(principal_var, partner_variant)
+
                 # skip the double-support scenario
                 if principal_var.support_only and partner_variant.support_only:
                     continue
@@ -494,8 +498,9 @@ class RecessiveAutosomalCH(BaseMoi):
                 # categorised for this specific sample, allow support in partner
                 # - also screen out high-AF partners
                 if not (
-                    partner_variant.sample_specific_category_check(sample_id)
-                    or partner_variant.has_support
+                    partner_variant.sample_specific_category_check(
+                        sample_id, allow_support=True
+                    )
                 ):
                     continue
 
@@ -1025,7 +1030,7 @@ class XRecessiveFemaleCH(BaseMoi):
                         family=self.pedigree[sample_id].family_id,
                         gene=var_copy.info.get('gene_id'),
                         var_data=var_copy,
-                        reasons={f'{self.applied_moi} Compound-Het Female'},
+                        reasons={self.applied_moi},
                         supported=True,
                         genotypes=self.get_family_genotypes(
                             variant=principal_var, sample_id=sample_id
