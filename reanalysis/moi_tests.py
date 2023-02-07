@@ -7,9 +7,6 @@ We then run a permissive MOI match for the variant
 """
 
 
-# pylint: disable=too-many-lines
-
-
 from abc import abstractmethod
 from copy import deepcopy
 
