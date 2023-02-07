@@ -362,7 +362,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         for cat in self.sample_support + self.boolean_categories:
             self.info[cat] = self.info.get(cat, 0) == 1
 
-        # de novo categories are a list of strings or 'missing'
+        # sample categories are a list of strings or 'missing'
         # if cohort runs as singletons, remove possibility of de novo
         # if not singletons, split each into a list of sample IDs
         for sam_cat in self.sample_categories:
@@ -470,6 +470,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         if self.sample_de_novo(sample_id=sample):
             categories.append('de_novo')
 
+        # mutually exlusive with the boolean category2 value
         if new := self.info.get('categorysample2'):
             if any(x in new for x in ['all', sample]):
                 categories.append('2')
@@ -485,6 +486,19 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
         Returns:
             bool: True if this sample forms de novo
+        """
+        return sample_id in self.info.get('categorysample4', [])
+
+    def sample_categorised_check(self, sample_id: str) -> bool:
+        """
+        check if any *sample categories applied for this sample
+
+        Args:
+            sample_id (str):
+
+        Returns:
+            bool: True if this sample features in any
+                  named-sample category, includes 'all'
         """
         return any(
             sam in self.info[sam_cat]
@@ -506,7 +520,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             True if the variant is categorised for this sample
         """
-        big_cat = self.category_non_support or self.sample_de_novo(sample_id)
+        big_cat = self.category_non_support or self.sample_categorised_check(sample_id)
         if allow_support:
             return big_cat or self.has_support
         return big_cat
@@ -1023,7 +1037,7 @@ def date_annotate_results(
                 historic_cats = set(hist['categories'].keys())
 
                 # if we have any new categories don't alter the date
-                if new_cats := (current_cats - historic_cats):
+                if new_cats := current_cats - historic_cats:
 
                     # add any new categories
                     for cat in new_cats:

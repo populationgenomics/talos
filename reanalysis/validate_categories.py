@@ -204,10 +204,8 @@ def clean_and_filter(
 
             panel_intersection = participant_panels[sample].intersection(all_panels)
 
-            # is this a valid gene for this participant?
+            # is this gene relevant for this participant?
             if not panel_intersection:
-
-                # this gene is not relevant for this participant
                 continue
 
             each_event.flags.extend(
