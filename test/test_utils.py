@@ -1,6 +1,8 @@
 """
 test class for the utils collection
 """
+
+
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import List
@@ -87,7 +89,6 @@ def test_reported_variant_ordering(trio_abs_variant):
 def test_file_types():
     """
     check 'em
-    :return:
     """
     assert identify_file_type('this/is/my/matrixtable.mt') == FileTypes.MATRIX_TABLE
     assert identify_file_type('this/is/my/hailtable.ht') == FileTypes.HAIL_TABLE
@@ -99,7 +100,6 @@ def test_file_types():
 def test_file_types_assert_error():
     """
     check 'em
-    :return:
     """
     with pytest.raises(AssertionError):
         identify_file_type('no/extensions')

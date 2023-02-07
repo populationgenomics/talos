@@ -11,7 +11,7 @@ def test_de_novo_calling(trio_ped, de_novo_matrix):
     """
     test that we correctly identify the de novo variant(s)
     """
-    hail_pedigree = hl.Pedigree.read(trio_ped)
+    hail_pedigree = hl.Pedigree.read(str(trio_ped))
     table = custom_de_novo(de_novo_matrix, hail_pedigree)
     table = table.key_by(table.locus, table.alleles)
     table = table.select(table.id).collect_by_key()

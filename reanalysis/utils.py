@@ -659,7 +659,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str | None, default: Any = None) -> Any:
+def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -675,10 +675,11 @@ def read_json_from_path(bucket_path: str | None, default: Any = None) -> Any:
     if bucket_path is None:
         return default
 
-    any_path = to_path(bucket_path)
+    if isinstance(bucket_path, str):
+        bucket_path = to_path(bucket_path)
 
-    if any_path.exists():
-        with any_path.open() as handle:
+    if bucket_path.exists():
+        with bucket_path.open() as handle:
             return json.load(handle)
     return default
 
