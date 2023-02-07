@@ -210,12 +210,6 @@ def get_new_gene_map(
 
     Generate a map of
     { gene: [samples, where, this, is, 'new']}
-
-    WHAT HAPPENS IF THE PHENOTYPE-MATCHED PANELS ARE MISSING?
-    WE DONT REPLACE IT WITH SAMPLE FLAGS, JUST KEEP IT AS =1
-
-    Returns:
-
     """
 
     # pull out the core panel once
@@ -240,7 +234,7 @@ def get_new_gene_map(
         for panel in data['panels']:
             panel_samples[panel].add(sample)
 
-    pheno_matched_new: dict[str, str] = defaultdict(str)
+    pheno_matched_new = {}
 
     # iterate over the new genes and find out who they are new for
     for gene, panels in new_genes.items():
@@ -254,7 +248,7 @@ def get_new_gene_map(
             if panel_id not in panel_samples:
                 raise AssertionError(f'PanelID {panel_id} not attached to any samples')
             samples.update(panel_samples[panel_id])
-        pheno_matched_new[gene] = ','.join(samples)
+        pheno_matched_new[gene] = ','.join(sorted(samples))
 
     return pheno_matched_new
 
@@ -339,13 +333,20 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
         # hot-swap cat 2 from a boolean to a sample list - if appropriate
         if self.info.get('categoryboolean2', 0):
-            new_gene_samples = new_genes[self.info.get('gene_id')]
 
-            # if it's 'all', maintain as a boolean flag
-            # messy, stinky code
+            # flexxing this just so I don't have to rerun Hail
+            new_gene_samples = new_genes.get(self.info.get('gene_id'), '')
+
             if new_gene_samples != {'all'}:
                 _boolcat = self.info.pop('categoryboolean2')
+
+            elif new_gene_samples:
+                # if it's 'all', maintain as a boolean flag
+                # messy, stinky code
                 self.info['categorysample2'] = new_gene_samples
+
+            else:
+                _boolcat = self.info.pop('categoryboolean2')
 
         # set the class attributes
         self.boolean_categories = [

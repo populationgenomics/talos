@@ -265,7 +265,7 @@ def test_new_gene_map_null():
 
     panel_data = {'genes': {'ENSG1': {'new': [1, 2]}}}
     result = get_new_gene_map(panel_data)
-    assert result == {'ENSG1': {'all'}}
+    assert result == {'ENSG1': 'all'}
 
 
 def test_new_gene_map_core():
@@ -277,7 +277,7 @@ def test_new_gene_map_core():
     panel_data = {'genes': {'ENSG1': {'new': [137]}}}
     personal_panels = {'sam': {'panels': []}}
     result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': {'all'}}
+    assert result == {'ENSG1': 'all'}
 
 
 def test_new_gene_map_mix_n_match():
@@ -288,7 +288,7 @@ def test_new_gene_map_mix_n_match():
     panel_data = {'genes': {'ENSG1': {'new': [1]}}}
     personal_panels = {'sam': {'panels': [1, 2]}}
     result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': {'sam'}}
+    assert result == {'ENSG1': 'sam'}
 
 
 def test_new_gene_map_fail_handled():
@@ -311,12 +311,14 @@ def test_new_gene_map_complex():
             'ENSG1': {'new': [1]},
             'ENSG2': {'new': [137]},
             'ENSG3': {'new': [4]},
+            'ENSG4': {'new': [2]},
         }
     }
     personal_panels = {'sam': {'panels': [1, 2]}, 'sam2': {'panels': [4, 2]}}
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {
-        'ENSG1': {'sam'},
-        'ENSG2': {'all'},
-        'ENSG3': {'sam2'},
+        'ENSG1': 'sam',
+        'ENSG2': 'all',
+        'ENSG3': 'sam2',
+        'ENSG4': 'sam,sam2',
     }

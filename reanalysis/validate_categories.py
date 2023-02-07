@@ -140,7 +140,6 @@ def apply_moi_to_variants(
                     principal_var=variant,
                     comp_het=comp_het_dict,
                     partial_penetrance=variant.info.get('categoryboolean1', False),
-                    support=variant.support_only,
                 )
             )
 
