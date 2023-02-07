@@ -135,8 +135,6 @@ class HTMLBuilder:
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
                 for category_value in variant.var_data.get('categories'):
-                    if category_value == 'support':
-                        continue
                     sample_variants[category_value].add(var_string)
                     unique_variants[category_value].add(var_string)
 
