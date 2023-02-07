@@ -139,7 +139,7 @@ def apply_moi_to_variants(
                 moi_lookup[panel_gene_data.get('moi')].run(
                     principal_var=variant,
                     comp_het=comp_het_dict,
-                    partial_penetrance=variant.info.get('categoryboolean1', False),
+                    partial_pen=variant.info.get('categoryboolean1', False),
                 )
             )
 

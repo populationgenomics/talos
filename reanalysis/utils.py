@@ -507,9 +507,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             for sam in [sample_id, 'all']
         )
 
-    def sample_specific_category_check(
-        self, sample_id: str, allow_support: bool = True
-    ) -> bool:
+    def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
         take a specific sample and check for assigned categories
         optionally, include checks for support category
