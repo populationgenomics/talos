@@ -463,6 +463,7 @@ class RecessiveAutosomal(BaseMoi):
         Returns:
             list[ReportedVariant]: data object if RecessiveAutosomal fits
         """
+
         if comp_het is None:
             comp_het = {}
 
@@ -470,25 +471,26 @@ class RecessiveAutosomal(BaseMoi):
 
         # remove if too many homs are present in population databases
         # no stricter AF here - if we choose to, we can apply while labelling
-        if support or (
-            any(
-                {
-                    principal_var.info.get(hom_key, 0) > self.hom_threshold
-                    for hom_key in INFO_HOMS
-                }
-            )
-            and not principal_var.info.get('categoryboolean1')
-        ):
+        if any(
+            {
+                principal_var.info.get(hom_key, 0) > self.hom_threshold
+                for hom_key in INFO_HOMS
+            }
+        ) and not principal_var.info.get('categoryboolean1'):
             return classifications
 
         # homozygous is relevant directly
         for sample_id in principal_var.hom_samples:
 
+            # don't evaluate homs if support-only
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised - check Cat 4 contents
-            if not (
-                self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                and principal_var.sample_specific_category_check(sample_id)
+            if (
+                not (
+                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                    and principal_var.sample_specific_category_check(sample_id)
+                )
+                or principal_var.support_only
             ):
                 continue
 

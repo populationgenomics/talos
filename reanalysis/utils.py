@@ -49,6 +49,7 @@ ORDERED_MOIS = [
     'Biallelic',
 ]
 IRRELEVANT_MOI = {'unknown', 'other'}
+REMOVE_IN_SINGLETONS = {'categorysample4'}
 
 
 class FileTypes(Enum):
@@ -200,7 +201,7 @@ def get_json_response(url: str) -> Any:
 
 def get_new_gene_map(
     panelapp_data: dict, pheno_panels: dict | None = None
-) -> dict[str, set[str]]:
+) -> dict[str, str]:
     """
     The aim here is to generate a list of all the samples for whom
     a given gene should be treated as new during this analysis. This
@@ -229,7 +230,7 @@ def get_new_gene_map(
 
     # if there's no panel matching, new applies to everyone
     if pheno_panels is None:
-        return {ensg: {'all'} for ensg in new_genes.keys()}
+        return {ensg: 'all' for ensg in new_genes.keys()}
 
     # if we have pheno-matched participants, more complex
     panel_samples = defaultdict(set)
@@ -239,19 +240,21 @@ def get_new_gene_map(
         for panel in data['panels']:
             panel_samples[panel].add(sample)
 
-    pheno_matched_new: dict[str, set[str]] = defaultdict(set)
+    pheno_matched_new: dict[str, str] = defaultdict(str)
 
     # iterate over the new genes and find out who they are new for
     for gene, panels in new_genes.items():
         if core_panel in panels:
-            pheno_matched_new[gene] = {'all'}
+            pheno_matched_new[gene] = 'all'
             continue
 
         # else, find the specific samples
+        samples = set()
         for panel_id in panels:
             if panel_id not in panel_samples:
                 raise AssertionError(f'PanelID {panel_id} not attached to any samples')
-            pheno_matched_new[gene].update(panel_samples[panel_id])
+            samples.update(panel_samples[panel_id])
+        pheno_matched_new[gene] = ','.join(samples)
 
     return pheno_matched_new
 
@@ -310,7 +313,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         var,
         samples: list[str],
         as_singletons=False,
-        new_genes: dict | None = None,
+        new_genes: dict[str, str] | None = None,
     ):
         """
         Args:
@@ -363,7 +366,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # if cohort runs as singletons, remove possibility of de novo
         # if not singletons, split each into a list of sample IDs
         for sam_cat in self.sample_categories:
-            if as_singletons:
+            if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
                 self.info[sam_cat] = []
             else:
                 self.info[sam_cat] = (
@@ -467,6 +470,10 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         if self.sample_de_novo(sample_id=sample):
             categories.append('de_novo')
 
+        if new := self.info.get('categorysample2'):
+            if any(x in new for x in ['all', sample]):
+                categories.append('2')
+
         return categories
 
     def sample_de_novo(self, sample_id: str) -> bool:
@@ -480,7 +487,9 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             bool: True if this sample forms de novo
         """
         return any(
-            sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
+            sam in self.info[sam_cat]
+            for sam_cat in self.sample_categories
+            for sam in [sample_id, 'all']
         )
 
     def sample_specific_category_check(
@@ -598,7 +607,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    new_gene_map: dict[str, set[str]],
+    new_gene_map: dict[str, str],
     singletons: bool = False,
 ) -> GeneDict:
     """

@@ -105,9 +105,6 @@ def apply_moi_to_variants(
         moi_lookup ():
         panelapp_data ():
         pedigree ():
-
-    Returns:
-
     """
 
     results = []
@@ -419,9 +416,11 @@ def main(
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
 
+    per_participant_panels = read_json_from_path(participant_panels)
+
     # create the new gene map
     new_gene_map = get_new_gene_map(
-        panelapp_data=panelapp_data, pheno_panels=participant_panels
+        panelapp_data=panelapp_data, pheno_panels=per_participant_panels
     )
 
     result_list = []
@@ -446,7 +445,6 @@ def main(
             )
         )
 
-    per_participant_panels = read_json_from_path(participant_panels)
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
