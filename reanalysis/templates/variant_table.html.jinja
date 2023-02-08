@@ -5,7 +5,7 @@
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
     <th class="group-false">Categories</th>
-    <th class="group-false">First Seen</th>
+    <th class="group-false sorter-shortDate" data-date-format="yyyymmdd">First Seen</th>
     <th class="group-false">MANE CSQ</th>
     <th class="group-false">Clinvar</th>
     <th class="group-false">Flags</th>
@@ -56,7 +56,7 @@
     </td>
     <td>
         {# Categories #}
-        {{variant.var_data.categories|reject("eq", "support")|join(", ")|replace("_", " ")}}
+        {{variant.var_data.categories|join(", ")|replace("_", " ")}}
     </td>
     <td>
         {# First Seen #}

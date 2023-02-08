@@ -20,7 +20,7 @@ from cpg_utils.config import get_config
 from reanalysis.utils import read_json_from_path
 
 
-CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5']
+CATEGORY_ORDERING = ['any', '1', '2', '3', 'de_novo', '5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 
@@ -135,8 +135,6 @@ class HTMLBuilder:
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
                 for category_value in variant.var_data.get('categories'):
-                    if category_value == 'support':
-                        continue
                     sample_variants[category_value].add(var_string)
                     unique_variants[category_value].add(var_string)
 

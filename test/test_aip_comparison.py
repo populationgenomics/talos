@@ -72,7 +72,7 @@ def test_affected_finder(trio_ped):
     :param trio_ped:
     :return:
     """
-    ped_parsed = Ped(trio_ped)
+    ped_parsed = Ped(str(trio_ped))
     samples = find_affected_samples(ped_parsed)
     assert samples == ['PROBAND1', 'PROBAND2']
 
@@ -95,7 +95,7 @@ def test_seqr_parser(seqr_csv_output):
     :return:
     """
 
-    seqr_results = common_format_seqr(seqr_csv_output, affected=['PROBAND'])
+    seqr_results = common_format_seqr(str(seqr_csv_output), affected=['PROBAND'])
 
     # only results for one sample
     assert len(list(seqr_results.keys())) == 1

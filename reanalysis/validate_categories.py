@@ -33,6 +33,7 @@ from reanalysis.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
     GeneDict,
@@ -43,7 +44,7 @@ from reanalysis.utils import (
 MALE_FEMALE = {'male', 'female'}
 
 
-def set_up_inheritance_filters(
+def set_up_moi_filters(
     panelapp_data: dict,
     pedigree: Ped,
 ) -> dict[str, MOIRunner]:
@@ -104,9 +105,6 @@ def apply_moi_to_variants(
         moi_lookup ():
         panelapp_data ():
         pedigree ():
-
-    Returns:
-
     """
 
     results = []
@@ -126,23 +124,24 @@ def apply_moi_to_variants(
 
         for variant in variants:
 
+            # is this even possible?
             if not (variant.het_samples or variant.hom_samples):
                 continue
 
-            # if this variant is category 1, 2, 3, or 4; evaluate is as a 'primary'
-            if variant.category_non_support:
-
-                # this variant is a candidate for MOI checks
-                # - use MOI to get appropriate model
-                # - run variant, append relevant classification(s) to the results
-                # - always run partially penetrant analysis for Category 1 (clinvar)
-                variant_reports = moi_lookup[panel_gene_data.get('moi')].run(
+            # this variant is a candidate for MOI checks
+            # - use MOI to get appropriate model
+            # - run variant, append relevant classification(s) to the results
+            # - always run partially penetrant analysis for Category 1 (clinvar)
+            # pass on whether this variant is support only
+            # - no dominant MOI
+            # - discarded if two support-only form a comp-het
+            results.extend(
+                moi_lookup[panel_gene_data.get('moi')].run(
                     principal_var=variant,
                     comp_het=comp_het_dict,
-                    partial_penetrance=variant.info.get('categoryboolean1', False),
+                    partial_pen=variant.info.get('categoryboolean1', False),
                 )
-
-                results.extend(variant_reports)
+            )
 
     return results
 
@@ -196,29 +195,17 @@ def clean_and_filter(
 
             # don't re-cast sets for every single variant
             if gene in gene_details:
-                all_panels, new_panels = gene_details[gene]
+                all_panels = gene_details[gene]
 
             else:
-                all_panels, new_panels = get_gene_panel_sets(
-                    panelapp_data['genes'], gene
-                )
-                gene_details[gene] = (all_panels, new_panels)
+                all_panels = set(panelapp_data['genes'][gene]['panels'])
+                gene_details[gene] = all_panels
 
             panel_intersection = participant_panels[sample].intersection(all_panels)
 
-            # is this a valid gene for this participant?
+            # is this gene relevant for this participant?
             if not panel_intersection:
-
-                # this gene is not relevant for this participant
                 continue
-
-            if '2' in variant.categories and not bool(
-                participant_panels[sample].intersection(new_panels)
-            ):
-                _ = variant.categories.pop(variant.categories.index('2'))
-
-                # should not be treated as new
-                logging.info(f'Removing category 2 in {gene} for {sample}')
 
             each_event.flags.extend(
                 [
@@ -250,26 +237,6 @@ def clean_and_filter(
         results_holder[sample]['variants'].sort()
 
     return results_holder
-
-
-def get_gene_panel_sets(gene_details: dict, gene: str) -> tuple[set, set]:
-    """
-    get each gene's associated panels only once
-
-    shove in some lru_cache'ing here, so we don't keep generating the sets
-
-    Args:
-        gene_details ():
-        gene ():
-
-    Returns:
-        set of all panels for this gene,
-        set of new panels for this gene
-    """
-    single_gene_details = gene_details[gene]
-    all_panels = set(single_gene_details['panels'])
-    new_panels = set(single_gene_details['new'])
-    return all_panels, new_panels
 
 
 def count_families(pedigree: Ped, samples: list[str]) -> dict:
@@ -439,12 +406,19 @@ def main(
     panelapp_data = read_json_from_path(panelapp)
 
     # set up the inheritance checks
-    moi_lookup = set_up_inheritance_filters(
+    moi_lookup = set_up_moi_filters(
         panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
+
+    per_participant_panels = read_json_from_path(participant_panels)
+
+    # create the new gene map
+    new_gene_map = get_new_gene_map(
+        panelapp_data=panelapp_data, pheno_panels=per_participant_panels
+    )
 
     result_list = []
 
@@ -455,7 +429,7 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            panelapp_data=panelapp_data['genes'],
+            new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
 
@@ -468,7 +442,6 @@ def main(
             )
         )
 
-    per_participant_panels = read_json_from_path(participant_panels)
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
