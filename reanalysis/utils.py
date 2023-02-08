@@ -333,18 +333,18 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
         # hot-swap cat 2 from a boolean to a sample list - if appropriate
         if self.info.get('categoryboolean2', 0):
-
-            # flexxing this just so I don't have to rerun Hail
             new_gene_samples = new_genes.get(self.info.get('gene_id'), '')
 
-            if new_gene_samples != 'all':
-                _boolcat = self.info.pop('categoryboolean2')
+            # if 'all', keep cohort-wide boolean flag
+            if new_gene_samples == 'all':
+                logging.debug('New applies to all samples')
 
+            # otherwise assign only a specific sample list
             elif new_gene_samples:
-                # if it's 'all', maintain as a boolean flag
-                # messy, stinky code
+                _boolcat = self.info.pop('categoryboolean2')
                 self.info['categorysample2'] = new_gene_samples
 
+            # else just remove it - shouldn't happen in prod
             else:
                 _boolcat = self.info.pop('categoryboolean2')
 
@@ -459,7 +459,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             list of all categories applied to this variant
         """
-
         categories = [
             bool_cat.replace('categoryboolean', '')
             for bool_cat in self.boolean_categories
