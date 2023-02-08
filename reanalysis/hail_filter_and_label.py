@@ -355,11 +355,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
-    uses the Hail builtin method (very strict)
-
-    :param mt: the whole joint-call MatrixTable
-    :param plink_family_file:
-    :return: mt with Category4 annotations
+    default uses the Hail builtin method (very strict)
+    config switch to use the lenient version
 
     Args:
         mt ():
@@ -375,6 +372,20 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
     de_novo_matrix = filter_by_consequence(mt)
 
     pedigree = hl.Pedigree.read(plink_family_file)
+
+    if get_config()['filter'].get('lenient_de_novo', False):
+        logging.info('Inserting synthetic PL values for WT calls')
+
+        # pylint: disable=invalid-unary-operand-type
+        de_novo_matrix = de_novo_matrix.annotate_entries(
+            PL=hl.case()
+            .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
+            .when(
+                (de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)),
+                hl.missing('array<int32>'),
+            )
+            .default([0, de_novo_matrix.GQ, 1000])
+        )
 
     dn_table = hl.de_novo(
         de_novo_matrix,
@@ -792,7 +803,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     )
 
     if len(common_samples) == 0:
-        raise Exception('No samples shared between pedigree and MT')
+        raise ValueError('No samples shared between pedigree and MT')
 
     # full overlap = no filtering
     if common_samples == matrix_samples:
@@ -864,7 +875,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     # if we already generated the annotated output, load instead
     if not to_path(mt_path.rstrip('/') + '/').exists():
-        raise Exception(f'Input MatrixTable doesn\'t exist: {mt_path}')
+        raise FileExistsError(f'Input MatrixTable doesn\'t exist: {mt_path}')
 
     mt = hl.read_matrix_table(mt_path)
 
@@ -875,7 +886,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
         )
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
-        raise Exception('Fields were missing from the input Matrix')
+        raise KeyError('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=plink)
@@ -902,7 +913,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     # die if there are no variants remaining
     if mt.count_rows() == 0:
-        raise Exception('No remaining rows to process!')
+        raise ValueError('No remaining rows to process!')
 
     # checkpoint_number = checkpoint_number + 1
 
@@ -934,6 +945,8 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     mt = annotate_category_2(mt=mt, new_genes=new_expression)
     mt = annotate_category_3(mt=mt)
     mt = annotate_category_5(mt=mt)
+
+    # cat. 4 can run in 2 modes - config contains a switch
     mt = annotate_category_4(mt=mt, plink_family_file=plink)
     mt = annotate_category_support(mt=mt)
 

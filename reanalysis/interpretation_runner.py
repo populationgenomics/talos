@@ -14,19 +14,26 @@ re-run currently requires the deletion of previous outputs
 """
 
 
+# pylint: disable=too-many-branches
+
+
 import logging
 import os
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
-import hailtop.batch as hb
-from cpg_utils import to_path
+from hailtop.batch import ResourceFile
+from hailtop.batch.job import BashJob, Job
+
+from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
+    command,
     copy_common_env,
     dataset_path,
+    image_path,
     output_path,
 )
 from cpg_utils.git import get_git_root_relative_path_from_absolute
@@ -34,7 +41,7 @@ from cpg_utils.git import get_git_root_relative_path_from_absolute
 from cpg_workflows.batch import get_batch
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
-from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
+from cpg_workflows.resources import STANDARD
 
 from reanalysis import (
     hail_filter_and_label,
@@ -63,11 +70,7 @@ PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 
 
-def set_job_resources(
-    job: hb.batch.job.Job,
-    prior_job: hb.batch.job.Job | None = None,
-    memory: str = 'standard',
-):
+def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = 'standard'):
     """
     applied resources to the job
 
@@ -93,7 +96,7 @@ def set_job_resources(
     authenticate_cloud_credentials_in_job(job)
 
 
-def handle_clinvar() -> tuple[hb.batch.job.Job | None, str]:
+def handle_clinvar() -> tuple[Job | None, str]:
     """
     set up a job to handle the clinvar summarising
 
@@ -144,7 +147,7 @@ def handle_clinvar() -> tuple[hb.batch.job.Job | None, str]:
     return summarise, clinvar_summary
 
 
-def setup_mt_to_vcf(input_file: str) -> hb.batch.job.Job:
+def setup_mt_to_vcf(input_file: str) -> Job:
     """
     set up a job MatrixTable conversion to VCF, prior to annotation
 
@@ -169,8 +172,8 @@ def setup_mt_to_vcf(input_file: str) -> hb.batch.job.Job:
 def handle_panelapp_job(
     participant_panels: str | None = None,
     previous: str | None = None,
-    prior_job: hb.batch.job.Job | None = None,
-) -> hb.batch.job.Job:
+    prior_job: Job | None = None,
+) -> Job:
     """
     creates and runs the panelapp query job
 
@@ -201,8 +204,8 @@ def handle_panelapp_job(
 
 
 def handle_hail_filtering(
-    plink_file: str, clinvar: str, prior_job: hb.batch.job.Job | None = None
-) -> hb.batch.job.BashJob:
+    plink_file: str, clinvar: str, prior_job: Job | None = None
+) -> BashJob:
     """
     hail-query backend version of the filtering implementation
     use the init query service instead of running inside dataproc
@@ -237,7 +240,7 @@ def handle_results_job(
     pedigree: str,
     input_path: str,
     output_dict: dict[str, dict[str, str]],
-    prior_job: hb.batch.job.Job | None = None,
+    prior_job: Job | None = None,
     participant_panels: str | None = None,
 ):
     """
@@ -278,6 +281,36 @@ def handle_results_job(
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
+
+
+def add_make_sitesonly_job(
+    input_vcf: ResourceFile, output_vcf_path: Path, storage_gb: int
+) -> Job:
+    """
+    Create sites-only VCF with only site-level annotations.
+    Speeds up the analysis in the AS-VQSR modeling step.
+    Returns: a Job object with a single output j.sites_only_vcf of type ResourceGroup
+    """
+
+    j = get_batch().new_job('MakeSitesOnlyVcf', {'tool': 'bcftools'})
+    j.image(image_path('bcftools'))
+    STANDARD.set_resources(j, ncpu=2)
+    j.storage(storage_gb)
+    j.declare_resource_group(
+        output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
+    )
+
+    j.command(
+        command(
+            f"""
+    bcftools view -G -Oz -o {j.output_vcf['vcf.gz']} \\
+    -I {input_vcf} \\
+    tabix -p vcf -f {j.output_vcf['vcf.gz']}
+    """
+        )
+    )
+    get_batch().write_output(j.output_vcf, str(output_vcf_path).replace('.vcf.gz', ''))
+    return j
 
 
 def main(
@@ -351,44 +384,43 @@ def main(
 
     # region: split & annotate VCF
     if not to_path(ANNOTATED_MT).exists():
-        # need to run the annotation phase
-        # uses default values from RefData
+        # run annotation, default values from RefData
 
         siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
-        if not to_path(siteonly_vcf_path).exists():
-            sites_job, _sites_vcf = add_make_sitesonly_job(
-                b=get_batch(),
-                input_vcf=get_batch().read_input(input_path),
-                output_vcf_path=siteonly_vcf_path,
-                storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
-            )
-            if sites_job:
-                sites_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
+        input_vcf_in_batch = (
+            get_batch().read_input_group(vcf=input_path, tbi=input_path + '.tbi').vcf
+        )
+        logging.info(input_path)
+        sites_job = add_make_sitesonly_job(
+            input_vcf=input_vcf_in_batch,
+            output_vcf_path=siteonly_vcf_path,
+            storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
+        )
 
-            # set the job dependency and cycle the 'prior' job
-            if prior_job:
-                sites_job.depends_on(prior_job)
-            prior_job = sites_job
-        else:
-            print(f"Sites only VCF already exists: {siteonly_vcf_path}")
+        # Hack to get around previous bug in cpg-workflows that was missing units on storage reqs
+        # TODO, check if this is still relevant.
+        if sites_job:
+            sites_job.storage(f"{get_config()['workflow'].get('vcf_size_in_gb', 150) + 10}Gi")
+
+
+        # set the job dependency and cycle the 'prior' job
+        if prior_job:
+            sites_job.depends_on(prior_job)
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
-        if not to_path(vep_ht_tmp).is_dir():
-            # generate the jobs which run VEP & collect the results
-            vep_jobs = add_vep_jobs(
-                b=get_batch(),
-                input_siteonly_vcf_path=siteonly_vcf_path,
-                tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
-                scatter_count=get_config()['workflow'].get('scatter_count', 50),
-                out_path=to_path(vep_ht_tmp),
-            )
 
-            # assign sites-only job as an annotation dependency
-            for job in vep_jobs:
-                job.depends_on(prior_job)
-        else:
-            print(f"Annotations Hail Table already exists: {vep_ht_tmp}")
-            vep_jobs=None
+        # generate the jobs which run VEP & collect the results
+        vep_jobs = add_vep_jobs(
+            b=get_batch(),
+            input_siteonly_vcf_path=siteonly_vcf_path,
+            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+            scatter_count=get_config()['workflow'].get('scatter_count', 50),
+            out_path=to_path(vep_ht_tmp),
+        )
+
+        # assign sites-only job as an annotation dependency
+        for job in vep_jobs:
+            job.depends_on(sites_job)
 
         # Apply the HT of annotations to the VCF, save as MT
         anno_job = annotate_cohort_jobs(

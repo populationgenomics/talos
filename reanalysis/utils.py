@@ -23,6 +23,9 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.git import get_git_repo_root
 
+# pylint: disable=too-many-lines
+
+
 HOMREF: int = 0
 HETALT: int = 1
 UNKNOWN: int = 2
@@ -47,6 +50,7 @@ ORDERED_MOIS = [
     'Biallelic',
 ]
 IRRELEVANT_MOI = {'unknown', 'other'}
+REMOVE_IN_SINGLETONS = {'categorysample4'}
 
 
 class FileTypes(Enum):
@@ -195,6 +199,60 @@ def get_json_response(url: str) -> Any:
     return response.json()
 
 
+def get_new_gene_map(
+    panelapp_data: dict, pheno_panels: dict | None = None
+) -> dict[str, str]:
+    """
+    The aim here is to generate a list of all the samples for whom
+    a given gene should be treated as new during this analysis. This
+    prevents the need for back-filtering results at the end of
+    classification.
+
+    Generate a map of
+    { gene: [samples, where, this, is, 'new']}
+    """
+
+    # pull out the core panel once
+    core_panel = get_config()['workflow']['default_panel']
+
+    # collect all genes new in at least one panel
+    new_genes = {
+        ensg: content['new']
+        for ensg, content in panelapp_data['genes'].items()
+        if content['new']
+    }
+
+    # if there's no panel matching, new applies to everyone
+    if pheno_panels is None:
+        return {ensg: 'all' for ensg in new_genes.keys()}
+
+    # if we have pheno-matched participants, more complex
+    panel_samples = defaultdict(set)
+
+    # double layered iteration, but only on a small object
+    for sample, data in pheno_panels.items():
+        for panel in data['panels']:
+            panel_samples[panel].add(sample)
+
+    pheno_matched_new = {}
+
+    # iterate over the new genes and find out who they are new for
+    for gene, panels in new_genes.items():
+        if core_panel in panels:
+            pheno_matched_new[gene] = 'all'
+            continue
+
+        # else, find the specific samples
+        samples = set()
+        for panel_id in panels:
+            if panel_id not in panel_samples:
+                raise AssertionError(f'PanelID {panel_id} not attached to any samples')
+            samples.update(panel_samples[panel_id])
+        pheno_matched_new[gene] = ','.join(sorted(samples))
+
+    return pheno_matched_new
+
+
 def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
@@ -224,7 +282,16 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
     except KeyError:
-        pass
+        logging.info('failed to find PS phase attributes')
+        try:
+            # retry using PGT & PID
+            for sample, phase_gt, phase_id in zip(
+                samples, var.format('PGT'), var.format('PID')
+            ):
+                if phase_gt != '.' and phase_id != '.':
+                    phased_dict[sample][phase_id] = phase_gt
+        except KeyError:
+            logging.info('also failed using PID and PGT')
 
     return dict(phased_dict)
 
@@ -232,7 +299,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
 @dataclass
 class AbstractVariant:  # pylint: disable=too-many-instance-attributes
     """
-    create class ti contain all content from cyvcf2 object
+    create class to contain all content from cyvcf2 object
     """
 
     def __init__(
@@ -240,12 +307,14 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         var,
         samples: list[str],
         as_singletons=False,
+        new_genes: dict[str, str] | None = None,
     ):
         """
         Args:
             var (cyvcf2.Variant):
             samples (list):
             as_singletons (bool):
+            new_genes (dict):
         """
 
         # extract the coordinates into a separate object
@@ -262,6 +331,23 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         # overwrite the non-standard cyvcf2 representation
         self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
+        # hot-swap cat 2 from a boolean to a sample list - if appropriate
+        if self.info.get('categoryboolean2', 0):
+            new_gene_samples = new_genes.get(self.info.get('gene_id'), '')
+
+            # if 'all', keep cohort-wide boolean flag
+            if new_gene_samples == 'all':
+                logging.debug('New applies to all samples')
+
+            # otherwise assign only a specific sample list
+            elif new_gene_samples:
+                _boolcat = self.info.pop('categoryboolean2')
+                self.info['categorysample2'] = new_gene_samples
+
+            # else just remove it - shouldn't happen in prod
+            else:
+                _boolcat = self.info.pop('categoryboolean2')
+
         # set the class attributes
         self.boolean_categories = [
             key for key in self.info.keys() if key.startswith('categoryboolean')
@@ -277,11 +363,11 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         for cat in self.sample_support + self.boolean_categories:
             self.info[cat] = self.info.get(cat, 0) == 1
 
-        # de novo categories are a list of strings or 'missing'
+        # sample categories are a list of strings or 'missing'
         # if cohort runs as singletons, remove possibility of de novo
         # if not singletons, split each into a list of sample IDs
         for sam_cat in self.sample_categories:
-            if as_singletons:
+            if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
                 self.info[sam_cat] = []
             else:
                 self.info[sam_cat] = (
@@ -376,7 +462,6 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             list of all categories applied to this variant
         """
-
         categories = [
             bool_cat.replace('categoryboolean', '')
             for bool_cat in self.boolean_categories
@@ -387,6 +472,11 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
 
         if self.sample_de_novo(sample_id=sample):
             categories.append('de_novo')
+
+        # mutually exlusive with the boolean category2 value
+        if new := self.info.get('categorysample2'):
+            if any(x in new for x in ['all', sample]):
+                categories.append('2')
 
         return categories
 
@@ -400,13 +490,26 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             bool: True if this sample forms de novo
         """
+        return sample_id in self.info.get('categorysample4', [])
+
+    def sample_categorised_check(self, sample_id: str) -> bool:
+        """
+        check if any *sample categories applied for this sample
+
+        Args:
+            sample_id (str):
+
+        Returns:
+            bool: True if this sample features in any
+                  named-sample category, includes 'all'
+        """
         return any(
-            sample_id in self.info[sam_cat] for sam_cat in self.sample_categories
+            sam in self.info[sam_cat]
+            for sam_cat in self.sample_categories
+            for sam in [sample_id, 'all']
         )
 
-    def sample_specific_category_check(
-        self, sample_id: str, allow_support: bool = False
-    ) -> bool:
+    def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
         take a specific sample and check for assigned categories
         optionally, include checks for support category
@@ -418,7 +521,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             True if the variant is categorised for this sample
         """
-        big_cat = self.category_non_support or self.sample_de_novo(sample_id)
+        big_cat = self.category_non_support or self.sample_categorised_check(sample_id)
         if allow_support:
             return big_cat or self.has_support
         return big_cat
@@ -517,21 +620,28 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 
 
 def gather_gene_dict_from_contig(
-    contig: str, variant_source, panelapp_data: dict, singletons: bool = False
+    contig: str,
+    variant_source,
+    new_gene_map: dict[str, str],
+    singletons: bool = False,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
-    {
-        gene1: [var1, var2],
-        gene2: [var3],
-        ...
-    }
-    :param contig: contig name from header (canonical_contigs_from_vcf)
-    :param variant_source: VCF reader instance
-    :param panelapp_data:
-    :param singletons:
-    :return: populated lookup dict
+
+    Args:
+        contig (): contig name from VCF header
+        variant_source (): the VCF reader instance
+        new_gene_map ():
+        singletons ():
+
+    Returns:
+        A lookup in the form
+        {
+            gene1: [var1, var2],
+            gene2: [var3],
+            ...
+        }
     """
 
     blacklist = []
@@ -549,6 +659,7 @@ def gather_gene_dict_from_contig(
             var=variant,
             samples=variant_source.samples,
             as_singletons=singletons,
+            new_genes=new_gene_map,
         )
 
         if abs_var.coords.string_format in blacklist:
@@ -556,12 +667,6 @@ def gather_gene_dict_from_contig(
                 f'Skipping blacklisted variant: {abs_var.coords.string_format}'
             )
             continue
-
-        # if the gene isn't 'new' in any panel, remove Cat2 flag
-        if abs_var.info.get('categoryboolean2'):
-            abs_var.info['categoryboolean2'] = (
-                len(panelapp_data[abs_var.info.get('gene_id')].get('new', [])) > 0
-            )
 
         # if unclassified, skip the whole variant
         if not abs_var.is_classified:
@@ -578,7 +683,7 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str | None, default: Any = None) -> Any:
+def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -594,10 +699,11 @@ def read_json_from_path(bucket_path: str | None, default: Any = None) -> Any:
     if bucket_path is None:
         return default
 
-    any_path = to_path(bucket_path)
+    if isinstance(bucket_path, str):
+        bucket_path = to_path(bucket_path)
 
-    if any_path.exists():
-        with any_path.open() as handle:
+    if bucket_path.exists():
+        with bucket_path.open() as handle:
             return json.load(handle)
     return default
 
@@ -932,7 +1038,7 @@ def date_annotate_results(
                 historic_cats = set(hist['categories'].keys())
 
                 # if we have any new categories don't alter the date
-                if new_cats := (current_cats - historic_cats):
+                if new_cats := current_cats - historic_cats:
 
                     # add any new categories
                     for cat in new_cats:

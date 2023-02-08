@@ -1,7 +1,8 @@
 """
 tests relating to the MOI filters
 """
-import logging
+
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -13,9 +14,12 @@ from reanalysis.moi_tests import (
     BaseMoi,
     DominantAutosomal,
     MOIRunner,
-    RecessiveAutosomal,
+    RecessiveAutosomalCH,
+    RecessiveAutosomalHomo,
     XDominant,
-    XRecessive,
+    XRecessiveMale,
+    XRecessiveFemaleCH,
+    XRecessiveFemaleHom,
 )
 
 from reanalysis.utils import Coordinates
@@ -41,12 +45,12 @@ class SimpleVariant:
     categorysample4: list[str] = field(default_factory=list)
     ab_ratios = {'nobody': 1.0}
 
-    def sample_specific_category_check(self, sample):
+    def sample_category_check(self, sample, allow_support=True):
         """
-        pass
         :param sample:
-        :return:
+        :param allow_support:
         """
+        _phony = allow_support
         return self.categoryboolean1 or sample in self.categorysample4
 
     def get_sample_flags(self, *args, **kwargs):
@@ -57,11 +61,17 @@ class SimpleVariant:
             pass
         return []
 
-    def category_values(self, sample):
+    @staticmethod
+    def category_values(sample):
         """
         quick mock method
         """
         return [sample]
+
+    @property
+    def support_only(self):
+        """pass"""
+        return False
 
 
 @dataclass
@@ -81,21 +91,16 @@ class RecessiveSimpleVariant:
     def sample_de_novo(self, sample):
         """
         :param sample:
-        :return:
         """
         return sample in self.categorysample4
 
-    def sample_specific_category_check(self, sample, support: bool = False):
+    def sample_category_check(self, sample, allow_support: bool = False):
         """
-
         Args:
             sample ():
-            support (bool): just for the consistent API
-
-        Returns:
-            a boooool
+            allow_support (bool): just for the consistent API
         """
-        logging.debug(support)
+        _phony = allow_support
         return (sample in self.categorysample4) or self.categoryboolean1
 
     def check_ab_ratio(self, sample) -> list[str]:
@@ -125,6 +130,11 @@ class RecessiveSimpleVariant:
         quick mock method
         """
         return [sample]
+
+    @property
+    def support_only(self):
+        """pass"""
+        return False
 
 
 @pytest.mark.parametrize(
@@ -207,7 +217,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     passing_variant = SimpleVariant(
         info=info_dict, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
     )
-    results = dom.run(principal_var=passing_variant)
+    results = dom.run(principal=passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
 
@@ -215,7 +225,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     passing_variant = SimpleVariant(
         info=info_dict, het_samples=set(), hom_samples={'male'}, coords=TEST_COORDS
     )
-    results = dom.run(principal_var=passing_variant)
+    results = dom.run(principal=passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
 
@@ -223,7 +233,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     passing_variant = SimpleVariant(
         info=info_dict, het_samples=set(), hom_samples=set(), coords=TEST_COORDS
     )
-    assert not dom.run(principal_var=passing_variant)
+    assert len(dom.run(principal=passing_variant)) == 0
 
 
 @pytest.mark.parametrize(
@@ -243,7 +253,7 @@ def test_dominant_autosomal_fails(info, peddy_ped):
     failing_variant = SimpleVariant(
         info=info, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
     )
-    assert not dom.run(principal_var=failing_variant)
+    assert not dom.run(principal=failing_variant)
 
 
 def test_recessive_autosomal_hom_passes(peddy_ped):
@@ -255,7 +265,7 @@ def test_recessive_autosomal_hom_passes(peddy_ped):
     passing_variant = RecessiveSimpleVariant(
         hom_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 1.0}
     )
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
@@ -270,7 +280,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(peddy_ped):
     passing_variant = RecessiveSimpleVariant(
         hom_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 0.4}
     )
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
@@ -291,10 +301,10 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
         het_samples={'male'}, coords=TEST_COORDS2, ab_ratios={'male': 0.5}
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
 
 
 def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
@@ -311,10 +321,10 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
         het_samples={'male'}, coords=TEST_COORDS2, ab_ratios={'male': 1.0}
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == ['AB Ratio']
 
 
@@ -333,10 +343,10 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
         het_samples={'female'}, coords=TEST_COORDS2, ab_ratios={'female': 0.5}
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == []
 
 
@@ -352,7 +362,7 @@ def test_recessive_autosomal_comp_het_fails_no_ch_return(peddy_ped):
     failing_variant = SimpleVariant(
         info={}, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
     )
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     assert not rec.run(failing_variant)
 
 
@@ -372,7 +382,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
         het_samples={'female'}, coords=TEST_COORDS2, ab_ratios={'female': 0.5}
     )
 
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     assert not rec.run(
         failing_variant,
         comp_het={'male': {TEST_COORDS2.string_format: [failing_variant2]}},
@@ -389,7 +399,7 @@ def test_recessive_autosomal_hom_fails(info, peddy_ped):
     failing_variant = SimpleVariant(
         info=info, het_samples={'male'}, hom_samples={'male'}, coords=TEST_COORDS
     )
-    rec = RecessiveAutosomal(pedigree=peddy_ped)
+    rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     assert not rec.run(failing_variant)
 
 
@@ -407,7 +417,7 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
 
     assert len(results) == 2
     reasons = sorted([result.reasons.pop() for result in results])
-    assert reasons == ['X_Dominant Female', 'X_Dominant Male']
+    assert reasons == ['X_Dominant', 'X_Dominant']
 
 
 def test_x_dominant_female_hom_passes(peddy_ped):
@@ -422,7 +432,7 @@ def test_x_dominant_female_hom_passes(peddy_ped):
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant Female'}
+    assert results[0].reasons == {'X_Dominant'}
 
 
 def test_x_dominant_male_hom_passes(peddy_ped):
@@ -437,16 +447,12 @@ def test_x_dominant_male_hom_passes(peddy_ped):
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant Male'}
+    assert results[0].reasons == {'X_Dominant'}
 
 
 @pytest.mark.parametrize(
     'info',
-    [
-        {'gnomad_af': 0.1},
-        {'gnomad_hom': 2},
-        {'gnomad_hemi': 3},
-    ],
+    [{'gnomad_af': 0.1}, {'gnomad_hom': 2}, {'gnomad_hemi': 3}],
 )
 def test_x_dominant_info_fails(info, peddy_ped):
     """
@@ -456,13 +462,17 @@ def test_x_dominant_info_fails(info, peddy_ped):
     """
     x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
-        info=info, hom_samples={'male'}, het_samples=set(), coords=x_coords
+        info=info,
+        hom_samples={'male'},
+        het_samples=set(),
+        coords=x_coords,
+        categoryboolean1=False,
     )
     x_dom = XDominant(pedigree=peddy_ped)
-    assert not x_dom.run(passing_variant)
+    assert len(x_dom.run(passing_variant)) == 0
 
 
-def test_x_recessive_male_and_female_hom_passes(peddy_ped):
+def test_x_recessive_male_hom_passes(peddy_ped):
     """
 
     :return:
@@ -474,12 +484,27 @@ def test_x_recessive_male_and_female_hom_passes(peddy_ped):
         coords=x_coords,
         ab_ratios={'female': 1.0, 'male': 1.0},
     )
-    x_rec = XRecessive(pedigree=peddy_ped)
+    x_rec = XRecessiveMale(pedigree=peddy_ped)
     results = x_rec.run(passing_variant, comp_het={})
-    assert len(results) == 2
+    assert len(results) == 1
+    assert results[0].reasons == {'X_Male'}
 
-    reasons = sorted([result.reasons.pop() for result in results])
-    assert reasons == ['X_Recessive Female', 'X_Recessive Male']
+
+def test_x_recessive_female_hom_passes(peddy_ped):
+    """
+    :return:
+    """
+
+    x_coords = Coordinates('x', 1, 'A', 'C')
+    passing_variant = RecessiveSimpleVariant(
+        hom_samples={'female', 'male'},
+        coords=x_coords,
+        ab_ratios={'female': 1.0, 'male': 1.0},
+    )
+    x_rec = XRecessiveFemaleHom(pedigree=peddy_ped)
+    results = x_rec.run(passing_variant, comp_het={})
+    assert len(results) == 1
+    assert results[0].reasons == {'X_Recessive HOM Female'}
 
 
 def test_x_recessive_male_het_passes(peddy_ped):
@@ -491,10 +516,10 @@ def test_x_recessive_male_het_passes(peddy_ped):
     passing_variant = RecessiveSimpleVariant(
         het_samples={'male'}, coords=x_coords, ab_ratios={'male': 0.5}
     )
-    x_rec = XRecessive(pedigree=peddy_ped)
+    x_rec = XRecessiveMale(pedigree=peddy_ped)
     results = x_rec.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Recessive Male'}
+    assert results[0].reasons == {'X_Male'}
 
 
 def test_x_recessive_female_het_passes(peddy_ped):
@@ -516,10 +541,10 @@ def test_x_recessive_female_het_passes(peddy_ped):
         ab_ratios={'female': 0.5},
     )
     comp_hets = {'female': {'x-1-A-C': [passing_variant_2]}}
-    x_rec = XRecessive(pedigree=peddy_ped)
+    x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Recessive Compound-Het Female'}
+    assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
 
 
 def test_het_de_novo_het_passes(peddy_ped):
@@ -577,7 +602,7 @@ def test_x_recessive_female_het_fails(peddy_ped):
         ab_ratios={'male': 0.5},
     )
     comp_hets = {'female': {'x-2-A-C': [passing_variant_2]}}
-    x_rec = XRecessive(pedigree=peddy_ped)
+    x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     assert not results
 
@@ -594,7 +619,7 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch, peddy_ped)
         coords=Coordinates('x', 1, 'A', 'C'),
         ab_ratios={'female': 0.5},
     )
-    x_rec = XRecessive(pedigree=peddy_ped)
+    x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
     assert not x_rec.run(passing_variant)
 
 

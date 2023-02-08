@@ -2,6 +2,7 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
+
 from dataclasses import dataclass, field
 
 from reanalysis.validate_categories import (

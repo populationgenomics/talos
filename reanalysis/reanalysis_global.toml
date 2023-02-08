@@ -26,6 +26,10 @@ default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
 
+[clinvar]
+filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute', 'laboratory for molecular medicine; mass general brigham personalized medicine']
+filter_benign = ['illumina laboratory services; illumina']
+
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
 gnomad_dominant = 0.001
@@ -47,6 +51,7 @@ cadd = 28.1
 critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
 gerp = 1.0
 eigen = 0.25
+lenient_de_novo = false
 polyphen = 0.99
 revel = 0.77
 sift = 0.0
