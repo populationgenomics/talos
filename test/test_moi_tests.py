@@ -304,7 +304,7 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
 
 
 def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
@@ -324,7 +324,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == ['AB Ratio']
 
 
@@ -346,7 +346,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Compound-Het'}
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == []
 
 
