@@ -30,6 +30,7 @@ import hail as hl
 import pandas as pd
 
 from cpg_utils import to_path, CloudPath
+from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path, init_batch
 
 
@@ -46,10 +47,7 @@ UNCERTAIN_SIGS = {'Uncertain significance', 'Uncertain risk allele'}
 USELESS_RATINGS = {'no assertion criteria provided'}
 
 # remove all entries from these providers
-# todo move to config?
-MEGA_BLACKLIST = [
-    'victorian clinical genetics services,murdoch childrens research institute'
-]
+MEGA_BLACKLIST = get_config()['clinvar']['filter_all']
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
@@ -74,9 +72,8 @@ class Consequence(Enum):
     UNKNOWN = 'Unknown'
 
 
-# submitters which aren't trusted for a subset of consequences
-# needs to be dropped after Consequence is defined
-QUALIFIED_BLACKLIST = [(Consequence.BENIGN, {'Illumina Laboratory Services; Illumina'})]
+# submitters not trusted for a subset of consequences -after Consequence is defined
+QUALIFIED_BLACKLIST = [(Consequence.BENIGN, get_config()['clinvar']['filter_benign'])]
 
 
 @dataclass

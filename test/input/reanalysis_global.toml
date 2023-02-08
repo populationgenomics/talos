@@ -33,3 +33,7 @@ name = 'AIP'
 scatter_count = 50
 sequencing_type = 'genome'
 default_panel = 137
+
+[clinvar]
+filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute']
+filter_benign = ['illumina laboratory services; illumina']

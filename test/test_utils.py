@@ -1,6 +1,8 @@
 """
 test class for the utils collection
 """
+
+
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import List
@@ -11,6 +13,7 @@ from reanalysis.utils import (
     Coordinates,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    get_new_gene_map,
     get_non_ref_samples,
     get_simple_moi,
     identify_file_type,
@@ -86,7 +89,6 @@ def test_reported_variant_ordering(trio_abs_variant):
 def test_file_types():
     """
     check 'em
-    :return:
     """
     assert identify_file_type('this/is/my/matrixtable.mt') == FileTypes.MATRIX_TABLE
     assert identify_file_type('this/is/my/hailtable.ht') == FileTypes.HAIL_TABLE
@@ -98,7 +100,6 @@ def test_file_types():
 def test_file_types_assert_error():
     """
     check 'em
-    :return:
     """
     with pytest.raises(AssertionError):
         identify_file_type('no/extensions')
@@ -198,9 +199,8 @@ def test_gene_dict(two_trio_variants_vcf):
     """
     reader = VCFReader(two_trio_variants_vcf)
     contig = 'chr20'
-    panel_data = {'ENSG00000075043': {'new': True}}
     var_dict = gather_gene_dict_from_contig(
-        contig=contig, variant_source=reader, panelapp_data=panel_data
+        contig=contig, variant_source=reader, new_gene_map={}
     )
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
@@ -234,9 +234,8 @@ def test_phased_dict(phased_vcf_path):
     :return:
     """
     reader = VCFReader(phased_vcf_path)
-    panel_data = {'ENSG00000075043': {'new': True}}
     var_dict = gather_gene_dict_from_contig(
-        contig='chr20', variant_source=reader, panelapp_data=panel_data
+        contig='chr20', variant_source=reader, new_gene_map={'ENSG00000075043': {'all'}}
     )
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
@@ -256,3 +255,70 @@ def test_phased_comp_hets(phased_variants: list[AbstractVariant], peddy_ped):
     """
     ch_dict = find_comp_hets(phased_variants, pedigree=peddy_ped)
     assert len(ch_dict) == 0
+
+
+# FYI default_panel = 137
+def test_new_gene_map_null():
+    """
+    with no specific pheno data, new at all is new for all
+    """
+
+    panel_data = {'genes': {'ENSG1': {'new': [1, 2]}}}
+    result = get_new_gene_map(panel_data)
+    assert result == {'ENSG1': 'all'}
+
+
+def test_new_gene_map_core():
+    """
+    for a core panel this should also be new
+    even if the core panel isn't assigned to individuals
+    """
+
+    panel_data = {'genes': {'ENSG1': {'new': [137]}}}
+    personal_panels = {'sam': {'panels': []}}
+    result = get_new_gene_map(panel_data, personal_panels)
+    assert result == {'ENSG1': 'all'}
+
+
+def test_new_gene_map_mix_n_match():
+    """
+    now test the pheno-matched new
+    """
+
+    panel_data = {'genes': {'ENSG1': {'new': [1]}}}
+    personal_panels = {'sam': {'panels': [1, 2]}}
+    result = get_new_gene_map(panel_data, personal_panels)
+    assert result == {'ENSG1': 'sam'}
+
+
+def test_new_gene_map_fail_handled():
+    """
+    What if we find a panel that wasn't assigned to anyone
+    """
+    panel_data = {'genes': {'ENSG1': {'new': [2]}}}
+    personal_panels = {'sam': {'panels': [1]}}
+    with pytest.raises(AssertionError):
+        get_new_gene_map(panel_data, personal_panels)
+
+
+def test_new_gene_map_complex():
+    """
+    ENSG2 is new for everyone
+    """
+
+    panel_data = {
+        'genes': {
+            'ENSG1': {'new': [1]},
+            'ENSG2': {'new': [137]},
+            'ENSG3': {'new': [4]},
+            'ENSG4': {'new': [2]},
+        }
+    }
+    personal_panels = {'sam': {'panels': [1, 2]}, 'sam2': {'panels': [4, 2]}}
+    result = get_new_gene_map(panel_data, personal_panels)
+    assert result == {
+        'ENSG1': 'sam',
+        'ENSG2': 'all',
+        'ENSG3': 'sam2',
+        'ENSG4': 'sam,sam2',
+    }
