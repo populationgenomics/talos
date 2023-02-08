@@ -428,7 +428,7 @@ class RecessiveAutosomalCH(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        applied_moi: str = 'Autosomal Recessive',
+        applied_moi: str = 'Autosomal Recessive Comp-Het',
     ):
         """ """
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
@@ -496,7 +496,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         family=self.pedigree[sample_id].family_id,
                         gene=var_copy.info.get('gene_id'),
                         var_data=var_copy,
-                        reasons={f'{self.applied_moi} Compound-Het'},
+                        reasons={self.applied_moi},
                         supported=True,
                         genotypes=self.get_family_genotypes(
                             variant=principal, sample_id=sample_id

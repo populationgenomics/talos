@@ -337,7 +337,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             # flexxing this just so I don't have to rerun Hail
             new_gene_samples = new_genes.get(self.info.get('gene_id'), '')
 
-            if new_gene_samples != {'all'}:
+            if new_gene_samples != 'all':
                 _boolcat = self.info.pop('categoryboolean2')
 
             elif new_gene_samples:
