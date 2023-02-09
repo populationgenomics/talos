@@ -372,11 +372,8 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     ]
 
     # if this contains results, return only those
-    if date_filt_subs:
-        return date_filt_subs
-
     # default to returning everything
-    return subs
+    return date_filt_subs or subs
 
 
 def sort_decisions(all_subs: list[dict]) -> list[dict]:
@@ -483,8 +480,8 @@ def main(subs: str, date: datetime, variants: str, out: str):
                 'contig': allele_map[allele_id]['chrom'],
                 'position': allele_map[allele_id]['pos'],
                 'id': allele_id,
-                'rating': rating.value,
-                'stars': stars,
+                'clinical_significance': rating.value,
+                'gold_stars': stars,
                 'allele_id': allele_map[allele_id]['allele'],
             }
         )
@@ -511,8 +508,11 @@ if __name__ == '__main__':
     parser.add_argument('-o', help='output table name', required=True)
     parser.add_argument(
         '-d',
-        help='date, format DD-MM-YYYY - submissions after this date '
-        'will be removed. Un-dated submissions will pass this threshold',
+        help=(
+            'date, format DD-MM-YYYY. Individual submissions after this date are '
+            'removed. Un-dated submissions will pass this threshold. This logic is '
+            'retained, but unlikely to be used in any production work.'
+        ),
         default=datetime.now(),
     )
     args = parser.parse_args()

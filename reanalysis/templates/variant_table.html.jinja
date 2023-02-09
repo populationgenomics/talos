@@ -76,7 +76,7 @@
         {# Clinvar #}
         <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele}}[alleleid]"
             target="_blank">
-            {{ variant.var_data.info.clinvar_sig|replace('missing','') }}
+            {{ variant.var_data.info.clinvar_significance|replace('missing','') }}
         </a>
         {% if variant.var_data.info.clinvar_stars %}
             <br>
