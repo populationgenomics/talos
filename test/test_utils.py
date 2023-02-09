@@ -123,7 +123,7 @@ def test_file_types_exception():
         ('both something,something', 'Mono_And_Biallelic', '1'),
         (None, 'Biallelic', '1'),
         ('monoallelic, something', 'Monoallelic', '1'),
-        ('x-linked', 'Hemi_Bi_In_Female', 'X'),
+        ('x-linked', 'Hemi_Mono_In_Female', 'X'),
         (None, 'Hemi_Bi_In_Female', 'X'),
         ('x-linked biallelic', 'Hemi_Bi_In_Female', 'X'),
     ],
