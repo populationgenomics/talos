@@ -71,14 +71,18 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
         ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                clinvar_sig=hl.or_else(ht[mt.row_key].rating, MISSING_STRING),
-                clinvar_stars=hl.or_else(ht[mt.row_key].stars, MISSING_INT),
+                clinvar_significance=hl.or_else(
+                    ht[mt.row_key].clinical_significance, MISSING_STRING
+                ),
+                clinvar_stars=hl.or_else(ht[mt.row_key].gold_stars, MISSING_INT),
                 clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_INT),
             )
         )
 
         # remove all confident benign (only confident in this ht)
-        mt = mt.filter_rows(mt.info.clinvar_sig.lower().contains(BENIGN), keep=False)
+        mt = mt.filter_rows(
+            mt.info.clinvar_significance.lower().contains(BENIGN), keep=False
+        )
 
     # use default annotations
     else:
@@ -88,7 +92,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
         # missing contents
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                clinvar_sig=hl.or_else(
+                clinvar_significance=hl.or_else(
                     mt.clinvar.clinical_significance, MISSING_STRING
                 ),
                 clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
@@ -98,7 +102,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
 
         # remove all confidently benign
         mt = mt.filter_rows(
-            (mt.info.clinvar_sig.lower().contains(BENIGN))
+            (mt.info.clinvar_significance.lower().contains(BENIGN))
             & (mt.info.clinvar_stars > 0),
             keep=False,
         )
@@ -108,16 +112,16 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
         info=mt.info.annotate(
             clinvar_aip=hl.if_else(
                 (
-                    (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                    & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
+                    (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
+                    & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
                 ),
                 ONE_INT,
                 MISSING_INT,
             ),
             clinvar_aip_strong=hl.if_else(
                 (
-                    (mt.info.clinvar_sig.lower().contains(PATHOGENIC))
-                    & ~(mt.info.clinvar_sig.lower().contains(CONFLICTING))
+                    (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
+                    & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
                     & (mt.info.clinvar_stars > 0)
                 ),
                 ONE_INT,
