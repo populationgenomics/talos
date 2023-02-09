@@ -152,4 +152,4 @@ def test_get_best_moi_x():
 
     d = {'ensg1': {'moi': {'x-linked biallelic', 'x-linked'}, 'chrom': 'X'}}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Hemi_Bi_In_Female'
+    assert d['ensg1']['moi'] == 'Hemi_Mono_In_Female'
