@@ -78,7 +78,7 @@
             target="_blank">
             {{ variant.var_data.info.clinvar_significance|replace('missing','') }}
         </a>
-        {% if variant.var_data.info.clinvar_gold_stars %}
+        {% if variant.var_data.info.clinvar_stars %}
             <br>
             {% for i in range(variant.var_data.info.clinvar_stars|int) -%}
                 <i class="bi-star"></i>
