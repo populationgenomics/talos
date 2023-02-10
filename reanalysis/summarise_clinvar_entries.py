@@ -492,6 +492,7 @@ def main(subs: str, date: datetime, variants: str, out: str):
     all_decisions = sort_decisions(all_decisions)
 
     temp_output = output_path('temp_clinvar_table.json', category='tmp')
+    logging.info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
     with to_path(temp_output).open('w') as handle:
