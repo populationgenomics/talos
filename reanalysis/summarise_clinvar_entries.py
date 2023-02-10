@@ -429,6 +429,8 @@ def parse_into_table(json_path: str, out_path: str):
         allele_id=ht.f0.allele_id,
     )
 
+    print(ht.describe())
+
     # create a locus and key
     ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
     ht = ht.key_by(ht.locus, ht.alleles)
