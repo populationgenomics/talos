@@ -283,14 +283,16 @@ class BaseMoi:
     @staticmethod
     def check_frequency(info: dict, keys: set[str], threshold: int | float) -> bool:
         """
+        Method to check multiple info keys against a single threshold
+        This just reduces the line count, as this is called a bunch of times
 
         Args:
-            info ():
-            keys ():
-            threshold ():
+            info (): the dict of values for this dict
+            keys (): the iterable of keys to check
+            threshold (): the threshold to test against
 
         Returns:
-
+            True if any of the info attributes is above the threshold
         """
         return any({info.get(key, 0) > threshold for key in keys})
 
