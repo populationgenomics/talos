@@ -411,8 +411,8 @@ def parse_into_table(json_path: str, out_path: str):
         'contig:str,'
         'position:int32,'
         'id:int32,'
-        'rating:str,'
-        'stars:int32,'
+        'clinical_significance:str,'
+        'gold_stars:int32,'
         'allele_id:int32'
         '}'
     )
@@ -424,8 +424,8 @@ def parse_into_table(json_path: str, out_path: str):
         contig=ht.f0.contig,
         position=ht.f0.position,
         variant_id=ht.f0.id,
-        rating=ht.f0.rating,
-        stars=ht.f0.stars,
+        clinical_significance=ht.f0.rating,
+        gold_stars=ht.f0.stars,
         allele_id=ht.f0.allele_id,
     )
 
