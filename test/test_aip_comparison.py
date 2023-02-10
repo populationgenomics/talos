@@ -313,11 +313,17 @@ def test_ac_threshold(
 
 
 @pytest.mark.parametrize(
-    'filters,results',
-    [({'FAILURE'}, ['QC: Variant has assigned quality flags']), (None, [])],
+    'filters,clinvar,results',
+    [
+        ({'FAILURE'}, 0, ['QC: Variant has assigned quality flags']),
+        ({'FAILURE'}, 1, []),
+        (None, 0, []),
+        (None, 1, []),
+    ],
 )
 def test_run_quality_flag_check(
     filters: list[str],
+    clinvar: int,
     results: list[str],
     hail_matrix: hl.MatrixTable,
 ):
@@ -326,7 +332,9 @@ def test_run_quality_flag_check(
     """
     if filters is None:
         filters = hl.empty_set(t=hl.tstr)
-    anno_mt = hail_matrix.annotate_rows(filters=filters)
+    anno_mt = hail_matrix.annotate_rows(
+        filters=filters, info=hail_matrix.info.annotate(clinvar_aip=clinvar)
+    )
     assert run_quality_flag_check(anno_mt) == results
 
 
