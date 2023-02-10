@@ -160,13 +160,15 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     filter MT to rows with 0 quality filters
     note: in Hail, PASS is represented as an empty set
 
+    This is overridden with Clinvar Pathogenic
+
     Args:
         mt (hl.MatrixTable): all remaining variants
     Returns:
         MT with all filtered variants removed
     """
 
-    return mt.filter_rows(mt.filters.length() == 0)
+    return mt.filter_rows((mt.filters.length() == 0) | (mt.info.clinvar_aip == ONE_INT))
 
 
 def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -898,6 +900,8 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     )
 
     # filter out quality failures
+    # swap out the default clinvar annotations with private clinvar
+    mt = annotate_aip_clinvar(mt=mt, clinvar=clinvar)
     mt = filter_on_quality_flags(mt=mt)
 
     # running global quality filter steps
@@ -919,8 +923,6 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     checkpoint_number = checkpoint_number + 1
 
-    # swap out the default clinvar annotations with private clinvar
-    mt = annotate_aip_clinvar(mt=mt, clinvar=clinvar)
     mt = extract_annotations(mt=mt)
 
     # filter variants by frequency

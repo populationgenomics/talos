@@ -519,7 +519,7 @@ class RecessiveAutosomalHomo(BaseMoi):
     def __init__(
         self,
         pedigree: Ped,
-        applied_moi: str = 'Autosomal Recessive',
+        applied_moi: str = 'Autosomal Recessive Homozygous',
     ):
         """ """
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
@@ -545,14 +545,11 @@ class RecessiveAutosomalHomo(BaseMoi):
 
         classifications = []
 
-        if principal.support_only:
-            return classifications
-
         # remove if too many homs are present in population databases
-        # no stricter AF here - if we choose to, we can apply while labelling
-        if self.check_frequency(
-            principal.info, INFO_HOMS, self.hom_threshold
-        ) and not principal.info.get('categoryboolean1'):
+        if principal.support_only or (
+            self.check_frequency(principal.info, INFO_HOMS, self.hom_threshold)
+            and not principal.info.get('categoryboolean1')
+        ):
             return classifications
 
         for sample_id in principal.hom_samples:
@@ -583,7 +580,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
-                    reasons={f'{self.applied_moi} Homozygous'},
+                    reasons={self.applied_moi},
                     flags=principal.get_sample_flags(sample_id),
                 )
             )
@@ -768,7 +765,7 @@ class XRecessiveMale(BaseMoi):
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
-                    reasons={f'{self.applied_moi}'},
+                    reasons={self.applied_moi},
                     flags=principal.get_sample_flags(sample_id),
                 )
             )
