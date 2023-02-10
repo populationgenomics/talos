@@ -411,8 +411,8 @@ def parse_into_table(json_path: str, out_path: str):
         'contig:str,'
         'position:int32,'
         'id:int32,'
-        'rating:str,'
-        'stars:int32,'
+        'clinical_significance:str,'
+        'gold_stars:int32,'
         'allele_id:int32'
         '}'
     )
@@ -424,10 +424,12 @@ def parse_into_table(json_path: str, out_path: str):
         contig=ht.f0.contig,
         position=ht.f0.position,
         variant_id=ht.f0.id,
-        rating=ht.f0.rating,
-        stars=ht.f0.stars,
+        clinical_significance=ht.f0.clinical_significance,
+        gold_stars=ht.f0.gold_stars,
         allele_id=ht.f0.allele_id,
     )
+
+    print(ht.describe())
 
     # create a locus and key
     ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
@@ -490,6 +492,7 @@ def main(subs: str, date: datetime, variants: str, out: str):
     all_decisions = sort_decisions(all_decisions)
 
     temp_output = output_path('temp_clinvar_table.json', category='tmp')
+    logging.info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
     with to_path(temp_output).open('w') as handle:
