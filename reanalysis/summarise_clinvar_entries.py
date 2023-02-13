@@ -372,11 +372,8 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     ]
 
     # if this contains results, return only those
-    if date_filt_subs:
-        return date_filt_subs
-
     # default to returning everything
-    return subs
+    return date_filt_subs or subs
 
 
 def sort_decisions(all_subs: list[dict]) -> list[dict]:
@@ -414,8 +411,8 @@ def parse_into_table(json_path: str, out_path: str):
         'contig:str,'
         'position:int32,'
         'id:int32,'
-        'rating:str,'
-        'stars:int32,'
+        'clinical_significance:str,'
+        'gold_stars:int32,'
         'allele_id:int32'
         '}'
     )
@@ -427,10 +424,12 @@ def parse_into_table(json_path: str, out_path: str):
         contig=ht.f0.contig,
         position=ht.f0.position,
         variant_id=ht.f0.id,
-        rating=ht.f0.rating,
-        stars=ht.f0.stars,
+        clinical_significance=ht.f0.clinical_significance,
+        gold_stars=ht.f0.gold_stars,
         allele_id=ht.f0.allele_id,
     )
+
+    print(ht.describe())
 
     # create a locus and key
     ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
@@ -483,8 +482,8 @@ def main(subs: str, date: datetime, variants: str, out: str):
                 'contig': allele_map[allele_id]['chrom'],
                 'position': allele_map[allele_id]['pos'],
                 'id': allele_id,
-                'rating': rating.value,
-                'stars': stars,
+                'clinical_significance': rating.value,
+                'gold_stars': stars,
                 'allele_id': allele_map[allele_id]['allele'],
             }
         )
@@ -493,6 +492,7 @@ def main(subs: str, date: datetime, variants: str, out: str):
     all_decisions = sort_decisions(all_decisions)
 
     temp_output = output_path('temp_clinvar_table.json', category='tmp')
+    logging.info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
     with to_path(temp_output).open('w') as handle:
@@ -511,8 +511,11 @@ if __name__ == '__main__':
     parser.add_argument('-o', help='output table name', required=True)
     parser.add_argument(
         '-d',
-        help='date, format DD-MM-YYYY - submissions after this date '
-        'will be removed. Un-dated submissions will pass this threshold',
+        help=(
+            'date, format DD-MM-YYYY. Individual submissions after this date are '
+            'removed. Un-dated submissions will pass this threshold. This logic is '
+            'retained, but unlikely to be used in any production work.'
+        ),
         default=datetime.now(),
     )
     args = parser.parse_args()

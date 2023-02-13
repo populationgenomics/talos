@@ -221,7 +221,7 @@ def find_core_panel_version() -> str | None:
     for activity in activities:
 
         # cast the activity datetime to day-resolution
-        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%M-%d')
+        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d')
 
         # keep going until we land on the day, or skip past it
         if activity_date > date_threshold:

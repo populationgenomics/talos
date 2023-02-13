@@ -421,8 +421,8 @@ def test_annotate_aip_clinvar(
                 {
                     'locus': hl.Locus(contig='chr20', position=63406931),
                     'alleles': ['C', 'CGG'],
-                    'rating': rating,
-                    'stars': stars,
+                    'clinical_significance': rating,
+                    'gold_stars': stars,
                     'allele_id': 1,
                 }
             ]
