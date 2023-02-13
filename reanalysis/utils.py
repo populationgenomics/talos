@@ -758,11 +758,11 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
         case ['monoallelic', *_additional]:
             return 'Monoallelic'
         case [
-            'x-linked',
+            'xlinked',
             *additional,
         ] if 'biallelic' in additional:  # pylint: disable='used-before-assignment'
             return 'Hemi_Bi_In_Female'
-        case ['x-linked', *_additional]:
+        case ['xlinked', *_additional]:
             return 'Hemi_Mono_In_Female'
         case _:
             return default

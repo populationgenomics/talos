@@ -42,25 +42,24 @@ def test_ac_filter_no_filt(
 
 
 @pytest.mark.parametrize(
-    'filters,length',
+    'filters,clinvar,length',
     [
-        (hl.empty_set(hl.tstr), 1),
-        (hl.literal({'fail'}), 0),
-        (hl.literal({'VQSR'}), 0),
+        (hl.empty_set(hl.tstr), 0, 1),
+        (hl.literal({'fail'}), 0, 0),
+        (hl.literal({'fail'}), 1, 1),
+        (hl.literal({'VQSR'}), 0, 0),
+        (hl.literal({'VQSR'}), 1, 1),
     ],
 )
-def test_filter_on_quality_flags(filters, length, hail_matrix):
+def test_filter_on_quality_flags(filters, clinvar, length, hail_matrix):
     """
     annotate filters and run tests
-
-    :param filters:
-    :param length:
-    :param hail_matrix:
-    :return:
     """
     # to add new alleles, we need to scrub alleles from the key fields
     hail_matrix = hail_matrix.key_rows_by('locus')
-    anno_matrix = hail_matrix.annotate_rows(filters=filters)
+    anno_matrix = hail_matrix.annotate_rows(
+        filters=filters, info=hail_matrix.info.annotate(clinvar_aip=clinvar)
+    )
 
     assert filter_on_quality_flags(anno_matrix).count_rows() == length
 
