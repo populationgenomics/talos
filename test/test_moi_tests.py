@@ -44,6 +44,7 @@ class SimpleVariant:
     categoryboolean1: bool = True
     categorysample4: list[str] = field(default_factory=list)
     ab_ratios = {'nobody': 1.0}
+    depths = {'female': 11, 'male': 11}
 
     def sample_category_check(self, sample, allow_support=True):
         """
@@ -83,6 +84,7 @@ class RecessiveSimpleVariant:
     coords: Coordinates
     ab_ratios: dict[str, float]
     info: dict[str, Any] = field(default_factory=dict)
+    depths = {'female': 11, 'male': 11}
     het_samples: set[str] = field(default_factory=set)
     hom_samples: set[str] = field(default_factory=set)
     categorysample4: list[str] = field(default_factory=list)
@@ -201,6 +203,28 @@ def test_moi_runner(moi_string: str, filters: List[str], peddy_ped):
     # and the instantiated objects don't have a __name__
     for filter1, filter2 in zip(test_runner.filter_list, filters):
         assert filter2 in str(filter1.__class__)
+
+
+def test_dominant_autosomal_fails_on_depth(peddy_ped):
+    """
+    test case for autosomal dominant depth failure
+    :return:
+    """
+
+    info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0}
+
+    dom = DominantAutosomal(pedigree=peddy_ped)
+
+    # passes with heterozygous
+    shallow_variant = SimpleVariant(
+        info=info_dict,
+        het_samples={'male'},
+        hom_samples=set(),
+        coords=TEST_COORDS,
+    )
+    shallow_variant.depths = {'male': 1}
+    results = dom.run(principal=shallow_variant)
+    assert len(results) == 0
 
 
 def test_dominant_autosomal_passes(peddy_ped):
