@@ -370,11 +370,7 @@ def prepare_results_shell(
 @click.option(
     '--input_path', help='source data', default='Not supplied', show_default=True
 )
-@click.option(
-    '--participant_panels',
-    help='dict of panels per participant',
-    default=None,
-)
+@click.option('--participant_panels', help='panels per participant', default=None)
 def main(
     labelled_vcf: str,
     out_json: str,
