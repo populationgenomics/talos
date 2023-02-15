@@ -309,6 +309,8 @@ def main(panels: str | None, out_path: str, previous: str | None):
         if old_file is not None:
             logging.info(f'Grabbing legacy panel data from {old_file}')
             old_data = read_json_from_path(old_file)
+        else:
+            new_genes = True
 
     else:
         new_genes = True
@@ -318,6 +320,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
     remove_from_core: list[str] = get_config()['dataset_specific'].get(
         'require_pheno_match', []
     )
+    logging.info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
     gene_dict: PanelData = {'metadata': [], 'genes': {}}
