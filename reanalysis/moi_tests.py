@@ -36,6 +36,7 @@ VAR_FIELDS_TO_REMOVE = [
     'sample_categories',
     'sample_support',
     'ab_ratios',
+    'depths',
 ]
 
 
@@ -394,11 +395,9 @@ class DominantAutosomal(BaseMoi):
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
             # force a minimum depth on the proband call
-            if (
-                not (
-                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                    and principal.sample_category_check(sample_id)
-                )
+            if not (
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                and principal.sample_category_check(sample_id, allow_support=False)
             ) or (
                 principal.depths[sample_id] < self.minimum_depth
                 and not principal.info.get('categoryboolean1')
@@ -477,7 +476,7 @@ class RecessiveAutosomalCH(BaseMoi):
             if (
                 not (
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                    and principal.sample_category_check(sample_id, True)
+                    and principal.sample_category_check(sample_id, allow_support=True)
                 )
             ) or (
                 principal.depths[sample_id] < self.minimum_depth
@@ -500,7 +499,9 @@ class RecessiveAutosomalCH(BaseMoi):
 
                 # categorised for this specific sample, allow support in partner
                 # - also screen out high-AF partners
-                if not partner_variant.sample_category_check(sample_id, True):
+                if not partner_variant.sample_category_check(
+                    sample_id, allow_support=True
+                ):
                     continue
 
                 # check if this is a candidate for comp-het inheritance
@@ -580,7 +581,7 @@ class RecessiveAutosomalHomo(BaseMoi):
             if (
                 not (
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                    and principal.sample_category_check(sample_id)
+                    and principal.sample_category_check(sample_id, allow_support=False)
                 )
             ) or (
                 principal.depths[sample_id] < self.minimum_depth
@@ -677,7 +678,7 @@ class XDominant(BaseMoi):
             # force minimum depth
             if (
                 not (
-                    principal.sample_category_check(sample_id)
+                    principal.sample_category_check(sample_id, allow_support=False)
                     and self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 )
             ) or (
@@ -776,7 +777,7 @@ class XRecessiveMale(BaseMoi):
             if (
                 not (
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                    and principal.sample_category_check(sample_id)
+                    and principal.sample_category_check(sample_id, allow_support=False)
                 )
             ) or (
                 principal.depths[sample_id] < self.minimum_depth
@@ -868,7 +869,7 @@ class XRecessiveFemaleHom(BaseMoi):
             if (
                 not (
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                    and principal.sample_category_check(sample_id)
+                    and principal.sample_category_check(sample_id, allow_support=False)
                 )
             ) or (
                 principal.depths[sample_id] < self.minimum_depth
@@ -959,7 +960,7 @@ class XRecessiveFemaleCH(BaseMoi):
             if (
                 not (
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                    and principal.sample_category_check(sample_id)
+                    and principal.sample_category_check(sample_id, allow_support=True)
                 )
             ) or (
                 principal.depths[sample_id] < self.minimum_depth

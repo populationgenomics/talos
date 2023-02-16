@@ -15,7 +15,6 @@ from typing import Any
 import json
 import logging
 import re
-
 import requests
 
 from cpg_utils import to_path
@@ -501,6 +500,7 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
             bool: True if this sample features in any
                   named-sample category, includes 'all'
         """
+
         return any(
             sam in self.info[sam_cat]
             for sam_cat in self.sample_categories
@@ -519,7 +519,9 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             True if the variant is categorised for this sample
         """
-        big_cat = self.category_non_support or self.sample_categorised_check(sample_id)
+        big_cat = self.has_boolean_categories or self.sample_categorised_check(
+            sample_id
+        )
         if allow_support:
             return big_cat or self.has_support
         return big_cat
@@ -653,6 +655,7 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
+
         abs_var = AbstractVariant(
             var=variant,
             samples=variant_source.samples,
