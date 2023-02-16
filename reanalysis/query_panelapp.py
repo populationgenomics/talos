@@ -64,6 +64,7 @@ def get_panel_green(
     old_data: dict[str, list],
     panel_id: int = DEFAULT_PANEL,
     version: str | None = None,
+    blacklist: list[str] | None = None,
 ):
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
@@ -74,7 +75,11 @@ def get_panel_green(
         old_data (dict[str, list]): dict of lists - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
+        blacklist (): list of symbols/ENSG IDs to remove from this panel
     """
+
+    if blacklist is None:
+        blacklist = []
 
     # include the version if required
     panel_url = f'{PANELAPP_BASE}/{panel_id}' + (
@@ -95,8 +100,8 @@ def get_panel_green(
         if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene':
             continue
 
-        ensg = None
         symbol = gene.get('entity_name')
+        ensg = None
         chrom = None
 
         # for some reason the build is capitalised oddly in panelapp
@@ -110,6 +115,10 @@ def get_panel_green(
 
         if ensg is None:
             logging.info(f'Gene "{symbol} lacks an ENSG ID, so it is being excluded')
+            continue
+
+        if ensg in blacklist or symbol in blacklist:
+            logging.info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
 
         # check if this is a new gene in this analysis
@@ -295,20 +304,25 @@ def main(panels: str | None, out_path: str, previous: str | None):
         logging.info(f'Reading legacy data from {previous}')
         old_data = read_json_from_path(previous)
 
-    elif get_config()['dataset_specific'].get('historic_results'):
-        old_file = find_latest_file(start='panel_')
-        if old_file is not None:
-            logging.info(f'Grabbing legacy panel data from {old_file}')
-            old_data = read_json_from_path(old_file)
+    elif old_file := find_latest_file(start='panel_'):
+        logging.info(f'Grabbing legacy panel data from {old_file}')
+        old_data = read_json_from_path(old_file)
 
     else:
         new_genes = True
+
+    # are there any genes to skip from the Mendeliome? i.e. only report
+    # if in a specifically phenotype-matched panel
+    remove_from_core: list[str] = get_config()['dataset_specific'].get(
+        'require_pheno_match', []
+    )
+    logging.info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
     gene_dict: PanelData = {'metadata': [], 'genes': {}}
 
     # first add the base content
-    get_panel_green(gene_dict, old_data=old_data)
+    get_panel_green(gene_dict, old_data=old_data, blacklist=remove_from_core)
     if new_genes:
         new_genes = set(gene_dict['genes'].keys())
 

@@ -17,6 +17,9 @@ from cpg_utils.config import get_config
 from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant, X_CHROMOSOME
 
 
+# pylint: disable=too-many-lines
+
+
 # config keys to use for dominant MOI tests
 GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
 GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
@@ -33,6 +36,7 @@ VAR_FIELDS_TO_REMOVE = [
     'sample_categories',
     'sample_support',
     'ab_ratios',
+    'depths',
 ]
 
 
@@ -176,6 +180,7 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
+        self.minimum_depth = get_config()['filter'].get('minimum_depth', 10)
 
     @abstractmethod
     def run(
@@ -344,7 +349,7 @@ class DominantAutosomal(BaseMoi):
         applied_moi: str = 'Autosomal Dominant',
     ):
         """
-        AD MOI - simplest form
+        Simplest: AD MOI
         """
         self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
         self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
@@ -388,11 +393,15 @@ class DominantAutosomal(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
-                continue
-
-            # we require this specific sample to be categorised - check Cat 4 contents
-            if not principal.sample_category_check(sample_id):
+            # we require this specific sample to be categorised
+            # force a minimum depth on the proband call
+            if not (
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                and principal.sample_category_check(sample_id, allow_support=False)
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
+            ):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -464,9 +473,14 @@ class RecessiveAutosomalCH(BaseMoi):
 
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
-            if not (
-                self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                and principal.sample_category_check(sample_id, True)
+            if (
+                not (
+                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                    and principal.sample_category_check(sample_id, allow_support=True)
+                )
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -477,12 +491,17 @@ class RecessiveAutosomalCH(BaseMoi):
             ):
 
                 # skip the double-support scenario
-                if principal.support_only and partner_variant.support_only:
+                if (principal.support_only and partner_variant.support_only) or (
+                    partner_variant.depths[sample_id] < self.minimum_depth
+                    and not partner_variant.info.get('categoryboolean1')
+                ):
                     continue
 
                 # categorised for this specific sample, allow support in partner
                 # - also screen out high-AF partners
-                if not partner_variant.sample_category_check(sample_id, True):
+                if not partner_variant.sample_category_check(
+                    sample_id, allow_support=True
+                ):
                     continue
 
                 # check if this is a candidate for comp-het inheritance
@@ -558,9 +577,15 @@ class RecessiveAutosomalHomo(BaseMoi):
 
             # skip primary analysis for unaffected members
             # require this sample to be categorised - check Sample contents
-            if not (
-                self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                and principal.sample_category_check(sample_id)
+            # minimum depth of call
+            if (
+                not (
+                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                    and principal.sample_category_check(sample_id, allow_support=False)
+                )
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -649,11 +674,17 @@ class XDominant(BaseMoi):
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
-            if not self.pedigree[sample_id].affected == PEDDY_AFFECTED:
-                continue
-
-            # we require this specific sample to be categorised - check Cat 4 contents
-            if not principal.sample_category_check(sample_id):
+            # we require this specific sample to be categorised
+            # force minimum depth
+            if (
+                not (
+                    principal.sample_category_check(sample_id, allow_support=False)
+                    and self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                )
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
+            ):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -743,9 +774,14 @@ class XRecessiveMale(BaseMoi):
         for sample_id in males:
 
             # specific affected sample category check
-            if not (
-                self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                and principal.sample_category_check(sample_id)
+            if (
+                not (
+                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                    and principal.sample_category_check(sample_id, allow_support=False)
+                )
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -830,9 +866,14 @@ class XRecessiveFemaleHom(BaseMoi):
         for sample_id in samples_to_check:
 
             # specific affected sample category check
-            if not (
-                self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                and principal.sample_category_check(sample_id)
+            if (
+                not (
+                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                    and principal.sample_category_check(sample_id, allow_support=False)
+                )
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -916,9 +957,14 @@ class XRecessiveFemaleCH(BaseMoi):
 
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
-            if not (
-                self.pedigree[sample_id].affected == PEDDY_AFFECTED
-                and principal.sample_category_check(sample_id)
+            if (
+                not (
+                    self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                    and principal.sample_category_check(sample_id, allow_support=True)
+                )
+            ) or (
+                principal.depths[sample_id] < self.minimum_depth
+                and not principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -940,6 +986,12 @@ class XRecessiveFemaleCH(BaseMoi):
                         and not partner.info.get('categoryboolean1')
                     )
                 ) or (principal.support_only and partner.support_only):
+                    continue
+
+                # check for minimum depth in partner
+                if partner.depths[
+                    sample_id
+                ] < self.minimum_depth and not partner.info.get('categoryboolean1'):
                     continue
 
                 if not self.check_comp_het(

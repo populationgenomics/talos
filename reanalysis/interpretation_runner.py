@@ -23,17 +23,14 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
-from hailtop.batch import ResourceFile
 from hailtop.batch.job import BashJob, Job
 
-from cpg_utils import to_path, Path
+from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
-    command,
     copy_common_env,
     dataset_path,
-    image_path,
     output_path,
 )
 from cpg_utils.git import get_git_root_relative_path_from_absolute
@@ -41,7 +38,7 @@ from cpg_utils.git import get_git_root_relative_path_from_absolute
 from cpg_workflows.batch import get_batch
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
-from cpg_workflows.resources import STANDARD
+from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -283,36 +280,6 @@ def handle_results_job(
     results_job.command(results_command)
 
 
-def add_make_sitesonly_job(
-    input_vcf: ResourceFile, output_vcf_path: Path, storage_gb: int
-) -> Job:
-    """
-    Create sites-only VCF with only site-level annotations.
-    Speeds up the analysis in the AS-VQSR modeling step.
-    Returns: a Job object with a single output j.sites_only_vcf of type ResourceGroup
-    """
-
-    j = get_batch().new_job('MakeSitesOnlyVcf', {'tool': 'bcftools'})
-    j.image(image_path('bcftools'))
-    STANDARD.set_resources(j, ncpu=2)
-    j.storage(storage_gb)
-    j.declare_resource_group(
-        output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
-    )
-
-    j.command(
-        command(
-            f"""
-    bcftools view -G -Oz -o {j.output_vcf['vcf.gz']} \\
-    -I {input_vcf} \\
-    tabix -p vcf -f {j.output_vcf['vcf.gz']}
-    """
-        )
-    )
-    get_batch().write_output(j.output_vcf, str(output_vcf_path).replace('.vcf.gz', ''))
-    return j
-
-
 def main(
     input_path: str,
     pedigree: str,
@@ -387,11 +354,15 @@ def main(
         # run annotation, default values from RefData
 
         siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
-        input_vcf_in_batch = (
-            get_batch().read_input_group(vcf=input_path, tbi=input_path + '.tbi').vcf
+        input_vcf_in_batch = get_batch().read_input_group(
+            **{
+                'vcf.gz': str(input_path),
+                'vcf.gz.tbi': str(input_path) + '.tbi',
+            }
         )
         logging.info(input_path)
-        sites_job = add_make_sitesonly_job(
+        sites_job, _siteonly_resource_group = add_make_sitesonly_job(
+            b=get_batch(),
             input_vcf=input_vcf_in_batch,
             output_vcf_path=siteonly_vcf_path,
             storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,

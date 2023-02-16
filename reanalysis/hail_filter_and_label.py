@@ -210,7 +210,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 
 def annotate_category_2(
-    mt: hl.MatrixTable, new_genes: hl.SetExpression
+    mt: hl.MatrixTable, new_genes: hl.SetExpression | None
 ) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
@@ -226,6 +226,10 @@ def annotate_category_2(
     """
 
     critical_consequences = hl.set(get_config()['filter']['critical_csq'])
+
+    # permit scenario with no new genes
+    if new_genes is None:
+        return mt.annotate_rows(info=mt.info.annotate(categoryboolean2=MISSING_INT))
 
     # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
     return mt.annotate_rows(
@@ -716,7 +720,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
 
 def green_and_new_from_panelapp(
     panel_genes: dict[str, dict[str, str]]
-) -> tuple[hl.SetExpression, hl.SetExpression]:
+) -> tuple[hl.SetExpression, hl.SetExpression | None]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
     Also identify the subset of those genes which relate to NEW in panel
@@ -726,6 +730,7 @@ def green_and_new_from_panelapp(
 
     Returns:
         two set expressions - Green, and (Green and New) genes
+        can return None if no genes are currently new
     """
 
     # take all the green genes, remove the metadata
@@ -737,9 +742,10 @@ def green_and_new_from_panelapp(
         gene for gene in green_genes if len(panel_genes[gene].get('new', [])) > 0
     }
     logging.info(f'Extracted {len(new_genes)} NEW genes')
-    new_gene_set_expression = hl.literal(new_genes)
+    if new_genes:
+        return green_gene_set_expression, hl.literal(new_genes)
 
-    return green_gene_set_expression, new_gene_set_expression
+    return green_gene_set_expression, None
 
 
 def checkpoint_and_repartition(
@@ -989,9 +995,7 @@ if __name__ == '__main__':
     parser.add_argument('--mt', required=True, help='path to input MT')
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
-    parser.add_argument(
-        '--clinvar', type=str, default='absent', help='Custom Clinvar Summary HT'
-    )
+    parser.add_argument('--clinvar', default='absent', help='Custom Clinvar HT')
     args = parser.parse_args()
     main(
         mt_path=args.mt, panelapp=args.panelapp, plink=args.plink, clinvar=args.clinvar
