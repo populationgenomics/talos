@@ -42,7 +42,7 @@ setup(
             'click',
             'cloudpathlib[all]>=0.9.0',
             'cpg-utils>=4.10.3',
-            'cpg_workflows==1.4.1',
+            'cpg_workflows>=1.12.4',
             'dill>=0.3.5.1',
             'hail>=0.2.105',
             'Jinja2>=3.0.3',
