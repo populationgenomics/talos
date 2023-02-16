@@ -65,4 +65,4 @@ genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_cal
 
 [dataset_specific]
 description = 'placeholder for per-cohort data'
-require_pheno_match = ["FLG"]
+require_pheno_match = ['FLG']
