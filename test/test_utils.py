@@ -157,29 +157,20 @@ def test_get_non_ref_samples():
     assert hom == {'d'}
 
 
-def test_av_de_novo(trio_abs_variant: AbstractVariant):
-    """
-
-    :param trio_abs_variant:
-    :return:
-    """
-    assert trio_abs_variant.sample_de_novo('male')
-    assert not trio_abs_variant.sample_de_novo('father_1')
-
-
 def test_av_categories(trio_abs_variant: AbstractVariant):
     """
-
-    :param trio_abs_variant:
-    :return:
+    Cat. 3, and Cat. 4 for PROBAND only:
     """
     assert trio_abs_variant.is_classified
     assert trio_abs_variant.category_non_support
     assert trio_abs_variant.has_sample_categories
     assert trio_abs_variant.sample_de_novo('male')
+    assert not trio_abs_variant.sample_de_novo('father_1')
     assert trio_abs_variant.info.get('categoryboolean3')
     assert not trio_abs_variant.info.get('categoryboolean1')
     assert not trio_abs_variant.info.get('categoryboolean2')
+    assert trio_abs_variant.sample_categorised_check('male')
+    assert not trio_abs_variant.sample_categorised_check('father_1')
 
 
 def test_av_phase(trio_abs_variant: AbstractVariant):
