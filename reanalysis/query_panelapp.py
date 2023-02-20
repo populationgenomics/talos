@@ -29,8 +29,8 @@ from reanalysis.utils import (
 
 PanelData = dict[str, dict | list[dict]]
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
-PANELAPP_BASE = get_config()['workflow'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
-DEFAULT_PANEL = get_config()['workflow'].get('default_panel', 137)
+PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
+DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
 
 
 # pylint: disable=no-value-for-parameter,unnecessary-lambda
@@ -218,7 +218,7 @@ def find_core_panel_version() -> str | None:
     """
 
     date_threshold = datetime.today() - relativedelta(
-        months=get_config()['workflow']['panel_month_delta']
+        months=get_config()['panels']['panel_month_delta']
     )
 
     # query for data from this endpoint
@@ -299,23 +299,28 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     old_data = {}
 
-    new_genes = None
-    if previous:
-        logging.info(f'Reading legacy data from {previous}')
-        old_data = read_json_from_path(previous)
+    # make responsive to config
+    twelve_months = None
+    dataset = get_config()['workflow']['dataset']
+    assert dataset in get_config(), f'Dataset {dataset} is not represented in config'
+    previous = get_config()[dataset].get('gene_prior')
 
-    elif old_file := find_latest_file(start='panel_'):
+    # historic data overrides default 'previous' list for cohort
+    # open to discussing order of precedence here
+    if old_file := find_latest_file(start='panel_'):
         logging.info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file)
 
+    elif previous:
+        logging.info(f'Reading legacy data from {previous}')
+        old_data = read_json_from_path(previous)
+
     else:
-        new_genes = True
+        twelve_months = True
 
     # are there any genes to skip from the Mendeliome? i.e. only report
     # if in a specifically phenotype-matched panel
-    remove_from_core: list[str] = get_config()['dataset_specific'].get(
-        'require_pheno_match', []
-    )
+    remove_from_core: list[str] = get_config()['panels'].get('require_pheno_match', [])
     logging.info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
@@ -323,8 +328,10 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # first add the base content
     get_panel_green(gene_dict, old_data=old_data, blacklist=remove_from_core)
-    if new_genes:
-        new_genes = set(gene_dict['genes'].keys())
+
+    # store the list of genes currently on the core panel
+    if twelve_months:
+        twelve_months = set(gene_dict['genes'].keys())
 
     # if participant panels were provided, add each of those to the gene data
     if panels is not None:
@@ -343,7 +350,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # if we didn't have prior reference data, scrub down new statuses
     # new_genes can be empty as a result of a successful query
-    if new_genes:
+    if twelve_months:
 
         old_version = find_core_panel_version()
         if old_version is None:
@@ -351,7 +358,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
         logging.info(
             f'No prior data found, running panel diff vs. panel version {old_version}'
         )
-        new_gene_set = get_new_genes(new_genes, old_version)
+        new_gene_set = get_new_genes(twelve_months, old_version)
         overwrite_new_status(gene_dict, new_gene_set)
 
     # write the output to long term storage

@@ -212,7 +212,7 @@ def get_new_gene_map(
     """
 
     # pull out the core panel once
-    core_panel = get_config()['workflow']['default_panel']
+    core_panel = get_config()['panels']['default_panel']
 
     # collect all genes new in at least one panel
     new_genes = {

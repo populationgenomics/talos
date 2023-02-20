@@ -46,8 +46,6 @@ PATH_SIGS = {
 UNCERTAIN_SIGS = {'Uncertain significance', 'Uncertain risk allele'}
 USELESS_RATINGS = {'no assertion criteria provided'}
 
-# remove all entries from these providers
-MEGA_BLACKLIST = get_config()['clinvar']['filter_all']
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
@@ -122,7 +120,6 @@ def get_allele_locus_map(summary_file: str) -> dict:
         alt = line[33]
 
         # skip chromosomal deletions and insertions, mito, or massive indels
-        # this might break hail?
         if (
             ref == 'na'
             or alt == 'na'
@@ -316,6 +313,11 @@ def get_all_decisions(
     """
 
     submission_dict = defaultdict(list)
+    dataset = get_config()['workflow']['dataset']
+    assert dataset in get_config(), f'Dataset {dataset} is not represented in config'
+
+    # remove all entries from these providers
+    blacklist = get_config()[dataset]['clinvar_filter']
 
     for line in lines_from_gzip(submission_file):
 
@@ -325,7 +327,7 @@ def get_all_decisions(
         # this saves a little effort on haplotypes, CNVs, and SVs
         if (
             (a_id not in allele_ids)
-            or (line_sub.submitter in MEGA_BLACKLIST)
+            or (line_sub.submitter in blacklist)
             or (line_sub.date > threshold_date)
             or (line_sub.review_status in USELESS_RATINGS)
             or (line_sub.classification == Consequence.UNKNOWN)
