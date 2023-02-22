@@ -11,6 +11,8 @@ from unittest import mock
 import pytest
 from reanalysis.moi_tests import (
     check_for_second_hit,
+    minimise_variant,
+    AbstractVariant,
     BaseMoi,
     DominantAutosomal,
     MOIRunner,
@@ -45,6 +47,9 @@ class SimpleVariant:
     categorysample4: list[str] = field(default_factory=list)
     ab_ratios = {'nobody': 1.0}
     depths = {'female': 11, 'male': 11}
+    sample_categories = ['categorysample4']
+    boolean_categories = ['categoryboolean1']
+    sample_support = []
 
     def sample_category_check(self, sample, allow_support=True):
         """
@@ -89,6 +94,9 @@ class RecessiveSimpleVariant:
     hom_samples: set[str] = field(default_factory=set)
     categorysample4: list[str] = field(default_factory=list)
     categoryboolean1: bool = True
+    boolean_categories = ['categoryboolean1']
+    sample_categories = ['categorysample4']
+    sample_support = []
 
     def sample_de_novo(self, sample):
         """
@@ -137,6 +145,10 @@ class RecessiveSimpleVariant:
     def support_only(self):
         """pass"""
         return False
+
+    def sample_support_only(self, sample_id: str) -> bool:
+        """dummy method - this will cause issues"""
+        return sample_id == 'dumdum'
 
 
 @pytest.mark.parametrize(
@@ -822,3 +834,11 @@ def test_genotype_calls(peddy_ped):
         'male': 'WT',
         'mother_1': 'WT',
     }
+
+
+def test_minimise(trio_abs_variant: AbstractVariant):
+    """
+    check the variant minimiser
+    """
+    minvar = minimise_variant(trio_abs_variant, 'male')
+    assert minvar.categories == ['3', '4']
