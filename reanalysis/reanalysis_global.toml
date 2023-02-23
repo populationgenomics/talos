@@ -49,7 +49,7 @@ default_memory = 'highmem'
 [images]
 vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
 gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:0.5.1'
 picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
 samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
 aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:0.5.1'
