@@ -12,7 +12,6 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 import click
-
 from cpg_utils.config import get_config
 
 from reanalysis.utils import (
@@ -38,7 +37,7 @@ DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
     """
-    just takes care of the panelapp query
+    takes care of the panelapp query
     Args:
         url ():
 
@@ -47,8 +46,6 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     """
 
     panel_json = get_json_response(url)
-
-    # steal attributes
     panel_name = panel_json.get('name')
     panel_version = panel_json.get('version')
     panel_genes = panel_json.get('genes')
@@ -282,17 +279,15 @@ def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
 @click.command()
 @click.option('--panels', help='JSON of per-participant panels')
 @click.option('--out_path', required=True, help='destination for results')
-@click.option('--previous', help="previous data for finding 'new' genes")
-def main(panels: str | None, out_path: str, previous: str | None):
+def main(panel_file: str | None, out_path: str):
     """
     if present, reads in any prior reference data
     if present, reads additional panels to use
     queries panelapp for each panel in turn, aggregating results
 
     Args:
-        panels ():
-        out_path ():
-        previous ():
+        panel_file (): file containing per-participant panels
+        out_path (): where to write the results out to
     """
 
     logging.info('Starting PanelApp Query Stage')
@@ -301,9 +296,13 @@ def main(panels: str | None, out_path: str, previous: str | None):
 
     # make responsive to config
     twelve_months = None
+
+    # find and extract this dataset's portion of the config file
     dataset = get_config()['workflow']['dataset']
-    assert dataset in get_config(), f'Dataset {dataset} is not represented in config'
-    previous = get_config()[dataset].get('gene_prior')
+    assert (
+        dataset in get_config()['cohorts']
+    ), f'Dataset {dataset} is not represented in config'
+    cohort_config = get_config()['cohorts'][dataset]
 
     # historic data overrides default 'previous' list for cohort
     # open to discussing order of precedence here
@@ -311,7 +310,7 @@ def main(panels: str | None, out_path: str, previous: str | None):
         logging.info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file)
 
-    elif previous:
+    elif previous := cohort_config.get('gene_prior'):
         logging.info(f'Reading legacy data from {previous}')
         old_data = read_json_from_path(previous)
 
@@ -334,16 +333,23 @@ def main(panels: str | None, out_path: str, previous: str | None):
         twelve_months = set(gene_dict['genes'].keys())
 
     # if participant panels were provided, add each of those to the gene data
-    if panels is not None:
-        panel_list = read_panels_from_participant_file(panels)
-        logging.info(f'All additional panels: {", ".join(map(str, panel_list))}')
-        for panel in panel_list:
+    panel_list = set()
+    if panel_file is not None:
+        panel_list = read_panels_from_participant_file(panel_file)
+        logging.info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
-            # skip mendeliome
-            if panel == DEFAULT_PANEL:
-                continue
+    # now check if there are cohort-wide override panels
+    if extra_panels := cohort_config.get('cohort_panels'):
+        logging.info(f'Cohort-specific panels: {", ".join(extra_panels)}')
+        panel_list.update(extra_panels)
 
-            get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data)
+    for panel in panel_list:
+
+        # skip mendeliome - we already queried for it
+        if panel == DEFAULT_PANEL:
+            continue
+
+        get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data)
 
     # now get the best MOI
     get_best_moi(gene_dict['genes'])

@@ -45,6 +45,10 @@
         <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
             data-bs-title="Phenotype match: {{variant.panel_flags|join(', ')}}"></i>
         {% endif %}
+        {% if variant.forced_matches %}
+        <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
+        {% endif %}
         <br>
         {% set pipe = joiner(", ") %}
         ({% for moi in variant.reasons -%}

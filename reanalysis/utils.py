@@ -140,14 +140,13 @@ class Coordinates:
     alt: str
 
     @property
-    def string_format(self):
+    def string_format(self) -> str:
         """
-        forms a string representation
-        chr-pos-ref-alt
+        forms a string representation: chr-pos-ref-alt
         """
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         """
         enables positional sorting
         """
@@ -162,7 +161,7 @@ class Coordinates:
             return True
         return False
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         equivalence check
         Args:
@@ -187,7 +186,7 @@ def get_json_response(url: str) -> Any:
     List use-case (activities endpoint) no longer supported
 
     Args:
-        url ():
+        url (): str URL to retrieve JSON format data from
 
     Returns:
         the JSON response from the endpoint
@@ -211,8 +210,14 @@ def get_new_gene_map(
     {gene: [samples, where, this, is, 'new']}
     """
 
-    # pull out the core panel once
-    core_panel = get_config()['panels']['default_panel']
+    # find the dataset-specific panel data, if present
+    # add the 'core' panel to it
+    dataset = get_config()['workflow']['dataset']
+    assert (
+        dataset in get_config()['cohorts']
+    ), f'Dataset {dataset} is not represented in config'
+    cohort_panels: list[int] = get_config()['cohorts'][dataset].get('cohort_panels', [])
+    cohort_panels.append(get_config()['panels']['default_panel'])
 
     # collect all genes new in at least one panel
     new_genes = {
@@ -237,7 +242,7 @@ def get_new_gene_map(
 
     # iterate over the new genes and find out who they are new for
     for gene, panels in new_genes.items():
-        if core_panel in panels:
+        if any(panel in cohort_panels for panel in panels):
             pheno_matched_new[gene] = 'all'
             continue
 

@@ -409,12 +409,10 @@ def main(
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
 
-    per_participant_panels = read_json_from_path(participant_panels)
+    participant_panels = read_json_from_path(participant_panels)
 
     # create the new gene map
-    new_gene_map = get_new_gene_map(
-        panelapp_data=panelapp_data, pheno_panels=per_participant_panels
-    )
+    new_gene_map = get_new_gene_map(panelapp_data, participant_panels)
 
     result_list = []
 
@@ -441,7 +439,7 @@ def main(
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
-        panel_data=per_participant_panels,
+        panel_data=participant_panels,
         panelapp=panelapp_data,
     )
 
@@ -450,7 +448,7 @@ def main(
         results_holder=results_shell,
         result_list=result_list,
         panelapp_data=panelapp_data,
-        participant_panels=per_participant_panels,
+        participant_panels=participant_panels,
     )
 
     # remove previously seen results using cumulative data file(s)

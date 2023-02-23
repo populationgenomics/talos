@@ -93,6 +93,20 @@ class HTMLBuilder:
         self.metadata = results_dict['metadata']
         self.panel_names = {panel['name'] for panel in self.metadata['panels']}
 
+        # pull out forced panel matches
+        dataset = get_config()['workflow']['dataset']
+        assert (
+            dataset in get_config()['cohorts']
+        ), f'Dataset {dataset} is not represented in config'
+        cohort_panels: list[int] = get_config()['cohorts'][dataset].get(
+            'cohort_panels', []
+        )
+        self.forced_panel_names = {
+            panel['name']
+            for panel in self.metadata['panels']
+            if panel['id'] in cohort_panels
+        }
+
         # Process samples and variants
         self.samples = []
         for sample, content in results_dict['results'].items():
@@ -307,15 +321,19 @@ class Variant:
             symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
             self.genes.append((gene_id, symbol))
 
-        # Separate phenotype match flags from waring flags
+        # Separate phenotype match flags from warning flags
         # TODO: should we keep these separate in the report?
         self.warning_flags = []
         self.panel_flags = []
+        self.forced_matches = []
         for flag in variant_dict['flags']:
             if flag in sample.html_builder.panel_names:
                 self.panel_flags.append(flag)
             else:
                 self.warning_flags.append(flag)
+            # flag presence on any panels forced at the cohort level
+            if flag in sample.html_builder.forced_panel_names:
+                self.forced_matches.append(flag)
 
         # Summaries CSQ strings
         (
