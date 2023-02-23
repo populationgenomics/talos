@@ -17,7 +17,7 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from reanalysis.utils import read_json_from_path
+from reanalysis.utils import read_json_from_path, get_cohort_config
 
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'support']
@@ -94,13 +94,10 @@ class HTMLBuilder:
         self.panel_names = {panel['name'] for panel in self.metadata['panels']}
 
         # pull out forced panel matches
-        dataset = get_config()['workflow']['dataset']
-        assert (
-            dataset in get_config()['cohorts']
-        ), f'Dataset {dataset} is not represented in config'
-        cohort_panels: list[int] = get_config()['cohorts'][dataset].get(
-            'cohort_panels', []
-        )
+        cohort_panels = get_cohort_config().get('cohort_panels', [])
+        self.forced_panels = [
+            panel for panel in self.metadata['panels'] if panel['id'] in cohort_panels
+        ]
         self.forced_panel_names = {
             panel['name']
             for panel in self.metadata['panels']
@@ -188,6 +185,7 @@ class HTMLBuilder:
 
         tables = {
             'Panels': pd.DataFrame(self.metadata['panels']),
+            'Cohort Matched Panels': pd.DataFrame(self.forced_panels),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.metadata[key]}
                 for key in ['cohort', 'input_file', 'run_datetime', 'container']
