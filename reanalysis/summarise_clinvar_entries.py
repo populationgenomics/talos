@@ -33,6 +33,8 @@ from cpg_utils import to_path, CloudPath
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path, init_batch
 
+from reanalysis.utils import get_cohort_config
+
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
 CONFLICTING = 'conflicting data from submitters'
@@ -313,11 +315,11 @@ def get_all_decisions(
     """
 
     submission_dict = defaultdict(list)
-    dataset = get_config()['workflow']['dataset']
-    assert dataset in get_config(), f'Dataset {dataset} is not represented in config'
 
     # remove all entries from these providers
-    blacklist = get_config()[dataset]['clinvar_filter']
+    # for now require a mandatory dataset, may amend later
+    cohort_config = get_cohort_config()
+    blacklist = cohort_config.get('clinvar_filter', [])
 
     for line in lines_from_gzip(submission_file):
 
@@ -430,8 +432,6 @@ def parse_into_table(json_path: str, out_path: str):
         gold_stars=ht.f0.gold_stars,
         allele_id=ht.f0.allele_id,
     )
-
-    print(ht.describe())
 
     # create a locus and key
     ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
