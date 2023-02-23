@@ -69,3 +69,6 @@ genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_cal
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
 cohort_percentage = 80
 gene_prior = ''
+
+[cohorts.cohort]
+cohort_panels = [99]

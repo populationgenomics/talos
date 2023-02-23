@@ -269,6 +269,17 @@ def test_new_gene_map_core():
     assert result == {'ENSG1': 'all'}
 
 
+def test_new_gene_map_cohort_level():
+    """
+    check that new for the cohort-matched panel is new for all
+    """
+
+    panel_data = {'genes': {'ENSG1': {'new': [99]}}}
+    personal_panels = {'sam': {'panels': []}}
+    result = get_new_gene_map(panel_data, personal_panels)
+    assert result == {'ENSG1': 'all'}
+
+
 def test_new_gene_map_mix_n_match():
     """
     now test the pheno-matched new
