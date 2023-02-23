@@ -340,7 +340,7 @@ def main(panels: str | None, out_path: str):
 
     # now check if there are cohort-wide override panels
     if extra_panels := cohort_config.get('cohort_panels'):
-        logging.info(f'Cohort-specific panels: {", ".join(extra_panels)}')
+        logging.info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 
     for panel in panel_list:
