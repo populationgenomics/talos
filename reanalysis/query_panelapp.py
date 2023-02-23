@@ -279,14 +279,14 @@ def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
 @click.command()
 @click.option('--panels', help='JSON of per-participant panels')
 @click.option('--out_path', required=True, help='destination for results')
-def main(panel_file: str | None, out_path: str):
+def main(panels: str | None, out_path: str):
     """
     if present, reads in any prior reference data
     if present, reads additional panels to use
     queries panelapp for each panel in turn, aggregating results
 
     Args:
-        panel_file (): file containing per-participant panels
+        panels (): file containing per-participant panels
         out_path (): where to write the results out to
     """
 
@@ -334,8 +334,8 @@ def main(panel_file: str | None, out_path: str):
 
     # if participant panels were provided, add each of those to the gene data
     panel_list = set()
-    if panel_file is not None:
-        panel_list = read_panels_from_participant_file(panel_file)
+    if panels is not None:
+        panel_list = read_panels_from_participant_file(panels)
         logging.info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
