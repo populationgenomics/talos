@@ -16,6 +16,7 @@ from cpg_utils.config import get_config
 
 from reanalysis.utils import (
     find_latest_file,
+    get_cohort_config,
     get_json_response,
     get_simple_moi,
     read_json_from_path,
@@ -298,11 +299,7 @@ def main(panels: str | None, out_path: str):
     twelve_months = None
 
     # find and extract this dataset's portion of the config file
-    dataset = get_config()['workflow']['dataset']
-    assert (
-        dataset in get_config()['cohorts']
-    ), f'Dataset {dataset} is not represented in config'
-    cohort_config = get_config()['cohorts'][dataset]
+    cohort_config = get_cohort_config()
 
     # historic data overrides default 'previous' list for cohort
     # open to discussing order of precedence here

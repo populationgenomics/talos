@@ -197,6 +197,21 @@ def get_json_response(url: str) -> Any:
     return response.json()
 
 
+def get_cohort_config():
+    """
+    return the cohort-specific portion of the config file, or fail
+
+    Returns:
+        the dict of
+    """
+
+    dataset = get_config()['workflow']['dataset']
+    assert (
+        dataset in get_config()['cohorts']
+    ), f'Dataset {dataset} is not represented in config'
+    return get_config()['cohorts'][dataset]
+
+
 def get_new_gene_map(
     panelapp_data: dict, pheno_panels: dict | None = None
 ) -> dict[str, str]:
@@ -212,11 +227,7 @@ def get_new_gene_map(
 
     # find the dataset-specific panel data, if present
     # add the 'core' panel to it
-    dataset = get_config()['workflow']['dataset']
-    assert (
-        dataset in get_config()['cohorts']
-    ), f'Dataset {dataset} is not represented in config'
-    cohort_panels: list[int] = get_config()['cohorts'][dataset].get('cohort_panels', [])
+    cohort_panels: list[int] = get_cohort_config().get('cohort_panels', [])
     cohort_panels.append(get_config()['panels']['default_panel'])
 
     # collect all genes new in at least one panel

@@ -30,6 +30,7 @@ from cpg_utils.config import get_config
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
+    get_cohort_config,
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
@@ -169,6 +170,8 @@ def clean_and_filter(
         cleaned data
     """
 
+    cohort_panels = set(get_cohort_config().get('cohort_panels', []))
+
     panel_meta = {
         content['id']: content['name'] for content in panelapp_data['metadata']
     }
@@ -193,15 +196,22 @@ def clean_and_filter(
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
 
-            # don't re-cast sets for every single variant
+            # find all panels for this gene
             if gene in gene_details:
                 all_panels = gene_details[gene]
 
             else:
+                # don't re-cast sets for every single variant
                 all_panels = set(panelapp_data['genes'][gene]['panels'])
                 gene_details[gene] = all_panels
 
-            panel_intersection = participant_panels[sample].intersection(all_panels)
+            # intersection to find participant phenotype-matched panels
+            panel_intersection: set = participant_panels[sample].intersection(
+                all_panels
+            )
+
+            # re-intersect to join phenotype matched with cohort-forced
+            panel_intersection.update(cohort_panels)
 
             # is this gene relevant for this participant?
             if not panel_intersection:
