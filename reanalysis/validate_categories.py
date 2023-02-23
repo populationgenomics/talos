@@ -211,7 +211,7 @@ def clean_and_filter(
             )
 
             # re-intersect to join phenotype matched with cohort-forced
-            panel_intersection.update(cohort_panels)
+            panel_intersection.update(cohort_panels.intersection(all_panels))
 
             # is this gene relevant for this participant?
             if not panel_intersection:
