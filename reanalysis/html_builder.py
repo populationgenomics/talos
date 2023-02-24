@@ -300,6 +300,7 @@ class Variant:
         sample: Sample,
         gene_map: dict[str, Any],
     ):
+        print(variant_dict)
         self.chrom = variant_dict['var_data']['coords']['chrom']
         self.pos = variant_dict['var_data']['coords']['pos']
         self.ref = variant_dict['var_data']['coords']['ref']
@@ -308,7 +309,9 @@ class Variant:
         self.var_data = variant_dict['var_data']
         self.supported = variant_dict['supported']
         self.support_vars = variant_dict['support_vars']
-        self.flags = variant_dict['flags']
+        self.warning_flags = variant_dict['flags']
+        self.panel_flags = variant_dict['panels'].get('matched', [])
+        self.forced_matches = variant_dict['panels'].get('forced', [])
         self.reasons = variant_dict['reasons']
         self.genotypes = variant_dict['genotypes']
         self.sample = sample
@@ -318,20 +321,6 @@ class Variant:
         for gene_id in variant_dict['gene'].split(','):
             symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
             self.genes.append((gene_id, symbol))
-
-        # Separate phenotype match flags from warning flags
-        # TODO: should we keep these separate in the report?
-        self.warning_flags = []
-        self.panel_flags = []
-        self.forced_matches = []
-        for flag in variant_dict['flags']:
-            if flag in sample.html_builder.panel_names:
-                self.panel_flags.append(flag)
-            else:
-                self.warning_flags.append(flag)
-            # flag presence on any panels forced at the cohort level
-            if flag in sample.html_builder.forced_panel_names:
-                self.forced_matches.append(flag)
 
         # Summaries CSQ strings
         (

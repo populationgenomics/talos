@@ -227,8 +227,8 @@ def get_new_gene_map(
 
     # find the dataset-specific panel data, if present
     # add the 'core' panel to it
-    cohort_panels: list[int] = get_cohort_config().get('cohort_panels', [])
-    cohort_panels.append(get_config()['panels']['default_panel'])
+    config_cohort_panels: list[int] = get_cohort_config().get('cohort_panels', [])
+    cohort_panels = config_cohort_panels + [get_config()['panels']['default_panel']]
 
     # collect all genes new in at least one panel
     new_genes = {
@@ -611,6 +611,7 @@ class ReportedVariant:
     supported: bool = field(default=False)
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    panels: dict[str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
     first_seen: str = GRANULAR
 

@@ -159,6 +159,10 @@ def clean_and_filter(
     e.g. the same variant with annotation from two genes
 
     This cleans those to unique for final report
+    stores panel names within the 'panels' attribute, either
+    as matched (phenotype matched)
+    as forced (cohort-wide applied panel)
+    or neither
 
     Args:
         results_holder (): container for all results data
@@ -192,42 +196,49 @@ def clean_and_filter(
         gene = each_event.gene
         variant = each_event.var_data
 
+        # no classifications = not interesting. Shouldn't be possible
+        if not variant.categories:
+            continue
+
+        # find all panels for this gene
+        if gene in gene_details:
+            all_panels = gene_details[gene]
+
+        else:
+            # don't re-cast sets for every single variant
+            all_panels = set(panelapp_data['genes'][gene]['panels'])
+            gene_details[gene] = all_panels
+
+        # get all forced panels this gene intersects with
+        cohort_intersection: set = cohort_panels.intersection(all_panels)
+
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
 
-            # find all panels for this gene
-            if gene in gene_details:
-                all_panels = gene_details[gene]
-
-            else:
-                # don't re-cast sets for every single variant
-                all_panels = set(panelapp_data['genes'][gene]['panels'])
-                gene_details[gene] = all_panels
-
             # intersection to find participant phenotype-matched panels
-            panel_intersection: set = participant_panels[sample].intersection(
+            phenotype_intersection: set = participant_panels[sample].intersection(
                 all_panels
             )
 
             # re-intersect to join phenotype matched with cohort-forced
-            panel_intersection.update(cohort_panels.intersection(all_panels))
+            full_intersection = phenotype_intersection.union(cohort_intersection)
 
             # is this gene relevant for this participant?
-            if not panel_intersection:
+            # this test includes matched, cohort-level, and core panel
+            if not full_intersection:
                 continue
 
-            each_event.flags.extend(
-                [
-                    panel_meta[pid]
-                    for pid in panel_intersection
-                    if pid != get_config()['workflow'].get('default_panel', 137)
-                ]
-            )
+            each_event.panels['matched'] = [
+                panel_meta[pid]
+                for pid in phenotype_intersection
+                if pid != get_config()['workflow'].get('default_panel', 137)
+            ]
 
-        # no classifications = not interesting
-        if not variant.categories:
-            continue
+        if cohort_intersection:
+            each_event.panels['forced'] = [
+                panel_meta[pid] for pid in cohort_intersection
+            ]
 
         if each_event not in results_holder[sample]['variants']:
             results_holder[sample]['variants'].append(each_event)
