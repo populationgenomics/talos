@@ -300,7 +300,6 @@ class Variant:
         sample: Sample,
         gene_map: dict[str, Any],
     ):
-        print(variant_dict)
         self.chrom = variant_dict['var_data']['coords']['chrom']
         self.pos = variant_dict['var_data']['coords']['pos']
         self.ref = variant_dict['var_data']['coords']['ref']
