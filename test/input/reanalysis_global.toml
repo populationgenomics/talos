@@ -1,41 +1,74 @@
-[buckets]
-web_suffix = "web"
-tmp_suffix = "tmp"
+[workflow]
+name = 'AIP'
+scatter_count = 50
+vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
+sequencing_type = 'genome'
+
+[panels]
+default_panel = 137
+panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
+panel_month_delta = 12
+require_pheno_match = ['FLG', 'GJB2']
+
+[clinvar]
+filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute', 'laboratory for molecular medicine; mass general brigham personalized medicine']
+filter_benign = ['illumina laboratory services; illumina']
 
 [moi_tests]
-description = "thresholds for different filters during the MOI checks"
+description = 'thresholds for different filters during the MOI checks'
 gnomad_dominant = 0.001
-gnomad_max_homs_dominant = 1
-gnomad_max_homs_recessive = 2
-gnomad_max_ac_dominant = 50
-gnomad_max_hemi = 2
+gnomad_max_homs_dominant = 0
+gnomad_max_homs_recessive = 1
+gnomad_max_ac_dominant = 10
+gnomad_max_hemi = 1
 
 [csq]
-description = "variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated"
-csq_string = [ "allele", "consequence", "symbol", "gene", "feature", "mane_select", "biotype", "exon", "hgvsc", "hgvsp", "cdna_position", "cds_position", "protein_position", "amino_acids", "codons", "allele_num", "variant_class", "tsl", "appris", "ccds", "ensp", "swissprot", "trembl", "uniparc", "gene_pheno", "sift", "polyphen", "lof", "lof_filter", "lof_flags",]
+description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
+csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'variant_class', 'ensp', 'lof']
 
 [filter]
-description = "variables for the hail operations, including CSQ sets and filter thresholds"
+description = 'variables for the hail operations, including CSQ sets and filter thresholds'
 ac_threshold = 0.01
-additional_csq = [ "missense_variant"]
+additional_csq = ['missense_variant']
 af_semi_rare = 0.01
 cadd = 28.1
-critical_csq = [ "frameshift_variant", "splice_acceptor_variant", "splice_donor_variant", "start_lost", "stop_gained", "stop_lost", "transcript_ablation",]
+critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
 gerp = 1.0
 eigen = 0.25
-lenient_de_novo = false
 minimum_depth = 10
 polyphen = 0.99
 revel = 0.77
 sift = 0.0
 spliceai = 0.5
 
-[workflow]
-name = 'AIP'
-scatter_count = 50
-sequencing_type = 'genome'
-default_panel = 137
+[hail]
+cancel_after_n_failures = 1
+default_timeout = 6000
+default_memory = 'highmem'
 
-[clinvar]
-filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute']
-filter_benign = ['illumina laboratory services; illumina']
+[images]
+vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
+gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
+picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
+samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
+hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:0.5.1'
+
+[references]
+vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'
+genome_build = 'GRCh38'
+seqr_combined_reference_data = 'gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht'
+seqr_clinvar = 'gs://cpg-common-main/references/seqr/v0/clinvar.GRCh38.ht'
+
+[references.broad]
+ref_fasta = 'gs://cpg-common-main/references/hg38/v0/dragen_reference/Homo_sapiens_assembly38_masked.fasta'
+genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_calling_regions.hg38.interval_list'
+
+[test]
+clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+cohort_percentage = 80
+gene_prior = ''
+
+[cohorts.cohort]
+cohort_panels = [99]

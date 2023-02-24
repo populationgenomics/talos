@@ -162,21 +162,19 @@ def setup_mt_to_vcf(input_file: str) -> Job:
 
 
 def handle_panelapp_job(
-    participant_panels: str | None = None,
-    previous: str | None = None,
-    prior_job: Job | None = None,
+    participant_panels: str | None = None, prior_job: Job | None = None
 ) -> Job:
     """
     creates and runs the panelapp query job
 
     Args:
         participant_panels (str):
-        previous (str): optional, path to a prior gene list
         prior_job ():
 
     Returns:
         the Job, which other parts of the workflow may become dependent on
     """
+
     panelapp_job = get_batch().new_job(name='query panelapp')
     set_job_resources(panelapp_job, prior_job=prior_job)
     copy_common_env(panelapp_job)
@@ -185,9 +183,6 @@ def handle_panelapp_job(
 
     if participant_panels is not None:
         query_cmd += f'--panels {participant_panels} '
-
-    if previous is not None:
-        query_cmd += f'--previous {previous} '
 
     logging.info(f'PanelApp Command: {query_cmd}')
     panelapp_job.command(query_cmd)
@@ -274,7 +269,6 @@ def main(
     input_path: str,
     pedigree: str,
     participant_panels: str | None,
-    previous: str | None,
     singletons: str | None = None,
     skip_annotation: bool = False,
 ):
@@ -285,7 +279,6 @@ def main(
         input_path (): path to the VCF/MT
         pedigree (): family file for this analysis
         participant_panels (): file containing panels-per-family (optional)
-        previous (): gene panel data from prior analysis (optional)
         singletons (): optional second Pedigree file without families
         skip_annotation (): if the input is annotated, don't re-run
     """
@@ -394,9 +387,7 @@ def main(
     #  region: query panelapp
     if not to_path(PANELAPP_JSON_OUT).exists():
         prior_job = handle_panelapp_job(
-            participant_panels=participant_panels,
-            prior_job=prior_job,
-            previous=previous,
+            participant_panels=participant_panels, prior_job=prior_job
         )
     # endregion
 
@@ -480,11 +471,6 @@ if __name__ == '__main__':
     parser.add_argument('--singletons', help='singletons in Plink format')
     parser.add_argument('--participant_panels', help='per-participant panel details')
     parser.add_argument(
-        '--previous',
-        help='JSON file containing Gene Panel details from a prior run',
-        default=None,
-    )
-    parser.add_argument(
         '--skip_annotation',
         help='if set, annotation will not be repeated',
         action='store_true',
@@ -494,7 +480,6 @@ if __name__ == '__main__':
         input_path=args.i,
         pedigree=args.pedigree,
         participant_panels=args.participant_panels,
-        previous=args.previous,
         skip_annotation=args.skip_annotation,
         singletons=args.singletons,
     )

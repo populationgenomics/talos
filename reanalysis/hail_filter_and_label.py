@@ -381,19 +381,18 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
 
     pedigree = hl.Pedigree.read(plink_family_file)
 
-    if get_config()['filter'].get('lenient_de_novo', False):
-        logging.info('Inserting synthetic PL values for WT calls')
+    logging.info('Updating synthetic PL values for WT calls where missing')
 
-        # pylint: disable=invalid-unary-operand-type
-        de_novo_matrix = de_novo_matrix.annotate_entries(
-            PL=hl.case()
-            .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
-            .when(
-                (de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)),
-                hl.missing('array<int32>'),
-            )
-            .default([0, de_novo_matrix.GQ, 1000])
+    # pylint: disable=invalid-unary-operand-type
+    de_novo_matrix = de_novo_matrix.annotate_entries(
+        PL=hl.case()
+        .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
+        .when(
+            (de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)),
+            hl.missing('array<int32>'),
         )
+        .default([0, de_novo_matrix.GQ, 1000])
+    )
 
     dn_table = hl.de_novo(
         de_novo_matrix,

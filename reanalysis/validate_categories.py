@@ -30,6 +30,7 @@ from cpg_utils.config import get_config
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
+    get_cohort_config,
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
@@ -158,6 +159,10 @@ def clean_and_filter(
     e.g. the same variant with annotation from two genes
 
     This cleans those to unique for final report
+    stores panel names within the 'panels' attribute, either
+    as matched (phenotype matched)
+    as forced (cohort-wide applied panel)
+    or neither
 
     Args:
         results_holder (): container for all results data
@@ -168,6 +173,8 @@ def clean_and_filter(
     Returns:
         cleaned data
     """
+
+    cohort_panels = set(get_cohort_config().get('cohort_panels', []))
 
     panel_meta = {
         content['id']: content['name'] for content in panelapp_data['metadata']
@@ -189,35 +196,49 @@ def clean_and_filter(
         gene = each_event.gene
         variant = each_event.var_data
 
+        # no classifications = not interesting. Shouldn't be possible
+        if not variant.categories:
+            continue
+
+        # find all panels for this gene
+        if gene in gene_details:
+            all_panels = gene_details[gene]
+
+        else:
+            # don't re-cast sets for every single variant
+            all_panels = set(panelapp_data['genes'][gene]['panels'])
+            gene_details[gene] = all_panels
+
+        # get all forced panels this gene intersects with
+        cohort_intersection: set = cohort_panels.intersection(all_panels)
+
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
 
-            # don't re-cast sets for every single variant
-            if gene in gene_details:
-                all_panels = gene_details[gene]
-
-            else:
-                all_panels = set(panelapp_data['genes'][gene]['panels'])
-                gene_details[gene] = all_panels
-
-            panel_intersection = participant_panels[sample].intersection(all_panels)
-
-            # is this gene relevant for this participant?
-            if not panel_intersection:
-                continue
-
-            each_event.flags.extend(
-                [
-                    panel_meta[pid]
-                    for pid in panel_intersection
-                    if pid != get_config()['workflow'].get('default_panel', 137)
-                ]
+            # intersection to find participant phenotype-matched panels
+            phenotype_intersection: set = participant_panels[sample].intersection(
+                all_panels
             )
 
-        # no classifications = not interesting
-        if not variant.categories:
-            continue
+            # re-intersect to join phenotype matched with cohort-forced
+            full_intersection = phenotype_intersection.union(cohort_intersection)
+
+            # is this gene relevant for this participant?
+            # this test includes matched, cohort-level, and core panel
+            if not full_intersection:
+                continue
+
+            each_event.panels['matched'] = [
+                panel_meta[pid]
+                for pid in phenotype_intersection
+                if pid != get_config()['workflow'].get('default_panel', 137)
+            ]
+
+        if cohort_intersection:
+            each_event.panels['forced'] = [
+                panel_meta[pid] for pid in cohort_intersection
+            ]
 
         if each_event not in results_holder[sample]['variants']:
             results_holder[sample]['variants'].append(each_event)
@@ -409,12 +430,10 @@ def main(
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
 
-    per_participant_panels = read_json_from_path(participant_panels)
+    participant_panels = read_json_from_path(participant_panels)
 
     # create the new gene map
-    new_gene_map = get_new_gene_map(
-        panelapp_data=panelapp_data, pheno_panels=per_participant_panels
-    )
+    new_gene_map = get_new_gene_map(panelapp_data, participant_panels)
 
     result_list = []
 
@@ -441,7 +460,7 @@ def main(
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
-        panel_data=per_participant_panels,
+        panel_data=participant_panels,
         panelapp=panelapp_data,
     )
 
@@ -450,7 +469,7 @@ def main(
         results_holder=results_shell,
         result_list=result_list,
         panelapp_data=panelapp_data,
-        participant_panels=per_participant_panels,
+        participant_panels=participant_panels,
     )
 
     # remove previously seen results using cumulative data file(s)

@@ -32,6 +32,7 @@ class PicoReport:
     var_data: PicoVariant
     reasons: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
+    panels: dict[str] = field(default_factory=dict)
 
     def __lt__(self, other):
         return True
@@ -184,14 +185,15 @@ def test_gene_clean_results_personal():
     clean = clean_and_filter(results_holder, dirty_data, panel_genes, personal_panels)
     assert len(clean['sam1']['variants']) == 1
     assert clean['sam1']['variants'][0].gene == 'ENSG1'
-    assert clean['sam1']['variants'][0].flags == [1]
+    assert len(clean['sam1']['variants'][0].flags) == 0
+    assert clean['sam1']['variants'][0].panels['matched'] == [1]
     assert len(clean['sam2']['variants']) == 0
     assert len(clean['sam3']['variants']) == 2
     for event in clean['sam3']['variants']:
         if event.gene == 'ENSG4':
-            assert event.flags == [3]
+            assert event.panels['matched'] == [3]
         if event.gene == 'ENSG5':
-            assert event.flags == [4]
+            assert event.panels['matched'] == [4]
 
 
 def test_update_results_meta(peddy_ped):
