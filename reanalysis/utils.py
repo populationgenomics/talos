@@ -140,14 +140,13 @@ class Coordinates:
     alt: str
 
     @property
-    def string_format(self):
+    def string_format(self) -> str:
         """
-        forms a string representation
-        chr-pos-ref-alt
+        forms a string representation: chr-pos-ref-alt
         """
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         """
         enables positional sorting
         """
@@ -162,7 +161,7 @@ class Coordinates:
             return True
         return False
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         equivalence check
         Args:
@@ -187,7 +186,7 @@ def get_json_response(url: str) -> Any:
     List use-case (activities endpoint) no longer supported
 
     Args:
-        url ():
+        url (): str URL to retrieve JSON format data from
 
     Returns:
         the JSON response from the endpoint
@@ -196,6 +195,21 @@ def get_json_response(url: str) -> Any:
     response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
     response.raise_for_status()
     return response.json()
+
+
+def get_cohort_config():
+    """
+    return the cohort-specific portion of the config file, or fail
+
+    Returns:
+        the dict of
+    """
+
+    dataset = get_config()['workflow']['dataset']
+    assert (
+        dataset in get_config()['cohorts']
+    ), f'Dataset {dataset} is not represented in config'
+    return get_config()['cohorts'][dataset]
 
 
 def get_new_gene_map(
@@ -208,11 +222,13 @@ def get_new_gene_map(
     classification.
 
     Generate a map of
-    { gene: [samples, where, this, is, 'new']}
+    {gene: [samples, where, this, is, 'new']}
     """
 
-    # pull out the core panel once
-    core_panel = get_config()['workflow']['default_panel']
+    # find the dataset-specific panel data, if present
+    # add the 'core' panel to it
+    config_cohort_panels: list[int] = get_cohort_config().get('cohort_panels', [])
+    cohort_panels = config_cohort_panels + [get_config()['panels']['default_panel']]
 
     # collect all genes new in at least one panel
     new_genes = {
@@ -237,7 +253,7 @@ def get_new_gene_map(
 
     # iterate over the new genes and find out who they are new for
     for gene, panels in new_genes.items():
-        if core_panel in panels:
+        if any(panel in cohort_panels for panel in panels):
             pheno_matched_new[gene] = 'all'
             continue
 
@@ -449,9 +465,20 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         return self.has_support and not self.category_non_support
 
+    def sample_support_only(self, sample_id: str) -> bool:
+        """
+        check that the variant is exclusively cat. support
+        check that this sample is missing from sample flags
+
+        Returns:
+            True if support only
+        """
+        return self.has_support and not self.sample_categorised_check(sample_id)
+
     def category_values(self, sample: str) -> list[str]:
         """
-        get all variant categories; sample-specific checks for de novo
+        get all variant categories
+        steps category flags down to booleans - true for this sample
 
         Args:
             sample (str): sample id
@@ -459,42 +486,31 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         Returns:
             list of all categories applied to this variant
         """
+
+        # step down all category flags to boolean flags
+        for category in self.sample_categories:
+            sample_list = self.info.pop(category)
+            new_cat = category.replace('categorysample', 'categoryboolean')
+            self.info[new_cat] = bool(sample in sample_list)
+            self.boolean_categories.append(new_cat)
+
         categories = [
             bool_cat.replace('categoryboolean', '')
             for bool_cat in self.boolean_categories
             if self.info[bool_cat]
         ]
+
         if self.has_support:
             categories.append('support')
 
-        if self.sample_de_novo(sample_id=sample):
-            categories.append('de_novo')
-
-        # mutually exlusive with the boolean category2 value
-        if new := self.info.get('categorysample2'):
-            if any(x in new for x in ['all', sample]):
-                categories.append('2')
-
         return categories
-
-    def sample_de_novo(self, sample_id: str) -> bool:
-        """
-        check if variant is de novo for this sample
-
-        Args:
-            sample_id (str):
-
-        Returns:
-            bool: True if this sample forms de novo
-        """
-        return sample_id in self.info.get('categorysample4', [])
 
     def sample_categorised_check(self, sample_id: str) -> bool:
         """
         check if any *sample categories applied for this sample
 
         Args:
-            sample_id (str):
+            sample_id (str): the specific sample ID to check
 
         Returns:
             bool: True if this sample features in any
@@ -530,7 +546,22 @@ class AbstractVariant:  # pylint: disable=too-many-instance-attributes
         """
         gets all report flags for this sample - currently only one flag
         """
-        return self.check_ab_ratio(sample)
+        return self.check_ab_ratio(sample) + self.check_read_depth(sample)
+
+    def check_read_depth(self, sample: str) -> list[str]:
+        """
+        flag low read depth for this sample
+
+        Args:
+            sample ():
+
+        Returns:
+            return a flag if this sample has low read depth
+        """
+        threshold = get_config()['filter'].get('minimum_depth', 10)
+        if self.depths[sample] < threshold:
+            return ['Low Read Depth']
+        return []
 
     def check_ab_ratio(self, sample: str) -> list[str]:
         """
@@ -580,6 +611,7 @@ class ReportedVariant:
     supported: bool = field(default=False)
     support_vars: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    panels: dict[str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
     first_seen: str = GRANULAR
 

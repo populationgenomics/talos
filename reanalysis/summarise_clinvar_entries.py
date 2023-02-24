@@ -33,6 +33,8 @@ from cpg_utils import to_path, CloudPath
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path, init_batch
 
+from reanalysis.utils import get_cohort_config
+
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
 CONFLICTING = 'conflicting data from submitters'
@@ -46,8 +48,6 @@ PATH_SIGS = {
 UNCERTAIN_SIGS = {'Uncertain significance', 'Uncertain risk allele'}
 USELESS_RATINGS = {'no assertion criteria provided'}
 
-# remove all entries from these providers
-MEGA_BLACKLIST = get_config()['clinvar']['filter_all']
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
@@ -122,7 +122,6 @@ def get_allele_locus_map(summary_file: str) -> dict:
         alt = line[33]
 
         # skip chromosomal deletions and insertions, mito, or massive indels
-        # this might break hail?
         if (
             ref == 'na'
             or alt == 'na'
@@ -317,6 +316,11 @@ def get_all_decisions(
 
     submission_dict = defaultdict(list)
 
+    # remove all entries from these providers
+    # for now require a mandatory dataset, may amend later
+    cohort_config = get_cohort_config()
+    blacklist = cohort_config.get('clinvar_filter', [])
+
     for line in lines_from_gzip(submission_file):
 
         a_id, line_sub = process_line(line)
@@ -325,7 +329,7 @@ def get_all_decisions(
         # this saves a little effort on haplotypes, CNVs, and SVs
         if (
             (a_id not in allele_ids)
-            or (line_sub.submitter in MEGA_BLACKLIST)
+            or (line_sub.submitter in blacklist)
             or (line_sub.date > threshold_date)
             or (line_sub.review_status in USELESS_RATINGS)
             or (line_sub.classification == Consequence.UNKNOWN)
@@ -428,8 +432,6 @@ def parse_into_table(json_path: str, out_path: str):
         gold_stars=ht.f0.gold_stars,
         allele_id=ht.f0.allele_id,
     )
-
-    print(ht.describe())
 
     # create a locus and key
     ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
