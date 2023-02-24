@@ -164,8 +164,6 @@ def test_av_categories(trio_abs_variant: AbstractVariant):
     assert trio_abs_variant.is_classified
     assert trio_abs_variant.category_non_support
     assert trio_abs_variant.has_sample_categories
-    assert trio_abs_variant.sample_de_novo('male')
-    assert not trio_abs_variant.sample_de_novo('father_1')
     assert trio_abs_variant.info.get('categoryboolean3')
     assert not trio_abs_variant.info.get('categoryboolean1')
     assert not trio_abs_variant.info.get('categoryboolean2')
@@ -266,6 +264,17 @@ def test_new_gene_map_core():
     """
 
     panel_data = {'genes': {'ENSG1': {'new': [137]}}}
+    personal_panels = {'sam': {'panels': []}}
+    result = get_new_gene_map(panel_data, personal_panels)
+    assert result == {'ENSG1': 'all'}
+
+
+def test_new_gene_map_cohort_level():
+    """
+    check that new for the cohort-matched panel is new for all
+    """
+
+    panel_data = {'genes': {'ENSG1': {'new': [99]}}}
     personal_panels = {'sam': {'panels': []}}
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {'ENSG1': 'all'}

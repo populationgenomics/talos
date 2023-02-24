@@ -49,7 +49,18 @@ def minimise_variant(variant: AbstractVariant, sample_id: str) -> AbstractVarian
         sample_id ():
     """
     var_copy = deepcopy(variant)
+
     var_copy.categories = var_copy.category_values(sample=sample_id)
+
+    # remove the flags?
+    for flag in (
+        var_copy.sample_categories
+        + var_copy.boolean_categories
+        + var_copy.sample_support
+    ):
+        if flag in var_copy.info:
+            del var_copy.info[flag]
+
     for key in VAR_FIELDS_TO_REMOVE:
         if key in var_copy.__dict__:
             del var_copy.__dict__[key]
@@ -491,7 +502,10 @@ class RecessiveAutosomalCH(BaseMoi):
             ):
 
                 # skip the double-support scenario
-                if (principal.support_only and partner_variant.support_only) or (
+                if (
+                    principal.sample_support_only(sample_id)
+                    and partner_variant.sample_support_only(sample_id)
+                ) or (
                     partner_variant.depths[sample_id] < self.minimum_depth
                     and not partner_variant.info.get('categoryboolean1')
                 ):
@@ -985,7 +999,10 @@ class XRecessiveFemaleCH(BaseMoi):
                         )
                         and not partner.info.get('categoryboolean1')
                     )
-                ) or (principal.support_only and partner.support_only):
+                ) or (
+                    principal.sample_support_only(sample_id)
+                    and partner.sample_support_only(sample_id)
+                ):
                     continue
 
                 # check for minimum depth in partner
