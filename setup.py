@@ -13,7 +13,7 @@ setup(
     name='automated-interpretation-pipeline',
     description='CPG Variant Prioritisation',
     long_description=readme,
-    version='0.6.0',
+    version='1.0.0',
     author='Matthew Welland, CPG',
     author_email=(
         'matthew.welland@populationgenomics.org.au, '
