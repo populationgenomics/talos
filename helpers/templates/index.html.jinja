@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>AIP Reports</title>
+    <meta name="description" content="AIP Report Index">
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/css/widget.grouping.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/css/theme.bootstrap_4.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style type="text/css">
+      a {text-decoration: none;}
+      .group-name {font-weight: normal;}
+    </style>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-dark bg-dark justify-content-start">
+      <a class="navbar-brand p-3" href="#">AIP Report Index</a>
+    </nav>
+    <main class="container mt-4 mb-4">
+
+    <div class="tab-pane fade show active" id="results-tab-pane" role="tabpanel" tabindex="0">
+      <h1>Reports</h1>
+        <table class="table tablesorter" id="variant-table">
+<thead>
+    <tr>
+    <th class="group-separator">Dataset</th>
+    <th class="group-false">Exome/Genome</th>
+    <th class="group-false">Singleton/Fam</th>
+    <th class="group-false sorter-shortDate" data-date-format="yyyy-mm-dd">Date</th>
+    </tr>
+</thead>
+<tbody>
+
+{% for report in reports %}
+<tr>
+    <td style="white-space: nowrap">
+        <a href="{{report.address}}" target="_blank">
+            {{report.dataset}}
+        </a>
+    </td>
+    <td>
+        {{report.genome_or_exome}}
+    </td>
+    <td>
+        {{report.subtype}}
+    </td>
+    <td>
+        {{ report.date }}
+    </td>
+</tr>
+
+{% endfor %}
+</tbody>
+</table>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.widgets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/widgets/widget-grouping.min.js"></script>
+
+    <script type="text/javascript">
+      $(document).ready(function() {
+        // Tablesorter: hide child rows
+        $('.tablesorter-childRow td').hide();
+
+        // Tablesorter: configure variant table
+        $("#variant-table").tablesorter({
+          theme : "bootstrap",
+          sortList : [[0,0]],
+          widgets : [ "filter", "columns", "group" ],
+          widgetOptions : {
+            // class names added to columns when sorted
+            columns: [ "", "", "" ],
+            group_collapsible : true,
+            group_collapsed   : false,
+            group_count       : false,
+            group_separator : " "
+            }
+        })
+      })
+    </script>
+  </body>
+</html>
