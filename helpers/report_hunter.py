@@ -66,7 +66,6 @@ def main():
     all_cohorts = {}
 
     for cohort in get_config()['cohorts'].keys():
-        print(cohort)
         root = TEMPLATE.format(dataset=cohort)
         bucket_name, prefix = root.removeprefix('gs://').split('/', maxsplit=1)
         client = storage.Client()
