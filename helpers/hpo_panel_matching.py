@@ -20,7 +20,7 @@ from sample_metadata.apis import SeqrApi
 
 from cpg_utils import to_path
 
-from helpers.prepare_aip_cohort import ext_to_int_sample_map
+from helpers.utils import ext_to_int_sample_map
 from reanalysis.utils import get_json_response
 
 
@@ -165,7 +165,7 @@ def query_and_parse_metadata(dataset_name: str) -> dict:
 
 def match_hpos_to_panels(
     hpo_to_panel_map: dict,
-    hpo_graph: networkx.MultiDiGraph,
+    obo_file: str,
     all_hpos: set,
     max_depth: int | None = None,
 ) -> dict:
@@ -175,7 +175,7 @@ def match_hpos_to_panels(
     Parameters
     ----------
     hpo_to_panel_map :
-    hpo_graph :
+    obo_file : file containing HPO tree
     all_hpos : set of all unique hpo terms
     max_depth : optional overriding graph traversal depth
 
@@ -183,6 +183,8 @@ def match_hpos_to_panels(
     -------
     a dictionary linking all HPO terms to a corresponding set of Panel IDs
     """
+
+    hpo_graph = read_obo(obo_file, ignore_obsolete=False)
 
     hpo_to_panels = {}
     for hpo in all_hpos:
@@ -260,7 +262,6 @@ def main(dataset: str, output_path: str, obo: str):
 
     # get a dictionary of HPO terms to panel IDs
     panels_by_hpo = get_panels()
-    hpo_tree = read_hpo_tree(obo_file=obo)
 
     # pull metadata from metamist/api content
     participants_hpo = query_and_parse_metadata(dataset_name=dataset)
@@ -274,7 +275,7 @@ def main(dataset: str, output_path: str, obo: str):
     # so only search once for each HPO term
     unique_hpos = get_unique_hpo_terms(participants_hpo)
     hpo_to_panels = match_hpos_to_panels(
-        hpo_to_panel_map=panels_by_hpo, hpo_graph=hpo_tree, all_hpos=unique_hpos
+        hpo_to_panel_map=panels_by_hpo, obo_file=obo, all_hpos=unique_hpos
     )
     participant_panels = match_participants_to_panels(
         participants_hpo, hpo_to_panels, participant_map=reverse_lookup
