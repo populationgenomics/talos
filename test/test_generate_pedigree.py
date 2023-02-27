@@ -31,10 +31,7 @@ DIRTY_PED = [
 ]
 
 
-@patch(
-    'helpers.prepare_aip_cohort.ParticipantApi.'
-    'get_external_participant_id_to_internal_sample_id'
-)
+@patch('helpers.utils.ParticipantApi.get_external_participant_id_to_internal_sample_id')
 def test_ext_to_int_sample_map(map_mock, sm_lookup):
     """
     fetch method using a mocked API endpoint
