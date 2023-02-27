@@ -20,30 +20,6 @@ TEMPLATE = 'gs://cpg-{dataset}-main-web/reanalysis'
 WEB_TEMPLATE = 'https://main-web.populationgenomics.org.au'
 
 
-cohorts = [
-    'acute-care',
-    'ag-hidden',
-    'brain-malf',
-    'broad-rgp',
-    'circa',
-    'epileptic-enceph',
-    'heartkids',
-    'hereditary-neuro',
-    'ibmdx',
-    'kidgen',
-    'leukodystrophies',
-    'mito-disease',
-    'ohmr3-mendelian',
-    'ohmr4-epilepsy',
-    'perth-neuro',
-    'ravenscroft-arch',
-    'ravenscroft-rdstudy',
-    'rdnow',
-    'schr-neuro',
-    'udn-aus',
-]
-
-
 @dataclass
 class Report:
     """
