@@ -7,10 +7,10 @@ from unittest.mock import patch
 import pytest
 
 from helpers.prepare_aip_cohort import (
-    ext_to_int_sample_map,
     get_ped_with_permutations,
     hash_reduce_dicts,
 )
+from helpers.utils import ext_to_int_sample_map
 
 PROJECT = 'fake-project'
 
