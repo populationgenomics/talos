@@ -99,15 +99,16 @@ def test_match_hpos_to_panels(fake_obo_path):
     """
     test the hpo-to-panel matching
     """
-    obo_parsed = read_hpo_tree(fake_obo_path)
     panel_map = {'HP:2': {1, 2}, 'HP:5': {5}}
-    assert match_hpos_to_panels(panel_map, obo_parsed, all_hpos={'HP:4', 'HP:7a'}) == {
+    assert match_hpos_to_panels(
+        panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}
+    ) == {
         'HP:4': {1, 2},
         'HP:7a': {5},
     }
     # full depth from the terminal node should capture all panels
     assert match_hpos_to_panels(
-        panel_map, obo_parsed, all_hpos={'HP:4', 'HP:7a'}, max_depth=100
+        panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}, max_depth=100
     ) == {
         'HP:4': {1, 2},
         'HP:7a': {1, 2, 5},
