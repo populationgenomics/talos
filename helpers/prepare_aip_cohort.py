@@ -103,7 +103,7 @@ def get_seqr_details(
     """
 
     if not os.path.exists(seqr_meta):
-        raise Exception(f'Input file {seqr_meta} inaccessible')
+        raise FileExistsError(f'Input file {seqr_meta} inaccessible')
 
     details_dict = read_json_from_path(seqr_meta)
 
