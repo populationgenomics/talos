@@ -12,6 +12,7 @@ import jinja2
 from google.cloud import storage
 
 from cpg_utils import to_path
+from cpg_utils.config import get_config
 
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -61,9 +62,11 @@ def main():
     finds all existing reports, generates an HTML file
     """
 
+    assert 'cohorts' in get_config(), 'Config file does not contain Cohorts'
     all_cohorts = {}
 
-    for cohort in cohorts:
+    for cohort in get_config()['cohorts'].keys():
+        print(cohort)
         root = TEMPLATE.format(dataset=cohort)
         bucket_name, prefix = root.removeprefix('gs://').split('/', maxsplit=1)
         client = storage.Client()
