@@ -18,11 +18,10 @@ import os
 import re
 import toml
 
-from obonet import read_obo
-
+from cpg_utils import to_path, Path
+from cpg_utils.config import get_config
 from sample_metadata.apis import FamilyApi
 
-from cpg_utils import to_path, Path
 from reanalysis.utils import read_json_from_path
 from helpers.hpo_panel_matching import (
     get_panels,
@@ -58,10 +57,8 @@ def match_participants_to_panels(
         participant_hpos ():
         hpo_panels ():
         participant_map ():
-
-    Returns:
-
     """
+
     final_dict = {}
     for participant, party_data in participant_hpos.items():
         for participant_key in participant_map.get(participant, [participant]):
@@ -286,6 +283,8 @@ def hash_reduce_dicts(pedigree_dicts: list[dict], hash_threshold: int) -> list[d
     :return:
     """
 
+    logging.info(f'Reducing families to {hash_threshold}%')
+
     reduced_pedigree = []
 
     for member in pedigree_dicts:
@@ -299,13 +298,7 @@ def hash_reduce_dicts(pedigree_dicts: list[dict], hash_threshold: int) -> list[d
     return reduced_pedigree
 
 
-def main(
-    project: str,
-    obo: str,
-    hash_threshold: int = 100,
-    seqr_file: str | None = None,
-    exome: bool = False,
-):
+def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = False):
     """
     Who runs the world? main()
     """
@@ -322,7 +315,9 @@ def main(
     pedigree_dicts = get_pedigree_for_project(project=project)
 
     # if a threshold is provided, reduce the families present
-    if isinstance(hash_threshold, int):
+    cohort_config = get_config()['cohorts'][project]
+    hash_threshold = cohort_config.get('cohort_percentage', 100)
+    if hash_threshold != 100:
         pedigree_dicts = hash_reduce_dicts(pedigree_dicts, hash_threshold)
 
     # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPG12341']]
@@ -376,7 +371,7 @@ def main(
     # so only search once for each HPO term
     hpo_to_panels = match_hpos_to_panels(
         hpo_to_panel_map=get_panels(),
-        obo_file=read_obo(obo, ignore_obsolete=False),
+        obo_file=obo,
         all_hpos=get_unique_hpo_terms(participants_hpo),
     )
     participant_panels = match_participants_to_panels(
@@ -404,15 +399,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '--project', help='Project name to use in API queries', required=True
     )
-    parser.add_argument(
-        '--hash',
-        help=(
-            'Integer 0-100 representing the percentage of families to '
-            'include, e.g. 15 will result in the retention of 15pc of families'
-        ),
-        type=int,
-        default=100,
-    )
     parser.add_argument('--seqr', help='optional, seqr JSON file', required=False)
     parser.add_argument(
         '--obo', default=OBO_DEFAULT, help='path to the HPO .obo tree file'
@@ -422,7 +408,6 @@ if __name__ == '__main__':
     main(
         project=args.project,
         obo=args.obo,
-        hash_threshold=args.hash,
         seqr_file=args.seqr,
         exome=args.e,
     )

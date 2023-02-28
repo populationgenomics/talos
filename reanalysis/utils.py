@@ -21,7 +21,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 
 
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,too-many-instance-attributes
 
 
 HOMREF: int = 0
@@ -312,7 +312,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
 
 
 @dataclass
-class AbstractVariant:  # pylint: disable=too-many-instance-attributes
+class AbstractVariant:
     """
     create class to contain all content from cyvcf2 object
     """
@@ -600,8 +600,6 @@ class ReportedVariant:
     allows for the presence of flags e.g. Borderline AB ratio
     """
 
-    # pylint: disable=too-many-instance-attributes
-
     sample: str
     family: str
     gene: str
@@ -634,11 +632,11 @@ class ReportedVariant:
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
     """
-    reader is a cyvcf2.VCFReader
     read the header fields from the VCF handle
     return a set of all 'canonical' contigs
-    :param reader:
-    :return:
+
+    Args:
+        reader (): cyvcf2.VCFReader
     """
 
     # contig matching regex - remove all HLA/decoy/unknown
@@ -768,9 +766,6 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
     Args:
         input_moi ():
         chrom ():
-
-    Returns:
-
     """
 
     if input_moi in IRRELEVANT_MOI:
@@ -831,9 +826,10 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
 
 def extract_csq(csq_contents) -> list[dict]:
     """
-    handle extraction of the CSQ entries
-    :param csq_contents:
-    :return:
+    handle extraction of the CSQ entries based on string in config
+
+    Args:
+        csq_contents ():
     """
 
     # allow for no CSQ data, i.e. splice variant
@@ -862,8 +858,9 @@ class CustomEncoder(json.JSONEncoder):
         takes an arbitrary object, and forms a JSON representation
         where the object doesn't have an easy string representation,
         transform to a valid object: set -> list, class -> dict
-        :param o:
-        :return:
+
+        Args:
+            o (): python object being JSON encoded
         """
 
         if is_dataclass(o):
@@ -887,8 +884,9 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
         }
     }
 
-    :param var_list:
-    :param pedigree: peddy.Ped
+    Args:
+        var_list ():
+        pedigree (): Peddy.ped
     """
 
     # create an empty dictionary
@@ -1084,7 +1082,6 @@ def date_annotate_results(
                     hist['support_vars'].extend(new_sups)
 
                 # otherwise alter the first_seen date
-                # todo first_seen is the wrong nomenclature here
                 else:
                     # choosing to take the latest _new_ category date
                     recent = sorted(hist['categories'].values(), reverse=True)[0]
