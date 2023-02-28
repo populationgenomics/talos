@@ -84,7 +84,11 @@ def main():
 
     # write to common web bucket - either attached to a single dataset, or communal
     to_path(
-        join(get_config()['storage']['common']['test']['web'], 'aip_index.html')
+        join(
+            get_config()['storage']['common']['test']['web'],
+            'reanalysis',
+            'aip_index.html',
+        )
     ).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
