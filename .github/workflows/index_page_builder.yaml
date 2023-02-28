@@ -6,12 +6,14 @@ on:
   schedule:
     - cron: '42 1 * * 1,3,5'
 
+permissions:
+  id-token: write
+
 jobs:
   build_report_index:
     runs-on: ubuntu-latest
 
     steps:
-
 
       - id: "google-cloud-auth"
         name: "Authenticate to Google Cloud"
