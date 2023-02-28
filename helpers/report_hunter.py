@@ -9,6 +9,7 @@ from os.path import join
 from pathlib import Path
 
 import jinja2
+from google.api_core.exceptions import NotFound
 from google.cloud import storage
 
 from cpg_utils import to_path
@@ -42,15 +43,15 @@ def main():
 
     for cohort in ProjectApi().get_my_projects():
 
-        if cohort.endswith('-test'):
+        try:
+            root = TEMPLATE.format(dataset=cohort)
+            bucket_name, prefix = root.removeprefix('gs://').split('/', maxsplit=1)
+            client = storage.Client()
+            blobs = sorted(
+                client.list_blobs(bucket_name, prefix=prefix), key=lambda x: x.updated
+            )
+        except NotFound:
             continue
-
-        root = TEMPLATE.format(dataset=cohort)
-        bucket_name, prefix = root.removeprefix('gs://').split('/', maxsplit=1)
-        client = storage.Client()
-        blobs = sorted(
-            client.list_blobs(bucket_name, prefix=prefix), key=lambda x: x.updated
-        )
 
         # iterate through, oldest to latest, replacing as new ones are found
         for blob in blobs:
