@@ -1,0 +1,36 @@
+name: 'report index generator'
+
+on:
+  workflow_dispatch: {}
+
+  schedule:
+    - cron: '42 1 * * 1,3,5'
+
+jobs:
+  build_report_index:
+    runs-on: ubuntu-latest
+
+    steps:
+
+
+      - id: "google-cloud-auth"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v1"
+        with:
+          workload_identity_provider: "projects/847315747340/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github@cpg-talos.iam.gserviceaccount.com"
+
+      - id: "google-cloud-sdk-setup"
+        name: "Set up Cloud SDK"
+        uses: google-github-actions/setup-gcloud@v1
+
+
+      - name: "Submit report crawler"
+        run: |
+          URL=$(gcloud run services describe server --region australia-southeast1 --platform managed --format "value(status.url)")
+          TOKEN=$(gcloud auth print-identity-token)
+          curl --fail --silent --show-error -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type:application/json" \
+              -d '{"output": "report_index_${{ steps.date.outputs.date }}", "dataset": "talos", "accessLevel": "standard", "repo": "automated-interpretation-pipeline", "commit": "${{ github.sha }}", "cwd": "helpers", "script": ["./report_hunter.py"], "description": "Locate Latest AIP Reports", "wait": false}' \
+              $URL
