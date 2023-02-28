@@ -12,7 +12,6 @@ jobs:
 
     steps:
 
-      - name: "Submit report crawler"
 
       - id: "google-cloud-auth"
         name: "Authenticate to Google Cloud"
@@ -25,7 +24,9 @@ jobs:
         name: "Set up Cloud SDK"
         uses: google-github-actions/setup-gcloud@v1
 
-      - run: |
+
+      - name: "Submit report crawler"
+        run: |
           URL=$(gcloud run services describe server --region australia-southeast1 --platform managed --format "value(status.url)")
           TOKEN=$(gcloud auth print-identity-token)
           curl --fail --silent --show-error -X POST \
