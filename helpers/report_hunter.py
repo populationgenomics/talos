@@ -13,12 +13,11 @@ from google.api_core.exceptions import NotFound
 from google.cloud import storage
 
 from cpg_utils import to_path
+from cpg_utils.config import get_config
 from sample_metadata.apis import ProjectApi
 
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
-TEMPLATE = 'gs://cpg-{dataset}-main-web/reanalysis'
-WEB_TEMPLATE = 'https://main-web.populationgenomics.org.au'
 
 
 @dataclass
@@ -44,7 +43,7 @@ def main():
     for cohort in ProjectApi().get_my_projects():
 
         try:
-            root = TEMPLATE.format(dataset=cohort)
+            root = join(get_config()['storage'][cohort]['web'], 'reanalysis')
             bucket_name, prefix = root.removeprefix('gs://').split('/', maxsplit=1)
             client = storage.Client()
             blobs = sorted(
@@ -52,15 +51,19 @@ def main():
             )
         except NotFound:
             continue
+        except KeyError:
+            continue
 
         # iterate through, oldest to latest, replacing as new ones are found
         for blob in blobs:
             if not blob.name.endswith('html'):
                 continue
 
+            web_template = get_config()['storage'][cohort]['web_url']
+
             report_obj = Report(
                 dataset=cohort,
-                address=join(WEB_TEMPLATE, cohort, blob.name),
+                address=join(web_template, blob.name),
                 genome_or_exome='Exome' if '/exomes/' in blob.name else 'Genome',
                 subtype='Singleton' if 'singleton_' in blob.name else 'Familial',
                 date=str(blob.updated).split()[0],
@@ -79,12 +82,10 @@ def main():
     template = env.get_template('index.html.jinja')
     content = template.render(**template_context)
 
-    # write this file to a web bucket - either attached to a single dataset, or communal
-    output_path = join(TEMPLATE.format(dataset='common'), 'aip_index.html')
-    output_path = output_path.replace('main', 'test')
-    to_path(output_path).write_text(
-        '\n'.join(line for line in content.split('\n') if line.strip())
-    )
+    # write to common web bucket - either attached to a single dataset, or communal
+    to_path(
+        join(get_config()['storage']['common']['test'], 'aip_index.html')
+    ).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
 if __name__ == '__main__':

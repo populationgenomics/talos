@@ -1,7 +1,7 @@
 name: 'report index generator'
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
   schedule:
     - cron: '42 13 * * 1-5'
