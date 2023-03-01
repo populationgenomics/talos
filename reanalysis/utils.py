@@ -21,7 +21,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 
 
-# pylint: disable=too-many-lines,too-many-instance-attributes
+# pylint: disable=too-many-lines,too-many-instance-attributes,global-statement
 
 
 HOMREF: int = 0
@@ -36,7 +36,9 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
-GRANULAR = datetime.now().strftime('%Y-%m-%d')
+
+_GRANULAR_DATE: str | None = None
+
 
 # most lenient to most conservative
 # usage = if we have two MOIs for the same gene, take the broadest
@@ -49,6 +51,20 @@ ORDERED_MOIS = [
 ]
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
+
+
+def get_granular_date():
+    """
+    cached getter/setter
+    """
+    global _GRANULAR_DATE
+    if _GRANULAR_DATE is None:
+        # allow an override here - synthetic historic runs
+        if fake_date := get_config()['workflow'].get('fake_date'):
+            _GRANULAR_DATE = fake_date
+        else:
+            _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
+    return _GRANULAR_DATE
 
 
 class FileTypes(Enum):
@@ -611,7 +627,7 @@ class ReportedVariant:
     flags: list[str] = field(default_factory=list)
     panels: dict[str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
-    first_seen: str = GRANULAR
+    first_seen: str = get_granular_date()
 
     def __eq__(self, other):
         """
@@ -943,8 +959,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
 
-    Returns:
-        the same results back-filtered to remove previous results
+    Returns: same results annotated with date-first-seen
     """
 
     historic_folder = get_config()['dataset_specific'].get('historic_results')
@@ -1006,8 +1021,7 @@ def find_latest_file(
         start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
 
-    Returns:
-        most recent file path, or None
+    Returns: most recent file path, or None
     """
 
     if results_folder is None:
@@ -1043,8 +1057,7 @@ def date_annotate_results(
         current ():
         historic (): optionally, historic data
 
-    Returns:
-        the date-annotated results and cumulative data
+    Returns: date-annotated results and cumulative data
     """
 
     # if there's no historic data, make some
@@ -1073,7 +1086,7 @@ def date_annotate_results(
 
                     # add any new categories
                     for cat in new_cats:
-                        hist['categories'][cat] = GRANULAR
+                        hist['categories'][cat] = get_granular_date()
 
                 # same categories, new support
                 elif new_sups := [
@@ -1090,7 +1103,7 @@ def date_annotate_results(
             # totally new variant
             else:
                 historic[sample][var_id] = {
-                    'categories': {cat: GRANULAR for cat in current_cats},
+                    'categories': {cat: get_granular_date() for cat in current_cats},
                     'support_vars': var.support_vars,
                 }
 

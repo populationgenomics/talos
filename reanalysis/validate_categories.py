@@ -472,7 +472,7 @@ def main(
         participant_panels=participant_panels,
     )
 
-    # remove previously seen results using cumulative data file(s)
+    # annotate previously seen results using cumulative data file(s)
     analysis_results = filter_results(
         analysis_results, singletons=bool('singleton' in pedigree)
     )
@@ -482,7 +482,9 @@ def main(
         'metadata': {
             'input_file': input_path,
             'cohort': get_config()['workflow']['dataset'],
-            'run_datetime': f'{datetime.now():%Y-%m-%d %H:%M}',
+            'run_datetime': get_config()['workflow'].get(
+                'fake_date', f'{datetime.now():%Y-%m-%d %H:%M}'
+            ),
             'family_breakdown': count_families(
                 pedigree_digest, samples=vcf_opened.samples
             ),
