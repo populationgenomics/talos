@@ -31,7 +31,8 @@ jobs:
 
       - name: "Submit report crawler"
         run: |
-          TOKEN=$(gcloud auth print-identity-token --audiences="https://server-a2pko7ameq-ts.a.run.app")
+          gcloud auth list
+          TOKEN=$(gcloud auth print-identity-token)
           curl --fail --silent --show-error -X POST \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type:application/json" \
