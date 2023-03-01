@@ -197,7 +197,6 @@ class HTMLBuilder:
 
         tables = {
             'Panels': pd.DataFrame(self.metadata['panels']),
-            'Cohort Matched Panels': pd.DataFrame(self.forced_panels),
             'Meta': pd.DataFrame(
                 {'Data': key.capitalize(), 'Value': self.metadata[key]}
                 for key in ['cohort', 'input_file', 'run_datetime', 'container']
@@ -211,6 +210,10 @@ class HTMLBuilder:
                 ]
             ),
         }
+
+        if self.forced_panels:
+            tables['Cohort Matched Panels'] = pd.DataFrame(self.forced_panels)
+
         return tables
 
     def write_html(self, output_path: str):

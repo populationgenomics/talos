@@ -11,13 +11,59 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import click
+import requests
 
-from reanalysis.utils import get_json_response, read_json_from_path
+from cpg_utils import to_path
 
 
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels'
+
+
+def get_json_response(url: str) -> Any:
+    """
+    takes a request URL, checks for healthy response, returns the JSON
+    For this purpose we only expect a dictionary return
+    List use-case (activities endpoint) no longer supported
+
+    Args:
+        url (): str URL to retrieve JSON format data from
+
+    Returns:
+        the JSON response from the endpoint
+    """
+
+    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    response.raise_for_status()
+    return response.json()
+
+
+def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> Any:
+    """
+    take a path to a JSON file, read into an object
+    if the path doesn't exist - return the default object
+
+    Args:
+        bucket_path (str):
+        default (Any):
+
+    Returns:
+        either the object from the JSON file, or None
+    """
+
+    if bucket_path is None:
+        return default
+
+    if isinstance(bucket_path, str):
+        bucket_path = to_path(bucket_path)
+
+    if bucket_path.exists():
+        with bucket_path.open() as handle:
+            return json.load(handle)
+    return default
 
 
 def get_panel_green(panel_id: int, version: str | None = None) -> set[str]:
