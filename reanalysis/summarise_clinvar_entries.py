@@ -515,8 +515,7 @@ if __name__ == '__main__':
         '-d',
         help=(
             'date, format DD-MM-YYYY. Individual submissions after this date are '
-            'removed. Un-dated submissions will pass this threshold. This logic is '
-            'retained, but unlikely to be used in any production work.'
+            'removed. Un-dated submissions will pass this threshold.'
         ),
         default=datetime.now(),
     )
