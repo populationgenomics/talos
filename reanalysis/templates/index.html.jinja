@@ -107,13 +107,16 @@
               {% include "datatable.html.jinja" %}
             {% endwith %}
           </div>
-
-          <div>
-            <h3>Cohort Matched Panels</h3>
-            {% with table=meta_tables['Cohort Matched Panels'] %}
-              {% include "datatable.html.jinja" %}
-            {% endwith %}
-          </div>
+          <h3>Cohort Matched Panels</h3>
+          {% if 'Cohort Matched Panels' in meta_tables %}
+              <div>
+                {% with table=meta_tables['Cohort Matched Panels'] %}
+                  {% include "datatable.html.jinja" %}
+                {% endwith %}
+              </div>
+          {% else %}
+              <p>There are no forced panels.</p>
+          {% endif %}
         </div>
       </div>
     </main>
