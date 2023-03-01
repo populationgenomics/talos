@@ -16,11 +16,13 @@ from reanalysis import summarise_clinvar_entries
 
 @click.command
 @click.option('--ht_out', help='Path to write the Hail table to')
-def main(ht_out: str):
+@click.option('--date', help='date cut-off, optional', default=None)
+def main(ht_out: str, date: str | None = None):
     """
     run the clinvar summary, output to defined path
     Args:
         ht_out ():
+        date ():
     """
 
     clinvar_table_path = to_path(ht_out)
@@ -48,10 +50,10 @@ def main(ht_out: str):
     summarise = get_batch().new_job(name='summarise clinvar')
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
-    summarise.command(
-        f'python3 {summarise_clinvar_entries.__file__} '
-        f'-s {bash_job.subs} -v {bash_job.vars} -o {ht_out}'
-    )
+    command_options = f'-s {bash_job.subs} -v {bash_job.vars} -o {ht_out}'
+    if date:
+        command_options += f' -d {date}'
+    summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
     get_batch().run(wait=False)
 
 
