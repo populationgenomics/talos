@@ -117,12 +117,13 @@ class HTMLBuilder:
             )
         self.samples.sort(key=lambda x: x.ext_id)
 
-    def get_summary_stats(
-        self,
-    ) -> tuple[pd.DataFrame, list[str]]:
+    def get_summary_stats(self) -> tuple[pd.DataFrame, list[str]]:
         """
         Run the numbers across all variant categories
-        :return:
+        Treat each primary-secondary comp-het pairing as one event
+        i.e. the thing being counted here is the number of events
+        which passed through the MOI process, not the absolute number
+        of variants in the report
         """
 
         category_count = {key: [] for key in CATEGORY_ORDERING}
@@ -139,15 +140,26 @@ class HTMLBuilder:
 
             # iterate over the list of variants
             for variant in sample.variants:
-                var_string = str(variant)
-                unique_variants['any'].add(var_string)
-                sample_variants['any'].add(var_string)
 
-                # find all categories associated with this variant
-                # for each category, add to corresponding list and set
-                for category_value in variant.var_data.get('categories'):
-                    sample_variants[category_value].add(var_string)
-                    unique_variants[category_value].add(var_string)
+                # create a set for all unique versions
+                variant_variations = set()
+                if variant.support_vars:
+                    for support in variant.support_vars:
+                        variant_variations.add(
+                            '_'.join(sorted([str(variant), support]))
+                        )
+                else:
+                    variant_variations.add(str(variant))
+
+                for var_string in variant_variations:
+                    unique_variants['any'].add(var_string)
+                    sample_variants['any'].add(var_string)
+
+                    # find all categories associated with this variant
+                    # for each category, add to corresponding list and set
+                    for category_value in variant.var_data.get('categories'):
+                        sample_variants[category_value].add(var_string)
+                        unique_variants[category_value].add(var_string)
 
             category_count['any'].append(len(sample_variants['any']))
 
