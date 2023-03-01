@@ -13,12 +13,22 @@ from peddy.peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import set_config_paths
 
-from reanalysis.utils import AbstractVariant, read_json_from_path
-from reanalysis.hail_filter_and_label import MISSING_INT, MISSING_STRING
-
 
 PWD = to_path(__file__).parent
 INPUT = PWD / 'input'
+
+# force this to come first
+CONF_BASE = INPUT / 'reanalysis_global.toml'
+CONF_COHORT = INPUT / 'reanalysis_cohort.toml'
+
+hl.init(default_reference='GRCh38')
+set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
+
+
+# pylint: disable=wrong-import-position
+from reanalysis.utils import AbstractVariant, read_json_from_path
+from reanalysis.hail_filter_and_label import MISSING_INT, MISSING_STRING
+
 
 LABELLED = INPUT / '1_labelled_variant.vcf.bgz'
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
@@ -28,8 +38,6 @@ FAKE_OBO = INPUT / 'hpo_test.obo'
 LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
 PHASED_TRIO = INPUT / 'newphase.vcf.bgz'
 PED_FILE = INPUT / 'pedfile.ped'
-CONF_BASE = INPUT / 'reanalysis_global.toml'
-CONF_COHORT = INPUT / 'reanalysis_cohort.toml'
 SEQR_OUTPUT = INPUT / 'seqr_tags.tsv'
 HAIL_VCF = INPUT / 'single_hail.vcf.bgz'
 QUAD_PED = INPUT / 'trio_plus_sibling.fam'
@@ -38,11 +46,6 @@ QUAD_PED = INPUT / 'trio_plus_sibling.fam'
 PANELAPP_LATEST = INPUT / 'panelapp_current_137.json'
 PANELAPP_INCIDENTALOME = INPUT / 'incidentalome.json'
 FAKE_PANELAPP_OVERVIEW = INPUT / 'panel_overview.json'
-
-
-# force this to come first
-hl.init(default_reference='GRCh38')
-set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
 
 
 @pytest.fixture(name='cleanup', scope='session', autouse=True)

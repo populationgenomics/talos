@@ -7,7 +7,8 @@
 # 3. Q003 ("Change outer quotes to avoid escaping inner quotes")
 # 4. F841 unused-variable, covered using pylint
 # 5. E501 line-too-long, covered using pylint
-extend-ignore: F541,E203,Q003,F841,E501
+# 6. E402 import position error, covered using pylint
+extend-ignore: F541,E203,Q003,F841,E501,E402
 
 # Maximum number of characters on a single line. Default for black, see:
 # https://black.readthedocs.io/en/stable/the_black_code_style.html#line-length

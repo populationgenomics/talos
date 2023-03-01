@@ -100,6 +100,11 @@ def handle_clinvar() -> tuple[Job | None, str]:
         the path to the current clinvar summary file
     """
 
+    if clinvar_table := get_config()['workflow'].get('forced_clinvar'):
+        logging.info(f'This run will be using the Clinvar data in {clinvar_table}')
+        if to_path(clinvar_table).exists():
+            return None, clinvar_table
+
     # is it time to re-process clinvar?
     clinvar_prefix = dataset_path(
         f'clinvar_summaries/{datetime.now().strftime("%Y_%m")}'

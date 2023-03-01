@@ -12,12 +12,9 @@ from copy import deepcopy
 from reanalysis.utils import (
     date_annotate_results,
     find_latest_file,
+    get_granular_date,
     Coordinates,
-    GRANULAR,
 )
-
-
-# pylint: disable=consider-using-with
 
 
 @dataclass
@@ -38,7 +35,7 @@ class MiniReport:
 
     var_data: MiniVariant
     support_vars: list[str] = field(default_factory=list)
-    first_seen: str = GRANULAR
+    first_seen: str = get_granular_date()
 
 
 COORD_1 = Coordinates('1', 1, 'A', 'G')
@@ -60,7 +57,10 @@ def test_date_annotate_one():
     assert results == new_results
     assert cumulative == {
         'sample': {
-            COORD_1.string_format: {'categories': {'1': GRANULAR}, 'support_vars': []}
+            COORD_1.string_format: {
+                'categories': {'1': get_granular_date()},
+                'support_vars': [],
+            }
         }
     }
 
@@ -102,7 +102,7 @@ def test_date_annotate_three():
     assert cumulative == {
         'sample': {
             COORD_1.string_format: {
-                'categories': {'1': OLD_DATE, '2': GRANULAR},
+                'categories': {'1': OLD_DATE, '2': get_granular_date()},
                 'support_vars': [],
             }
         }
@@ -156,13 +156,13 @@ def test_date_annotate_five():
     assert historic == {
         'sample': {
             COORD_1.string_format: {
-                'categories': {'1': GRANULAR, '2': OLD_DATE},
+                'categories': {'1': get_granular_date(), '2': OLD_DATE},
                 'support_vars': [],
             }
         },
         'sample2': {
             COORD_2.string_format: {
-                'categories': {'2': GRANULAR},
+                'categories': {'2': get_granular_date()},
                 'support_vars': [],
             }
         },
@@ -173,7 +173,7 @@ def test_date_annotate_five():
             'variants': [
                 MiniReport(
                     MiniVariant(categories=['1'], coords=COORD_1),
-                    first_seen=GRANULAR,
+                    first_seen=get_granular_date(),
                 )
             ]
         },
@@ -181,11 +181,17 @@ def test_date_annotate_five():
             'variants': [
                 MiniReport(
                     MiniVariant(categories=['2'], coords=COORD_2),
-                    first_seen=GRANULAR,
+                    first_seen=get_granular_date(),
                 )
             ]
         },
     }
+
+
+def touch(filepath: str):
+    """simulates a touch"""
+    with open(filepath, 'w', encoding='utf-8'):
+        pass
 
 
 def test_find_latest(tmp_path):
@@ -194,11 +200,11 @@ def test_find_latest(tmp_path):
     """
     tmp_str = str(tmp_path)
 
-    open(join(tmp_str, 'file1.json'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file1.json'))
     sleep(0.2)
-    open(join(tmp_str, 'file2.json'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file2.json'))
     sleep(0.2)
-    open(join(tmp_str, 'file3.json'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file3.json'))
     assert 'file3.json' in find_latest_file(tmp_str)
 
 
@@ -207,11 +213,11 @@ def test_find_latest_singletons(tmp_path):
     check that we find the correct latest file
     """
     tmp_str = str(tmp_path)
-    open(join(tmp_str, 'singletons_file1.json'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'singletons_file1.json'))
     sleep(0.2)
-    open(join(tmp_str, 'file2.json'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file2.json'))
     sleep(0.2)
-    open(join(tmp_str, 'file3.json'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file3.json'))
     assert 'singletons_file1.json' in find_latest_file(tmp_str, start='singletons')
 
 
@@ -220,9 +226,9 @@ def test_find_latest_with_ext(tmp_path):
     check that we find the correct latest file
     """
     tmp_str = str(tmp_path)
-    open(join(tmp_str, 'file1.txt'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file1.txt'))
     sleep(0.2)
-    open(join(tmp_str, 'file2.txt'), 'w', encoding='utf-8')
+    touch(join(tmp_str, 'file2.txt'))
     sleep(0.2)
-    open(join(tmp_str, 'file3.txt'), 'w', encoding='utf-8')
-    assert 'file3.txt' in find_latest_file(tmp_str, ext='txt')
+    touch(join(tmp_str, 'file3.json'))
+    assert 'file2.txt' in find_latest_file(tmp_str, ext='txt')
