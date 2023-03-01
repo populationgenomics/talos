@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+
 """
 track down the latest version of all reports
 generate an index HTML page with links to all reports
