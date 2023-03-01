@@ -30,6 +30,7 @@ def main(ht_out: str, date: str | None = None):
 
     # create a bash job to copy data from remote
     bash_job = get_batch().new_bash_job(name='copy clinvar files to local')
+    bash_job.image(get_config()['workflow']['driver_image'])
 
     directory = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/'
     sub_file = 'submission_summary.txt.gz'
