@@ -31,7 +31,7 @@ PanelData = dict[str, dict | list[dict]]
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
-
+FORBIDDEN_GENES = None
 
 # pylint: disable=no-value-for-parameter,unnecessary-lambda
 
@@ -76,6 +76,12 @@ def get_panel_green(
         blacklist (): list of symbols/ENSG IDs to remove from this panel
     """
 
+    global FORBIDDEN_GENES  # pylint: disable=global-statement
+    if FORBIDDEN_GENES is None:
+        FORBIDDEN_GENES = read_json_from_path(
+            get_config()['dataset_specific'].get('forbidden', 'missing'), set()
+        )
+
     if blacklist is None:
         blacklist = []
 
@@ -94,11 +100,16 @@ def get_panel_green(
     # iterate over the genes in this panel result
     for gene in panel_genes:
 
+        symbol = gene.get('entity_name')
+
         # only retain green genes
-        if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene':
+        if (
+            gene['confidence_level'] != '3'
+            or gene['entity_type'] != 'gene'
+            or symbol in FORBIDDEN_GENES
+        ):
             continue
 
-        symbol = gene.get('entity_name')
         ensg = None
         chrom = None
 
@@ -111,11 +122,12 @@ def get_panel_green(
                 ensg = ensembl_data['ensembl_id']
                 chrom = ensembl_data['location'].split(':')[0]
 
-        if ensg is None:
-            logging.info(f'Gene "{symbol} lacks an ENSG ID, so it is being excluded')
-            continue
-
-        if ensg in blacklist or symbol in blacklist:
+        if (
+            ensg is None
+            or ensg in blacklist
+            or symbol in blacklist
+            or ensg in FORBIDDEN_GENES
+        ):
             logging.info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
 
