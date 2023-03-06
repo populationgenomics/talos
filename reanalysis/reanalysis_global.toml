@@ -88,6 +88,7 @@ clinvar_filter = [
     'broad institute rare disease group; broad institute',
     'laboratory for molecular medicine; mass general brigham personalized medicine'
 ]
+gene_prior = "gs://cpg-broad-rgp-test-analysis/reanalysis/jan_2020_panels.json"
 
 [cohorts.circa]
 cohort_percentage = 80

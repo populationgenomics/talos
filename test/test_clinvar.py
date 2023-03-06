@@ -7,12 +7,14 @@ from copy import deepcopy
 from datetime import datetime
 
 from reanalysis.summarise_clinvar_entries import (
+    acmg_filter_submissions,
+    check_stars,
+    consequence_decision,
+    get_all_decisions,
+    process_line,
     ACMG_THRESHOLD,
     Consequence,
     Submission,
-    consequence_decision,
-    check_stars,
-    acmg_filter_submissions,
 )
 
 
@@ -176,3 +178,72 @@ def test_county_take_reviewed():
     sub1.classification = Consequence.PATHOGENIC
     subs = [sub1] + ([BENIGN_SUB] * 6)
     assert consequence_decision(subs) == Consequence.PATHOGENIC
+
+
+def test_process_line():
+    """checks that the line-array reading works"""
+
+    input_list = [
+        1,
+        'Pathogenic/Likely pathogenic',
+        'Jul 13, 2021',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        'submitter',
+    ]
+    allele, sub = process_line(input_list)
+    assert allele == 1
+    assert sub.classification == Consequence.PATHOGENIC
+    assert sub.date == datetime(year=2021, month=7, day=13)
+    assert sub.submitter == 'submitter'
+    assert sub.review_status == '6'
+
+
+def test_process_line_no_date():
+    """checks that the line-array reading works"""
+
+    input_list = [
+        1,
+        'Likely benign',
+        '-',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        'submitter',
+    ]
+    allele, sub = process_line(input_list)
+    assert allele == 1
+    assert sub.classification == Consequence.BENIGN
+    assert sub.date == datetime(year=1970, month=1, day=1)
+    assert sub.submitter == 'submitter'
+    assert sub.review_status == '6'
+
+
+def test_get_all_decisions(sub_stub):
+    """
+    read and process sub stub
+    allele ID 3 should be skipped as after the cut-off
+    2 has 2 pathogenic entries
+    4 has one uncertain significance
+    """
+    allele_ids = {1, 2, 3, 4}
+    results = get_all_decisions(
+        sub_stub,
+        threshold_date=datetime(year=2018, day=1, month=1),
+        allele_ids=allele_ids,
+    )
+
+    assert set(results.keys()) == {2, 4}
+    assert len(results.get(2)) == 2
+    assert len(results.get(4)) == 1
+    for each in results[2]:
+        assert each.classification == Consequence.PATHOGENIC
+    for each in results[4]:
+        assert each.classification == Consequence.UNCERTAIN

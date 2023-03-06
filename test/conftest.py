@@ -41,6 +41,7 @@ PED_FILE = INPUT / 'pedfile.ped'
 SEQR_OUTPUT = INPUT / 'seqr_tags.tsv'
 HAIL_VCF = INPUT / 'single_hail.vcf.bgz'
 QUAD_PED = INPUT / 'trio_plus_sibling.fam'
+SUB_STUB = INPUT / 'tiny_summary.txt.gz'
 
 # panelapp testing paths
 PANELAPP_LATEST = INPUT / 'panelapp_current_137.json'
@@ -201,6 +202,13 @@ def fixture_output_seqr_tsv():
     """path to the TSV of Seqr variants"""
 
     return SEQR_OUTPUT
+
+
+@pytest.fixture(name='sub_stub', scope='session')
+def fixture_sub_stub():
+    """path to the TXT file of submissions"""
+
+    return SUB_STUB
 
 
 @pytest.fixture(scope='session')
