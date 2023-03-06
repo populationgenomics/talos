@@ -141,7 +141,7 @@ def get_allele_locus_map(summary_file: str) -> dict:
     return allele_dict
 
 
-def lines_from_gzip(filename: str) -> str:
+def lines_from_gzip(filename: str) -> list[str]:
     """
     generator for gzip reading, copies file locally before reading
 
@@ -250,14 +250,12 @@ def check_stars(subs: list[Submission]) -> int:
     return minimum
 
 
-def process_line(data: str) -> tuple[int, Submission]:
+def process_line(data: list[str]) -> tuple[int, Submission]:
     """
-    takes a line,
-    splits into an array,
-    strips out useful content as a 'Submission'
+    takes a line, strips out useful content as a 'Submission'
 
     Args:
-        data (): the un-split TSV content
+        data (): the array of line content
 
     Returns:
         the allele ID and corresponding Submission details
