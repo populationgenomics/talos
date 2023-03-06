@@ -465,7 +465,8 @@ def main(subs: str, date: datetime, variants: str, out: str):
 
     # now filter each set of decisions per allele
     for allele_id, submissions in decision_dict.items():
-        # filter against ACMG date
+
+        # filter against ACMG date, if appropriate
         submissions = acmg_filter_submissions(submissions)
 
         # obtain an aggregate rating
@@ -493,7 +494,9 @@ def main(subs: str, date: datetime, variants: str, out: str):
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
-    temp_output = output_path('temp_clinvar_table.json', category='tmp')
+    temp_output = output_path(
+        f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
+    )
     logging.info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
@@ -514,7 +517,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-d',
         help=(
-            'date, format DD-MM-YYYY. Individual submissions after this date are '
+            'date, format YYYY-MM-DD. Individual submissions after this date are '
             'removed. Un-dated submissions will pass this threshold.'
         ),
         default=datetime.now(),
@@ -522,7 +525,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     processed_date = (
-        datetime.strptime(args.d, '%d-%m-%Y') if isinstance(args.d, str) else args.d
+        datetime.strptime(args.d, '%Y-%m-%d') if isinstance(args.d, str) else args.d
     )
+
+    logging.info(f'Date threshold: {processed_date}')
 
     main(subs=args.s, date=processed_date, variants=args.v, out=args.o)

@@ -5,6 +5,7 @@
 Entrypoint for clinvar summary generation
 """
 
+from datetime import datetime
 
 import click
 from cpg_utils import to_path
@@ -43,9 +44,12 @@ def main(ht_out: str, date: str | None = None):
         )
     )
 
-    # write output files
-    get_batch().write_output(bash_job.subs, str(clinvar_folder / sub_file))
-    get_batch().write_output(bash_job.vars, str(clinvar_folder / var_file))
+    # construct a date String to identify the origina date for these files
+    today = datetime.now().strftime('%y-%m-%d')
+
+    # write output files date-specific
+    get_batch().write_output(bash_job.subs, str(clinvar_folder / f'{today}_{sub_file}'))
+    get_batch().write_output(bash_job.vars, str(clinvar_folder / f'{today}_{var_file}'))
 
     # create a job to run the summary
     summarise = get_batch().new_job(name='summarise clinvar')
