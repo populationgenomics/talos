@@ -1039,8 +1039,11 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     mt = annotate_category_1(mt=mt)
     mt = annotate_category_2(mt=mt, new_genes=new_expression)
     mt = annotate_category_3(mt=mt)
-    mt = annotate_category_4(mt=mt, plink_family_file=plink)
     mt = annotate_category_5(mt=mt)
+
+    # ordering is important - category4 (de novo) makes
+    # use of category 5, so it must follow
+    mt = annotate_category_4(mt=mt, plink_family_file=plink)
     mt = annotate_category_support(mt=mt)
 
     # if a clinvar-codon table is supplied, use that for PM5
