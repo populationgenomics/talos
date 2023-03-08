@@ -193,24 +193,24 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     codon_variants = codon_variants.join(codon_clinvar)
 
     # explode back out to release the positions
-    codon_variants = codon_variants.explode(codon_variants.positions)
+    codon_variants = codon_variants.explode(codon_variants.values)
 
     # annotate positions back to normal names (not required?)
     codon_variants = codon_variants.annotate(
-        locus=codon_variants.positions.locus, alleles=codon_variants.positions.alleles
+        locus=codon_variants.values.locus, alleles=codon_variants.values.alleles
     )
 
     # re-key by locus/allele
     codon_variants = codon_variants.key_by(codon_variants.locus, codon_variants.alleles)
 
     # aggregate back to position and alleles
-    codon_variants = codon_variants.select(codon_variants.values).collect_by_key()
+    codon_variants = codon_variants.select(codon_variants.newkey).collect_by_key()
 
     # conditional annotation back into the original MT
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             categorydetailsPM5=hl.or_else(
-                codon_variants[mt.row_key].values, MISSING_INT
+                codon_variants[mt.row_key].newkey, MISSING_INT
             )
         )
     )
