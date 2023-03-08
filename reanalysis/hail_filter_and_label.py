@@ -228,7 +228,9 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     codon_variants.show(1, handler=logging.info)
 
     codon_variants = codon_variants.annotate(
-        clinvar_variations=hl.str(';').join(codon_variants.clinvar_variations)
+        clinvar_variations=hl.str(';').join(
+            hl.map(lambda x: x.clinvar_alleles, codon_variants.clinvar_variations)
+        )
     )
 
     logging.info('describe 7')
