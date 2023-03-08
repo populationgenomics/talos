@@ -240,7 +240,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             categorydetailsPM5=hl.or_else(
-                codon_variants[mt.row_key].clinvar_variations, MISSING_INT
+                codon_variants[mt.row_key].clinvar_variations, MISSING_STRING
             )
         )
     )
