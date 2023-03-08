@@ -225,9 +225,13 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     ).collect_by_key(name='clinvar_variations')
 
     logging.info('describe 6')
-    codon_variants = codon_variants.transmute(
+    codon_variants.show(1, handler=logging.info)
+
+    codon_variants = codon_variants.annotate(
         clinvar_variations=hl.str(';').join(codon_clinvar.clinvar_variations)
     )
+
+    logging.info('describe 7')
     codon_variants.show(1, handler=logging.info)
 
     # conditional annotation back into the original MT
