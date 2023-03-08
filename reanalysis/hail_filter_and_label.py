@@ -210,21 +210,24 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     codon_variants = codon_variants.transmute(
         locus=codon_variants.positions.locus, alleles=codon_variants.positions.alleles
     )
-    logging.info('describe 5')
+    logging.info('describe 4')
     codon_variants.show(1, handler=logging.info)
 
     # re-key by locus/allele
     codon_variants = codon_variants.key_by(codon_variants.locus, codon_variants.alleles)
 
-    logging.info('describe 4')
+    logging.info('describe 5')
     codon_variants.show(1, handler=logging.info)
 
     # aggregate back to position and alleles
-    codon_variants = codon_variants.select(codon_variants.clinvar_set).collect_by_key(
-        name='clinvar_variations'
-    )
+    codon_variants = codon_variants.select(
+        codon_variants.clinvar_alleles
+    ).collect_by_key(name='clinvar_variations')
 
     logging.info('describe 6')
+    codon_variants = codon_variants.transmute(
+        clinvar_variations=hl.str(';').join(codon_clinvar.clinvar_variations)
+    )
     codon_variants.show(1, handler=logging.info)
 
     # conditional annotation back into the original MT
