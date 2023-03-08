@@ -159,9 +159,10 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     # read in the codon table
     logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
     codon_clinvar = hl.read_table(codon_table_path)
+    codon_clinvar = codon_clinvar.transmute(clinvar_set=codon_clinvar.values)
 
     logging.info('describe 1')
-    codon_clinvar.describe()
+    codon_clinvar.show(1, handler=logging.info)
 
     # boom those variants out by consequence
     codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
@@ -175,7 +176,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
 
     # set the protein residue as an attribute
     codon_variants = codon_variants.annotate(
-        newkey=hl.str('::').join(
+        residue_affected=hl.str('::').join(
             [
                 codon_variants.vep.transcript_consequences.protein_id,
                 hl.str(codon_variants.vep.transcript_consequences.protein_start),
@@ -183,47 +184,53 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
         )
     )
     logging.info('describe 2')
-    codon_variants.describe()
+    codon_variants.show(1, handler=logging.info)
 
     # 4. re-key the table on Transcript::Codon
-    codon_variants = codon_variants.key_by(codon_variants.newkey)
+    codon_variants = codon_variants.key_by(codon_variants.residue_affected)
 
     # 5. extract the position table (protein change linked to all loci)
     codon_variants = codon_variants.select(
         codon_variants.locus, codon_variants.alleles
-    ).collect_by_key()
+    ).collect_by_key(name='positions')
+
     logging.info('describe 3')
-    codon_variants.describe()
+    codon_variants.show(1, handler=logging.info)
 
     # join the real variant positions with aggregated clinvar
     # 'values' here is the array of all positions
     codon_variants = codon_variants.join(codon_clinvar)
+    codon_variants.show(1, handler=logging.info)
 
     # explode back out to release the positions
-    codon_variants = codon_variants.explode(codon_variants.values)
+    codon_variants = codon_variants.explode(codon_variants.positions)
+    codon_variants.show(1, handler=logging.info)
 
     # annotate positions back to normal names (not required?)
-    codon_variants = codon_variants.annotate(
+    codon_variants = codon_variants.transmute(
         locus=codon_variants.values.locus, alleles=codon_variants.values.alleles
     )
+    codon_variants.show(1, handler=logging.info)
 
     # re-key by locus/allele
     codon_variants = codon_variants.key_by(codon_variants.locus, codon_variants.alleles)
 
     logging.info('describe 4')
-    codon_variants.describe()
+    codon_variants.show(1, handler=logging.info)
 
     # aggregate back to position and alleles
-    codon_variants = codon_variants.select(codon_variants.newkey).collect_by_key()
+    codon_variants = codon_variants.select(codon_variants.clinvar_set).collect_by_key(
+        name='clinvar_variations'
+    )
 
     logging.info('describe 5')
-    codon_variants.describe()
+    codon_variants.show(1, handler=logging.info)
 
     # conditional annotation back into the original MT
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             categorydetailsPM5=hl.or_else(
-                codon_variants[mt.row_key].newkey, MISSING_INT
+                codon_variants[mt.row_key].clinvar_variations, MISSING_INT
             )
         )
     )
