@@ -160,6 +160,9 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
     codon_clinvar = hl.read_table(codon_table_path)
 
+    logging.info('describe 1')
+    codon_clinvar.describe()
+
     # boom those variants out by consequence
     codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
 
@@ -179,6 +182,8 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
             ]
         )
     )
+    logging.info('describe 2')
+    codon_variants.describe()
 
     # 4. re-key the table on Transcript::Codon
     codon_variants = codon_variants.key_by(codon_variants.newkey)
@@ -187,6 +192,8 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     codon_variants = codon_variants.select(
         codon_variants.locus, codon_variants.alleles
     ).collect_by_key()
+    logging.info('describe 3')
+    codon_variants.describe()
 
     # join the real variant positions with aggregated clinvar
     # 'values' here is the array of all positions
@@ -203,8 +210,14 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     # re-key by locus/allele
     codon_variants = codon_variants.key_by(codon_variants.locus, codon_variants.alleles)
 
+    logging.info('describe 4')
+    codon_variants.describe()
+
     # aggregate back to position and alleles
     codon_variants = codon_variants.select(codon_variants.newkey).collect_by_key()
+
+    logging.info('describe 5')
+    codon_variants.describe()
 
     # conditional annotation back into the original MT
     mt = mt.annotate_rows(
