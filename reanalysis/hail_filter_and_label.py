@@ -159,7 +159,9 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     # read in the codon table
     logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
     codon_clinvar = hl.read_table(codon_table_path)
-    codon_clinvar = codon_clinvar.transmute(clinvar_set=codon_clinvar.values)
+    codon_clinvar = codon_clinvar.transmute(
+        clinvar_alleles=hl.str(';').join(codon_clinvar.values)
+    )
 
     logging.info('describe 1')
     codon_clinvar.show(1, handler=logging.info)
@@ -183,8 +185,6 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
             ]
         )
     )
-    logging.info('describe 2')
-    codon_variants.show(1, handler=logging.info)
 
     # 4. re-key the table on Transcript::Codon
     codon_variants = codon_variants.key_by(codon_variants.residue_affected)
@@ -208,8 +208,9 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
 
     # annotate positions back to normal names (not required?)
     codon_variants = codon_variants.transmute(
-        locus=codon_variants.values.locus, alleles=codon_variants.values.alleles
+        locus=codon_variants.positions.locus, alleles=codon_variants.positions.alleles
     )
+    logging.info('describe 5')
     codon_variants.show(1, handler=logging.info)
 
     # re-key by locus/allele
@@ -223,7 +224,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
         name='clinvar_variations'
     )
 
-    logging.info('describe 5')
+    logging.info('describe 6')
     codon_variants.show(1, handler=logging.info)
 
     # conditional annotation back into the original MT
