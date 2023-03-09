@@ -379,7 +379,7 @@ class AbstractVariant:
             else:
                 _boolcat = self.info.pop('categoryboolean2')
 
-        # do something spicy with PM5 - weird logic here
+        # do something spicy with PM5
         self.organise_pm5()
 
         # set the class attributes
@@ -442,10 +442,11 @@ class AbstractVariant:
 
         # nothing to do here
         if pm5_content == 'missing':
+            self.info['categorybooleanpm5'] = 0
             return
 
         # current clinvar annotation, if any
-        current_clinvar = self.info.get('clinvar_allele', 'not_this')
+        current_clinvar = str(self.info.get('clinvar_allele', 'not_this'))
 
         # instantiate a dict to store csq-matched results
         pm5_data = {}
@@ -466,7 +467,7 @@ class AbstractVariant:
 
         # case where no non-self alleles were found
         # assigning False and not-assigning are equivalent, just return
-        if not pm5_data:
+        if pm5_data:
             # set boolean category and specific data
             self.info['categorybooleanpm5'] = 1
             self.info['pm5_data'] = pm5_data
@@ -560,7 +561,6 @@ class AbstractVariant:
             new_cat = category.replace('categorysample', 'categoryboolean')
             self.info[new_cat] = bool(sample in sample_list)
             self.boolean_categories.append(new_cat)
-
         categories = [
             bool_cat.replace('categoryboolean', '')
             for bool_cat in self.boolean_categories

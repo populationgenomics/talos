@@ -92,15 +92,12 @@
     </td>
     <td>
         {# PM5 ClinVar #}
-        {% if 'pm5' in variant.categories %}
-            {% for allele, stars in variant.var_data.info.pm5_data %}
+        {% if 'pm5' in variant.var_data.categories %}
+            {% for allele, stars in variant.var_data.info.pm5_data.items() %}
 
-                <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[allele]"
+                <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[alleleid]"
                     target="_blank">
                     {{allele}}
-                    {% for i in range(stars|int) -%}
-                        <i class="bi-star"></i>
-                    {%- endfor %}
                 </a>
             {%- endfor %}
         {% endif %}
