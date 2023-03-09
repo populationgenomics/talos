@@ -436,7 +436,7 @@ class AbstractVariant:
             None, updates self. attributes
         """
         try:
-            pm5_content = self.info.pop('categorydetailsPM5')
+            pm5_content = self.info.pop('categorydetailspm5')
         except KeyError:
             return
 
@@ -468,10 +468,10 @@ class AbstractVariant:
         # assigning False and not-assigning are equivalent, just return
         if not pm5_data:
             # set boolean category and specific data
-            self.info['categorybooleanPM5'] = 1
+            self.info['categorybooleanpm5'] = 1
             self.info['pm5_data'] = pm5_data
         else:
-            self.info['categorybooleanPM5'] = 0
+            self.info['categorybooleanpm5'] = 0
 
     def __str__(self):
         return repr(self)
