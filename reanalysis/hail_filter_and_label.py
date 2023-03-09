@@ -141,15 +141,41 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     takes the protein indexed clinvar results and matches up against
     the variant data
 
-    this might be a grossly inefficient method
+    this might be a grossly inefficient method...
+
+    The process is:
+    1. load up the hail table of all clinvar annotations indexed by residue
+    2. re-shuffle the current variant MT to be similarly indexed on residue
+    3. match the datasets across to get residues, clinvar, and corresponding
+        loci within this callset
+    4. explode that back out to index all the clinvar alleles directly on the
+        loci relevant to this callset
+    5. use that final table to annotate all relevant clinvar allele IDs as a
+        flag, indicating when a variant in this callset creates a residue change
+        seen in clinvar
+
+    Note - this might include more munging than necessary, but frankly, I'm not
+    smart enough to simplify it. I'll bookmark it for future consideration.
+
+    "Everyone knows that debugging is twice as hard as writing a program in the
+    first place. So if you're as clever as you can be when you write it, how will
+    you ever debug it?” ― Brian Kernighan
+
+    This matching is universal, i.e. if a variant is the exact position and change
+    creating a known pathogenic missense, this method should always find that
+    annotation through this lookup. It would be problematic if it didn't. For the
+    purposes of PM5, it would be invalid to use the exact same allele as further
+    evidence, so exact matches must be filtered out downstream.
 
     Args:
         codon_table_path (): path to the clinvar-by-codon
         mt (): MT of all variants
 
     Returns:
-        the same variants MT with an extra label
+        the same variants MT with an extra label containing all clinvar alleles
+        known to cause the same protein consequence on at least one common tx
     """
+
     if codon_table_path is None:
         logging.info('No codon path supplied, skipping PM5')
         return mt.annotate_rows(
@@ -159,9 +185,6 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     # read in the codon table
     logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
     codon_clinvar = hl.read_table(codon_table_path)
-    codon_clinvar = codon_clinvar.transmute(
-        clinvar_alleles=hl.str(';').join(codon_clinvar.values)
-    )
 
     # boom those variants out by consequence
     codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
