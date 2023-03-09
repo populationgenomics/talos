@@ -235,7 +235,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     ).collect_by_key(name='clinvar_variations')
 
     codon_variants = codon_variants.annotate(
-        clinvar_variations=hl.str('||').join(
+        clinvar_variations=hl.str('+').join(
             hl.set(
                 hl.map(lambda x: x.clinvar_alleles, codon_variants.clinvar_variations)
             )

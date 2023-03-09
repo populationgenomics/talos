@@ -379,6 +379,9 @@ class AbstractVariant:
             else:
                 _boolcat = self.info.pop('categoryboolean2')
 
+        # do something spicy with PM5 - weird logic here
+        self.organise_pm5()
+
         # set the class attributes
         self.boolean_categories = [
             key for key in self.info.keys() if key.startswith('categoryboolean')
@@ -421,6 +424,54 @@ class AbstractVariant:
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
         self.depths = dict(zip(samples, map(float, var.gt_depths)))
         self.categories = []
+
+    def organise_pm5(self):
+        """
+        method dedicated to handling the new pm5 annotations
+
+        e.g. categorydetailsPM5=27037::Pathogenic::1+27048::Pathogenic::1;
+        1. break into component allele data
+
+        Returns:
+            None, updates self. attributes
+        """
+        try:
+            pm5_content = self.info.pop('categorydetailsPM5')
+        except KeyError:
+            return
+
+        # nothing to do here
+        if pm5_content == 'missing':
+            return
+
+        # current clinvar annotation, if any
+        current_clinvar = self.info.get('clinvar_allele', 'not_this')
+
+        # instantiate a dict to store csq-matched results
+        pm5_data = {}
+
+        # break the strings into a set
+        pm5_strings = set(pm5_content.split('+'))
+        for clinvar_entry in pm5_strings:
+
+            # fragment each entry
+            allele_id, rating, stars = clinvar_entry.split('::')
+
+            # never consider the exact match, pm5 is always separate
+            if allele_id == current_clinvar:
+                continue
+
+            # if non-self, add to the dict
+            pm5_data[allele_id] = (rating, stars)
+
+        # case where no non-self alleles were found
+        # assigning False and not-assigning are equivalent, just return
+        if not pm5_data:
+            return
+
+        # set boolean category and specific data
+        self.info['categorybooleanPM5'] = 1
+        self.info['pm5_data'] = pm5_data
 
     def __str__(self):
         return repr(self)
