@@ -455,23 +455,23 @@ class AbstractVariant:
         for clinvar_entry in pm5_strings:
 
             # fragment each entry
-            allele_id, rating, stars = clinvar_entry.split('::')
+            allele_id, _rating, stars = clinvar_entry.split('::')
 
             # never consider the exact match, pm5 is always separate
             if allele_id == current_clinvar:
                 continue
 
             # if non-self, add to the dict
-            pm5_data[allele_id] = (rating, stars)
+            pm5_data[allele_id] = stars
 
         # case where no non-self alleles were found
         # assigning False and not-assigning are equivalent, just return
         if not pm5_data:
-            return
-
-        # set boolean category and specific data
-        self.info['categorybooleanPM5'] = 1
-        self.info['pm5_data'] = pm5_data
+            # set boolean category and specific data
+            self.info['categorybooleanPM5'] = 1
+            self.info['pm5_data'] = pm5_data
+        else:
+            self.info['categorybooleanPM5'] = 0
 
     def __str__(self):
         return repr(self)
