@@ -347,20 +347,21 @@ def test_filter_to_green_genes_and_split__consequence(hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,five,support,length',
+    'one,two,three,four,five,support,pm5,length',
     [
-        (0, 0, 0, 'missing', 0, 0, 0),
-        (0, 1, 0, 'missing', 0, 0, 1),
-        (0, 0, 1, 'missing', 0, 0, 1),
-        (0, 0, 0, 'missing', 0, 1, 1),
-        (0, 0, 0, 'not_blank', 0, 0, 1),
-        (0, 0, 0, 'missing', 1, 0, 1),
-        (0, 1, 1, 'missing', 0, 1, 1),
-        (1, 0, 0, 'missing', 0, 1, 1),
+        (0, 0, 0, 'missing', 0, 0, 'missing', 0),
+        (0, 0, 0, 'missing', 0, 0, 'notmissing', 1),
+        (0, 1, 0, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 1, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 1, 'missing', 1),
+        (0, 0, 0, 'not_blank', 0, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 1, 0, 'missing', 1),
+        (0, 1, 1, 'missing', 0, 1, 'missing', 1),
+        (1, 0, 0, 'missing', 0, 1, 'missing', 1),
     ],
 )
 def test_filter_to_classified(
-    one, two, three, four, five, support, length, hail_matrix
+    one, two, three, four, five, support, pm5, length, hail_matrix
 ):
     """
     :param hail_matrix:
@@ -373,6 +374,7 @@ def test_filter_to_classified(
             categorysample4=four,
             categoryboolean5=five,
             categorysupport=support,
+            categorydetailsPM5=pm5,
         )
     )
     matrix = filter_to_categorised(anno_matrix)

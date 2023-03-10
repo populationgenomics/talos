@@ -7,7 +7,8 @@
     <th class="group-false">Categories</th>
     <th class="group-false sorter-shortDate" data-date-format="yyyymmdd">First Seen</th>
     <th class="group-false">MANE CSQ</th>
-    <th class="group-false">Clinvar</th>
+    <th class="group-false">ClinVar</th>
+    <th class="group-false">PM5 ClinVar</th>
     <th class="group-false">Flags</th>
     <th class="group-false">Support</th>
     </tr>
@@ -86,6 +87,18 @@
             <br>
             {% for i in range(variant.var_data.info.clinvar_stars|int) -%}
                 <i class="bi-star"></i>
+            {%- endfor %}
+        {% endif %}
+    </td>
+    <td>
+        {# PM5 ClinVar #}
+        {% if 'pm5' in variant.var_data.categories %}
+            {% for allele, stars in variant.var_data.info.pm5_data.items() %}
+
+                <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[alleleid]"
+                    target="_blank">
+                    {{allele}}
+                </a>
             {%- endfor %}
         {% endif %}
     </td>

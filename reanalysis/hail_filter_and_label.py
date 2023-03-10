@@ -12,6 +12,9 @@ Read, filter, annotate, classify, and write Genetic data
 """
 
 
+# pylint: disable=too-many-lines
+
+
 import os
 import logging
 import sys
@@ -127,6 +130,128 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
                 ONE_INT,
                 MISSING_INT,
             ),
+        )
+    )
+
+    return mt
+
+
+def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
+    """
+    takes the protein indexed clinvar results and matches up against
+    the variant data
+
+    this might be a grossly inefficient method...
+
+    The process is:
+    1. load up the hail table of all clinvar annotations indexed by residue
+    2. re-shuffle the current variant MT to be similarly indexed on residue
+    3. match the datasets across to get residues, clinvar, and corresponding
+        loci within this callset
+    4. explode that back out to index all the clinvar alleles directly on the
+        loci relevant to this callset
+    5. use that final table to annotate all relevant clinvar allele IDs as a
+        flag, indicating when a variant in this callset creates a residue change
+        seen in clinvar
+
+    Note - this might include more munging than necessary, but frankly, I'm not
+    smart enough to simplify it. I'll bookmark it for future consideration.
+
+    "Everyone knows that debugging is twice as hard as writing a program in the
+    first place. So if you're as clever as you can be when you write it, how will
+    you ever debug it?” ― Brian Kernighan
+
+    This matching is universal, i.e. if a variant is the exact position and change
+    creating a known pathogenic missense, this method should always find that
+    annotation through this lookup. It would be problematic if it didn't. For the
+    purposes of PM5, it would be invalid to use the exact same allele as further
+    evidence, so exact matches must be filtered out downstream.
+
+    Args:
+        codon_table_path (): path to the clinvar-by-codon
+        mt (): MT of all variants
+
+    Returns:
+        the same variants MT with an extra label containing all clinvar alleles
+        known to cause the same protein consequence on at least one common tx
+    """
+
+    if codon_table_path is None:
+        logging.info('No codon path supplied, skipping PM5')
+        return mt.annotate_rows(
+            info=mt.info.annotate(categorydetailsPM5=MISSING_STRING)
+        )
+
+    # read in the codon table
+    logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
+    codon_clinvar = hl.read_table(codon_table_path)
+
+    # boom those variants out by consequence
+    codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
+
+    # filter for missense, no indels (don't trust VEP)
+    codon_variants = codon_variants.filter(
+        (hl.len(codon_variants.alleles[0]) == ONE_INT)
+        & (hl.len(codon_variants.alleles[1]) == ONE_INT)
+        & (
+            codon_variants.vep.transcript_consequences.consequence_terms.contains(
+                'missense_variant'
+            )
+        )
+    )
+
+    # set the protein residue as an attribute
+    codon_variants = codon_variants.annotate(
+        residue_affected=hl.str('::').join(
+            [
+                codon_variants.vep.transcript_consequences.protein_id,
+                hl.str(codon_variants.vep.transcript_consequences.protein_start),
+            ]
+        )
+    )
+
+    # 4. re-key the table on Transcript::Codon
+    codon_variants = codon_variants.key_by(codon_variants.residue_affected)
+
+    # 5. extract the position table (protein change linked to all loci)
+    codon_variants = codon_variants.select(
+        codon_variants.locus, codon_variants.alleles
+    ).collect_by_key(name='positions')
+
+    # join the real variant positions with aggregated clinvar
+    # 'values' here is the array of all positions
+    codon_variants = codon_variants.join(codon_clinvar)
+
+    # explode back out to release the positions
+    codon_variants = codon_variants.explode(codon_variants.positions)
+
+    # annotate positions back to normal names (not required?)
+    codon_variants = codon_variants.transmute(
+        locus=codon_variants.positions.locus, alleles=codon_variants.positions.alleles
+    )
+
+    # re-key by locus/allele
+    codon_variants = codon_variants.key_by(codon_variants.locus, codon_variants.alleles)
+
+    # aggregate back to position and alleles
+    codon_variants = codon_variants.select(
+        codon_variants.clinvar_alleles
+    ).collect_by_key(name='clinvar_variations')
+
+    codon_variants = codon_variants.annotate(
+        clinvar_variations=hl.str('+').join(
+            hl.set(
+                hl.map(lambda x: x.clinvar_alleles, codon_variants.clinvar_variations)
+            )
+        )
+    )
+
+    # conditional annotation back into the original MT
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            categorydetailsPM5=hl.or_else(
+                codon_variants[mt.row_key].clinvar_variations, MISSING_STRING
+            )
         )
     )
 
@@ -686,6 +811,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorysample4 != 'missing')
         | (mt.info.categoryboolean5 == 1)
         | (mt.info.categorysupport == 1)
+        | (mt.info.categorydetailsPM5 != MISSING_STRING)
     )
 
 
@@ -955,9 +1081,15 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     mt = annotate_category_3(mt=mt)
     mt = annotate_category_5(mt=mt)
 
-    # cat. 4 can run in 2 modes - config contains a switch
+    # ordering is important - category4 (de novo) makes
+    # use of category 5, so it must follow
     mt = annotate_category_4(mt=mt, plink_family_file=plink)
     mt = annotate_category_support(mt=mt)
+
+    # if a clinvar-codon table is supplied, use that for PM5
+    mt = annotate_codon_clinvar(
+        codon_table_path=get_config()['filter'].get('codon_table'), mt=mt
+    )
 
     mt = filter_to_categorised(mt=mt)
     mt = checkpoint_and_repartition(
