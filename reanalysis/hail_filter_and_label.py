@@ -189,10 +189,14 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     # boom those variants out by consequence
     codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
 
-    # filter for missense
+    # filter for missense, no indels (don't trust VEP)
     codon_variants = codon_variants.filter(
-        codon_variants.vep.transcript_consequences.consequence_terms.contains(
-            'missense_variant'
+        (hl.len(codon_variants.alleles[0]) == ONE_INT)
+        & (hl.len(codon_variants.alleles[1]) == ONE_INT)
+        & (
+            codon_variants.vep.transcript_consequences.consequence_terms.contains(
+                'missense_variant'
+            )
         )
     )
 
