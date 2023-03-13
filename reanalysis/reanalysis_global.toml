@@ -96,7 +96,7 @@ gene_prior = "gs://cpg-broad-rgp-test-analysis/reanalysis/jan_2020_panels.json"
 
 [cohorts.epileptic-enceph]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
-cohort_percentage = 80
+#cohort_percentage = 80
 gene_prior = 'gs://cpg-epileptic-enceph-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.heartkids]
@@ -104,7 +104,7 @@ clinvar_filter = ['victorian clinical genetics services,murdoch childrens resear
 gene_prior = 'gs://cpg-heartkids-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.hereditary-neuro]
-cohort_percentage = 80
+#cohort_percentage = 80
 
 [cohorts.ibmdx]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
@@ -116,12 +116,12 @@ gene_prior = 'gs://cpg-kidgen-test-analysis/reanalysis/pre_panelapp_mendeliome.j
 [cohorts.leukodystrophies]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
 cohort_panels = [298, 299, 3094]
-cohort_percentage = 80
+#cohort_percentage = 80
 gene_prior = 'gs://cpg-leukodystrophies-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.mito-disease]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
-cohort_percentage = 80
+#cohort_percentage = 80
 gene_prior = 'gs://cpg-mito-disease-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.ohmr3-mendelian]
