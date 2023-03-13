@@ -114,3 +114,55 @@ To make downstream operations easier, the different categories are grouped into 
     means that the Support flags are never enough to categorise a variant alone, but may support a separate categorised
     variant in a compound inheritance MOI. If a variant has a Support flag & non-support flags, it will be treated as an
     independent variant
+4. Details - Any flag starting with _CategoryDetails_ is processed in some way upon ingestion of the VCF. The content of
+    the category label can be anything, with the intention that when each variant is read it is converted into a Boolean
+    or Sample label. The only current implementation of this is the PM5 label. The flag content in this case is a list of
+    all clinvar Pathogenic missense alleles which affect the same residue as this current variant. Upon ingestion of the
+    variant, the collected AlleleIDs are split, filtered to unique, and any exact matches to the current variant are
+    removed. If there are remaining AlleleIDs in the list, an entry is made in the variant's info dictionary (for rendering
+    downstream in the report) and a flag CategoryBooleanPM5 is assigned. This then acts as a regular boolean flag, with
+    the pm5 data in the dictionary available for display if appropriate. This approach means that upon creation and init
+    processing of the AbstractVariant, the CategoryDetails flag no longer exists, and no advanced logic is needed to process
+    it within the MOI logic.
+
+### USP - ACMG PM5
+
+The latest Category included into AIP is _CategoryDetailsPM5_, which is used to determine whether the ACMG/AMP 2015
+variant interpretation framework evidence type is suitable. This evidence is applied when a novel missense change
+creates a residue substitution at the same codon as a previously seen missense classified as Pathogenic in ClinVar.
+
+This category requires some pre-processing as follows (note: this is the exact method used so far based on CPG
+infrastructure, there may be easier ways to accomplish the preparatory stems in alternative deployments):
+
+* Acquire the latest VCF format file containing all the variants in ClinVar
+* Annotate this VCF using VEP, outputting a MatrixTable data structure
+* Using the code in [reanalysis/clinvar_by_codon.py](../reanalysis/clinvar_by_codon.py), reorganise this data into a
+    lookup table, with all protein & residues as keys, linked to all co-located clinvar Alleles. See [Clinvar By Codon](
+    Helpers.md#clinvar-by-codon-clinvarbycodonpy) for details. Save that Hail Table to a common location as an input
+    file.
+
+| Residue affected | ClinVar Alleles                                           |
+|------------------|-----------------------------------------------------------|
+| ENSP12345::123   | AlleleID::Pathogenic::#Stars                              |
+| ENSP67890::678   | AlleleID::Pathogenic::#Stars+AlleleID::Pathogenic::#Stars |
+
+* During the Hail labelling runtime, import that Codon-indexed-ClinVar table
+* Do a similar re-indexing to shuffle the real cohort callset data into a similar format; filter to missense variants,
+index on the protein ID, and aggregate to contain all individual variants which cause a change at that residue:
+
+| Residue affected | Variants                         |
+|------------------|----------------------------------|
+| ENSP12345::123   | [chr2:123456:A:C]                |
+| ENSP67890::678   | [chr4:67899:A:C, chr4:67890:G:C] |
+
+* Join the tables of ClinVar and real variant data, then explode and aggregate by variant. The resulting table is indexed
+on variant Locus & Alleles, and connects each variant with _all pathogenic ClinVar missenses which affect this residue_
+
+| Variant         | ClinVar Alleles                                           |
+|-----------------|-----------------------------------------------------------|
+| chr2:123456:A:C | AlleleID::Pathogenic::#Stars                              |
+| chr4:67890:G:C  | AlleleID::Pathogenic::#Stars+AlleleID::Pathogenic::#Stars |
+| chr4:67899:A:C  | AlleleID::Pathogenic::#Stars+AlleleID::Pathogenic::#Stars |
+
+* This table is then used to annotate the callset MT - if the variant exists in this table, the CategoryDetailsPM5 content
+is the string of related ClinVar content, otherwise the value is set to `missing`

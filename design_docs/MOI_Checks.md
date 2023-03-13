@@ -206,7 +206,7 @@ which will generate a reported variant structure for the sample(s) which passed 
 ## Flags
 
 When a reportable event is found, a JSON blob representing the variant and sample is created. If the relevant gene was
-in one or more of the additional panels requested (see [additional panels](PanelApp_interaction.md#additional-panels)),
+in one or more of the additional panels requested (see [additional panels](PanelApp_interaction.md#per-participant-panels)),
 the names/IDs of those panels are appended to the list of any variant-specific panels.
 
 This leaves us the flexibility to mark individual samples/families as having disease-relevant panels, which can then be
