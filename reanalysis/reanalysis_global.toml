@@ -11,7 +11,6 @@ panel_month_delta = 12
 require_pheno_match = ['FLG', 'GJB2']
 
 [clinvar]
-filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute', 'laboratory for molecular medicine; mass general brigham personalized medicine']
 filter_benign = ['illumina laboratory services; illumina']
 
 [moi_tests]
@@ -73,7 +72,7 @@ genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_cal
 
 [cohorts.acute-care]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
-cohort_percentage = 80
+#cohort_percentage = 80
 gene_prior = 'gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.ag-hidden]
@@ -82,7 +81,7 @@ gene_prior = 'gs://cpg-ag-hidden-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.brain-malf]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
-cohort_percentage = 80
+#cohort_percentage = 80
 gene_prior = 'gs://cpg-brain-malf-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.broad-rgp]
@@ -93,7 +92,7 @@ clinvar_filter = [
 gene_prior = "gs://cpg-broad-rgp-test-analysis/reanalysis/jan_2020_panels.json"
 
 [cohorts.circa]
-cohort_percentage = 80
+#cohort_percentage = 80
 
 [cohorts.epileptic-enceph]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']

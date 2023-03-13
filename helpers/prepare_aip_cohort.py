@@ -336,7 +336,9 @@ def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = Fal
 
     cohort_config = {
         'dataset_specific': {
-            'historic_results': str(remote_root / 'historic_results'),
+            'historic_results': str(remote_root / 'exome' / 'historic_results')
+            if exome
+            else str(remote_root / 'historic_results'),
             'external_lookup': reverse_lookup,
         }
     }
@@ -404,6 +406,9 @@ if __name__ == '__main__':
         '--obo', default=OBO_DEFAULT, help='path to the HPO .obo tree file'
     )
     parser.add_argument('-e', help='cohort is exomes', action='store_true')
+    parser.add_argument(
+        '--singletons', help='cohort as singletons', action='store_true'
+    )
     args = parser.parse_args()
     main(
         project=args.project,

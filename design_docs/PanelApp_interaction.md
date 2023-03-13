@@ -43,11 +43,11 @@ Algorithmically, the following process occurs:
 3 Query for each extra panel in turn, adding new genes from the additional panels
 
   * At each stage, if MOI was missing in a prior panel and present in the current panel, update the MOI
-  * Record all the panels the each gene appears on
+  * Record all the panels each gene appears on
 
 ## Notion of `New`
 
-As mentioned in the [README](../README.md#Gene Panel/ROI), we can supply prior data to AIP to ensure reanalysis is as
+As mentioned in the [README](../README.md#gene-panelroi), we can supply prior data to AIP to ensure reanalysis is as
 specific as possible. This data consists of all previously seen genes, and all panels on which each gene has been seen.
 A gene is considered to be 'new', when either:
 
