@@ -131,7 +131,7 @@ The latest Category included into AIP is _CategoryDetailsPM5_, which is used to 
 variant interpretation framework evidence type is suitable. This evidence is applied when a novel missense change
 creates a residue substitution at the same codon as a previously seen missense classified as Pathogenic in ClinVar.
 
-This category requires some pre-processing as follows (note: this is the exact alternative used so far based on CPG
+This category requires some pre-processing as follows (note: this is the exact method used so far based on CPG
 infrastructure, there may be easier ways to accomplish the preparatory stems in alternative deployments):
 
 * Acquire the latest VCF format file containing all the variants in ClinVar
