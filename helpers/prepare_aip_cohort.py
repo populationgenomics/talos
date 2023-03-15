@@ -383,6 +383,8 @@ def main(
         path_prefixes.append('exomes')
     if singletons:
         path_prefixes.append('singleton')
+
+    logging.info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
     hist_prefixes = path_prefixes + ['historic_results']
 
     cohort_config = {
