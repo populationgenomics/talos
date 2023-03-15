@@ -6,6 +6,7 @@ master script for preparing a run
 - optionally takes a seqr metadata file
 - copies relevant files to GCP
 - generates the cohort-specific TOML file
+- tweaks for making singleton versions of the given cohort
 """
 
 
@@ -139,24 +140,30 @@ PED_KEYS = [
 
 
 def get_ped_with_permutations(
-    pedigree_dicts: list[dict],
-    sample_to_cpg_dict: dict,
+    pedigree_dicts: list[dict], sample_to_cpg_dict: dict, make_singletons: bool = False
 ) -> list[dict]:
     """
     Take the pedigree entry representations from the pedigree endpoint
     translates sample IDs of all members to CPG values
     sample IDs are replaced with lists, containing all permutations
     where multiple samples exist
+    Optionally, overwrite all family structures and render as singletons
+    If we're running singletons, remove all unaffected
 
-    :param pedigree_dicts:
-    :param sample_to_cpg_dict:
-    :return:
+    Args:
+        pedigree_dicts ():
+        sample_to_cpg_dict ():
+        make_singletons ():
+
+    Returns:
+        list of dicts representing rows of the pedigree
     """
 
     new_entries = []
     failures: list[str] = []
 
-    for ped_entry in pedigree_dicts:
+    # enumerate to get ints - use these as family IDs if singletons
+    for counter, ped_entry in enumerate(pedigree_dicts, 1):
 
         if ped_entry['individual_id'] not in sample_to_cpg_dict:
             failures.append(ped_entry['individual_id'])
@@ -164,13 +171,21 @@ def get_ped_with_permutations(
         # update the sample IDs
         ped_entry['individual_id'] = sample_to_cpg_dict[ped_entry['individual_id']]
 
-        # remove parents and assign an individual sample ID
-        ped_entry['paternal_id'] = sample_to_cpg_dict.get(
-            ped_entry['paternal_id'], ['0']
-        )
-        ped_entry['maternal_id'] = sample_to_cpg_dict.get(
-            ped_entry['maternal_id'], ['0']
-        )
+        if make_singletons:
+            # skip unaffected singletons
+            if ped_entry['affected'] == 0:
+                continue
+            ped_entry['paternal_id'] = ['0']
+            ped_entry['maternal_id'] = ['0']
+            ped_entry['family_id'] = str(counter)
+        else:
+            # remove parents and assign an individual sample ID
+            ped_entry['paternal_id'] = sample_to_cpg_dict.get(
+                ped_entry['paternal_id'], ['0']
+            )
+            ped_entry['maternal_id'] = sample_to_cpg_dict.get(
+                ped_entry['maternal_id'], ['0']
+            )
 
         new_entries.append(ped_entry)
 
@@ -183,7 +198,10 @@ def get_ped_with_permutations(
 
 
 def process_pedigree(
-    ped_with_permutations: list[dict], local_dir: Path, remote_dir: Path
+    ped_with_permutations: list[dict],
+    local_dir: Path,
+    remote_dir: Path,
+    singletons: bool = False,
 ) -> str:
     """
     take the pedigree data, and write out as a correctly formatted PED file
@@ -193,6 +211,7 @@ def process_pedigree(
         ped_with_permutations (): the PED content with sample lists
         local_dir ():
         remote_dir ():
+        singletons (bool):
 
     Returns:
         The path we're writing the remote data to
@@ -220,11 +239,14 @@ def process_pedigree(
     # condense all lines into one
     single_line = ''.join(ped_lines)
 
+    # make the pedigree name
+    ped_name = f'{"singletons_" if singletons else ""}pedigree.ped'
+
     # write to a local file
-    (local_dir / 'pedigree.ped').write_text(single_line)
+    (local_dir / ped_name).write_text(single_line)
 
     # also write to the remote path
-    remote_path = remote_dir / 'pedigree.ped'
+    remote_path = remote_dir / ped_name
     remote_path.write_text(single_line)
     logging.info(f'Wrote pedigree with {len(ped_lines)} lines to {remote_path}')
 
@@ -236,8 +258,12 @@ def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
     """
     fetches the project pedigree from sample-metadata
     list, one dict per participant
-    :param project:
-    :return: all content retrieved from API
+
+    Args:
+        project (str): project/dataset to use in query
+
+    Returns:
+        All API returned content
     """
 
     return FamilyApi().get_pedigree(project=project)
@@ -278,9 +304,12 @@ def hash_reduce_dicts(pedigree_dicts: list[dict], hash_threshold: int) -> list[d
     Normalises the Hash value to the range 0 - 99
     if the normalised value exceeds the threshold, remove
 
-    :param pedigree_dicts:
-    :param hash_threshold: int
-    :return:
+    Args:
+        pedigree_dicts ():
+        hash_threshold ():
+
+    Returns:
+
     """
 
     logging.info(f'Reducing families to {hash_threshold}%')
@@ -298,9 +327,22 @@ def hash_reduce_dicts(pedigree_dicts: list[dict], hash_threshold: int) -> list[d
     return reduced_pedigree
 
 
-def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = False):
+def main(
+    project: str,
+    obo: str,
+    seqr_file: str | None = None,
+    exome: bool = False,
+    singletons: bool = False,
+):
     """
     Who runs the world? main()
+
+    Args:
+        project ():
+        obo ():
+        seqr_file ():
+        exome ():
+        singletons ():
     """
 
     local_root = to_path(LOCAL_TEMPLATE.format(dataset=project))
@@ -315,8 +357,7 @@ def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = Fal
     pedigree_dicts = get_pedigree_for_project(project=project)
 
     # if a threshold is provided, reduce the families present
-    cohort_config = get_config()['cohorts'][project]
-    hash_threshold = cohort_config.get('cohort_percentage', 100)
+    hash_threshold = get_config()['cohorts'][project].get('cohort_percentage', 100)
     if hash_threshold != 100:
         pedigree_dicts = hash_reduce_dicts(pedigree_dicts, hash_threshold)
 
@@ -329,16 +370,26 @@ def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = Fal
     ped_with_permutations = get_ped_with_permutations(
         pedigree_dicts=pedigree_dicts,
         sample_to_cpg_dict=sample_to_cpg_dict,
+        make_singletons=singletons,
     )
 
     # store a way of reversing this lookup in future
     reverse_lookup = process_reverse_lookup(sample_to_cpg_dict, local_root, remote_root)
 
+    # try a more universal way of preparing output paths
+    path_prefixes = []
+    if exome:
+        path_prefixes.append('exomes')
+    if singletons:
+        path_prefixes.append('singleton')
+
+    logging.info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
+
     cohort_config = {
         'dataset_specific': {
-            'historic_results': str(remote_root / 'exome' / 'historic_results')
-            if exome
-            else str(remote_root / 'historic_results'),
+            'historic_results': str(
+                remote_root / '/'.join(path_prefixes + ['historic_results'])
+            ),
             'external_lookup': reverse_lookup,
         }
     }
@@ -354,15 +405,16 @@ def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = Fal
             }
         )
 
-    ped_file = process_pedigree(ped_with_permutations, local_root, remote_root)
+    ped_file = process_pedigree(
+        ped_with_permutations, local_root, remote_root, singletons=singletons
+    )
 
-    if exome:
-        cohort_path = local_root / 'exome_config.toml'
-    else:
-        cohort_path = local_root / 'cohort_config.toml'
+    path_prefixes.append('cohort_config.toml')
+    cohort_path = local_root / '_'.join(path_prefixes)
 
     with cohort_path.open('w') as handle:
         toml.dump(cohort_config, handle)
+        logging.info(f'Wrote cohort config to {cohort_path}')
 
     # pull metadata from metamist/api content
     participants_hpo = query_and_parse_metadata(dataset_name=project)
@@ -379,18 +431,22 @@ def main(project: str, obo: str, seqr_file: str | None = None, exome: bool = Fal
     participant_panels = match_participants_to_panels(
         participants_hpo, hpo_to_panels, participant_map=sample_to_cpg_dict
     )
-
-    with (local_root / 'participant_panels.json').open('w') as handle:
+    panel_local = local_root / 'participant_panels.json'
+    with panel_local.open('w') as handle:
         json.dump(participant_panels, handle, indent=4, default=list)
+        logging.info(f'Wrote panel file to {panel_local}')
 
-    with (remote_root / 'participant_panels.json').open('w') as handle:
+    panel_remote = remote_root / 'participant_panels.json'
+    with panel_remote.open('w') as handle:
         json.dump(participant_panels, handle, indent=4, default=list)
+        logging.info(f'Wrote panel file to {panel_remote}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
     pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
     remote_panelapp = remote_root / 'pre_panelapp_mendeliome.json'
     with remote_panelapp.open('w') as handle:
         json.dump(pre_panelapp, handle, indent=4)
+        logging.info(f'Wrote VCGS gene prior file to {remote_panelapp}')
 
     logging.info(f'--pedigree {ped_file}')
 
@@ -415,4 +471,5 @@ if __name__ == '__main__':
         obo=args.obo,
         seqr_file=args.seqr,
         exome=args.e,
+        singletons=args.singletons,
     )
