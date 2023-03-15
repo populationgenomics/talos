@@ -357,8 +357,7 @@ def main(
     pedigree_dicts = get_pedigree_for_project(project=project)
 
     # if a threshold is provided, reduce the families present
-    cohort_config = get_config()['cohorts'][project]
-    hash_threshold = cohort_config.get('cohort_percentage', 100)
+    hash_threshold = get_config()['cohorts'][project].get('cohort_percentage', 100)
     if hash_threshold != 100:
         pedigree_dicts = hash_reduce_dicts(pedigree_dicts, hash_threshold)
 
@@ -385,11 +384,12 @@ def main(
         path_prefixes.append('singleton')
 
     logging.info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
-    hist_prefixes = path_prefixes + ['historic_results']
 
     cohort_config = {
         'dataset_specific': {
-            'historic_results': str(remote_root / '/'.join(hist_prefixes)),
+            'historic_results': str(
+                remote_root / '/'.join(path_prefixes + ['historic_results'])
+            ),
             'external_lookup': reverse_lookup,
         }
     }
@@ -414,6 +414,7 @@ def main(
 
     with cohort_path.open('w') as handle:
         toml.dump(cohort_config, handle)
+        logging.info(f'Wrote cohort config to {cohort_path}')
 
     # pull metadata from metamist/api content
     participants_hpo = query_and_parse_metadata(dataset_name=project)
@@ -430,18 +431,22 @@ def main(
     participant_panels = match_participants_to_panels(
         participants_hpo, hpo_to_panels, participant_map=sample_to_cpg_dict
     )
-
-    with (local_root / 'participant_panels.json').open('w') as handle:
+    panel_local = local_root / 'participant_panels.json'
+    with panel_local.open('w') as handle:
         json.dump(participant_panels, handle, indent=4, default=list)
+        logging.info(f'Wrote panel file to {panel_local}')
 
-    with (remote_root / 'participant_panels.json').open('w') as handle:
+    panel_remote = remote_root / 'participant_panels.json'
+    with panel_remote.open('w') as handle:
         json.dump(participant_panels, handle, indent=4, default=list)
+        logging.info(f'Wrote panel file to {panel_remote}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
     pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
     remote_panelapp = remote_root / 'pre_panelapp_mendeliome.json'
     with remote_panelapp.open('w') as handle:
         json.dump(pre_panelapp, handle, indent=4)
+        logging.info(f'Wrote VCGS gene prior file to {remote_panelapp}')
 
     logging.info(f'--pedigree {ped_file}')
 
