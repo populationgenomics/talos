@@ -17,6 +17,14 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+
+from sample_metadata.apis import AnalysisApi
+from sample_metadata.model.analysis_type import AnalysisType
+from sample_metadata.model.analysis_model import AnalysisModel
+from sample_metadata.model.analysis_status import AnalysisStatus
+from sample_metadata.model.analysis_query_model import AnalysisQueryModel
+from sample_metadata.model.analysis_update_model import AnalysisUpdateModel
+
 from reanalysis.utils import read_json_from_path, get_cohort_config
 
 
@@ -79,14 +87,6 @@ def register_html(pedigree: str, html_path: str):
         'is_exome': bool('exome' in html_path),
         'is_singleton': bool('singleton' in html_path),
     }
-
-    # pylint: disable=import-outside-toplevel
-    from sample_metadata.apis import AnalysisApi
-    from sample_metadata.model.analysis_type import AnalysisType
-    from sample_metadata.model.analysis_model import AnalysisModel
-    from sample_metadata.model.analysis_status import AnalysisStatus
-    from sample_metadata.model.analysis_query_model import AnalysisQueryModel
-    from sample_metadata.model.analysis_update_model import AnalysisUpdateModel
 
     # find any previous AnalysisEntries... Update to active=False
     a_query_model = AnalysisQueryModel(
@@ -470,7 +470,4 @@ if __name__ == '__main__':
     html.write_html(output_path=args.out_path)
 
     # upon success, register the results
-    try:
-        register_html(pedigree=args.pedigree, html_path=args.out_path)
-    except Exception:  # pylint: disable=broad-except
-        logging.info('this will specifically fail outside CPG')
+    register_html(pedigree=args.pedigree, html_path=args.out_path)
