@@ -53,6 +53,78 @@ def variant_in_forbidden_gene(variant_dict, forbidden_genes):
     return False
 
 
+def register_html(pedigree: str, html_path: str):
+    """
+    Takes the output HTML from this analysis and registers it in
+    Metamist. Deprecates any existing HTML results
+
+    Args:
+        pedigree (str): path to the Pedigree file
+        html_path (str): path we wrote an HTMl file to
+    """
+
+    if get_config()['workflow']['access_level'] == 'test':
+        # never update metamist in test mode - no permission
+        return
+
+    pedigree = Ped(pedigree)
+
+    # yank out all the sample IDs used in this analysis
+    # prone to error - really we want an intersection between
+    # the pedigree and the actual VCF/MT
+    samples = sorted(s.sample_id for s in pedigree.samples())
+
+    # METAAAAAAAA -Exomes/genomes, Singletons/not
+    report_meta = {
+        'is_exome': bool('exome' in html_path),
+        'is_singleton': bool('singleton' in html_path),
+    }
+
+    # pylint: disable=import-outside-toplevel
+    from sample_metadata.apis import AnalysisApi
+    from sample_metadata.model.analysis_type import AnalysisType
+    from sample_metadata.model.analysis_model import AnalysisModel
+    from sample_metadata.model.analysis_status import AnalysisStatus
+    from sample_metadata.model.analysis_query_model import AnalysisQueryModel
+    from sample_metadata.model.analysis_update_model import AnalysisUpdateModel
+
+    # find any previous AnalysisEntries... Update to active=False
+    a_query_model = AnalysisQueryModel(
+        projects=[get_config()['workflow']['dataset']], type=AnalysisType('web')
+    )
+    for analysis in AnalysisApi().query_analyses(analysis_query_model=a_query_model):
+        # only look for reanalysis entries
+        if 'reanalysis' not in analysis['output']:
+            continue
+
+        # skip over reports that don't match this subtype
+        for key, value in report_meta.items():
+            if analysis['meta'][key] != value:
+                continue
+
+        # if we got this far, check its active then kill it
+        if analysis['active']:
+            # update
+            AnalysisApi().update_analysis_status(
+                analysis_id=analysis['id'],
+                analysis_update_model=AnalysisUpdateModel(
+                    status=AnalysisStatus('completed'), active=False
+                ),
+            )
+
+    AnalysisApi().create_new_analysis(
+        project=get_config()['workflow']['dataset'],
+        analysis_model=AnalysisModel(
+            sample_ids=samples,
+            type=AnalysisType('web'),
+            status=AnalysisStatus('completed'),
+            output=html_path,
+            meta=report_meta,
+            active=True,
+        ),
+    )
+
+
 class HTMLBuilder:
     """
     Takes the input, makes the output
@@ -396,3 +468,9 @@ if __name__ == '__main__':
         results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
     html.write_html(output_path=args.out_path)
+
+    # upon success, register the results
+    try:
+        register_html(pedigree=args.pedigree, html_path=args.out_path)
+    except Exception:  # pylint: disable=broad-except
+        logging.info('this will specifically fail outside CPG')
