@@ -12,12 +12,12 @@ from os.path import join
 from pathlib import Path
 
 import jinja2
-from google.api_core.exceptions import NotFound
-from google.cloud import storage
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from sample_metadata.apis import ProjectApi
+from sample_metadata.apis import AnalysisApi, ProjectApi
+from sample_metadata.model.analysis_type import AnalysisType
+from sample_metadata.model.analysis_query_model import AnalysisQueryModel
 
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -45,35 +45,29 @@ def main():
 
     for cohort in ProjectApi().get_my_projects():
 
-        try:
-            root = join(get_config()['storage'][cohort]['web'], 'reanalysis')
-            bucket_name, prefix = root.removeprefix('gs://').split('/', maxsplit=1)
-            client = storage.Client()
-            blobs = sorted(
-                client.list_blobs(bucket_name, prefix=prefix), key=lambda x: x.updated
-            )
-        except NotFound:
-            continue
-        except KeyError:
-            continue
-
-        # iterate through, oldest to latest, replacing as new ones are found
-        for blob in blobs:
-            if not blob.name.endswith('html'):
+        # find any previous AnalysisEntries... Update to active=False
+        a_query_model = AnalysisQueryModel(
+            projects=[cohort], type=AnalysisType('web'), active=True
+        )
+        for analysis in AnalysisApi().query_analyses(
+            analysis_query_model=a_query_model
+        ):
+            # only look for reanalysis entries
+            if 'reanalysis' not in analysis['output']:
                 continue
 
-            web_template = get_config()['storage'][cohort]['web_url']
+            # pull the exome/singleton flags
+            exome_output = analysis['meta'].get('is_exome', False)
+            singleton_output = analysis['meta'].get('is_singleton', False)
 
-            report_obj = Report(
+            # incorporate that into a key when gathering
+            all_cohorts[f'{cohort}_{exome_output}_{singleton_output}'] = Report(
                 dataset=cohort,
-                address=join(web_template, blob.name),
-                genome_or_exome='Exome' if '/exomes/' in blob.name else 'Genome',
-                subtype='Singleton' if 'singleton_' in blob.name else 'Familial',
-                date=str(blob.updated).split()[0],
+                address=analysis['output'],
+                genome_or_exome='Exome' if exome_output else 'Genome',
+                subtype='Singleton' if singleton_output else 'Familial',
+                date=analysis['timestamp_completed'].split('T')[0],
             )
-            all_cohorts[
-                f'{cohort}_{report_obj.genome_or_exome}_{report_obj.subtype}'
-            ] = report_obj
 
     # smoosh into a list for the report context - all reports sortable by date
     template_context = {'reports': list(all_cohorts.values())}
