@@ -303,12 +303,8 @@ def main(
 
     # modify output paths depending on analysis type
     output_dict = {
-        'web_html': output_path(
-            f'{"singleton" if singletons else "summary"}_output.html', 'web'
-        ),
-        'results': output_path(
-            f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
-        ),
+        'web_html': f'{"singleton" if singletons else "summary"}_output.html',
+        'results': f'{"singleton" if singletons else "summary"}_results.json',
     }
     # endregion
 

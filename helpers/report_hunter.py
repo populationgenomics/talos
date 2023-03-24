@@ -63,7 +63,7 @@ def main():
             # incorporate that into a key when gathering
             all_cohorts[f'{cohort}_{exome_output}_{singleton_output}'] = Report(
                 dataset=cohort,
-                address=analysis['output'],
+                address=analysis['meta']['display_url'],
                 genome_or_exome='Exome' if exome_output else 'Genome',
                 subtype='Singleton' if singleton_output else 'Familial',
                 date=analysis['timestamp_completed'].split('T')[0],
