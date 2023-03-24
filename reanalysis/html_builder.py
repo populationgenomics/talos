@@ -126,7 +126,7 @@ def register_html(pedigree: str, html_path: str):
             sample_ids=samples,
             type=AnalysisType('web'),
             status=AnalysisStatus('completed'),
-            output=html_path,
+            output=output_path(html_path, 'web'),
             meta=report_meta,
             active=True,
         ),
