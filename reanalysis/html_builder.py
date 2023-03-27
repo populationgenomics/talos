@@ -8,6 +8,7 @@ import logging
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
+from os.path import join
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+from cpg_utils.hail_batch import output_path
 
 from sample_metadata.apis import AnalysisApi
 from sample_metadata.model.analysis_type import AnalysisType
@@ -82,10 +84,16 @@ def register_html(pedigree: str, html_path: str):
     # the pedigree and the actual VCF/MT
     samples = sorted(s.sample_id for s in pedigree.samples())
 
-    # METAAAAAAAA -Exomes/genomes, Singletons/not
+    web_template = get_config()['storage']['default']['web_url']
+    display_url = join(
+        web_template, get_config()['workflow']['output_prefix'], html_path
+    )
+
+    # Create object Meta - Exomes/genomes, Singletons/not, proxied html path
     report_meta = {
-        'is_exome': bool('exome' in html_path),
-        'is_singleton': bool('singleton' in html_path),
+        'is_exome': bool('exome' in display_url),
+        'is_singleton': bool('singleton' in display_url),
+        'display_url': display_url,
     }
 
     # find any previous AnalysisEntries... Update to active=False
@@ -118,7 +126,7 @@ def register_html(pedigree: str, html_path: str):
             sample_ids=samples,
             type=AnalysisType('web'),
             status=AnalysisStatus('completed'),
-            output=html_path,
+            output=output_path(html_path, 'web'),
             meta=report_meta,
             active=True,
         ),
@@ -288,11 +296,15 @@ class HTMLBuilder:
 
         return tables
 
-    def write_html(self, output_path: str):
+    def write_html(self, output_filepath: str):
         """
         Uses the results to create the HTML tables
         writes all content to the output path
+
+        Args:
+            output_filepath ():
         """
+
         summary_table, zero_categorised_samples = self.get_summary_stats()
 
         template_context = {
@@ -335,7 +347,7 @@ class HTMLBuilder:
         )
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        to_path(output_path).write_text(
+        to_path(output_filepath).write_text(
             '\n'.join(line for line in content.split('\n') if line.strip())
         )
 
@@ -461,13 +473,13 @@ if __name__ == '__main__':
     parser.add_argument('--results', help='Path to analysis results', required=True)
     parser.add_argument('--pedigree', help='PED file', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
-    parser.add_argument('--out_path', help='results path', required=True)
+    parser.add_argument('--out_path', help='final HTML filename', required=True)
     args = parser.parse_args()
 
     html = HTMLBuilder(
         results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
-    html.write_html(output_path=args.out_path)
+    html.write_html(output_path(args.out_path, 'web'))
 
     # upon success, register the results
     register_html(pedigree=args.pedigree, html_path=args.out_path)

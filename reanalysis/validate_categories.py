@@ -26,6 +26,7 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+from cpg_utils.hail_batch import output_path
 
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
@@ -494,7 +495,7 @@ def main(
     }
 
     # store results using the custom-encoder to transform sets & DataClasses
-    with to_path(out_json).open('w') as fh:
+    with to_path(output_path(out_json, 'analysis')).open('w') as fh:
         json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 
