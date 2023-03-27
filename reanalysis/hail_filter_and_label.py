@@ -819,6 +819,9 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
     """
     write the remaining MatrixTable content to file as a VCF
 
+    generate a custom header containing the CSQ contents which
+    were retained during this run
+
     Args:
         mt (): the whole MatrixTable
     Returns:
@@ -828,14 +831,17 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
     # this temp file needs to be in GCP, not local
     # otherwise the batch that generates the file won't be able to read
     additional_cloud_path = output_path('additional_header.txt', 'tmp')
+
+    # generate a CSQ string specific to the config file for decoding later
+    csq_contents = '|'.join(get_config()['csq']['csq_string'])
+
+    # write this custom header locally
     with to_path(additional_cloud_path).open('w') as handle:
         handle.write(
-            '##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: '
-            'allele|consequence|symbol|gene|feature|mane_select|biotype|exon|hgvsc|'
-            'hgvsp|cdna_position|cds_position|protein_position|amino_acids|codons|'
-            'allele_num|variant_class|tsl|appris|ccds|ensp|swissprot|trembl|uniparc|'
-            'gene_pheno|sift|polyphen|lof|lof_filter|lof_flags">'
+            f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: {csq_contents}">'
         )
+
+    # create output path
     vcf_out = output_path('hail_categorised.vcf.bgz', 'analysis')
     logging.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
