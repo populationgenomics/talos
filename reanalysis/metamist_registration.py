@@ -86,6 +86,9 @@ def register_html(file_path: str, samples: list[str]):
         AnalysisType('web') if 'html' in file_path else AnalysisType('custom')
     )
 
+    # find any previous versions of this AnalysisEntry, and deactivate
+    inactivate_old_entry(name=file_path, metadata=report_meta, anal_type=analysis_type)
+
     # add HTML-specific elements
     if file_path.endswith('html'):
 
@@ -95,9 +98,6 @@ def register_html(file_path: str, samples: list[str]):
             web_template, get_config()['workflow']['output_prefix'], file_name
         )
         report_meta['display_url'] = display_url
-
-    # find any previous versions of this AnalysisEntry, and deactivate
-    inactivate_old_entry(name=file_path, metadata=report_meta, anal_type=analysis_type)
 
     AnalysisApi().create_new_analysis(
         project=get_config()['workflow']['dataset'],
