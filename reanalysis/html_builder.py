@@ -8,7 +8,6 @@ import logging
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
-from os.path import join
 from pathlib import Path
 from typing import Any
 
@@ -18,14 +17,6 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import output_path
-
-from sample_metadata.apis import AnalysisApi
-from sample_metadata.model.analysis_type import AnalysisType
-from sample_metadata.model.analysis_model import AnalysisModel
-from sample_metadata.model.analysis_status import AnalysisStatus
-from sample_metadata.model.analysis_query_model import AnalysisQueryModel
-from sample_metadata.model.analysis_update_model import AnalysisUpdateModel
 
 from reanalysis.utils import read_json_from_path, get_cohort_config
 
@@ -61,76 +52,6 @@ def variant_in_forbidden_gene(variant_dict, forbidden_genes):
             return True
 
     return False
-
-
-def register_html(pedigree: str, html_path: str):
-    """
-    Takes the output HTML from this analysis and registers it in
-    Metamist. Deprecates any existing HTML results
-
-    Args:
-        pedigree (str): path to the Pedigree file
-        html_path (str): path we wrote an HTMl file to
-    """
-
-    if get_config()['workflow']['access_level'] == 'test':
-        # never update metamist in test mode - no permission
-        return
-
-    pedigree = Ped(pedigree)
-
-    # yank out all the sample IDs used in this analysis
-    # prone to error - really we want an intersection between
-    # the pedigree and the actual VCF/MT
-    samples = sorted(s.sample_id for s in pedigree.samples())
-
-    web_template = get_config()['storage']['default']['web_url']
-    display_url = join(
-        web_template, get_config()['workflow']['output_prefix'], html_path
-    )
-
-    # Create object Meta - Exomes/genomes, Singletons/not, proxied html path
-    report_meta = {
-        'is_exome': bool('exome' in display_url),
-        'is_singleton': bool('singleton' in display_url),
-        'display_url': display_url,
-    }
-
-    # find any previous AnalysisEntries... Update to active=False
-    a_query_model = AnalysisQueryModel(
-        projects=[get_config()['workflow']['dataset']], type=AnalysisType('web')
-    )
-    for analysis in AnalysisApi().query_analyses(analysis_query_model=a_query_model):
-        # only look for reanalysis entries
-        if 'reanalysis' not in analysis['output']:
-            continue
-
-        # skip over reports that don't match this subtype
-        for key, value in report_meta.items():
-            if analysis['meta'][key] != value:
-                continue
-
-        # if we got this far, check its active then kill it
-        if analysis['active']:
-            # update
-            AnalysisApi().update_analysis_status(
-                analysis_id=analysis['id'],
-                analysis_update_model=AnalysisUpdateModel(
-                    status=AnalysisStatus('completed'), active=False
-                ),
-            )
-
-    AnalysisApi().create_new_analysis(
-        project=get_config()['workflow']['dataset'],
-        analysis_model=AnalysisModel(
-            sample_ids=samples,
-            type=AnalysisType('web'),
-            status=AnalysisStatus('completed'),
-            output=output_path(html_path, 'web'),
-            meta=report_meta,
-            active=True,
-        ),
-    )
 
 
 class HTMLBuilder:
@@ -473,13 +394,10 @@ if __name__ == '__main__':
     parser.add_argument('--results', help='Path to analysis results', required=True)
     parser.add_argument('--pedigree', help='PED file', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
-    parser.add_argument('--out_path', help='final HTML filename', required=True)
+    parser.add_argument('--output', help='final HTML filename', required=True)
     args = parser.parse_args()
 
     html = HTMLBuilder(
         results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
-    html.write_html(output_path(args.out_path, 'web'))
-
-    # upon success, register the results
-    register_html(pedigree=args.pedigree, html_path=args.out_path)
+    html.write_html(args.out_path)

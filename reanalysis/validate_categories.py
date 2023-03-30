@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+
 """
 runs between classification and publishing results
 takes a number of inputs:
@@ -20,13 +23,11 @@ from datetime import datetime
 from typing import Union
 
 import click
-import peddy
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import output_path
 
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
@@ -329,7 +330,7 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
 
 def prepare_results_shell(
-    vcf_samples: list[str], pedigree: peddy.Ped, panel_data: dict | None, panelapp: dict
+    vcf_samples: list[str], pedigree: Ped, panel_data: dict | None, panelapp: dict
 ) -> dict:
     """
     prepare an empty dictionary for the results, feat. participant metadata
@@ -495,7 +496,7 @@ def main(
     }
 
     # store results using the custom-encoder to transform sets & DataClasses
-    with to_path(output_path(out_json, 'analysis')).open('w') as fh:
+    with to_path(out_json).open('w') as fh:
         json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 

@@ -41,6 +41,7 @@ from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 from reanalysis import (
     hail_filter_and_label,
     html_builder,
+    metamist_registration,
     mt_to_vcf,
     query_panelapp,
     summarise_clinvar_entries,
@@ -229,7 +230,7 @@ def handle_results_job(
     labelled_vcf: str,
     pedigree: str,
     input_path: str,
-    output_dict: dict[str, str],
+    output: str,
     prior_job: Job | None = None,
     participant_panels: str | None = None,
 ):
@@ -240,7 +241,7 @@ def handle_results_job(
         labelled_vcf ():
         pedigree ():
         input_path (str): path to the input file, logged in metadata
-        output_dict ():
+        output ():
         prior_job ():
         participant_panels ():
     """
@@ -257,17 +258,93 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {output_dict["results"]} '
+        f'--out_json {output} '
         f'--input_path {input_path} '
-        f'{gene_filter_files} && '
-        f'python3 {html_builder.__file__} '
-        f'--results {output_dict["results"]} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
-        f'--pedigree {pedigree} '
-        f'--out_path {output_dict["web_html"]}'
+        f'{gene_filter_files}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
+    return results_job
+
+
+def handle_result_presentation_job(
+    prior_job: Job | None = None, **kwargs
+) -> Job | None:
+    """
+    run the presentation element
+    allow for selection of the presentation script and its arguments
+
+    Args:
+        prior_job ():
+        kwargs (): all required arguments for the chosen presentation script
+    Returns:
+        The output file created and associated job
+    """
+
+    # if a new script is added, it needs to be registered here to become usable
+    scripts_and_inputs = {
+        'cpg': (html_builder.__file__, ['results', 'panelapp', 'pedigree', 'output'])
+    }
+
+    output_mode = get_config()['workflow'].get('presentation', 'cpg')
+
+    # if we don't have a valid method, return the prior job
+    if output_mode not in scripts_and_inputs:
+        logging.warning(f'Invalid presentation mode: {output_mode}')
+        return prior_job
+
+    # extract the required inputs for the selected script
+    script, required_inputs = scripts_and_inputs[output_mode]
+
+    # set the panelapp global variable in kwargs
+    kwargs['panelapp'] = PANELAPP_JSON_OUT
+
+    display = get_batch().new_job(name='finalise_results')
+    set_job_resources(display, prior_job=prior_job)
+
+    # assemble command from relevant variables
+    script_params = ' '.join(
+        [f'--{named_input} {kwargs[named_input]} ' for named_input in required_inputs]
+    )
+    html_command = f'python3 {script} {script_params}'
+
+    logging.info(f'HTML generation command: {html_command}')
+    display.command(html_command)
+    return display
+
+
+def handle_registration_jobs(
+    files: list[str], registry: str, pedigree: str, prior_job: Job | None = None
+):
+    """
+    take a list of files and register them using the defined method
+
+    Args:
+        files (list[str]): all files to register from this analysis
+        registry (str): registration service to use
+        pedigree (str): path to a pedigree file (copied into batch)
+        prior_job (Job): set workflow dependency if required
+    """
+
+    # dictionary with all known registration services
+    registrars = {'metamist': metamist_registration.__file__}
+
+    # if we don't have a valid method, return the prior job
+    if registry not in registrars:
+        logging.error(f'Invalid registration mode: {registry}')
+        return
+
+    # create a new job that will run even if the rest of the workflow fails
+    registration_job = get_batch().new_job(name='register_results')
+    set_job_resources(registration_job, prior_job=prior_job)
+    registration_job.always_run(True)
+
+    metadata_command = (
+        f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
+    )
+
+    logging.info(f'Metadata registration command: {metadata_command}')
+    registration_job.command(metadata_command)
 
 
 def main(
@@ -303,8 +380,12 @@ def main(
 
     # modify output paths depending on analysis type
     output_dict = {
-        'web_html': f'{"singleton" if singletons else "summary"}_output.html',
-        'results': f'{"singleton" if singletons else "summary"}_results.json',
+        'web_html': output_path(
+            f'{"singleton" if singletons else "summary"}_output.html', 'web'
+        ),
+        'results': output_path(
+            f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
+        ),
     }
     # endregion
 
@@ -385,8 +466,8 @@ def main(
             depends_on=vep_jobs,
             use_dataproc=False,
         )
+        output_dict['annotated_mt'] = ANNOTATED_MT
         prior_job = anno_job[-1]
-
     # endregion
 
     #  region: query panelapp
@@ -405,6 +486,7 @@ def main(
         prior_job = handle_hail_filtering(
             prior_job=prior_job, plink_file=pedigree_in_batch, clinvar=clinvar_table
         )
+        output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion
 
     # read VCF into the batch as a local file
@@ -414,14 +496,33 @@ def main(
 
     # region: run results job
     # pointing this analysis at the updated config file, including input metadata
-    handle_results_job(
+    prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
         pedigree=pedigree_in_batch,
         input_path=input_path,
-        output_dict=output_dict,
+        output=output_dict['results'],
         prior_job=prior_job,
         participant_panels=participant_panels,
     )
+    prior_job = handle_result_presentation_job(
+        prior_job=prior_job,
+        pedigree=pedigree_in_batch,
+        output=output_dict['web_html'],
+        results=output_dict['results'],
+    )
+    prior_job.always_run()
+    # endregion
+
+    # region: output registration job
+    # register the output files in metamist if required
+    if registry := get_config()['workflow'].get('register'):
+        logging.info(f'Metadata registration will be done using {registry}')
+        handle_registration_jobs(
+            files=sorted(output_dict.values()),
+            pedigree=pedigree_in_batch,
+            registry=registry,
+            prior_job=prior_job,
+        )
     # endregion
 
     # region: copy data out
