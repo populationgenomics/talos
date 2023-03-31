@@ -246,7 +246,7 @@ def handle_results_job(
         participant_panels ():
     """
 
-    results_job = get_batch().new_job(name='finalise_results')
+    results_job = get_batch().new_job(name='MOI tests')
     set_job_resources(results_job, prior_job=prior_job)
 
     gene_filter_files = (
@@ -299,7 +299,7 @@ def handle_result_presentation_job(
     # set the panelapp global variable in kwargs
     kwargs['panelapp'] = PANELAPP_JSON_OUT
 
-    display = get_batch().new_job(name='finalise_results')
+    display = get_batch().new_job(name='Result Presentation')
     set_job_resources(display, prior_job=prior_job)
 
     # assemble command from relevant variables
