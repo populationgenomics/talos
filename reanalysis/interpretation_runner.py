@@ -50,34 +50,36 @@ from reanalysis import (
 from reanalysis.utils import FileTypes, identify_file_type
 
 
+# region: CONSTANTS
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 
 # static paths to write outputs
-INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
-
-# phases of annotation
 ANNOTATED_MT = output_path('annotated_variants.mt')
-
-# panelapp query results
-PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
-
-# output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
+INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
+PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
+# endregion
 
 
-def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = 'standard'):
+def set_job_resources(
+    job: Job,
+    prior_job: Job | None = None,
+    memory: str = 'standard',
+    storage: str = '20GiB',
+):
     """
-    applied resources to the job
+    apply resources to the job
 
     Args:
-        job ():
-        prior_job ():
+        job (Job): the job to set resources on
+        prior_job (Job): the job to depend on (or None)
         memory (str): lowmem/standard/highmem
+        storage (str): storage setting to use
     """
-    # apply all settings
+    # apply all settings to this job
     job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
-        '20G'
+        storage
     )
 
     # copy the env variables into the container; specifically CPG_CONFIG_PATH
@@ -212,7 +214,7 @@ def handle_hail_filtering(
     """
 
     labelling_job = get_batch().new_job(name='hail filtering')
-    set_job_resources(labelling_job, prior_job=prior_job, memory='32Gi')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='32GiB')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
@@ -238,12 +240,12 @@ def handle_results_job(
     one container to run the MOI checks, and the presentation
 
     Args:
-        labelled_vcf ():
-        pedigree ():
+        labelled_vcf (str): path to the VCF created by Hail runtime
+        pedigree (str): path to the pedigree file
         input_path (str): path to the input file, logged in metadata
-        output ():
-        prior_job ():
-        participant_panels ():
+        output (str): path to JSON file to write
+        prior_job (Job): to depend on, or None
+        participant_panels (str): Optional, path to pheno-matched panels
     """
 
     results_job = get_batch().new_job(name='MOI tests')
@@ -274,11 +276,34 @@ def handle_result_presentation_job(
     run the presentation element
     allow for selection of the presentation script and its arguments
 
+    Note: The model here is to allow other non-CPG sites/users to
+          implement their own presentation scripts, and to allow for the
+          same method to be shared by all users. The contract here is that
+          the presentation script must one or more named arguments, and
+          the argument name must match the name passed to this method,
+          i.e. `--panelapp {kwargs['panelapp']} `
+
+          The contract also requires that new presentation scripts must
+          not inactivate others, i.e. a runtime configuration setting
+          should allow a user to select from any of the available scripts
+          based on a config parameter.
+
+    This isn't a super slick implementation, as there are no other users
+    of this method, but it's a start. Alternative scripts will have to be
+    created in code, at which point the script and this little mapping will
+    both have to be updated.
+
+    kwargs currently in use:
+        - results: the JSON of results created by validate_categories.py
+        - panelapp: the JSON of panelapp data
+        - pedigree: the pedigree file (file accessible within the batch)
+        - output: the output file path
+
     Args:
-        prior_job ():
-        kwargs (): all required arguments for the chosen presentation script
+        prior_job (Job): used in workflow dependency setting
+        kwargs (): key-value arguments for presentation script
     Returns:
-        The output file created and associated job
+        The associated job
     """
 
     # if a new script is added, it needs to be registered here to become usable
@@ -317,7 +342,16 @@ def handle_registration_jobs(
     files: list[str], registry: str, pedigree: str, prior_job: Job | None = None
 ):
     """
-    take a list of files and register them using the defined method
+    Take a list of files and register them using the defined method.
+    This registration is within a metadata DB, used to track analysis
+    products, and the samples they correspond to.
+
+    Note: Similar contract to the one as defined above in
+          handle_result_presentation_job - the `registrars` mapping
+          should contain all valid registration scripts, and an ID
+          for each. At runtime the user should be able to select any
+          registered scripts using a config parameter. If an invalid
+          registrar is selected, nothing will be done.
 
     Args:
         files (list[str]): all files to register from this analysis
@@ -358,11 +392,11 @@ def main(
     main method, which runs the full reanalysis process
 
     Args:
-        input_path (): path to the VCF/MT
-        pedigree (): family file for this analysis
-        participant_panels (): file containing panels-per-family (optional)
-        singletons (): run as Singletons (with appropriate output paths)
-        skip_annotation (): if the input is annotated, don't re-run
+        input_path (str): path to the VCF/MT
+        pedigree (str): family file for this analysis
+        participant_panels (str): file containing panels-per-family (optional)
+        singletons (bool): run as Singletons (with appropriate output paths)
+        skip_annotation (bool): if the input is annotated, don't re-run
     """
 
     assert to_path(
