@@ -2,6 +2,7 @@
 <thead>
     <tr>
     <th class="group-separator">Individual </th>
+    <th class="group-separator">Family ID </th>
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
     <th class="group-false">Categories</th>
@@ -29,6 +30,10 @@
         {% if sample.name != sample.ext_id %}
             <br><span class="text-muted">({{ sample }})</span>
         {% endif %}
+    </td>
+    # add family ID
+    <td>
+        {{sample.family_id}}
     </td>
     <td>
         {# Coordinates #}
