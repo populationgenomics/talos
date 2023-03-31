@@ -41,6 +41,7 @@ codon_table = "gs://cpg-common-test/clinvar/codon_indexed.ht"
 critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
 gerp = 1.0
 eigen = 0.25
+max_parent_ab = 0.05
 minimum_depth = 10
 polyphen = 0.99
 revel = 0.77
