@@ -27,3 +27,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Separated out metadata registration into a separate file & job
 * File registration is set to `always_run`, if indicated in config
+* De Novo calling (hail method) can have `max_parent_ab` ratio overridden in config
