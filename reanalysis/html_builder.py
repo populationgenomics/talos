@@ -488,4 +488,4 @@ if __name__ == '__main__':
     html = HTMLBuilder(
         results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
-    html.write_html(args.out_path)
+    html.write_html(output_filepath=args.output)
