@@ -524,7 +524,6 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
         pedigree,
         pop_frequency_prior=de_novo_matrix.info.gnomad_af,
         ignore_in_sample_allele_frequency=True,
-        max_parent_ab=get_config()['filter'].get('max_parent_ab', 0.05),
     )
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
