@@ -138,10 +138,11 @@ def get_samples_from_pedigree(pedfile: str) -> list[str]:
 
 @click.command()
 @click.option('--pedigree', help='pedigree file to pull samples from')
-@click.argument('files', help='files to register', nargs=-1)
+@click.argument('files', nargs=-1)
 def main(pedigree: str, files: list[str]):
     """
     Takes output file paths from this analysis and registers
+
     Args:
         files (list[str]): list of files to operate on
         pedigree (str): Pedigree file to pull samples from
