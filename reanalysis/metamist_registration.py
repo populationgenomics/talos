@@ -170,3 +170,7 @@ def main(pedigree: str, files: list[str]):
         else:
             logging.error(f'Could not see file {file}, will not be registered')
     logging.info('Completed file registration')
+
+
+if __name__ == '__main__':
+    main()  # pylint: disable=no-value-for-parameter
