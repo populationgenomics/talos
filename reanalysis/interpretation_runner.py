@@ -41,6 +41,7 @@ from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 from reanalysis import (
     hail_filter_and_label,
     html_builder,
+    metamist_registration,
     mt_to_vcf,
     query_panelapp,
     summarise_clinvar_entries,
@@ -49,34 +50,36 @@ from reanalysis import (
 from reanalysis.utils import FileTypes, identify_file_type
 
 
+# region: CONSTANTS
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 
 # static paths to write outputs
-INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
-
-# phases of annotation
 ANNOTATED_MT = output_path('annotated_variants.mt')
-
-# panelapp query results
-PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
-
-# output of labelling task in Hail
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
+INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
+PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
+# endregion
 
 
-def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = 'standard'):
+def set_job_resources(
+    job: Job,
+    prior_job: Job | None = None,
+    memory: str = 'standard',
+    storage: str = '20GiB',
+):
     """
-    applied resources to the job
+    apply resources to the job
 
     Args:
-        job ():
-        prior_job ():
+        job (Job): the job to set resources on
+        prior_job (Job): the job to depend on (or None)
         memory (str): lowmem/standard/highmem
+        storage (str): storage setting to use
     """
-    # apply all settings
+    # apply all settings to this job
     job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
-        '20G'
+        storage
     )
 
     # copy the env variables into the container; specifically CPG_CONFIG_PATH
@@ -211,7 +214,7 @@ def handle_hail_filtering(
     """
 
     labelling_job = get_batch().new_job(name='hail filtering')
-    set_job_resources(labelling_job, prior_job=prior_job, memory='32Gi')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='32GiB')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
@@ -229,7 +232,7 @@ def handle_results_job(
     labelled_vcf: str,
     pedigree: str,
     input_path: str,
-    output_dict: dict[str, str],
+    output: str,
     prior_job: Job | None = None,
     participant_panels: str | None = None,
 ):
@@ -237,15 +240,15 @@ def handle_results_job(
     one container to run the MOI checks, and the presentation
 
     Args:
-        labelled_vcf ():
-        pedigree ():
+        labelled_vcf (str): path to the VCF created by Hail runtime
+        pedigree (str): path to the pedigree file
         input_path (str): path to the input file, logged in metadata
-        output_dict ():
-        prior_job ():
-        participant_panels ():
+        output (str): path to JSON file to write
+        prior_job (Job): to depend on, or None
+        participant_panels (str): Optional, path to pheno-matched panels
     """
 
-    results_job = get_batch().new_job(name='finalise_results')
+    results_job = get_batch().new_job(name='MOI tests')
     set_job_resources(results_job, prior_job=prior_job)
 
     gene_filter_files = (
@@ -257,17 +260,125 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {output_dict["results"]} '
+        f'--out_json {output} '
         f'--input_path {input_path} '
-        f'{gene_filter_files} && '
-        f'python3 {html_builder.__file__} '
-        f'--results {output_dict["results"]} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
-        f'--pedigree {pedigree} '
-        f'--out_path {output_dict["web_html"]}'
+        f'{gene_filter_files}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
+    return results_job
+
+
+def handle_result_presentation_job(
+    prior_job: Job | None = None, **kwargs
+) -> Job | None:
+    """
+    run the presentation element
+    allow for selection of the presentation script and its arguments
+
+    Note: The model here is to allow other non-CPG sites/users to
+          implement their own presentation scripts, and to allow for the
+          same method to be shared by all users. The contract here is that
+          the presentation script must one or more named arguments, and
+          the argument name must match the name passed to this method,
+          i.e. `--panelapp {kwargs['panelapp']} `
+
+          The contract also requires that new presentation scripts must
+          not inactivate others, i.e. a runtime configuration setting
+          should allow a user to select from any of the available scripts
+          based on a config parameter.
+
+    This isn't a super slick implementation, as there are no other users
+    of this method, but it's a start. Alternative scripts will have to be
+    created in code, at which point the script and this little mapping will
+    both have to be updated.
+
+    kwargs currently in use:
+        - results: the JSON of results created by validate_categories.py
+        - panelapp: the JSON of panelapp data
+        - pedigree: the pedigree file (file accessible within the batch)
+        - output: the output file path
+
+    Args:
+        prior_job (Job): used in workflow dependency setting
+        kwargs (): key-value arguments for presentation script
+    Returns:
+        The associated job
+    """
+
+    # if a new script is added, it needs to be registered here to become usable
+    scripts_and_inputs = {
+        'cpg': (html_builder.__file__, ['results', 'panelapp', 'pedigree', 'output'])
+    }
+
+    output_mode = get_config()['workflow'].get('presentation', 'cpg')
+
+    # if we don't have a valid method, return the prior job
+    if output_mode not in scripts_and_inputs:
+        logging.warning(f'Invalid presentation mode: {output_mode}')
+        return prior_job
+
+    # extract the required inputs for the selected script
+    script, required_inputs = scripts_and_inputs[output_mode]
+
+    # set the panelapp global variable in kwargs
+    kwargs['panelapp'] = PANELAPP_JSON_OUT
+
+    display = get_batch().new_job(name='Result Presentation')
+    set_job_resources(display, prior_job=prior_job)
+
+    # assemble command from relevant variables
+    script_params = ' '.join(
+        [f'--{named_input} {kwargs[named_input]} ' for named_input in required_inputs]
+    )
+    html_command = f'python3 {script} {script_params}'
+
+    logging.info(f'HTML generation command: {html_command}')
+    display.command(html_command)
+    return display
+
+
+def handle_registration_jobs(
+    files: list[str], registry: str, pedigree: str, prior_job: Job | None = None
+):
+    """
+    Take a list of files and register them using the defined method.
+    This registration is within a metadata DB, used to track analysis
+    products, and the samples they correspond to.
+
+    Note: Similar contract to the one as defined above in
+          handle_result_presentation_job - the `registrars` mapping
+          should contain all valid registration scripts, and an ID
+          for each. At runtime the user should be able to select any
+          registered scripts using a config parameter. If an invalid
+          registrar is selected, nothing will be done.
+
+    Args:
+        files (list[str]): all files to register from this analysis
+        registry (str): registration service to use
+        pedigree (str): path to a pedigree file (copied into batch)
+        prior_job (Job): set workflow dependency if required
+    """
+
+    # dictionary with all known registration services
+    registrars = {'metamist': metamist_registration.__file__}
+
+    # if we don't have a valid method, return the prior job
+    if registry not in registrars:
+        logging.error(f'Invalid registration mode: {registry}')
+        return
+
+    # create a new job that will run even if the rest of the workflow fails
+    registration_job = get_batch().new_job(name='register_results')
+    set_job_resources(registration_job, prior_job=prior_job)
+    registration_job.always_run(True)
+
+    metadata_command = (
+        f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
+    )
+
+    logging.info(f'Metadata registration command: {metadata_command}')
+    registration_job.command(metadata_command)
 
 
 def main(
@@ -281,11 +392,11 @@ def main(
     main method, which runs the full reanalysis process
 
     Args:
-        input_path (): path to the VCF/MT
-        pedigree (): family file for this analysis
-        participant_panels (): file containing panels-per-family (optional)
-        singletons (): run as Singletons (with appropriate output paths)
-        skip_annotation (): if the input is annotated, don't re-run
+        input_path (str): path to the VCF/MT
+        pedigree (str): family file for this analysis
+        participant_panels (str): file containing panels-per-family (optional)
+        singletons (bool): run as Singletons (with appropriate output paths)
+        skip_annotation (bool): if the input is annotated, don't re-run
     """
 
     assert to_path(
@@ -303,8 +414,12 @@ def main(
 
     # modify output paths depending on analysis type
     output_dict = {
-        'web_html': f'{"singleton" if singletons else "summary"}_output.html',
-        'results': f'{"singleton" if singletons else "summary"}_results.json',
+        'web_html': output_path(
+            f'{"singleton" if singletons else "summary"}_output.html', 'web'
+        ),
+        'results': output_path(
+            f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
+        ),
     }
     # endregion
 
@@ -385,8 +500,8 @@ def main(
             depends_on=vep_jobs,
             use_dataproc=False,
         )
+        output_dict['annotated_mt'] = ANNOTATED_MT
         prior_job = anno_job[-1]
-
     # endregion
 
     #  region: query panelapp
@@ -405,6 +520,7 @@ def main(
         prior_job = handle_hail_filtering(
             prior_job=prior_job, plink_file=pedigree_in_batch, clinvar=clinvar_table
         )
+        output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion
 
     # read VCF into the batch as a local file
@@ -414,14 +530,33 @@ def main(
 
     # region: run results job
     # pointing this analysis at the updated config file, including input metadata
-    handle_results_job(
+    prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
         pedigree=pedigree_in_batch,
         input_path=input_path,
-        output_dict=output_dict,
+        output=output_dict['results'],
         prior_job=prior_job,
         participant_panels=participant_panels,
     )
+    prior_job = handle_result_presentation_job(
+        prior_job=prior_job,
+        pedigree=pedigree_in_batch,
+        output=output_dict['web_html'],
+        results=output_dict['results'],
+    )
+    prior_job.always_run()
+    # endregion
+
+    # region: output registration job
+    # register the output files in metamist if required
+    if registry := get_config()['workflow'].get('register'):
+        logging.info(f'Metadata registration will be done using {registry}')
+        handle_registration_jobs(
+            files=sorted(output_dict.values()),
+            pedigree=pedigree_in_batch,
+            registry=registry,
+            prior_job=prior_job,
+        )
     # endregion
 
     # region: copy data out

@@ -1,6 +1,7 @@
 FROM australia-southeast1-docker.pkg.dev/analysis-runner/images/driver
 
 COPY requirements.txt .
+COPY requirements-dev.txt .
 RUN pip install -r requirements.txt
 COPY README.md .
 COPY setup.py .

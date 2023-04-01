@@ -2,9 +2,10 @@
 description = "variables affecting how the final HTML report appears"
 seqr_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/parsed_seqr.json"
 external_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.json"
+external_labels = "path to labels file"
 seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
 seqr_project = "e.g. R0011_acute_care"
-forbidden = ""
+forbidden = "path to a list of forbidden genes"
 
 [workflow]
 dataset = "cohort"

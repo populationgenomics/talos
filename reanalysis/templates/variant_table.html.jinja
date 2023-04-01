@@ -2,6 +2,7 @@
 <thead>
     <tr>
     <th class="group-separator">Individual </th>
+    <th class="group-separator">Family ID </th>
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
     <th class="group-false">Categories</th>
@@ -9,6 +10,7 @@
     <th class="group-false">MANE CSQ</th>
     <th class="group-false">ClinVar</th>
     <th class="group-false">PM5 ClinVar</th>
+    <th class="group-false">Ext. Label</th>
     <th class="group-false">Flags</th>
     <th class="group-false">Support</th>
     </tr>
@@ -28,6 +30,9 @@
         {% if sample.name != sample.ext_id %}
             <br><span class="text-muted">({{ sample }})</span>
         {% endif %}
+    </td>
+    <td>
+        {{sample.family_id}}
     </td>
     <td>
         {# Coordinates #}
@@ -101,6 +106,14 @@
                 </a>
             {%- endfor %}
         {% endif %}
+    </td>
+    <td>
+        {# External Labels #}
+        {% for label in variant.ext_labels %}
+        <span class="badge text-bg-info">
+            {{ label }}
+        </span><br>
+        {% endfor %}
     </td>
     <td>
         {# Warning Flags #}
