@@ -15,7 +15,7 @@ import hail as hl
 from reanalysis.utils import CustomEncoder
 
 
-schema = hl.dtype(
+schema = (
     'struct{'
     'locus:str,alleles:array<str>,AC:int32,AF:float64,AN:int32,'
     'gnomad_genomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
@@ -33,6 +33,7 @@ schema = hl.dtype(
     'mane_select:str,lof:str}>,variant_class:str},geneIds:set<str>'
     '}'
 )
+entry_schema = 'struct{AD:array<int32>,DP:int32,GQ:int32,GT:call,PL:array<int32>}'
 
 
 @dataclass
@@ -137,6 +138,39 @@ class TXFields:
 
 
 @dataclass
+class Entry:
+    """
+    entry data model
+    """
+
+    def __init__(
+        self,
+        gt: str,
+        ad: list[int] | None,
+        gq: int | None,
+        pl: list[int] | None,
+    ):
+        """
+
+        Args:
+            gt ():
+            ad ():
+            gq ():
+            pl ():
+        """
+        self.GT = hl.parse_call(gt)
+        self.AD = ad or [15, 15]
+        self.DP = sum(self.AD)
+        self.GQ = gq or 60
+        self.PL = (
+            pl
+            or [[0, self.GQ, 1000], [self.GQ, 0, 1000], [1000, self.GQ, 0]][
+                gt.count('1')
+            ]
+        )
+
+
+@dataclass
 class VepVariant:
     """
     class object to sweep up all the data models
@@ -211,7 +245,8 @@ class SneakyTable:
 
         # read it back in as a hail table
         # field must be f0 if no header
-        ht = hl.import_table([json_temp], no_header=True, types={'f0': schema})
+        json_schema = hl.dtype(schema)
+        ht = hl.import_table([json_temp], no_header=True, types={'f0': json_schema})
 
         # unwrap the annotation data
         ht = ht.transmute(**ht.f0)
@@ -223,6 +258,7 @@ class SneakyTable:
 
         # checkpoint out to a local dir
         ht.write(os.path.join(self.tmp_path, 'vep.ht'), overwrite=True)
+
         # ht.to_matrix_table_row_major().write(
         # send it
         return ht
