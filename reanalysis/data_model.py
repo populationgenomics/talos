@@ -217,11 +217,12 @@ class SneakyTable:
         ht = ht.transmute(**ht.f0)
 
         # transmute the locus and alleles, set as keys
-        ht = ht.transmute(locus=hl.parse_locus(ht.locus), alleles=ht.alleles)
-        ht = ht.key_by('locus', 'alleles')
+        ht = ht.transmute(locus=hl.parse_locus(ht.locus), alleles=ht.alleles).key_by(
+            'locus', 'alleles'
+        )
 
         # checkpoint out to a local dir
         ht.write(os.path.join(self.tmp_path, 'vep.ht'), overwrite=True)
-
+        # ht.to_matrix_table_row_major().write(
         # send it
         return ht
