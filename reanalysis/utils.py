@@ -60,9 +60,12 @@ def get_granular_date():
     global _GRANULAR_DATE
     if _GRANULAR_DATE is None:
         # allow an override here - synthetic historic runs
-        if fake_date := get_config()['workflow'].get('fake_date'):
-            _GRANULAR_DATE = fake_date
-        else:
+        try:
+            if fake_date := get_config()['workflow'].get('fake_date'):
+                _GRANULAR_DATE = fake_date
+        except AssertionError:
+            logging.info(f'No config loaded, falling back to {_GRANULAR_DATE}')
+        if _GRANULAR_DATE is None:
             _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
     return _GRANULAR_DATE
 
