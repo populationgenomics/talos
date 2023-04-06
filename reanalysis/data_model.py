@@ -293,7 +293,10 @@ class SneakyTable:
         self.variants = variants
         self.sample_details = sample_details
         self.tmp_path = tmp_path
-        hl.init(default_reference='GRCh38')
+        try:
+            hl.init(default_reference='GRCh38')
+        except BaseException:  # pylint: disable=broad-except
+            pass
 
     def modify_schema(self) -> str:
         """
