@@ -54,7 +54,6 @@ schema = (
     'mane_select:str,lof:str}>,variant_class:str},geneIds:set<str>'
     '}'
 )
-entry_schema = 'struct{AD:array<int32>,DP:int32,GQ:int32,GT:call,PL:array<int32>}'
 
 
 @dataclass
@@ -69,15 +68,15 @@ class BaseFields:
         alleles: list[str],
         rsid: str | None = '.',
         qual: float | None = 60.0,
-        AC: int | None = 1,
-        AF: float | None = 0.001,
-        AN: int | None = 1,
+        ac: int | None = 1,
+        af: float | None = 0.001,
+        an: int | None = 1,
     ):
         self.locus = locus
         self.alleles = alleles
         self.rsid = rsid
         self.qual = qual
-        self.info = {'AC': AC, 'AF': AF, 'AN': AN}
+        self.info = {'AC': ac, 'AF': af, 'AN': an}
 
 
 @dataclass
@@ -180,6 +179,7 @@ class Entry:
         ad: list[int] | None = None,
         gq: int | None = None,
         pl: list[int] | None = None,
+        ps: int | None = None,
     ):
         """
         This is the per-call data
@@ -201,6 +201,7 @@ class Entry:
                 gt.count('1')
             ]
         )
+        self.PS = ps
 
     @staticmethod
     def get_schema_entry():
@@ -209,7 +210,9 @@ class Entry:
         Returns:
 
         """
-        return 'struct{GT:str,AD:array<int32>,DP:int32,GQ:int32,PL:array<int32>}'
+        return (
+            'struct{GT:str,AD:array<int32>,DP:int32,GQ:int32,PL:array<int32>,PS:int32}'
+        )
 
 
 @dataclass

@@ -22,16 +22,21 @@ from reanalysis.data_model import BaseFields, TXFields, VepVariant, SneakyTable,
 t = TXFields('a', 'ensga')
 
 # let's make a weirdly phased trio
-sample_data = {'sam1': Entry('0|1'), 'sam2': Entry('0|1'), 'sam3': Entry('1|0')}
+sample_data = {
+    'sam1': Entry('0|1', ps=1),
+    'sam2': Entry('0|1'),
+    'sam3': Entry('1|0', ps=1),
+}
 
 # and for each of these Sample entries take the default schema
 sample_schema = {k: v.get_schema_entry() for k, v in sample_data.items()}
 
 # create a single VepVariant object, with the sample data and TX CSQ
 v = VepVariant(BaseFields('chr1:123456', ['A', 'C']), [t], sample_data=sample_data)
+v2 = VepVariant(BaseFields('chr1:123458', ['A', 'C']), [t], sample_data=sample_data)
 
 # create a SneakyTable object, which will take a list of VepVariant objects
-sn = SneakyTable([v], sample_schema, '.')
+sn = SneakyTable([v, v2], sample_schema, '.')
 
 # once the table is parsed using the JSON schema, convert to a Hail MatrixTable
 # using the row_major functionality - this takes the list of sample IDs, converts those
