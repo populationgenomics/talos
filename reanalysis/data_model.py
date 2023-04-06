@@ -27,7 +27,7 @@ the annotation(s), the genotype(s), and the sample affection status.
 
 
 import json
-import os.path
+from os.path import join
 from dataclasses import dataclass, field
 
 import hail as hl
@@ -225,7 +225,7 @@ class VepVariant:
         self,
         base: BaseFields,
         tx: list[TXFields],
-        sample_data: dict[str, Entry],
+        sample_data: dict[str, Entry] | None = None,
         af: AFData | None = None,
         cadd: CADD | None = None,
         dbnsfp: DBnsfp | None = None,
@@ -258,8 +258,10 @@ class VepVariant:
             }
             | base.__dict__
             | (af or AFData()).__dict__
-            | sample_data
         )
+
+        if sample_data:
+            self.data |= sample_data
 
     def to_string(self) -> str:
         """
@@ -276,7 +278,12 @@ class SneakyTable:
     and generate a Hail Matrix Table from them
     """
 
-    def __init__(self, variants: list[VepVariant], sample_details: dict, tmp_path: str):
+    def __init__(
+        self,
+        variants: list[VepVariant],
+        tmp_path: str,
+        sample_details: dict[str, str] | None = None,
+    ):
         """
         Args:
             variants (list[VepVariant]): list of VepVariant objects
@@ -286,6 +293,7 @@ class SneakyTable:
         self.variants = variants
         self.sample_details = sample_details
         self.tmp_path = tmp_path
+        hl.init(default_reference='GRCh38')
 
     def modify_schema(self) -> str:
         """
@@ -304,30 +312,47 @@ class SneakyTable:
         new_schema += '}'
         return new_schema
 
-    def to_hail(self) -> hl.MatrixTable:
+    def json_to_file(self) -> str:
+        """
+        write the data to a temp file
+        Returns:
+            str: path to the temp file
+        """
+
+        # write all variants in this object
+        json_temp = join(self.tmp_path, 'vep.json')
+        with open(json_temp, 'w', encoding='utf-8') as f:
+            for variant in self.variants:
+                f.write(variant.to_string())
+        return json_temp
+
+    def to_hail(self, hail_table: bool = False) -> hl.MatrixTable | hl.Table:
         """
         write the data model to a hail table
+
+        entertain 3 behaviours:
+         - write to a MatrixTable, including the genotypes/entries
+         - write to a MatrixTable, but only include the annotations
+         - keep as a Table (containing samples or not)
+
+         Args:
+            hail_table (bool): if True, return a Table, else a MatrixTable
 
         Returns:
             the MatrixTable of the faux annotation data
         """
 
-        hl.init(default_reference='GRCh38')
-
-        # write this object
-        json_temp = os.path.join(self.tmp_path, 'vep.json')
-        with open(json_temp, 'w', encoding='utf-8') as f:
-            for variant in self.variants:
-                f.write(variant.to_string())
-
-        # read it back in as a hail table
-        # field must be f0 if no header
+        # update the schema if sample entries were added
         sample_schema = self.modify_schema()
-
         json_schema = hl.dtype(sample_schema)
-        ht = hl.import_table([json_temp], no_header=True, types={'f0': json_schema})
 
-        # unwrap the annotation data
+        # read JSON data from a hail table
+        # field must be f0 if no header
+        ht = hl.import_table(
+            self.json_to_file(), no_header=True, types={'f0': json_schema}
+        )
+
+        # unwrap the data
         ht = ht.transmute(**ht.f0)
 
         # transmute the locus and alleles, set as keys
@@ -335,14 +360,28 @@ class SneakyTable:
             'locus', 'alleles'
         )
 
+        # stopping point for table-only
+        if hail_table:
+            # checkpoint out to a temp path
+            tmp_ht = join(self.tmp_path, 'vep.ht')
+            ht.write(tmp_ht, overwrite=True)
+            return ht
+
+        if not self.sample_details:
+            return hl.MatrixTable.from_rows_table(ht)
+
+        tmp_mt = join(self.tmp_path, 'vep.mt')
+
+        # convert to a matrix table, with sample IDs as columns
         mt = ht.to_matrix_table_row_major(
             columns=list(self.sample_details.keys()), col_field_name='s'
         )
 
+        # parse the genotype calls as hl.call
         mt = mt.annotate_entries(GT=hl.parse_call(mt.GT))
 
         # checkpoint out to a local dir
-        mt.write(os.path.join(self.tmp_path, 'vep.mt'), overwrite=True)
+        mt.write(tmp_mt, overwrite=True)
 
         # send it
         return mt
