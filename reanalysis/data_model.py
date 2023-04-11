@@ -38,7 +38,7 @@ from reanalysis.utils import CustomEncoder
 schema = (
     'struct{'
     'locus:str,alleles:array<str>,rsid:str,qual:float64,filters:set<str>,'
-    'AC:int32,AF:float64,AN:int32,info:struct{placeholder:str},'
+    'AC:int32,AF:float64,AN:int32,info:struct{AC:int32,AF:float64,AN:int32},'
     'gnomad_genomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
     'gnomad_exomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
     'splice_ai:struct{delta_score:float32,splice_consequence:str},'
@@ -78,11 +78,10 @@ class BaseFields:
         self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
-        # self.info = {'AC': ac, 'AF': af, 'AN': an}
+        self.info = {'AC': ac, 'AF': af, 'AN': an}
         self.AC = ac
         self.AF = af
         self.AN = an
-        self.info = {'placeholder': 'test'}
 
 
 @dataclass
