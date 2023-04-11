@@ -62,7 +62,7 @@ t = TXFields(
     biotype='protein_coding',
     consequence_terms=['frameshift_variant'],
 )
-clinvar = Clinvar(allele_id='1234', clinical_significance='Pathogenic', gold_stars=1)
+clinvar = Clinvar(allele_id=1234, clinical_significance='Pathogenic', gold_stars=1)
 splice = Splice(delta_score=0.02)
 
 v3 = VepVariant(

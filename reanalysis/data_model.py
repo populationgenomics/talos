@@ -37,21 +37,21 @@ from reanalysis.utils import CustomEncoder
 
 schema = (
     'struct{'
-    'locus:str,alleles:array<str>,rsid:str,qual:float64,'
-    'info:struct{AC:int32,AF:float64,AN:int32},'
+    'locus:str,alleles:array<str>,rsid:str,qual:float64,filters:set<str>,'
+    'AC:int32,AF:float64,AN:int32,info:struct{placeholder:str},'
     'gnomad_genomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
     'gnomad_exomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
-    'splice_ai:struct{delta_score:float64,splice_consequence:str},'
-    'cadd:struct{PHRED:float64},'
-    'dbnsfp:struct{REVEL_score:str,Mutationtaster_pred:str},'
-    'clinvar:struct{clinical_significance:str,gold_stars:int32,allele_id:str},'
+    'splice_ai:struct{delta_score:float32,splice_consequence:str},'
+    'cadd:struct{PHRED:float32},'
+    'dbnsfp:struct{REVEL_score:str,MutationTaster_pred:str},'
+    'clinvar:struct{clinical_significance:str,gold_stars:int32,allele_id:int32},'
     'vep:struct{'
     'transcript_consequences:array<struct{gene_symbol:str,gene_id:str,'
     'variant_allele:str,consequence_terms:array<str>,transcript_id:str,'
     'protein_id:str,gene_symbol_source:str,canonical:int32,cdna_start:int32,'
-    'cds_end:int32,biotype:str,protein_start:int32,protein_end:int32,'
-    'sift_score:float64,sift_prediction:str,polyphen_score:float64,'
-    'mane_select:str,lof:str}>,variant_class:str},geneIds:set<str>'
+    'cds_start:int32,cds_end:int32,biotype:str,protein_start:int32,protein_end:int32,'
+    'sift_score:float64,sift_prediction:str,polyphen_prediction:str,polyphen_score:'
+    'float64,mane_select:str,lof:str}>,variant_class:str},geneIds:set<str>'
     '}'
 )
 
@@ -66,6 +66,7 @@ class BaseFields:
         self,
         locus: str,
         alleles: list[str],
+        filters: set[str] | None = None,
         rsid: str | None = '.',
         qual: float | None = 60.0,
         ac: int | None = 1,
@@ -74,9 +75,14 @@ class BaseFields:
     ):
         self.locus = locus
         self.alleles = alleles
+        self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
-        self.info = {'AC': ac, 'AF': af, 'AN': an}
+        # self.info = {'AC': ac, 'AF': af, 'AN': an}
+        self.AC = ac
+        self.AF = af
+        self.AN = an
+        self.info = {'placeholder': 'test'}
 
 
 @dataclass
@@ -127,7 +133,7 @@ class DBnsfp:
     """
 
     REVEL_score: str = field(default='0.0')
-    Mutationtaster_pred: str = field(default='n')
+    MutationTaster_pred: str = field(default='n')
 
 
 @dataclass
@@ -138,7 +144,7 @@ class Clinvar:
 
     clinical_significance: str = field(default_factory=str)
     gold_stars: int = field(default_factory=int)
-    allele_id: str = field(default_factory=str)
+    allele_id: int = field(default_factory=int)
 
 
 @dataclass
@@ -162,6 +168,7 @@ class TXFields:
     protein_end: int = field(default=1)
     sift_score: int = field(default=1.0)  # lowest possible score
     sift_prediction: str = field(default_factory=str)
+    polyphen_prediction: str = field(default='neutral')
     polyphen_score: float = field(default=0.01)
     mane_select: str = field(default_factory=str)
     lof: str = field(default_factory=str)
@@ -382,8 +389,6 @@ class SneakyTable:
 
         # parse the genotype calls as hl.call
         mt = mt.annotate_entries(GT=hl.parse_call(mt.GT))
-
-        # checkpoint out to a local dir
         mt.write(tmp_mt, overwrite=True)
 
         # send it
