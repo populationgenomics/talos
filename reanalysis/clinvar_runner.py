@@ -56,33 +56,22 @@ def main(ht_out: str, date: str | None = None):
     get_batch().write_output(bash_job.vars, str(clinvar_folder / f'{today}_{var_file}'))
 
     # create a space for the SNV VCF
-    snv_vcf = clinvar_folder / 'pathogenic_snv'
+    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
 
     # region: run the summarise_clinvar_entries script
     summarise = get_batch().new_job(name='summarise clinvar')
 
-    # declare the output VCF and index
-    summarise.declare_resource_group(
-        snv_vcf={
-            'vcf.bgz': '{root}.vcf.bgz',
-            'vcf.bgz.tbi': '{root}.vcf.bgz.tbi',
-        }
-    )
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
     command_options = (
         f'-s {bash_job.subs} '
         f'-v {bash_job.vars} '
         f'-o {ht_out} '
-        f'--path_snv {summarise.snv_vcf["vcf.bgz"]} '
+        f'--path_snv {snv_vcf} '
     )
     if date:
         command_options += f' -d {date}'
     summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
-
-    # write the VCF and index out to GCP
-    get_batch().write_output(summarise.snv_vcf, str(snv_vcf))
-    vcf_path = to_path(f'{snv_vcf}.vcf.bgz')
     # endregion
 
     # region: annotate the SNV VCF with VEP
@@ -92,7 +81,7 @@ def main(ht_out: str, date: str | None = None):
     # generate the jobs which run VEP & collect the results
     vep_jobs = add_vep_jobs(
         b=get_batch(),
-        input_siteonly_vcf_path=vcf_path,
+        input_siteonly_vcf_path=snv_vcf,
         tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
         scatter_count=5,
         out_path=vep_ht_tmp,
@@ -105,7 +94,7 @@ def main(ht_out: str, date: str | None = None):
     # Apply the HT of annotations to the VCF, save as MT
     anno_job = annotate_cohort_jobs(
         b=get_batch(),
-        vcf_path=vcf_path,
+        vcf_path=snv_vcf,
         vep_ht_path=vep_ht_tmp,
         out_mt_path=annotated_clinvar,
         checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),

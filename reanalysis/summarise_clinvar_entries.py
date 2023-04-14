@@ -436,7 +436,7 @@ def parse_into_table(json_path: str, out_path: str) -> hl.Table:
     ht = ht.transmute(**ht.f0)
 
     # create a locus and key
-    ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
+    ht = ht.transmute(locus=hl.locus(ht.contig, ht.position))
     ht = ht.key_by(ht.locus, ht.alleles)
 
     # write out
@@ -468,6 +468,7 @@ def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
         )
     )
     hl.export_vcf(clinvar_table, vcf_path, tabix=True)
+    logging.info(f'Wrote SNV VCF to {vcf_path}')
 
 
 def main(
