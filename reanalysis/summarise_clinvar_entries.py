@@ -573,7 +573,7 @@ if __name__ == '__main__':
         ),
         default=datetime.now(),
     )
-    parser.add_argument('--path_snv', help='output VCF containing only path SNVs')
+    parser.add_argument('--path_snv', help='Output VCF, sites-only, Pathogenic SNVs')
     args = parser.parse_args()
 
     processed_date = (
