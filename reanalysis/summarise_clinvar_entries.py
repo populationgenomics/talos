@@ -455,10 +455,14 @@ def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
     """
 
     # filter to Pathogenic SNVs
+    # there is at least one ClinVar submission which is Pathogenic
+    # without being a changed base?
+    # https://www.ncbi.nlm.nih.gov/clinvar/variation/1705890/
     clinvar_table = clinvar_table.filter(
         (hl.len(clinvar_table.alleles[0]) == 1)
         & (hl.len(clinvar_table.alleles[1]) == 1)
         & (clinvar_table.clinical_significance == 'Pathogenic')
+        & ~(clinvar_table.alleles[0] != clinvar_table.alleles[1])  # note
     )
 
     # persist the clinvar annotations in VCF
