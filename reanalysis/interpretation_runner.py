@@ -18,10 +18,10 @@ re-run currently requires the deletion of previous outputs
 
 
 import logging
-import os
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
+from os.path import join
 
 from hailtop.batch.job import BashJob, Job
 
@@ -34,9 +34,9 @@ from cpg_utils.hail_batch import (
     output_path,
 )
 from cpg_workflows.batch import get_batch
+from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
-from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -112,7 +112,7 @@ def handle_clinvar() -> tuple[Job | None, str]:
     clinvar_prefix = dataset_path(
         f'clinvar_summaries/{datetime.now().strftime("%Y_%m")}'
     )
-    clinvar_summary = os.path.join(clinvar_prefix, 'clinvar.ht')
+    clinvar_summary = join(clinvar_prefix, 'clinvar.ht')
 
     if to_path(clinvar_summary).exists():
         return None, clinvar_summary
@@ -133,8 +133,8 @@ def handle_clinvar() -> tuple[Job | None, str]:
     )
 
     # write output files
-    get_batch().write_output(bash_job.subs, os.path.join(clinvar_prefix, sub_file))
-    get_batch().write_output(bash_job.vars, os.path.join(clinvar_prefix, var_file))
+    get_batch().write_output(bash_job.subs, join(clinvar_prefix, sub_file))
+    get_batch().write_output(bash_job.vars, join(clinvar_prefix, var_file))
 
     # create a job to run the summary
     summarise = get_batch().new_job(name='summarise clinvar')
@@ -143,7 +143,7 @@ def handle_clinvar() -> tuple[Job | None, str]:
         f'python3 {summarise_clinvar_entries.__file__} '
         f'-s {bash_job.subs} '
         f'-v {bash_job.vars} '
-        f'-o {os.path.join(clinvar_prefix, "clinvar.ht")}'
+        f'-o {join(clinvar_prefix, "clinvar.ht")}'
     )
     return summarise, clinvar_summary
 

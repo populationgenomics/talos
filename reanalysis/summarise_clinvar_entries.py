@@ -31,7 +31,7 @@ import pandas as pd
 
 from cpg_utils import to_path, CloudPath
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import output_path, init_batch
+from cpg_utils.hail_batch import output_path
 
 from reanalysis.utils import get_cohort_config
 
@@ -72,8 +72,15 @@ class Consequence(Enum):
     UNKNOWN = 'Unknown'
 
 
-# submitters not trusted for a subset of consequences -after Consequence is defined
-QUALIFIED_BLACKLIST = [(Consequence.BENIGN, get_config()['clinvar']['filter_benign'])]
+# submitters not trusted for a subset of consequences - after Consequence is defined
+try:
+    QUALIFIED_BLACKLIST = [
+        (Consequence.BENIGN, get_config()['clinvar']['filter_benign'])
+    ]
+except AssertionError:
+    QUALIFIED_BLACKLIST = [
+        (Consequence.BENIGN, ['illumina laboratory services; illumina'])
+    ]
 
 
 @dataclass
@@ -316,8 +323,11 @@ def get_all_decisions(
 
     # remove all entries from these providers
     # for now require a mandatory dataset, may amend later
-    cohort_config = get_cohort_config()
-    blacklist = cohort_config.get('clinvar_filter', [])
+    try:
+        cohort_config = get_cohort_config()
+        blacklist = cohort_config.get('clinvar_filter', [])
+    except AssertionError:
+        blacklist = []
 
     for line in lines_from_gzip(submission_file):
 
@@ -394,7 +404,7 @@ def sort_decisions(all_subs: list[dict]) -> list[dict]:
     )
 
 
-def parse_into_table(json_path: str, out_path: str):
+def parse_into_table(json_path: str, out_path: str) -> hl.Table:
     """
     takes the file of one clinvar variant per line
     processes that line into a table based on the schema
@@ -402,9 +412,13 @@ def parse_into_table(json_path: str, out_path: str):
     Args:
         json_path (): path to the JSON file (temp)
         out_path (): where to write the Hail table
+
+    Returns:
+        the Hail Table object created
     """
 
-    init_batch()
+    # start a hail runtime
+    hl.init(default_reference='GRCh38')
 
     # define the schema for each written line
     schema = hl.dtype(
@@ -437,17 +451,47 @@ def parse_into_table(json_path: str, out_path: str):
 
     # write out
     ht.write(out_path, overwrite=True)
+    return ht
 
 
-def main(subs: str, date: datetime, variants: str, out: str):
+def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
+    """
+    takes a clinvar table and a filters to SNV & Pathogenic
+    Writes results to a VCF file
+
+    Args:
+        clinvar_table (hl.Table): the table of re-summarised clinvar loci
+        vcf_path (str): Path to write resulting VCF to
+    """
+
+    # filter to Pathogenic SNVs
+    clinvar_table = clinvar_table.filter(
+        (hl.len(clinvar_table.alleles[0]) == 1)
+        & (hl.len(clinvar_table.alleles[1]) == 1)
+        & (clinvar_table.clinical_significance == 'Pathogenic')
+    )
+
+    # persist the clinvar annotations in VCF
+    clinvar_table = clinvar_table.annotate(
+        info=hl.struct(
+            allele_id=clinvar_table.allele_id, gold_stars=clinvar_table.gold_stars
+        )
+    )
+    hl.export_vcf(clinvar_table, vcf_path, tabix=True)
+
+
+def main(
+    subs: str, date: datetime, variants: str, out: str, path_snv: str | None = None
+):
     """
     Redefines what it is to be a clinvar summary
 
     Args:
-        subs (): file path to all submissions (gzipped)
-        date (): date threshold to use for filtering submissions
-        variants (): file path to variant summary (gzipped)
-        out (): path to write JSON out to
+        subs (str): file path to all submissions (gzipped)
+        variants (str): file path to variant summary (gzipped)
+        out (str): path to write JSON out to
+        date (str): date threshold to use for filtering submissions
+        path_snv (str): if defined, path to write SNV VCF file
     """
 
     logging.info('Getting alleleID-VariantID-Loci from variant summary')
@@ -492,9 +536,14 @@ def main(subs: str, date: datetime, variants: str, out: str):
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
-    temp_output = output_path(
-        f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
-    )
+    # if there's no defined config, write a local file
+    try:
+        temp_output = output_path(
+            f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
+        )
+    except AssertionError:
+        temp_output = f'{date.strftime("%Y-%m-%d")}_clinvar_table.json'
+
     logging.info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
@@ -502,7 +551,11 @@ def main(subs: str, date: datetime, variants: str, out: str):
         for each_dict in all_decisions:
             handle.write(f'{json.dumps(each_dict)}\n')
 
-    parse_into_table(json_path=temp_output, out_path=out)
+    ht = parse_into_table(json_path=temp_output, out_path=out)
+
+    if path_snv:
+        logging.info('Writing out SNV VCF')
+        snv_missense_filter(ht, path_snv)
 
 
 if __name__ == '__main__':
@@ -520,6 +573,7 @@ if __name__ == '__main__':
         ),
         default=datetime.now(),
     )
+    parser.add_argument('--path_snv', help='output VCF containing only path SNVs')
     args = parser.parse_args()
 
     processed_date = (
@@ -528,4 +582,10 @@ if __name__ == '__main__':
 
     logging.info(f'Date threshold: {processed_date}')
 
-    main(subs=args.s, date=processed_date, variants=args.v, out=args.o)
+    main(
+        subs=args.s,
+        variants=args.v,
+        out=args.o,
+        date=processed_date,
+        path_snv=args.path_snv,
+    )
