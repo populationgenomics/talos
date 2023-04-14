@@ -64,8 +64,8 @@ def main(ht_out: str, date: str | None = None):
     # declare the output VCF and index
     summarise.declare_resource_group(
         snv_vcf={
-            'vcf.gz': '{root}.vcf.gz',
-            'vcf.gz.tbi': '{root}.vcf.gz.tbi',
+            'vcf.bgz': '{root}.vcf.bgz',
+            'vcf.bgz.tbi': '{root}.vcf.bgz.tbi',
         }
     )
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
@@ -74,7 +74,7 @@ def main(ht_out: str, date: str | None = None):
         f'-s {bash_job.subs} '
         f'-v {bash_job.vars} '
         f'-o {ht_out} '
-        f'--path_snv {summarise.snv_vcf["vcf.gz"]} '
+        f'--path_snv {summarise.snv_vcf["vcf.bgz"]} '
     )
     if date:
         command_options += f' -d {date}'
@@ -82,7 +82,7 @@ def main(ht_out: str, date: str | None = None):
 
     # write the VCF and index out to GCP
     get_batch().write_output(summarise.snv_vcf, str(snv_vcf))
-    vcf_path = to_path(f'{snv_vcf}.vcf.gz')
+    vcf_path = to_path(f'{snv_vcf}.vcf.bgz')
     # endregion
 
     # region: annotate the SNV VCF with VEP

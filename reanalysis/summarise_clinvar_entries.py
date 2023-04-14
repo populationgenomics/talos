@@ -433,15 +433,7 @@ def parse_into_table(json_path: str, out_path: str) -> hl.Table:
 
     # import the table, and transmute to top-level attributes
     ht = hl.import_table(json_path, no_header=True, types={'f0': schema})
-    ht = ht.transmute(
-        alleles=ht.f0.alleles,
-        contig=ht.f0.contig,
-        position=ht.f0.position,
-        variant_id=ht.f0.id,
-        clinical_significance=ht.f0.clinical_significance,
-        gold_stars=ht.f0.gold_stars,
-        allele_id=ht.f0.allele_id,
-    )
+    ht = ht.transmute(**ht.f0)
 
     # create a locus and key
     ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
