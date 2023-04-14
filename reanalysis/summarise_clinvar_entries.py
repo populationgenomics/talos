@@ -16,7 +16,6 @@ variant_summary.txt
  - links clinvar AlleleID, Variant ID, position and alleles
 """
 
-
 import gzip
 import logging
 import json
@@ -34,7 +33,6 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path
 
 from reanalysis.utils import get_cohort_config
-
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
 CONFLICTING = 'conflicting data from submitters'
@@ -326,7 +324,7 @@ def get_all_decisions(
     try:
         cohort_config = get_cohort_config()
         blacklist = cohort_config.get('clinvar_filter', [])
-    except AssertionError:
+    except (AssertionError, KeyError):
         blacklist = []
 
     for line in lines_from_gzip(submission_file):
