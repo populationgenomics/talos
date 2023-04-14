@@ -30,7 +30,7 @@ import pandas as pd
 
 from cpg_utils import to_path, CloudPath
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import output_path
+from cpg_utils.hail_batch import output_path, init_batch
 
 from reanalysis.utils import get_cohort_config
 
@@ -416,7 +416,7 @@ def parse_into_table(json_path: str, out_path: str) -> hl.Table:
     """
 
     # start a hail runtime
-    hl.init(default_reference='GRCh38')
+    init_batch()
 
     # define the schema for each written line
     schema = hl.dtype(
