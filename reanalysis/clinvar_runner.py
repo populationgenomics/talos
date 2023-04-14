@@ -81,7 +81,7 @@ def main(ht_out: str, date: str | None = None):
     summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
 
     # write the VCF and index out to GCP
-    get_batch().write_output(summarise.snv_vcf, snv_vcf)
+    get_batch().write_output(summarise.snv_vcf, str(snv_vcf))
     vcf_path = to_path(f'{snv_vcf}.vcf.gz')
     # endregion
 
