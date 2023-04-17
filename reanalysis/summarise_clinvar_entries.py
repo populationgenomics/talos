@@ -132,6 +132,7 @@ def get_allele_locus_map(summary_file: str) -> dict:
         if (
             ref == 'na'
             or alt == 'na'
+            or ref == alt
             or 'm' in chromosome.lower()
             or (len(ref) + len(alt)) > LARGEST_COMPLEX_INDELS
         ):
@@ -466,7 +467,6 @@ def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
         (hl.len(clinvar_table.alleles[0]) == 1)
         & (hl.len(clinvar_table.alleles[1]) == 1)
         & (clinvar_table.clinical_significance == 'Pathogenic')
-        & ~(clinvar_table.alleles[0] != clinvar_table.alleles[1])  # note
     )
 
     # persist the clinvar annotations in VCF
