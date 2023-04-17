@@ -19,6 +19,7 @@ variant_summary.txt
 import gzip
 import logging
 import json
+import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
@@ -56,6 +57,7 @@ ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y', 'M']]
 ACMG_THRESHOLD = datetime(year=2016, month=1, day=1)
 VERY_OLD = datetime(year=1970, month=1, day=1)
 LARGEST_COMPLEX_INDELS = 40
+BASES = re.compile(r'[ACGTN]+')
 
 
 class Consequence(Enum):
@@ -135,13 +137,15 @@ def get_allele_locus_map(summary_file: str) -> dict:
         ):
             continue
 
-        allele_dict[var_id] = {
-            'allele': allele_id,
-            'chrom': chromosome,
-            'pos': pos,
-            'ref': ref,
-            'alt': alt,
-        }
+        # don't include any of the trash bases in ClinVar
+        if BASES.match(ref) and BASES.match(alt):
+            allele_dict[var_id] = {
+                'allele': allele_id,
+                'chrom': chromosome,
+                'pos': pos,
+                'ref': ref,
+                'alt': alt,
+            }
 
     return allele_dict
 
