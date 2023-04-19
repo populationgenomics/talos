@@ -11,7 +11,7 @@ default_memory = 'highmem'
 
 [images]
 vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:2d3b87a27ffa686fafb1e7216ca99a4f029d5585'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:07f8422e67880a684e593e5e22cdf7ec5b566ae0'
 
 [clinvar]
 filter_benign = ['illumina laboratory services; illumina']
