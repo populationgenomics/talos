@@ -1,4 +1,4 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest
+FROM australia-southeast1-docker.pkg.dev/analysis-runner/images/driver
 
 COPY requirements.txt .
 COPY requirements-dev.txt .
