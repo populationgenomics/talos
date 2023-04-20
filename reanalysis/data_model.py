@@ -31,6 +31,7 @@ from os.path import join
 from dataclasses import dataclass, field
 
 import hail as hl
+from cloudpathlib import AnyPath
 
 from reanalysis.utils import CustomEncoder
 
@@ -330,7 +331,7 @@ class SneakyTable:
 
         # write all variants in this object
         json_temp = join(self.tmp_path, 'vep.json')
-        with open(json_temp, 'w', encoding='utf-8') as f:
+        with AnyPath(json_temp).open('w') as f:
             for variant in self.variants:
                 f.write(variant.to_string())
         return json_temp
