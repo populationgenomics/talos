@@ -1,4 +1,4 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:07f8422e67880a684e593e5e22cdf7ec5b566ae0
+FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:f3bd7b4f440ebb9dff4a069895e99ac391de325d
 
 COPY requirements.txt .
 COPY requirements-dev.txt .
