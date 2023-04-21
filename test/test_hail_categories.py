@@ -2,7 +2,6 @@
 unit testing collection for the hail MT methods
 """
 
-
 import pytest
 
 import hail as hl
@@ -20,7 +19,6 @@ from reanalysis.hail_filter_and_label import (
     split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
 )
-
 
 category_1_keys = ['locus', 'clinvar_aip_strong']
 category_2_keys = [
@@ -44,29 +42,22 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
 @pytest.mark.parametrize(
-    'values,classified',
+    'value,classified',
     [
-        ([hl_locus, 0], 0),
-        ([hl_locus, 1], 1),
-        ([hl_locus, 2], 0),
+        (0, 0),
+        (1, 1),
+        (2, 0),
     ],
 )
-def test_class_1_assignment(values, classified, hail_matrix):
+def test_class_1_assignment(value, classified, make_a_mt):
     """
     use some fake annotations, apply to the single fake variant
     check that the classification process works as expected based
     on the provided annotations
     """
-    # cast the input as a dictionary
-    row_dict = dict(zip(category_1_keys, values))
-
-    # create a single row dataframe using the input
-    dataframe = pd.DataFrame(row_dict, index=[0])
-
-    hail_table = hl.Table.from_pandas(dataframe, key='locus')
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            clinvar_aip_strong=hail_table[hail_matrix.locus].clinvar_aip_strong,
+    anno_matrix = make_a_mt.annotate_rows(
+        info=make_a_mt.info.annotate(
+            clinvar_aip_strong=value,
         )
     )
 
@@ -75,43 +66,42 @@ def test_class_1_assignment(values, classified, hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'values,classified',
+    'clinvar_aip,cadd,revel,gene_id,consequence_terms,classified',
     [
-        ([hl_locus, 1, 0.0, 0.0, 'GREEN', 'missense'], 1),
-        ([hl_locus, 0, 0.0, 0.0, 'GREEN', 'missense'], 0),
-        ([hl_locus, 1, 99.0, 1.0, 'RED', 'frameshift_variant'], 0),
-        ([hl_locus, 1, 99.0, 1.0, 'GREEN', 'frameshift_variant'], 1),
-        ([hl_locus, 0, 28.11, 0.0, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 0, 0, 0.8, 'GREEN', 'synonymous'], 1),
-        ([hl_locus, 0, 0, 0.0, 'GREEN', 'synonymous'], 0),
+        (1, 0.0, 0.0, 'GREEN', 'missense', 1),
+        (0, 0.0, 0.0, 'GREEN', 'missense', 0),
+        (1, 99.0, 1.0, 'RED', 'frameshift_variant', 0),
+        (1, 99.0, 1.0, 'GREEN', 'frameshift_variant', 1),
+        (0, 28.11, 0.0, 'GREEN', 'synonymous', 1),
+        (0, 0, 0.8, 'GREEN', 'synonymous', 1),
+        (0, 0, 0.0, 'GREEN', 'synonymous', 0),
     ],
 )
-def test_class_2_assignment(values, classified, hail_matrix):
+def test_class_2_assignment(
+    clinvar_aip, cadd, revel, gene_id, consequence_terms, classified, make_a_mt
+):
     """
-    the fields in the input are, respectively:
-    :param values: locus clinvar_sig cadd revel geneIds consequence_terms
-    :param classified:
-    :param hail_matrix:
+    use some fake annotations, apply to the single fake variant
+    Args:
+        clinvar_aip ():
+        cadd ():
+        revel ():
+        gene_id ():
+        consequence_terms ():
+        classified ():
+        make_a_mt ():
     """
 
-    csq = values.pop()
-    # cast the input as a dictionary
-    row_dict = dict(zip(category_2_keys, values))
-
-    # create a single row dataframe using the input
-    dataframe = pd.DataFrame(row_dict, index=[0])
-
-    hail_table = hl.Table.from_pandas(dataframe, key='locus')
-    anno_matrix = hail_matrix.annotate_rows(
-        geneIds=hail_table[hail_matrix.locus].geneIds,
-        info=hail_matrix.info.annotate(
-            clinvar_aip=hail_table[hail_matrix.locus].clinvar_aip,
-            cadd=hail_table[hail_matrix.locus].cadd,
-            revel=hail_table[hail_matrix.locus].revel,
+    anno_matrix = make_a_mt.annotate_rows(
+        geneIds=gene_id,
+        info=make_a_mt.info.annotate(
+            clinvar_aip=clinvar_aip,
+            cadd=cadd,
+            revel=revel,
         ),
         vep=hl.Struct(
             transcript_consequences=hl.array(
-                [hl.Struct(consequence_terms=hl.set([csq]))]
+                [hl.Struct(consequence_terms=hl.set([consequence_terms]))]
             ),
         ),
     )
@@ -121,41 +111,37 @@ def test_class_2_assignment(values, classified, hail_matrix):
 
 
 @pytest.mark.parametrize(
-    'values,classified',
+    'clinvar_aip,loftee,consequence_terms,classified',
     [
-        ([hl_locus, 0, 'hc', 'frameshift_variant'], 0),
-        ([hl_locus, 0, 'HC', 'frameshift_variant'], 1),
-        ([hl_locus, 1, 'lc', 'frameshift_variant'], 1),
-        ([hl_locus, 1, hl.missing(hl.tstr), 'frameshift_variant'], 1),
+        (0, 'hc', 'frameshift_variant', 0),
+        (0, 'HC', 'frameshift_variant', 1),
+        (1, 'lc', 'frameshift_variant', 1),
+        (1, hl.missing(hl.tstr), 'frameshift_variant', 1),
     ],
 )
-def test_class_3_assignment(values, classified, hail_matrix):
-    """
-    the fields in the input are, respectively:
-    :param values: locus clinvar_sig loftee consequence_terms
-    :param classified:
-    :param hail_matrix:
+def test_class_3_assignment(
+    clinvar_aip, loftee, consequence_terms, classified, make_a_mt
+):
     """
 
-    csq = values.pop()
-    lof = values.pop()
-    # cast the input as a dictionary
-    row_dict = dict(zip(category_3_keys, values))
+    Args:
+        clinvar_aip ():
+        loftee ():
+        consequence_terms ():
+        classified ():
+        make_a_mt ():
+    """
 
-    # create a single row dataframe using the input
-    dataframe = pd.DataFrame(row_dict, index=[0])
-
-    hail_table = hl.Table.from_pandas(dataframe, key='locus')
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            clinvar_aip=hail_table[hail_matrix.locus].clinvar_aip,
+    anno_matrix = make_a_mt.annotate_rows(
+        info=make_a_mt.info.annotate(
+            clinvar_aip=clinvar_aip,
         ),
         vep=hl.Struct(
             transcript_consequences=hl.array(
                 [
                     hl.Struct(
-                        consequence_terms=hl.set([csq]),
-                        lof=lof,
+                        consequence_terms=hl.set([consequence_terms]),
+                        lof=loftee,
                     )
                 ]
             ),
@@ -170,55 +156,58 @@ def test_class_3_assignment(values, classified, hail_matrix):
     'spliceai_score,flag',
     [(0.1, 0), (0.11, 0), (0.3, 0), (0.49, 0), (0.5, 1), (0.69, 1), (0.9, 1)],
 )
-def test_category_5_assignment(spliceai_score: float, flag: int, hail_matrix):
-    """
-    :param hail_matrix:
-    :return:
+def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
     """
 
-    matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(splice_ai_delta=spliceai_score)
+    Args:
+        spliceai_score ():
+        flag ():
+        make_a_mt ():
+    """
+
+    matrix = make_a_mt.annotate_rows(
+        info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score)
     )
     matrix = annotate_category_5(matrix)
     assert matrix.info.categoryboolean5.collect() == [flag]
 
 
 @pytest.mark.parametrize(
-    'values,classified',
+    'cadd,revel,mutationtaster,gerp,eigen,sift,polyphen,classified',
     [
-        ([hl_locus, 0.0, 0.0, 'n', 0.0, 0.0, 1.0, 0.0], 0),
-        ([hl_locus, 0.0, 0.9, 'n', 0.0, 0.0, 1.0, 0.0], 0),
-        ([hl_locus, 29.5, 0.9, 'n', 0.0, 0.0, 1.0, 0.0], 1),
-        ([hl_locus, 0.0, 0.0, 'D', 0.0, 0.0, 1.0, 0.0], 0),
-        ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.0, 1.0, 0.0], 0),
-        ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 1.0, 0.0], 0),
-        ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 0.0, 0.0], 0),
-        ([hl_locus, 0.0, 0.0, 'D', 10.0, 0.5, 0.0, 1], 1),
+        (0.0, 0.0, 'n', 0.0, 0.0, 1.0, 0.0, 0),
+        (0.0, 0.9, 'n', 0.0, 0.0, 1.0, 0.0, 0),
+        (29.5, 0.9, 'n', 0.0, 0.0, 1.0, 0.0, 1),
+        (0.0, 0.0, 'D', 0.0, 0.0, 1.0, 0.0, 0),
+        (0.0, 0.0, 'D', 10.0, 0.0, 1.0, 0.0, 0),
+        (0.0, 0.0, 'D', 10.0, 0.5, 1.0, 0.0, 0),
+        (0.0, 0.0, 'D', 10.0, 0.5, 0.0, 0.0, 0),
+        (0.0, 0.0, 'D', 10.0, 0.5, 0.0, 1, 1),
     ],
 )
-def test_support_assignment(values, classified, hail_matrix):
-    """
-    :param values: value order in the class4_keys list
-    :param classified: expected classification
-    :param hail_matrix: test fixture
+def test_support_assignment(
+    cadd, revel, mutationtaster, gerp, eigen, sift, polyphen, classified, make_a_mt
+):
     """
 
-    polyphen = values.pop()
-    sift = values.pop()
-    # cast the input as a dictionary
-    row_dict = dict(zip(support_category_keys, values))
-
-    # create a single row dataframe using the input
-    dataframe = pd.DataFrame(row_dict, index=[0])
-
-    hail_table = hl.Table.from_pandas(dataframe, key='locus')
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
-            cadd=hail_table[hail_matrix.locus].cadd,
-            eigen_phred=hail_table[hail_matrix.locus].eigen,
-            gerp_rs=hail_table[hail_matrix.locus].gerp,
-            mutationtaster=hail_table[hail_matrix.locus].mutationtaster,
-            revel=hail_table[hail_matrix.locus].revel,
+    Args:
+        cadd ():
+        revel ():
+        mutationtaster ():
+        gerp ():
+        eigen ():
+        sift ():
+        polyphen ():
+        classified ():
+        make_a_mt ():
+    """
+    anno_matrix = make_a_mt.annotate_rows(
+        info=make_a_mt.info.annotate(
+            cadd=cadd,
+            eigen_phred=eigen,
+            gerp_rs=gerp,
+            mutationtaster=mutationtaster,
+            revel=revel,
         ),
         vep=hl.Struct(
             transcript_consequences=hl.array(
@@ -273,13 +262,21 @@ def test_green_and_new_from_panelapp():
         (0.0001, 0.0001, 1, 1),
     ],
 )
-def test_filter_rows_for_rare(exomes, genomes, clinvar, length, hail_matrix):
+def test_filter_rows_for_rare(exomes, genomes, clinvar, length, make_a_mt):
     """
-    :param hail_matrix:
-    :return:
+
+    Args:
+        exomes ():
+        genomes ():
+        clinvar ():
+        length ():
+        make_a_mt ():
+
+    Returns:
+
     """
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
+    anno_matrix = make_a_mt.annotate_rows(
+        info=make_a_mt.info.annotate(
             gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_aip=clinvar
         )
     )
@@ -298,13 +295,16 @@ def test_filter_rows_for_rare(exomes, genomes, clinvar, length, hail_matrix):
         ({hl.missing(t=hl.tstr)}, 0),
     ],
 )
-def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
+def test_filter_to_green_genes_and_split(gene_ids, length, make_a_mt):
     """
-    :param hail_matrix:x
-    :return:
+
+    Args:
+        gene_ids ():
+        length ():
+        make_a_mt ():
     """
     green_genes = hl.literal({'green', 'gene'})
-    anno_matrix = hail_matrix.annotate_rows(
+    anno_matrix = make_a_mt.annotate_rows(
         geneIds=hl.literal(gene_ids),
         vep=hl.Struct(
             transcript_consequences=hl.array(
@@ -316,14 +316,15 @@ def test_filter_to_green_genes_and_split(gene_ids, length, hail_matrix):
     assert matrix.count_rows() == length
 
 
-def test_filter_to_green_genes_and_split__consequence(hail_matrix):
+def test_filter_to_green_genes_and_split__consequence(make_a_mt):
     """
-    :param hail_matrix:
-    :return:
+
+    Args:
+        make_a_mt ():
     """
 
     green_genes = hl.literal({'green'})
-    anno_matrix = hail_matrix.annotate_rows(
+    anno_matrix = make_a_mt.annotate_rows(
         geneIds=green_genes,
         vep=hl.Struct(
             transcript_consequences=hl.array(
@@ -361,13 +362,23 @@ def test_filter_to_green_genes_and_split__consequence(hail_matrix):
     ],
 )
 def test_filter_to_classified(
-    one, two, three, four, five, support, pm5, length, hail_matrix
+    one, two, three, four, five, support, pm5, length, make_a_mt
 ):
     """
-    :param hail_matrix:
+
+    Args:
+        one ():
+        two ():
+        three ():
+        four ():
+        five ():
+        support ():
+        pm5 ():
+        length ():
+        make_a_mt ():
     """
-    anno_matrix = hail_matrix.annotate_rows(
-        info=hail_matrix.info.annotate(
+    anno_matrix = make_a_mt.annotate_rows(
+        info=make_a_mt.info.annotate(
             categoryboolean1=one,
             categoryboolean2=two,
             categoryboolean3=three,

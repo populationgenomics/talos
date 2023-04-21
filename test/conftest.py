@@ -2,7 +2,6 @@
 A home for common test fixtures
 """
 
-
 from typing import Any
 import pytest
 
@@ -13,6 +12,7 @@ from peddy.peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import set_config_paths
 
+from reanalysis.data_model import BaseFields, TXFields, VepVariant, SneakyTable
 
 PWD = to_path(__file__).parent
 INPUT = PWD / 'input'
@@ -24,11 +24,9 @@ CONF_COHORT = INPUT / 'reanalysis_cohort.toml'
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
 
-
 # pylint: disable=wrong-import-position
 from reanalysis.utils import AbstractVariant, read_json_from_path
 from reanalysis.hail_filter_and_label import MISSING_INT, MISSING_STRING
-
 
 LABELLED = INPUT / '1_labelled_variant.vcf.bgz'
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
@@ -69,6 +67,19 @@ def fixture_hail_cleanup():
     # remove all hail log files
     for filename in log_files:
         filename.unlink()
+
+
+@pytest.fixture(name='make_a_mt', scope='session')
+def fixture_make_a_mt(tmp_path_factory) -> hl.MatrixTable:
+    """
+    a fixture to make a matrix table
+    """
+    tmp_path = tmp_path_factory.mktemp('mt_goes_here')
+
+    v = VepVariant(
+        BaseFields('chr1:12345', alleles=['A', 'G']), [TXFields('a', 'ensga')]
+    )
+    return SneakyTable([v], tmp_path=str(tmp_path)).to_hail()
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')
