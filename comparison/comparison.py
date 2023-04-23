@@ -367,9 +367,13 @@ def check_in_vcf(vcf_path: str, variants: CommonDict) -> tuple[CommonDict, Commo
     split list of discrepancies into two collections;
     - in VCF (investigate via MOI)
     - not in VCF (investigate within MT)
-    :param vcf_path:
-    :param variants:
-    :return:
+
+    Args:
+        vcf_path ():
+        variants ():
+
+    Returns:
+
     """
 
     in_vcf: CommonDict = defaultdict(list)

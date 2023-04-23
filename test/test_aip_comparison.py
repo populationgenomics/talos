@@ -184,55 +184,55 @@ def test_find_missing_different_sample(caplog):
     assert 'Sample match: 1 missing variant(s)' in log_records
 
 
-def test_missing_in_vcf(single_variant_vcf_path):
+def test_missing_in_vcf(make_a_vcf):
     """
     test method which scans VCF for a given variant
     :return:
     """
-    common_var = CommonFormatResult('1', 1, 'GC', 'G', [Confidence.EXPECTED])
+    common_var = CommonFormatResult('1', 12345, 'A', 'G', [Confidence.EXPECTED])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(in_vcf) == 1
     assert in_vcf['SAMPLE'] == [common_var]
     assert len(not_in_vcf) == 0
 
 
-def test_missing_in_vcf_confidence_irrelevant(single_variant_vcf_path):
+def test_missing_in_vcf_confidence_irrelevant(make_a_vcf):
     """
     test method which scans VCF for a given variant
     :return:
     """
-    common_var = CommonFormatResult('1', 1, 'GC', 'G', [Confidence.UNLIKELY])
+    common_var = CommonFormatResult('1', 12345, 'A', 'G', [Confidence.UNLIKELY])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(in_vcf) == 1
     assert in_vcf['SAMPLE'] == [common_var]
     assert len(not_in_vcf) == 0
 
 
-def test_missing_in_vcf_allele_mismatch(single_variant_vcf_path):
+def test_missing_in_vcf_allele_mismatch(make_a_vcf):
     """
     test method which scans VCF for a given variant
     alleles should not match
     :return:
     """
-    common_var = CommonFormatResult('1', 1, 'GC', 'A', [Confidence.EXPECTED])
+    common_var = CommonFormatResult('1', 12345, 'GC', 'A', [Confidence.EXPECTED])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(not_in_vcf) == 1
     assert not_in_vcf['SAMPLE'] == [common_var]
     assert len(in_vcf) == 0
 
 
-def test_missing_in_vcf_variant_pos_mismatch(single_variant_vcf_path):
+def test_missing_in_vcf_variant_pos_mismatch(make_a_vcf):
     """
     test method which scans VCF for a given variant
     alleles should not match
     :return:
     """
-    common_var = CommonFormatResult('11', 11, 'GC', 'G', [Confidence.EXPECTED])
+    common_var = CommonFormatResult('1', 11, 'A', 'G', [Confidence.EXPECTED])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(not_in_vcf) == 1
     assert not_in_vcf['SAMPLE'] == [common_var]
     assert len(in_vcf) == 0
@@ -253,7 +253,7 @@ def test_variant_in_mt_allele_mismatch(make_a_mt):
     check that a variant can be retrieved from a MT
     :return:
     """
-    query_variant = CommonFormatResult('1', 1, 'A', 'T', [])
+    query_variant = CommonFormatResult('1', 12345, 'A', 'T', [])
     result = find_variant_in_mt(make_a_mt, query_variant)
     assert result.count_rows() == 0
 
