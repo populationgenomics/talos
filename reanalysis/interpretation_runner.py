@@ -13,7 +13,6 @@ i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
 
-
 # pylint: disable=too-many-branches
 
 
@@ -34,9 +33,9 @@ from cpg_utils.hail_batch import (
     output_path,
 )
 from cpg_workflows.batch import get_batch
+from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
 from cpg_workflows.jobs.vep import add_vep_jobs
-from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -49,7 +48,6 @@ from reanalysis import (
 )
 from reanalysis.utils import FileTypes, identify_file_type
 
-
 # region: CONSTANTS
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
@@ -59,6 +57,8 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
+
+
 # endregion
 
 
@@ -66,7 +66,7 @@ def set_job_resources(
     job: Job,
     prior_job: Job | None = None,
     memory: str = 'standard',
-    storage: str = '20GiB',
+    storage: str = '20Gi',
 ):
     """
     apply resources to the job
@@ -464,6 +464,8 @@ def main(
             }
         )
         logging.info(input_path)
+        vcf_storage = get_config()['workflow'].get('vcf_size_in_gb', 150) + 10
+        logging.info(f'Storage: {vcf_storage}')
         sites_job, _siteonly_resource_group = add_make_sitesonly_job(
             b=get_batch(),
             input_vcf=input_vcf_in_batch,
