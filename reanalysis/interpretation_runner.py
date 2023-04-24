@@ -214,7 +214,7 @@ def handle_hail_filtering(
     """
 
     labelling_job = get_batch().new_job(name='hail filtering')
-    set_job_resources(labelling_job, prior_job=prior_job, memory='32GiB')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='32Gi')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
