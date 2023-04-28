@@ -1,7 +1,0 @@
-@startuml
-start
-:Clinvar Pathogenic;
-:Clinvar 2+ Stars;
-:MOI consistent;
-:Category 1;
-@enduml
