@@ -34,9 +34,8 @@ from cpg_utils.hail_batch import (
     query_command,
 )
 from cpg_workflows.batch import get_batch
-from annotation.vep_jobs import add_vep_jobs
-from annotation import seqr_loader
-from annotation.sites_only import add_make_sitesonly_job
+from reanalysis.vep_jobs import add_vep_jobs
+from reanalysis.sites_only import add_make_sitesonly_job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -46,6 +45,7 @@ from reanalysis import (
     query_panelapp,
     summarise_clinvar_entries,
     validate_categories,
+    seqr_loader,
 )
 from reanalysis.utils import FileTypes, identify_file_type
 

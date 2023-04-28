@@ -409,7 +409,7 @@ def gather_vep_json_to_ht(
     and write into a Hail Table using a Batch job.
     """
     # pylint: disable=import-outside-toplevel
-    from annotation import vep
+    from reanalysis import vep
 
     j = b.new_job(f'VEP', job_attrs)
     j.image(image_path('cpg_workflows'))
