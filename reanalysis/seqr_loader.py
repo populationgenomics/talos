@@ -61,7 +61,7 @@ def annotate_cohort(
     if not all(attr in mt.info for attr in ['AC', 'AF', 'AN']):
         if mt.count_cols() == 0:
             logging.info('No samples in the Matrix Table, adding dummy values')
-            mt = mt.annotate_rows(info=mt.info.annotate(AN=1, AF=[0.01], AC=[1]))
+            mt = mt.annotate_rows(info=mt.info.annotate(AN=1, AF=0.01, AC=1))
         else:
             logging.info('Adding AC/AF/AN attributes from variant_qc')
             mt = hl.variant_qc(mt)
@@ -71,17 +71,6 @@ def annotate_cohort(
                 )
             )
             mt = mt.drop('variant_qc')
-
-    # don't fail if the AC/AF attributes are an inappropriate type
-    for attr in ['AC', 'AF']:
-        if not isinstance(mt.info[attr], hl.ArrayExpression):
-            mt = mt.annotate_rows(info=mt.info.annotate(**{attr: [mt.info[attr]]}))
-
-    logging.info('Annotating with computed fields: round 1')
-
-    mt = mt.annotate_rows(
-        AC=mt.info.AC[mt.a_index - 1], AF=mt.info.AF[mt.a_index - 1], AN=mt.info.AN
-    )
 
     logging.info('Annotating with seqr-loader aggregate data')
 
