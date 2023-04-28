@@ -53,12 +53,9 @@ def annotate_cohort(
     logging.info(f'Importing VCF {vcf_path}')
 
     logging.info(f'Loading VEP Table from {vep_ht_path}')
-    # Annotate VEP. Do ti before splitting multi, because we run VEP on unsplit VCF,
-    # and hl.split_multi_hts can handle multiallelic VEP field.
     vep_ht = _read(vep_ht_path)
     logging.info(f'Adding VEP annotations into the Matrix Table from {vep_ht_path}')
     mt = mt.annotate_rows(vep=vep_ht[mt.locus, mt.alleles].vep)
-    mt = _checkpoint(mt, 'mt-vep-split.mt')
 
     # Add potentially missing fields
     if not all(attr in mt.info for attr in ['AC', 'AF', 'AN']):
@@ -85,7 +82,6 @@ def annotate_cohort(
     mt = mt.annotate_rows(
         AC=mt.info.AC[mt.a_index - 1], AF=mt.info.AF[mt.a_index - 1], AN=mt.info.AN
     )
-    mt = _checkpoint(mt, 'mt-vep-split-hail-methods.mt')
 
     logging.info('Annotating with seqr-loader aggregate data')
 
