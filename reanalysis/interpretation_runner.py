@@ -477,6 +477,7 @@ def main(
         # set the job dependency and cycle the 'prior' job
         if prior_job:
             sites_job.depends_on(prior_job)
+            prior_job = sites_job
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
 
@@ -490,8 +491,10 @@ def main(
         )
 
         # assign sites-only job as an annotation dependency
-        for job in vep_jobs:
-            job.depends_on(sites_job)
+        if vep_jobs:
+            for job in vep_jobs:
+                job.depends_on(sites_job)
+            prior_job = vep_jobs[-1]
 
         j = get_batch().new_job(f'annotate cohort')
         j.image(get_config()['workflow']['driver_image'])
@@ -506,7 +509,7 @@ def main(
                 setup_gcp=True,
             )
         )
-        j.depends_on(vep_jobs[-1])
+        j.depends_on(prior_job)
         output_dict['annotated_mt'] = ANNOTATED_MT
         prior_job = j
     # endregion
