@@ -85,7 +85,7 @@ def annotate_cohort(
         '(expanding sortedTranscriptConsequences, ref_data, clinvar_data)'
     )
     mt = mt.annotate_rows(
-        geneIds=hl.set(mt.transcript_consequences.map(lambda c: c.gene_id)),
+        geneIds=hl.set(mt.vep.transcript_consequences.map(lambda c: c.gene_id)),
         clinvar=hl.struct(
             **{
                 'allele_id': mt.clinvar_data.info.ALLELEID,
