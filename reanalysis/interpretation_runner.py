@@ -475,7 +475,7 @@ def main(
         )
 
         # set the job dependency and cycle the 'prior' job
-        if prior_job:
+        if prior_job and sites_job:
             sites_job.depends_on(prior_job)
             prior_job = sites_job
 
@@ -491,9 +491,9 @@ def main(
         )
 
         # assign sites-only job as an annotation dependency
-        if vep_jobs:
+        if vep_jobs and prior_job:
             for job in vep_jobs:
-                job.depends_on(sites_job)
+                job.depends_on(prior_job)
             prior_job = vep_jobs[-1]
 
         j = get_batch().new_job(f'annotate cohort')
@@ -509,7 +509,8 @@ def main(
                 setup_gcp=True,
             )
         )
-        j.depends_on(prior_job)
+        if prior_job:
+            j.depends_on(prior_job)
         output_dict['annotated_mt'] = ANNOTATED_MT
         prior_job = j
     # endregion
