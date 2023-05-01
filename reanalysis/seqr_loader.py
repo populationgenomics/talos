@@ -7,9 +7,7 @@ import os
 
 import hail as hl
 
-from cpg_utils import Path
 from cpg_utils.hail_batch import reference_path, genome_build
-from cpg_workflows.utils import can_reuse
 
 
 def annotate_cohort(
@@ -23,27 +21,6 @@ def annotate_cohort(
     annotations.
     """
 
-    def _read(path: str | Path):
-        if not isinstance(path, str):
-            path = str(path)
-        if path.strip('/').endswith('.ht'):
-            t = hl.read_table(str(path))
-        else:
-            assert path.strip('/').endswith('.mt')
-            t = hl.read_matrix_table(str(path))
-        logging.info(f'Read data from {path}')
-        return t
-
-    def _checkpoint(t, file_name):
-        if checkpoint_prefix:
-            path = os.path.join(checkpoint_prefix, file_name)
-            if can_reuse(path):
-                t = _read(str(path))
-            else:
-                t.checkpoint(str(path), overwrite=True)
-                logging.info(f'Wrote checkpoint {path}')
-        return t
-
     mt = hl.import_vcf(
         str(vcf_path),
         reference_genome=genome_build(),
@@ -51,9 +28,13 @@ def annotate_cohort(
         force_bgz=True,
     )
     logging.info(f'Importing VCF {vcf_path}')
+    if checkpoint_prefix:
+        mt = mt.checkpoint(
+            os.path.join(checkpoint_prefix, 'mt-from-vcf.mt'), overwrite=True
+        )
 
     logging.info(f'Loading VEP Table from {vep_ht_path}')
-    vep_ht = _read(vep_ht_path)
+    vep_ht = hl.read_table(vep_ht_path)
     logging.info(f'Adding VEP annotations into the Matrix Table from {vep_ht_path}')
     mt = mt.annotate_rows(vep=vep_ht[mt.locus, mt.alleles].vep)
 
@@ -71,11 +52,9 @@ def annotate_cohort(
             mt = mt.drop('variant_qc')
 
     logging.info('Annotating with seqr-loader aggregate data')
-
-    ref_ht = _read(reference_path('seqr_combined_reference_data'))
-    clinvar_ht = _read(reference_path('seqr_clinvar'))
+    ref_ht = hl.read_table(str(reference_path('seqr_combined_reference_data')))
+    clinvar_ht = hl.read_table(str(reference_path('seqr_clinvar')))
     mt = mt.annotate_rows(clinvar_data=clinvar_ht[mt.row_key], **ref_ht[mt.row_key])
-    mt = _checkpoint(mt, 'mt-vep-split-external-data.mt')
 
     mt = mt.annotate_rows(
         geneIds=hl.set(mt.vep.transcript_consequences.map(lambda c: c.gene_id)),
@@ -94,7 +73,7 @@ def annotate_cohort(
         hail_version=hl.version(),
     )
 
-    logging.info('Done:')
     mt.describe()
     mt.write(str(out_mt_path), overwrite=True)
+
     logging.info(f'Written final matrix table into {out_mt_path}')
