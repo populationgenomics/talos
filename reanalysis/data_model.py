@@ -22,7 +22,6 @@ Expected results in this case would be determined by the gene ID(s),
 the annotation(s), the genotype(s), and the sample affection status.
 """
 
-
 # pylint: disable=invalid-name,too-many-instance-attributes
 
 
@@ -34,7 +33,6 @@ import hail as hl
 from cloudpathlib import AnyPath
 
 from reanalysis.utils import CustomEncoder
-
 
 schema = (
     'struct{'
@@ -79,6 +77,7 @@ class BaseFields:
         self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
+        # shouldn't be required in info anymore
         self.info = {'AC': ac, 'AF': af, 'AN': an}
         self.AC = ac
         self.AF = af
