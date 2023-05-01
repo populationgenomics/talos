@@ -58,17 +58,15 @@ def annotate_cohort(
     mt = mt.annotate_rows(vep=vep_ht[mt.locus, mt.alleles].vep)
 
     # Add potentially missing fields
-    if not all(attr in mt.info for attr in ['AC', 'AF', 'AN']):
+    if not all(attr in mt.row_value for attr in ['AC', 'AF', 'AN']):
         if mt.count_cols() == 0:
             logging.info('No samples in the Matrix Table, adding dummy values')
-            mt = mt.annotate_rows(info=mt.info.annotate(AN=1, AF=0.01, AC=1))
+            mt = mt.annotate_rows(AN=1, AF=0.01, AC=1)
         else:
             logging.info('Adding AC/AF/AN attributes from variant_qc')
             mt = hl.variant_qc(mt)
             mt = mt.annotate_rows(
-                info=mt.info.annotate(
-                    AN=mt.variant_qc.AN, AF=mt.variant_qc.AF, AC=mt.variant_qc.AC
-                )
+                AN=mt.variant_qc.AN, AF=mt.variant_qc.AF, AC=mt.variant_qc.AC
             )
             mt = mt.drop('variant_qc')
 
@@ -76,14 +74,9 @@ def annotate_cohort(
 
     ref_ht = _read(reference_path('seqr_combined_reference_data'))
     clinvar_ht = _read(reference_path('seqr_clinvar'))
-    # todo check this syntax
     mt = mt.annotate_rows(clinvar_data=clinvar_ht[mt.row_key], **ref_ht[mt.row_key])
     mt = _checkpoint(mt, 'mt-vep-split-external-data.mt')
 
-    logging.info(
-        'Annotating with seqr-loader fields: round 2 '
-        '(expanding sortedTranscriptConsequences, ref_data, clinvar_data)'
-    )
     mt = mt.annotate_rows(
         geneIds=hl.set(mt.vep.transcript_consequences.map(lambda c: c.gene_id)),
         clinvar=hl.struct(
