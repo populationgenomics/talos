@@ -11,7 +11,6 @@ Read, filter, annotate, classify, and write Genetic data
 - write as VCF
 """
 
-
 # pylint: disable=too-many-lines
 
 
@@ -36,7 +35,6 @@ from reanalysis.hail_audit import (
     VEP_TX_FIELDS_REQUIRED,
 )
 from reanalysis.utils import read_json_from_path
-
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)
@@ -705,7 +703,6 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
     def get_csq_from_struct(
         element: hl.expr.StructExpression,
     ) -> hl.expr.StringExpression:
-
         # Most fields are 1-1, just lowercase
         fields = dict(element)
 
@@ -1028,6 +1025,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
         )
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
+        mt.describe()
         raise KeyError('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
