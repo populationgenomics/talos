@@ -51,6 +51,11 @@ def annotate_cohort(
             )
             mt = mt.drop('variant_qc')
 
+    # don't fail if the AC/AF attributes are an inappropriate type
+    for attr in ['AC', 'AF']:
+        if isinstance(mt[attr], hl.ArrayExpression):
+            mt = mt.annotate_rows(**{attr: mt[attr][1]})
+
     logging.info('Annotating with seqr-loader aggregate data')
     ref_ht = hl.read_table(str(reference_path('seqr_combined_reference_data')))
     clinvar_ht = hl.read_table(str(reference_path('seqr_clinvar')))
