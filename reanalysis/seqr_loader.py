@@ -47,7 +47,7 @@ def annotate_cohort(
             logging.info('Adding AC/AF/AN attributes from variant_qc')
             mt = hl.variant_qc(mt)
             mt = mt.annotate_rows(
-                AN=mt.variant_qc.AN, AF=mt.variant_qc.AF, AC=mt.variant_qc.AC
+                AN=mt.variant_qc.AN, AF=mt.variant_qc.AF[1], AC=mt.variant_qc.AC[1]
             )
             mt = mt.drop('variant_qc')
 
