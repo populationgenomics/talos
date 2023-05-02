@@ -136,7 +136,7 @@ def apply_moi_to_variants(
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
 
-            # Flag! If this is a Category 1 (ClinVar) variant and we are
+            # Flag! If this is a Category 1 (ClinVar) variant, and we are
             # interpreting under a lenient MOI, add flag for analysts
             cat_1_flag = variant.info.get('categoryboolean1', False)
             lenient_moi = bool(
