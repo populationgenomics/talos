@@ -6,7 +6,6 @@ Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant
 """
 
-
 from abc import abstractmethod
 from copy import deepcopy
 
@@ -15,7 +14,6 @@ from peddy.peddy import Ped, PHENOTYPE
 from cpg_utils.config import get_config
 
 from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant, X_CHROMOSOME
-
 
 # pylint: disable=too-many-lines
 
@@ -153,6 +151,7 @@ class MOIRunner:
     def run(
         self,
         principal_var,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
@@ -161,6 +160,7 @@ class MOIRunner:
 
         Args:
             principal_var (): the variant we are focused on
+            flags (list[str]):
             comp_het ():
             partial_pen ():
         """
@@ -172,7 +172,10 @@ class MOIRunner:
         for model in self.filter_list:
             moi_matched.extend(
                 model.run(
-                    principal=principal_var, comp_het=comp_het, partial_pen=partial_pen
+                    principal=principal_var,
+                    flags=flags,
+                    comp_het=comp_het,
+                    partial_pen=partial_pen,
                 )
             )
         return moi_matched
@@ -197,6 +200,7 @@ class BaseMoi:
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
@@ -370,13 +374,15 @@ class DominantAutosomal(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
         """
         Simplest MOI, exclusions based on HOM count and AF
         Args:
-            principal ():
+            principal (): the main variant to evaluate
+            flags (list[str]): any flags to apply
             comp_het ():
             partial_pen ():
         """
@@ -424,6 +430,9 @@ class DominantAutosomal(BaseMoi):
                 continue
 
             var_copy = minimise_variant(variant=principal, sample_id=sample_id)
+
+            # extend with sample-specific flags
+            flags.extend(principal.get_sample_flags(sample_id))
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -434,7 +443,7 @@ class DominantAutosomal(BaseMoi):
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
-                    flags=principal.get_sample_flags(sample_id),
+                    flags=flags,
                 )
             )
 
@@ -458,6 +467,7 @@ class RecessiveAutosomalCH(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
@@ -467,6 +477,7 @@ class RecessiveAutosomalCH(BaseMoi):
 
         Args:
             principal (AbstractVariant): main variant being evaluated
+            flags (list[str]): any flags to apply
             comp_het (dict): comp-het partners
             partial_pen (bool):
 
@@ -525,6 +536,13 @@ class RecessiveAutosomalCH(BaseMoi):
                     continue
 
                 var_copy = minimise_variant(variant=principal, sample_id=sample_id)
+
+                # add any sample-specific flags
+                flags.extend(
+                    principal.get_sample_flags(sample_id)
+                    + partner_variant.get_sample_flags(sample_id)
+                )
+
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
@@ -537,8 +555,7 @@ class RecessiveAutosomalCH(BaseMoi):
                             variant=principal, sample_id=sample_id
                         ),
                         support_vars=[partner_variant.coords.string_format],
-                        flags=principal.get_sample_flags(sample_id)
-                        + partner_variant.get_sample_flags(sample_id),
+                        flags=flags,
                     ),
                 )
 
@@ -563,6 +580,7 @@ class RecessiveAutosomalHomo(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
@@ -571,6 +589,7 @@ class RecessiveAutosomalHomo(BaseMoi):
 
         Args:
             principal (AbstractVariant): main variant being evaluated
+            flags (list[str]): any flags to apply
             comp_het (dict): comp-het partners
             partial_pen (bool):
 
@@ -612,6 +631,10 @@ class RecessiveAutosomalHomo(BaseMoi):
                 continue
 
             var_copy = minimise_variant(variant=principal, sample_id=sample_id)
+
+            # add any sample-specific flags
+            flags.extend(principal.get_sample_flags(sample_id))
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -622,7 +645,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                         variant=principal, sample_id=sample_id
                     ),
                     reasons={self.applied_moi},
-                    flags=principal.get_sample_flags(sample_id),
+                    flags=flags,
                 )
             )
 
@@ -654,6 +677,7 @@ class XDominant(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
@@ -662,7 +686,8 @@ class XDominant(BaseMoi):
         discarded if support
 
         Args:
-            principal ():
+            principal (): the main variant to evaluate
+            flags (list[str]): any flags to apply
             comp_het ():
             partial_pen ():
         """
@@ -711,6 +736,9 @@ class XDominant(BaseMoi):
 
             var_copy = minimise_variant(variant=principal, sample_id=sample_id)
 
+            # add any sample-specific flags
+            flags.extend(principal.get_sample_flags(sample_id))
+
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -721,7 +749,7 @@ class XDominant(BaseMoi):
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
-                    flags=principal.get_sample_flags(sample_id),
+                    flags=flags,
                 )
             )
         return classifications
@@ -753,12 +781,14 @@ class XRecessiveMale(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
         """
         Args:
-            principal ():
+            principal (): the main variant to evaluate
+            flags (list[str]): any flags to apply
             comp_het ():
             partial_pen ():
         """
@@ -808,6 +838,9 @@ class XRecessiveMale(BaseMoi):
                 continue
 
             var_copy = minimise_variant(variant=principal, sample_id=sample_id)
+
+            # add any sample-specific flags
+            flags.extend(principal.get_sample_flags(sample_id))
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -818,7 +851,7 @@ class XRecessiveMale(BaseMoi):
                         variant=principal, sample_id=sample_id
                     ),
                     reasons={self.applied_moi},
-                    flags=principal.get_sample_flags(sample_id),
+                    flags=flags,
                 )
             )
         return classifications
@@ -848,13 +881,15 @@ class XRecessiveFemaleHom(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
         """
 
         Args:
-            principal ():
+            principal (): the main variant to evaluate
+            flags (list[str]): any flags to apply
             comp_het ():
             partial_pen ():
         """
@@ -900,6 +935,8 @@ class XRecessiveFemaleHom(BaseMoi):
                 continue
 
             var_copy = minimise_variant(variant=principal, sample_id=sample_id)
+            # add any sample-specific flags
+            flags.extend(principal.get_sample_flags(sample_id))
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
@@ -910,7 +947,7 @@ class XRecessiveFemaleHom(BaseMoi):
                         variant=principal, sample_id=sample_id
                     ),
                     reasons={self.applied_moi},
-                    flags=principal.get_sample_flags(sample_id),
+                    flags=flags,
                 )
             )
         return classifications
@@ -940,13 +977,15 @@ class XRecessiveFemaleCH(BaseMoi):
     def run(
         self,
         principal: AbstractVariant,
+        flags: list[str],
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportedVariant]:
         """
 
         Args:
-            principal ():
+            principal (): the main variant to evaluate
+            flags (list[str]): any flags to apply
             comp_het ():
             partial_pen ():
         """
@@ -1017,6 +1056,10 @@ class XRecessiveFemaleCH(BaseMoi):
                     continue
 
                 var_copy = minimise_variant(variant=principal, sample_id=sample_id)
+                flags.extend(
+                    principal.get_sample_flags(sample_id)
+                    + partner.get_sample_flags(sample_id)
+                )
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
@@ -1029,8 +1072,7 @@ class XRecessiveFemaleCH(BaseMoi):
                             variant=principal, sample_id=sample_id
                         ),
                         support_vars=[partner.coords.string_format],
-                        flags=principal.get_sample_flags(sample_id)
-                        + partner.get_sample_flags(sample_id),
+                        flags=flags,
                     )
                 )
 

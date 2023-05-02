@@ -2,7 +2,6 @@
 tests relating to the MOI filters
 """
 
-
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -25,7 +24,6 @@ from reanalysis.moi_tests import (
 )
 
 from reanalysis.utils import Coordinates
-
 
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
@@ -235,7 +233,7 @@ def test_dominant_autosomal_fails_on_depth(peddy_ped):
         coords=TEST_COORDS,
     )
     shallow_variant.depths = {'male': 1}
-    results = dom.run(principal=shallow_variant)
+    results = dom.run(principal=shallow_variant, flags=[])
     assert len(results) == 0
 
 
@@ -253,7 +251,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     passing_variant = SimpleVariant(
         info=info_dict, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
     )
-    results = dom.run(principal=passing_variant)
+    results = dom.run(principal=passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
 
@@ -261,7 +259,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     passing_variant = SimpleVariant(
         info=info_dict, het_samples=set(), hom_samples={'male'}, coords=TEST_COORDS
     )
-    results = dom.run(principal=passing_variant)
+    results = dom.run(principal=passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
 
@@ -269,7 +267,7 @@ def test_dominant_autosomal_passes(peddy_ped):
     passing_variant = SimpleVariant(
         info=info_dict, het_samples=set(), hom_samples=set(), coords=TEST_COORDS
     )
-    assert len(dom.run(principal=passing_variant)) == 0
+    assert len(dom.run(principal=passing_variant, flags=[])) == 0
 
 
 @pytest.mark.parametrize(
@@ -289,7 +287,7 @@ def test_dominant_autosomal_fails(info, peddy_ped):
     failing_variant = SimpleVariant(
         info=info, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
     )
-    assert not dom.run(principal=failing_variant)
+    assert not dom.run(principal=failing_variant, flags=[])
 
 
 def test_recessive_autosomal_hom_passes(peddy_ped):
@@ -302,7 +300,7 @@ def test_recessive_autosomal_hom_passes(peddy_ped):
         hom_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 1.0}
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
-    results = rec.run(passing_variant)
+    results = rec.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
 
@@ -317,7 +315,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(peddy_ped):
         hom_samples={'male'}, coords=TEST_COORDS, ab_ratios={'male': 0.4}
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
-    results = rec.run(passing_variant)
+    results = rec.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
     assert passing_variant.get_sample_flags('male') == ['AB Ratio']
@@ -338,7 +336,7 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
-    results = rec.run(passing_variant, comp_het=comp_hets)
+    results = rec.run(passing_variant, comp_het=comp_hets, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
 
@@ -358,7 +356,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
-    results = rec.run(passing_variant, comp_het=comp_hets)
+    results = rec.run(passing_variant, comp_het=comp_hets, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == ['AB Ratio']
@@ -380,7 +378,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
-    results = rec.run(passing_variant, comp_het=comp_hets)
+    results = rec.run(passing_variant, comp_het=comp_hets, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == []
@@ -399,7 +397,7 @@ def test_recessive_autosomal_comp_het_fails_no_ch_return(peddy_ped):
         info={}, het_samples={'male'}, hom_samples=set(), coords=TEST_COORDS
     )
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
-    assert not rec.run(failing_variant)
+    assert not rec.run(failing_variant, flags=[])
 
 
 def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
@@ -422,6 +420,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
     assert not rec.run(
         failing_variant,
         comp_het={'male': {TEST_COORDS2.string_format: [failing_variant2]}},
+        flags=[],
     )
 
 
@@ -436,7 +435,7 @@ def test_recessive_autosomal_hom_fails(info, peddy_ped):
         info=info, het_samples={'male'}, hom_samples={'male'}, coords=TEST_COORDS
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
-    assert not rec.run(failing_variant)
+    assert not rec.run(failing_variant, flags=[])
 
 
 def test_x_dominant_female_and_male_het_passes(peddy_ped):
@@ -449,7 +448,7 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
         info={'gnomad_hemi': 0}, het_samples={'female', 'male'}, coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped)
-    results = x_dom.run(passing_variant)
+    results = x_dom.run(passing_variant, flags=[])
 
     assert len(results) == 2
     reasons = sorted([result.reasons.pop() for result in results])
@@ -466,7 +465,7 @@ def test_x_dominant_female_hom_passes(peddy_ped):
         info={'gnomad_hemi': 0}, hom_samples={'female'}, coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped)
-    results = x_dom.run(passing_variant)
+    results = x_dom.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'X_Dominant'}
 
@@ -481,7 +480,7 @@ def test_x_dominant_male_hom_passes(peddy_ped):
         info={'gnomad_hemi': 0}, hom_samples={'male'}, coords=x_coords
     )
     x_dom = XDominant(pedigree=peddy_ped)
-    results = x_dom.run(passing_variant)
+    results = x_dom.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'X_Dominant'}
 
@@ -505,7 +504,7 @@ def test_x_dominant_info_fails(info, peddy_ped):
         categoryboolean1=False,
     )
     x_dom = XDominant(pedigree=peddy_ped)
-    assert len(x_dom.run(passing_variant)) == 0
+    assert len(x_dom.run(passing_variant, flags=[])) == 0
 
 
 def test_x_recessive_male_hom_passes(peddy_ped):
@@ -521,7 +520,7 @@ def test_x_recessive_male_hom_passes(peddy_ped):
         ab_ratios={'female': 1.0, 'male': 1.0},
     )
     x_rec = XRecessiveMale(pedigree=peddy_ped)
-    results = x_rec.run(passing_variant, comp_het={})
+    results = x_rec.run(passing_variant, comp_het={}, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'X_Male'}
 
@@ -538,7 +537,7 @@ def test_x_recessive_female_hom_passes(peddy_ped):
         ab_ratios={'female': 1.0, 'male': 1.0},
     )
     x_rec = XRecessiveFemaleHom(pedigree=peddy_ped)
-    results = x_rec.run(passing_variant, comp_het={})
+    results = x_rec.run(passing_variant, comp_het={}, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'X_Recessive HOM Female'}
 
@@ -553,7 +552,7 @@ def test_x_recessive_male_het_passes(peddy_ped):
         het_samples={'male'}, coords=x_coords, ab_ratios={'male': 0.5}
     )
     x_rec = XRecessiveMale(pedigree=peddy_ped)
-    results = x_rec.run(passing_variant)
+    results = x_rec.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'X_Male'}
 
@@ -578,7 +577,7 @@ def test_x_recessive_female_het_passes(peddy_ped):
     )
     comp_hets = {'female': {'x-1-A-C': [passing_variant_2]}}
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
-    results = x_rec.run(passing_variant, comp_het=comp_hets)
+    results = x_rec.run(passing_variant, comp_het=comp_hets, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
 
@@ -596,7 +595,7 @@ def test_het_de_novo_het_passes(peddy_ped):
         ab_ratios={'female': 0.5},
     )
     dom_a = DominantAutosomal(pedigree=peddy_ped)
-    results = dom_a.run(passing_variant)
+    results = dom_a.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
     assert not results[0].flags
@@ -615,7 +614,7 @@ def test_het_de_novo_het_passes_flagged(peddy_ped):
         ab_ratios={'female': 0.5},
     )
     dom_a = DominantAutosomal(pedigree=peddy_ped)
-    results = dom_a.run(passing_variant)
+    results = dom_a.run(passing_variant, flags=[])
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Dominant'}
 
@@ -639,7 +638,7 @@ def test_x_recessive_female_het_fails(peddy_ped):
     )
     comp_hets = {'female': {'x-2-A-C': [passing_variant_2]}}
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
-    results = x_rec.run(passing_variant, comp_het=comp_hets)
+    results = x_rec.run(passing_variant, comp_het=comp_hets, flags=[])
     assert not results
 
 
@@ -656,7 +655,7 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch, peddy_ped)
         ab_ratios={'female': 0.5},
     )
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
-    assert not x_rec.run(passing_variant)
+    assert not x_rec.run(passing_variant, flags=[])
 
 
 # trio male, mother_1, father_1; only 'male' is affected

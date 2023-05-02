@@ -14,7 +14,6 @@ for each variant in each participant, check MOI in affected
 participants relative to the MOI described in PanelApp
 """
 
-
 import json
 import logging
 import sys
@@ -42,7 +41,6 @@ from reanalysis.utils import (
     GeneDict,
     ReportedVariant,
 )
-
 
 MALE_FEMALE = {'male', 'female'}
 
@@ -86,7 +84,6 @@ def set_up_moi_filters(
 
         # if we haven't seen this MOI before, set up the appropriate filter
         if gene_moi not in moi_dictionary:
-
             # get a MOIRunner with the relevant filters
             moi_dictionary[gene_moi] = MOIRunner(pedigree=pedigree, target_moi=gene_moi)
 
@@ -104,10 +101,10 @@ def apply_moi_to_variants(
     find all variants/compound hets which fit the PanelApp MOI
 
     Args:
-        variant_dict ():
-        moi_lookup ():
-        panelapp_data ():
-        pedigree ():
+        variant_dict (GeneDict):
+        moi_lookup (dict):
+        panelapp_data (dict):
+        pedigree (Ped):
     """
 
     results = []
@@ -138,11 +135,21 @@ def apply_moi_to_variants(
             # pass on whether this variant is support only
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
+
+            # Flag! If this is a Category 1 (ClinVar) variant and we are
+            # interpreting under a lenient MOI, add flag for analysts
+            cat_1_flag = variant.info.get('categoryboolean1', False)
+            lenient_moi = bool(
+                panel_gene_data.get('moi')
+                in {'Hemi_Bi_In_Female', 'Unknown', 'Mono_And_Biallelic'}
+            )
+            flags = ['Lenient MOI Used'] if lenient_moi else []
             results.extend(
                 moi_lookup[panel_gene_data.get('moi')].run(
                     principal_var=variant,
+                    flags=flags,
                     comp_het=comp_het_dict,
-                    partial_pen=variant.info.get('categoryboolean1', False),
+                    partial_pen=cat_1_flag,
                 )
             )
 
@@ -441,7 +448,6 @@ def main(
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
-
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
