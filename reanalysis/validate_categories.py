@@ -141,7 +141,7 @@ def apply_moi_to_variants(
             cat_1_flag = variant.info.get('categoryboolean1', False)
             lenient_moi = bool(
                 panel_gene_data.get('moi')
-                in {'Hemi_Bi_In_Female', 'Unknown', 'Mono_And_Biallelic'}
+                in {'Hemi_Mono_In_Female', 'Unknown', 'Mono_And_Biallelic'}
             )
             flags = ['Lenient MOI Used'] if lenient_moi else []
             results.extend(
