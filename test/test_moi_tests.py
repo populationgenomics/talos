@@ -485,6 +485,22 @@ def test_x_dominant_male_hom_passes(peddy_ped):
     assert results[0].reasons == {'X_Dominant'}
 
 
+def test_x_dominant_male_hom_passes_with_flag(peddy_ped):
+    """
+    check that a male is accepted as a het
+    :return:
+    """
+    x_coords = Coordinates('x', 1, 'A', 'C')
+    passing_variant = SimpleVariant(
+        info={'gnomad_hemi': 0}, hom_samples={'male'}, coords=x_coords
+    )
+    x_dom = XDominant(pedigree=peddy_ped)
+    results = x_dom.run(passing_variant, flags=['This Flag!'])
+    assert len(results) == 1
+    assert results[0].reasons == {'X_Dominant'}
+    assert results[0].flags == ['This Flag!']
+
+
 @pytest.mark.parametrize(
     'info',
     [{'gnomad_af': 0.1}, {'gnomad_hom': 2}, {'gnomad_hemi': 3}],
