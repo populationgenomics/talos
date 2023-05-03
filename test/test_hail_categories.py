@@ -392,17 +392,15 @@ def test_filter_to_classified(
     assert matrix.count_rows() == length
 
 
-def test_aip_clinvar_default(clinvar_prepared_mt):
+def test_aip_clinvar_default(make_a_mt):
     """
     no private annotations applied
     Args:
-        clinvar_prepared_mt ():
+        make_a_mt (hl.MatrixTable):
     """
 
-    mt = annotate_aip_clinvar(
-        hl.read_matrix_table(clinvar_prepared_mt), clinvar='absent'
-    )
-    assert mt.count_rows() == 2
+    mt = annotate_aip_clinvar(make_a_mt, clinvar='absent')
+    assert mt.count_rows() == 1
     assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
     assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
 
@@ -410,15 +408,15 @@ def test_aip_clinvar_default(clinvar_prepared_mt):
 @pytest.mark.parametrize(
     'rating,stars,rows,regular,strong',
     [
-        ('benign', 0, 1, 0, 0),  # with private data, any benign is removed
-        ('benign', 1, 1, 0, 0),
-        ('other', 7, 2, 0, 0),
-        ('pathogenic', 0, 2, 1, 0),
-        ('pathogenic', 1, 2, 1, 1),
+        ('benign', 0, 0, 0, 0),  # with private data, any benign is removed
+        ('benign', 1, 0, 0, 0),
+        ('other', 7, 1, 0, 0),
+        ('pathogenic', 0, 1, 1, 0),
+        ('pathogenic', 1, 1, 1, 1),
     ],
 )
 def test_annotate_aip_clinvar(
-    rating, stars, rows, regular, strong, tmp_path, clinvar_prepared_mt
+    rating, stars, rows, regular, strong, tmp_path, make_a_mt
 ):
     """
     Test intention
@@ -432,8 +430,8 @@ def test_annotate_aip_clinvar(
         pd.DataFrame(
             [
                 {
-                    'locus': hl.Locus(contig='chr20', position=63406931),
-                    'alleles': ['C', 'CGG'],
+                    'locus': hl.Locus(contig='chr1', position=12345),
+                    'alleles': ['A', 'G'],
                     'clinical_significance': rating,
                     'gold_stars': stars,
                     'allele_id': 1,
@@ -445,9 +443,7 @@ def test_annotate_aip_clinvar(
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    returned_table = annotate_aip_clinvar(
-        hl.read_matrix_table(clinvar_prepared_mt), clinvar=table_path
-    )
+    returned_table = annotate_aip_clinvar(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
     assert (
         len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular

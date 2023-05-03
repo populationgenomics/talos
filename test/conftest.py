@@ -26,7 +26,6 @@ set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
 
 # pylint: disable=wrong-import-position
 from reanalysis.utils import AbstractVariant, read_json_from_path
-from reanalysis.hail_filter_and_label import MISSING_INT, MISSING_STRING
 
 LABELLED = INPUT / '1_labelled_variant.vcf.bgz'
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
@@ -216,29 +215,6 @@ def fixture_sub_stub():
     """path to the TXT file of submissions"""
 
     return SUB_STUB
-
-
-@pytest.fixture(scope='session')
-def clinvar_prepared_mt(tmp_path_factory):
-    """
-    write the clinvar attributes into the MT once
-    fast write to disc in temp, then a read
-    Args:
-        tmp_path_factory ():
-    """
-    mt = hl.import_vcf(str(PHASED_TRIO))
-    mt = mt.annotate_rows(
-        clinvar=hl.Struct(
-            clinical_significance=MISSING_STRING,
-            allele_id=MISSING_INT,
-            gold_stars=MISSING_INT,
-        )
-    )
-    tmp_mt = str(tmp_path_factory.mktemp('mt_path') / 'default.mt')
-    # write to this path, and serve the path as a fixture
-    # ensures each process loads a fresh copy
-    mt.write(tmp_mt)
-    return tmp_mt
 
 
 # @pytest.fixture(scope='session')
