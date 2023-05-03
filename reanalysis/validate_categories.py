@@ -153,7 +153,7 @@ def apply_moi_to_variants(
             if lenient_moi_flag:
                 for each_result in variant_results:
                     if any('Dominant' in moi for moi in each_result.reasons):
-                        each_result.flags += ['Lenient MOI Used']
+                        each_result.flags += ['Ambiguous Cat.1 MOI']
 
             results.extend(variant_results)
 
