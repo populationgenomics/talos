@@ -13,14 +13,15 @@ i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
 
+
 # pylint: disable=too-many-branches
 
 
 import logging
-import os
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
+from os.path import join
 
 from hailtop.batch.job import BashJob, Job
 
@@ -49,6 +50,7 @@ from reanalysis import (
 )
 from reanalysis.utils import FileTypes, identify_file_type
 
+
 # region: CONSTANTS
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
@@ -58,8 +60,6 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
-
-
 # endregion
 
 
@@ -113,7 +113,7 @@ def handle_clinvar() -> tuple[Job | None, str]:
     clinvar_prefix = dataset_path(
         f'clinvar_summaries/{datetime.now().strftime("%Y_%m")}'
     )
-    clinvar_summary = os.path.join(clinvar_prefix, 'clinvar.ht')
+    clinvar_summary = join(clinvar_prefix, 'clinvar.ht')
 
     if to_path(clinvar_summary).exists():
         return None, clinvar_summary
@@ -134,8 +134,8 @@ def handle_clinvar() -> tuple[Job | None, str]:
     )
 
     # write output files
-    get_batch().write_output(bash_job.subs, os.path.join(clinvar_prefix, sub_file))
-    get_batch().write_output(bash_job.vars, os.path.join(clinvar_prefix, var_file))
+    get_batch().write_output(bash_job.subs, join(clinvar_prefix, sub_file))
+    get_batch().write_output(bash_job.vars, join(clinvar_prefix, var_file))
 
     # create a job to run the summary
     summarise = get_batch().new_job(name='summarise clinvar')
@@ -144,7 +144,7 @@ def handle_clinvar() -> tuple[Job | None, str]:
         f'python3 {summarise_clinvar_entries.__file__} '
         f'-s {bash_job.subs} '
         f'-v {bash_job.vars} '
-        f'-o {os.path.join(clinvar_prefix, "clinvar.ht")}'
+        f'-o {join(clinvar_prefix, "clinvar.ht")}'
     )
     return summarise, clinvar_summary
 

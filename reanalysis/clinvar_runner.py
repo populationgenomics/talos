@@ -10,9 +10,13 @@ from datetime import datetime
 import click
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job
+from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, output_path
 from cpg_workflows.batch import get_batch
-from reanalysis import summarise_clinvar_entries
+
+from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
+from cpg_workflows.jobs.vep import add_vep_jobs
+
+from reanalysis import clinvar_by_codon, summarise_clinvar_entries
 
 
 @click.command
@@ -51,14 +55,69 @@ def main(ht_out: str, date: str | None = None):
     get_batch().write_output(bash_job.subs, str(clinvar_folder / f'{today}_{sub_file}'))
     get_batch().write_output(bash_job.vars, str(clinvar_folder / f'{today}_{var_file}'))
 
-    # create a job to run the summary
+    # create a space for the SNV VCF
+    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
+
+    # region: run the summarise_clinvar_entries script
     summarise = get_batch().new_job(name='summarise clinvar')
+
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
-    command_options = f'-s {bash_job.subs} -v {bash_job.vars} -o {ht_out}'
+    command_options = (
+        f'-s {bash_job.subs} '
+        f'-v {bash_job.vars} '
+        f'-o {ht_out} '
+        f'--path_snv {snv_vcf} '
+    )
     if date:
         command_options += f' -d {date}'
     summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
+    # endregion
+
+    # region: annotate the SNV VCF with VEP
+    vep_ht_tmp = to_path(output_path('vep_annotations.ht', 'tmp'))
+    annotated_clinvar = to_path(clinvar_folder / 'annotated_clinvar.mt')
+
+    # generate the jobs which run VEP & collect the results
+    vep_jobs = add_vep_jobs(
+        b=get_batch(),
+        input_siteonly_vcf_path=snv_vcf,
+        tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+        scatter_count=5,
+        out_path=vep_ht_tmp,
+    )
+
+    # add Clinvar job as an annotation dependency
+    for job in vep_jobs:
+        job.depends_on(summarise)
+
+    # Apply the HT of annotations to the VCF, save as MT
+    anno_job = annotate_cohort_jobs(
+        b=get_batch(),
+        vcf_path=snv_vcf,
+        vep_ht_path=vep_ht_tmp,
+        out_mt_path=annotated_clinvar,
+        checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),
+        depends_on=vep_jobs,
+        use_dataproc=False,
+    )
+    # endregion
+
+    # region: run the clinvar_by_codon script
+
+    pm5_table = to_path(clinvar_folder / 'pm5_table.mt')
+    clinvar_by_codon_job = get_batch().new_job(name='clinvar_by_codon')
+    clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(2).storage(
+        '20G'
+    )
+    authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
+    clinvar_by_codon_job.command(
+        f'python3 {clinvar_by_codon.__file__} '
+        f'--mt {annotated_clinvar} '
+        f'--write_path {pm5_table}'
+    )
+    clinvar_by_codon_job.depends_on(anno_job[-1])
+    # endregion
     get_batch().run(wait=False)
 
 

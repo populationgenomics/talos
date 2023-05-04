@@ -16,10 +16,10 @@ variant_summary.txt
  - links clinvar AlleleID, Variant ID, position and alleles
 """
 
-
 import gzip
 import logging
 import json
+import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
@@ -34,7 +34,6 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path, init_batch
 
 from reanalysis.utils import get_cohort_config
-
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
 CONFLICTING = 'conflicting data from submitters'
@@ -58,6 +57,7 @@ ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y', 'M']]
 ACMG_THRESHOLD = datetime(year=2016, month=1, day=1)
 VERY_OLD = datetime(year=1970, month=1, day=1)
 LARGEST_COMPLEX_INDELS = 40
+BASES = re.compile(r'[ACGTN]+')
 
 
 class Consequence(Enum):
@@ -72,8 +72,15 @@ class Consequence(Enum):
     UNKNOWN = 'Unknown'
 
 
-# submitters not trusted for a subset of consequences -after Consequence is defined
-QUALIFIED_BLACKLIST = [(Consequence.BENIGN, get_config()['clinvar']['filter_benign'])]
+# submitters not trusted for a subset of consequences - after Consequence is defined
+try:
+    QUALIFIED_BLACKLIST = [
+        (Consequence.BENIGN, get_config()['clinvar']['filter_benign'])
+    ]
+except AssertionError:
+    QUALIFIED_BLACKLIST = [
+        (Consequence.BENIGN, ['illumina laboratory services; illumina'])
+    ]
 
 
 @dataclass
@@ -125,18 +132,21 @@ def get_allele_locus_map(summary_file: str) -> dict:
         if (
             ref == 'na'
             or alt == 'na'
+            or ref == alt
             or 'm' in chromosome.lower()
             or (len(ref) + len(alt)) > LARGEST_COMPLEX_INDELS
         ):
             continue
 
-        allele_dict[var_id] = {
-            'allele': allele_id,
-            'chrom': chromosome,
-            'pos': pos,
-            'ref': ref,
-            'alt': alt,
-        }
+        # don't include any of the trash bases in ClinVar
+        if BASES.match(ref) and BASES.match(alt):
+            allele_dict[var_id] = {
+                'allele': allele_id,
+                'chrom': chromosome,
+                'pos': pos,
+                'ref': ref,
+                'alt': alt,
+            }
 
     return allele_dict
 
@@ -316,8 +326,11 @@ def get_all_decisions(
 
     # remove all entries from these providers
     # for now require a mandatory dataset, may amend later
-    cohort_config = get_cohort_config()
-    blacklist = cohort_config.get('clinvar_filter', [])
+    try:
+        cohort_config = get_cohort_config()
+        blacklist = cohort_config.get('clinvar_filter', [])
+    except (AssertionError, KeyError):
+        blacklist = []
 
     for line in lines_from_gzip(submission_file):
 
@@ -394,7 +407,7 @@ def sort_decisions(all_subs: list[dict]) -> list[dict]:
     )
 
 
-def parse_into_table(json_path: str, out_path: str):
+def parse_into_table(json_path: str, out_path: str) -> hl.Table:
     """
     takes the file of one clinvar variant per line
     processes that line into a table based on the schema
@@ -402,8 +415,12 @@ def parse_into_table(json_path: str, out_path: str):
     Args:
         json_path (): path to the JSON file (temp)
         out_path (): where to write the Hail table
+
+    Returns:
+        the Hail Table object created
     """
 
+    # start a hail runtime
     init_batch()
 
     # define the schema for each written line
@@ -421,33 +438,59 @@ def parse_into_table(json_path: str, out_path: str):
 
     # import the table, and transmute to top-level attributes
     ht = hl.import_table(json_path, no_header=True, types={'f0': schema})
-    ht = ht.transmute(
-        alleles=ht.f0.alleles,
-        contig=ht.f0.contig,
-        position=ht.f0.position,
-        variant_id=ht.f0.id,
-        clinical_significance=ht.f0.clinical_significance,
-        gold_stars=ht.f0.gold_stars,
-        allele_id=ht.f0.allele_id,
-    )
+    ht = ht.transmute(**ht.f0)
 
     # create a locus and key
-    ht = ht.annotate(locus=hl.locus(ht.contig, ht.position))
+    ht = ht.transmute(locus=hl.locus(ht.contig, ht.position))
     ht = ht.key_by(ht.locus, ht.alleles)
 
     # write out
     ht.write(out_path, overwrite=True)
+    return ht
 
 
-def main(subs: str, date: datetime, variants: str, out: str):
+def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
+    """
+    takes a clinvar table and a filters to SNV & Pathogenic
+    Writes results to a VCF file
+
+    Args:
+        clinvar_table (hl.Table): the table of re-summarised clinvar loci
+        vcf_path (str): Path to write resulting VCF to
+    """
+
+    # filter to Pathogenic SNVs
+    # there is at least one ClinVar submission which is Pathogenic
+    # without being a changed base?
+    # https://www.ncbi.nlm.nih.gov/clinvar/variation/1705890/
+    clinvar_table = clinvar_table.filter(
+        (hl.len(clinvar_table.alleles[0]) == 1)
+        & (hl.len(clinvar_table.alleles[1]) == 1)
+        & (clinvar_table.clinical_significance == 'Pathogenic')
+    )
+
+    # persist the clinvar annotations in VCF
+    clinvar_table = clinvar_table.annotate(
+        info=hl.struct(
+            allele_id=clinvar_table.allele_id, gold_stars=clinvar_table.gold_stars
+        )
+    )
+    hl.export_vcf(clinvar_table, vcf_path, tabix=True)
+    logging.info(f'Wrote SNV VCF to {vcf_path}')
+
+
+def main(
+    subs: str, date: datetime, variants: str, out: str, path_snv: str | None = None
+):
     """
     Redefines what it is to be a clinvar summary
 
     Args:
-        subs (): file path to all submissions (gzipped)
-        date (): date threshold to use for filtering submissions
-        variants (): file path to variant summary (gzipped)
-        out (): path to write JSON out to
+        subs (str): file path to all submissions (gzipped)
+        variants (str): file path to variant summary (gzipped)
+        out (str): path to write JSON out to
+        date (str): date threshold to use for filtering submissions
+        path_snv (str): if defined, path to write SNV VCF file
     """
 
     logging.info('Getting alleleID-VariantID-Loci from variant summary')
@@ -492,9 +535,14 @@ def main(subs: str, date: datetime, variants: str, out: str):
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
-    temp_output = output_path(
-        f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
-    )
+    # if there's no defined config, write a local file
+    try:
+        temp_output = output_path(
+            f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
+        )
+    except AssertionError:
+        temp_output = f'{date.strftime("%Y-%m-%d")}_clinvar_table.json'
+
     logging.info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
@@ -502,7 +550,11 @@ def main(subs: str, date: datetime, variants: str, out: str):
         for each_dict in all_decisions:
             handle.write(f'{json.dumps(each_dict)}\n')
 
-    parse_into_table(json_path=temp_output, out_path=out)
+    ht = parse_into_table(json_path=temp_output, out_path=out)
+
+    if path_snv:
+        logging.info('Writing out SNV VCF')
+        snv_missense_filter(ht, path_snv)
 
 
 if __name__ == '__main__':
@@ -520,6 +572,7 @@ if __name__ == '__main__':
         ),
         default=datetime.now(),
     )
+    parser.add_argument('--path_snv', help='Output VCF, sites-only, Pathogenic SNVs')
     args = parser.parse_args()
 
     processed_date = (
@@ -528,4 +581,10 @@ if __name__ == '__main__':
 
     logging.info(f'Date threshold: {processed_date}')
 
-    main(subs=args.s, date=processed_date, variants=args.v, out=args.o)
+    main(
+        subs=args.s,
+        variants=args.v,
+        out=args.o,
+        date=processed_date,
+        path_snv=args.path_snv,
+    )
