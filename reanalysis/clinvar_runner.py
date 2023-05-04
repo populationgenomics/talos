@@ -10,13 +10,15 @@ from datetime import datetime
 import click
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, output_path
+from cpg_utils.hail_batch import (
+    authenticate_cloud_credentials_in_job,
+    output_path,
+    query_command,
+)
 from cpg_workflows.batch import get_batch
 
-from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
-from cpg_workflows.jobs.vep import add_vep_jobs
-
-from reanalysis import clinvar_by_codon, summarise_clinvar_entries
+from reanalysis import clinvar_by_codon, summarise_clinvar_entries, seqr_loader
+from reanalysis.vep_jobs import add_vep_jobs
 
 
 @click.command
@@ -60,6 +62,7 @@ def main(ht_out: str, date: str | None = None):
 
     # region: run the summarise_clinvar_entries script
     summarise = get_batch().new_job(name='summarise clinvar')
+    prior_job = summarise
 
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
@@ -88,19 +91,27 @@ def main(ht_out: str, date: str | None = None):
     )
 
     # add Clinvar job as an annotation dependency
-    for job in vep_jobs:
-        job.depends_on(summarise)
+    if prior_job and vep_jobs:
+        for job in vep_jobs:
+            job.depends_on(prior_job)
+        prior_job = vep_jobs[-1]
 
-    # Apply the HT of annotations to the VCF, save as MT
-    anno_job = annotate_cohort_jobs(
-        b=get_batch(),
-        vcf_path=snv_vcf,
-        vep_ht_path=vep_ht_tmp,
-        out_mt_path=annotated_clinvar,
-        checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),
-        depends_on=vep_jobs,
-        use_dataproc=False,
+    j = get_batch().new_job(f'annotate cohort')
+    j.image(get_config()['workflow']['driver_image'])
+    j.command(
+        query_command(
+            seqr_loader,
+            seqr_loader.annotate_cohort.__name__,
+            str(snv_vcf),
+            str(annotated_clinvar),
+            str(vep_ht_tmp),
+            output_path('annotation_temp', 'tmp'),
+            setup_gcp=True,
+        )
     )
+    if prior_job:
+        j.depends_on(prior_job)
+    prior_job = j
     # endregion
 
     # region: run the clinvar_by_codon script
@@ -116,7 +127,7 @@ def main(ht_out: str, date: str | None = None):
         f'--mt {annotated_clinvar} '
         f'--write_path {pm5_table}'
     )
-    clinvar_by_codon_job.depends_on(anno_job[-1])
+    clinvar_by_codon_job.depends_on(prior_job)
     # endregion
     get_batch().run(wait=False)
 
