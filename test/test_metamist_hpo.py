@@ -2,7 +2,6 @@
 test file for metamist panel-participant matching
 """
 
-
 import pytest
 
 import networkx
