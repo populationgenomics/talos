@@ -14,7 +14,6 @@ for each variant in each participant, check MOI in affected
 participants relative to the MOI described in PanelApp
 """
 
-
 import json
 import logging
 import sys
@@ -42,7 +41,6 @@ from reanalysis.utils import (
     GeneDict,
     ReportedVariant,
 )
-
 
 MALE_FEMALE = {'male', 'female'}
 
@@ -86,7 +84,6 @@ def set_up_moi_filters(
 
         # if we haven't seen this MOI before, set up the appropriate filter
         if gene_moi not in moi_dictionary:
-
             # get a MOIRunner with the relevant filters
             moi_dictionary[gene_moi] = MOIRunner(pedigree=pedigree, target_moi=gene_moi)
 
@@ -138,13 +135,27 @@ def apply_moi_to_variants(
             # pass on whether this variant is support only
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
-            results.extend(
-                moi_lookup[panel_gene_data.get('moi')].run(
-                    principal_var=variant,
-                    comp_het=comp_het_dict,
-                    partial_pen=variant.info.get('categoryboolean1', False),
-                )
+
+            # Flag! If this is a Category 1 (ClinVar) variant, and we are
+            # interpreting under a lenient MOI, add flag for analysts
+            lenient_moi_flag = bool(
+                variant.info.get('categoryboolean1', False)
+                and panel_gene_data.get('moi')
+                in {'Hemi_Mono_In_Female', 'Unknown', 'Mono_And_Biallelic'}
             )
+            variant_results = moi_lookup[panel_gene_data.get('moi')].run(
+                principal_var=variant,
+                comp_het=comp_het_dict,
+                partial_pen=variant.info.get('categoryboolean1', False),
+            )
+
+            # update the flag for leniently applied Dominant
+            if lenient_moi_flag:
+                for each_result in variant_results:
+                    if any('Dominant' in moi for moi in each_result.reasons):
+                        each_result.flags += ['Ambiguous Cat.1 MOI']
+
+            results.extend(variant_results)
 
     return results
 
@@ -441,7 +452,6 @@ def main(
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
-
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
