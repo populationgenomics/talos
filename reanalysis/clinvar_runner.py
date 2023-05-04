@@ -86,7 +86,7 @@ def main(ht_out: str, date: str | None = None):
         b=get_batch(),
         input_siteonly_vcf_path=snv_vcf,
         tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
-        scatter_count=5,
+        scatter_count=50,
         out_path=vep_ht_tmp,
     )
 
