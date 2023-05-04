@@ -258,7 +258,7 @@ def gather_vep_json_to_ht(
     from reanalysis import vep
 
     j = b.new_job(f'VEP', job_attrs)
-    j.image(image_path('cpg_workflows'))
+    j.image(get_config()['workflow']['driver_image'])
     j.command(
         query_command(
             vep,
