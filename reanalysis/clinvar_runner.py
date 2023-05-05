@@ -117,6 +117,8 @@ def main(ht_out: str, date: str | None = None):
 
     j = get_batch().new_job(f'annotate cohort')
     j.image(get_config()['workflow']['driver_image'])
+
+    # run seqr_loader, only applying VEP annotations
     j.command(
         query_command(
             seqr_loader,
@@ -125,6 +127,7 @@ def main(ht_out: str, date: str | None = None):
             str(annotated_clinvar),
             str(vep_ht_tmp),
             output_path('annotation_temp', 'tmp'),
+            True,
             setup_gcp=True,
         )
     )

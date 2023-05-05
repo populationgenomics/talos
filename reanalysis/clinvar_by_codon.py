@@ -14,9 +14,9 @@ import hail as hl
 
 
 @click.command()
-@click.option('--mt', help='Path to the annotated MatrixTable')
+@click.option('--mt_path', help='Path to the annotated MatrixTable')
 @click.option('--write_path', help='Path to the annotated MatrixTable')
-def protein_indexed_clinvar(mt: hl.MatrixTable, write_path: str):
+def protein_indexed_clinvar(mt_path: str, write_path: str):
     """
     takes a MatrixTable of annotated Clinvar Variants
     re-annotates these loci with the latest in-house decisions
@@ -28,16 +28,19 @@ def protein_indexed_clinvar(mt: hl.MatrixTable, write_path: str):
     Prototyped and executed in a notebook
 
     Args:
-        mt (): MatrixTable of Clinvar variants with VEP anno.
+        mt_path (): Path to MatrixTable of Clinvar variants with VEP anno.
         write_path (): location to write new file to
     """
+
+    hl.init(default_reference='GRCh38')
+    mt = hl.read_matrix_table(mt_path)
 
     # 1. retain only relevant annotations
     mt = mt.rows()
     mt = mt.select(tx_csq=mt.vep.transcript_consequences, info=mt.info)
 
     # 2. split rows out to separate transcript consequences
-    mt = mt.explode_rows(mt.tx_csq)
+    mt = mt.explode(mt.tx_csq)
 
     # 3. filter down to missense
     # a reasonable filter here would also include MANE transcripts
@@ -48,7 +51,6 @@ def protein_indexed_clinvar(mt: hl.MatrixTable, write_path: str):
         clinvar_entry=hl.str('::').join(
             [
                 hl.str(mt.info.allele_id),
-                mt.info.clinical_significance,
                 hl.str(mt.info.gold_stars),
             ]
         ),

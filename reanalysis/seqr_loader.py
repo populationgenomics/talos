@@ -10,10 +10,21 @@ import hail as hl
 from cpg_utils.hail_batch import reference_path, genome_build
 
 
-def annotate_cohort(vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None):
+def annotate_cohort(
+    vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None, vep_only: bool = False
+):
     """
-    Convert VCF to matrix table, annotate for Seqr Loader, add VEP and VQSR
-    annotations.
+    Convert VCF to matrix table, annotate for Seqr Loader, add VEP and VQSR annotations.
+
+    Args:
+        vcf_path ():
+        out_mt_path ():
+        vep_ht_path ():
+        checkpoint_prefix ():
+        vep_only ():
+
+    Returns:
+
     """
 
     # set up a logger in this Hail Query runtime
@@ -52,6 +63,12 @@ def annotate_cohort(vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None):
 
     logger.info(f'Adding VEP annotations into the Matrix Table from {vep_ht_path}')
     mt = mt.annotate_rows(vep=vep_ht[mt.locus, mt.alleles].vep)
+
+    if vep_only:
+        logger.info(f'Writing VEP-only annotation to {out_mt_path}')
+        mt.describe()
+        mt.write(str(out_mt_path), overwrite=True)
+        return
 
     mt = _checkpoint(mt, 'mt-plus-vep.mt')
 
