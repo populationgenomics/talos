@@ -8,7 +8,7 @@ Entrypoint for clinvar summary generation
 from datetime import datetime
 
 import click
-from cpg_utils import to_path
+from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
@@ -21,23 +21,19 @@ from reanalysis import clinvar_by_codon, summarise_clinvar_entries, seqr_loader
 from reanalysis.vep_jobs import add_vep_jobs
 
 
-@click.command
-@click.option('--ht_out', help='Path to write the Hail table to')
-@click.option('--date', help='date cut-off, optional', default=None)
-def main(ht_out: str, date: str | None = None):
-    """
-    run the clinvar summary, output to defined path
-    Args:
-        ht_out ():
-        date ():
+def generate_clinvar_table(
+    clinvar_table_path: Path, snv_vcf: Path, date: str | None = None
+):
     """
 
-    clinvar_table_path = to_path(ht_out)
-    clinvar_folder = clinvar_table_path.parent
+    Returns:
 
-    # create a bash job to copy data from remote
+    """
+
     bash_job = get_batch().new_bash_job(name='copy clinvar files to local')
     bash_job.image(get_config()['workflow']['driver_image'])
+
+    clinvar_folder = clinvar_table_path.parent
 
     directory = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/'
     sub_file = 'submission_summary.txt.gz'
@@ -57,24 +53,46 @@ def main(ht_out: str, date: str | None = None):
     get_batch().write_output(bash_job.subs, str(clinvar_folder / f'{today}_{sub_file}'))
     get_batch().write_output(bash_job.vars, str(clinvar_folder / f'{today}_{var_file}'))
 
-    # create a space for the SNV VCF
-    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
-
     # region: run the summarise_clinvar_entries script
     summarise = get_batch().new_job(name='summarise clinvar')
-    prior_job = summarise
+    summarise.depends_on(bash_job)
 
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
     command_options = (
         f'-s {bash_job.subs} '
         f'-v {bash_job.vars} '
-        f'-o {ht_out} '
+        f'-o {clinvar_table_path} '
         f'--path_snv {snv_vcf} '
     )
     if date:
         command_options += f' -d {date}'
     summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
+
+    return summarise
+
+
+@click.command
+@click.option('--ht_out', help='Path to write the Hail table to')
+@click.option('--date', help='date cut-off, optional', default=None)
+def main(ht_out: str, date: str | None = None):
+    """
+    run the clinvar summary, output to defined path
+    Args:
+        ht_out ():
+        date ():
+    """
+
+    # region write ClinVar table and VCF
+    clinvar_table_path = to_path(ht_out)
+    clinvar_folder = clinvar_table_path.parent
+
+    # create a space for the SNV VCF
+    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
+
+    dependency = None
+    if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
+        dependency = generate_clinvar_table(clinvar_table_path, snv_vcf, date)
     # endregion
 
     # region: annotate the SNV VCF with VEP
@@ -91,10 +109,11 @@ def main(ht_out: str, date: str | None = None):
     )
 
     # add Clinvar job as an annotation dependency
-    if prior_job and vep_jobs:
+    if dependency and vep_jobs:
         for job in vep_jobs:
-            job.depends_on(prior_job)
-        prior_job = vep_jobs[-1]
+            job.depends_on(dependency)
+    if vep_jobs:
+        dependency = vep_jobs[-1]
 
     j = get_batch().new_job(f'annotate cohort')
     j.image(get_config()['workflow']['driver_image'])
@@ -109,9 +128,9 @@ def main(ht_out: str, date: str | None = None):
             setup_gcp=True,
         )
     )
-    if prior_job:
-        j.depends_on(prior_job)
-    prior_job = j
+    if dependency:
+        j.depends_on(dependency)
+    dependency = j
     # endregion
 
     # region: run the clinvar_by_codon script
@@ -127,7 +146,7 @@ def main(ht_out: str, date: str | None = None):
         f'--mt {annotated_clinvar} '
         f'--write_path {pm5_table}'
     )
-    clinvar_by_codon_job.depends_on(prior_job)
+    clinvar_by_codon_job.depends_on(dependency)
     # endregion
     get_batch().run(wait=False)
 
