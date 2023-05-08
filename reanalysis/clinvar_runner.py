@@ -8,6 +8,8 @@ Entrypoint for clinvar summary generation
 from datetime import datetime
 
 import click
+from hailtop.batch.job import Job
+
 from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
@@ -72,33 +74,22 @@ def generate_clinvar_table(
     return summarise
 
 
-@click.command
-@click.option('--ht_out', help='Path to write the Hail table to')
-@click.option('--date', help='date cut-off, optional', default=None)
-def main(ht_out: str, date: str | None = None):
+def generate_annotated_data(
+    annotation_out: Path, snv_vcf: Path, dependency: Job | None = None
+):
     """
-    run the clinvar summary, output to defined path
+    if the annotated data Table doesn't exist, generate it
+
     Args:
-        ht_out ():
-        date ():
+        annotation_out ():
+        snv_vcf ():
+        dependency (Job):
+
+    Returns:
+
     """
 
-    # region write ClinVar table and VCF
-    clinvar_table_path = to_path(ht_out)
-    clinvar_folder = clinvar_table_path.parent
-
-    # create a space for the SNV VCF
-    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
-
-    dependency = None
-    if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
-        dependency = generate_clinvar_table(clinvar_table_path, snv_vcf, date)
-    # endregion
-
-    # region: annotate the SNV VCF with VEP
     vep_ht_tmp = to_path(output_path('vep_annotations.ht', 'tmp'))
-    annotated_clinvar = to_path(clinvar_folder / 'annotated_clinvar.mt')
-
     # generate the jobs which run VEP & collect the results
     vep_jobs = add_vep_jobs(
         b=get_batch(),
@@ -124,7 +115,7 @@ def main(ht_out: str, date: str | None = None):
             seqr_loader,
             seqr_loader.annotate_cohort.__name__,
             str(snv_vcf),
-            str(annotated_clinvar),
+            str(annotation_out),
             str(vep_ht_tmp),
             output_path('annotation_temp', 'tmp'),
             True,
@@ -133,23 +124,53 @@ def main(ht_out: str, date: str | None = None):
     )
     if dependency:
         j.depends_on(dependency)
-    dependency = j
+    return dependency
+
+
+@click.command
+@click.option('--ht_out', help='Path to write the Hail table to')
+@click.option('--date', help='date cut-off, optional', default=None)
+def main(ht_out: str, date: str | None = None):
+    """
+    run the clinvar summary, output to defined path
+    Args:
+        ht_out (str): path to write the PM5 table to
+        date (str | None): a cut-off data for Clinvar subs
+    """
+
+    # region write ClinVar table and VCF
+    clinvar_table_path = to_path(ht_out)
+    clinvar_folder = clinvar_table_path.parent
+
+    # create a space for the SNV VCF
+    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
+
+    dependency = None
+    if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
+        dependency = generate_clinvar_table(clinvar_table_path, snv_vcf, date)
     # endregion
 
-    # region: run the clinvar_by_codon script
+    # path to the annotated clinvar table
+    annotated_clinvar = to_path(clinvar_folder / 'annotated_clinvar.mt')
 
+    # create the annotation job(s)
+    if not annotated_clinvar.exists():
+        dependency = generate_annotated_data(annotated_clinvar, snv_vcf, dependency)
+
+    # region: run the clinvar_by_codon script
     pm5_table = to_path(clinvar_folder / 'pm5_table.mt')
-    clinvar_by_codon_job = get_batch().new_job(name='clinvar_by_codon')
-    clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(2).storage(
-        '20G'
-    )
-    authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
-    clinvar_by_codon_job.command(
-        f'python3 {clinvar_by_codon.__file__} '
-        f'--mt_path {annotated_clinvar} '
-        f'--write_path {pm5_table}'
-    )
-    clinvar_by_codon_job.depends_on(dependency)
+    if not pm5_table.exists():
+        clinvar_by_codon_job = get_batch().new_job(name='clinvar_by_codon')
+        clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(
+            2
+        ).storage('20G')
+        authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
+        clinvar_by_codon_job.command(
+            f'python3 {clinvar_by_codon.__file__} '
+            f'--mt_path {annotated_clinvar} '
+            f'--write_path {pm5_table}'
+        )
+        clinvar_by_codon_job.depends_on(dependency)
     # endregion
     get_batch().run(wait=False)
 
