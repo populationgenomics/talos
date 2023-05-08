@@ -170,8 +170,10 @@ def main(ht_out: str, date: str | None = None):
             f'--mt_path {annotated_clinvar} '
             f'--write_path {pm5_table}'
         )
-        clinvar_by_codon_job.depends_on(dependency)
+        if dependency:
+            clinvar_by_codon_job.depends_on(dependency)
     # endregion
+
     get_batch().run(wait=False)
 
 
