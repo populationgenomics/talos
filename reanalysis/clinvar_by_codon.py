@@ -16,21 +16,16 @@ from cpg_utils.hail_batch import init_batch
 
 @click.command()
 @click.option('--mt_path', help='Path to the annotated MatrixTable')
-@click.option('--write_path', help='Path to the annotated MatrixTable')
+@click.option('--write_path', help='Path to export PM5 table')
 def protein_indexed_clinvar(mt_path: str, write_path: str):
     """
-    takes a MatrixTable of annotated Clinvar Variants
-    re-annotates these loci with the latest in-house decisions
-    reduces dataset to only pathogenic
-
+    Takes a MatrixTable of annotated Pathogenic Clinvar Variants
     re-indexes the data to be queryable on Transcript and Codon
     writes the resulting Table to the specified path
 
-    Prototyped and executed in a notebook
-
     Args:
-        mt_path (): Path to MatrixTable of Clinvar variants with VEP anno.
-        write_path (): location to write new file to
+        mt_path (str): Path to annotated ClinVar MatrixTable
+        write_path (str): location to write new file to
     """
 
     init_batch()
