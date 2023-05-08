@@ -1,4 +1,4 @@
-name: 'report index generator'
+name: 'clinvar summary runner'
 
 on:
   workflow_dispatch: {}
@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 jobs:
-  build_report_index:
+  run_clinvar_batch:
     runs-on: ubuntu-latest
 
     steps:
