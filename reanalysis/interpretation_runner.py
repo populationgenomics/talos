@@ -13,7 +13,6 @@ i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
 
-
 # pylint: disable=too-many-branches
 
 
@@ -30,7 +29,6 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
-    dataset_path,
     output_path,
     query_command,
 )
@@ -44,12 +42,10 @@ from reanalysis import (
     metamist_registration,
     mt_to_vcf,
     query_panelapp,
-    summarise_clinvar_entries,
     validate_categories,
     seqr_loader,
 )
 from reanalysis.utils import FileTypes, identify_file_type
-
 
 # region: CONSTANTS
 # exact time that this run occurred
@@ -60,6 +56,8 @@ ANNOTATED_MT = output_path('annotated_variants.mt')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
+
+
 # endregion
 
 
@@ -93,60 +91,6 @@ def set_job_resources(
             job.depends_on(prior_job)
 
     authenticate_cloud_credentials_in_job(job)
-
-
-def handle_clinvar() -> tuple[Job | None, str]:
-    """
-    set up a job to handle the clinvar summarising
-
-    Returns:
-        the batch job for creating the new summary
-        the path to the current clinvar summary file
-    """
-
-    if clinvar_table := get_config()['workflow'].get('forced_clinvar'):
-        logging.info(f'This run will be using the Clinvar data in {clinvar_table}')
-        if to_path(clinvar_table).exists():
-            return None, clinvar_table
-
-    # is it time to re-process clinvar?
-    clinvar_prefix = dataset_path(
-        f'clinvar_summaries/{datetime.now().strftime("%Y_%m")}'
-    )
-    clinvar_summary = join(clinvar_prefix, 'clinvar.ht')
-
-    if to_path(clinvar_summary).exists():
-        return None, clinvar_summary
-
-    # create a bash job to copy data from remote
-    bash_job = get_batch().new_bash_job(name='copy clinvar files to local')
-    set_job_resources(bash_job)
-
-    directory = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/'
-    sub_file = 'submission_summary.txt.gz'
-    var_file = 'variant_summary.txt.gz'
-
-    bash_job.command(
-        (
-            f'wget -q {directory}{sub_file} -O {bash_job.subs} && '
-            f'wget -q {directory}{var_file} -O {bash_job.vars}'
-        )
-    )
-
-    # write output files
-    get_batch().write_output(bash_job.subs, join(clinvar_prefix, sub_file))
-    get_batch().write_output(bash_job.vars, join(clinvar_prefix, var_file))
-
-    # create a job to run the summary
-    summarise = get_batch().new_job(name='summarise clinvar')
-    set_job_resources(summarise, prior_job=bash_job)
-    summarise.command(
-        f'python3 {summarise_clinvar_entries.__file__} '
-        f'-s {bash_job.subs} '
-        f'-v {bash_job.vars} '
-        f'-o {join(clinvar_prefix, "clinvar.ht")}'
-    )
-    return summarise, clinvar_summary
 
 
 def setup_mt_to_vcf(input_file: str) -> Job:
@@ -424,8 +368,22 @@ def main(
     }
     # endregion
 
-    # find clinvar table, and re-process if required
-    prior_job, clinvar_table = handle_clinvar()
+    # start the dependency graph
+    prior_job = None
+
+    # find clinvar table
+    clinvar_table = to_path(
+        join(
+            get_config()['storage']['common']['analysis'],
+            'aip_clinvar',
+            datetime.now().strftime('%y-%m'),
+            'clinvar_decisions.ht',
+        )
+    )
+
+    assert (
+        clinvar_table.exists()
+    ), f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script'
 
     # region: MT to VCF
     # determine the input type - if MT, decompose to VCF prior to annotation
@@ -529,7 +487,9 @@ def main(
     if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_filtering(
-            prior_job=prior_job, plink_file=pedigree_in_batch, clinvar=clinvar_table
+            prior_job=prior_job,
+            plink_file=pedigree_in_batch,
+            clinvar=str(clinvar_table),
         )
         output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion

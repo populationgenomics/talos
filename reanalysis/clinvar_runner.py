@@ -5,7 +5,9 @@
 Entrypoint for clinvar summary generation
 """
 
+import logging
 from datetime import datetime
+from os.path import join
 
 import click
 from hailtop.batch.job import Job
@@ -14,7 +16,6 @@ from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
-    output_path,
     query_command,
 )
 from cpg_workflows.batch import get_batch
@@ -75,7 +76,7 @@ def generate_clinvar_table(
 
 
 def generate_annotated_data(
-    annotation_out: Path, snv_vcf: Path, dependency: Job | None = None
+    annotation_out: Path, snv_vcf: Path, tmp_path: Path, dependency: Job | None = None
 ):
     """
     if the annotated data Table doesn't exist, generate it
@@ -83,18 +84,20 @@ def generate_annotated_data(
     Args:
         annotation_out ():
         snv_vcf ():
+        tmp_path ():
         dependency (Job):
 
     Returns:
 
     """
 
-    vep_ht_tmp = to_path(output_path('vep_annotations.ht', 'tmp'))
+    vep_ht_tmp = tmp_path / 'vep_annotations.ht'
+
     # generate the jobs which run VEP & collect the results
     vep_jobs = add_vep_jobs(
         b=get_batch(),
         input_siteonly_vcf_path=snv_vcf,
-        tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+        tmp_prefix=tmp_path / 'vep_temp',
         scatter_count=50,
         out_path=vep_ht_tmp,
     )
@@ -117,7 +120,7 @@ def generate_annotated_data(
             str(snv_vcf),
             str(annotation_out),
             str(vep_ht_tmp),
-            output_path('annotation_temp', 'tmp'),
+            str(tmp_path / 'annotation_temp'),
             True,
             setup_gcp=True,
         )
@@ -128,38 +131,63 @@ def generate_annotated_data(
 
 
 @click.command
-@click.option('--ht_out', help='Path to write the Hail table to')
-@click.option('--date', help='date cut-off, optional', default=None)
-def main(ht_out: str, date: str | None = None):
+@click.option('--folder', help='Folder (date) to write the Hail table to')
+@click.option('--date', help='Submission cut-off date, optional', default=None)
+def main(folder: str, date: str | None = None):
     """
     run the clinvar summary, output to defined path
     Args:
-        ht_out (str): path to write the PM5 table to
+        folder (str): folder to write data to
         date (str | None): a cut-off data for Clinvar subs
     """
 
-    # region write ClinVar table and VCF
-    clinvar_table_path = to_path(ht_out)
-    clinvar_folder = clinvar_table_path.parent
+    clinvar_folder = to_path(
+        join(
+            get_config()['storage']['common']['analysis'],
+            'aip_clinvar',
+            folder,
+        )
+    )
+
+    # path to the annotated clinvar table
+    annotated_clinvar = clinvar_folder / 'annotated_clinvar.mt'
+
+    # path to the annotated clinvar table
+    clinvar_table_path = clinvar_folder / 'clinvar_decisions.ht'
+
+    # path to the pm5 clinvar table
+    clinvar_pm5_path = clinvar_folder / 'clinvar_pm5.ht'
+
+    if all(
+        this_path.exists()
+        for this_path in [annotated_clinvar, clinvar_table_path, clinvar_pm5_path]
+    ):
+        logging.info('Clinvar data already exists, exiting')
+        return
 
     # create a space for the SNV VCF
     snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
 
+    temp_path = to_path(
+        join(
+            get_config()['storage']['common']['tmp'],
+            'aip_clinvar',
+            folder,
+        )
+    )
+
     dependency = None
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
         dependency = generate_clinvar_table(clinvar_table_path, snv_vcf, date)
-    # endregion
-
-    # path to the annotated clinvar table
-    annotated_clinvar = to_path(clinvar_folder / 'annotated_clinvar.mt')
 
     # create the annotation job(s)
     if not annotated_clinvar.exists():
-        dependency = generate_annotated_data(annotated_clinvar, snv_vcf, dependency)
+        dependency = generate_annotated_data(
+            annotated_clinvar, snv_vcf, temp_path, dependency
+        )
 
     # region: run the clinvar_by_codon script
-    pm5_table = to_path(clinvar_folder / 'pm5_table.mt')
-    if not pm5_table.exists():
+    if not clinvar_pm5_path.exists():
         clinvar_by_codon_job = get_batch().new_job(name='clinvar_by_codon')
         clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(
             2
@@ -168,7 +196,7 @@ def main(ht_out: str, date: str | None = None):
         clinvar_by_codon_job.command(
             f'python3 {clinvar_by_codon.__file__} '
             f'--mt_path {annotated_clinvar} '
-            f'--write_path {pm5_table}'
+            f'--write_path {clinvar_pm5_path}'
         )
         if dependency:
             clinvar_by_codon_job.depends_on(dependency)

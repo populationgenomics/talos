@@ -18,6 +18,7 @@ import os
 import logging
 import sys
 from argparse import ArgumentParser
+from datetime import datetime
 
 import hail as hl
 from peddy import Ped
@@ -134,7 +135,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     return mt
 
 
-def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
+def annotate_codon_clinvar(mt: hl.MatrixTable):
     """
     takes the protein indexed clinvar results and matches up against
     the variant data
@@ -166,23 +167,32 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     evidence, so exact matches must be filtered out downstream.
 
     Args:
-        codon_table_path (): path to the clinvar-by-codon
         mt (): MT of all variants
 
     Returns:
-        the same variants MT with an extra label containing all clinvar alleles
-        known to cause the same protein consequence on at least one common tx
+        Same MT with an extra category label containing links to all clinvar
+        missense variants affecting the same residue as a missense in this
+        callset - shared residue affected on at least one transcript
     """
 
-    if codon_table_path is None:
-        logging.info('No codon path supplied, skipping PM5')
+    codon_table_path = to_path(
+        os.path.join(
+            get_config()['storage']['common']['analysis'],
+            'aip_clinvar',
+            datetime.now().strftime('%y-%m'),
+            'clinvar_pm5.ht',
+        )
+    )
+
+    if not codon_table_path.exists():
+        logging.info('PM5 table not found, skipping annotation')
         return mt.annotate_rows(
             info=mt.info.annotate(categorydetailsPM5=MISSING_STRING)
         )
 
     # read in the codon table
-    logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
-    codon_clinvar = hl.read_table(codon_table_path)
+    logging.info(f'Reading clinvar alleles by codon from {codon_table_path}')
+    codon_clinvar = hl.read_table(str(codon_table_path))
 
     # boom those variants out by consequence
     codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
@@ -1092,9 +1102,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     mt = annotate_category_support(mt=mt)
 
     # if a clinvar-codon table is supplied, use that for PM5
-    mt = annotate_codon_clinvar(
-        codon_table_path=get_config()['filter'].get('codon_table'), mt=mt
-    )
+    mt = annotate_codon_clinvar(mt=mt)
 
     mt = filter_to_categorised(mt=mt)
     mt = checkpoint_and_repartition(
