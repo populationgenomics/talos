@@ -25,18 +25,23 @@ from reanalysis.vep_jobs import add_vep_jobs
 
 
 def generate_clinvar_table(
-    clinvar_table_path: Path, snv_vcf: Path, date: str | None = None
+    clinvar_table_path: Path,
+    clinvar_folder: Path,
+    snv_vcf: Path,
+    date: str | None = None,
 ):
     """
+    set up the job that does de novo clinvar summary
 
-    Returns:
-
+    Args:
+        clinvar_table_path (Path): where to write the new decisions
+        clinvar_folder (Path): where to write all clinvar files
+        snv_vcf (Path): SNV VCF to generate
+        date (str): date for submission filtering, optional
     """
 
     bash_job = get_batch().new_bash_job(name='copy clinvar files to local')
     bash_job.image(get_config()['workflow']['driver_image'])
-
-    clinvar_folder = clinvar_table_path.parent
 
     directory = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/'
     sub_file = 'submission_summary.txt.gz'
@@ -49,12 +54,9 @@ def generate_clinvar_table(
         )
     )
 
-    # construct a date String to identify the origina date for these files
-    today = datetime.now().strftime('%y-%m-%d')
-
     # write output files date-specific
-    get_batch().write_output(bash_job.subs, str(clinvar_folder / f'{today}_{sub_file}'))
-    get_batch().write_output(bash_job.vars, str(clinvar_folder / f'{today}_{var_file}'))
+    get_batch().write_output(bash_job.subs, str(clinvar_folder / sub_file))
+    get_batch().write_output(bash_job.vars, str(clinvar_folder / var_file))
 
     # region: run the summarise_clinvar_entries script
     summarise = get_batch().new_job(name='summarise clinvar')
@@ -131,13 +133,11 @@ def generate_annotated_data(
 
 
 @click.command
-@click.option('--folder', help='Folder (date) to write the Hail table to')
 @click.option('--date', help='Submission cut-off date, optional', default=None)
-def main(folder: str, date: str | None = None):
+def main(date: str | None = None):
     """
-    run the clinvar summary, output to defined path
+    run the clinvar summary, output to cpg-common path
     Args:
-        folder (str): folder to write data to
         date (str | None): a cut-off data for Clinvar subs
     """
 
@@ -145,7 +145,7 @@ def main(folder: str, date: str | None = None):
         join(
             get_config()['storage']['common']['analysis'],
             'aip_clinvar',
-            folder,
+            datetime.now().strftime('%y-%m'),
         )
     )
 
@@ -172,13 +172,15 @@ def main(folder: str, date: str | None = None):
         join(
             get_config()['storage']['common']['tmp'],
             'aip_clinvar',
-            folder,
+            datetime.now().strftime('%y-%m'),
         )
     )
 
     dependency = None
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
-        dependency = generate_clinvar_table(clinvar_table_path, snv_vcf, date)
+        dependency = generate_clinvar_table(
+            clinvar_table_path, clinvar_folder, snv_vcf, date
+        )
 
     # create the annotation job(s)
     if not annotated_clinvar.exists():
