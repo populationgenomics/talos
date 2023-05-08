@@ -33,50 +33,54 @@ def protein_indexed_clinvar(mt_path: str, write_path: str):
     """
 
     hl.init(default_reference='GRCh38')
-    mt = hl.read_matrix_table(mt_path)
+    vep_clinvar = hl.read_matrix_table(mt_path)
 
     # 1. retain only relevant annotations
-    mt = mt.rows()
-    mt = mt.select(tx_csq=mt.vep.transcript_consequences, info=mt.info)
+    vep_clinvar = vep_clinvar.rows()
+    vep_clinvar = vep_clinvar.select(
+        tx_csq=vep_clinvar.vep.transcript_consequences, info=vep_clinvar.info
+    )
 
     # 2. split rows out to separate transcript consequences
-    mt = mt.explode(mt.tx_csq)
+    vep_clinvar = vep_clinvar.explode(vep_clinvar.tx_csq)
 
     # 3. filter down to missense
     # a reasonable filter here would also include MANE transcripts
-    mt = mt.filter(mt.tx_csq.consequence_terms.contains('missense_variant'))
+    vep_clinvar = vep_clinvar.filter(
+        vep_clinvar.tx_csq.consequence_terms.contains('missense_variant')
+    )
 
     # 4. squash the clinvar and protein content into single strings
-    mt = mt.annotate(
+    vep_clinvar = vep_clinvar.annotate(
         clinvar_entry=hl.str('::').join(
             [
-                hl.str(mt.info.allele_id),
-                hl.str(mt.info.gold_stars),
+                hl.str(vep_clinvar.info.allele_id),
+                hl.str(vep_clinvar.info.gold_stars),
             ]
         ),
         newkey=hl.str('::').join(
             [
-                mt.tx_csq.protein_id,
-                hl.str(mt.tx_csq.protein_start),
+                vep_clinvar.tx_csq.protein_id,
+                hl.str(vep_clinvar.tx_csq.protein_start),
             ]
         ),
     )
 
     # 5. re-key table on transcript & residue
-    mt = mt.key_by(mt.newkey)
+    vep_clinvar = vep_clinvar.key_by(vep_clinvar.newkey)
 
     # 6. collect all ClinVar annotations at each residue
-    mt = mt.select(mt.clinvar_entry).collect_by_key()
+    vep_clinvar = vep_clinvar.select(vep_clinvar.clinvar_entry).collect_by_key()
 
     # 7. squash the multiple clinvar entries back to a single string
-    mt = mt.transmute(
+    vep_clinvar = vep_clinvar.transmute(
         clinvar_alleles=hl.str('+').join(
-            hl.set(hl.map(lambda x: x.clinvar_entry, mt.values))
+            hl.set(hl.map(lambda x: x.clinvar_entry, vep_clinvar.values))
         )
     )
 
     # 8. write the table of all ENSP:residue#: Clinvar[+Clinvar,]
-    mt.write(write_path, overwrite=True)
+    vep_clinvar.write(write_path, overwrite=True)
 
 
 if __name__ == '__main__':

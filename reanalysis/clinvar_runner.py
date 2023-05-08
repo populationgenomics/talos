@@ -146,7 +146,7 @@ def main(ht_out: str, date: str | None = None):
     authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
     clinvar_by_codon_job.command(
         f'python3 {clinvar_by_codon.__file__} '
-        f'--mt {annotated_clinvar} '
+        f'--mt_path {annotated_clinvar} '
         f'--write_path {pm5_table}'
     )
     clinvar_by_codon_job.depends_on(dependency)
