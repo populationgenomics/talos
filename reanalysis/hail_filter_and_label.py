@@ -175,16 +175,20 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
         callset - shared residue affected on at least one transcript
     """
 
-    codon_table_path = to_path(
-        os.path.join(
-            get_config()['storage']['common']['analysis'],
-            'aip_clinvar',
-            datetime.now().strftime('%y-%m'),
-            'clinvar_pm5.ht',
+    try:
+        codon_table_path = to_path(
+            os.path.join(
+                get_config()['storage']['common']['analysis'],
+                'aip_clinvar',
+                datetime.now().strftime('%y-%m'),
+                'clinvar_pm5.ht',
+            )
         )
-    )
+    except KeyError:
+        logging.info('storage:common:analysis not present in conf')
+        codon_table_path = None
 
-    if not codon_table_path.exists():
+    if codon_table_path is None or not codon_table_path.exists():
         logging.info('PM5 table not found, skipping annotation')
         return mt.annotate_rows(
             info=mt.info.annotate(categorydetailsPM5=MISSING_STRING)
