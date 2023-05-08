@@ -31,11 +31,11 @@ from cpg_utils.hail_batch import (
     copy_common_env,
     dataset_path,
     output_path,
+    query_command,
 )
 from cpg_workflows.batch import get_batch
-from cpg_workflows.jobs.joint_genotyping import add_make_sitesonly_job
-from cpg_workflows.jobs.seqr_loader import annotate_cohort_jobs
-from cpg_workflows.jobs.vep import add_vep_jobs
+from reanalysis.vep_jobs import add_vep_jobs
+from reanalysis.sites_only import add_make_sitesonly_job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -45,6 +45,7 @@ from reanalysis import (
     query_panelapp,
     summarise_clinvar_entries,
     validate_categories,
+    seqr_loader,
 )
 from reanalysis.utils import FileTypes, identify_file_type
 
@@ -474,8 +475,9 @@ def main(
         )
 
         # set the job dependency and cycle the 'prior' job
-        if prior_job:
+        if prior_job and sites_job:
             sites_job.depends_on(prior_job)
+            prior_job = sites_job
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
 
@@ -489,21 +491,28 @@ def main(
         )
 
         # assign sites-only job as an annotation dependency
-        for job in vep_jobs:
-            job.depends_on(sites_job)
+        if vep_jobs and prior_job:
+            for job in vep_jobs:
+                job.depends_on(prior_job)
+            prior_job = vep_jobs[-1]
 
-        # Apply the HT of annotations to the VCF, save as MT
-        anno_job = annotate_cohort_jobs(
-            b=get_batch(),
-            vcf_path=to_path(input_path),
-            vep_ht_path=to_path(vep_ht_tmp),
-            out_mt_path=to_path(ANNOTATED_MT),
-            checkpoint_prefix=to_path(output_path('annotation_temp', 'tmp')),
-            depends_on=vep_jobs,
-            use_dataproc=False,
+        j = get_batch().new_job(f'annotate cohort')
+        j.image(get_config()['workflow']['driver_image'])
+        j.command(
+            query_command(
+                seqr_loader,
+                seqr_loader.annotate_cohort.__name__,
+                str(input_path),
+                str(ANNOTATED_MT),
+                str(vep_ht_tmp),
+                output_path('annotation_temp', 'tmp'),
+                setup_gcp=True,
+            )
         )
+        if prior_job:
+            j.depends_on(prior_job)
         output_dict['annotated_mt'] = ANNOTATED_MT
-        prior_job = anno_job[-1]
+        prior_job = j
     # endregion
 
     #  region: query panelapp

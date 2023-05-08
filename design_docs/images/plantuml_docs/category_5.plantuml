@@ -1,6 +1,0 @@
-@startuml
-start
-:High SpliceAI;
-:MOI Consistent;
-:Category 5;
-@enduml

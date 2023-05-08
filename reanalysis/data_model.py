@@ -77,6 +77,7 @@ class BaseFields:
         self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
+        # shouldn't be required in info anymore
         self.info = {'AC': ac, 'AF': af, 'AN': an}
         self.AC = ac
         self.AF = af
