@@ -7,7 +7,7 @@ import os
 
 import hail as hl
 
-from cpg_utils.hail_batch import reference_path, genome_build, init_batch
+from cpg_utils.hail_batch import reference_path, genome_build
 
 
 def annotate_cohort(
@@ -30,8 +30,6 @@ def annotate_cohort(
     # set up a logger in this Hail Query runtime
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
-
-    init_batch()
 
     def _read(path):
         if path.strip('/').endswith('.ht'):

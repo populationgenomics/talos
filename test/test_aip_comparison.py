@@ -2,7 +2,6 @@
 test class for AIP comparisons
 """
 
-
 import logging
 
 import pytest
@@ -185,95 +184,95 @@ def test_find_missing_different_sample(caplog):
     assert 'Sample match: 1 missing variant(s)' in log_records
 
 
-def test_missing_in_vcf(single_variant_vcf_path):
+def test_missing_in_vcf(make_a_vcf):
     """
     test method which scans VCF for a given variant
     :return:
     """
-    common_var = CommonFormatResult('1', 1, 'GC', 'G', [Confidence.EXPECTED])
+    common_var = CommonFormatResult('1', 12345, 'A', 'G', [Confidence.EXPECTED])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(in_vcf) == 1
     assert in_vcf['SAMPLE'] == [common_var]
     assert len(not_in_vcf) == 0
 
 
-def test_missing_in_vcf_confidence_irrelevant(single_variant_vcf_path):
+def test_missing_in_vcf_confidence_irrelevant(make_a_vcf):
     """
     test method which scans VCF for a given variant
     :return:
     """
-    common_var = CommonFormatResult('1', 1, 'GC', 'G', [Confidence.UNLIKELY])
+    common_var = CommonFormatResult('1', 12345, 'A', 'G', [Confidence.UNLIKELY])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(in_vcf) == 1
     assert in_vcf['SAMPLE'] == [common_var]
     assert len(not_in_vcf) == 0
 
 
-def test_missing_in_vcf_allele_mismatch(single_variant_vcf_path):
+def test_missing_in_vcf_allele_mismatch(make_a_vcf):
     """
     test method which scans VCF for a given variant
     alleles should not match
     :return:
     """
-    common_var = CommonFormatResult('1', 1, 'GC', 'A', [Confidence.EXPECTED])
+    common_var = CommonFormatResult('1', 12345, 'GC', 'A', [Confidence.EXPECTED])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(not_in_vcf) == 1
     assert not_in_vcf['SAMPLE'] == [common_var]
     assert len(in_vcf) == 0
 
 
-def test_missing_in_vcf_variant_pos_mismatch(single_variant_vcf_path):
+def test_missing_in_vcf_variant_pos_mismatch(make_a_vcf):
     """
     test method which scans VCF for a given variant
     alleles should not match
     :return:
     """
-    common_var = CommonFormatResult('11', 11, 'GC', 'G', [Confidence.EXPECTED])
+    common_var = CommonFormatResult('1', 11, 'A', 'G', [Confidence.EXPECTED])
     variant_object = {'SAMPLE': [common_var]}
-    in_vcf, not_in_vcf = check_in_vcf(single_variant_vcf_path, variant_object)
+    in_vcf, not_in_vcf = check_in_vcf(make_a_vcf, variant_object)
     assert len(not_in_vcf) == 1
     assert not_in_vcf['SAMPLE'] == [common_var]
     assert len(in_vcf) == 0
 
 
-def test_variant_in_mt(hail_matrix):
+def test_variant_in_mt(make_a_mt):
     """
     check that a variant can be retrieved from a MT
     :return:
     """
-    query_variant = CommonFormatResult('1', 1, 'GC', 'G', [])
-    result = find_variant_in_mt(hail_matrix, query_variant)
+    query_variant = CommonFormatResult('1', 12345, 'A', 'G', [])
+    result = find_variant_in_mt(make_a_mt, query_variant)
     assert result.count_rows() == 1
 
 
-def test_variant_in_mt_allele_mismatch(hail_matrix):
+def test_variant_in_mt_allele_mismatch(make_a_mt):
     """
     check that a variant can be retrieved from a MT
     :return:
     """
-    query_variant = CommonFormatResult('1', 1, 'A', 'T', [])
-    result = find_variant_in_mt(hail_matrix, query_variant)
+    query_variant = CommonFormatResult('1', 12345, 'A', 'T', [])
+    result = find_variant_in_mt(make_a_mt, query_variant)
     assert result.count_rows() == 0
 
 
-def test_variant_in_mt_wrong_chrom(hail_matrix):
+def test_variant_in_mt_wrong_chrom(make_a_mt):
     """
     check that a variant can be retrieved from a MT
     """
-    query_variant = CommonFormatResult('11', 1, 'GC', 'G', [])
-    result = find_variant_in_mt(hail_matrix, query_variant)
+    query_variant = CommonFormatResult('11', 12345, 'A', 'G', [])
+    result = find_variant_in_mt(make_a_mt, query_variant)
     assert result.count_rows() == 0
 
 
-def test_variant_in_mt_wrong_pos(hail_matrix):
+def test_variant_in_mt_wrong_pos(make_a_mt):
     """
     check that a variant can be retrieved from a MT
     """
-    query_variant = CommonFormatResult('1', 100, 'GC', 'G', [])
-    result = find_variant_in_mt(hail_matrix, query_variant)
+    query_variant = CommonFormatResult('1', 100, 'A', 'G', [])
+    result = find_variant_in_mt(make_a_mt, query_variant)
     assert result.count_rows() == 0
 
 
@@ -283,12 +282,12 @@ def test_variant_in_mt_wrong_pos(hail_matrix):
 
 
 @pytest.mark.parametrize('gene,rows', (('green', 1), ('other', 0)))
-def test_check_gene_is_green(gene, rows, hail_matrix):
+def test_check_gene_is_green(gene, rows, make_a_mt):
     """
     test that the geneIds filter works
     """
     green_genes = hl.set(['green'])
-    gene_mt = hail_matrix.annotate_rows(geneIds=gene)
+    gene_mt = make_a_mt.annotate_rows(geneIds=gene)
     result = check_gene_is_green(gene_mt, green_genes)
     assert result.count_rows() == rows
 
@@ -302,12 +301,12 @@ def test_check_gene_is_green(gene, rows, hail_matrix):
     ],
 )
 def test_ac_threshold(
-    ac: int, an: int, clinvar: int, results: list[str], hail_matrix: hl.MatrixTable
+    ac: int, an: int, clinvar: int, results: list[str], make_a_mt: hl.MatrixTable
 ):
     """
     required fields: alleles, AC, AN
     """
-    anno_mt = hail_matrix.annotate_rows(AC=ac, AN=an)
+    anno_mt = make_a_mt.annotate_rows(AC=ac, AN=an)
     anno_mt = anno_mt.annotate_rows(info=anno_mt.info.annotate(clinvar_aip=clinvar))
     assert run_ac_check(anno_mt) == results
 
@@ -325,15 +324,15 @@ def test_run_quality_flag_check(
     filters: list[str],
     clinvar: int,
     results: list[str],
-    hail_matrix: hl.MatrixTable,
+    make_a_mt: hl.MatrixTable,
 ):
     """
     ronseal
     """
     if filters is None:
         filters = hl.empty_set(t=hl.tstr)
-    anno_mt = hail_matrix.annotate_rows(
-        filters=filters, info=hail_matrix.info.annotate(clinvar_aip=clinvar)
+    anno_mt = make_a_mt.annotate_rows(
+        filters=filters, info=make_a_mt.info.annotate(clinvar_aip=clinvar)
     )
     assert run_quality_flag_check(anno_mt) == results
 
@@ -349,10 +348,10 @@ def test_run_quality_flag_check(
 def test_variant_is_normalised(
     alleles: list[str],
     results: list[str],
-    hail_matrix: hl.MatrixTable,
+    make_a_mt: hl.MatrixTable,
 ):
     """
     ronseal
     """
-    anno_mt = hail_matrix.key_rows_by(hail_matrix.locus).annotate_rows(alleles=alleles)
+    anno_mt = make_a_mt.key_rows_by(make_a_mt.locus).annotate_rows(alleles=alleles)
     assert check_variant_was_normalised(anno_mt) == results

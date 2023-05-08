@@ -2,7 +2,6 @@
 A home for common test fixtures
 """
 
-
 from typing import Any
 import pytest
 
@@ -13,6 +12,7 @@ from peddy.peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import set_config_paths
 
+from reanalysis.data_model import BaseFields, Entry, TXFields, VepVariant, SneakyTable
 
 PWD = to_path(__file__).parent
 INPUT = PWD / 'input'
@@ -24,22 +24,17 @@ CONF_COHORT = INPUT / 'reanalysis_cohort.toml'
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
 
-
 # pylint: disable=wrong-import-position
 from reanalysis.utils import AbstractVariant, read_json_from_path
-from reanalysis.hail_filter_and_label import MISSING_INT, MISSING_STRING
-
 
 LABELLED = INPUT / '1_labelled_variant.vcf.bgz'
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
-DE_NOVO_TRIO = INPUT / 'de_novo.vcf.bgz'
 DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
 FAKE_OBO = INPUT / 'hpo_test.obo'
 LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
 PHASED_TRIO = INPUT / 'newphase.vcf.bgz'
 PED_FILE = INPUT / 'pedfile.ped'
 SEQR_OUTPUT = INPUT / 'seqr_tags.tsv'
-HAIL_VCF = INPUT / 'single_hail.vcf.bgz'
 QUAD_PED = INPUT / 'trio_plus_sibling.fam'
 SUB_STUB = INPUT / 'tiny_summary.txt.gz'
 
@@ -69,6 +64,36 @@ def fixture_hail_cleanup():
     # remove all hail log files
     for filename in log_files:
         filename.unlink()
+
+
+@pytest.fixture(name='make_a_mt', scope='session')
+def fixture_make_a_mt(tmp_path_factory) -> hl.MatrixTable:
+    """
+    a fixture to make a matrix table
+    """
+    tmp_path = tmp_path_factory.mktemp('mt_goes_here')
+    sample_gt = Entry('0/1')
+    sample_data = {'SAMPLE': sample_gt}
+    sample_schema = {'SAMPLE': sample_gt.get_schema_entry()}
+    v = VepVariant(
+        BaseFields('chr1:12345', alleles=['A', 'G']),
+        [TXFields('a', 'ensga')],
+        sample_data=sample_data,
+    )
+    return SneakyTable(
+        [v], sample_details=sample_schema, tmp_path=str(tmp_path)
+    ).to_hail()
+
+
+@pytest.fixture(name='make_a_vcf', scope='session')
+def fixture_make_a_vcf(make_a_mt, tmp_path_factory) -> str:
+    """
+    a fixture to make a matrix table
+    """
+    tmp_path = tmp_path_factory.mktemp('vcf_goes_here')
+    vcf_path = str(tmp_path / 'test.vcf.bgz')
+    hl.export_vcf(make_a_mt, vcf_path, tabix=True)
+    return vcf_path
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')
@@ -109,19 +134,6 @@ def fixture_peddy_ped() -> Ped:
     :return: Ped
     """
     return Ped(str(PED_FILE))
-
-
-@pytest.fixture(name='hail_matrix', scope='session')
-def fixture_hail_matrix():
-    """loads the single variant as a matrix table"""
-    return hl.import_vcf(str(HAIL_VCF), reference_genome='GRCh38')
-
-
-@pytest.fixture(name='single_variant_vcf_path')
-def fixture_single_variant_vcf_path():
-    """path to the single variant VCF"""
-
-    return HAIL_VCF
 
 
 @pytest.fixture(name='phased_vcf_path')
@@ -184,12 +196,6 @@ def fixture_path_to_two_trio_abs_variants():
     return LABELLED
 
 
-@pytest.fixture(name='de_novo_matrix')
-def fixture_de_novo_matrix():
-    """loads the single variant trio VCF, as a matrix table"""
-    return hl.import_vcf(str(DE_NOVO_TRIO), reference_genome='GRCh38')
-
-
 @pytest.fixture(name='output_json', scope='session')
 def fixture_output_json():
     """returns dict of the JSON output"""
@@ -211,29 +217,6 @@ def fixture_sub_stub():
     return SUB_STUB
 
 
-@pytest.fixture(scope='session')
-def clinvar_prepared_mt(tmp_path_factory):
-    """
-    write the clinvar attributes into the MT once
-    fast write to disc in temp, then a read
-    Args:
-        tmp_path_factory ():
-    """
-    mt = hl.import_vcf(str(PHASED_TRIO))
-    mt = mt.annotate_rows(
-        clinvar=hl.Struct(
-            clinical_significance=MISSING_STRING,
-            allele_id=MISSING_INT,
-            gold_stars=MISSING_INT,
-        )
-    )
-    tmp_mt = str(tmp_path_factory.mktemp('mt_path') / 'default.mt')
-    # write to this path, and serve the path as a fixture
-    # ensures each process loads a fresh copy
-    mt.write(tmp_mt)
-    return tmp_mt
-
-
 # @pytest.fixture(scope='session')
 # def session_temp_dir(tmp_path_factory):
 #     """
@@ -243,43 +226,3 @@ def clinvar_prepared_mt(tmp_path_factory):
 #     """
 #
 #     return tmp_path_factory.mktemp('TEMP')
-
-
-# @pytest.fixture(
-#     params=[
-#         ('x', 'x', 'frameshift_variant', 'protein_coding', '', 1),
-#         ('x', 'x', 'frameshift_variant', '', 'NM_relevant', 1),
-#         ('x', 'o', 'frameshift_variant', 'protein_coding', 'NM_relevant', 0),
-#         ('x', 'x', 'frameshift_variant', '', '', 0),
-#     ],
-#     name='csq_matrix',
-#     scope='session',
-# )
-# def fixture_csq_matrix(request, hail_matrix):
-#     """
-#     I guess I wrote this, but I don't remember why
-#     :param request: the keyword for access to fixture.params
-#     :param hail_matrix:
-#     :return:
-#     """
-#
-#     gene_ids, gene_id, consequences, biotype, mane_select, row = request.param
-#
-#     return (
-#         hail_matrix.annotate_rows(
-#             geneIds=gene_ids,
-#             vep=hl.Struct(
-#                 transcript_consequences=hl.array(
-#                     [
-#                         hl.Struct(
-#                             consequence_terms=hl.set([consequences]),
-#                             biotype=biotype,
-#                             gene_id=gene_id,
-#                             mane_select=mane_select,
-#                         )
-#                     ]
-#                 ),
-#             ),
-#         ),
-#         row,
-#     )

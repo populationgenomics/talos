@@ -368,6 +368,7 @@ class SneakyTable:
         ht = ht.transmute(locus=hl.parse_locus(ht.locus), alleles=ht.alleles).key_by(
             'locus', 'alleles'
         )
+        ht = ht.key_by('locus', 'alleles')
 
         # stopping point for table-only
         if hail_table:
