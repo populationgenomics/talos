@@ -108,10 +108,9 @@ def generate_annotated_data(
     if dependency and vep_jobs:
         for job in vep_jobs:
             job.depends_on(dependency)
-    if vep_jobs:
         dependency = vep_jobs[-1]
 
-    j = get_batch().new_job(f'annotate cohort')
+    j = get_batch().new_job('annotate cohort')
     j.image(get_config()['workflow']['driver_image'])
 
     # run seqr_loader, only applying VEP annotations
@@ -129,7 +128,7 @@ def generate_annotated_data(
     )
     if dependency:
         j.depends_on(dependency)
-    return dependency
+    return j
 
 
 @click.command
