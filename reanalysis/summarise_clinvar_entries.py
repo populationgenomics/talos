@@ -74,8 +74,10 @@ class Consequence(Enum):
 
 # submitters not trusted for a subset of consequences - after Consequence is defined
 try:
+    cohort_conf = get_config()
+    assert 'clinvar' in cohort_conf
     QUALIFIED_BLACKLIST = [
-        (Consequence.BENIGN, get_config()['clinvar']['filter_benign'])
+        (Consequence.BENIGN, cohort_conf['clinvar'].get('filter_benign', []))
     ]
 except AssertionError:
     QUALIFIED_BLACKLIST = [
@@ -196,7 +198,6 @@ def consequence_decision(subs: list[Submission]) -> Consequence:
     total = 0
 
     for each_sub in subs:
-
         # for 3/4-star ratings, don't look any further
         if each_sub.review_status in STRONG_REVIEWS:
             return each_sub.classification
@@ -333,7 +334,6 @@ def get_all_decisions(
         blacklist = []
 
     for line in lines_from_gzip(submission_file):
-
         a_id, line_sub = process_line(line)
 
         # skip rows where the variantID isn't in this mapping
@@ -506,7 +506,6 @@ def main(
 
     # now filter each set of decisions per allele
     for allele_id, submissions in decision_dict.items():
-
         # filter against ACMG date, if appropriate
         submissions = acmg_filter_submissions(submissions)
 
