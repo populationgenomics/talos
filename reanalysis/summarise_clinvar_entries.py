@@ -50,7 +50,7 @@ USELESS_RATINGS = {'no assertion criteria provided'}
 MAJORITY_RATIO = 0.6
 MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
-ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23)) + ['X', 'Y', 'M']]
+ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 
 # published Nov 2015, available pre-print since March 2015
 # assumed to be influential since 2016

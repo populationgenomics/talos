@@ -133,30 +133,34 @@ def generate_annotated_data(
 
 @click.command
 @click.option('--date', help='Submission cut-off date, optional', default=None)
-def main(date: str | None = None):
+@click.option('--folder', help='Folder to write to, optional', default=None)
+def main(date: str | None = None, folder: str | None = None):
     """
-    run the clinvar summary, output to cpg-common path
+    run the clinvar summary, output to common path
+    folder argument can override the common bucket output path
 
     Args:
         date (str | None): a cut-off data for Clinvar subs
+        folder (str | None): a folder to write to, optional
     """
 
-    clinvar_folder = to_path(
-        join(
-            get_config()['storage']['common']['analysis'],
-            'aip_clinvar',
-            datetime.now().strftime('%y-%m'),
+    if folder is None:
+        folder = to_path(
+            join(
+                get_config()['storage']['common']['analysis'],
+                'aip_clinvar',
+                datetime.now().strftime('%y-%m'),
+            )
         )
-    )
 
     # path to the annotated clinvar table
-    annotated_clinvar = clinvar_folder / 'annotated_clinvar.mt'
+    annotated_clinvar = folder / 'annotated_clinvar.mt'
 
     # path to the annotated clinvar table
-    clinvar_table_path = clinvar_folder / 'clinvar_decisions.ht'
+    clinvar_table_path = folder / 'clinvar_decisions.ht'
 
     # path to the pm5 clinvar table
-    clinvar_pm5_path = clinvar_folder / 'clinvar_pm5.ht'
+    clinvar_pm5_path = folder / 'clinvar_pm5.ht'
 
     if all(
         this_path.exists()
@@ -166,7 +170,7 @@ def main(date: str | None = None):
         return
 
     # create a space for the SNV VCF
-    snv_vcf = clinvar_folder / 'pathogenic_snv.vcf.bgz'
+    snv_vcf = folder / 'pathogenic_snv.vcf.bgz'
 
     temp_path = to_path(
         join(
@@ -178,9 +182,7 @@ def main(date: str | None = None):
 
     dependency = None
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
-        dependency = generate_clinvar_table(
-            clinvar_table_path, clinvar_folder, snv_vcf, date
-        )
+        dependency = generate_clinvar_table(clinvar_table_path, folder, snv_vcf, date)
 
     # create the annotation job(s)
     if not annotated_clinvar.exists():

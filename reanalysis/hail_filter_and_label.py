@@ -52,8 +52,8 @@ PATHOGENIC = hl.str('pathogenic')
 def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
     """
     try and identify the clinvar table to use
-    - try the storage:common default path
-    - fall back to a config specified path
+    - try the config specified path
+    - fall back to storage:common default path
     - failing that, stick to standard annotations
 
     Args
@@ -62,6 +62,16 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
     Returns:
         a path to a clinvar table, or None
     """
+
+    clinvar_table = get_config()['workflow'].get(key)
+    if clinvar_table is not None:
+
+        if to_path(clinvar_table).exists():
+            logging.info(f'Using clinvar table {clinvar_table}')
+            return clinvar_table
+
+    logging.info(f'No forced {key} table available, trying default')
+
     try:
         clinvar_table = to_path(
             os.path.join(
@@ -81,15 +91,6 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
         )
     except KeyError:
         logging.warning('No storage::common::analysis key present')
-
-    clinvar_table = get_config()['workflow'].get('forced_clinvar')
-    if clinvar_table is None:
-        logging.info('No forced clinvar table specified')
-        return clinvar_table
-
-    if to_path(clinvar_table).exists():
-        logging.info(f'Using clinvar table {clinvar_table}')
-        return clinvar_table
 
     return None
 
