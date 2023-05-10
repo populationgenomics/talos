@@ -20,7 +20,6 @@ import logging
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
-from os.path import join
 
 from hailtop.batch.job import BashJob, Job
 
@@ -142,16 +141,13 @@ def handle_panelapp_job(
     return panelapp_job
 
 
-def handle_hail_filtering(
-    plink_file: str, clinvar: str, prior_job: Job | None = None
-) -> BashJob:
+def handle_hail_filtering(plink_file: str, prior_job: Job | None = None) -> BashJob:
     """
     hail-query backend version of the filtering implementation
     use the init query service instead of running inside dataproc
 
     Args:
         plink_file (str): path to a pedigree
-        clinvar (str): path to the clinvar re-summary
         prior_job ():
 
     Returns:
@@ -165,7 +161,6 @@ def handle_hail_filtering(
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--plink {plink_file} '
-        f'--clinvar {clinvar} '
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
@@ -371,20 +366,6 @@ def main(
     # start the dependency graph
     prior_job = None
 
-    # find clinvar table
-    clinvar_table = to_path(
-        join(
-            get_config()['storage']['common']['analysis'],
-            'aip_clinvar',
-            datetime.now().strftime('%y-%m'),
-            'clinvar_decisions.ht',
-        )
-    )
-
-    assert (
-        clinvar_table.exists()
-    ), f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script'
-
     # region: MT to VCF
     # determine the input type - if MT, decompose to VCF prior to annotation
     input_file_type = identify_file_type(input_path)
@@ -487,9 +468,7 @@ def main(
     if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_filtering(
-            prior_job=prior_job,
-            plink_file=pedigree_in_batch,
-            clinvar=str(clinvar_table),
+            prior_job=prior_job, plink_file=pedigree_in_batch
         )
         output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion

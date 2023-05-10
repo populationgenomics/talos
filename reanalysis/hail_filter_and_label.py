@@ -49,7 +49,52 @@ LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
 
-def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
+def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
+    """
+    try and identify the clinvar table to use
+    - try the storage:common default path
+    - fall back to a config specified path
+    - failing that, stick to standard annotations
+
+    Args
+        key (str): the key to look for in the config
+
+    Returns:
+        a path to a clinvar table, or None
+    """
+    try:
+        clinvar_table = to_path(
+            os.path.join(
+                get_config()['storage']['common']['analysis'],
+                'aip_clinvar',
+                datetime.now().strftime('%y-%m'),
+                f'{key}.ht',
+            )
+        )
+        # happy path
+        if clinvar_table.exists():
+            logging.info(f'Using clinvar table {clinvar_table}')
+            return str(clinvar_table)
+
+        logging.info(
+            f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script'
+        )
+    except KeyError:
+        logging.warning('No storage::common::analysis key present')
+
+    clinvar_table = get_config()['workflow'].get('forced_clinvar')
+    if clinvar_table is None:
+        logging.info('No forced clinvar table specified')
+        return clinvar_table
+
+    if to_path(clinvar_table).exists():
+        logging.info(f'Using clinvar table {clinvar_table}')
+        return clinvar_table
+
+    return None
+
+
+def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     instead of making a separate decision about whether the clinvar
     annotation(s) are meaningful during each test, add a single value
@@ -62,13 +107,12 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
 
     Args:
         mt (): the MatrixTable of all variants
-        clinvar (str): path to custom table
     Returns:
         The same MatrixTable but with additional annotations
     """
 
     # if there's private clinvar annotations - use them
-    if clinvar != 'absent':
+    if clinvar := get_clinvar_table():
         logging.info(f'loading private clinvar annotations from {clinvar}')
         ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
@@ -175,20 +219,9 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
         callset - shared residue affected on at least one transcript
     """
 
-    try:
-        codon_table_path = to_path(
-            os.path.join(
-                get_config()['storage']['common']['analysis'],
-                'aip_clinvar',
-                datetime.now().strftime('%y-%m'),
-                'clinvar_pm5.ht',
-            )
-        )
-    except KeyError:
-        logging.info('storage:common:analysis not present in conf')
-        codon_table_path = None
+    codon_table_path = get_clinvar_table('clinvar_pm5')
 
-    if codon_table_path is None or not codon_table_path.exists():
+    if codon_table_path is None:
         logging.info('PM5 table not found, skipping annotation')
         return mt.annotate_rows(
             info=mt.info.annotate(categorydetailsPM5=MISSING_STRING)
@@ -999,7 +1032,7 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
+def main(mt_path: str, panelapp: str, plink: str):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
@@ -1051,7 +1084,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     # filter out quality failures
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_aip_clinvar(mt=mt, clinvar=clinvar)
+    mt = annotate_aip_clinvar(mt=mt)
     mt = filter_on_quality_flags(mt=mt)
 
     # running global quality filter steps
@@ -1142,6 +1175,4 @@ if __name__ == '__main__':
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
     parser.add_argument('--clinvar', default='absent', help='Custom Clinvar HT')
     args = parser.parse_args()
-    main(
-        mt_path=args.mt, panelapp=args.panelapp, plink=args.plink, clinvar=args.clinvar
-    )
+    main(mt_path=args.mt, panelapp=args.panelapp, plink=args.plink)
