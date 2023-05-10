@@ -3,9 +3,12 @@ unit testing collection for the hail MT methods
 """
 
 import pytest
+import toml
 
 import hail as hl
 import pandas as pd
+
+from cpg_utils.config import _config_paths, get_config, set_config_paths
 
 from reanalysis.hail_filter_and_label import (
     annotate_aip_clinvar,
@@ -399,7 +402,7 @@ def test_aip_clinvar_default(make_a_mt):
         make_a_mt (hl.MatrixTable):
     """
 
-    mt = annotate_aip_clinvar(make_a_mt, clinvar='absent')
+    mt = annotate_aip_clinvar(make_a_mt)
     assert mt.count_rows() == 1
     assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
     assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
@@ -440,10 +443,18 @@ def test_annotate_aip_clinvar(
         ),
         key=['locus', 'alleles'],
     )
+
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
+    toml_dict = {'workflow': {'clinvar_decisions': table_path}}
+    toml_path = str(tmp_path / 'clinvar.toml')
+    with open(toml_path, 'w', encoding='utf-8') as f:
+        toml.dump(toml_dict, f)
 
-    returned_table = annotate_aip_clinvar(make_a_mt, clinvar=table_path)
+    set_config_paths(_config_paths + [toml_path])
+    get_config()
+
+    returned_table = annotate_aip_clinvar(make_a_mt)
     assert returned_table.count_rows() == rows
     assert (
         len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular
