@@ -136,6 +136,7 @@ def generate_annotated_data(
 def main(date: str | None = None):
     """
     run the clinvar summary, output to cpg-common path
+
     Args:
         date (str | None): a cut-off data for Clinvar subs
     """
