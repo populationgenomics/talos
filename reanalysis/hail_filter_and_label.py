@@ -18,6 +18,7 @@ import os
 import logging
 import sys
 from argparse import ArgumentParser
+from datetime import datetime
 
 import hail as hl
 from peddy import Ped
@@ -48,7 +49,53 @@ LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
 
-def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
+def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
+    """
+    try and identify the clinvar table to use
+    - try the config specified path
+    - fall back to storage:common default path
+    - failing that, stick to standard annotations
+
+    Args
+        key (str): the key to look for in the config
+
+    Returns:
+        a path to a clinvar table, or None
+    """
+
+    clinvar_table = get_config()['workflow'].get(key)
+    if clinvar_table is not None:
+
+        if to_path(clinvar_table).exists():
+            logging.info(f'Using clinvar table {clinvar_table}')
+            return clinvar_table
+
+    logging.info(f'No forced {key} table available, trying default')
+
+    try:
+        clinvar_table = to_path(
+            os.path.join(
+                get_config()['storage']['common']['analysis'],
+                'aip_clinvar',
+                datetime.now().strftime('%y-%m'),
+                f'{key}.ht',
+            )
+        )
+        # happy path
+        if clinvar_table.exists():
+            logging.info(f'Using clinvar table {clinvar_table}')
+            return str(clinvar_table)
+
+        logging.info(
+            f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script'
+        )
+    except KeyError:
+        logging.warning('No storage::common::analysis key present')
+
+    return None
+
+
+def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     instead of making a separate decision about whether the clinvar
     annotation(s) are meaningful during each test, add a single value
@@ -61,13 +108,12 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
 
     Args:
         mt (): the MatrixTable of all variants
-        clinvar (str): path to custom table
     Returns:
         The same MatrixTable but with additional annotations
     """
 
     # if there's private clinvar annotations - use them
-    if clinvar != 'absent':
+    if clinvar := get_clinvar_table():
         logging.info(f'loading private clinvar annotations from {clinvar}')
         ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
@@ -134,7 +180,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     return mt
 
 
-def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
+def annotate_codon_clinvar(mt: hl.MatrixTable):
     """
     takes the protein indexed clinvar results and matches up against
     the variant data
@@ -166,23 +212,25 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, codon_table_path: str | None):
     evidence, so exact matches must be filtered out downstream.
 
     Args:
-        codon_table_path (): path to the clinvar-by-codon
         mt (): MT of all variants
 
     Returns:
-        the same variants MT with an extra label containing all clinvar alleles
-        known to cause the same protein consequence on at least one common tx
+        Same MT with an extra category label containing links to all clinvar
+        missense variants affecting the same residue as a missense in this
+        callset - shared residue affected on at least one transcript
     """
 
+    codon_table_path = get_clinvar_table('clinvar_pm5')
+
     if codon_table_path is None:
-        logging.info('No codon path supplied, skipping PM5')
+        logging.info('PM5 table not found, skipping annotation')
         return mt.annotate_rows(
             info=mt.info.annotate(categorydetailsPM5=MISSING_STRING)
         )
 
     # read in the codon table
-    logging.info(f'reading clinvar alleles by codon from {codon_table_path}')
-    codon_clinvar = hl.read_table(codon_table_path)
+    logging.info(f'Reading clinvar alleles by codon from {codon_table_path}')
+    codon_clinvar = hl.read_table(str(codon_table_path))
 
     # boom those variants out by consequence
     codon_variants = mt.explode_rows(mt.vep.transcript_consequences).rows()
@@ -985,7 +1033,7 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
+def main(mt_path: str, panelapp: str, plink: str):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
@@ -1037,7 +1085,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
 
     # filter out quality failures
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_aip_clinvar(mt=mt, clinvar=clinvar)
+    mt = annotate_aip_clinvar(mt=mt)
     mt = filter_on_quality_flags(mt=mt)
 
     # running global quality filter steps
@@ -1092,9 +1140,7 @@ def main(mt_path: str, panelapp: str, plink: str, clinvar: str):
     mt = annotate_category_support(mt=mt)
 
     # if a clinvar-codon table is supplied, use that for PM5
-    mt = annotate_codon_clinvar(
-        codon_table_path=get_config()['filter'].get('codon_table'), mt=mt
-    )
+    mt = annotate_codon_clinvar(mt=mt)
 
     mt = filter_to_categorised(mt=mt)
     mt = checkpoint_and_repartition(
@@ -1130,6 +1176,4 @@ if __name__ == '__main__':
     parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
     parser.add_argument('--clinvar', default='absent', help='Custom Clinvar HT')
     args = parser.parse_args()
-    main(
-        mt_path=args.mt, panelapp=args.panelapp, plink=args.plink, clinvar=args.clinvar
-    )
+    main(mt_path=args.mt, panelapp=args.panelapp, plink=args.plink)

@@ -1,0 +1,17 @@
+[workflow]
+name = 'Annotate_Clinvar'
+scatter_count = 5
+vcf_size_in_gb = 30
+sequencing_type = 'genome'
+
+[hail]
+cancel_after_n_failures = 1
+default_timeout = 18000
+default_memory = 'highmem'
+
+[images]
+vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:test'
+
+[clinvar]
+filter_benign = ['illumina laboratory services; illumina']
