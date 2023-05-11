@@ -79,18 +79,18 @@ def generate_clinvar_table(
 
 def generate_annotated_data(
     annotation_out: Path, snv_vcf: Path, tmp_path: Path, dependency: Job | None = None
-):
+) -> Job:
     """
     if the annotated data Table doesn't exist, generate it
 
     Args:
-        annotation_out ():
-        snv_vcf ():
-        tmp_path ():
-        dependency (Job):
+        annotation_out (str): MT path to create
+        snv_vcf (str): path to a VCF file
+        tmp_path (Path): path to a temporary folder
+        dependency (Job | None): optional job dependency
 
     Returns:
-
+        The Job for future dependency setting
     """
 
     vep_ht_tmp = tmp_path / 'vep_annotations.ht'
@@ -153,24 +153,22 @@ def main(date: str | None = None, folder: str | None = None):
             )
         )
 
-    # path to the annotated clinvar table
+    elif isinstance(folder, str):
+        folder = to_path(folder)
+
+    # clinvar VCF, decisions, annotated VCF, and PM5
+    snv_vcf = folder / 'pathogenic_snv.vcf.bgz'
+    clinvar_table_path = folder / 'clinvar_decisions.ht'
+    clinvar_pm5_path = folder / 'clinvar_pm5.ht'
     annotated_clinvar = folder / 'annotated_clinvar.mt'
 
-    # path to the annotated clinvar table
-    clinvar_table_path = folder / 'clinvar_decisions.ht'
-
-    # path to the pm5 clinvar table
-    clinvar_pm5_path = folder / 'clinvar_pm5.ht'
-
+    # check if we can just quit already
     if all(
         this_path.exists()
         for this_path in [annotated_clinvar, clinvar_table_path, clinvar_pm5_path]
     ):
         logging.info('Clinvar data already exists, exiting')
         return
-
-    # create a space for the SNV VCF
-    snv_vcf = folder / 'pathogenic_snv.vcf.bgz'
 
     temp_path = to_path(
         join(
@@ -181,6 +179,8 @@ def main(date: str | None = None, folder: str | None = None):
     )
 
     dependency = None
+
+    # generate a new round of clinva decisions
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
         dependency = generate_clinvar_table(clinvar_table_path, folder, snv_vcf, date)
 
