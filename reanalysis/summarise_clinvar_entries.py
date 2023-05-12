@@ -30,8 +30,8 @@ import hail as hl
 import pandas as pd
 
 from cpg_utils import to_path, CloudPath
-from cpg_utils.config import get_config
 from cpg_utils.hail_batch import output_path, init_batch
+from cpg_utils.config import ConfigError
 
 from reanalysis.utils import get_cohort_config
 
@@ -74,7 +74,7 @@ class Consequence(Enum):
 
 # submitters not trusted for a subset of consequences - after Consequence is defined
 try:
-    cohort_conf = get_config()
+    cohort_conf = get_cohort_config()
     assert 'clinvar' in cohort_conf
     QUALIFIED_BLACKLIST = [
         (Consequence.BENIGN, cohort_conf['clinvar'].get('filter_benign', []))
@@ -153,7 +153,7 @@ def get_allele_locus_map(summary_file: str) -> dict:
     return allele_dict
 
 
-def lines_from_gzip(filename: str) -> list[str]:
+def lines_from_gzip(filename: str) -> str:
     """
     generator for gzip reading, copies file locally before reading
 
@@ -539,7 +539,7 @@ def main(
         temp_output = output_path(
             f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
         )
-    except AssertionError:
+    except (ConfigError, KeyError):
         temp_output = f'{date.strftime("%Y-%m-%d")}_clinvar_table.json'
 
     logging.info(f'temp JSON location: {temp_output}')
