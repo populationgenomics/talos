@@ -113,6 +113,9 @@ clinvar_filter = ['victorian clinical genetics services,murdoch childrens resear
 gene_prior = 'gs://cpg-epileptic-enceph-test/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [202]
 
+[cohorts.genomic-autopsy]
+cohort_panels = [3763]
+
 [cohorts.heartkids]
 gene_prior = 'gs://cpg-heartkids-test/reanalysis/pre_panelapp_mendeliome.json'
 
