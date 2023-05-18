@@ -6,21 +6,21 @@ track down the latest version of all reports
 generate an index HTML page with links to all reports
 """
 
-
 from dataclasses import dataclass
 from os.path import join
 from pathlib import Path
+from typing import Any
 
 import jinja2
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from sample_metadata.apis import AnalysisApi, ProjectApi
-from sample_metadata.model.analysis_type import AnalysisType
-from sample_metadata.model.analysis_query_model import AnalysisQueryModel
-
+from metamist.graphql import gql, query
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
+
+
+# pylint: disable=unsubscriptable-object
 
 
 @dataclass
@@ -36,6 +36,50 @@ class Report:
     date: str
 
 
+def get_my_projects():
+    """
+    queries metamist for projects I have access to,
+    returns the dataset names
+    """
+    project_query = gql(
+        """
+query MyQuery {
+    myProjects {
+        dataset
+    }
+}
+    """
+    )
+    # validate(project_query)
+    response: dict[str, Any] = query(project_query)
+    return {dataset['dataset'] for dataset in response['myProjects']}
+
+
+def get_project_analyses(project: str) -> list[dict]:
+    """
+    find all the active analysis entries for this project
+    Args:
+        project (str): project to query for
+    """
+
+    project_query = gql(
+        """
+    query MyQuery($project: String!) {
+        project(name: $project) {
+            analyses(active: true, type: WEB_REPORT) {
+                output
+                meta
+                timestampCompleted
+            }
+        }
+    }
+    """
+    )
+    # validate(project_query)
+    response: dict[str, Any] = query(project_query, variables={'project': project})
+    return response['project']['analyses']
+
+
 def main():
     """
     finds all existing reports, generates an HTML file
@@ -43,15 +87,11 @@ def main():
 
     all_cohorts = {}
 
-    for cohort in ProjectApi().get_my_projects():
+    for cohort in get_my_projects():
+        if 'test' in cohort:
+            continue
 
-        # find any previous AnalysisEntries... Update to active=False
-        a_query_model = AnalysisQueryModel(
-            projects=[cohort], type=AnalysisType('web'), active=True
-        )
-        for analysis in AnalysisApi().query_analyses(
-            analysis_query_model=a_query_model
-        ):
+        for analysis in get_project_analyses(cohort):
             # only look for reanalysis entries
             if 'reanalysis' not in analysis['output']:
                 continue
@@ -66,7 +106,7 @@ def main():
                 address=analysis['meta']['display_url'],
                 genome_or_exome='Exome' if exome_output else 'Genome',
                 subtype='Singleton' if singleton_output else 'Familial',
-                date=analysis['timestamp_completed'].split('T')[0],
+                date=analysis['timestampCompleted'].split('T')[0],
             )
 
     # smoosh into a list for the report context - all reports sortable by date

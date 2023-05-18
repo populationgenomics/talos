@@ -11,6 +11,6 @@ obonet>=0.3.1
 pandas>=1.4.3
 peddy>=0.4.8
 requests>=2.25.1
-sample-metadata>=5.2.1
+metamist>=6.0.2
 seqr-loader>=1.2.5
 tabulate>=0.8.9
