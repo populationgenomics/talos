@@ -2,10 +2,10 @@
 utils to prevent circular imports
 """
 
-
 from collections import defaultdict
+from typing import Any
 
-from sample_metadata.apis import ParticipantApi
+from metamist.graphql import gql, query
 
 
 def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
@@ -25,12 +25,26 @@ def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     :return: the mapping dictionary
     """
 
+    mapping_query = gql(
+        """
+    query MyQuery($project: String!) {
+        project(name: $project) {
+            participants {
+                externalId
+                samples {
+                    id
+                }
+            }
+        }
+    }
+    """
+    )
+    response: dict[str, Any] = query(mapping_query, variables={'project': project})
+
     sample_map = defaultdict(list)
-    for (
-        participant,
-        sample,
-    ) in ParticipantApi().get_external_participant_id_to_internal_sample_id(
-        project=project
-    ):
-        sample_map[participant].append(sample)
+    # pylint: disable=unsubscriptable-object
+    for participant_block in response['project']['participants']:
+        ext_id = participant_block['externalId']
+        samples = [sam['id'] for sam in participant_block['samples']]
+        sample_map[ext_id].extend(samples)
     return sample_map
