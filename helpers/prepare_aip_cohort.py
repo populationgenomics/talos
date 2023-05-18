@@ -9,9 +9,9 @@ master script for preparing a run
 - tweaks for making singleton versions of the given cohort
 """
 
-
 from argparse import ArgumentParser
 from itertools import product
+from typing import Any
 import hashlib
 import json
 import logging
@@ -21,7 +21,8 @@ import toml
 
 from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
-from sample_metadata.apis import FamilyApi
+
+from metamist.graphql import gql, query
 
 from reanalysis.utils import read_json_from_path
 from helpers.hpo_panel_matching import (
@@ -31,7 +32,6 @@ from helpers.hpo_panel_matching import (
     query_and_parse_metadata,
 )
 from helpers.utils import ext_to_int_sample_map
-
 
 BUCKET_TEMPLATE = 'gs://cpg-{dataset}-test-analysis/reanalysis'
 LOCAL_TEMPLATE = 'inputs/{dataset}'
@@ -265,8 +265,18 @@ def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
     Returns:
         All API returned content
     """
-
-    return FamilyApi().get_pedigree(project=project)
+    ped_query = gql(
+        """
+    query MyQuery($project: String!) {
+        project(name: $project) {
+            pedigree
+        }
+    }
+    """
+    )
+    # pylint: disable=unsubscriptable-object
+    response: dict[str, Any] = query(ped_query, variables={'project': project})
+    return response['project']['pedigree']
 
 
 def process_reverse_lookup(
