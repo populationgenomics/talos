@@ -105,9 +105,11 @@ def generate_annotated_data(
     )
 
     # add Clinvar job as an annotation dependency
-    if dependency and vep_jobs:
-        for job in vep_jobs:
-            job.depends_on(dependency)
+    # update dependency job if necessary
+    if vep_jobs:
+        if dependency:
+            for job in vep_jobs:
+                job.depends_on(dependency)
         dependency = vep_jobs[-1]
 
     j = get_batch().new_job('annotate cohort')
