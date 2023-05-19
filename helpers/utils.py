@@ -30,10 +30,12 @@ def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     query MyQuery($project: String!) {
         project(name: $project) {
             participants {
-                externalId
                 samples {
-                    id
+                    sequencingGroups {
+                        id
+                    }
                 }
+                externalId
             }
         }
     }
@@ -45,6 +47,10 @@ def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     # pylint: disable=unsubscriptable-object
     for participant_block in response['project']['participants']:
         ext_id = participant_block['externalId']
-        samples = [sam['id'] for sam in participant_block['samples']]
+        samples = [
+            sam['id']
+            for sg in participant_block['samples']
+            for sam in sg['sequencingGroups']
+        ]
         sample_map[ext_id].extend(samples)
     return sample_map

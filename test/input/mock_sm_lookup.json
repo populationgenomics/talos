@@ -1,18 +1,54 @@
-[
-  [
-    "FAM1_father",
-    "CPG11"
-  ],
-  [
-    "FAM1_mother",
-    "CPG12"
-  ],
-  [
-    "FAM1_proband",
-    "CPG13"
-  ],
-  [
-    "FAM2_proband",
-    "CPG41"
-  ]
-]
+{
+    "project": {
+        "participants": [
+            {
+                "samples": [
+                    {
+                        "sequencingGroups": [
+                            {
+                                "id": "CPG11"
+                            }
+                        ]
+                    }
+                ],
+                "externalId": "FAM1_father"
+            },
+            {
+                "samples": [
+                    {
+                        "sequencingGroups": [
+                            {
+                                "id": "CPG12"
+                            }
+                        ]
+                    }
+                ],
+                "externalId": "FAM1_mother"
+            },
+            {
+                "samples": [
+                    {
+                        "sequencingGroups": [
+                            {
+                                "id": "CPG13"
+                            }
+                        ]
+                    }
+                ],
+                "externalId": "FAM1_proband"
+            },
+            {
+                "samples": [
+                    {
+                        "sequencingGroups": [
+                            {
+                                "id": "CPG41"
+                            }
+                        ]
+                    }
+                ],
+                "externalId": "FAM2_proband"
+            }
+        ]
+    }
+}

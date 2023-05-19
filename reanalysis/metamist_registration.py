@@ -14,15 +14,14 @@ from peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-from sample_metadata.apis import AnalysisApi
-from sample_metadata.model.analysis_type import AnalysisType
-from sample_metadata.model.analysis_model import AnalysisModel
-from sample_metadata.model.analysis_status import AnalysisStatus
-from sample_metadata.model.analysis_query_model import AnalysisQueryModel
-from sample_metadata.model.analysis_update_model import AnalysisUpdateModel
+from metamist.apis import AnalysisApi
+from metamist.graphql import gql, query
+from metamist.model.analysis import Analysis
+from metamist.model.analysis_status import AnalysisStatus
+from metamist.model.analysis_update_model import AnalysisUpdateModel
 
 
-def inactivate_old_entry(name: str, metadata: dict[str, str], anal_type: AnalysisType):
+def inactivate_old_entries(name: str, metadata: dict[str, str], anal_type: str):
     """
     for this file, metadata, and analysis type:
         - check for any pre-existing reanalysis entries in metamist
@@ -35,14 +34,30 @@ def inactivate_old_entry(name: str, metadata: dict[str, str], anal_type: Analysi
     Args:
         name (str): filename
         metadata (dict): dictionary of parameters
-        anal_type (AnalysisType):  Custom/Web
+        anal_type (str):  custom/web
     """
+    analysis_query = gql(
+        """
+    query MyQuery($project: String!, $type: String!) {
+        project(name: $project) {
+            analyses(active: true, type: $type) {
+                output
+                meta
+                active
+            }
+        }
+    }
+    """
+    )
+    response = query(
+        analysis_query,
+        variables={'project': get_config()['workflow']['dataset'], 'type': anal_type},
+    )
 
     # find any previous  AIP-specific AnalysisEntries... Update to active=False
-    a_query_model = AnalysisQueryModel(
-        projects=[get_config()['workflow']['dataset']], type=anal_type
-    )
-    for analysis in AnalysisApi().query_analyses(analysis_query_model=a_query_model):
+    # todo what if the project doesn't exist?
+    # pylint: disable=unsubscriptable-object
+    for analysis in response['project']['analyses']:
 
         # only look for reanalysis entries
         if 'reanalysis' not in analysis['output']:
@@ -54,11 +69,11 @@ def inactivate_old_entry(name: str, metadata: dict[str, str], anal_type: Analysi
                 continue
 
         # check that the name is the same, check its active, then kill it
+        # name here is typically summary_ or singleton_output.html
         output_path = Path(analysis['output'])
         if name.endswith(output_path.name) and analysis['active']:
-
             # update this entry to inactivate it (superseded)
-            AnalysisApi().update_analysis_status(
+            AnalysisApi().update_analysis(
                 analysis_id=analysis['id'],
                 analysis_update_model=AnalysisUpdateModel(
                     status=AnalysisStatus('completed'), active=False
@@ -82,16 +97,13 @@ def register_html(file_path: str, samples: list[str]):
         'is_singleton': bool('singleton' in file_path),
     }
 
-    analysis_type = (
-        AnalysisType('web') if 'html' in file_path else AnalysisType('custom')
-    )
+    anal_type = 'web' if 'html' in file_path else 'custom'
 
     # find any previous versions of this AnalysisEntry, and deactivate
-    inactivate_old_entry(name=file_path, metadata=report_meta, anal_type=analysis_type)
+    inactivate_old_entries(name=file_path, metadata=report_meta, anal_type=anal_type)
 
     # add HTML-specific elements
     if file_path.endswith('html'):
-
         web_template = get_config()['storage']['default']['web_url']
         file_name = Path(file_path).name
         display_url = join(
@@ -99,11 +111,11 @@ def register_html(file_path: str, samples: list[str]):
         )
         report_meta['display_url'] = display_url
 
-    AnalysisApi().create_new_analysis(
+    AnalysisApi().create_analysis(
         project=get_config()['workflow']['dataset'],
-        analysis_model=AnalysisModel(
+        analysis=Analysis(
             sample_ids=samples,
-            type=analysis_type,
+            type='web',
             status=AnalysisStatus('completed'),
             output=file_path,
             meta=report_meta,
