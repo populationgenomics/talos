@@ -19,7 +19,6 @@ jobs:
 
     - name: Install packages
       run: |
-        sudo apt-get update
         sudo apt-get install libhtscodecs-dev
         pip install .[full,test]
 
