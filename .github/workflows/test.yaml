@@ -7,7 +7,6 @@ jobs:
     defaults:
       run:
         shell: |
-          apt-get update && apt-get install libhtscodecs-dev
           bash -l {0}
 
     steps:
@@ -19,7 +18,10 @@ jobs:
         cache-dependency-path: requirements*.txt
 
     - name: Install packages
-      run: pip install .[full,test]
+      run: |
+        sudo apt-get update
+        sudo apt-get install libhtscodecs-dev
+        pip install .[full,test]
 
     - name: test
       run: pytest -n auto .
