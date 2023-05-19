@@ -7,8 +7,8 @@ jobs:
     defaults:
       run:
         shell: |
+          apt-get update && apt-get install libhtscodecs-dev
           bash -l {0}
-          sudo apt-get update && apt-get install libhtscodecs-dev
 
     steps:
     - uses: actions/checkout@v2
