@@ -17,9 +17,6 @@ jobs:
         cache: 'pip'
         cache-dependency-path: requirements*.txt
 
-    - name: Install libhtscodecs-dev
-      run: sudo apt-get install libhtscodecs-dev
-
     - name: Install packages
       run: pip install .[full,test]
 
