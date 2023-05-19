@@ -2,7 +2,7 @@ click>=8.1.3
 cloudpathlib[all]>=0.9.0
 cpg-utils>=4.7.0
 cpg_workflows>=1.12.6
-cyvcf2>=0.30.18
+cyvcf2==0.30.18
 dill>=0.3.5.1
 hail>=0.2.105
 Jinja2==3.0.3
