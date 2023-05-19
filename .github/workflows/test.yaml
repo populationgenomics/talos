@@ -6,8 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: |
-          bash -l {0}
+        shell: bash -l {0}
 
     steps:
     - uses: actions/checkout@v2
@@ -18,7 +17,8 @@ jobs:
         cache-dependency-path: requirements*.txt
 
     - name: Install packages
-      run: pip install .[full,test]
+      run: |
+        pip install .[full,test]
 
     - name: test
       run: pytest -n auto .
