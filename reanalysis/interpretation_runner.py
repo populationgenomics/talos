@@ -414,8 +414,9 @@ def main(
         )
 
         # set the job dependency and cycle the 'prior' job
-        if prior_job and sites_job:
-            sites_job.depends_on(prior_job)
+        if sites_job:
+            if prior_job:
+                sites_job.depends_on(prior_job)
             prior_job = sites_job
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
@@ -430,9 +431,10 @@ def main(
         )
 
         # assign sites-only job as an annotation dependency
-        if vep_jobs and prior_job:
-            for job in vep_jobs:
-                job.depends_on(prior_job)
+        if vep_jobs:
+            if prior_job:
+                for job in vep_jobs:
+                    job.depends_on(prior_job)
             prior_job = vep_jobs[-1]
 
         j = get_batch().new_job(f'annotate cohort')
