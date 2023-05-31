@@ -14,11 +14,14 @@ register = 'metamist'
 #clinvar_decisions = "HailTable path to private ClinVar"
 #clinvar_pm5 = "HailTable path to ClinVar PM5"
 
+[dataset_specific]
+placeholder = 'placeholder'
+
 [panels]
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
-require_pheno_match = ['FLG', 'GJB2']
+require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
 
 [clinvar]
 filter_benign = ['illumina laboratory services; illumina']

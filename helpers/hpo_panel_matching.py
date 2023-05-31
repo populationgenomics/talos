@@ -6,7 +6,6 @@ all methods relating to:
 - collecting a list of relevant panels for all participants
 """
 
-
 import logging
 import json
 import sys
@@ -23,13 +22,11 @@ from cpg_utils import to_path
 from helpers.utils import ext_to_int_sample_map
 from reanalysis.utils import get_json_response
 
-
 MAX_DEPTH: int = 3
 PANELAPP_SERVER = 'https://sample-metadata.populationgenomics.org.au'
 TEMPLATE = (
     f'{PANELAPP_SERVER}/api/v1/participant/{{dataset}}/individual-metadata-seqr/json'
 )
-
 
 HPO_RE = re.compile(r'HP:[0-9]+')
 PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
@@ -38,8 +35,14 @@ PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
     """
     query panelapp, and collect panels by HPO term
-    returns a dict of {HPO Term: [panel_ID, panel_ID],}
+
+    Args:
+        endpoint (str): URL for panels
+
+    Returns:
+        dict: {HPO_Term: [panel_ID, panel_ID],}
     """
+
     hpo_dict = defaultdict(set)
 
     while endpoint:
@@ -136,14 +139,13 @@ def match_hpo_terms(
 
 def query_and_parse_metadata(dataset_name: str) -> dict:
     """
-    takes the seqr metadata and parses out the relevant HPO data
-    Parameters
-    ----------
-    dataset_name : string, the project dataset key to use
+    takes seqr metadata and parses out the relevant HPO data
 
-    Returns
-    -------
-    all project metadata, parsed into a dict
+    Args:
+        dataset_name (str): the project dataset key to use
+
+    Returns:
+        all project metadata, parsed into a dict
     """
 
     hpo_dict = {}
@@ -151,7 +153,6 @@ def query_and_parse_metadata(dataset_name: str) -> dict:
     participant_meta = seqr_api.get_individual_metadata_for_seqr(project=dataset_name)
 
     for row in participant_meta['rows']:
-
         # take the family ID and all HPO terms
         hpo_string = row.get('hpo_terms_present')
         hpo_list = hpo_string.split(',') if hpo_string else []
@@ -172,16 +173,14 @@ def match_hpos_to_panels(
     """
     take all the hpo terms, and run each against the panel~hpo matcher
 
-    Parameters
-    ----------
-    hpo_to_panel_map :
-    obo_file : file containing HPO tree
-    all_hpos : set of all unique hpo terms
-    max_depth : optional overriding graph traversal depth
+    Args:
+        hpo_to_panel_map ():
+        obo_file (str): file containing HPO tree
+        all_hpos (set[str]): set of all unique hpo terms
+        max_depth (int): optional overriding graph traversal depth
 
-    Returns
-    -------
-    a dictionary linking all HPO terms to a corresponding set of Panel IDs
+    Returns:
+        a dictionary linking all HPO terms to a corresponding set of Panel IDs
     """
 
     hpo_graph = read_obo(obo_file, ignore_obsolete=False)
@@ -286,7 +285,6 @@ def main(dataset: str, output_path: str, obo: str):
 
 
 if __name__ == '__main__':
-
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',

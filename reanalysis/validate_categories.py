@@ -69,9 +69,13 @@ def set_up_moi_filters(
 
     This dictionary format means we only have to set up each once
     A billion variants, 6 MOI = 6 test instances, each created once
-    :param panelapp_data:
-    :param pedigree:
-    :return:
+
+    Args:
+        panelapp_data (dict):
+        pedigree (Ped):
+
+    Returns:
+        a list
     """
 
     moi_dictionary = {}
@@ -101,10 +105,10 @@ def apply_moi_to_variants(
     find all variants/compound hets which fit the PanelApp MOI
 
     Args:
-        variant_dict ():
-        moi_lookup ():
-        panelapp_data ():
-        pedigree ():
+        variant_dict (dict): all possible variants, lists indexed by gene
+        moi_lookup (dict): the MOI model runner per MOI string
+        panelapp_data (dict): all genes and relevant details
+        pedigree (Ped): the pedigree for this cohort
     """
 
     results = []
@@ -136,23 +140,36 @@ def apply_moi_to_variants(
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
 
-            # Flag! If this is a Category 1 (ClinVar) variant, and we are
-            # interpreting under a lenient MOI, add flag for analysts
-            lenient_moi_flag = bool(
-                variant.info.get('categoryboolean1', False)
-                and panel_gene_data.get('moi')
-                in {'Hemi_Mono_In_Female', 'Unknown', 'Mono_And_Biallelic'}
-            )
             variant_results = moi_lookup[panel_gene_data.get('moi')].run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
                 partial_pen=variant.info.get('categoryboolean1', False),
             )
 
+            # Flag! If this is a Category 1 (ClinVar) variant, and we are
             # update the flag for leniently applied Dominant
-            if lenient_moi_flag:
+            # interpreting under a lenient MOI, add flag for analysts
+            # control this in just one place
+            if panel_gene_data.get('moi') in {
+                'Hemi_Mono_In_Female',
+                'Unknown',
+                'Mono_And_Biallelic',
+            } and variant.info.get('categoryboolean1', False):
+
+                # consider each variant in turn
                 for each_result in variant_results:
-                    if any('Dominant' in moi for moi in each_result.reasons):
+
+                    # never tag if this variant/sample is de novo
+                    if '4' in each_result.var_data.category_values(
+                        sample=each_result.sample
+                    ):
+                        continue
+
+                    # if this is a dominant MOI, and not Recessive or X-linked
+                    if any('Dominant' in moi for moi in each_result.reasons) and not (
+                        any('Recessive' in moi for moi in each_result.reasons)
+                        or any(moi.startswith('X') for moi in each_result.reasons)
+                    ):
                         each_result.flags += ['Ambiguous Cat.1 MOI']
 
             results.extend(variant_results)
