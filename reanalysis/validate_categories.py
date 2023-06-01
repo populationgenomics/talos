@@ -150,11 +150,9 @@ def apply_moi_to_variants(
             # update the flag for leniently applied Dominant
             # interpreting under a lenient MOI, add flag for analysts
             # control this in just one place
-            if panel_gene_data.get('moi') in {
-                'Hemi_Mono_In_Female',
-                'Unknown',
-                'Mono_And_Biallelic',
-            } and variant.info.get('categoryboolean1', False):
+            if panel_gene_data.get('moi') == 'Mono_And_Biallelic' and variant.info.get(
+                'categoryboolean1', False
+            ):
 
                 # consider each variant in turn
                 for each_result in variant_results:
@@ -165,11 +163,7 @@ def apply_moi_to_variants(
                     ):
                         continue
 
-                    # if this is a dominant MOI, and not Recessive or X-linked
-                    if any('Dominant' in moi for moi in each_result.reasons) and not (
-                        any('Recessive' in moi for moi in each_result.reasons)
-                        or any(moi.startswith('X') for moi in each_result.reasons)
-                    ):
+                    if each_result.reasons == {'Autosomal Dominant'}:
                         each_result.flags += ['Ambiguous Cat.1 MOI']
 
             results.extend(variant_results)
