@@ -5,7 +5,6 @@
 date based forbidden gene finding
 """
 
-
 import json
 import logging
 import os
@@ -18,7 +17,6 @@ import click
 import requests
 
 from cpg_utils import to_path
-
 
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels'
 
@@ -106,38 +104,49 @@ def read_panels_from_participant_file(panel_json: str) -> set[int]:
     return panel_set
 
 
-def find_version(panel_id: int, date_threshold: str) -> str | None:
+def find_version(panel_id: int, all_dates: list[str]) -> dict[str, str | None]:
     """
-    take a panel ID and date threshold
+    take a panel ID and multiple date thresholds
     return the latest version of this panel at that date
+    return None if no version found
     """
-
-    date_threshold = datetime.strptime(date_threshold, '%Y-%m-%d')
+    panel_versions = {}
 
     # query for data from this endpoint
     activities: list[dict] = get_json_response(f'{PANELAPP_BASE}/{panel_id}/activities')
 
-    # iterate through all activities on this panel
-    for activity in activities:
+    for date_string in all_dates:
+        date_done = False
+        date_threshold = datetime.strptime(date_string, '%Y-%m-%d')
 
-        # cast the activity datetime to day-resolution
-        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d')
+        # iterate through all activities on this panel
+        for activity in activities:
 
-        # keep going until we land on the day, or skip past it
-        if activity_date > date_threshold:
-            continue
+            # cast the activity datetime to day-resolution
+            activity_date = datetime.strptime(
+                activity['created'].split('T')[0], '%Y-%m-%d'
+            )
 
-        return activity['panel_version']
+            # keep going until we land on the day, or skip past it
+            if activity_date > date_threshold:
+                continue
 
-    # it's possible we won't find one for some panels
-    return None
+            panel_versions[date_string] = activity['panel_version']
+            date_done = True
+            break
+
+        # it's possible we won't find one for some panels
+        if not date_done:
+            panel_versions[date_string] = None
+
+    return panel_versions
 
 
 @click.command()
 @click.option('--panels', help='JSON of per-participant panels (optional)')
-@click.option('--outpath', required=True, help='destination for results (directory)')
+@click.option('--out_path', required=True, help='destination for results (directory)')
 @click.argument('dates', nargs=-1)  # "YYYY-MM-DD, can be multiple whitespace-delimited"
-def main(panels: str | None, outpath: str, dates: list[str]):
+def main(panels: str | None, out_path: str, dates: list[str]):
     """
     This script takes one or more dates, and optionally some pheno-matched data
     We first aggregate all the panels to check across all participants
@@ -153,10 +162,9 @@ def main(panels: str | None, outpath: str, dates: list[str]):
 
     4. Write that result to a file
 
-
     Args:
         panels ():
-        outpath ():
+        out_path ():
         dates ():
     """
 
@@ -176,32 +184,31 @@ def main(panels: str | None, outpath: str, dates: list[str]):
 
     logging.info(f'total current genes: {len(latest_genes)}')
 
-    # ok, breathe...
+    # this returns {panel_id: {date: version } }
+    panel_versions = {
+        panel_id: find_version(panel_id, dates) for panel_id in all_panels
+    }
+
+    # check over all dates
     for date in dates:
 
         logging.info(f'Running the date {date}')
 
-        panel_versions = {
-            panel_id: find_version(panel_id, date) for panel_id in all_panels
-        }
-
         date_genes = set()
-        for panel, version in panel_versions.items():
-            if version is None:
-                continue
-            date_genes.update(get_panel_green(panel, version=version))
+        for panel, versions in panel_versions.items():
+            if panel_version := versions.get(date):
+                date_genes.update(get_panel_green(panel, version=panel_version))
 
         date_diff = sorted(latest_genes - date_genes)
         logging.info(f'date-forbidden at {date}: {len(date_diff)}')
 
-        with open(
-            os.path.join(outpath, f'{date}_forbidden.json'), 'w', encoding='utf-8'
-        ) as handle:
+        filename = os.path.join(out_path, f'{date}_forbidden.json')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'w', encoding='utf-8') as handle:
             json.dump(date_diff, handle, indent=True)
 
 
 if __name__ == '__main__':
-
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',

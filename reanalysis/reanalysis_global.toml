@@ -14,11 +14,14 @@ register = 'metamist'
 #clinvar_decisions = "HailTable path to private ClinVar"
 #clinvar_pm5 = "HailTable path to ClinVar PM5"
 
+[dataset_specific]
+placeholder = 'placeholder'
+
 [panels]
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
-require_pheno_match = ['FLG', 'GJB2']
+require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
 
 [clinvar]
 filter_benign = ['illumina laboratory services; illumina']
@@ -61,8 +64,8 @@ vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
 gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
 picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
 samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.1'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.1'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.2'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.2'
 
 [references]
 vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'

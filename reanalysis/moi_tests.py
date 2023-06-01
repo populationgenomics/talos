@@ -6,7 +6,6 @@ Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant
 """
 
-
 from abc import abstractmethod
 from copy import deepcopy
 
@@ -15,7 +14,6 @@ from peddy.peddy import Ped, PHENOTYPE
 from cpg_utils.config import get_config
 
 from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant, X_CHROMOSOME
-
 
 # pylint: disable=too-many-lines
 
@@ -395,7 +393,6 @@ class DominantAutosomal(BaseMoi):
                     principal.info, {'gnomad_af'}, self.ad_threshold
                 )
             )
-            and not principal.info.get('categoryboolean1')
         ):
             return classifications
 
@@ -679,7 +676,7 @@ class XDominant(BaseMoi):
             or self.check_frequency(principal.info, {'gnomad_ad'}, self.ad_threshold)
             or self.check_frequency(principal.info, {'gnomad_ac'}, self.ac_threshold)
             or self.check_frequency(principal.info, INFO_HEMI, self.hemi_threshold)
-        ) and not principal.info.get('categoryboolean1'):
+        ):
             return classifications
 
         # all samples which have a variant call
@@ -772,7 +769,6 @@ class XRecessiveMale(BaseMoi):
                 self.check_frequency(principal.info, INFO_HOMS, self.hom_dom_threshold)
                 or self.check_frequency(principal.info, INFO_HEMI, self.hemi_threshold)
             )
-            and not principal.info.get('categoryboolean1')
         ):
             return classifications
 
