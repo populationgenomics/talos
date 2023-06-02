@@ -7,16 +7,18 @@ We then run a permissive MOI match for the variant
 """
 
 from abc import abstractmethod
-from copy import deepcopy
 
 from peddy.peddy import Ped, PHENOTYPE
 
 from cpg_utils.config import get_config
 
-from reanalysis.utils import AbstractVariant, CompHetDict, ReportedVariant, X_CHROMOSOME
-
-# pylint: disable=too-many-lines
-
+from reanalysis.utils import (
+    AbstractVariant,
+    CompHetDict,
+    MinimalVariant,
+    ReportedVariant,
+    X_CHROMOSOME,
+)
 
 # config keys to use for dominant MOI tests
 GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
@@ -27,45 +29,6 @@ GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
 INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
 INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
 PEDDY_AFFECTED = PHENOTYPE().AFFECTED
-VAR_FIELDS_TO_REMOVE = [
-    'het_samples',
-    'hom_samples',
-    'boolean_categories',
-    'sample_categories',
-    'sample_support',
-    'ab_ratios',
-    'depths',
-]
-
-
-def minimise_variant(variant: AbstractVariant, sample_id: str) -> AbstractVariant:
-    """
-    When we find a matching MOI, store a sample-specific
-    duplicate of the variant details
-
-    TODO: This is a horrible solution, changing the model part way through
-    TODO: Create a separate OutputVariant class that can be used for this
-    Args:
-        variant ():
-        sample_id ():
-    """
-    var_copy = deepcopy(variant)
-
-    var_copy.categories = var_copy.category_values(sample=sample_id)
-
-    # remove the flags?
-    for flag in (
-        var_copy.sample_categories
-        + var_copy.boolean_categories
-        + var_copy.sample_support
-    ):
-        if flag in var_copy.info:
-            del var_copy.info[flag]
-
-    for key in VAR_FIELDS_TO_REMOVE:
-        if key in var_copy.__dict__:
-            del var_copy.__dict__[key]
-    return var_copy
 
 
 def check_for_second_hit(
@@ -423,13 +386,12 @@ class DominantAutosomal(BaseMoi):
             ):
                 continue
 
-            var_copy = minimise_variant(variant=principal, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     family=self.pedigree[sample_id].family_id,
-                    gene=var_copy.info.get('gene_id'),
-                    var_data=var_copy,
+                    gene=principal.info.get('gene_id'),
+                    var_data=MinimalVariant(variant=principal, sample=sample_id),
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
@@ -523,14 +485,12 @@ class RecessiveAutosomalCH(BaseMoi):
                     sample_id=sample_id, variant_1=principal, variant_2=partner_variant
                 ):
                     continue
-
-                var_copy = minimise_variant(variant=principal, sample_id=sample_id)
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
                         family=self.pedigree[sample_id].family_id,
-                        gene=var_copy.info.get('gene_id'),
-                        var_data=var_copy,
+                        gene=principal.info.get('gene_id'),
+                        var_data=MinimalVariant(principal, sample_id),
                         reasons={self.applied_moi},
                         supported=True,
                         genotypes=self.get_family_genotypes(
@@ -611,13 +571,12 @@ class RecessiveAutosomalHomo(BaseMoi):
             ):
                 continue
 
-            var_copy = minimise_variant(variant=principal, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     family=self.pedigree[sample_id].family_id,
-                    gene=var_copy.info.get('gene_id'),
-                    var_data=var_copy,
+                    gene=principal.info.get('gene_id'),
+                    var_data=MinimalVariant(principal, sample_id),
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
@@ -709,14 +668,12 @@ class XDominant(BaseMoi):
             ):
                 continue
 
-            var_copy = minimise_variant(variant=principal, sample_id=sample_id)
-
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     family=self.pedigree[sample_id].family_id,
-                    gene=var_copy.info.get('gene_id'),
-                    var_data=var_copy,
+                    gene=principal.info.get('gene_id'),
+                    var_data=MinimalVariant(principal, sample_id),
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
@@ -806,13 +763,12 @@ class XRecessiveMale(BaseMoi):
             ):
                 continue
 
-            var_copy = minimise_variant(variant=principal, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     family=self.pedigree[sample_id].family_id,
-                    gene=var_copy.info.get('gene_id'),
-                    var_data=var_copy,
+                    gene=principal.info.get('gene_id'),
+                    var_data=MinimalVariant(principal, sample_id),
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
@@ -898,13 +854,12 @@ class XRecessiveFemaleHom(BaseMoi):
             ):
                 continue
 
-            var_copy = minimise_variant(variant=principal, sample_id=sample_id)
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
                     family=self.pedigree[sample_id].family_id,
-                    gene=var_copy.info.get('gene_id'),
-                    var_data=var_copy,
+                    gene=principal.info.get('gene_id'),
+                    var_data=MinimalVariant(principal, sample_id),
                     genotypes=self.get_family_genotypes(
                         variant=principal, sample_id=sample_id
                     ),
@@ -1015,13 +970,12 @@ class XRecessiveFemaleCH(BaseMoi):
                 ):
                     continue
 
-                var_copy = minimise_variant(variant=principal, sample_id=sample_id)
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
                         family=self.pedigree[sample_id].family_id,
-                        gene=var_copy.info.get('gene_id'),
-                        var_data=var_copy,
+                        gene=principal.info.get('gene_id'),
+                        var_data=MinimalVariant(principal, sample_id),
                         reasons={self.applied_moi},
                         supported=True,
                         genotypes=self.get_family_genotypes(

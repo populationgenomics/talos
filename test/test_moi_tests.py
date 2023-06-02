@@ -2,7 +2,6 @@
 tests relating to the MOI filters
 """
 
-
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -11,8 +10,6 @@ from unittest import mock
 import pytest
 from reanalysis.moi_tests import (
     check_for_second_hit,
-    minimise_variant,
-    AbstractVariant,
     BaseMoi,
     DominantAutosomal,
     MOIRunner,
@@ -25,7 +22,6 @@ from reanalysis.moi_tests import (
 )
 
 from reanalysis.utils import Coordinates
-
 
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
@@ -50,6 +46,8 @@ class SimpleVariant:
     sample_categories = ['categorysample4']
     boolean_categories = ['categoryboolean1']
     sample_support = []
+    transcript_consequences = []
+    phased = {}
 
     def sample_category_check(self, sample, allow_support=True):
         """
@@ -97,6 +95,8 @@ class RecessiveSimpleVariant:
     boolean_categories = ['categoryboolean1']
     sample_categories = ['categorysample4']
     sample_support = []
+    transcript_consequences = []
+    phased = {}
 
     def sample_de_novo(self, sample):
         """
@@ -834,11 +834,3 @@ def test_genotype_calls(peddy_ped):
         'male': 'WT',
         'mother_1': 'WT',
     }
-
-
-def test_minimise(trio_abs_variant: AbstractVariant):
-    """
-    check the variant minimiser
-    """
-    minvar = minimise_variant(trio_abs_variant, 'male')
-    assert minvar.categories == ['3', '4']

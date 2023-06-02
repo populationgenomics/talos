@@ -651,6 +651,26 @@ class AbstractVariant:
         return []
 
 
+class MinimalVariant:
+    """
+    subset of the AbstractVariant data type
+    """
+
+    def __init__(self, variant: AbstractVariant, sample: str):
+        self.coords: Coordinates = variant.coords
+        self.categories: list[str] = variant.category_values(sample)
+        avoid_flags = (
+            variant.sample_categories
+            + variant.boolean_categories
+            + variant.sample_support
+        )
+        self.info: dict[str, Any] = {
+            key: value for key, value in variant.info.items() if key not in avoid_flags
+        }
+        self.transcript_consequences = variant.transcript_consequences
+        self.phased = variant.phased
+
+
 # CompHetDict structure: {sample: {variant_string: [variant, ...]}}
 # sample: string, e,g, CGP12345
 CompHetDict = dict[str, dict[str, list[AbstractVariant]]]
@@ -670,7 +690,7 @@ class ReportedVariant:
     sample: str
     family: str
     gene: str
-    var_data: AbstractVariant
+    var_data: MinimalVariant
     reasons: set[str]
     genotypes: dict[str, str]
     supported: bool = field(default=False)
@@ -703,7 +723,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
     return a set of all 'canonical' contigs
 
     Args:
-        reader (): cyvcf2.VCFReader
+        reader (cyvcf2.VCFReader):
     """
 
     # contig matching regex - remove all HLA/decoy/unknown
