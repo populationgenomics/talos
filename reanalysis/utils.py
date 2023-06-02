@@ -556,16 +556,18 @@ class AbstractVariant:
         """
 
         # step down all category flags to boolean flags
-        for category in self.sample_categories:
-            sample_list = self.info.pop(category)
-            new_cat = category.replace('categorysample', 'categoryboolean')
-            self.info[new_cat] = bool(sample in sample_list)
-            self.boolean_categories.append(new_cat)
         categories = [
-            bool_cat.replace('categoryboolean', '')
-            for bool_cat in self.boolean_categories
-            if self.info[bool_cat]
+            category.replace('categorysample', '')
+            for category in self.sample_categories
+            if sample in self.info[category]
         ]
+        categories.extend(
+            [
+                bool_cat.replace('categoryboolean', '')
+                for bool_cat in self.boolean_categories
+                if self.info[bool_cat]
+            ]
+        )
 
         if self.has_support:
             categories.append('support')
@@ -651,6 +653,26 @@ class AbstractVariant:
         return []
 
 
+class MinimalVariant:
+    """
+    subset of the AbstractVariant data type
+    """
+
+    def __init__(self, variant: AbstractVariant, sample: str):
+        self.coords: Coordinates = variant.coords
+        self.categories: list[str] = variant.category_values(sample)
+        avoid_flags = (
+            variant.sample_categories
+            + variant.boolean_categories
+            + variant.sample_support
+        )
+        self.info: dict[str, Any] = {
+            key: value for key, value in variant.info.items() if key not in avoid_flags
+        }
+        self.transcript_consequences = variant.transcript_consequences
+        self.phased = variant.phased
+
+
 # CompHetDict structure: {sample: {variant_string: [variant, ...]}}
 # sample: string, e,g, CGP12345
 CompHetDict = dict[str, dict[str, list[AbstractVariant]]]
@@ -670,7 +692,7 @@ class ReportedVariant:
     sample: str
     family: str
     gene: str
-    var_data: AbstractVariant
+    var_data: MinimalVariant
     reasons: set[str]
     genotypes: dict[str, str]
     supported: bool = field(default=False)
@@ -703,7 +725,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
     return a set of all 'canonical' contigs
 
     Args:
-        reader (): cyvcf2.VCFReader
+        reader (cyvcf2.VCFReader):
     """
 
     # contig matching regex - remove all HLA/decoy/unknown
@@ -930,7 +952,7 @@ class CustomEncoder(json.JSONEncoder):
             o (): python object being JSON encoded
         """
 
-        if is_dataclass(o):
+        if is_dataclass(o) or isinstance(o, MinimalVariant):
             return o.__dict__
         if isinstance(o, set):
             return list(o)

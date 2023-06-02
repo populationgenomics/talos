@@ -2,7 +2,6 @@
 test class for the utils collection
 """
 
-
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import List
@@ -18,6 +17,7 @@ from reanalysis.utils import (
     get_simple_moi,
     identify_file_type,
     FileTypes,
+    MinimalVariant,
     ReportedVariant,
 )
 
@@ -322,3 +322,11 @@ def test_new_gene_map_complex():
         'ENSG3': 'sam2',
         'ENSG4': 'sam,sam2',
     }
+
+
+def test_minimise(trio_abs_variant: AbstractVariant):
+    """
+    check the variant minimiser
+    """
+    minvar = MinimalVariant(trio_abs_variant, 'male')
+    assert sorted(minvar.categories) == ['3', '4']
