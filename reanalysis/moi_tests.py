@@ -42,6 +42,9 @@ def minimise_variant(variant: AbstractVariant, sample_id: str) -> AbstractVarian
     """
     When we find a matching MOI, store a sample-specific
     duplicate of the variant details
+
+    TODO: This is a horrible solution, changing the model part way through
+    TODO: Create a separate OutputVariant class that can be used for this
     Args:
         variant ():
         sample_id ():
