@@ -952,7 +952,7 @@ class CustomEncoder(json.JSONEncoder):
             o (): python object being JSON encoded
         """
 
-        if is_dataclass(o):
+        if is_dataclass(o) or isinstance(o, MinimalVariant):
             return o.__dict__
         if isinstance(o, set):
             return list(o)
