@@ -329,4 +329,4 @@ def test_minimise(trio_abs_variant: AbstractVariant):
     check the variant minimiser
     """
     minvar = MinimalVariant(trio_abs_variant, 'male')
-    assert minvar.categories == ['3', '4']
+    assert sorted(minvar.categories) == ['3', '4']
