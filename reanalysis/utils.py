@@ -556,16 +556,18 @@ class AbstractVariant:
         """
 
         # step down all category flags to boolean flags
-        for category in self.sample_categories:
-            sample_list = self.info.pop(category)
-            new_cat = category.replace('categorysample', 'categoryboolean')
-            self.info[new_cat] = bool(sample in sample_list)
-            self.boolean_categories.append(new_cat)
         categories = [
-            bool_cat.replace('categoryboolean', '')
-            for bool_cat in self.boolean_categories
-            if self.info[bool_cat]
+            category.replace('categorysample', '')
+            for category in self.sample_categories
+            if sample in self.info[category]
         ]
+        categories.extend(
+            [
+                bool_cat.replace('categoryboolean', '')
+                for bool_cat in self.boolean_categories
+                if self.info[bool_cat]
+            ]
+        )
 
         if self.has_support:
             categories.append('support')
