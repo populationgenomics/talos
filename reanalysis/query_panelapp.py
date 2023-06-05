@@ -5,7 +5,6 @@
 Complete revision
 """
 
-
 import logging
 import sys
 from datetime import datetime
@@ -26,12 +25,12 @@ from reanalysis.utils import (
     ORDERED_MOIS,
 )
 
-
 PanelData = dict[str, dict | list[dict]]
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
 FORBIDDEN_GENES = None
+
 
 # pylint: disable=no-value-for-parameter,unnecessary-lambda
 
@@ -383,7 +382,6 @@ def main(panels: str | None, out_path: str):
 
 
 if __name__ == '__main__':
-
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
