@@ -15,70 +15,8 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 
 from metamist.apis import AnalysisApi
-from metamist.graphql import gql, query
 from metamist.model.analysis import Analysis
 from metamist.model.analysis_status import AnalysisStatus
-from metamist.model.analysis_update_model import AnalysisUpdateModel
-
-
-def inactivate_old_entries(name: str, metadata: dict[str, str], anal_type: str):
-    """
-    for this file, metadata, and analysis type:
-        - check for any pre-existing reanalysis entries in metamist
-        - confirm an exact match:
-            - same exome/genome status
-            - same filename
-            - same analysis type
-        - update previous record to inactive
-
-    Args:
-        name (str): filename
-        metadata (dict): dictionary of parameters
-        anal_type (str):  custom/web
-    """
-    analysis_query = gql(
-        """
-    query MyQuery($project: String!, $type: String!) {
-        project(name: $project) {
-            analyses(active: true, type: $type) {
-                output
-                meta
-                active
-            }
-        }
-    }
-    """
-    )
-    response = query(
-        analysis_query,
-        variables={'project': get_config()['workflow']['dataset'], 'type': anal_type},
-    )
-
-    # find any previous  AIP-specific AnalysisEntries... Update to active=False
-    # todo what if the project doesn't exist?
-    # pylint: disable=unsubscriptable-object
-    for analysis in response['project']['analyses']:
-
-        # only look for reanalysis entries
-        if 'reanalysis' not in analysis['output']:
-            continue
-
-        # skip over reports that don't match this subtype
-        for key, value in metadata.items():
-            if analysis['meta'][key] != value:
-                continue
-
-        # check that the name is the same, check its active, then kill it
-        # name here is typically summary_ or singleton_output.html
-        output_path = Path(analysis['output'])
-        if name.endswith(output_path.name) and analysis['active']:
-            # update this entry to inactivate it (superseded)
-            AnalysisApi().update_analysis(
-                analysis_id=analysis['id'],
-                analysis_update_model=AnalysisUpdateModel(
-                    status=AnalysisStatus('completed'), active=False
-                ),
-            )
 
 
 def register_html(file_path: str, samples: list[str]):
@@ -96,11 +34,6 @@ def register_html(file_path: str, samples: list[str]):
         'is_exome': bool('exome' in get_config()['workflow']['output_prefix']),
         'is_singleton': bool('singleton' in file_path),
     }
-
-    anal_type = 'web' if 'html' in file_path else 'custom'
-
-    # find any previous versions of this AnalysisEntry, and deactivate
-    inactivate_old_entries(name=file_path, metadata=report_meta, anal_type=anal_type)
 
     # add HTML-specific elements
     if file_path.endswith('html'):
