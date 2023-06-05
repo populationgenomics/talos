@@ -21,8 +21,7 @@ from metamist.model.analysis_status import AnalysisStatus
 
 def register_html(file_path: str, samples: list[str]):
     """
-    Takes the output HTML from this analysis and registers it in
-    Metamist. Deprecates any existing HTML results
+    Takes the output HTML from this analysis and registers it in Metamist
 
     Args:
         file_path (str): result file to register
