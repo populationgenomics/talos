@@ -54,6 +54,14 @@ revel = 0.77
 sift = 0.0
 spliceai = 0.5
 
+[categories]
+1 = 'ClinVar Pathogenic'
+2 = 'New Gene-Disease Association'
+3 = 'High Impact Variant'
+4 = 'de Novo'
+5 = 'High SpliceAI Score'
+support = 'High in Silico Scores'
+
 [hail]
 cancel_after_n_failures = 1
 default_timeout = 6000

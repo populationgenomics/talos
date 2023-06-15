@@ -492,11 +492,10 @@ class RecessiveAutosomalCH(BaseMoi):
                         gene=principal.info.get('gene_id'),
                         var_data=MinimalVariant(principal, sample_id),
                         reasons={self.applied_moi},
-                        supported=True,
                         genotypes=self.get_family_genotypes(
                             variant=principal, sample_id=sample_id
                         ),
-                        support_vars=[partner_variant.coords.string_format],
+                        support_vars={partner_variant.coords.string_format},
                         flags=principal.get_sample_flags(sample_id)
                         + partner_variant.get_sample_flags(sample_id),
                     ),
@@ -977,11 +976,10 @@ class XRecessiveFemaleCH(BaseMoi):
                         gene=principal.info.get('gene_id'),
                         var_data=MinimalVariant(principal, sample_id),
                         reasons={self.applied_moi},
-                        supported=True,
                         genotypes=self.get_family_genotypes(
                             variant=principal, sample_id=sample_id
                         ),
-                        support_vars=[partner.coords.string_format],
+                        support_vars={partner.coords.string_format},
                         flags=principal.get_sample_flags(sample_id)
                         + partner.get_sample_flags(sample_id),
                     )

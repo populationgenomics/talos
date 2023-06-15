@@ -35,6 +35,7 @@ from reanalysis.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    generate_seqr_format,
     get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
@@ -213,6 +214,8 @@ def clean_and_filter(
 
     for each_event in result_list:
 
+        each_event.independent = each_event.is_independent
+
         # grab some attributes from the event
         sample = each_event.sample
         gene = each_event.gene
@@ -262,6 +265,10 @@ def clean_and_filter(
                 panel_meta[pid] for pid in cohort_intersection
             ]
 
+        # equivalence logic might need a small change here -
+        # If this variant and that variant have same sample/pos, equivalent
+        # If either was independent, set that flag to True
+        # Add a union of all Support Variants from both events
         if each_event not in results_holder[sample]['variants']:
             results_holder[sample]['variants'].append(each_event)
 
@@ -269,10 +276,16 @@ def clean_and_filter(
             prev_event = results_holder[sample]['variants'][
                 results_holder[sample]['variants'].index(each_event)
             ]
+
+            # if this is independent, set independent to True
+            if each_event.independent:
+                prev_event.independent = True
+
+            # take the union of all supporting variants for both
+            prev_event.support_vars.update(each_event.support_vars)
+
             prev_event.reasons.update(each_event.reasons)
-            prev_genes = set(prev_event.gene.split(','))
-            prev_genes.add(each_event.gene)
-            prev_event.gene = ','.join(prev_genes)
+            prev_event.gene = ','.join(prev_event.gene.split(',') + [each_event.gene])
             prev_event.flags = sorted(set(prev_event.flags + each_event.flags))
 
     # organise the variants by chromosomal location
@@ -494,9 +507,12 @@ def main(
     )
 
     # annotate previously seen results using cumulative data file(s)
-    analysis_results = filter_results(
+    analysis_results, cumulative_results = filter_results(
         analysis_results, singletons=bool('singleton' in pedigree)
     )
+
+    # generate a seqr-format file and save that too
+    generate_seqr_format(cumulative_results)
 
     final_results = {
         'results': analysis_results,

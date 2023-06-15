@@ -661,6 +661,7 @@ class MinimalVariant:
     def __init__(self, variant: AbstractVariant, sample: str):
         self.coords: Coordinates = variant.coords
         self.categories: list[str] = variant.category_values(sample)
+        # no need to carry these though to the report
         avoid_flags = (
             variant.sample_categories
             + variant.boolean_categories
@@ -683,9 +684,9 @@ GeneDict = dict[str, list[AbstractVariant]]
 class ReportedVariant:
     """
     minimal model representing variant categorisation event
-    the initial variant
-    the MOI passed
-    the support (if any)
+    the initial variant (minimised)
+    the MOI applicable
+    the support ing variant(s), if any
     allows for the presence of flags e.g. Borderline AB ratio
     """
 
@@ -695,24 +696,29 @@ class ReportedVariant:
     var_data: MinimalVariant
     reasons: set[str]
     genotypes: dict[str, str]
-    supported: bool = field(default=False)
-    support_vars: list[str] = field(default_factory=list)
+    support_vars: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
     panels: dict[str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
+    independent: bool = False
+
+    @property
+    def is_independent(self):
+        """
+        check if this variant acts independently
+        """
+        return len(self.support_vars) == 0
 
     def __eq__(self, other):
         """
         makes reported variants comparable
         """
-        self_supvar = set(self.support_vars)
-        other_supvar = set(other.support_vars)
+        # self_supvar = set(self.support_vars)
+        # other_supvar = set(other.support_vars)
         return (
             self.sample == other.sample
             and self.var_data.coords == other.var_data.coords
-            and self.supported == other.supported
-            and self_supvar == other_supvar
         )
 
     def __lt__(self, other):
@@ -1022,7 +1028,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     return comp_het_results
 
 
-def filter_results(results: dict, singletons: bool) -> dict:
+def filter_results(results: dict, singletons: bool) -> tuple[dict, dict]:
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -1039,7 +1045,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     if historic_folder is None:
         logging.info('No historic data folder, no filtering')
-        return results
+        return date_annotate_results(results)
 
     logging.info('Attempting to filter current results against historic')
 
@@ -1058,7 +1064,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     )
     save_new_historic(results=cumulative, prefix=prefix)
 
-    return results
+    return results, cumulative
 
 
 def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
@@ -1154,6 +1160,9 @@ def date_annotate_results(
                 hist = historic[sample][var_id]
                 historic_cats = set(hist['categories'].keys())
 
+                # was this ever independent?
+                hist['independent'] = var.independent or hist['independent']
+
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - historic_cats:
 
@@ -1178,6 +1187,38 @@ def date_annotate_results(
                 historic[sample][var_id] = {
                     'categories': {cat: get_granular_date() for cat in current_cats},
                     'support_vars': var.support_vars,
+                    'independent': var.independent,
                 }
 
     return current, historic
+
+
+def get_priority_label():
+    """
+    dummy method for now
+    Returns:
+        empty list, may return a collection of tags in future
+    """
+    return []
+
+
+def generate_seqr_format(cumulative: dict):
+    """
+    takes the cumulative data generated in date_annotate_results and cleans
+    down to the minimal required content
+    Args:
+        cumulative ():
+
+    Returns:
+
+    """
+
+    seqr_upload = {
+        'metadata': {'categories': get_config()['categories']},
+        'results': cumulative,
+    }
+
+    logging.info(seqr_upload)
+
+    # todo update to include the relevant labels (currently empty?)
+    # todo write the seqr upload file out somewhere...
