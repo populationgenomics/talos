@@ -443,13 +443,15 @@ def main(
     We expect approximately linear scaling with participants in the joint call
 
     Args:
-        labelled_vcf ():
-        out_json ():
-        panelapp ():
-        pedigree ():
-        input_path (): VCF used as input
-        participant_panels (): json of panels per participant
+        labelled_vcf (str): VCF output from Hail Labelling stage
+        out_json (str): location to write output file
+        panelapp (str): location of PanelApp data JSON
+        pedigree (str): location of PED file
+        input_path (str): VCF/MT used as input
+        participant_panels (str): json of panels per participant
     """
+
+    out_json = to_path(out_json)
 
     # parse the pedigree from the file
     pedigree_digest = Ped(pedigree)
@@ -491,6 +493,7 @@ def main(
             )
         )
 
+    # create a shell to store results in
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
@@ -511,9 +514,12 @@ def main(
         analysis_results, singletons=bool('singleton' in pedigree)
     )
 
-    # generate a seqr-format file and save that too
-    generate_seqr_format(cumulative_results)
+    # generate a seqr-format file and save to output directory
+    generate_seqr_format(
+        cumulative=cumulative_results, write_path=out_json.parent / 'seqr_format.json'
+    )
 
+    # create the full final output file
     final_results = {
         'results': analysis_results,
         'metadata': {
@@ -531,7 +537,7 @@ def main(
     }
 
     # store results using the custom-encoder to transform sets & DataClasses
-    with to_path(out_json).open('w') as fh:
+    with out_json.open('w') as fh:
         json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 

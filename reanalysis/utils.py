@@ -1202,15 +1202,13 @@ def get_priority_label():
     return []
 
 
-def generate_seqr_format(cumulative: dict):
+def generate_seqr_format(cumulative: dict, write_path: Path):
     """
     takes the cumulative data generated in date_annotate_results and cleans
     down to the minimal required content
     Args:
-        cumulative ():
-
-    Returns:
-
+        cumulative (dict): the cumulative category data
+        write_path (Path): where to write the seqr file
     """
 
     seqr_upload = {
@@ -1218,7 +1216,9 @@ def generate_seqr_format(cumulative: dict):
         'results': cumulative,
     }
 
-    logging.info(seqr_upload)
+    for variant_dict in seqr_upload['results'].values():
+        for var in variant_dict.values():
+            var['labels'] = get_priority_label()
 
-    # todo update to include the relevant labels (currently empty?)
-    # todo write the seqr upload file out somewhere...
+    with open(write_path, 'w', encoding='utf-8') as handle:
+        json.dump(seqr_upload, handle, indent=4, cls=CustomEncoder)
