@@ -35,7 +35,6 @@ from reanalysis.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    generate_seqr_format,
     get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
@@ -510,13 +509,8 @@ def main(
     )
 
     # annotate previously seen results using cumulative data file(s)
-    analysis_results, cumulative_results = filter_results(
+    analysis_results = filter_results(
         analysis_results, singletons=bool('singleton' in pedigree)
-    )
-
-    # generate a seqr-format file and save to output directory
-    generate_seqr_format(
-        cumulative=cumulative_results, write_path=out_json.parent / 'seqr_format.json'
     )
 
     # create the full final output file

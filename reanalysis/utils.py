@@ -1028,7 +1028,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     return comp_het_results
 
 
-def filter_results(results: dict, singletons: bool) -> tuple[dict, dict]:
+def filter_results(results: dict, singletons: bool) -> dict:
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -1045,7 +1045,8 @@ def filter_results(results: dict, singletons: bool) -> tuple[dict, dict]:
 
     if historic_folder is None:
         logging.info('No historic data folder, no filtering')
-        return date_annotate_results(results)
+        # results, _cumulative = date_annotate_results(results)
+        return results
 
     logging.info('Attempting to filter current results against historic')
 
@@ -1064,7 +1065,7 @@ def filter_results(results: dict, singletons: bool) -> tuple[dict, dict]:
     )
     save_new_historic(results=cumulative, prefix=prefix)
 
-    return results, cumulative
+    return results
 
 
 def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
@@ -1104,9 +1105,7 @@ def find_latest_file(
     """
 
     if results_folder is None:
-        results_folder = (
-            get_config().get('dataset_specific', {}).get('historic_results')
-        )
+        results_folder = get_config()['dataset_specific'].get('historic_results')
         if results_folder is None:
             logging.info('`historic_results` not present in config')
             return None
@@ -1133,7 +1132,7 @@ def date_annotate_results(
     much simpler logic overall
 
     Args:
-        current ():
+        current (dict): results generated during this run
         historic (): optionally, historic data
 
     Returns: date-annotated results and cumulative data
@@ -1141,13 +1140,23 @@ def date_annotate_results(
 
     # if there's no historic data, make some
     if historic is None:
-        historic = {}
+        historic = {
+            'metadata': {'categories': get_config()['categories']},
+            'results': {},
+        }
+
+    # update to latest format
+    elif 'results' not in historic.keys():
+        historic = {
+            'metadata': {'categories': get_config()['categories']},
+            'results': historic,
+        }
 
     for sample, content in current.items():
 
         # totally absent? start populating for this sample
-        if sample not in historic:
-            historic[sample] = {}
+        if sample not in historic['results']:
+            historic['results'][sample] = {}
 
         # check each variant found in this round
         for var in content['variants']:
@@ -1155,12 +1164,15 @@ def date_annotate_results(
             current_cats = set(var.var_data.categories)
 
             # this variant was previously seen
-            if var_id in historic[sample]:
+            if var_id in historic['results'][sample]:
 
-                hist = historic[sample][var_id]
+                hist = historic['results'][sample][var_id]
+                if hist.get('labels') is None:
+                    hist['labels'] = get_priority_label()
+
                 historic_cats = set(hist['categories'].keys())
 
-                # was this ever independent?
+                # bool if this was ever independent
                 hist['independent'] = var.independent or hist['independent']
 
                 # if we have any new categories don't alter the date
@@ -1184,10 +1196,11 @@ def date_annotate_results(
 
             # totally new variant
             else:
-                historic[sample][var_id] = {
+                historic['results'][sample][var_id] = {
                     'categories': {cat: get_granular_date() for cat in current_cats},
                     'support_vars': var.support_vars,
                     'independent': var.independent,
+                    'labels': get_priority_label(),
                 }
 
     return current, historic
@@ -1200,25 +1213,3 @@ def get_priority_label():
         empty list, may return a collection of tags in future
     """
     return []
-
-
-def generate_seqr_format(cumulative: dict, write_path: Path):
-    """
-    takes the cumulative data generated in date_annotate_results and cleans
-    down to the minimal required content
-    Args:
-        cumulative (dict): the cumulative category data
-        write_path (Path): where to write the seqr file
-    """
-
-    seqr_upload = {
-        'metadata': {'categories': get_config()['categories']},
-        'results': cumulative,
-    }
-
-    for variant_dict in seqr_upload['results'].values():
-        for var in variant_dict.values():
-            var['labels'] = get_priority_label()
-
-    with open(write_path, 'w', encoding='utf-8') as handle:
-        json.dump(seqr_upload, handle, indent=4, cls=CustomEncoder)
