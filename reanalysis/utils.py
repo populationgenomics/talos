@@ -1152,6 +1152,9 @@ def date_annotate_results(
             'results': historic,
         }
 
+    # update to latest category descriptions
+    historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
+
     for sample, content in current.items():
 
         # totally absent? start populating for this sample
@@ -1173,7 +1176,7 @@ def date_annotate_results(
                 historic_cats = set(hist['categories'].keys())
 
                 # bool if this was ever independent
-                hist['independent'] = var.independent or hist['independent']
+                hist['independent'] = var.independent or hist.get('independent', False)
 
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - historic_cats:
