@@ -4,36 +4,59 @@ CPG-specific guidance on how to generate input files for a new run
 
 ## Initial checks
 
-1. Check that the [token map](https://github.com/populationgenomics/analysis-runner/blob/main/tokens/repository-map.json) allows AIP to run against the relevant project's bucket & contents
-2. Check that you have permission to query DeepPan for the relevant project (e.g. you can run queries for the project on the [Swagger page](https://sample-metadata.populationgenomics.org.au/swagger))
-3. Check that you have permission to upload relevant files to the project bucket (needs working out, current process involves uploading files to the permissive `-test` bucket due to ease)
+1. Check that
+   the [token map](https://github.com/populationgenomics/cpg-infrastructure-private/blob/main/tokens/repository-map.json)
+   allows AIP to run against the relevant project's bucket & contents
+2. Check that you have permission to query Metamist for the relevant project (e.g. you can run queries for the project
+   on the [Swagger page](https://sample-metadata.populationgenomics.org.au/swagger))
+3. Check that you have permission to upload relevant files to the project bucket (current process involves uploading
+   files to the permissive `-test` bucket for ease)
 
-## Generating files
+## Setup Shortcut
 
-(You'll want a cohort and run-specific folder to copy these files to. This can also be the output folder for the run)
+A Helper script has been written called [prepare_aip_cohort.py](helpers/prepare_aip_cohort.py), which will generate all
+the required inputs for the analysis run, and copy them directly to GCP. To use this script:
 
-1. Query DeepPan for the pedigree and internal -> external lookup files
-   - [cohort_prep.sh](helpers/cohort_prep.sh) is a shortcut for this process
-   - `bash helpers/cohort_prep.sh COHORT [% of cohort to retain]` will create files in `inputs/COHORT`
-   - The file ending `.fam` is the pedigree file. Copy to GCP, and the path becomes an input argument
-   - The file ending `external_lookup.json` is used to translate CPG to external IDs. Copy to GCP and enter the file path into the run config `output.external_lookup`
+1. To add Seqr data automatically, you will need to obtain the seqr metadata file as described below, and save it to a
+   JSON file.
+2. Run the script in the following way:
 
-2. Get the seqr Family lookup
-   - Optional, if provided the final HTML will hyperlink to Seqr variants and families
-   - I realise that this would be far simpler to understand with pictures, but almost everything in screenshots is variant/family data...
-   - Clunky process, aiming to improve soon
-   - Go to a relevant project page in Seqr (clicking the project name)
-   - Check that `output.seqr_instance` in the config file matches the seqr homepage
-   - Identify the project name (e.g. in `https://testseqr.org.au/project/R00001_test_project/project_page`, get `R00001_test_project`) - add this to the config as `output.seqr_project`
-   - (in Chrome) Burger -> More Tools -> Developer Tools (Opt+Cmd+I) & Open the Network tab
-   - Refresh, then find the named request `get_overview`
-   - On the right-side of the console, find the `Response` tab, which should show some JSON
-   - Select all this JSON and save to a file
-   - Run the [process_seqr_metadata script](helpers/process_seqr_metadata.py), with this file as input (`-i`) and your chosen path as output (`-o`)
-   - Copy this file to GCP, and add the path to the config as `output.seqr_lookup`
-3. Copy any additional files (vqsr header, csq header line) to the relevant bucket, and update paths in config
-4. Check any other configuration values (e.g. thresholds)
-5. Copy the config file to GCP
+* set the environment variable `CPG_CONFIG_PATH`, pointing to a local config,
+  e.g. [reanalysis/reanalysis_global.toml](reanalysis/reanalysis_global.toml)
+* set the argument `--project` to match the metamist cohort name
+* `--seqr` should point to the seqr metadata file, if required
+* `--obo` should point to the HPO obo file, if required
+* `-e` is required if the samples required are exomes
+* `--singletons` is required if the samples should be processed as singletons
+
+e.g.
+
+```bash
+CPG_CONFIG_PATH=reanalysis/reanalysis_global.toml \
+    python helpers/prepare_aip_cohort.py \
+    --project broad-rgp \
+    --seqr inputs/broad-rgp/seqr.json \
+    --obo helpers/hpo_terms.obo
+```
+
+This script should generate all the required files, and copy some to the relevant GCP bucket in `<root>/reanalysis`. The
+generated files are:
+
+* Pedigree file representing this cohort
+* Processed Seqr data (if provided)
+* Mapping of CPG-to-External IDs
+* The per-participant panels to use
+* Pre-PanelApp Mendeliome file (if relevant)
+* Cohort-specific config to use (containing above filepaths)
+
+## Seqr Family Lookup
+
+* Optional, if provided the final HTML will hyperlink to Seqr variants and families
+* Go to a relevant project page in Seqr (clicking the project name)
+* (in Chrome) Burger -> More Tools -> Developer Tools (Opt+Cmd+I) & Open the Network tab
+* Refresh, then find the named request `get_overview`
+* On the right-side of the console, find the `Response` tab, which should show some JSON
+* Select all this JSON and save to a file
 
 ## Starting the run
 

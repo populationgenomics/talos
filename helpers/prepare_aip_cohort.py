@@ -164,7 +164,6 @@ def get_ped_with_permutations(
 
     # enumerate to get ints - use these as family IDs if singletons
     for counter, ped_entry in enumerate(pedigree_dicts, 1):
-
         if ped_entry['individual_id'] not in sample_to_cpg_dict:
             failures.append(ped_entry['individual_id'])
 
@@ -348,9 +347,9 @@ def main(
     Who runs the world? main()
 
     Args:
-        project ():
-        obo ():
-        seqr_file ():
+        project (str): project to query for
+        obo (str): path to an HPO graph file
+        seqr_file (str):
         exome ():
         singletons ():
     """
@@ -452,11 +451,11 @@ def main(
         logging.info(f'Wrote panel file to {panel_remote}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
-    pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
-    remote_panelapp = remote_root / 'pre_panelapp_mendeliome.json'
-    with remote_panelapp.open('w') as handle:
-        json.dump(pre_panelapp, handle, indent=4)
-        logging.info(f'Wrote VCGS gene prior file to {remote_panelapp}')
+    if 'pre_panelapp' in (prior := get_config()['cohorts'][project].get('gene_prior')):
+        pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
+        with to_path(prior).open('w') as handle:
+            json.dump(pre_panelapp, handle, indent=4)
+            logging.info(f'Wrote VCGS gene prior file to {prior}')
 
     logging.info(f'--pedigree {ped_file}')
 
