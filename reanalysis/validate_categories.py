@@ -536,6 +536,7 @@ def main(
             ),
             'panels': panelapp_data['metadata'],
             'container': get_config()['workflow']['driver_image'],
+            'categories': get_config()['categories'],
         },
     }
 
