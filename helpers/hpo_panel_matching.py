@@ -18,7 +18,7 @@ from obonet import read_obo
 
 # TODO update to graphQL API once it works for Seqr metadata query
 # from metamist.graphql import gql, query
-from sample_metadata.apis import SeqrApi
+from metamist.apis import SeqrApi
 
 from cpg_utils import to_path
 
