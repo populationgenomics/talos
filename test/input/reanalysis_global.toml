@@ -55,6 +55,14 @@ samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.
 hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
 aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:0.5.1'
 
+[categories]
+1 = 'ClinVar Pathogenic'
+2 = 'New Gene-Disease Association'
+3 = 'High Impact Variant'
+4 = 'de Novo'
+5 = 'High SpliceAI Score'
+support = 'High in Silico Scores'
+
 [references]
 vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'
 genome_build = 'GRCh38'

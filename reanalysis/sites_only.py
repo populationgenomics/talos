@@ -19,7 +19,6 @@ def add_make_sitesonly_job(
 ) -> tuple[Job | None, hb.ResourceGroup]:
     """
     Create sites-only VCF with only site-level annotations.
-    Speeds up the analysis in the AS-VQSR modeling step.
 
     Returns: a Job object with a single output j.sites_only_vcf of type ResourceGroup
     """

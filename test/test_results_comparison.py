@@ -2,12 +2,13 @@
 test file for annotation with first-seen dates
 """
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from os.path import join
 from time import sleep
 from copy import deepcopy
+
+from cpg_utils.config import get_config
 
 from reanalysis.utils import (
     date_annotate_results,
@@ -15,6 +16,8 @@ from reanalysis.utils import (
     get_granular_date,
     Coordinates,
 )
+
+CATEGORY_META = get_config()['categories']
 
 
 @dataclass
@@ -36,6 +39,7 @@ class MiniReport:
     var_data: MiniVariant
     support_vars: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
+    independent: bool = False
 
 
 COORD_1 = Coordinates('1', 1, 'A', 'G')
@@ -56,12 +60,16 @@ def test_date_annotate_one():
     new_results, cumulative = date_annotate_results(results)
     assert results == new_results
     assert cumulative == {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': get_granular_date()},
-                'support_vars': [],
+        'metadata': {'categories': CATEGORY_META},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'1': get_granular_date()},
+                    'support_vars': [],
+                    'independent': False,
+                }
             }
-        }
+        },
     }
 
 
@@ -72,16 +80,21 @@ def test_date_annotate_two():
     results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)]}}
     historic = {
         'sample': {
-            COORD_1.string_format: {'categories': {'1': OLD_DATE}, 'support_vars': []}
+            COORD_1.string_format: {
+                'categories': {'1': OLD_DATE},
+                'support_vars': [],
+                'labels': [],
+                'independent': False,
+            }
         }
     }
-    results, cumulative = date_annotate_results(results, historic)
-    assert cumulative == historic
+    results, _cumulative = date_annotate_results(results, historic)
     assert results == {
         'sample': {
             'variants': [
                 MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1), first_seen=OLD_DATE
+                    MiniVariant(categories=['1'], coords=COORD_1),
+                    first_seen=OLD_DATE,
                 )
             ]
         }
@@ -95,17 +108,27 @@ def test_date_annotate_three():
     results = {'sample': {'variants': [deepcopy(GENERIC_REPORT_12)]}}
     historic = {
         'sample': {
-            COORD_1.string_format: {'categories': {'1': OLD_DATE}, 'support_vars': []}
+            COORD_1.string_format: {
+                'categories': {'1': OLD_DATE},
+                'support_vars': [],
+                'labels': [],
+                'independent': False,
+            }
         }
     }
     new_results, cumulative = date_annotate_results(results, historic)
     assert cumulative == {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': OLD_DATE, '2': get_granular_date()},
-                'support_vars': [],
+        'metadata': {'categories': CATEGORY_META},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'1': OLD_DATE, '2': get_granular_date()},
+                    'support_vars': [],
+                    'labels': [],
+                    'independent': False,
+                }
             }
-        }
+        },
     }
     assert results == new_results
 
@@ -120,17 +143,24 @@ def test_date_annotate_four():
             COORD_1.string_format: {
                 'categories': {'1': OLD_DATE},
                 'support_vars': ['flipflop'],
+                'independent': False,
+                'labels': [],
             }
         }
     }
     new_results, historic = date_annotate_results(results, historic)
     assert historic == {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': OLD_DATE},
-                'support_vars': ['flipflop'],
+        'metadata': {'categories': CATEGORY_META},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'1': OLD_DATE},
+                    'labels': [],
+                    'independent': False,
+                    'support_vars': ['flipflop'],
+                }
             }
-        }
+        },
     }
     assert results == new_results
 
@@ -144,29 +174,38 @@ def test_date_annotate_five():
         'sample2': {'variants': [deepcopy(GENERIC_REPORT_2)]},
     }
     historic = {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'2': OLD_DATE},
-                'support_vars': [],
-            }
+        'metadata': {'categories': CATEGORY_META},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'2': OLD_DATE},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample3': {},
         },
-        'sample3': {},
     }
     results, historic = date_annotate_results(results, historic)
     assert historic == {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': get_granular_date(), '2': OLD_DATE},
-                'support_vars': [],
-            }
+        'metadata': {'categories': CATEGORY_META},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'1': get_granular_date(), '2': OLD_DATE},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample2': {
+                COORD_2.string_format: {
+                    'categories': {'2': get_granular_date()},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample3': {},
         },
-        'sample2': {
-            COORD_2.string_format: {
-                'categories': {'2': get_granular_date()},
-                'support_vars': [],
-            }
-        },
-        'sample3': {},
     }
     assert results == {
         'sample': {

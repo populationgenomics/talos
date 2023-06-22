@@ -661,6 +661,7 @@ class MinimalVariant:
     def __init__(self, variant: AbstractVariant, sample: str):
         self.coords: Coordinates = variant.coords
         self.categories: list[str] = variant.category_values(sample)
+        # no need to carry these though to the report
         avoid_flags = (
             variant.sample_categories
             + variant.boolean_categories
@@ -683,9 +684,9 @@ GeneDict = dict[str, list[AbstractVariant]]
 class ReportedVariant:
     """
     minimal model representing variant categorisation event
-    the initial variant
-    the MOI passed
-    the support (if any)
+    the initial variant (minimised)
+    the MOI applicable
+    the support ing variant(s), if any
     allows for the presence of flags e.g. Borderline AB ratio
     """
 
@@ -695,24 +696,30 @@ class ReportedVariant:
     var_data: MinimalVariant
     reasons: set[str]
     genotypes: dict[str, str]
-    supported: bool = field(default=False)
-    support_vars: list[str] = field(default_factory=list)
+    support_vars: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
     panels: dict[str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
+    independent: bool = False
+
+    @property
+    def is_independent(self):
+        """
+        check if this variant acts independently
+        """
+        return len(self.support_vars) == 0
 
     def __eq__(self, other):
         """
         makes reported variants comparable
         """
-        self_supvar = set(self.support_vars)
-        other_supvar = set(other.support_vars)
+        # self_supvar = set(self.support_vars)
+        # other_supvar = set(other.support_vars)
         return (
             self.sample == other.sample
             and self.var_data.coords == other.var_data.coords
-            and self.supported == other.supported
-            and self_supvar == other_supvar
         )
 
     def __lt__(self, other):
@@ -1039,6 +1046,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     if historic_folder is None:
         logging.info('No historic data folder, no filtering')
+        # results, _cumulative = date_annotate_results(results)
         return results
 
     logging.info('Attempting to filter current results against historic')
@@ -1098,9 +1106,7 @@ def find_latest_file(
     """
 
     if results_folder is None:
-        results_folder = (
-            get_config().get('dataset_specific', {}).get('historic_results')
-        )
+        results_folder = get_config()['dataset_specific'].get('historic_results')
         if results_folder is None:
             logging.info('`historic_results` not present in config')
             return None
@@ -1127,7 +1133,7 @@ def date_annotate_results(
     much simpler logic overall
 
     Args:
-        current ():
+        current (dict): results generated during this run
         historic (): optionally, historic data
 
     Returns: date-annotated results and cumulative data
@@ -1135,13 +1141,26 @@ def date_annotate_results(
 
     # if there's no historic data, make some
     if historic is None:
-        historic = {}
+        historic = {
+            'metadata': {'categories': get_config()['categories']},
+            'results': {},
+        }
+
+    # update to latest format
+    elif 'results' not in historic.keys():
+        historic = {
+            'metadata': {'categories': get_config()['categories']},
+            'results': historic,
+        }
+
+    # update to latest category descriptions
+    historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
 
     for sample, content in current.items():
 
         # totally absent? start populating for this sample
-        if sample not in historic:
-            historic[sample] = {}
+        if sample not in historic['results']:
+            historic['results'][sample] = {}
 
         # check each variant found in this round
         for var in content['variants']:
@@ -1149,10 +1168,14 @@ def date_annotate_results(
             current_cats = set(var.var_data.categories)
 
             # this variant was previously seen
-            if var_id in historic[sample]:
+            if var_id in historic['results'][sample]:
 
-                hist = historic[sample][var_id]
+                hist = historic['results'][sample][var_id]
+
                 historic_cats = set(hist['categories'].keys())
+
+                # bool if this was ever independent
+                hist['independent'] = var.independent or hist.get('independent', False)
 
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - historic_cats:
@@ -1175,9 +1198,19 @@ def date_annotate_results(
 
             # totally new variant
             else:
-                historic[sample][var_id] = {
+                historic['results'][sample][var_id] = {
                     'categories': {cat: get_granular_date() for cat in current_cats},
                     'support_vars': var.support_vars,
+                    'independent': var.independent,
                 }
 
     return current, historic
+
+
+def get_priority_label():
+    """
+    dummy method for now
+    Returns:
+        empty list, may return a collection of tags in future
+    """
+    return []

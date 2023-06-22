@@ -54,6 +54,15 @@ revel = 0.77
 sift = 0.0
 spliceai = 0.5
 
+[categories]
+1 = 'ClinVar Pathogenic'
+2 = 'New Gene-Disease Association'
+3 = 'High Impact Variant'
+4 = 'de Novo'
+5 = 'High SpliceAI Score'
+pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
+support = 'High in Silico Scores'
+
 [hail]
 cancel_after_n_failures = 1
 default_timeout = 6000
@@ -64,8 +73,8 @@ vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
 gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
 picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
 samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.2'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.2'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.3'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.3'
 
 [references]
 vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'
