@@ -125,13 +125,11 @@
     </td>
     <td>
         {# Support #}
-        {% if variant.supported %}
-            {% for coords in variant.support_vars %}
-                <a href="{{seqr_url}}/variant_search/variant/{{coords}}/family/{{sample.seqr_id}}" target="_blank">
-                    {{coords.split('-')[:2]|join(':')}}
-                </a>
-            {% endfor %}
-        {% endif %}
+        {% for coords in variant.support_vars %}
+            <a href="{{seqr_url}}/variant_search/variant/{{coords}}/family/{{sample.seqr_id}}" target="_blank">
+                {{coords.split('-')[:2]|join(':')}}
+            </a>
+        {% endfor %}
     </td>
 </tr>
 

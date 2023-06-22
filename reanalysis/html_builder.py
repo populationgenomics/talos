@@ -20,7 +20,6 @@ from cpg_utils.config import get_config
 
 from reanalysis.utils import read_json_from_path, get_cohort_config
 
-
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
@@ -395,7 +394,6 @@ class Variant:
         self.alt = variant_dict['var_data']['coords']['alt']
         self.first_seen: str = variant_dict['first_seen']
         self.var_data = variant_dict['var_data']
-        self.supported = variant_dict['supported']
         self.support_vars = variant_dict['support_vars']
         self.warning_flags = variant_dict['flags']
         self.panel_flags = variant_dict['panels'].get('matched', [])
@@ -468,7 +466,6 @@ class Variant:
 
 
 if __name__ == '__main__':
-
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
