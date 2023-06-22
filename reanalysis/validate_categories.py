@@ -42,6 +42,7 @@ from reanalysis.utils import (
     ReportedVariant,
 )
 
+AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
 
 
@@ -139,7 +140,6 @@ def apply_moi_to_variants(
             # pass on whether this variant is support only
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
-
             variant_results = moi_lookup[panel_gene_data.get('moi')].run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
@@ -147,7 +147,6 @@ def apply_moi_to_variants(
             )
 
             # Flag! If this is a Category 1 (ClinVar) variant, and we are
-            # update the flag for leniently applied Dominant
             # interpreting under a lenient MOI, add flag for analysts
             # control this in just one place
             if panel_gene_data.get('moi') == 'Mono_And_Biallelic' and variant.info.get(
@@ -162,7 +161,7 @@ def apply_moi_to_variants(
                         continue
 
                     if each_result.reasons == {'Autosomal Dominant'}:
-                        each_result.flags += ['Ambiguous Cat.1 MOI']
+                        each_result.flags += [AMBIGUOUS_FLAG]
 
             results.extend(variant_results)
 
@@ -195,6 +194,7 @@ def clean_and_filter(
     Returns:
         cleaned data
     """
+    # pylint: disable=too-many-branches
 
     cohort_panels = set(get_cohort_config().get('cohort_panels', []))
 
@@ -285,7 +285,16 @@ def clean_and_filter(
 
             prev_event.reasons.update(each_event.reasons)
             prev_event.gene = ','.join(prev_event.gene.split(',') + [each_event.gene])
-            prev_event.flags = sorted(set(prev_event.flags + each_event.flags))
+
+            # combine flags across variants, and remove Ambiguous marking
+            # if it's no longer appropriate
+            both_flags = sorted(set(prev_event.flags + each_event.flags))
+            if (
+                prev_event.reasons != {'Autosomal Dominant'}
+                and AMBIGUOUS_FLAG in both_flags
+            ):
+                both_flags.remove(AMBIGUOUS_FLAG)
+            prev_event.flags = both_flags
 
     # organise the variants by chromosomal location
     for sample in results_holder:

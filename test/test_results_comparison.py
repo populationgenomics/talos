@@ -66,7 +66,6 @@ def test_date_annotate_one():
                 COORD_1.string_format: {
                     'categories': {'1': get_granular_date()},
                     'support_vars': [],
-                    'labels': [],
                     'independent': False,
                 }
             }
@@ -181,7 +180,6 @@ def test_date_annotate_five():
                 COORD_1.string_format: {
                     'categories': {'2': OLD_DATE},
                     'support_vars': [],
-                    'labels': [],
                     'independent': False,
                 }
             },
@@ -196,7 +194,6 @@ def test_date_annotate_five():
                 COORD_1.string_format: {
                     'categories': {'1': get_granular_date(), '2': OLD_DATE},
                     'support_vars': [],
-                    'labels': [],
                     'independent': False,
                 }
             },
@@ -204,7 +201,6 @@ def test_date_annotate_five():
                 COORD_2.string_format: {
                     'categories': {'2': get_granular_date()},
                     'support_vars': [],
-                    'labels': [],
                     'independent': False,
                 }
             },

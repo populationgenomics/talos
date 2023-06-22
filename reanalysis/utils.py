@@ -700,6 +700,7 @@ class ReportedVariant:
     flags: list[str] = field(default_factory=list)
     panels: dict[str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
     independent: bool = False
 
@@ -1170,8 +1171,6 @@ def date_annotate_results(
             if var_id in historic['results'][sample]:
 
                 hist = historic['results'][sample][var_id]
-                if hist.get('labels') is None:
-                    hist['labels'] = get_priority_label()
 
                 historic_cats = set(hist['categories'].keys())
 
@@ -1203,7 +1202,6 @@ def date_annotate_results(
                     'categories': {cat: get_granular_date() for cat in current_cats},
                     'support_vars': var.support_vars,
                     'independent': var.independent,
-                    'labels': get_priority_label(),
                 }
 
     return current, historic
