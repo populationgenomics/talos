@@ -461,7 +461,7 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     parser = ArgumentParser()
     parser.add_argument(
         '--project', help='Project name to use in API queries', required=True
