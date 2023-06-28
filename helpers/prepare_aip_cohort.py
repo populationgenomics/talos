@@ -451,7 +451,9 @@ def main(
         logging.info(f'Wrote panel file to {panel_remote}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
-    if 'pre_panelapp' in (prior := get_config()['cohorts'][project].get('gene_prior')):
+    if 'pre_panelapp' in (
+        prior := get_config()['cohorts'][project].get('gene_prior', 'MISSING')
+    ):
         pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
         with to_path(prior).open('w') as handle:
             json.dump(pre_panelapp, handle, indent=4)

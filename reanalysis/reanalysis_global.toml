@@ -97,6 +97,9 @@ clinvar_filter = ['victorian clinical genetics services,murdoch childrens resear
 #cohort_percentage = 80
 gene_prior = 'gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json'
 
+[cohorts.ag-cardiac]
+cohort_panels = [4059]
+
 [cohorts.ag-hidden]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
 gene_prior = 'gs://cpg-ag-hidden-test/reanalysis/pre_panelapp_mendeliome.json'
