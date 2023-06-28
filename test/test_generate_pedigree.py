@@ -31,14 +31,15 @@ DIRTY_PED = [
 ]
 
 
-@patch('helpers.utils.ParticipantApi.get_external_participant_id_to_internal_sample_id')
-def test_ext_to_int_sample_map(map_mock, sm_lookup):
+@patch('helpers.utils.gql')
+@patch('helpers.utils.query')
+def test_ext_to_int_sample_map(map_mock, gql_mock, sm_lookup):
     """
     fetch method using a mocked API endpoint
     :param map_mock:
     :return:
     """
-
+    gql_mock.return_value = None
     map_mock.return_value = sm_lookup
     result = ext_to_int_sample_map(project=PROJECT)
     assert isinstance(result, dict)

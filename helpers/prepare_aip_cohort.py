@@ -9,9 +9,9 @@ master script for preparing a run
 - tweaks for making singleton versions of the given cohort
 """
 
-
 from argparse import ArgumentParser
 from itertools import product
+from typing import Any
 import hashlib
 import json
 import logging
@@ -21,7 +21,8 @@ import toml
 
 from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
-from sample_metadata.apis import FamilyApi
+
+from metamist.graphql import gql, query
 
 from reanalysis.utils import read_json_from_path
 from helpers.hpo_panel_matching import (
@@ -31,7 +32,6 @@ from helpers.hpo_panel_matching import (
     query_and_parse_metadata,
 )
 from helpers.utils import ext_to_int_sample_map
-
 
 BUCKET_TEMPLATE = 'gs://cpg-{dataset}-test-analysis/reanalysis'
 LOCAL_TEMPLATE = 'inputs/{dataset}'
@@ -164,7 +164,6 @@ def get_ped_with_permutations(
 
     # enumerate to get ints - use these as family IDs if singletons
     for counter, ped_entry in enumerate(pedigree_dicts, 1):
-
         if ped_entry['individual_id'] not in sample_to_cpg_dict:
             failures.append(ped_entry['individual_id'])
 
@@ -265,8 +264,18 @@ def get_pedigree_for_project(project: str) -> list[dict[str, str]]:
     Returns:
         All API returned content
     """
-
-    return FamilyApi().get_pedigree(project=project)
+    ped_query = gql(
+        """
+    query MyQuery($project: String!) {
+        project(name: $project) {
+            pedigree
+        }
+    }
+    """
+    )
+    # pylint: disable=unsubscriptable-object
+    response: dict[str, Any] = query(ped_query, variables={'project': project})
+    return response['project']['pedigree']
 
 
 def process_reverse_lookup(
@@ -338,9 +347,9 @@ def main(
     Who runs the world? main()
 
     Args:
-        project ():
-        obo ():
-        seqr_file ():
+        project (str): project to query for
+        obo (str): path to an HPO graph file
+        seqr_file (str):
         exome ():
         singletons ():
     """
@@ -442,17 +451,19 @@ def main(
         logging.info(f'Wrote panel file to {panel_remote}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
-    pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
-    remote_panelapp = remote_root / 'pre_panelapp_mendeliome.json'
-    with remote_panelapp.open('w') as handle:
-        json.dump(pre_panelapp, handle, indent=4)
-        logging.info(f'Wrote VCGS gene prior file to {remote_panelapp}')
+    if 'pre_panelapp' in (
+        prior := get_config()['cohorts'][project].get('gene_prior', 'MISSING')
+    ):
+        pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
+        with to_path(prior).open('w') as handle:
+            json.dump(pre_panelapp, handle, indent=4)
+            logging.info(f'Wrote VCGS gene prior file to {prior}')
 
     logging.info(f'--pedigree {ped_file}')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARN)
     parser = ArgumentParser()
     parser.add_argument(
         '--project', help='Project name to use in API queries', required=True

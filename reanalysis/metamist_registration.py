@@ -14,62 +14,14 @@ from peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-from sample_metadata.apis import AnalysisApi
-from sample_metadata.model.analysis_type import AnalysisType
-from sample_metadata.model.analysis_model import AnalysisModel
-from sample_metadata.model.analysis_status import AnalysisStatus
-from sample_metadata.model.analysis_query_model import AnalysisQueryModel
-from sample_metadata.model.analysis_update_model import AnalysisUpdateModel
-
-
-def inactivate_old_entry(name: str, metadata: dict[str, str], anal_type: AnalysisType):
-    """
-    for this file, metadata, and analysis type:
-        - check for any pre-existing reanalysis entries in metamist
-        - confirm an exact match:
-            - same exome/genome status
-            - same filename
-            - same analysis type
-        - update previous record to inactive
-
-    Args:
-        name (str): filename
-        metadata (dict): dictionary of parameters
-        anal_type (AnalysisType):  Custom/Web
-    """
-
-    # find any previous  AIP-specific AnalysisEntries... Update to active=False
-    a_query_model = AnalysisQueryModel(
-        projects=[get_config()['workflow']['dataset']], type=anal_type
-    )
-    for analysis in AnalysisApi().query_analyses(analysis_query_model=a_query_model):
-
-        # only look for reanalysis entries
-        if 'reanalysis' not in analysis['output']:
-            continue
-
-        # skip over reports that don't match this subtype
-        for key, value in metadata.items():
-            if analysis['meta'][key] != value:
-                continue
-
-        # check that the name is the same, check its active, then kill it
-        output_path = Path(analysis['output'])
-        if name.endswith(output_path.name) and analysis['active']:
-
-            # update this entry to inactivate it (superseded)
-            AnalysisApi().update_analysis_status(
-                analysis_id=analysis['id'],
-                analysis_update_model=AnalysisUpdateModel(
-                    status=AnalysisStatus('completed'), active=False
-                ),
-            )
+from metamist.apis import AnalysisApi
+from metamist.model.analysis import Analysis
+from metamist.model.analysis_status import AnalysisStatus
 
 
 def register_html(file_path: str, samples: list[str]):
     """
-    Takes the output HTML from this analysis and registers it in
-    Metamist. Deprecates any existing HTML results
+    Takes the output HTML from this analysis and registers it in Metamist
 
     Args:
         file_path (str): result file to register
@@ -82,16 +34,8 @@ def register_html(file_path: str, samples: list[str]):
         'is_singleton': bool('singleton' in file_path),
     }
 
-    analysis_type = (
-        AnalysisType('web') if 'html' in file_path else AnalysisType('custom')
-    )
-
-    # find any previous versions of this AnalysisEntry, and deactivate
-    inactivate_old_entry(name=file_path, metadata=report_meta, anal_type=analysis_type)
-
     # add HTML-specific elements
     if file_path.endswith('html'):
-
         web_template = get_config()['storage']['default']['web_url']
         file_name = Path(file_path).name
         display_url = join(
@@ -99,11 +43,11 @@ def register_html(file_path: str, samples: list[str]):
         )
         report_meta['display_url'] = display_url
 
-    AnalysisApi().create_new_analysis(
+    AnalysisApi().create_analysis(
         project=get_config()['workflow']['dataset'],
-        analysis_model=AnalysisModel(
+        analysis=Analysis(
             sample_ids=samples,
-            type=analysis_type,
+            type='web',
             status=AnalysisStatus('completed'),
             output=file_path,
             meta=report_meta,

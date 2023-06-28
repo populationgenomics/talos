@@ -8,7 +8,7 @@ DATE=${1:-$(date +%F)}
 analysis-runner \
   --config reanalysis/reanalysis_global.toml \
   --config reanalysis/reanalysis_cohort.toml \
-  --image australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows \
+  --image australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip \
   --dataset acute-care \
   --description "AIP run" \
   -o "reanalysis/${DATE}" \

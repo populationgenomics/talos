@@ -15,7 +15,10 @@ from collections import defaultdict
 
 import networkx
 from obonet import read_obo
-from sample_metadata.apis import SeqrApi
+
+# TODO update to graphQL API once it works for Seqr metadata query
+# from metamist.graphql import gql, query
+from metamist.apis import SeqrApi
 
 from cpg_utils import to_path
 
@@ -23,6 +26,7 @@ from helpers.utils import ext_to_int_sample_map
 from reanalysis.utils import get_json_response
 
 MAX_DEPTH: int = 3
+
 PANELAPP_SERVER = 'https://sample-metadata.populationgenomics.org.au'
 TEMPLATE = (
     f'{PANELAPP_SERVER}/api/v1/participant/{{dataset}}/individual-metadata-seqr/json'

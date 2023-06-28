@@ -863,7 +863,7 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
         input_moi ():
         chrom ():
     """
-
+    # pylint: disable=too-many-return-statements
     if input_moi in IRRELEVANT_MOI:
         raise ValueError("unknown and other shouldn't reach this method")
 
@@ -880,6 +880,8 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
         case ['both', *_additional]:
             return 'Mono_And_Biallelic'
         case ['monoallelic', *_additional]:
+            if chrom in X_CHROMOSOME:
+                return 'Hemi_Mono_In_Female'
             return 'Monoallelic'
         case [
             'xlinked',
