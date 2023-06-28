@@ -400,9 +400,12 @@ def prepare_results_shell(
         if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
     ]:
         family = pedigree.families[pedigree[sample].family_id]
+
         family_members = {
             member.sample_id: {
-                'sex': member.sex,
+                'sex': str(member.sex)
+                if str(member.sex) in {'male', 'female'}
+                else 'unknown',
                 'affected': member.affected == PEDDY_AFFECTED,
                 'ext_id': external_map.get(member.sample_id, member.sample_id),
             }
