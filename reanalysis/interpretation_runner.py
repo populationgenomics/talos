@@ -496,7 +496,6 @@ def main(
         output=output_dict['web_html'],
         results=output_dict['results'],
     )
-    prior_job.always_run()
     # endregion
 
     # region: output registration job
