@@ -330,6 +330,7 @@ def get_all_decisions(
     try:
         cohort_config = get_cohort_config()
         blacklist = cohort_config.get('clinvar_filter', [])
+        logging.info(f'Blacklisted sites: {blacklist}')
     except (AssertionError, KeyError):
         blacklist = []
 
