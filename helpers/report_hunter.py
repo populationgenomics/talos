@@ -66,7 +66,7 @@ def get_project_analyses(project: str) -> list[dict]:
         """
     query MyQuery($project: String!) {
         project(name: $project) {
-            analyses(active: true, type: WEB_REPORT) {
+            analyses(active: {eq: true}, type:  {eq: "web"}) {
                 output
                 meta
                 timestampCompleted
@@ -92,7 +92,7 @@ def main():
             continue
 
         for analysis in get_project_analyses(cohort):
-            # only look for reanalysis entries
+            # only look for HTML reanalysis entries
             if 'reanalysis' not in analysis['output']:
                 continue
 

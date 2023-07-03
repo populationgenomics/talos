@@ -36,18 +36,21 @@ def register_html(file_path: str, samples: list[str]):
 
     # add HTML-specific elements
     if file_path.endswith('html'):
+        analysis_type = 'web'
         web_template = get_config()['storage']['default']['web_url']
         file_name = Path(file_path).name
         display_url = join(
             web_template, get_config()['workflow']['output_prefix'], file_name
         )
         report_meta['display_url'] = display_url
+    else:
+        analysis_type = 'custom'
 
     AnalysisApi().create_analysis(
         project=get_config()['workflow']['dataset'],
         analysis=Analysis(
             sample_ids=samples,
-            type='web',
+            type=analysis_type,
             status=AnalysisStatus('completed'),
             output=file_path,
             meta=report_meta,
