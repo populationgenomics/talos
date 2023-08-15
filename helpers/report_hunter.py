@@ -6,6 +6,8 @@ track down the latest version of all reports
 generate an index HTML page with links to all reports
 """
 
+import logging
+import sys
 from dataclasses import dataclass
 from os.path import join
 from pathlib import Path
@@ -75,7 +77,7 @@ def get_project_analyses(project: str) -> list[dict]:
     }
     """
     )
-    # validate(project_query)
+
     response: dict[str, Any] = query(project_query, variables={'project': project})
     return response['project']['analyses']
 
@@ -93,21 +95,28 @@ def main():
 
         for analysis in get_project_analyses(cohort):
             # only look for HTML reanalysis entries
-            if 'reanalysis' not in analysis['output']:
+            if 'reanalysis' not in analysis['output'] or not analysis[
+                'output'
+            ].endswith('html'):
                 continue
 
             # pull the exome/singleton flags
             exome_output = analysis['meta'].get('is_exome', False)
             singleton_output = analysis['meta'].get('is_singleton', False)
-
-            # incorporate that into a key when gathering
-            all_cohorts[f'{cohort}_{exome_output}_{singleton_output}'] = Report(
-                dataset=cohort,
-                address=analysis['meta']['display_url'],
-                genome_or_exome='Exome' if exome_output else 'Genome',
-                subtype='Singleton' if singleton_output else 'Familial',
-                date=analysis['timestampCompleted'].split('T')[0],
-            )
+            try:
+                # incorporate that into a key when gathering
+                all_cohorts[f'{cohort}_{exome_output}_{singleton_output}'] = Report(
+                    dataset=cohort,
+                    address=analysis['meta']['display_url'],
+                    genome_or_exome='Exome' if exome_output else 'Genome',
+                    subtype='Singleton' if singleton_output else 'Familial',
+                    date=analysis['timestampCompleted'].split('T')[0],
+                )
+            except KeyError:
+                logging.info(
+                    'Failed to construct a Report entry - is this a report HTML entry?'
+                )
+                logging.info(analysis)
 
     # smoosh into a list for the report context - all reports sortable by date
     template_context = {'reports': list(all_cohorts.values())}
@@ -130,4 +139,10 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
     main()

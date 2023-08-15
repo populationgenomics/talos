@@ -1,6 +1,6 @@
 [workflow]
 name = 'Annotate_Clinvar'
-scatter_count = 50
+scatter_count = 25
 vcf_size_in_gb = 30
 sequencing_type = 'genome'
 
@@ -11,10 +11,10 @@ default_memory = 'highmem'
 
 [images]
 vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:1.1.1'
+cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:latest'
 
 [clinvar]
 filter_benign = ['illumina laboratory services; illumina']
 
-[cohorts]
-placeholder = "placeholder"
+[cohorts.acute-care]
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
