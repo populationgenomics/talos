@@ -93,7 +93,7 @@ genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_cal
 #gene_prior = if a specific gene list is to be used to determine Cat 2 (new gene-disease associations), provide the filepath here
 
 [cohorts.acute-care]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 #cohort_percentage = 80
 gene_prior = 'gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json'
 
@@ -101,12 +101,12 @@ gene_prior = 'gs://cpg-acute-care-test/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [4059]
 
 [cohorts.ag-hidden]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 gene_prior = 'gs://cpg-ag-hidden-test/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [275]
 
 [cohorts.brain-malf]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 #cohort_percentage = 80
 gene_prior = 'gs://cpg-brain-malf-test/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [3136]
@@ -123,7 +123,7 @@ gene_prior = "gs://cpg-broad-rgp-test-analysis/reanalysis/jan_2020_panels.json"
 cohort_panels = [239]
 
 [cohorts.epileptic-enceph]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 #cohort_percentage = 80
 gene_prior = 'gs://cpg-epileptic-enceph-test/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [202]
@@ -142,18 +142,18 @@ cohort_panels = [3120]
 cohort_panels = [56]
 
 [cohorts.kidgen]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 gene_prior = 'gs://cpg-kidgen-test-analysis/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [275]
 
 [cohorts.leukodystrophies]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 cohort_panels = [298, 299, 3094]
 #cohort_percentage = 80
 gene_prior = 'gs://cpg-leukodystrophies-test/reanalysis/pre_panelapp_mendeliome.json'
 
 [cohorts.mito-disease]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
+clinvar_filter = ['victorian clinical genetics services, murdoch childrens research institute']
 #cohort_percentage = 80
 gene_prior = 'gs://cpg-mito-disease-test/reanalysis/pre_panelapp_mendeliome.json'
 cohort_panels = [203]

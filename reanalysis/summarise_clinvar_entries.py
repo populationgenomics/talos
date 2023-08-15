@@ -153,7 +153,7 @@ def get_allele_locus_map(summary_file: str) -> dict:
     return allele_dict
 
 
-def lines_from_gzip(filename: str) -> str:
+def lines_from_gzip(filename: str) -> list[list[str]]:
     """
     generator for gzip reading, copies file locally before reading
 
@@ -161,7 +161,7 @@ def lines_from_gzip(filename: str) -> str:
         filename (str): the gzipped input file
 
     Returns:
-        generator; yields each line
+        generator; yields each line as a list of its elements
     """
 
     if isinstance(to_path(filename), CloudPath):
@@ -306,7 +306,7 @@ def dict_list_to_ht(list_of_dicts: list) -> hl.Table:
 
 
 def get_all_decisions(
-    submission_file: str, threshold_date: datetime, allele_ids: set
+    submission_file: str, threshold_date: datetime | None, allele_ids: set
 ) -> dict[str, list[Submission]]:
     """
     obtains all submissions per-allele which pass basic criteria
@@ -332,17 +332,25 @@ def get_all_decisions(
         blacklist = cohort_config.get('clinvar_filter', [])
         logging.info(f'Blacklisted sites: {blacklist}')
     except (AssertionError, KeyError):
+        logging.info('Failure to identify blacklisted sites for this project')
         blacklist = []
 
     for line in lines_from_gzip(submission_file):
+
+        # if we have a threshold date, and an un-dated entry
+        # put it straight in the bin
+        if threshold_date is None and line[2] == '-':
+            continue
+
         a_id, line_sub = process_line(line)
 
         # skip rows where the variantID isn't in this mapping
         # this saves a little effort on haplotypes, CNVs, and SVs
+        # pylint: disable=too-many-boolean-expressions
         if (
             (a_id not in allele_ids)
             or (line_sub.submitter in blacklist)
-            or (line_sub.date > threshold_date)
+            or (threshold_date is not None and line_sub.date > threshold_date)
             or (line_sub.review_status in USELESS_RATINGS)
             or (line_sub.classification == Consequence.UNKNOWN)
         ):
@@ -481,7 +489,11 @@ def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
 
 
 def main(
-    subs: str, date: datetime, variants: str, out: str, path_snv: str | None = None
+    subs: str,
+    date: datetime | None,
+    variants: str,
+    out: str,
+    path_snv: str | None = None,
 ):
     """
     Redefines what it is to be a clinvar summary
@@ -490,7 +502,7 @@ def main(
         subs (str): file path to all submissions (gzipped)
         variants (str): file path to variant summary (gzipped)
         out (str): path to write JSON out to
-        date (str): date threshold to use for filtering submissions
+        date (datetime | None): date threshold to use for filtering submissions
         path_snv (str): if defined, path to write SNV VCF file
     """
 
@@ -570,7 +582,7 @@ if __name__ == '__main__':
             'date, format YYYY-MM-DD. Individual submissions after this date are '
             'removed. Un-dated submissions will pass this threshold.'
         ),
-        default=datetime.now(),
+        default=None,
     )
     parser.add_argument('--path_snv', help='Output VCF, sites-only, Pathogenic SNVs')
     args = parser.parse_args()
