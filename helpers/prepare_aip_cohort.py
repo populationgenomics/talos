@@ -219,7 +219,9 @@ def process_pedigree(
     ped_lines = []
     for entry in ped_with_permutations:
         for sample, mother, father in product(
-            entry['individual_id'], entry['paternal_id'], entry['maternal_id']
+            entry['individual_id'],
+            entry['paternal_id'] or ['0'],
+            entry['maternal_id'] or ['0'],
         ):
             ped_lines.append(
                 '\t'.join(
