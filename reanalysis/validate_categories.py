@@ -416,6 +416,8 @@ def prepare_results_shell(
             'metadata': {
                 'ext_id': external_map.get(sample, sample),
                 'family_id': pedigree[sample].family_id,
+                'family_size': len(family_members),
+                'trio_present': bool(list(family.trios())),
                 'members': family_members,
                 'phenotypes': panel_data.get(sample, {}).get('hpo_terms', []),
                 'panel_ids': panel_data.get(sample, {}).get('panels', []),
