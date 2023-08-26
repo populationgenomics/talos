@@ -8,6 +8,7 @@ generate an index HTML page with links to all reports
 Generate a second report for the latest variant only report
 """
 
+
 import logging
 import sys
 from dataclasses import dataclass
