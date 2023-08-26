@@ -135,6 +135,10 @@ def main(latest: bool = False):
                 )
                 logging.info(analysis)
 
+    # if there were no reports, don't bother with the HTML
+    if not all_cohorts:
+        return
+
     # smoosh into a list for the report context - all reports sortable by date
     template_context = {'reports': list(all_cohorts.values())}
 
