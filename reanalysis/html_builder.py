@@ -194,7 +194,6 @@ class HTMLBuilder:
                 key_list.append(len(sample_variants[key]))
 
         # Extract the list of unused ext labels
-        # TODO potentially not treating external and internal sample IDs correctly.
         unused_ext_labels = [
             {
                 'sample': sample_id,
