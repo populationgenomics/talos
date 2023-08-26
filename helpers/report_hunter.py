@@ -4,6 +4,8 @@
 """
 track down the latest version of all reports
 generate an index HTML page with links to all reports
+
+Generate a second report for the latest variant only report
 """
 
 import logging
@@ -82,9 +84,15 @@ def get_project_analyses(project: str) -> list[dict]:
     return response['project']['analyses']
 
 
-def main():
+def main(latest: bool = False):
     """
     finds all existing reports, generates an HTML file
+
+    Args:
+        latest ():
+
+    Returns:
+
     """
 
     all_cohorts = {}
@@ -95,10 +103,19 @@ def main():
 
         for analysis in get_project_analyses(cohort):
             # only look for HTML reanalysis entries
+            # skip over the latest-only reports
             if 'reanalysis' not in analysis['output'] or not analysis[
                 'output'
             ].endswith('html'):
                 continue
+
+            # mutually exclusive conditional search for 'latest'
+            if latest:
+                if 'latest' not in analysis['output']:
+                    continue
+            else:
+                if 'latest' in analysis['output']:
+                    continue
 
             # pull the exome/singleton flags
             exome_output = analysis['meta'].get('is_exome', False)
@@ -133,7 +150,7 @@ def main():
         join(
             get_config()['storage']['common']['test']['web'],
             'reanalysis',
-            'aip_index.html',
+            'latest_aip_index.html' if latest else 'aip_index.html',
         )
     ).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
@@ -145,4 +162,6 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
+    # run once for all main reports, then again for the latest-only reports
     main()
+    main(latest=True)

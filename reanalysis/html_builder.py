@@ -493,12 +493,14 @@ def check_date_filter(results: str) -> dict | None:
 
     # Filter out variants based on date
     for sample, content in results_dict['results'].items():
-        # keep only this run's variants
+        # keep only this run's new variants
         keep_variants = [
             variant
             for variant in content['variants']
             if variant['first_seen'] == date_filter
         ]
+
+        # if no variants to keep, don't add anything
         if keep_variants:
             filtered_results['results'][sample] = {
                 'metadata': content['metadata'],
