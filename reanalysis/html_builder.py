@@ -468,19 +468,21 @@ class Variant:
         return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
-def check_date_filter(results: str) -> dict | None:
+def check_date_filter(results: str, filter_date: str | None = None) -> dict | None:
     """
     Check if there's a date filter in the config
     if there is, load the results JSON and filter out variants
 
     Args:
         results (str): path to the results file
+        filter_date (str | None): path to the results file
 
     Returns:
 
     """
     # pick up the current date from datetime or config
-    date_filter = get_granular_date()
+    if filter_date is None:
+        filter_date = get_granular_date()
 
     # Load the results JSON
     results_dict = read_json_from_path(results)
@@ -493,11 +495,11 @@ def check_date_filter(results: str) -> dict | None:
     # Filter out variants based on date
     for sample, content in results_dict['results'].items():
         # keep only this run's new variants
-        keep_variants = [
-            variant
-            for variant in content['variants']
-            if variant['first_seen'] == date_filter
-        ]
+        keep_variants = {
+            coord: variant
+            for coord, variant in content['variants'].items()
+            if variant['first_seen'] == filter_date
+        }
 
         # if no variants to keep, don't add anything
         if keep_variants:
@@ -531,14 +533,18 @@ if __name__ == '__main__':
     parser.add_argument('--latest', help='Optional second report, latest variants only')
     args = parser.parse_args()
 
+    # build the HTML using all results
     html = HTMLBuilder(
         results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
     html.write_html(output_filepath=args.output)
 
-    # If there's historic data, filter the results, check for anything remaining
-    # and write the HTML
-    if filtered_result_dict := check_date_filter(results=args.results):
+    # If the latest arg is used, filter the results
+    # write the HTML if any results remain
+    if args.latest and (
+        filtered_result_dict := check_date_filter(results=args.results)
+    ):
+        # build the HTML for latest reports only
         latest_html = HTMLBuilder(
             results=filtered_result_dict, panelapp=args.panelapp, pedigree=args.pedigree
         )
