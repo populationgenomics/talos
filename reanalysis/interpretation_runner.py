@@ -248,7 +248,10 @@ def handle_result_presentation_job(
 
     # if a new script is added, it needs to be registered here to become usable
     scripts_and_inputs = {
-        'cpg': (html_builder.__file__, ['results', 'panelapp', 'pedigree', 'output'])
+        'cpg': (
+            html_builder.__file__,
+            ['results', 'panelapp', 'pedigree', 'output', 'latest'],
+        )
     }
 
     output_mode = get_config()['workflow'].get('presentation', 'cpg')
@@ -356,6 +359,9 @@ def main(
     output_dict = {
         'web_html': output_path(
             f'{"singleton" if singletons else "summary"}_output.html', 'web'
+        ),
+        'latest_html': output_path(
+            f'{"singleton" if singletons else "summary"}_latest_output.html', 'web'
         ),
         'results': output_path(
             f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
@@ -494,6 +500,7 @@ def main(
         prior_job=prior_job,
         pedigree=pedigree_in_batch,
         output=output_dict['web_html'],
+        latest=output_dict['latest_html'],
         results=output_dict['results'],
     )
     # endregion
