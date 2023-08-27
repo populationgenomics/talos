@@ -487,7 +487,6 @@ def main(
     )
 
     # region: run results job
-    # pointing this analysis at the updated config file, including input metadata
     prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
         pedigree=pedigree_in_batch,
@@ -505,8 +504,7 @@ def main(
     )
     # endregion
 
-    # region: output registration job
-    # register the output files in metamist if required
+    # region: register outputs in metamist if required
     if registry := get_config()['workflow'].get('register'):
         logging.info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(

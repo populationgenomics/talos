@@ -16,11 +16,11 @@ def test_check_date_filter(tmp_path):
         'results': {
             'sample1': {
                 'metadata': 'metadata',
-                'variants': {'var1': {'first_seen': '2021-01-01'}},
+                'variants': [{'first_seen': '2021-01-01', 'keep': True}],
             },
             'sample2': {
                 'metadata': 'metadata',
-                'variants': {'var2': {'first_seen': '2022-02-02'}},
+                'variants': [{'first_seen': '2022-02-02', 'keep': False}],
             },
         },
     }
@@ -31,4 +31,4 @@ def test_check_date_filter(tmp_path):
     filtered_results = check_date_filter(result_path, '2021-01-01')
     assert 'sample1' in filtered_results['results']
     assert 'sample2' not in filtered_results['results']
-    assert 'var1' in filtered_results['results']['sample1']['variants']
+    assert filtered_results['results']['sample1']['variants'][0]['keep']

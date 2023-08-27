@@ -19,7 +19,8 @@ from peddy.peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-from reanalysis.utils import read_json_from_path, get_cohort_config, get_granular_date
+from reanalysis.utils import read_json_from_path, get_cohort_config
+
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -186,7 +187,6 @@ class HTMLBuilder:
                     # remove any external labels associated with this sample/variant.
                     if sample.name in ext_label_map:
                         ext_label_map[sample.name].pop(var_string, None)
-
             category_count['any'].append(len(sample_variants['any']))
 
             # update the global lists with per-sample counts
@@ -480,12 +480,13 @@ def check_date_filter(results: str, filter_date: str | None = None) -> dict | No
     Returns:
 
     """
-    # pick up the current date from datetime or config
-    if filter_date is None:
-        filter_date = get_granular_date()
 
     # Load the results JSON
     results_dict = read_json_from_path(results)
+
+    # pick up the current date from datetime or config
+    if filter_date is None:
+        filter_date = results_dict['metadata']['run_datetime']
 
     filtered_results = {
         'metadata': results_dict['metadata'],
@@ -495,11 +496,11 @@ def check_date_filter(results: str, filter_date: str | None = None) -> dict | No
     # Filter out variants based on date
     for sample, content in results_dict['results'].items():
         # keep only this run's new variants
-        keep_variants = {
-            coord: variant
-            for coord, variant in content['variants'].items()
+        keep_variants = [
+            variant
+            for variant in content['variants']
             if variant['first_seen'] == filter_date
-        }
+        ]
 
         # if no variants to keep, don't add anything
         if keep_variants:
@@ -510,8 +511,10 @@ def check_date_filter(results: str, filter_date: str | None = None) -> dict | No
 
     # check if there's anything to return
     if filtered_results['results']:
+        logging.info(f'Filtered results obtained for {filter_date}')
         return filtered_results
 
+    logging.info(f'No filtered results obtained for {filter_date}')
     return None
 
 
