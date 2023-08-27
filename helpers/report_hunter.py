@@ -90,10 +90,7 @@ def main(latest: bool = False):
     finds all existing reports, generates an HTML file
 
     Args:
-        latest ():
-
-    Returns:
-
+        latest (bool): whether to create the latest-only report
     """
 
     all_cohorts = {}
@@ -114,6 +111,8 @@ def main(latest: bool = False):
             if latest:
                 if 'latest' not in analysis['output']:
                     continue
+                date = analysis['output'].rstrip('.html').split('_')[-1]
+                cohort = f'{cohort}_{date}'
             else:
                 if 'latest' in analysis['output']:
                     continue

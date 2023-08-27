@@ -37,12 +37,11 @@ def register_html(file_path: str, samples: list[str]):
     # add HTML-specific elements
     if file_path.endswith('html'):
         analysis_type = 'web'
-        web_template = get_config()['storage']['default']['web_url']
-        file_name = Path(file_path).name
-        display_url = join(
-            web_template, get_config()['workflow']['output_prefix'], file_name
+        report_meta['display_url'] = join(
+            get_config()['storage']['default']['web_url'],
+            get_config()['workflow']['output_prefix'],
+            Path(file_path).name,
         )
-        report_meta['display_url'] = display_url
     else:
         analysis_type = 'custom'
 

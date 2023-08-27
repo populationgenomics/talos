@@ -44,7 +44,7 @@ from reanalysis import (
     validate_categories,
     seqr_loader,
 )
-from reanalysis.utils import FileTypes, identify_file_type
+from reanalysis.utils import FileTypes, identify_file_type, get_granular_date
 
 # region: CONSTANTS
 # exact time that this run occurred
@@ -361,7 +361,11 @@ def main(
             f'{"singleton" if singletons else "summary"}_output.html', 'web'
         ),
         'latest_html': output_path(
-            f'{"singleton" if singletons else "summary"}_latest_output.html', 'web'
+            (
+                f'{"singleton" if singletons else "summary"}'
+                f'_latest_{get_granular_date()}.html'
+            ),
+            'web',
         ),
         'results': output_path(
             f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
