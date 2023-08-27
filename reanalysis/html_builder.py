@@ -164,30 +164,19 @@ class HTMLBuilder:
             # iterate over the list of variants
             for variant in sample.variants:
 
-                # create a set for all unique versions
-                variant_variations = set()
-                if variant.support_vars:
-                    for support in variant.support_vars:
-                        variant_variations.add(
-                            '_'.join(sorted([str(variant), support]))
-                        )
-                else:
-                    variant_variations.add(str(variant))
+                var_string = str(variant)
+                unique_variants['any'].add(var_string)
+                sample_variants['any'].add(var_string)
 
-                for var_string in variant_variations:
-                    unique_variants['any'].add(var_string)
-                    sample_variants['any'].add(var_string)
+                # find all categories associated with this variant
+                # for each category, add to corresponding list and set
+                for category_value in variant.var_data.get('categories'):
+                    sample_variants[category_value].add(var_string)
+                    unique_variants[category_value].add(var_string)
 
-                    # find all categories associated with this variant
-                    # for each category, add to corresponding list and set
-                    for category_value in variant.var_data.get('categories'):
-                        sample_variants[category_value].add(var_string)
-                        unique_variants[category_value].add(var_string)
-
-                    # remove any external labels associated with this sample/variant.
-                    if sample.name in ext_label_map:
-                        ext_label_map[sample.name].pop(var_string, None)
-            category_count['any'].append(len(sample_variants['any']))
+                # remove any external labels associated with this sample/variant.
+                if sample.name in ext_label_map:
+                    ext_label_map[sample.name].pop(var_string, None)
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
@@ -254,13 +243,14 @@ class HTMLBuilder:
 
         return tables
 
-    def write_html(self, output_filepath: str):
+    def write_html(self, output_filepath: str, latest: bool = False):
         """
         Uses the results to create the HTML tables
         writes all content to the output path
 
         Args:
             output_filepath ():
+            latest (bool):
         """
 
         (
@@ -268,6 +258,8 @@ class HTMLBuilder:
             zero_categorised_samples,
             unused_ext_labels,
         ) = self.get_summary_stats()
+
+        report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
 
         template_context = {
             'metadata': self.metadata,
@@ -279,6 +271,7 @@ class HTMLBuilder:
             'zero_categorised_samples': [],
             'unused_ext_labels': unused_ext_labels,
             'summary_table': None,
+            'report_title': report_title,
         }
 
         for title, meta_table in self.read_metadata().items():
@@ -551,4 +544,4 @@ if __name__ == '__main__':
         latest_html = HTMLBuilder(
             results=filtered_result_dict, panelapp=args.panelapp, pedigree=args.pedigree
         )
-        latest_html.write_html(output_filepath=args.latest)
+        latest_html.write_html(output_filepath=args.latest, latest=True)
