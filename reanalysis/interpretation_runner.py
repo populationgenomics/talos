@@ -44,7 +44,7 @@ from reanalysis import (
     validate_categories,
     seqr_loader,
 )
-from reanalysis.utils import FileTypes, identify_file_type
+from reanalysis.utils import FileTypes, identify_file_type, get_granular_date
 
 # region: CONSTANTS
 # exact time that this run occurred
@@ -248,7 +248,10 @@ def handle_result_presentation_job(
 
     # if a new script is added, it needs to be registered here to become usable
     scripts_and_inputs = {
-        'cpg': (html_builder.__file__, ['results', 'panelapp', 'pedigree', 'output'])
+        'cpg': (
+            html_builder.__file__,
+            ['results', 'panelapp', 'pedigree', 'output', 'latest'],
+        )
     }
 
     output_mode = get_config()['workflow'].get('presentation', 'cpg')
@@ -356,6 +359,13 @@ def main(
     output_dict = {
         'web_html': output_path(
             f'{"singleton" if singletons else "summary"}_output.html', 'web'
+        ),
+        'latest_html': output_path(
+            (
+                f'{"singleton" if singletons else "summary"}'
+                f'_latest_{get_granular_date()}.html'
+            ),
+            'web',
         ),
         'results': output_path(
             f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
@@ -481,7 +491,6 @@ def main(
     )
 
     # region: run results job
-    # pointing this analysis at the updated config file, including input metadata
     prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
         pedigree=pedigree_in_batch,
@@ -494,12 +503,12 @@ def main(
         prior_job=prior_job,
         pedigree=pedigree_in_batch,
         output=output_dict['web_html'],
+        latest=output_dict['latest_html'],
         results=output_dict['results'],
     )
     # endregion
 
-    # region: output registration job
-    # register the output files in metamist if required
+    # region: register outputs in metamist if required
     if registry := get_config()['workflow'].get('register'):
         logging.info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(

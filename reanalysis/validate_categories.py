@@ -18,7 +18,6 @@ import json
 import logging
 import sys
 from collections import defaultdict
-from datetime import datetime
 from typing import Union
 
 import click
@@ -32,6 +31,7 @@ from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
     get_cohort_config,
+    get_granular_date,
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
@@ -531,9 +531,7 @@ def main(
         'metadata': {
             'input_file': input_path,
             'cohort': get_config()['workflow']['dataset'],
-            'run_datetime': get_config()['workflow'].get(
-                'fake_date', f'{datetime.now():%Y-%m-%d %H:%M}'
-            ),
+            'run_datetime': get_granular_date(),
             'family_breakdown': count_families(
                 pedigree_digest, samples=vcf_opened.samples
             ),

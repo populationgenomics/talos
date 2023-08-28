@@ -7,6 +7,7 @@ Methods for taking the final output and generating static report content
 import logging
 import sys
 from argparse import ArgumentParser
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 
 from reanalysis.utils import read_json_from_path, get_cohort_config
+
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -58,12 +60,12 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str, panelapp: str, pedigree: Ped):
+    def __init__(self, results: str | dict, panelapp: str, pedigree: Ped):
         """
         Args:
-            results ():
-            panelapp ():
-            pedigree ():
+            results (str | dict): path to the results JSON, or the results dict
+            panelapp (str): path to the PanelApp JSON
+            pedigree (str): path to the PED file
         """
         self.panelapp = read_json_from_path(panelapp)
         self.pedigree = Ped(pedigree)
@@ -101,8 +103,12 @@ class HTMLBuilder:
             get_config()['dataset_specific'].get('external_labels'), {}
         )
 
-        # Read results file
-        results_dict = read_json_from_path(results)
+        # Read results file, or take it directly
+        if isinstance(results, str):
+            results_dict = read_json_from_path(results)
+        else:
+            results_dict = results
+
         self.metadata = results_dict['metadata']
         self.panel_names = {panel['name'] for panel in self.metadata['panels']}
 
@@ -133,7 +139,7 @@ class HTMLBuilder:
 
     def get_summary_stats(
         self,
-    ) -> tuple[pd.DataFrame, list[str], dict]:
+    ) -> tuple[pd.DataFrame, list[str], list[dict]]:
         """
         Run the numbers across all variant categories
         Treat each primary-secondary comp-het pairing as one event
@@ -145,7 +151,7 @@ class HTMLBuilder:
         category_count = {key: [] for key in CATEGORY_ORDERING}
         unique_variants = {key: set() for key in CATEGORY_ORDERING}
 
-        samples_with_no_variants = []
+        samples_with_no_variants: list[str] = []
         ext_label_map = self.ext_labels.copy() if self.ext_labels else {}
 
         for sample in self.samples:
@@ -158,38 +164,25 @@ class HTMLBuilder:
             # iterate over the list of variants
             for variant in sample.variants:
 
-                # create a set for all unique versions
-                variant_variations = set()
-                if variant.support_vars:
-                    for support in variant.support_vars:
-                        variant_variations.add(
-                            '_'.join(sorted([str(variant), support]))
-                        )
-                else:
-                    variant_variations.add(str(variant))
+                var_string = str(variant)
+                unique_variants['any'].add(var_string)
+                sample_variants['any'].add(var_string)
 
-                for var_string in variant_variations:
-                    unique_variants['any'].add(var_string)
-                    sample_variants['any'].add(var_string)
+                # find all categories associated with this variant
+                # for each category, add to corresponding list and set
+                for category_value in variant.var_data.get('categories'):
+                    sample_variants[category_value].add(var_string)
+                    unique_variants[category_value].add(var_string)
 
-                    # find all categories associated with this variant
-                    # for each category, add to corresponding list and set
-                    for category_value in variant.var_data.get('categories'):
-                        sample_variants[category_value].add(var_string)
-                        unique_variants[category_value].add(var_string)
-
-                    # remove any external labels associated with this sample/variant.
-                    if sample.name in ext_label_map:
-                        ext_label_map[sample.name].pop(var_string, None)
-
-            category_count['any'].append(len(sample_variants['any']))
+                # remove any external labels associated with this sample/variant.
+                if sample.name in ext_label_map:
+                    ext_label_map[sample.name].pop(var_string, None)
 
             # update the global lists with per-sample counts
             for key, key_list in category_count.items():
                 key_list.append(len(sample_variants[key]))
 
         # Extract the list of unused ext labels
-        # TODO potentially not treating external and internal sample IDs correctly.
         unused_ext_labels = [
             {
                 'sample': sample_id,
@@ -213,7 +206,7 @@ class HTMLBuilder:
             if category_count[key]
         ]
 
-        df = pd.DataFrame(summary_dicts)
+        df: pd.DataFrame = pd.DataFrame(summary_dicts)
         df['Mean/sample'] = df['Mean/sample'].round(3)
 
         # the table re-sorts when parsed into the DataTable
@@ -250,13 +243,14 @@ class HTMLBuilder:
 
         return tables
 
-    def write_html(self, output_filepath: str):
+    def write_html(self, output_filepath: str, latest: bool = False):
         """
         Uses the results to create the HTML tables
         writes all content to the output path
 
         Args:
             output_filepath ():
+            latest (bool):
         """
 
         (
@@ -264,6 +258,8 @@ class HTMLBuilder:
             zero_categorised_samples,
             unused_ext_labels,
         ) = self.get_summary_stats()
+
+        report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
 
         template_context = {
             'metadata': self.metadata,
@@ -275,6 +271,7 @@ class HTMLBuilder:
             'zero_categorised_samples': [],
             'unused_ext_labels': unused_ext_labels,
             'summary_table': None,
+            'report_title': report_title,
         }
 
         for title, meta_table in self.read_metadata().items():
@@ -311,6 +308,27 @@ class HTMLBuilder:
         )
 
 
+def _ext_var_labels_from_variant_dict(variant_dict: dict, ext_labels: dict) -> list:
+    """
+    Returns a list of external labels specific to the variant (for this sample)
+
+    Args:
+        variant_dict ():
+        ext_labels ():
+
+    Returns:
+
+    """
+
+    var_string = (
+        f"{variant_dict['var_data']['coords']['chrom']}-"
+        f"{variant_dict['var_data']['coords']['pos']}-"
+        f"{variant_dict['var_data']['coords']['ref']}-"
+        f"{variant_dict['var_data']['coords']['alt']}"
+    )
+    return ext_labels.get(var_string, [])
+
+
 class Sample:
     """
     Sample related logic
@@ -340,34 +358,12 @@ class Sample:
             Variant(
                 variant_dict,
                 self,
-                self._ext_var_labels_from_variant_dict(variant_dict, ext_labels),
+                _ext_var_labels_from_variant_dict(variant_dict, ext_labels),
                 html_builder.panelapp['genes'],
             )
             for variant_dict in variants
             if not variant_in_forbidden_gene(variant_dict, html_builder.forbidden_genes)
         ]
-
-    def _ext_var_labels_from_variant_dict(
-        self, variant_dict: dict, ext_labels: dict
-    ) -> list:
-        """
-        Returns a list of external labels specific to the variant (for this sample)
-
-        Args:
-            variant_dict ():
-            ext_labels ():
-
-        Returns:
-
-        """
-
-        var_string = (
-            f"{variant_dict['var_data']['coords']['chrom']}-"
-            f"{variant_dict['var_data']['coords']['pos']}-"
-            f"{variant_dict['var_data']['coords']['ref']}-"
-            f"{variant_dict['var_data']['coords']['alt']}"
-        )
-        return ext_labels.get(var_string, [])
 
     def __str__(self):
         return self.name
@@ -465,6 +461,56 @@ class Variant:
         return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
+def check_date_filter(results: str, filter_date: str | None = None) -> dict | None:
+    """
+    Check if there's a date filter in the config
+    if there is, load the results JSON and filter out variants
+
+    Args:
+        results (str): path to the results file
+        filter_date (str | None): path to the results file
+
+    Returns:
+
+    """
+
+    # Load the results JSON
+    results_dict = read_json_from_path(results)
+
+    # pick up the current date from datetime or config
+    if filter_date is None:
+        filter_date = results_dict['metadata']['run_datetime']
+
+    filtered_results = {
+        'metadata': results_dict['metadata'],
+        'results': defaultdict(dict),
+    }
+
+    # Filter out variants based on date
+    for sample, content in results_dict['results'].items():
+        # keep only this run's new variants
+        keep_variants = [
+            variant
+            for variant in content['variants']
+            if variant['first_seen'] == filter_date
+        ]
+
+        # if no variants to keep, don't add anything
+        if keep_variants:
+            filtered_results['results'][sample] = {
+                'metadata': content['metadata'],
+                'variants': keep_variants,
+            }
+
+    # check if there's anything to return
+    if filtered_results['results']:
+        logging.info(f'Filtered results obtained for {filter_date}')
+        return filtered_results
+
+    logging.info(f'No filtered results obtained for {filter_date}')
+    return None
+
+
 if __name__ == '__main__':
     logging.basicConfig(
         level=logging.INFO,
@@ -479,10 +525,23 @@ if __name__ == '__main__':
     parser.add_argument('--results', help='Path to analysis results', required=True)
     parser.add_argument('--pedigree', help='PED file', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
-    parser.add_argument('--output', help='final HTML filename', required=True)
+    parser.add_argument('--output', help='Final HTML filename', required=True)
+    parser.add_argument('--latest', help='Optional second report, latest variants only')
     args = parser.parse_args()
 
+    # build the HTML using all results
     html = HTMLBuilder(
         results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
     )
     html.write_html(output_filepath=args.output)
+
+    # If the latest arg is used, filter the results
+    # write the HTML if any results remain
+    if args.latest and (
+        filtered_result_dict := check_date_filter(results=args.results)
+    ):
+        # build the HTML for latest reports only
+        latest_html = HTMLBuilder(
+            results=filtered_result_dict, panelapp=args.panelapp, pedigree=args.pedigree
+        )
+        latest_html.write_html(output_filepath=args.latest, latest=True)

@@ -20,7 +20,7 @@
 
   <body>
     <nav class="navbar navbar-dark bg-dark justify-content-start">
-      <a class="navbar-brand p-3" href="#"> AIP report</a>
+      <a class="navbar-brand p-3" href="#"> {{ report_title|default("AIP Report") }}</a>
       <span class="navbar-text">
         {{ metadata.cohort}} | {{ metadata.run_datetime }}
       </span>
