@@ -548,12 +548,13 @@ def main(
     all_decisions = sort_decisions(all_decisions)
 
     # if there's no defined config, write a local file
+    date_string = (
+        date.strftime('%Y-%m-%d') if date else datetime.now().strftime('%Y-%m-%d')
+    )
     try:
-        temp_output = output_path(
-            f'{date.strftime("%Y-%m-%d")}_clinvar_table.json', category='tmp'
-        )
+        temp_output = output_path(f'{date_string}_clinvar_table.json', category='tmp')
     except (ConfigError, KeyError):
-        temp_output = f'{date.strftime("%Y-%m-%d")}_clinvar_table.json'
+        temp_output = f'{date_string}_clinvar_table.json'
 
     logging.info(f'temp JSON location: {temp_output}')
 
