@@ -182,7 +182,7 @@ def main(date: str | None = None, folder: str | None = None):
 
     dependency = None
 
-    # generate a new round of clinva decisions
+    # generate a new round of clinvar decisions
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
         dependency = generate_clinvar_table(clinvar_table_path, folder, snv_vcf, date)
 
