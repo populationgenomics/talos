@@ -17,7 +17,6 @@ from cpg_utils.hail_batch import (
     image_path,
     reference_path,
     command,
-    authenticate_cloud_credentials_in_job,
     query_command,
 )
 from cpg_workflows.resources import STANDARD
@@ -225,7 +224,6 @@ def add_vep_jobs(
         vep_one_job = vep_one(
             b,
             vcf=input_vcf_parts[idx]['vcf.gz'],
-            out_format='json',
             out_path=result_part_paths[idx],
             job_attrs=(job_attrs or {}) | {'part': f'{idx + 1}/{scatter_count}'},
         )
@@ -275,11 +273,7 @@ def gather_vep_json_to_ht(
 
 
 def vep_one(
-    b: Batch,
-    vcf: Path | hb.ResourceFile,
-    out_path: Path | None = None,
-    out_format: Literal['vcf', 'json'] = 'vcf',
-    job_attrs: dict | None = None,
+    b: Batch, out_path: Path, vcf: Path | hb.ResourceFile, job_attrs: dict | None = None
 ) -> Job | None:
     """
     Run a single VEP job.
@@ -289,7 +283,9 @@ def vep_one(
 
     j = b.new_job('VEP', (job_attrs or {}) | {'tool': 'vep'})
     j.image(image_path('vep'))
-    STANDARD.set_resources(j, storage_gb=50, mem_gb=50, ncpu=16)
+
+    # huge resource reduction
+    STANDARD.set_resources(j, storage_gb=50, mem_gb=16, ncpu=4)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
@@ -300,28 +296,19 @@ def vep_one(
     j.cloudfuse(vep_mount_path.drive, str(data_mount), read_only=True)
     vep_dir = data_mount / '/'.join(vep_mount_path.parts[2:])
 
-    authenticate_cloud_credentials_in_job(j)
-    cmd = f"""\
-    FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
-
-    vep \\
-    --format vcf \\
-    --{out_format} \\
-    -o {j.output} \\
-    -i {vcf} \\
-    --minimal \\
-    --cache --offline --assembly GRCh38 \\
-    --dir_cache {vep_dir}/vep/ \\
-    --fasta $FASTA \\
-    """
-
+    # run forked as we're not using plugins
     j.command(
         command(
-            cmd,
-            setup_gcp=True,
+            f"""\
+                FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
+                vep --format vcf --json -o {j.output} -i {vcf} \\
+                --fork 4 \\
+                --minimal --cache --offline --assembly GRCh38 \\
+                --dir_cache {vep_dir}/vep/ --fasta $FASTA
+                """,
             monitor_space=True,
         )
     )
-    if out_path:
-        b.write_output(j.output, str(out_path).replace('.vcf.gz', ''))
+
+    b.write_output(j.output, str(out_path))
     return j
