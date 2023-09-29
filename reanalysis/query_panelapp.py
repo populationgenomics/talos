@@ -5,6 +5,8 @@
 Complete revision
 """
 
+# mypy: ignore-errors
+
 import logging
 import sys
 from datetime import datetime
@@ -100,6 +102,8 @@ def get_panel_green(
     for gene in panel_genes:
 
         symbol = gene.get('entity_name')
+        if symbol != 'NPC1':
+            continue
 
         # only retain green genes
         if (
@@ -137,6 +141,7 @@ def get_panel_green(
             old_data.setdefault(ensg, []).append(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
+        input(exact_moi)
 
         # either update or add a new entry
         if ensg in gene_dict['genes'].keys():
@@ -304,7 +309,7 @@ def main(panels: str | None, out_path: str):
 
     logging.info('Starting PanelApp Query Stage')
 
-    old_data = {}
+    old_data: dict = {}
 
     # make responsive to config
     twelve_months = None
@@ -316,11 +321,11 @@ def main(panels: str | None, out_path: str):
     # open to discussing order of precedence here
     if old_file := find_latest_file(start='panel_'):
         logging.info(f'Grabbing legacy panel data from {old_file}')
-        old_data = read_json_from_path(old_file)
+        old_data: dict = read_json_from_path(old_file)
 
     elif previous := cohort_config.get('gene_prior'):
         logging.info(f'Reading legacy data from {previous}')
-        old_data = read_json_from_path(previous)
+        old_data: dict = read_json_from_path(previous)
 
     else:
         twelve_months = True

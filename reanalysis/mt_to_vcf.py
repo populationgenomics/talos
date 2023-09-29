@@ -24,17 +24,18 @@ from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
 
 
-def main(mt: str, write_path: str):
+def main(mt_path: str, write_path: str):
     """
     takes an input MT, and reads it out as a VCF
     inserted new conditions to minimise the data produced
-    :param mt:
-    :param write_path:
-    :return:
+
+    Args:
+        mt_path ():
+        write_path ():
     """
     init_batch()
 
-    mt = hl.read_matrix_table(mt)
+    mt = hl.read_matrix_table(mt_path)
 
     # this temp file needs to be in GCP, not local
     # otherwise the batch that generates the file won't be able to read
@@ -72,4 +73,4 @@ if __name__ == '__main__':
     parser.add_argument('--input', type=str, help='input MatrixTable path')
     parser.add_argument('--output', type=str, help='path to write VCF out to')
     args = parser.parse_args()
-    main(mt=args.input, write_path=args.output)
+    main(mt_path=args.input, write_path=args.output)

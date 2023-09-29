@@ -11,8 +11,6 @@ Read, filter, annotate, classify, and write Genetic data
 - write as VCF
 """
 
-# pylint: disable=too-many-lines
-
 
 import os
 import logging
@@ -133,7 +131,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # use default annotations
     else:
-        logging.info(f'no private annotations, using default contents')
+        logging.info('no private annotations, using default contents')
 
         # do this annotation first, as hail can't string filter against
         # missing contents
@@ -1029,14 +1027,14 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(mt_path: str, panelapp: str, pedigree: str, vcf_out: str):
+def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
 
     Args:
         mt_path (str): where to find vcf output
-        panelapp ():
+        panelapp_path ():
         pedigree ():
         vcf_out (str): where to write VCF out
     """
@@ -1054,8 +1052,8 @@ def main(mt_path: str, panelapp: str, pedigree: str, vcf_out: str):
     checkpoint_root = output_path('hail_matrix.mt', 'tmp')
 
     # read the parsed panelapp data
-    logging.info(f'Reading PanelApp data from {panelapp!r}')
-    panelapp = read_json_from_path(panelapp)['genes']
+    logging.info(f'Reading PanelApp data from {panelapp_path!r}')
+    panelapp = read_json_from_path(panelapp_path)['genes']  # type: ignore
 
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
@@ -1071,7 +1069,9 @@ def main(mt_path: str, panelapp: str, pedigree: str, vcf_out: str):
     # lookups for required fields all delegated to the hail_audit file
     if not (
         fields_audit(
-            mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED
+            mt=mt,
+            base_fields=BASE_FIELDS_REQUIRED,  # type: ignore
+            nested_fields=FIELDS_REQUIRED,
         )
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
@@ -1180,7 +1180,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         mt_path=args.mt,
-        panelapp=args.panelapp,
+        panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         vcf_out=args.vcf_out,
     )

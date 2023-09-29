@@ -31,7 +31,7 @@ class PicoReport:
     var_data: PicoVariant
     reasons: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
-    panels: dict[str] = field(default_factory=dict)
+    panels: dict[str, dict] = field(default_factory=dict)
     independent: bool = False
 
     def __lt__(self, other):

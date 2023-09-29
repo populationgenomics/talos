@@ -202,7 +202,7 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {output} '
+        f'--out_json_path {output} '
         f'--input_path {input_path} '
         f'{gene_filter_files}'
     )
@@ -450,7 +450,7 @@ def main(
                     job.depends_on(prior_job)
             prior_job = vep_jobs[-1]
 
-        j = get_batch().new_job(f'annotate cohort')
+        j = get_batch().new_job('annotate cohort')
         j.image(get_config()['workflow']['driver_image'])
         j.command(
             query_command(

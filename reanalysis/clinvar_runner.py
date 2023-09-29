@@ -147,7 +147,7 @@ def main(date: str | None = None, folder: str | None = None):
     """
 
     if folder is None:
-        folder = to_path(
+        cloud_folder = to_path(
             join(
                 get_config()['storage']['common']['analysis'],
                 'aip_clinvar',
@@ -156,13 +156,16 @@ def main(date: str | None = None, folder: str | None = None):
         )
 
     elif isinstance(folder, str):
-        folder = to_path(folder)
+        cloud_folder = to_path(folder)
+
+    else:
+        raise ValueError('folder must be a string or None')
 
     # clinvar VCF, decisions, annotated VCF, and PM5
-    snv_vcf = folder / 'pathogenic_snv.vcf.bgz'
-    clinvar_table_path = folder / 'clinvar_decisions.ht'
-    clinvar_pm5_path = folder / 'clinvar_pm5.ht'
-    annotated_clinvar = folder / 'annotated_clinvar.mt'
+    snv_vcf = cloud_folder / 'pathogenic_snv.vcf.bgz'
+    clinvar_table_path = cloud_folder / 'clinvar_decisions.ht'
+    clinvar_pm5_path = cloud_folder / 'clinvar_pm5.ht'
+    annotated_clinvar = cloud_folder / 'annotated_clinvar.mt'
 
     # check if we can just quit already
     if all(

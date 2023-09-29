@@ -34,19 +34,19 @@ def coord_to_string(coord: dict) -> str:
     return f"{coord['chrom']}-{coord['pos']}-{coord['ref']}-{coord['alt']}"
 
 
-def main(input_file: str, output: str, config: str):
+def main(input_file: str, output: str, config_file: str):
     """
     reads in the input file, shrinks it, and writes the output file
 
     Args:
         input_file (str):
         output (str):
-        config (str):
+        config_file (str):
 
     Returns:
 
     """
-    with open(config, encoding='utf-8') as f:
+    with open(config_file, encoding='utf-8') as f:
         config = toml.load(f)
 
     with open(input_file, encoding='utf-8') as f:
@@ -60,7 +60,9 @@ def main(input_file: str, output: str, config: str):
     for individual, details in data['results'].items():
         for variant in details['variants']:
             var_data = variant['var_data']
-            lil_data['results'][individual][coord_to_string(var_data['coords'])] = {
+            lil_data['results'][individual][  # type: ignore
+                coord_to_string(var_data['coords'])
+            ] = {  # type: ignore
                 'categories': var_data['categories'],
                 # 'labels': variant['labels'],
                 'support_vars': variant['support_vars'],
@@ -78,4 +80,8 @@ if __name__ == '__main__':
     parser.add_argument('config_file', help='the config file to use')
     args = parser.parse_args()
 
-    main(input_file=args.input_file, output=args.output_file, config=args.config_file)
+    main(
+        input_file=args.input_file,
+        output=args.output_file,
+        config_file=args.config_file,
+    )

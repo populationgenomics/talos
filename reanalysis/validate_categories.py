@@ -18,7 +18,7 @@ import json
 import logging
 import sys
 from collections import defaultdict
-from typing import Union
+from datetime import datetime
 
 import click
 from cyvcf2 import VCFReader
@@ -98,7 +98,7 @@ def set_up_moi_filters(
 def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
-    panelapp_data: dict[str, dict[str, Union[str, bool]]],
+    panelapp_data: dict[str, dict[str, str | bool]],
     pedigree: Ped,
 ) -> list[ReportedVariant]:
     """
@@ -467,7 +467,7 @@ def main(
         participant_panels (str): json of panels per participant
     """
 
-    out_json = to_path(out_json)
+    out_json_path = to_path(out_json)
 
     # parse the pedigree from the file
     pedigree_digest = Ped(pedigree)
@@ -483,10 +483,10 @@ def main(
     # open the VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
 
-    participant_panels = read_json_from_path(participant_panels)
+    pheno_panels = read_json_from_path(participant_panels)
 
     # create the new gene map
-    new_gene_map = get_new_gene_map(panelapp_data, participant_panels)
+    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels)
 
     result_list = []
 
@@ -513,7 +513,7 @@ def main(
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
-        panel_data=participant_panels,
+        panel_data=pheno_panels,
         panelapp=panelapp_data,
     )
 
@@ -522,7 +522,7 @@ def main(
         results_holder=results_shell,
         result_list=result_list,
         panelapp_data=panelapp_data,
-        participant_panels=participant_panels,
+        participant_panels=pheno_panels,
     )
 
     # annotate previously seen results using cumulative data file(s)
@@ -547,7 +547,7 @@ def main(
     }
 
     # store results using the custom-encoder to transform sets & DataClasses
-    with out_json.open('w') as fh:
+    with out_json_path.open('w') as fh:
         json.dump(final_results, fh, cls=CustomEncoder, indent=4)
 
 

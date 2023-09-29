@@ -25,7 +25,7 @@ hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
 
 # pylint: disable=wrong-import-position
-from reanalysis.utils import AbstractVariant, read_json_from_path
+from reanalysis.utils import AbstractVariant, read_json_from_path  # noqa: E402
 
 LABELLED = INPUT / '1_labelled_variant.vcf.bgz'
 AIP_OUTPUT = INPUT / 'aip_output_example.json'

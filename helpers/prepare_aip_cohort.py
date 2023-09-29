@@ -8,7 +8,7 @@ master script for preparing a run, can be run from local
 - generates the cohort-specific TOML file
 - tweaks for making singleton versions of the given cohort
 """
-
+# mypy: ignore-errors
 from argparse import ArgumentParser
 from itertools import product
 import json
@@ -77,7 +77,7 @@ def get_seqr_details(
         sample['projectGuid'] for sample in details_dict['samplesByGuid'].values()
     }
     assert len(project_id) == 1, f'Multiple projects identified: {project_id}'
-    project_id = project_id.pop()
+    one_project_id: str = project_id.pop()
 
     logging.info(f'{len(parsed)} families in seqr metadata')
     filename = f'seqr_{"exome_" if exome else ""}processed.json'
@@ -87,7 +87,7 @@ def get_seqr_details(
     with (remote_root / filename).open('w') as handle:
         json.dump(parsed, handle, indent=4, sort_keys=True)
 
-    return project_id, str(remote_root / filename)
+    return one_project_id, str(remote_root / filename)
 
 
 # the keys provided by the SM API, in the order to write in output

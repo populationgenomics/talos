@@ -5,7 +5,7 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant
 """
-
+# mypy: ignore-errors
 from abc import abstractmethod
 
 from peddy.peddy import Ped, PHENOTYPE

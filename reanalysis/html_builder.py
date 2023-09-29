@@ -2,8 +2,6 @@
 Methods for taking the final output and generating static report content
 """
 
-# pylint: disable=too-many-instance-attributes
-
 import logging
 import sys
 from argparse import ArgumentParser
@@ -63,14 +61,14 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str | dict, panelapp: str, pedigree: Ped):
+    def __init__(self, results: str | dict, panelapp_path: str, pedigree: Ped):
         """
         Args:
             results (str | dict): path to the results JSON, or the results dict
-            panelapp (str): path to the PanelApp JSON
+            panelapp_path (str): where to read panelapp data from
             pedigree (str): path to the PED file
         """
-        self.panelapp = read_json_from_path(panelapp)
+        self.panelapp = read_json_from_path(panelapp_path)
         self.pedigree = Ped(pedigree)
 
         # If it exists, read the forbidden genes as a set
@@ -540,7 +538,7 @@ if __name__ == '__main__':
 
     # build the HTML using all results
     html = HTMLBuilder(
-        results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
+        results=args.results, panelapp_path=args.panelapp, pedigree=args.pedigree
     )
     html.write_html(output_filepath=args.output)
 
@@ -551,6 +549,6 @@ if __name__ == '__main__':
     ):
         # build the HTML for latest reports only
         latest_html = HTMLBuilder(
-            results=filtered_result_dict, panelapp=args.panelapp, pedigree=args.pedigree
+            results=filtered_result_dict, panelapp_path=args.panelapp, pedigree=args.pedigree
         )
         latest_html.write_html(output_filepath=args.latest, latest=True)

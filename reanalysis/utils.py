@@ -307,7 +307,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
         samples ():
         var ():
     """
-    phased_dict = defaultdict(dict)
+    phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
 
     # first set the numpy.ndarray to be a list of ints
     # then zip against ordered sample IDs
@@ -438,7 +438,7 @@ class AbstractVariant:
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
         self.depths = dict(zip(samples, map(float, var.gt_depths)))
-        self.categories = []
+        self.categories: list = []
 
     def organise_pm5(self):
         """
@@ -713,7 +713,7 @@ class ReportedVariant:
     genotypes: dict[str, str]
     support_vars: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
-    panels: dict[str] = field(default_factory=dict)
+    panels: dict[str, str] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
@@ -785,9 +785,10 @@ def gather_gene_dict_from_contig(
         }
     """
 
-    blacklist = []
     if 'blacklist' in get_config()['filter'].keys():
         blacklist = read_json_from_path(get_config()['filter']['blacklist'])
+    else:
+        blacklist = []
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
@@ -825,7 +826,9 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> Any:
+def read_json_from_path(
+    bucket_path: str | Path | None, default: Any = None
+) -> dict | list | None:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -844,9 +847,10 @@ def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> 
     if isinstance(bucket_path, str):
         bucket_path = to_path(bucket_path)
 
-    if bucket_path.exists():
-        with bucket_path.open() as handle:
-            return json.load(handle)
+    if isinstance(bucket_path, Path):
+        if bucket_path.exists():
+            with bucket_path.open() as handle:
+                return json.load(handle)
     return default
 
 
@@ -869,7 +873,7 @@ def write_output_json(output_path: str, object_to_write: dict):
         json.dump(object_to_write, fh, indent=4, default=list)
 
 
-def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
+def get_simple_moi(input_moi: str | None, chrom: str) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a
     range of cases which can be easily implemented in RD analysis
@@ -907,6 +911,7 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
             return 'Hemi_Mono_In_Female'
         case _:
             return default
+    return default
 
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
@@ -1003,7 +1008,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     """
 
     # create an empty dictionary
-    comp_het_results = defaultdict(dict)
+    comp_het_results: CompHetDict = defaultdict(dict)  # type: ignore
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
@@ -1074,13 +1079,13 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
     # in 1000 years this might cause a problem :/ \s
-    latest_results = find_latest_file(start=prefix or '2')
+    latest_results_path = find_latest_file(start=prefix or '2')
 
-    logging.info(f'latest results: {latest_results}')
+    logging.info(f'latest results: {latest_results_path}')
 
-    results, cumulative = date_annotate_results(
-        results, read_json_from_path(latest_results)
-    )
+    latest_results: dict = read_json_from_path(latest_results_path)  # type: ignore
+
+    results, cumulative = date_annotate_results(results, latest_results)
     save_new_historic(results=cumulative, prefix=prefix)
 
     return results
@@ -1180,7 +1185,7 @@ def date_annotate_results(
             historic['results'][sample] = {}
 
         # check each variant found in this round
-        for var in content['variants']:
+        for var in content['variants']:  # type: ignore
             var_id = var.var_data.coords.string_format
             current_cats = set(var.var_data.categories)
 

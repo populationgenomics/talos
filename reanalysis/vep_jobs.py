@@ -146,8 +146,9 @@ def scatter_intervals(
     """
     for idx in range(scatter_count):
         name = f'temp_{str(idx + 1).zfill(4)}_of_{scatter_count}'
+        ilist = j[f'{idx + 1}.interval_list']
         cmd += f"""
-        ln $BATCH_TMPDIR/out/{name}/scattered.interval_list {j[f'{idx + 1}.interval_list']}
+        ln $BATCH_TMPDIR/out/{name}/scattered.interval_list {ilist}
         """
 
     j.command(command(cmd))
@@ -257,7 +258,7 @@ def gather_vep_json_to_ht(
     # pylint: disable=import-outside-toplevel
     from reanalysis import vep
 
-    j = b.new_job(f'VEP', job_attrs)
+    j = b.new_job('VEP', job_attrs)
     j.image(get_config()['workflow']['driver_image'])
     j.command(
         query_command(
@@ -293,52 +294,26 @@ def vep_one(
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
 
-    if out_format == 'vcf':
-        j.declare_resource_group(
-            output={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
-        )
-        assert isinstance(j.output, hb.ResourceGroup)
-        output = j.output['vcf.gz']
-    else:
-        assert isinstance(j.output, hb.ResourceFile)
-        output = j.output
-
     # gcsfuse works only with the root bucket, without prefix:
     vep_mount_path = reference_path('vep_mount')
     data_mount = to_path(f'/{vep_mount_path.drive}')
     j.cloudfuse(vep_mount_path.drive, str(data_mount), read_only=True)
     vep_dir = data_mount / '/'.join(vep_mount_path.parts[2:])
-    loftee_conf = {
-        'loftee_path': '$LOFTEE_PLUGIN_PATH',
-        'gerp_bigwig': f'{vep_dir}/gerp_conservation_scores.homo_sapiens.GRCh38.bw',
-        'human_ancestor_fa': f'{vep_dir}/human_ancestor.fa.gz',
-        'conservation_file': f'{vep_dir}/loftee.sql',
-    }
 
     authenticate_cloud_credentials_in_job(j)
     cmd = f"""\
-    ls {vep_dir}
-    ls {vep_dir}/vep
-
-    LOFTEE_PLUGIN_PATH=$MAMBA_ROOT_PREFIX/share/ensembl-vep
     FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
 
     vep \\
     --format vcf \\
-    --{out_format} {'--compress_output bgzip' if out_format == 'vcf' else ''} \\
-    -o {output} \\
+    --{out_format} \\
+    -o {j.output} \\
     -i {vcf} \\
-    --everything \\
-    --allele_number \\
     --minimal \\
     --cache --offline --assembly GRCh38 \\
     --dir_cache {vep_dir}/vep/ \\
-    --dir_plugins $LOFTEE_PLUGIN_PATH \\
     --fasta $FASTA \\
-    --plugin LoF,{','.join(f'{k}:{v}' for k, v in loftee_conf.items())}
     """
-    if out_format == 'vcf':
-        cmd += f'tabix -p vcf {output}'
 
     j.command(
         command(

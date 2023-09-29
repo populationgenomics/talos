@@ -25,6 +25,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Generator
 
 import hail as hl
 import pandas as pd
@@ -153,7 +154,7 @@ def get_allele_locus_map(summary_file: str) -> dict:
     return allele_dict
 
 
-def lines_from_gzip(filename: str) -> list[list[str]]:
+def lines_from_gzip(filename: str) -> Generator[list[str], None, None]:
     """
     generator for gzip reading, copies file locally before reading
 
@@ -307,7 +308,7 @@ def dict_list_to_ht(list_of_dicts: list) -> hl.Table:
 
 def get_all_decisions(
     submission_file: str, threshold_date: datetime | None, allele_ids: set
-) -> dict[str, list[Submission]]:
+) -> dict[int, list[Submission]]:
     """
     obtains all submissions per-allele which pass basic criteria
         - not a blacklisted submitter

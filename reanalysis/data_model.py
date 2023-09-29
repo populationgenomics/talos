@@ -165,7 +165,7 @@ class TXFields:
     biotype: str = field(default_factory=str)
     protein_start: int = field(default=1)
     protein_end: int = field(default=1)
-    sift_score: int = field(default=1.0)  # lowest possible score
+    sift_score: float = field(default=1.0)  # lowest possible score
     sift_prediction: str = field(default_factory=str)
     polyphen_prediction: str = field(default='neutral')
     polyphen_score: float = field(default=0.01)

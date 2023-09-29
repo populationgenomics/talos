@@ -141,7 +141,9 @@ def fields_audit(
     return len(problems) == 0
 
 
-def vep_audit(mt: hl.MatrixTable, expected_fields: list[tuple]) -> bool:
+def vep_audit(
+    mt: hl.MatrixTable, expected_fields: list[tuple[str, hl.Expression]]
+) -> bool:
     """
     check that the required VEP annotations are present
     True if the 'audit' passes (all required fields present)

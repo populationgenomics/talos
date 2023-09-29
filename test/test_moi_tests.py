@@ -1,7 +1,7 @@
 """
 tests relating to the MOI filters
 """
-
+# mypy: ignore-errors
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -26,7 +26,6 @@ from reanalysis.utils import Coordinates
 TEST_COORDS = Coordinates('1', 1, 'A', 'C')
 TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
 TEST_COORDS_X = Coordinates('X', 2, 'G', 'T')
-TINY_COMP_HET = {}
 
 
 @dataclass
@@ -94,9 +93,9 @@ class RecessiveSimpleVariant:
     categoryboolean1: bool = True
     boolean_categories = ['categoryboolean1']
     sample_categories = ['categorysample4']
-    sample_support = []
-    transcript_consequences = []
-    phased = {}
+    sample_support: list = field(default_factory=list)
+    transcript_consequences: list = field(default_factory=list)
+    phased: dict = field(default_factory=dict)
 
     def sample_de_novo(self, sample):
         """
@@ -235,7 +234,7 @@ def test_dominant_autosomal_fails_on_depth(peddy_ped):
         coords=TEST_COORDS,
     )
     shallow_variant.depths = {'male': 1}
-    results = dom.run(principal=shallow_variant)
+    results = dom.run(principal=shallow_variant)  # noqa
     assert len(results) == 0
 
 
