@@ -1031,7 +1031,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     return comp_het_results
 
 
-def filter_results(results: dict, singletons: bool) -> dict:
+def filter_results(results: dict, singletons: bool, solved: list[str]) -> dict:
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -1040,6 +1040,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
+        solved (list[str]): list of sample IDs which have been solved
 
     Returns: same results annotated with date-first-seen
     """
@@ -1047,8 +1048,10 @@ def filter_results(results: dict, singletons: bool) -> dict:
     historic_folder = get_config()['dataset_specific'].get('historic_results')
 
     if historic_folder is None:
-        logging.info('No historic data folder, no filtering')
-        # results, _cumulative = date_annotate_results(results)
+        logging.info('No historic data folder, only labelling solved cases')
+        for sample, content in results.items():
+            if sample in solved:
+                content['metadata']['solved'] = get_granular_date()
         return results
 
     logging.info('Attempting to filter current results against historic')
@@ -1064,7 +1067,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     logging.info(f'latest results: {latest_results}')
 
     results, cumulative = date_annotate_results(
-        results, read_json_from_path(latest_results)
+        results, read_json_from_path(latest_results), solved
     )
     save_new_historic(results=cumulative, prefix=prefix)
 
@@ -1127,7 +1130,9 @@ def find_latest_file(
 
 
 def date_annotate_results(
-    current: dict[str, dict | list[ReportedVariant]], historic: dict | None = None
+    current: dict[str, dict | list[ReportedVariant]],
+    historic: dict | None = None,
+    solved: list[str] | None = None,
 ) -> tuple[dict, dict]:
     """
     takes the current data, and annotates with previous dates if found
@@ -1137,28 +1142,50 @@ def date_annotate_results(
     Args:
         current (dict): results generated during this run
         historic (): optionally, historic data
+        solved (list[str]): list of sample IDs which have been solved
 
     Returns: date-annotated results and cumulative data
     """
+    # pylint: disable=too-many-branches
+
+    # immutable None to empty list
+    logging.info(f'New solved cases: {solved}')
 
     # if there's no historic data, make some
     if historic is None:
         historic = {
-            'metadata': {'categories': get_config()['categories']},
+            'metadata': {'categories': get_config()['categories'], 'solved': {}},
             'results': {},
         }
 
     # update to latest format
     elif 'results' not in historic.keys():
         historic = {
-            'metadata': {'categories': get_config()['categories']},
+            'metadata': {'categories': get_config()['categories'], 'solved': {}},
             'results': historic,
         }
+
+    # add in the new solved cases - only when they were in this dataset
+    for solved_case in solved or []:
+        if (
+            solved_case not in historic['metadata']['solved']
+            and solved_case in current.keys()
+        ):
+            historic['metadata']['solved'][solved_case] = get_granular_date()
+
+    # log all the cases we're binning off
+    logging.info(
+        f'Solved cases for removal: {", ".join(historic["metadata"]["solved"].keys())}'
+    )
 
     # update to latest category descriptions
     historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
 
     for sample, content in current.items():
+
+        # check if this case is solved - if so, annotate with solved date
+        if sample in historic['metadata']['solved']:
+            content['metadata']['solved'] = historic['metadata']['solved'][sample]
 
         # totally absent? start populating for this sample
         if sample not in historic['results']:

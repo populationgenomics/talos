@@ -17,10 +17,10 @@ participants relative to the MOI described in PanelApp
 import json
 import logging
 import sys
+from argparse import ArgumentParser
 from collections import defaultdict
 from typing import Union
 
-import click
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
@@ -46,10 +46,7 @@ AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
 
 
-def set_up_moi_filters(
-    panelapp_data: dict,
-    pedigree: Ped,
-) -> dict[str, MOIRunner]:
+def set_up_moi_filters(panelapp_data: dict, pedigree: Ped) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -76,7 +73,7 @@ def set_up_moi_filters(
         pedigree (Ped):
 
     Returns:
-        a list
+        a dictionary of MOI string: MOIRunner
     """
 
     moi_dictionary = {}
@@ -429,22 +426,14 @@ def prepare_results_shell(
     return sample_dict
 
 
-@click.command
-@click.option('--labelled_vcf', help='Category-labelled VCF')
-@click.option('--out_json', help='Prefix to write JSON results to')
-@click.option('--panelapp', help='Path to JSON file of PanelApp data')
-@click.option('--pedigree', help='Path to joint-call PED file')
-@click.option(
-    '--input_path', help='source data', default='Not supplied', show_default=True
-)
-@click.option('--participant_panels', help='panels per participant', default=None)
 def main(
-    labelled_vcf: str,
+    vcf: str,
     out_json: str,
     panelapp: str,
     pedigree: str,
     input_path: str,
-    participant_panels: str | None = None,
+    panel_file: str | None = None,
+    solved: list[str] = None,
 ):
     """
     VCFs used here should be small
@@ -454,12 +443,13 @@ def main(
     We expect approximately linear scaling with participants in the joint call
 
     Args:
-        labelled_vcf (str): VCF output from Hail Labelling stage
+        vcf (str): VCF output from Hail Labelling stage
         out_json (str): location to write output file
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
         input_path (str): VCF/MT used as input
-        participant_panels (str): json of panels per participant
+        panel_file (str): json of panels per participant
+        solved (list): list of solved case IDs
     """
 
     out_json = to_path(out_json)
@@ -476,12 +466,12 @@ def main(
     )
 
     # open the VCF using a cyvcf2 reader
-    vcf_opened = VCFReader(labelled_vcf)
+    vcf_opened = VCFReader(vcf)
 
-    participant_panels = read_json_from_path(participant_panels)
+    panel_data = read_json_from_path(panel_file)
 
     # create the new gene map
-    new_gene_map = get_new_gene_map(panelapp_data, participant_panels)
+    new_gene_map = get_new_gene_map(panelapp_data, panel_data)
 
     result_list = []
 
@@ -508,7 +498,7 @@ def main(
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
-        panel_data=participant_panels,
+        panel_data=panel_data,
         panelapp=panelapp_data,
     )
 
@@ -517,12 +507,12 @@ def main(
         results_holder=results_shell,
         result_list=result_list,
         panelapp_data=panelapp_data,
-        participant_panels=participant_panels,
+        participant_panels=panel_file,
     )
 
     # annotate previously seen results using cumulative data file(s)
     analysis_results = filter_results(
-        analysis_results, singletons=bool('singleton' in pedigree)
+        analysis_results, singletons=bool('singleton' in pedigree), solved=solved
     )
 
     # create the full final output file
@@ -553,4 +543,24 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=no-value-for-parameter
+
+    parser = ArgumentParser('Validate categories')
+    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to')
+    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
+    parser.add_argument('--pedigree', help='Path to joint-call PED file')
+    parser.add_argument('--input_path', help='source data', default='Not supplied')
+    parser.add_argument(
+        '--participant_panels', help='panels per participant', default=None
+    )
+    parser.add_argument('--solved', help='Solved case IDs', nargs='+', default=[])
+    args = parser.parse_args()
+    main(
+        vcf=args.labelled_vcf,
+        out_json=args.out_json,
+        panelapp=args.panelapp,
+        pedigree=args.pedigree,
+        input_path=args.input_path,
+        panel_file=args.participant_panels,
+        solved=args.solved,
+    )

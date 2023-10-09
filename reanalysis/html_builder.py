@@ -125,7 +125,13 @@ class HTMLBuilder:
 
         # Process samples and variants
         self.samples = []
+        self.solves = []
         for sample, content in results_dict['results'].items():
+            # remove solved cases
+            if solve_date := content['metadata'].get('solved'):
+                self.solves.append({'sample': sample, 'solve_date': solve_date})
+                continue
+
             self.samples.append(
                 Sample(
                     name=sample,
@@ -264,6 +270,7 @@ class HTMLBuilder:
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
+            'solved': self.solves,
             'seqr_url': get_config()['dataset_specific'].get('seqr_instance'),
             'seqr_project': get_config()['dataset_specific'].get('seqr_project'),
             'meta_tables': {},

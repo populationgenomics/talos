@@ -96,6 +96,21 @@
           {% endif %}
         </div>
 
+        <div>
+          <h3>Solved Cases</h3>
+          {% if solved %}
+            <ul>
+              {% for row in solved %}
+                <li>
+                    {{row["sample"}} - {{row["solve_date"]}}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>No Solved cases removed</p>
+          {% endif %}
+        </div>
+
         {# Run Metadata #}
         <div class="tab-pane fade" id="metadata-tab-pane" role="tabpanel" aria-labelledby="contact-tab" tabindex="0">
           <div>
