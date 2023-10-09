@@ -121,6 +121,7 @@ def test_results_shell(peddy_ped):
                 'phenotypes': ['Boneitis'],
                 'panel_ids': [1, 3],
                 'panel_names': ['lorem', 'etc'],
+                'solved': False,
             },
         },
         'female': {
@@ -144,6 +145,7 @@ def test_results_shell(peddy_ped):
                 'phenotypes': ['HPfemale'],
                 'panel_ids': [1, 2],
                 'panel_names': ['lorem', 'ipsum'],
+                'solved': True,
             },
         },
     }

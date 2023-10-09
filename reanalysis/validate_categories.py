@@ -390,6 +390,9 @@ def prepare_results_shell(
     # create an empty dict for all the samples
     sample_dict = {}
 
+    # find the solved cases in this project
+    solved_cases = get_config().get('dataset_specific', {}).get('solved_cases', [])
+
     ext_conf_path = get_config().get('dataset_specific', {}).get('external_lookup')
     external_map = read_json_from_path(ext_conf_path, default={})
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
@@ -423,6 +426,7 @@ def prepare_results_shell(
                     panel_meta[panel_id]
                     for panel_id in panel_data.get(sample, {}).get('panels', [])
                 ],
+                'solved': bool(sample in solved_cases or family in solved_cases),
             },
         }
 

@@ -4,6 +4,7 @@ seqr_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/parsed_seqr.json"
 external_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.json"
 seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
 seqr_project = "R0011_acute_care"
+solved_cases = ['female']
 
 [workflow]
 dataset = "cohort"
