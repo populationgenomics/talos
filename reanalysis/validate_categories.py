@@ -432,8 +432,8 @@ def main(
     panelapp: str,
     pedigree: str,
     input_path: str,
+    solved: list[str],
     panel_file: str | None = None,
-    solved: list[str] = None,
 ):
     """
     VCFs used here should be small
@@ -448,8 +448,8 @@ def main(
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
         input_path (str): VCF/MT used as input
-        panel_file (str): json of panels per participant
         solved (list): list of solved case IDs
+        panel_file (str): json of panels per participant
     """
 
     out_json = to_path(out_json)

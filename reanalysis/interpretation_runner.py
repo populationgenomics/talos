@@ -173,6 +173,7 @@ def handle_results_job(
     pedigree: str,
     input_path: str,
     output: str,
+    solved: list[str],
     prior_job: Job | None = None,
     participant_panels: str | None = None,
 ):
@@ -184,6 +185,7 @@ def handle_results_job(
         pedigree (str): path to the pedigree file
         input_path (str): path to the input file, logged in metadata
         output (str): path to JSON file to write
+        solved (list[str]): list of solved samples
         prior_job (Job): to depend on, or None
         participant_panels (str): Optional, path to pheno-matched panels
     """
@@ -195,6 +197,8 @@ def handle_results_job(
         f'--participant_panels {participant_panels} ' if participant_panels else ''
     )
 
+    solved_flag = f'--solved {" ".join(solved)}' if solved else ''
+
     results_command = (
         f'python3 {validate_categories.__file__} '
         f'--labelled_vcf {labelled_vcf} '
@@ -202,7 +206,7 @@ def handle_results_job(
         f'--pedigree {pedigree} '
         f'--out_json {output} '
         f'--input_path {input_path} '
-        f'{gene_filter_files}'
+        f'{gene_filter_files} {solved_flag}'
     )
     logging.info(f'Results command: {results_command}')
     results_job.command(results_command)
@@ -327,6 +331,7 @@ def handle_registration_jobs(
 def main(
     input_path: str,
     pedigree: str,
+    solved: list[str],
     participant_panels: str | None,
     singletons: bool = False,
     skip_annotation: bool = False,
@@ -337,6 +342,7 @@ def main(
     Args:
         input_path (str): path to the VCF/MT
         pedigree (str): family file for this analysis
+        solved (list[str]): list of solved samples (optional)
         participant_panels (str): file containing panels-per-family (optional)
         singletons (bool): run as Singletons (with appropriate output paths)
         skip_annotation (bool): if the input is annotated, don't re-run
@@ -498,6 +504,7 @@ def main(
         output=output_dict['results'],
         prior_job=prior_job,
         participant_panels=participant_panels,
+        solved=solved,
     )
     prior_job = handle_result_presentation_job(
         prior_job=prior_job,
@@ -566,6 +573,9 @@ if __name__ == '__main__':
         help='if set, annotation will not be repeated',
         action='store_true',
     )
+    parser.add_argument(
+        '--solved', nargs='+', help='IDs to remove from analysis', default=[]
+    )
     args = parser.parse_args()
     main(
         input_path=args.i,
@@ -573,4 +583,5 @@ if __name__ == '__main__':
         participant_panels=args.participant_panels,
         skip_annotation=args.skip_annotation,
         singletons=args.singletons,
+        solved=args.solved,
     )
