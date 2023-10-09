@@ -56,11 +56,11 @@ def test_date_annotate_one():
     """
     checks we can add one entry to a None historic
     """
-    results = {'sample': {'variants': [GENERIC_REPORT]}}
+    results = {'sample': {'variants': [GENERIC_REPORT], 'metadata': {}}}
     new_results, cumulative = date_annotate_results(results)
     assert results == new_results
     assert cumulative == {
-        'metadata': {'categories': CATEGORY_META},
+        'metadata': {'categories': CATEGORY_META, 'solved': {}},
         'results': {
             'sample': {
                 COORD_1.string_format: {
@@ -105,7 +105,7 @@ def test_date_annotate_three():
     """
     if there's a new category, don't update dates
     """
-    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT_12)]}}
+    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT_12)], 'metadata': {}}}
     historic = {
         'sample': {
             COORD_1.string_format: {
@@ -118,7 +118,7 @@ def test_date_annotate_three():
     }
     new_results, cumulative = date_annotate_results(results, historic)
     assert cumulative == {
-        'metadata': {'categories': CATEGORY_META},
+        'metadata': {'categories': CATEGORY_META, 'solved': {}},
         'results': {
             'sample': {
                 COORD_1.string_format: {
@@ -137,7 +137,7 @@ def test_date_annotate_four():
     """
     if there's a new category, don't update dates
     """
-    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)]}}
+    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)], 'metadata': {}}}
     historic = {
         'sample': {
             COORD_1.string_format: {
@@ -150,7 +150,7 @@ def test_date_annotate_four():
     }
     new_results, historic = date_annotate_results(results, historic)
     assert historic == {
-        'metadata': {'categories': CATEGORY_META},
+        'metadata': {'categories': CATEGORY_META, 'solved': {}},
         'results': {
             'sample': {
                 COORD_1.string_format: {
@@ -174,7 +174,7 @@ def test_date_annotate_five():
         'sample2': {'variants': [deepcopy(GENERIC_REPORT_2)]},
     }
     historic = {
-        'metadata': {'categories': CATEGORY_META},
+        'metadata': {'categories': CATEGORY_META, 'solved': {}},
         'results': {
             'sample': {
                 COORD_1.string_format: {
@@ -188,7 +188,7 @@ def test_date_annotate_five():
     }
     results, historic = date_annotate_results(results, historic)
     assert historic == {
-        'metadata': {'categories': CATEGORY_META},
+        'metadata': {'categories': CATEGORY_META, 'solved': {}},
         'results': {
             'sample': {
                 COORD_1.string_format: {
@@ -223,6 +223,137 @@ def test_date_annotate_five():
                     first_seen=get_granular_date(),
                 )
             ]
+        },
+    }
+
+
+def test_date_annotate_solved():
+    """
+    if there's a new category, don't update dates
+    """
+    results = {
+        'sample': {'variants': [deepcopy(GENERIC_REPORT)], 'metadata': {}},
+        'sample2': {'variants': [deepcopy(GENERIC_REPORT_2)], 'metadata': {}},
+    }
+    historic = {
+        'metadata': {'categories': CATEGORY_META, 'solved': {'sample': '12-34-56'}},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'2': OLD_DATE},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample3': {},
+        },
+    }
+    results, historic = date_annotate_results(results, historic)
+    assert historic == {
+        'metadata': {'categories': CATEGORY_META, 'solved': {'sample': '12-34-56'}},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'1': get_granular_date(), '2': OLD_DATE},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample2': {
+                COORD_2.string_format: {
+                    'categories': {'2': get_granular_date()},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample3': {},
+        },
+    }
+    assert results == {
+        'sample': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['1'], coords=COORD_1),
+                    first_seen=get_granular_date(),
+                )
+            ],
+            'metadata': {'solved': '12-34-56'},
+        },
+        'sample2': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['2'], coords=COORD_2),
+                    first_seen=get_granular_date(),
+                )
+            ],
+            'metadata': {},
+        },
+    }
+
+
+def test_date_annotate_solved_2():
+    """
+    if there's a new category, don't update dates
+    """
+    results = {
+        'sample': {'variants': [deepcopy(GENERIC_REPORT)], 'metadata': {}},
+        'sample2': {'variants': [deepcopy(GENERIC_REPORT_2)], 'metadata': {}},
+    }
+    historic = {
+        'metadata': {'categories': CATEGORY_META, 'solved': {'sample': '12-34-56'}},
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'2': OLD_DATE},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample3': {},
+        },
+    }
+    results, historic = date_annotate_results(results, historic, solved=['sample2'])
+    assert historic == {
+        'metadata': {
+            'categories': CATEGORY_META,
+            'solved': {'sample': '12-34-56', 'sample2': get_granular_date()},
+        },
+        'results': {
+            'sample': {
+                COORD_1.string_format: {
+                    'categories': {'1': get_granular_date(), '2': OLD_DATE},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample2': {
+                COORD_2.string_format: {
+                    'categories': {'2': get_granular_date()},
+                    'support_vars': [],
+                    'independent': False,
+                }
+            },
+            'sample3': {},
+        },
+    }
+    assert results == {
+        'sample': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['1'], coords=COORD_1),
+                    first_seen=get_granular_date(),
+                )
+            ],
+            'metadata': {'solved': '12-34-56'},
+        },
+        'sample2': {
+            'variants': [
+                MiniReport(
+                    MiniVariant(categories=['2'], coords=COORD_2),
+                    first_seen=get_granular_date(),
+                )
+            ],
+            'metadata': {'solved': get_granular_date()},
         },
     }
 
