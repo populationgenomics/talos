@@ -125,7 +125,11 @@ class HTMLBuilder:
 
         # Process samples and variants
         self.samples = []
+        self.solved = []
         for sample, content in results_dict['results'].items():
+            if content['metadata'].get('solved', False):
+                self.solved.append(sample)
+                continue
             self.samples.append(
                 Sample(
                     name=sample,
@@ -272,6 +276,7 @@ class HTMLBuilder:
             'unused_ext_labels': unused_ext_labels,
             'summary_table': None,
             'report_title': report_title,
+            'solved': self.solved,
         }
 
         for title, meta_table in self.read_metadata().items():
