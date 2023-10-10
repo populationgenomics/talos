@@ -112,17 +112,18 @@ def main(latest: bool = False):
                 if 'latest' not in analysis['output']:
                     continue
                 date = analysis['output'].rstrip('.html').split('_')[-1]
-                cohort = f'{cohort}_{date}'
+                cohort_key = f'{cohort}_{date}'
             else:
                 if 'latest' in analysis['output']:
                     continue
+                cohort_key = cohort
 
             # pull the exome/singleton flags
             exome_output = analysis['meta'].get('is_exome', False)
             singleton_output = analysis['meta'].get('is_singleton', False)
             try:
                 # incorporate that into a key when gathering
-                all_cohorts[f'{cohort}_{exome_output}_{singleton_output}'] = Report(
+                all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                     dataset=cohort,
                     address=analysis['meta']['display_url'],
                     genome_or_exome='Exome' if exome_output else 'Genome',
