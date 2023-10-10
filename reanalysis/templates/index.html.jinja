@@ -77,37 +77,37 @@
               <p>All samples have reportable variants.</p>
             {% endif %}
           </div>
-        </div>
+          <div>
+              <h3>Unused external labels</h3>
+              {% if unused_ext_labels %}
+                <ul>
+                  {% for label in unused_ext_labels %}
+                    <li>
+                      <a href="{{seqr_url}}/variant_search/variant/{{label['variant']}}/family/{{label['sample_ext']}}" target="_blank">
+                          {{ label ['sample'] }} ({{ label['sample_ext'] }}) -- {{ label['variant'] }} {{ label['labels'] }}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p>All external labels displayed in variants table.</p>
+              {% endif %}
+          </div>
 
-        <div>
-          <h3>Unused external labels</h3>
-          {% if unused_ext_labels %}
-            <ul>
-              {% for label in unused_ext_labels %}
-                <li>
-                  <a href="{{seqr_url}}/variant_search/variant/{{label['variant']}}/family/{{label['sample_ext']}}" target="_blank">
-                      {{ label ['sample'] }} ({{ label['sample_ext'] }}) -- {{ label['variant'] }} {{ label['labels'] }}
-                  </a>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p>All external labels displayed in variants table.</p>
-          {% endif %}
-        </div>
-        <div>
-          <h3>Solved Cases</h3>
-          {% if solved %}
-            <ul>
-              {% for sample in solved %}
-                <li>
-                    {{sample}}
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p>No Solved cases removed</p>
-          {% endif %}
+          <div>
+              <h3>Solved Cases</h3>
+              {% if solved %}
+                <ul>
+                  {% for sample in solved %}
+                    <li>
+                        {{sample}}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p>No Solved cases removed</p>
+              {% endif %}
+          </div>
         </div>
 
         {# Run Metadata #}

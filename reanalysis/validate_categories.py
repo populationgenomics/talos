@@ -398,11 +398,13 @@ def prepare_results_shell(
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
 
     for sample in [
-        sam.sample_id
+        sam
         for sam in pedigree.samples()
         if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
     ]:
-        family = pedigree.families[pedigree[sample].family_id]
+        sample_id = sample.sample_id
+        family_id = sample.family_id
+        family = pedigree.families[family_id]
 
         family_members = {
             member.sample_id: {
@@ -414,19 +416,19 @@ def prepare_results_shell(
             }
             for member in family
         }
-        sample_dict[sample] = {
+        sample_dict[sample_id] = {
             'variants': [],
             'metadata': {
-                'ext_id': external_map.get(sample, sample),
-                'family_id': pedigree[sample].family_id,
+                'ext_id': external_map.get(sample_id, sample_id),
+                'family_id': pedigree[sample_id].family_id,
                 'members': family_members,
-                'phenotypes': panel_data.get(sample, {}).get('hpo_terms', []),
-                'panel_ids': panel_data.get(sample, {}).get('panels', []),
+                'phenotypes': panel_data.get(sample_id, {}).get('hpo_terms', []),
+                'panel_ids': panel_data.get(sample_id, {}).get('panels', []),
                 'panel_names': [
                     panel_meta[panel_id]
-                    for panel_id in panel_data.get(sample, {}).get('panels', [])
+                    for panel_id in panel_data.get(sample_id, {}).get('panels', [])
                 ],
-                'solved': bool(sample in solved_cases or family in solved_cases),
+                'solved': bool(sample_id in solved_cases or family_id in solved_cases),
             },
         }
 
