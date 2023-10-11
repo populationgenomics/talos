@@ -8,7 +8,7 @@ sequencing_type = 'genome'
 presentation = 'cpg'
 
 # where to register outputs, if at all
-register = 'metamist'
+status_reporter = 'metamist'
 
 ## override clinvar results
 #clinvar_decisions = "HailTable path to private ClinVar"

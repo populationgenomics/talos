@@ -511,7 +511,7 @@ def main(
     # endregion
 
     # region: register outputs in metamist if required
-    if registry := get_config()['workflow'].get('register'):
+    if registry := get_config()['workflow'].get('status_reporter'):
         logging.info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(
             files=sorted(output_dict.values()),
