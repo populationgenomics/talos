@@ -861,7 +861,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(mt: hl.MatrixTable):
+def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
     """
     write the remaining MatrixTable content to file as a VCF
 
@@ -870,8 +870,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
 
     Args:
         mt (): the whole MatrixTable
-    Returns:
-        path to write MT out to
+        vcf_out (): where to write the VCF
     """
 
     # this temp file needs to be in GCP, not local
@@ -886,9 +885,6 @@ def write_matrix_to_vcf(mt: hl.MatrixTable):
         handle.write(
             f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: {csq_contents}">'
         )
-
-    # create output path
-    vcf_out = output_path('hail_categorised.vcf.bgz', 'analysis')
     logging.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
 
@@ -1033,10 +1029,16 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(mt_path: str, panelapp: str, plink: str):
+def main(mt_path: str, panelapp: str, pedigree: str, vcf_out: str):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
+
+    Args:
+        mt_path (str): where to find vcf output
+        panelapp ():
+        pedigree ():
+        vcf_out (str): where to write VCF out
     """
 
     # initiate Hail with defined driver spec.
@@ -1077,7 +1079,7 @@ def main(mt_path: str, panelapp: str, plink: str):
         raise KeyError('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, pedigree=plink)
+    mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     logging.debug(
         f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}',
@@ -1136,7 +1138,7 @@ def main(mt_path: str, panelapp: str, plink: str):
 
     # ordering is important - category4 (de novo) makes
     # use of category 5, so it must follow
-    mt = annotate_category_4(mt=mt, plink_family_file=plink)
+    mt = annotate_category_4(mt=mt, plink_family_file=pedigree)
     mt = annotate_category_support(mt=mt)
 
     # if a clinvar-codon table is supplied, use that for PM5
@@ -1159,7 +1161,7 @@ def main(mt_path: str, panelapp: str, plink: str):
         )
     )
 
-    write_matrix_to_vcf(mt=mt)
+    write_matrix_to_vcf(mt=mt, vcf_out=vcf_out)
 
 
 if __name__ == '__main__':
@@ -1173,7 +1175,12 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--mt', required=True, help='path to input MT')
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
-    parser.add_argument('--plink', type=str, required=True, help='Cohort Pedigree')
-    parser.add_argument('--clinvar', default='absent', help='Custom Clinvar HT')
+    parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
+    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
     args = parser.parse_args()
-    main(mt_path=args.mt, panelapp=args.panelapp, plink=args.plink)
+    main(
+        mt_path=args.mt,
+        panelapp=args.panelapp,
+        pedigree=args.pedigree,
+        vcf_out=args.vcf_out,
+    )

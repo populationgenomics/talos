@@ -1,5 +1,5 @@
 """
-master script for preparing a run
+master script for preparing a run, can be run from local
 
 - takes a category; exomes or genomes
 - queries for & builds the pedigree
@@ -27,7 +27,6 @@ from metamist.graphql import gql, query
 from reanalysis.utils import read_json_from_path
 from helpers.hpo_panel_matching import (
     get_panels,
-    get_unique_hpo_terms,
     match_hpos_to_panels,
     query_and_parse_metadata,
 )
@@ -44,9 +43,7 @@ PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 PRE_PANEL_PATH = to_path(__file__).parent.parent / 'reanalysis' / 'pre_panelapp.json'
 
 
-def match_participants_to_panels(
-    participant_hpos: dict, hpo_panels: dict, participant_map: dict
-) -> dict:
+def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict):
     """
     take the two maps of Participants: HPOs, and HPO: Panels
     blend the two to find panels per participant
@@ -57,32 +54,14 @@ def match_participants_to_panels(
     Args:
         participant_hpos ():
         hpo_panels ():
-        participant_map ():
     """
 
-    final_dict = {}
-    for participant, party_data in participant_hpos.items():
-        for participant_key in participant_map.get(participant, [participant]):
-            final_dict[participant_key] = {
-                'panels': {137},  # always default to mendeliome
-                'external_id': participant,
-                **party_data,
-            }
-            for hpo_term in party_data['hpo_terms']:
-                if hpo_term in hpo_panels:
-                    final_dict[participant_key]['panels'].update(hpo_panels[hpo_term])
-
-    # now populate the missing samples?
-    for ext_id, int_ids in participant_map.items():
-        if ext_id not in participant_hpos:
-            for each_id in int_ids:
-                final_dict[each_id] = {
-                    'panels': {137},  # always default to mendeliome
-                    'external_id': ext_id,
-                    'hpo_terms': [],
-                }
-
-    return final_dict
+    for party_data in participant_hpos.values():
+        for hpo_term in party_data['hpo_terms']:
+            if hpo_term in hpo_panels:
+                party_data['panels'].update(hpo_panels[hpo_term])
+        party_data['panels'] = list(party_data['panels'])
+        party_data['hpo_terms'] = list(party_data['hpo_terms'])
 
 
 def get_seqr_details(
@@ -428,28 +407,24 @@ def main(
         logging.info(f'Wrote cohort config to {cohort_path}')
 
     # pull metadata from metamist/api content
-    participants_hpo = query_and_parse_metadata(dataset_name=project)
+    participants_hpo, all_hpo = query_and_parse_metadata(dataset=project)
 
     # mix & match the HPOs, panels, and participants
     # this will be a little complex to remove redundant searches
     # e.g. multiple participants & panels may have the same HPO terms
     # so only search once for each HPO term
     hpo_to_panels = match_hpos_to_panels(
-        hpo_to_panel_map=get_panels(),
-        obo_file=obo,
-        all_hpos=get_unique_hpo_terms(participants_hpo),
+        hpo_to_panel_map=get_panels(), obo_file=obo, all_hpos=all_hpo
     )
-    participant_panels = match_participants_to_panels(
-        participants_hpo, hpo_to_panels, participant_map=sample_to_cpg_dict
-    )
+    match_participants_to_panels(participants_hpo, hpo_to_panels)
     panel_local = local_root / 'participant_panels.json'
     with panel_local.open('w') as handle:
-        json.dump(participant_panels, handle, indent=4, default=list)
+        json.dump(participants_hpo, handle, indent=4, default=list)
         logging.info(f'Wrote panel file to {panel_local}')
 
     panel_remote = remote_root / 'participant_panels.json'
     with panel_remote.open('w') as handle:
-        json.dump(participant_panels, handle, indent=4, default=list)
+        json.dump(participants_hpo, handle, indent=4, default=list)
         logging.info(f'Wrote panel file to {panel_remote}')
 
     # finally, copy the pre-panelapp content if it didn't already exist

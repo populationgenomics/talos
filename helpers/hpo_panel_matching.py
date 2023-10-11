@@ -16,23 +16,21 @@ from collections import defaultdict
 import networkx
 from obonet import read_obo
 
-# TODO update to graphQL API once it works for Seqr metadata query
-# from metamist.graphql import gql, query
-from metamist.apis import SeqrApi
+from metamist.graphql import gql, query
 
 from cpg_utils import to_path
 
-from helpers.utils import ext_to_int_sample_map
 from reanalysis.utils import get_json_response
 
-MAX_DEPTH: int = 3
 
 PANELAPP_SERVER = 'https://sample-metadata.populationgenomics.org.au'
 TEMPLATE = (
     f'{PANELAPP_SERVER}/api/v1/participant/{{dataset}}/individual-metadata-seqr/json'
 )
 
+HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')
+MAX_DEPTH: int = 3
 PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 
 
@@ -52,19 +50,14 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
     while endpoint:
         endpoint_data = get_json_response(endpoint)
         for panel in endpoint_data['results']:
-
             # can be split over multiple strings
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
                 hpo_dict[match].add(int(panel['id']))
-
-        # cycle through additional pages
-        # why don't GEL make the panelapp API public...
         if endpoint_data['next']:
             endpoint = endpoint_data['next']
         else:
             break
-
     return dict(hpo_dict)
 
 
@@ -141,31 +134,53 @@ def match_hpo_terms(
     return selections
 
 
-def query_and_parse_metadata(dataset_name: str) -> dict:
+def query_and_parse_metadata(dataset: str) -> tuple[dict, set[str]]:
     """
-    takes seqr metadata and parses out the relevant HPO data
-
+    gql query, pull out family details and HPO terms
+    may be a little overloaded at the moment
     Args:
-        dataset_name (str): the project dataset key to use
+        dataset (str): dataset name
 
     Returns:
-        all project metadata, parsed into a dict
+        dict of per-participant details, and set of all HPO terms
     """
 
+    query_string = gql(
+        """
+        query MyQuery($project: String!) {
+            project(name: $project) {
+                sequencingGroups {
+                    sample {
+                        participant {
+                            phenotypes
+                            externalId
+                            families {
+                                externalId
+                            }
+                        }
+                    }
+                    id
+                }
+            }
+        }"""
+    )
+
+    result = query(query_string, variables={'project': dataset})
     hpo_dict = {}
-    seqr_api = SeqrApi()
-    participant_meta = seqr_api.get_individual_metadata_for_seqr(project=dataset_name)
-
-    for row in participant_meta['rows']:
-        # take the family ID and all HPO terms
-        hpo_string = row.get('hpo_terms_present')
-        hpo_list = hpo_string.split(',') if hpo_string else []
-        hpo_dict[row['individual_id']] = {
-            'family_id': row['family_id'],
-            'hpo_terms': hpo_list,
+    all_hpo: set[str] = set()
+    # pylint: disable=unsubscriptable-object
+    for sg in result['project']['sequencingGroups']:
+        hpos = set(
+            HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, ''))
+        )
+        all_hpo.update(hpos)
+        hpo_dict[sg['id']] = {
+            'hpo_terms': hpos,
+            'family_id': sg['sample']['participant']['families'][0]['externalId'],
+            'external_id': sg['sample']['participant']['externalId'],
+            'panels': {137},  # baseline panel is always mendeliome
         }
-
-    return hpo_dict
+    return hpo_dict, all_hpo
 
 
 def match_hpos_to_panels(
@@ -202,26 +217,7 @@ def match_hpos_to_panels(
     return hpo_to_panels
 
 
-def get_unique_hpo_terms(participants_hpo: dict) -> set:
-    """
-    get all the unique HPO terms across this cohort
-
-    Args:
-        participants_hpo ():
-
-    Returns:
-        set: all unique HPO terms
-    """
-
-    all_hpos = set()
-    for participant_dict in participants_hpo.values():
-        all_hpos.update(participant_dict['hpo_terms'])
-    return all_hpos
-
-
-def match_participants_to_panels(
-    participant_hpos: dict, hpo_panels: dict, participant_map: dict
-) -> dict:
+def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict):
     """
     take the two maps of Participants: HPOs, and HPO: Panels
     blend the two to find panels per participant
@@ -233,23 +229,11 @@ def match_participants_to_panels(
         participant_hpos ():
         hpo_panels ():
         participant_map ():
-
-    Returns:
-
     """
-    final_dict = {}
-    for participant, party_data in participant_hpos.items():
-        for participant_key in participant_map.get(participant, [participant]):
-            final_dict[participant_key] = {
-                'panels': {137},  # always default to mendeliome
-                'external_id': participant,
-                **party_data,
-            }
-            for hpo_term in party_data['hpo_terms']:
-                if hpo_term in hpo_panels:
-                    final_dict[participant_key]['panels'].update(hpo_panels[hpo_term])
-
-    return final_dict
+    for party_data in participant_hpos.values():
+        for hpo_term in party_data['hpo_terms']:
+            if hpo_term in hpo_panels:
+                party_data['panels'].update(hpo_panels[hpo_term])
 
 
 def main(dataset: str, output_path: str, obo: str):
@@ -267,25 +251,19 @@ def main(dataset: str, output_path: str, obo: str):
     panels_by_hpo = get_panels()
 
     # pull metadata from metamist/api content
-    participants_hpo = query_and_parse_metadata(dataset_name=dataset)
-
-    # obtain a lookup of Ext. ID to CPG ID
-    reverse_lookup = ext_to_int_sample_map(project=dataset)
+    participants_hpo, unique_hpos = query_and_parse_metadata(dataset=dataset)
 
     # mix & match the HPOs, panels, and participants
     # this will be a little complex to remove redundant searches
     # e.g. multiple participants & panels may have the same HPO terms
     # so only search once for each HPO term
-    unique_hpos = get_unique_hpo_terms(participants_hpo)
     hpo_to_panels = match_hpos_to_panels(
         hpo_to_panel_map=panels_by_hpo, obo_file=obo, all_hpos=unique_hpos
     )
-    participant_panels = match_participants_to_panels(
-        participants_hpo, hpo_to_panels, participant_map=reverse_lookup
-    )
+    match_participants_to_panels(participants_hpo, hpo_to_panels)
 
     with to_path(output_path).open('w') as handle:
-        json.dump(participant_panels, handle, indent=4, default=list)
+        json.dump(participants_hpo, handle, indent=4, default=list)
 
 
 if __name__ == '__main__':

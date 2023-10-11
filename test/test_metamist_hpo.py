@@ -8,7 +8,6 @@ import networkx
 
 from helpers.hpo_panel_matching import (
     match_hpos_to_panels,
-    get_unique_hpo_terms,
     match_participants_to_panels,
     get_panels,
     read_hpo_tree,
@@ -82,18 +81,6 @@ def test_match_hpo_terms(fake_obo_path):
     )
 
 
-def test_unique_hpo_terms():
-    """
-    check that finding all unique terms works
-    """
-    input_data = {
-        'party1': {'family_id': 'fam1', 'hpo_terms': {1, 2, 3, 4}},
-        'party2': {'family_id': 'fam2', 'hpo_terms': {1, 3, 5}},
-        'party3': {'family_id': 'fam3', 'hpo_terms': {5}},
-    }
-    assert get_unique_hpo_terms(participants_hpo=input_data) == {1, 2, 3, 4, 5}
-
-
 def test_match_hpos_to_panels(fake_obo_path):
     """
     test the hpo-to-panel matching
@@ -122,8 +109,18 @@ def test_match_participants_to_panels():
 
     """
     party_hpo = {
-        'participant1': {'family_id': 'fam1', 'hpo_terms': {'HP:1', 'HP:2'}},
-        'participant2': {'family_id': 'fam2', 'hpo_terms': {'HP:1', 'HP:6'}},
+        'luke_skywalker': {
+            'external_id': 'participant1',
+            'family_id': 'fam1',
+            'hpo_terms': {'HP:1', 'HP:2'},
+            'panels': {137},
+        },
+        'participant2': {
+            'external_id': 'participant2',
+            'family_id': 'fam2',
+            'hpo_terms': {'HP:1', 'HP:6'},
+            'panels': {137},
+        },
     }
     hpo_to_panels = {
         'HP:1': {'room', '101'},
@@ -131,13 +128,8 @@ def test_match_participants_to_panels():
         'HP:3': {'nothing', 'at', 'all'},
         'HP:6': {'666'},
     }
-    participant_map = {'participant1': ['luke_skywalker']}
-    results = match_participants_to_panels(
-        participant_hpos=party_hpo,
-        hpo_panels=hpo_to_panels,
-        participant_map=participant_map,
-    )
-    assert results == {
+    match_participants_to_panels(participant_hpos=party_hpo, hpo_panels=hpo_to_panels)
+    assert party_hpo == {
         'luke_skywalker': {
             'external_id': 'participant1',
             'family_id': 'fam1',
