@@ -321,7 +321,7 @@ def main(
     project: str,
     obo: str,
     seqr_file: str | None = None,
-    exome: bool = False,
+    exome_or_genome: str = 'genome',
     singletons: bool = False,
 ):
     """
@@ -331,7 +331,7 @@ def main(
         project (str): project to query for
         obo (str): path to an HPO graph file
         seqr_file (str):
-        exome ():
+        exome_or_genome (str): flag to switch exome/genome behaviour
         singletons ():
     """
 
@@ -365,46 +365,51 @@ def main(
 
     # store a way of reversing this lookup in future
     reverse_lookup = process_reverse_lookup(sample_to_cpg_dict, local_root, remote_root)
-
-    # try a more universal way of preparing output paths
     path_prefixes = []
-    if exome:
+    if exome_or_genome == 'exome':
         path_prefixes.append('exomes')
     if singletons:
         path_prefixes.append('singleton')
 
     logging.info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
 
-    cohort_config = {
-        'dataset_specific': {
-            'historic_results': str(
-                remote_root / '/'.join(path_prefixes + ['historic_results'])
-            ),
-            'external_lookup': reverse_lookup,
-        }
-    }
     if seqr_file:
         project_id, seqr_file = get_seqr_details(
-            seqr_file, local_root, remote_root, exome
+            seqr_file, local_root, remote_root, exome_or_genome == 'exome'
         )
-        cohort_config['dataset_specific'].update(
-            {
-                'seqr_instance': 'https://seqr.populationgenomics.org.au',
-                'seqr_project': project_id,
-                'seqr_lookup': seqr_file,
+        seqr_files = {
+            'seqr_instance': 'https://seqr.populationgenomics.org.au',
+            'seqr_project': project_id,
+            'seqr_lookup': seqr_file,
+        }
+    else:
+        seqr_files = {}
+
+    cohort_config = {
+        'cohorts': {
+            project: {
+                exome_or_genome: {
+                    'historic_results': str(
+                        remote_root / '/'.join(path_prefixes + ['historic_results'])
+                    ),
+                    'external_lookup': reverse_lookup,
+                }
+                | seqr_files
             }
-        )
+        },
+        'workflow': {'sequencing_type': exome_or_genome},
+    }
 
     ped_file = process_pedigree(
         ped_with_permutations, local_root, remote_root, singletons=singletons
     )
 
     path_prefixes.append('cohort_config.toml')
-    cohort_path = local_root / '_'.join(path_prefixes)
+    # cohort_path = local_root / '_'.join(path_prefixes)
 
-    with cohort_path.open('w') as handle:
+    with (local_root / '_'.join(path_prefixes)).open('w') as handle:
         toml.dump(cohort_config, handle)
-        logging.info(f'Wrote cohort config to {cohort_path}')
+        logging.info(f'Wrote cohort config to {local_root / "_".join(path_prefixes)}')
 
     # pull metadata from metamist/api content
     participants_hpo, all_hpo = query_and_parse_metadata(dataset=project)
@@ -454,10 +459,11 @@ if __name__ == '__main__':
         '--singletons', help='cohort as singletons', action='store_true'
     )
     args = parser.parse_args()
+    E_OR_G = 'exome' if args.e else 'genome'
     main(
         project=args.project,
         obo=args.obo,
         seqr_file=args.seqr,
-        exome=args.e,
+        exome_or_genome=E_OR_G,
         singletons=args.singletons,
     )

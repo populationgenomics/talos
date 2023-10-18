@@ -1,11 +1,14 @@
-[dataset_specific]
-description = "variables affecting how the final HTML report appears"
-seqr_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/parsed_seqr.json"
-external_lookup = "e.g. gs://cpg-acute-care-test/reanalysis/cpg_to_external_id.json"
-external_labels = "path to labels file"
-seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
-seqr_project = "e.g. R0011_acute_care"
+[workflow]
+dataset = "COHORT"
+
+[cohorts.COHORT]
+description = "variables specific to this cohort, but not specific to genome/exome"
 forbidden = "path to a list of forbidden genes"
 
-[workflow]
-dataset = "cohort"
+[cohorts.COHORT.genome]
+description = "variables specific to the genome/exome cohort"
+seqr_lookup = "e.g. gs://cpg-COHORT-test/reanalysis/parsed_seqr.json"
+external_lookup = "e.g. gs://cpg-COHORT-test/reanalysis/cpg_to_external_id.json"
+external_labels = "path to labels file"
+seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
+seqr_project = "e.g. COHORT_project_id"

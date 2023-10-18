@@ -391,9 +391,9 @@ def prepare_results_shell(
     sample_dict = {}
 
     # find the solved cases in this project
-    solved_cases = get_config().get('dataset_specific', {}).get('solved_cases', [])
+    solved_cases = get_cohort_config().get('solved_cases', [])
 
-    ext_conf_path = get_config().get('dataset_specific', {}).get('external_lookup')
+    ext_conf_path = get_cohort_config().get('external_lookup')
     external_map = read_json_from_path(ext_conf_path, default={})
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
 

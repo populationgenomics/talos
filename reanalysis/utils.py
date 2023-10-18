@@ -218,14 +218,29 @@ def get_cohort_config():
     return the cohort-specific portion of the config file, or fail
 
     Returns:
-        the dict of
+        the dict of cohort and genome/exome specific content
     """
 
     dataset = get_config()['workflow']['dataset']
-    assert (
-        dataset in get_config()['cohorts']
-    ), f'Dataset {dataset} is not represented in config'
-    return get_config()['cohorts'][dataset]
+    cohort_details = get_config().get('cohorts', {}).get(dataset)
+    assert cohort_details, f'{dataset} is not represented in config'
+    return cohort_details
+
+
+def get_cohort_seq_type_conf():
+    """
+    return the cohort-specific portion of the config file,
+    chased down to the exome/genome specific portion
+
+    Returns:
+        the dict of cohort and genome/exome specific content
+    """
+    cohort_conf = get_cohort_config()
+    dataset = get_config()['workflow']['dataset']
+    seq_type = get_config()['workflow']['sequencing_type']
+    cohort_details = cohort_conf.get(seq_type, {})
+    assert cohort_details, f'{dataset} - {seq_type} is not represented in config'
+    return cohort_details
 
 
 def get_new_gene_map(
@@ -1044,7 +1059,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     Returns: same results annotated with date-first-seen
     """
 
-    historic_folder = get_config()['dataset_specific'].get('historic_results')
+    historic_folder = get_cohort_seq_type_conf().get('historic_results')
 
     if historic_folder is None:
         logging.info('No historic data folder, no filtering')
@@ -1082,7 +1097,7 @@ def save_new_historic(results: dict, prefix: str = '', directory: str | None = N
     """
 
     if directory is None:
-        directory = get_config()['dataset_specific'].get('historic_results')
+        directory = get_cohort_seq_type_conf().get('historic_results')
         if directory is None:
             logging.info('No historic results directory, nothing written')
             return
@@ -1108,7 +1123,7 @@ def find_latest_file(
     """
 
     if results_folder is None:
-        results_folder = get_config()['dataset_specific'].get('historic_results')
+        results_folder = get_cohort_seq_type_conf().get('historic_results')
         if results_folder is None:
             logging.info('`historic_results` not present in config')
             return None

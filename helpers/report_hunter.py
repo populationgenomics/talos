@@ -123,6 +123,7 @@ def main(latest: bool = False):
             singleton_output = analysis['meta'].get('is_singleton', False)
             try:
                 # incorporate that into a key when gathering
+                # todo no display url
                 all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                     dataset=cohort,
                     address=analysis['meta']['display_url'],
