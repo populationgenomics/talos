@@ -7,7 +7,7 @@ import pytest
 from obonet import read_obo
 import networkx
 
-from helpers.hpo_panel_match import (
+from reanalysis.hpo_panel_match import (
     match_hpos_to_panels,
     match_participants_to_panels,
     get_panels,

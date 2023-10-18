@@ -21,7 +21,7 @@ from cpg_utils import to_path, Path
 from metamist.graphql import gql, query
 
 from reanalysis.utils import read_json_from_path, get_cohort_config
-from helpers.hpo_panel_match import main as hpo_match
+from reanalysis.hpo_panel_match import main as hpo_match
 
 BUCKET_TEMPLATE = 'gs://cpg-{dataset}-test-analysis/reanalysis'
 LOCAL_TEMPLATE = 'inputs/{dataset}'
