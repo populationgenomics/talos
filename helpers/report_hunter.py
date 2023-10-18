@@ -88,6 +88,8 @@ def get_project_analyses(project: str) -> list[dict]:
 def main(latest: bool = False):
     """
     finds all existing reports, generates an HTML file
+    eventually we can latch onto the meta key `type:aip_output_html`
+    but that won't be populated until we run more through the pipeline
 
     Args:
         latest (bool): whether to create the latest-only report
@@ -123,10 +125,14 @@ def main(latest: bool = False):
             singleton_output = analysis['meta'].get('is_singleton', False)
             try:
                 # incorporate that into a key when gathering
-                # todo no display url
+                # pipeline runs don't have display_url
+                report_address = analysis['output'].replace(
+                    get_config()['storage']['default']['web'],
+                    get_config()['storage']['default']['web_url'],
+                )
                 all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                     dataset=cohort,
-                    address=analysis['meta']['display_url'],
+                    address=report_address,
                     genome_or_exome='Exome' if exome_output else 'Genome',
                     subtype='Singleton' if singleton_output else 'Familial',
                     date=analysis['timestampCompleted'].split('T')[0],

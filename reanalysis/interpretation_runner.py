@@ -390,10 +390,11 @@ def main(
         'this is designed for MT or compressed VCF only'
     )
 
+    global ANNOTATED_MT  # pylint: disable=W0603
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path
-            global ANNOTATED_MT  # pylint: disable=W0603
+
             ANNOTATED_MT = input_path
 
         else:
@@ -422,7 +423,7 @@ def main(
             b=get_batch(),
             input_vcf=input_vcf_in_batch,
             output_vcf_path=siteonly_vcf_path,
-            storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
+            storage_gb=vcf_storage,
         )
 
         # set the job dependency and cycle the 'prior' job

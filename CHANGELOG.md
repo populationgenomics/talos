@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * a lot. Like... a lot
+* All the Cohort-specific content in the configuration files has been removed from the main config file. For CPG usage
+  we have some sensitivities around the open publication of the cohorts and details of the analysis carried out. As a
+  precaution (although this config does not contain sample-level data) we have removed the cohort-specific content from
+  this repository and moved it to a private repository.
+* Structurally the cohort-specific region of the config file has changed. This is to better facilitate running of AIP
+  through our main analysis pipeline, requiring less manual intervention to run exomes and genomes separately. The
+  utils methods `get_cohort_config` and `get_cohort_seq_type_conf` have been updated to reflect this.
+    1. `config.cohorts.COHORT` contains details general to a whole cohort - blacklisted genes, additional panels, solved
+       cases
+    2. `config.cohorts.COHORT.GENOME` contains details specific to the genome analysis of a cohort - the Seqr project
+       name, mapping between individual and seqr family IDs, and any labelled variants for this group
+    3. `config.cohorts.COHORT.EXOME` is the counterpart to `.GENOME`
+* Hail Labelling/Filtering now takes an output path, to be more easily included in a Hail Batch workflow
+* The run preparation and HPO-panel script now use GQL queries, which drops a few methods
+* The external_lookup file is no longer used - the same Internal-External ID mapping is noq stored alongside phenotype
+  data in the HPO panel file.
+* `--plink` argument to interpretation_runner is renamed to `--pedigree`
+* Methods to reduce a cohort by a fixed percentage have been deleted - was useful as a potential test/train set, but has
+  not been used recently
 
 [1.1.5] - 2023-08-28
 
