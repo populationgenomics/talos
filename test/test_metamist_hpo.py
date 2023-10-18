@@ -4,13 +4,12 @@ test file for metamist panel-participant matching
 
 import pytest
 
-import networkx
+from obonet import read_obo
 
-from helpers.hpo_panel_matching import (
+from helpers.hpo_panel_match import (
     match_hpos_to_panels,
     match_participants_to_panels,
     get_panels,
-    read_hpo_tree,
     match_hpo_terms,
 )
 
@@ -39,46 +38,23 @@ def test_get_panels(fake_panelapp_overview):  # pylint: disable=unused-argument
     assert panels_parsed == {'HP:1': {2}, 'HP:4': {1}, 'HP:6': {2}}
 
 
-def test_read_hpo_tree(fake_obo_path):
-    """
-    check that reading the obo tree works
-    """
-    obo_parsed = read_hpo_tree(fake_obo_path)
-    assert isinstance(obo_parsed, networkx.MultiDiGraph)
-    assert list(networkx.bfs_edges(obo_parsed, 'HP:1', reverse=True)) == [
-        ('HP:1', 'HP:2'),
-        ('HP:2', 'HP:3'),
-        ('HP:3', 'HP:4'),
-        ('HP:4', 'HP:5'),
-        ('HP:5', 'HP:6'),
-        ('HP:6', 'HP:7a'),
-        ('HP:6', 'HP:7b'),
-    ]
-    assert obo_parsed.nodes()['HP:3'] == {
-        'name': 'Prisoner of Azkaban',
-        'comment': 'where my Hippogriff at?',
-        'is_a': ['HP:2'],
-    }
-
-
 def test_match_hpo_terms(fake_obo_path):
     """
     check that HP tree traversal works
+    this test is kinda limited now that the layer count is constant
     """
-    obo_parsed = read_hpo_tree(fake_obo_path)
+    obo_parsed = read_obo(fake_obo_path)
     panel_map = {'HP:2': {1, 2}}
     assert match_hpo_terms(
-        panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:4', max_layer_delta=3
+        panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:4'
     ) == {1, 2}
     assert match_hpo_terms(
-        panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:2', max_layer_delta=0
+        panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:2'
     ) == {1, 2}
-    assert (
-        match_hpo_terms(
-            panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:3', max_layer_delta=0
-        )
-        == set()
-    )
+    # assert (
+    #     match_hpo_terms(panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:3')
+    #     == set()
+    # )
 
 
 def test_match_hpos_to_panels(fake_obo_path):
@@ -94,10 +70,10 @@ def test_match_hpos_to_panels(fake_obo_path):
     }
     # full depth from the terminal node should capture all panels
     assert match_hpos_to_panels(
-        panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}, max_depth=100
+        panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}
     ) == {
         'HP:4': {1, 2},
-        'HP:7a': {1, 2, 5},
+        'HP:7a': {5},
     }
 
 
@@ -113,13 +89,13 @@ def test_match_participants_to_panels():
             'external_id': 'participant1',
             'family_id': 'fam1',
             'hpo_terms': {'HP:1', 'HP:2'},
-            'panels': {137},
+            'panels': {'137'},
         },
         'participant2': {
             'external_id': 'participant2',
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
-            'panels': {137},
+            'panels': {'137'},
         },
     }
     hpo_to_panels = {
@@ -133,13 +109,13 @@ def test_match_participants_to_panels():
         'luke_skywalker': {
             'external_id': 'participant1',
             'family_id': 'fam1',
-            'hpo_terms': {'HP:1', 'HP:2'},
-            'panels': {137, 'room', '101', '2002'},
+            'hpo_terms': sorted(['HP:1', 'HP:2']),
+            'panels': sorted(['137', 'room', '101', '2002']),
         },
         'participant2': {
             'external_id': 'participant2',
             'family_id': 'fam2',
-            'hpo_terms': {'HP:1', 'HP:6'},
-            'panels': {137, 'room', '101', '666'},
+            'hpo_terms': sorted(['HP:1', 'HP:6']),
+            'panels': sorted(['137', 'room', '101', '666']),
         },
     }

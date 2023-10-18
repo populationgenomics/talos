@@ -58,7 +58,7 @@ def get_granular_date():
     if _GRANULAR_DATE is None:
         # allow an override here - synthetic historic runs
         try:
-            if fake_date := get_config()['workflow'].get('fake_date'):
+            if fake_date := get_config().get('workflow', {}).get('fake_date'):
                 _GRANULAR_DATE = fake_date
         except AssertionError:
             logging.info(f'No config loaded, falling back to {_GRANULAR_DATE}')
@@ -213,7 +213,7 @@ def get_json_response(url: str) -> Any:
     return response.json()
 
 
-def get_cohort_config():
+def get_cohort_config(dataset: str | None = None):
     """
     return the cohort-specific portion of the config file, or fail
 
@@ -221,7 +221,7 @@ def get_cohort_config():
         the dict of cohort and genome/exome specific content
     """
 
-    dataset = get_config()['workflow']['dataset']
+    dataset = dataset or get_config()['workflow']['dataset']
     cohort_details = get_config().get('cohorts', {}).get(dataset)
     assert cohort_details, f'{dataset} is not represented in config'
     return cohort_details

@@ -11,7 +11,8 @@
 # 7. import-error ("Unable to import")
 # 8. no-member
 # 9. c-extension-no-member
-disable=f-string-without-interpolation,logging-fstring-interpolation,inherit-non-class,too-few-public-methods,fixme,E0401,E1101,I1101
+# 10. E1136: unsubscriptable-object (gql problems)
+disable=f-string-without-interpolation,logging-fstring-interpolation,inherit-non-class,too-few-public-methods,fixme,E0401,E1101,I1101,E1136
 
 # Overriding variable name patterns to allow short 1- or 2-letter variables
 attr-rgx=[a-z_][a-z0-9_]{0,30}$
