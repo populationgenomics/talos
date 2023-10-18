@@ -30,22 +30,22 @@ MAX_DEPTH = 3
 PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
 PARTICIPANT_QUERY = gql(
     """
-        query MyQuery($project: String!) {
-            project(name: $project) {
-                sequencingGroups {
-                    sample {
-                        participant {
-                            phenotypes
+    query MyQuery($project: String!) {
+        project(name: $project) {
+            sequencingGroups {
+                sample {
+                    participant {
+                        phenotypes
+                        externalId
+                        families {
                             externalId
-                            families {
-                                externalId
-                            }
                         }
                     }
-                    id
                 }
+                id
             }
-        }"""
+        }
+    }"""
 )
 
 
