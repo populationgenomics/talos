@@ -23,7 +23,28 @@ from cpg_utils.config import get_config
 from metamist.graphql import gql, query
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
-
+PROJECT_QUERY = gql(
+    """
+    query MyQuery {
+        myProjects {
+            dataset
+        }
+    }
+    """
+)
+REPORT_QUERY = gql(
+    """
+    query MyQuery($project: String!) {
+        project(name: $project) {
+            analyses(active: {eq: true}, type:  {eq: "aip-report"}) {
+                output
+                meta
+                timestampCompleted
+            }
+        }
+    }
+    """
+)
 
 # pylint: disable=unsubscriptable-object
 
@@ -46,17 +67,7 @@ def get_my_projects():
     queries metamist for projects I have access to,
     returns the dataset names
     """
-    project_query = gql(
-        """
-query MyQuery {
-    myProjects {
-        dataset
-    }
-}
-    """
-    )
-    # validate(project_query)
-    response: dict[str, Any] = query(project_query)
+    response: dict[str, Any] = query(PROJECT_QUERY)
     return {dataset['dataset'] for dataset in response['myProjects']}
 
 
@@ -67,21 +78,7 @@ def get_project_analyses(project: str) -> list[dict]:
         project (str): project to query for
     """
 
-    project_query = gql(
-        """
-    query MyQuery($project: String!) {
-        project(name: $project) {
-            analyses(active: {eq: true}, type:  {eq: "web"}) {
-                output
-                meta
-                timestampCompleted
-            }
-        }
-    }
-    """
-    )
-
-    response: dict[str, Any] = query(project_query, variables={'project': project})
+    response: dict[str, Any] = query(REPORT_QUERY, variables={'project': project})
     return response['project']['analyses']
 
 
@@ -102,29 +99,22 @@ def main(latest: bool = False):
             continue
 
         for analysis in get_project_analyses(cohort):
-            # only look for HTML reanalysis entries
-            # skip over the latest-only reports
-            if 'reanalysis' not in analysis['output'] or not analysis[
-                'output'
-            ].endswith('html'):
-                continue
-
+            output_path = analysis['output']
             # mutually exclusive conditional search for 'latest'
             if latest:
-                if 'latest' not in analysis['output']:
+                if 'latest' not in output_path:
                     continue
-                date = analysis['output'].rstrip('.html').split('_')[-1]
+                date = output_path.rstrip('.html').split('_')[-1]
                 cohort_key = f'{cohort}_{date}'
             else:
-                if 'latest' in analysis['output']:
+                if 'latest' in output_path:
                     continue
                 cohort_key = cohort
 
             # pull the exome/singleton flags
-            exome_output = analysis['meta'].get('is_exome', False)
-            singleton_output = analysis['meta'].get('is_singleton', False)
+            exome_output = 'Exome' if 'exome' in output_path else 'Familial'
+            singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
             try:
-                # incorporate that into a key when gathering
                 # pipeline runs don't have display_url
                 report_address = analysis['output'].replace(
                     get_config()['storage']['default']['web'],
@@ -133,8 +123,8 @@ def main(latest: bool = False):
                 all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                     dataset=cohort,
                     address=report_address,
-                    genome_or_exome='Exome' if exome_output else 'Genome',
-                    subtype='Singleton' if singleton_output else 'Familial',
+                    genome_or_exome=exome_output,
+                    subtype=singleton_output,
                     date=analysis['timestampCompleted'].split('T')[0],
                 )
             except KeyError:
