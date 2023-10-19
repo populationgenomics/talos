@@ -17,9 +17,12 @@ import pandas as pd
 from peddy.peddy import Ped
 
 from cpg_utils import to_path
-from cpg_utils.config import get_config
 
-from reanalysis.utils import read_json_from_path, get_cohort_config
+from reanalysis.utils import (
+    read_json_from_path,
+    get_cohort_config,
+    get_cohort_seq_type_conf,
+)
 
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
@@ -72,13 +75,13 @@ class HTMLBuilder:
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            get_config()['dataset_specific'].get('forbidden', 'missing'), set()
+            get_cohort_config().get('forbidden', 'missing'), set()
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = get_config()['dataset_specific'].get('seqr_lookup')
+        seqr_path = get_cohort_seq_type_conf().get('seqr_lookup')
         self.seqr = {}
 
         if seqr_path:
@@ -86,7 +89,7 @@ class HTMLBuilder:
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert get_config()['dataset_specific'].get(
+                assert get_cohort_seq_type_conf().get(
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
@@ -100,7 +103,7 @@ class HTMLBuilder:
         #     },
         # }
         self.ext_labels = read_json_from_path(
-            get_config()['dataset_specific'].get('external_labels'), {}
+            get_cohort_seq_type_conf().get('external_labels'), {}
         )
 
         # Read results file, or take it directly
@@ -265,11 +268,12 @@ class HTMLBuilder:
 
         report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
 
+        cohort_details = get_cohort_seq_type_conf()
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            'seqr_url': get_config()['dataset_specific'].get('seqr_instance'),
-            'seqr_project': get_config()['dataset_specific'].get('seqr_project'),
+            'seqr_url': cohort_details.get('seqr_instance', ''),
+            'seqr_project': cohort_details.get('seqr_project', ''),
             'meta_tables': {},
             'forbidden_genes': [],
             'zero_categorised_samples': [],

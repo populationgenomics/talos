@@ -78,7 +78,7 @@ def get_panel_green(
     global FORBIDDEN_GENES  # pylint: disable=global-statement
     if FORBIDDEN_GENES is None:
         FORBIDDEN_GENES = read_json_from_path(
-            get_config()['dataset_specific'].get('forbidden', 'missing'), set()
+            get_cohort_config().get('forbidden', 'missing'), set()
         )
 
     if blacklist is None:

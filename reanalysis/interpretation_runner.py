@@ -141,13 +141,13 @@ def handle_panelapp_job(
     return panelapp_job
 
 
-def handle_hail_filtering(plink_file: str, prior_job: Job | None = None) -> BashJob:
+def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJob:
     """
     hail-query backend version of the filtering implementation
     use the init query service instead of running inside dataproc
 
     Args:
-        plink_file (str): path to a pedigree
+        pedigree (str): path to a pedigree
         prior_job ():
 
     Returns:
@@ -156,11 +156,13 @@ def handle_hail_filtering(plink_file: str, prior_job: Job | None = None) -> Bash
 
     labelling_job = get_batch().new_job(name='hail filtering')
     set_job_resources(labelling_job, prior_job=prior_job, memory='32Gi')
+    out_vcf = output_path('hail_categorised.vcf.bgz', 'analysis')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
-        f'--plink {plink_file} '
+        f'--pedigree {pedigree} '
+        f'--output {out_vcf} '
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
@@ -388,10 +390,11 @@ def main(
         'this is designed for MT or compressed VCF only'
     )
 
+    global ANNOTATED_MT  # pylint: disable=W0603
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path
-            global ANNOTATED_MT  # pylint: disable=W0603
+
             ANNOTATED_MT = input_path
 
         else:
@@ -420,7 +423,7 @@ def main(
             b=get_batch(),
             input_vcf=input_vcf_in_batch,
             output_vcf_path=siteonly_vcf_path,
-            storage_gb=get_config()['workflow'].get('vcf_size_in_gb', 150) + 10,
+            storage_gb=vcf_storage,
         )
 
         # set the job dependency and cycle the 'prior' job
@@ -480,7 +483,7 @@ def main(
     if not to_path(HAIL_VCF_OUT).exists():
         logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_filtering(
-            prior_job=prior_job, plink_file=pedigree_in_batch
+            prior_job=prior_job, pedigree=pedigree_in_batch
         )
         output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion
@@ -509,7 +512,7 @@ def main(
     # endregion
 
     # region: register outputs in metamist if required
-    if registry := get_config()['workflow'].get('register'):
+    if registry := get_config()['workflow'].get('status_reporter'):
         logging.info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(
             files=sorted(output_dict.values()),

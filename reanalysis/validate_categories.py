@@ -391,10 +391,7 @@ def prepare_results_shell(
     sample_dict = {}
 
     # find the solved cases in this project
-    solved_cases = get_config().get('dataset_specific', {}).get('solved_cases', [])
-
-    ext_conf_path = get_config().get('dataset_specific', {}).get('external_lookup')
-    external_map = read_json_from_path(ext_conf_path, default={})
+    solved_cases = get_cohort_config().get('solved_cases', [])
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
 
     for sample in [
@@ -412,14 +409,16 @@ def prepare_results_shell(
                 if str(member.sex) in {'male', 'female'}
                 else 'unknown',
                 'affected': member.affected == PEDDY_AFFECTED,
-                'ext_id': external_map.get(member.sample_id, member.sample_id),
+                'ext_id': panel_data.get(member.sample_id, {}).get(
+                    'external_id', member.sample_id
+                ),
             }
             for member in family
         }
         sample_dict[sample_id] = {
             'variants': [],
             'metadata': {
-                'ext_id': external_map.get(sample_id, sample_id),
+                'ext_id': panel_data.get(sample_id, {}).get('external_id', sample_id),
                 'family_id': pedigree[sample_id].family_id,
                 'members': family_members,
                 'phenotypes': panel_data.get(sample_id, {}).get('hpo_terms', []),

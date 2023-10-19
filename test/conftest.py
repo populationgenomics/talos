@@ -2,19 +2,19 @@
 A home for common test fixtures
 """
 
+from pathlib import Path
 from typing import Any
-import pytest
 
-from cyvcf2 import VCFReader
 import hail as hl
+import pytest
+from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
-from cpg_utils import to_path
 from cpg_utils.config import set_config_paths
 
 from reanalysis.data_model import BaseFields, Entry, TXFields, VepVariant, SneakyTable
 
-PWD = to_path(__file__).parent
+PWD = Path(__file__).parent
 INPUT = PWD / 'input'
 
 # force this to come first

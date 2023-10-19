@@ -85,8 +85,12 @@ def test_results_shell(peddy_ped):
     """
     samples = ['male', 'female', 'irrelevant']
     sample_panels = {
-        'male': {'panels': [1, 3], 'hpo_terms': ['Boneitis']},
-        'female': {'panels': [1, 2], 'hpo_terms': ['HPfemale']},
+        'male': {'panels': [1, 3], 'external_id': 'MALE!', 'hpo_terms': ['Boneitis']},
+        'female': {
+            'panels': [1, 2],
+            'external_id': 'FEMALE!',
+            'hpo_terms': ['HPfemale'],
+        },
         'other': [4],
     }
     panelapp = {
@@ -103,10 +107,10 @@ def test_results_shell(peddy_ped):
         'male': {
             'variants': [],
             'metadata': {
-                'ext_id': 'male',
+                'ext_id': 'MALE!',
                 'family_id': 'family_1',
                 'members': {
-                    'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
+                    'male': {'sex': 'male', 'affected': True, 'ext_id': 'MALE!'},
                     'father_1': {
                         'sex': 'male',
                         'affected': False,
@@ -127,10 +131,10 @@ def test_results_shell(peddy_ped):
         'female': {
             'variants': [],
             'metadata': {
-                'ext_id': 'female',
+                'ext_id': 'FEMALE!',
                 'family_id': 'family_2',
                 'members': {
-                    'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
+                    'female': {'sex': 'female', 'affected': True, 'ext_id': 'FEMALE!'},
                     'father_2': {
                         'sex': 'male',
                         'affected': False,
