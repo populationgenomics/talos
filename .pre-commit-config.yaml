@@ -1,46 +1,45 @@
 repos:
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.2.0
-  hooks:
-  - id: check-yaml
-    exclude: '\.*conda/.*'
-  - id: end-of-file-fixer
-  - id: trailing-whitespace
-    exclude: '\.txt$|\.tsv$'
-  - id: check-case-conflict
-  - id: check-merge-conflict
-  - id: detect-private-key
-  - id: debug-statements
-  - id: check-added-large-files
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        exclude: '\.*conda/.*'
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        exclude: '\.txt$|\.tsv$'
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: debug-statements
+      - id: check-added-large-files
 
-- repo: https://github.com/igorshubovych/markdownlint-cli
-  rev: v0.31.1
-  hooks:
-  - id: markdownlint
-    args: ['--config', '.markdownlint.json']
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint
+        args: ["--config", ".markdownlint.json"]
 
-- repo: https://github.com/ambv/black
-  rev: 22.3.0
-  hooks:
-  - id: black
+  - repo: https://github.com/ambv/black
+    rev: 22.10.0
+    hooks:
+      - id: black
 
-- repo: https://github.com/PyCQA/flake8
-  rev: '5.0.4'
-  hooks:
-  - id: flake8
-    additional_dependencies: [flake8-bugbear, flake8-quotes]
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    # Ruff version.
+    rev: "v0.1.0"
+    hooks:
+      - id: ruff
 
-- repo: https://github.com/dhruvmanila/remove-print-statements
-  rev: 'v0.5.0'
-  hooks:
-  - id: remove-print-statements
-    args: ['--verbose']
-
-# Using system installation of pylint to support checking python module imports
-- repo: local
-  hooks:
-  - id: pylint
-    name: pylint
-    entry: pylint
-    language: system
-    types: [python]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.6.1
+    hooks:
+      - id: mypy
+        args:
+          [
+            --pretty,
+            --show-error-codes,
+            --no-strict-optional,
+            --ignore-missing-imports,
+            --install-types,
+            --non-interactive,
+          ]

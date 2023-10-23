@@ -32,7 +32,7 @@ def test_coord_sorting():
     coord_2 = Coordinates('5', 20, 'A', 'C')
     assert coord_1 < coord_2
     assert coord_1 < coord_1b
-    assert not coord_1b < coord_1c  # pylint: disable=unneeded-not
+    assert not coord_1b < coord_1c
 
 
 def test_abs_var_sorting(two_trio_abs_variants: list[AbstractVariant]):
@@ -42,7 +42,7 @@ def test_abs_var_sorting(two_trio_abs_variants: list[AbstractVariant]):
 
     var1, var2 = two_trio_abs_variants
     assert var1 < var2
-    assert var1 == var1  # pylint: disable=comparison-with-itself
+    assert var1 == var1
     assert sorted([var2, var1]) == [var1, var2]
     # not sure if I should be able to just override the chrom...
     var1.coords.chrom = 'HLA1234'

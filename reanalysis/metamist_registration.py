@@ -29,7 +29,7 @@ def register_html(file_path: str, samples: list[str]):
     """
 
     # Create object Meta - Exomes/genomes, Singletons/not, proxied html path
-    report_meta = {
+    report_meta: dict[str, bool | str] = {
         'is_exome': bool('exome' in get_config()['workflow']['output_prefix']),
         'is_singleton': bool('singleton' in file_path),
     }
@@ -119,4 +119,4 @@ def main(pedigree: str, files: list[str]):
 
 
 if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
+    main()

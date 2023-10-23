@@ -1,3 +1,2 @@
 black==22.3.0
 pre-commit>=2.21.0
-pylint>=2.15.0

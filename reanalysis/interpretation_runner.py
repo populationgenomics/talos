@@ -13,8 +13,6 @@ i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
 
-# pylint: disable=too-many-branches
-
 
 import logging
 import sys
@@ -202,7 +200,7 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json {output} '
+        f'--out_json_path {output} '
         f'--input_path {input_path} '
         f'{gene_filter_files}'
     )
@@ -390,7 +388,7 @@ def main(
         'this is designed for MT or compressed VCF only'
     )
 
-    global ANNOTATED_MT  # pylint: disable=W0603
+    global ANNOTATED_MT
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path
@@ -450,7 +448,7 @@ def main(
                     job.depends_on(prior_job)
             prior_job = vep_jobs[-1]
 
-        j = get_batch().new_job(f'annotate cohort')
+        j = get_batch().new_job('annotate cohort')
         j.image(get_config()['workflow']['driver_image'])
         j.command(
             query_command(

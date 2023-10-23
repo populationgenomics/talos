@@ -19,8 +19,6 @@ import requests
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-# pylint: disable=too-many-lines,too-many-instance-attributes,global-statement
-
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -48,6 +46,9 @@ ORDERED_MOIS = [
 ]
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
+SCRIPT_CONFIG: dict = dict(get_config(False))
+CONFIG_FIELDS = ['workflow', 'filter', 'panels', 'categories']
+assert all(field in SCRIPT_CONFIG.keys() for field in CONFIG_FIELDS)
 
 
 def get_granular_date():
@@ -58,7 +59,7 @@ def get_granular_date():
     if _GRANULAR_DATE is None:
         # allow an override here - synthetic historic runs
         try:
-            if fake_date := get_config().get('workflow', {}).get('fake_date'):
+            if fake_date := SCRIPT_CONFIG.get('workflow', {}).get('fake_date'):
                 _GRANULAR_DATE = fake_date
         except AssertionError:
             logging.info(f'No config loaded, falling back to {_GRANULAR_DATE}')
@@ -221,8 +222,8 @@ def get_cohort_config(dataset: str | None = None):
         the dict of cohort and genome/exome specific content
     """
 
-    dataset = dataset or get_config()['workflow']['dataset']
-    cohort_details = get_config().get('cohorts', {}).get(dataset)
+    dataset = dataset or SCRIPT_CONFIG['workflow']['dataset']
+    cohort_details = SCRIPT_CONFIG.get('cohorts', {}).get(dataset)
     assert cohort_details, f'{dataset} is not represented in config'
     return cohort_details
 
@@ -236,8 +237,8 @@ def get_cohort_seq_type_conf():
         the dict of cohort and genome/exome specific content
     """
     cohort_conf = get_cohort_config()
-    dataset = get_config()['workflow']['dataset']
-    seq_type = get_config()['workflow']['sequencing_type']
+    dataset = SCRIPT_CONFIG['workflow']['dataset']
+    seq_type = SCRIPT_CONFIG['workflow']['sequencing_type']
     cohort_details = cohort_conf.get(seq_type, {})
     assert cohort_details, f'{dataset} - {seq_type} is not represented in config'
     return cohort_details
@@ -259,7 +260,7 @@ def get_new_gene_map(
     # find the dataset-specific panel data, if present
     # add the 'core' panel to it
     config_cohort_panels: list[int] = get_cohort_config().get('cohort_panels', [])
-    cohort_panels = config_cohort_panels + [get_config()['panels']['default_panel']]
+    cohort_panels = config_cohort_panels + [SCRIPT_CONFIG['panels']['default_panel']]
 
     # collect all genes new in at least one panel
     new_genes = {
@@ -307,7 +308,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
         samples ():
         var ():
     """
-    phased_dict = defaultdict(dict)
+    phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
 
     # first set the numpy.ndarray to be a list of ints
     # then zip against ordered sample IDs
@@ -438,7 +439,7 @@ class AbstractVariant:
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
         self.depths = dict(zip(samples, map(float, var.gt_depths)))
-        self.categories = []
+        self.categories: list = []
 
     def organise_pm5(self):
         """
@@ -642,7 +643,7 @@ class AbstractVariant:
         Returns:
             return a flag if this sample has low read depth
         """
-        threshold = get_config()['filter'].get('minimum_depth', 10)
+        threshold = SCRIPT_CONFIG['filter'].get('minimum_depth', 10)
         if self.depths[sample] < threshold:
             return ['Low Read Depth']
         return []
@@ -713,7 +714,7 @@ class ReportedVariant:
     genotypes: dict[str, str]
     support_vars: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
-    panels: dict[str] = field(default_factory=dict)
+    panels: dict[str, str | list[int]] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
@@ -785,9 +786,10 @@ def gather_gene_dict_from_contig(
         }
     """
 
-    blacklist = []
-    if 'blacklist' in get_config()['filter'].keys():
-        blacklist = read_json_from_path(get_config()['filter']['blacklist'])
+    if 'blacklist' in SCRIPT_CONFIG['filter']:
+        blacklist = read_json_from_path(SCRIPT_CONFIG['filter']['blacklist'])
+    else:
+        blacklist = []
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
@@ -825,7 +827,9 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> Any:
+def read_json_from_path(
+    bucket_path: str | Path | None, default: Any = None
+) -> dict | list | None:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -844,9 +848,10 @@ def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> 
     if isinstance(bucket_path, str):
         bucket_path = to_path(bucket_path)
 
-    if bucket_path.exists():
-        with bucket_path.open() as handle:
-            return json.load(handle)
+    if isinstance(bucket_path, Path):
+        if bucket_path.exists():
+            with bucket_path.open() as handle:
+                return json.load(handle)
     return default
 
 
@@ -869,7 +874,7 @@ def write_output_json(output_path: str, object_to_write: dict):
         json.dump(object_to_write, fh, indent=4, default=list)
 
 
-def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
+def get_simple_moi(input_moi: str | None, chrom: str) -> str:
     """
     takes the vast range of PanelApp MOIs, and reduces to a
     range of cases which can be easily implemented in RD analysis
@@ -878,7 +883,6 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
         input_moi ():
         chrom ():
     """
-    # pylint: disable=too-many-return-statements
     if input_moi in IRRELEVANT_MOI:
         raise ValueError("unknown and other shouldn't reach this method")
 
@@ -901,12 +905,13 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str | None:
         case [
             'xlinked',
             *additional,
-        ] if 'biallelic' in additional:  # pylint: disable='used-before-assignment'
+        ] if 'biallelic' in additional:
             return 'Hemi_Bi_In_Female'
         case ['xlinked', *_additional]:
             return 'Hemi_Mono_In_Female'
         case _:
             return default
+    return default
 
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
@@ -950,7 +955,7 @@ def extract_csq(csq_contents) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = get_config()['csq']['csq_string']
+    csq_categories = SCRIPT_CONFIG['csq']['csq_string']
 
     # iterate over all consequences, and make each into a dict
     return [
@@ -1003,7 +1008,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     """
 
     # create an empty dictionary
-    comp_het_results = defaultdict(dict)
+    comp_het_results: CompHetDict = defaultdict(dict)  # type: ignore
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
@@ -1074,13 +1079,13 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
     # in 1000 years this might cause a problem :/ \s
-    latest_results = find_latest_file(start=prefix or '2')
+    latest_results_path = find_latest_file(start=prefix or '2')
 
-    logging.info(f'latest results: {latest_results}')
+    logging.info(f'latest results: {latest_results_path}')
 
-    results, cumulative = date_annotate_results(
-        results, read_json_from_path(latest_results)
-    )
+    latest_results: dict = read_json_from_path(latest_results_path)  # type: ignore
+
+    results, cumulative = date_annotate_results(results, latest_results)
     save_new_historic(results=cumulative, prefix=prefix)
 
     return results
@@ -1159,19 +1164,21 @@ def date_annotate_results(
     # if there's no historic data, make some
     if historic is None:
         historic = {
-            'metadata': {'categories': get_config()['categories']},
+            'metadata': {'categories': SCRIPT_CONFIG['categories']},
             'results': {},
         }
 
     # update to latest format
     elif 'results' not in historic.keys():
         historic = {
-            'metadata': {'categories': get_config()['categories']},
+            'metadata': {'categories': SCRIPT_CONFIG['categories']},
             'results': historic,
         }
 
     # update to latest category descriptions
-    historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
+    historic['metadata'].setdefault('categories', {}).update(
+        SCRIPT_CONFIG['categories']
+    )
 
     for sample, content in current.items():
 
@@ -1180,7 +1187,7 @@ def date_annotate_results(
             historic['results'][sample] = {}
 
         # check each variant found in this round
-        for var in content['variants']:
+        for var in content['variants']:  # type: ignore
             var_id = var.var_data.coords.string_format
             current_cats = set(var.var_data.categories)
 

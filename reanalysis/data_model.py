@@ -22,8 +22,6 @@ Expected results in this case would be determined by the gene ID(s),
 the annotation(s), the genotype(s), and the sample affection status.
 """
 
-# pylint: disable=invalid-name,too-many-instance-attributes
-
 
 import json
 from os.path import join
@@ -165,7 +163,7 @@ class TXFields:
     biotype: str = field(default_factory=str)
     protein_start: int = field(default=1)
     protein_end: int = field(default=1)
-    sift_score: int = field(default=1.0)  # lowest possible score
+    sift_score: float = field(default=1.0)  # lowest possible score
     sift_prediction: str = field(default_factory=str)
     polyphen_prediction: str = field(default='neutral')
     polyphen_score: float = field(default=0.01)
@@ -301,7 +299,7 @@ class SneakyTable:
         self.tmp_path = tmp_path
         try:
             hl.init(default_reference='GRCh38')
-        except BaseException:  # pylint: disable=broad-except
+        except BaseException:
             pass
 
     def modify_schema(self) -> str:

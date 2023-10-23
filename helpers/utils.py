@@ -44,7 +44,6 @@ def ext_to_int_sample_map(project: str) -> dict[str, list[str]]:
     response: dict[str, Any] = query(mapping_query, variables={'project': project})
 
     sample_map = defaultdict(list)
-    # pylint: disable=unsubscriptable-object
     for participant_block in response['project']['participants']:
         ext_id = participant_block['externalId']
         samples = [

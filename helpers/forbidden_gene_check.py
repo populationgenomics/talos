@@ -58,9 +58,14 @@ def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> 
     if isinstance(bucket_path, str):
         bucket_path = to_path(bucket_path)
 
-    if bucket_path.exists():
-        with bucket_path.open() as handle:
-            return json.load(handle)
+    if isinstance(bucket_path, Path):
+        if bucket_path.exists():
+            with bucket_path.open() as handle:
+                return json.load(handle)
+    else:
+        raise TypeError(
+            f'bucket_path must be str, Path, or None, not {type(bucket_path)}'
+        )
     return default
 
 
@@ -216,4 +221,4 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
 
-    main()  # pylint: disable=no-value-for-parameter
+    main()

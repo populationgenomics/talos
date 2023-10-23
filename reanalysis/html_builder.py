@@ -2,8 +2,6 @@
 Methods for taking the final output and generating static report content
 """
 
-# pylint: disable=too-many-instance-attributes
-
 import logging
 import sys
 from argparse import ArgumentParser
@@ -63,14 +61,16 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str | dict, panelapp: str, pedigree: Ped):
+    def __init__(self, results: str | dict, panelapp_path: str, pedigree: Ped):
         """
         Args:
             results (str | dict): path to the results JSON, or the results dict
-            panelapp (str): path to the PanelApp JSON
+            panelapp_path (str): where to read panelapp data from
             pedigree (str): path to the PED file
         """
-        self.panelapp = read_json_from_path(panelapp)
+        self.panelapp: dict = read_json_from_path(panelapp_path)  # type: ignore
+        assert isinstance(self.panelapp, dict)
+
         self.pedigree = Ped(pedigree)
 
         # If it exists, read the forbidden genes as a set
@@ -82,10 +82,11 @@ class HTMLBuilder:
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
         seqr_path = get_cohort_seq_type_conf().get('seqr_lookup')
-        self.seqr = {}
+        self.seqr: dict[str, str] = {}
 
         if seqr_path:
-            self.seqr = read_json_from_path(seqr_path, default=self.seqr)
+            self.seqr = read_json_from_path(seqr_path, default=self.seqr)  # type: ignore
+            assert isinstance(self.seqr, dict)
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
@@ -102,7 +103,7 @@ class HTMLBuilder:
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        self.ext_labels = read_json_from_path(
+        self.ext_labels: dict[str, dict] = read_json_from_path(  # type: ignore
             get_cohort_seq_type_conf().get('external_labels'), {}
         )
 
@@ -111,6 +112,8 @@ class HTMLBuilder:
             results_dict = read_json_from_path(results)
         else:
             results_dict = results
+
+        assert isinstance(results_dict, dict)
 
         self.metadata = results_dict['metadata']
         self.panel_names = {panel['name'] for panel in self.metadata['panels']}
@@ -127,8 +130,8 @@ class HTMLBuilder:
         }
 
         # Process samples and variants
-        self.samples = []
-        self.solved = []
+        self.samples: list[Sample] = []
+        self.solved: list[str] = []
         for sample, content in results_dict['results'].items():
             if content['metadata'].get('solved', False):
                 self.solved.append(sample)
@@ -155,18 +158,20 @@ class HTMLBuilder:
         of variants in the report
         """
 
-        category_count = {key: [] for key in CATEGORY_ORDERING}
-        unique_variants = {key: set() for key in CATEGORY_ORDERING}
+        category_count: dict[str, list[int]] = {key: [] for key in CATEGORY_ORDERING}
+        unique_variants: dict[str, set[str]] = {key: set() for key in CATEGORY_ORDERING}
 
         samples_with_no_variants: list[str] = []
-        ext_label_map = self.ext_labels.copy() if self.ext_labels else {}
+        ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
 
         for sample in self.samples:
 
             if len(sample.variants) == 0:
                 samples_with_no_variants.append(sample.ext_id)
 
-            sample_variants = {key: set() for key in CATEGORY_ORDERING}
+            sample_variants: dict[str, set[str]] = {
+                key: set() for key in CATEGORY_ORDERING
+            }
 
             # iterate over the list of variants
             for variant in sample.variants:
@@ -478,13 +483,10 @@ def check_date_filter(results: str, filter_date: str | None = None) -> dict | No
     Args:
         results (str): path to the results file
         filter_date (str | None): path to the results file
-
-    Returns:
-
     """
 
     # Load the results JSON
-    results_dict = read_json_from_path(results)
+    results_dict: dict = read_json_from_path(results)  # type: ignore
 
     # pick up the current date from datetime or config
     if filter_date is None:
@@ -540,7 +542,7 @@ if __name__ == '__main__':
 
     # build the HTML using all results
     html = HTMLBuilder(
-        results=args.results, panelapp=args.panelapp, pedigree=args.pedigree
+        results=args.results, panelapp_path=args.panelapp, pedigree=args.pedigree
     )
     html.write_html(output_filepath=args.output)
 
@@ -551,6 +553,8 @@ if __name__ == '__main__':
     ):
         # build the HTML for latest reports only
         latest_html = HTMLBuilder(
-            results=filtered_result_dict, panelapp=args.panelapp, pedigree=args.pedigree
+            results=filtered_result_dict,
+            panelapp_path=args.panelapp,
+            pedigree=args.pedigree,
         )
         latest_html.write_html(output_filepath=args.latest, latest=True)

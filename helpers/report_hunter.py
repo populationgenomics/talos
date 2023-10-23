@@ -46,8 +46,6 @@ REPORT_QUERY = gql(
     """
 )
 
-# pylint: disable=unsubscriptable-object
-
 
 # this very verbose logging is to ensure that the log level requested (INFO)
 # doesn't cause the unintentional logging of every Metamist query

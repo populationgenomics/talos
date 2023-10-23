@@ -6,6 +6,7 @@ This is designed to recognise flags in the format 'AIP training: Confidence'
 
 See relevant documentation for a description of the algorithm used
 """
+# mypy: ignore-errors
 import json
 import os
 from collections import defaultdict
@@ -191,7 +192,7 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
     :return:
     """
 
-    assert seqr.endswith('.tsv'), f'process requires a TSV format export'
+    assert seqr.endswith('.tsv'), 'process requires a TSV format export'
     sample_dict: CommonDict = defaultdict(list)
 
     with AnyPath(seqr).open() as handle:
@@ -241,15 +242,16 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
     return sample_dict
 
 
-def find_seqr_flags(
-    aip_results: CommonDict, seqr_results: CommonDict
-) -> dict[str, dict[str, list[str] | int]]:
+def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict) -> dict:
     """
     check for exact matches to the Seqr flags, and report numbers
     returns a per-confidence dictionary of the variant details and counts
-    :param aip_results:
-    :param seqr_results:
-    :return:
+    Args:
+        aip_results ():
+        seqr_results ():
+
+    Returns:
+
     """
 
     flag_matches = {

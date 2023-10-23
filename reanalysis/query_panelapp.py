@@ -5,6 +5,8 @@
 Complete revision
 """
 
+# mypy: ignore-errors
+
 import logging
 import sys
 from datetime import datetime
@@ -30,9 +32,6 @@ PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
 FORBIDDEN_GENES = None
-
-
-# pylint: disable=no-value-for-parameter,unnecessary-lambda
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -75,7 +74,7 @@ def get_panel_green(
         blacklist (): list of symbols/ENSG IDs to remove from this panel
     """
 
-    global FORBIDDEN_GENES  # pylint: disable=global-statement
+    global FORBIDDEN_GENES
     if FORBIDDEN_GENES is None:
         FORBIDDEN_GENES = read_json_from_path(
             get_cohort_config().get('forbidden', 'missing'), set()
@@ -131,9 +130,7 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = panel_id not in old_data.get(ensg, [])
-
-        if new_gene:
+        if new_gene := panel_id not in old_data.get(ensg, []):
             old_data.setdefault(ensg, []).append(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
@@ -304,7 +301,7 @@ def main(panels: str | None, out_path: str):
 
     logging.info('Starting PanelApp Query Stage')
 
-    old_data = {}
+    old_data: dict = {}
 
     # make responsive to config
     twelve_months = None
@@ -316,11 +313,11 @@ def main(panels: str | None, out_path: str):
     # open to discussing order of precedence here
     if old_file := find_latest_file(start='panel_'):
         logging.info(f'Grabbing legacy panel data from {old_file}')
-        old_data = read_json_from_path(old_file)
+        old_data: dict = read_json_from_path(old_file)
 
     elif previous := cohort_config.get('gene_prior'):
         logging.info(f'Reading legacy data from {previous}')
-        old_data = read_json_from_path(previous)
+        old_data: dict = read_json_from_path(previous)
 
     else:
         twelve_months = True
