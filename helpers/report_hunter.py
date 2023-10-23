@@ -115,10 +115,9 @@ def main(latest: bool = False):
             exome_output = 'Exome' if 'exome' in output_path else 'Familial'
             singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
             try:
-                # pipeline runs don't have display_url
                 report_address = analysis['output'].replace(
-                    get_config()['storage']['default']['web'],
-                    get_config()['storage']['default']['web_url'],
+                    get_config()['storage'][cohort]['web'],
+                    get_config()['storage'][cohort]['web_url'],
                 )
                 all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                     dataset=cohort,
