@@ -17,6 +17,7 @@ from cpg_utils.hail_batch import (
     image_path,
     reference_path,
     command,
+    authenticate_cloud_credentials_in_job,
     query_command,
 )
 from cpg_workflows.resources import STANDARD
@@ -145,9 +146,8 @@ def scatter_intervals(
     """
     for idx in range(scatter_count):
         name = f'temp_{str(idx + 1).zfill(4)}_of_{scatter_count}'
-        ilist = j[f'{idx + 1}.interval_list']
         cmd += f"""
-        ln $BATCH_TMPDIR/out/{name}/scattered.interval_list {ilist}
+        ln $BATCH_TMPDIR/out/{name}/scattered.interval_list {j[f'{idx + 1}.interval_list']}
         """
 
     j.command(command(cmd))
@@ -224,6 +224,7 @@ def add_vep_jobs(
         vep_one_job = vep_one(
             b,
             vcf=input_vcf_parts[idx]['vcf.gz'],
+            out_format='json',
             out_path=result_part_paths[idx],
             job_attrs=(job_attrs or {}) | {'part': f'{idx + 1}/{scatter_count}'},
         )
@@ -272,7 +273,11 @@ def gather_vep_json_to_ht(
 
 
 def vep_one(
-    b: Batch, out_path: Path, vcf: Path | hb.ResourceFile, job_attrs: dict | None = None
+    b: Batch,
+    vcf: Path | hb.ResourceFile,
+    out_path: Path | None = None,
+    out_format: Literal['vcf', 'json'] = 'vcf',
+    job_attrs: dict | None = None,
 ) -> Job | None:
     """
     Run a single VEP job.
@@ -282,32 +287,65 @@ def vep_one(
 
     j = b.new_job('VEP', (job_attrs or {}) | {'tool': 'vep'})
     j.image(image_path('vep'))
-
-    # huge resource reduction
-    STANDARD.set_resources(j, storage_gb=50, mem_gb=16, ncpu=4)
+    STANDARD.set_resources(j, storage_gb=50, mem_gb=50, ncpu=16)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
+
+    if out_format == 'vcf':
+        j.declare_resource_group(
+            output={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
+        )
+        assert isinstance(j.output, hb.ResourceGroup)
+        output = j.output['vcf.gz']
+    else:
+        assert isinstance(j.output, hb.ResourceFile)
+        output = j.output
 
     # gcsfuse works only with the root bucket, without prefix:
     vep_mount_path = reference_path('vep_mount')
     data_mount = to_path(f'/{vep_mount_path.drive}')
     j.cloudfuse(vep_mount_path.drive, str(data_mount), read_only=True)
     vep_dir = data_mount / '/'.join(vep_mount_path.parts[2:])
+    loftee_conf = {
+        'loftee_path': '$LOFTEE_PLUGIN_PATH',
+        'gerp_bigwig': f'{vep_dir}/gerp_conservation_scores.homo_sapiens.GRCh38.bw',
+        'human_ancestor_fa': f'{vep_dir}/human_ancestor.fa.gz',
+        'conservation_file': f'{vep_dir}/loftee.sql',
+    }
 
-    # run forked as we're not using plugins
+    authenticate_cloud_credentials_in_job(j)
+    cmd = f"""\
+    ls {vep_dir}
+    ls {vep_dir}/vep
+
+    LOFTEE_PLUGIN_PATH=$MAMBA_ROOT_PREFIX/share/ensembl-vep
+    FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
+
+    vep \\
+    --format vcf \\
+    --{out_format} {'--compress_output bgzip' if out_format == 'vcf' else ''} \\
+    -o {output} \\
+    -i {vcf} \\
+    --everything \\
+    --allele_number \\
+    --minimal \\
+    --cache --offline --assembly GRCh38 \\
+    --dir_cache {vep_dir}/vep/ \\
+    --dir_plugins $LOFTEE_PLUGIN_PATH \\
+    --fasta $FASTA \\
+    --plugin LoF,{','.join(f'{k}:{v}' for k, v in loftee_conf.items())}
+    """
+    if out_format == 'vcf':
+        cmd += f'tabix -p vcf {output}'
+
     j.command(
         command(
-            f"""\
-                FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
-                vep --format vcf --json -o {j.output} -i {vcf} \\
-                --fork 4 \\
-                --minimal --cache --offline --assembly GRCh38 \\
-                --dir_cache {vep_dir}/vep/ --fasta $FASTA
-                """,
+            cmd,
+            setup_gcp=True,
             monitor_space=True,
         )
     )
-
-    b.write_output(j.output, str(out_path))
+    if out_path:
+        b.write_output(j.output, str(out_path).replace('.vcf.gz', ''))
     return j
