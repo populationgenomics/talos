@@ -215,4 +215,4 @@ def main(date: str | None = None, folder: str | None = None):
 
 
 if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
+    main()

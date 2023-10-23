@@ -35,7 +35,7 @@ def fixture_fake_panelapp(requests_mock, latest_mendeliome, latest_incidentalome
     )
 
 
-def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
+def test_panel_query(fake_panelapp):
     """
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
@@ -50,7 +50,7 @@ def test_panel_query(fake_panelapp):  # pylint: disable=unused-argument
     assert old_data['ENSG00ABCD'] == [1, 137]
 
 
-def test_panel_query_removal(fake_panelapp):  # pylint: disable=unused-argument
+def test_panel_query_removal(fake_panelapp):
     """
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
@@ -65,7 +65,7 @@ def test_panel_query_removal(fake_panelapp):  # pylint: disable=unused-argument
     assert old_data['ENSG00ABCD'] == [1, 137]
 
 
-def test_panel_query_removal_2(fake_panelapp):  # pylint: disable=unused-argument
+def test_panel_query_removal_2(fake_panelapp):
     """
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
@@ -80,7 +80,7 @@ def test_panel_query_removal_2(fake_panelapp):  # pylint: disable=unused-argumen
     assert old_data['ENSG00ABCD'] == [1, 137]
 
 
-def test_panel_query_addition(fake_panelapp):  # pylint: disable=unused-argument
+def test_panel_query_addition(fake_panelapp):
     """
     check that the default parsing delivers correct data
     oof, this was a tricky one

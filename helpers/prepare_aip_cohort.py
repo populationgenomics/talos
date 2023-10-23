@@ -227,7 +227,6 @@ def get_pedigree_for_project(
     Returns:
         All API returned content
     """
-    # pylint: disable=unsubscriptable-object
     response = query(PED_QUERY, variables={'project': project})
     pedigree = response['project']['pedigree']
     lookup = {

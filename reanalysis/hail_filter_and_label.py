@@ -552,7 +552,6 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
 
     logging.info('Updating synthetic PL values for WT calls where missing')
 
-    # pylint: disable=invalid-unary-operand-type
     de_novo_matrix = de_novo_matrix.annotate_entries(
         PL=hl.case()
         .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
@@ -781,7 +780,6 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
         )
 
     csq = hl.empty_array(hl.tstr)
-    # pylint: disable=unnecessary-lambda
     csq = csq.extend(
         hl.or_else(
             vep_expr['transcript_consequences'].map(lambda x: get_csq_from_struct(x)),

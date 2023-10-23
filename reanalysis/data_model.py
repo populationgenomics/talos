@@ -22,8 +22,6 @@ Expected results in this case would be determined by the gene ID(s),
 the annotation(s), the genotype(s), and the sample affection status.
 """
 
-# pylint: disable=invalid-name,too-many-instance-attributes
-
 
 import json
 from os.path import join
@@ -301,7 +299,7 @@ class SneakyTable:
         self.tmp_path = tmp_path
         try:
             hl.init(default_reference='GRCh38')
-        except BaseException:  # pylint: disable=broad-except
+        except BaseException:
             pass
 
     def modify_schema(self) -> str:

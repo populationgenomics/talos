@@ -198,7 +198,6 @@ def clean_and_filter(
     Returns:
         cleaned data
     """
-    # pylint: disable=too-many-branches
 
     cohort_panels = set(get_cohort_config().get('cohort_panels', []))
 
@@ -564,4 +563,4 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         stream=sys.stderr,
     )
-    main()  # pylint: disable=no-value-for-parameter
+    main()

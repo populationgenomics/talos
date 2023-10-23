@@ -12,19 +12,22 @@ from peddy.peddy import Ped
 
 from cpg_utils.config import set_config_paths
 
-from reanalysis.data_model import BaseFields, Entry, TXFields, VepVariant, SneakyTable
-
+# force this to come first
 PWD = Path(__file__).parent
 INPUT = PWD / 'input'
-
-# force this to come first
 CONF_BASE = INPUT / 'reanalysis_global.toml'
 CONF_COHORT = INPUT / 'reanalysis_cohort.toml'
-
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
 
-# pylint: disable=wrong-import-position
+from reanalysis.data_model import (  # noqa: E402
+    BaseFields,
+    Entry,
+    TXFields,
+    VepVariant,
+    SneakyTable,
+)
+
 from reanalysis.utils import AbstractVariant, read_json_from_path  # noqa: E402
 
 LABELLED = INPUT / '1_labelled_variant.vcf.bgz'

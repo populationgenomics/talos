@@ -13,8 +13,6 @@ i.e. the full path to the output file is crucial, and forcing steps to
 re-run currently requires the deletion of previous outputs
 """
 
-# pylint: disable=too-many-branches
-
 
 import logging
 import sys
@@ -390,7 +388,7 @@ def main(
         'this is designed for MT or compressed VCF only'
     )
 
-    global ANNOTATED_MT  # pylint: disable=W0603
+    global ANNOTATED_MT
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path

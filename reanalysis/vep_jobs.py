@@ -253,7 +253,6 @@ def gather_vep_json_to_ht(
     Parse results from VEP with annotations formatted in JSON,
     and write into a Hail Table using a Batch job.
     """
-    # pylint: disable=import-outside-toplevel
     from reanalysis import vep
 
     j = b.new_job('VEP', job_attrs)

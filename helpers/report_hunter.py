@@ -46,8 +46,6 @@ REPORT_QUERY = gql(
     """
 )
 
-# pylint: disable=unsubscriptable-object
-
 
 @dataclass
 class Report:

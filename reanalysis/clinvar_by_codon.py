@@ -81,4 +81,4 @@ def protein_indexed_clinvar(mt_path: str, write_path: str):
 
 
 if __name__ == '__main__':
-    protein_indexed_clinvar()  # pylint: disable=no-value-for-parameter
+    protein_indexed_clinvar()

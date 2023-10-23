@@ -34,9 +34,6 @@ DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
 FORBIDDEN_GENES = None
 
 
-# pylint: disable=no-value-for-parameter,unnecessary-lambda
-
-
 def request_panel_data(url: str) -> tuple[str, str, list]:
     """
     takes care of the panelapp query
@@ -77,7 +74,7 @@ def get_panel_green(
         blacklist (): list of symbols/ENSG IDs to remove from this panel
     """
 
-    global FORBIDDEN_GENES  # pylint: disable=global-statement
+    global FORBIDDEN_GENES
     if FORBIDDEN_GENES is None:
         FORBIDDEN_GENES = read_json_from_path(
             get_cohort_config().get('forbidden', 'missing'), set()
@@ -102,8 +99,6 @@ def get_panel_green(
     for gene in panel_genes:
 
         symbol = gene.get('entity_name')
-        if symbol != 'NPC1':
-            continue
 
         # only retain green genes
         if (
@@ -135,13 +130,10 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = panel_id not in old_data.get(ensg, [])
-
-        if new_gene:
+        if new_gene := panel_id not in old_data.get(ensg, []):
             old_data.setdefault(ensg, []).append(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
-        input(exact_moi)
 
         # either update or add a new entry
         if ensg in gene_dict['genes'].keys():

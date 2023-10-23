@@ -31,7 +31,7 @@ def fixture_fake_panelapp_overview(requests_mock, fake_panelapp_overview):
     )
 
 
-def test_get_panels(fake_panelapp_overview):  # pylint: disable=unused-argument
+def test_get_panels(fake_panelapp_overview):
     """
     check that the endpoint parser works ok
     """

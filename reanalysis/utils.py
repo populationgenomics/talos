@@ -19,8 +19,6 @@ import requests
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-# pylint: disable=too-many-lines,too-many-instance-attributes,global-statement
-
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -883,7 +881,6 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str:
         input_moi ():
         chrom ():
     """
-    # pylint: disable=too-many-return-statements
     if input_moi in IRRELEVANT_MOI:
         raise ValueError("unknown and other shouldn't reach this method")
 
@@ -906,7 +903,7 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str:
         case [
             'xlinked',
             *additional,
-        ] if 'biallelic' in additional:  # pylint: disable='used-before-assignment'
+        ] if 'biallelic' in additional:
             return 'Hemi_Bi_In_Female'
         case ['xlinked', *_additional]:
             return 'Hemi_Mono_In_Female'

@@ -187,7 +187,6 @@ def consequence_decision(subs: list[Submission]) -> Consequence:
     Returns:
         a single Consequence object
     """
-    # pylint: disable=R0912
 
     # start with a default consequence
     decision = Consequence.UNCERTAIN
@@ -347,7 +346,6 @@ def get_all_decisions(
 
         # skip rows where the variantID isn't in this mapping
         # this saves a little effort on haplotypes, CNVs, and SVs
-        # pylint: disable=too-many-boolean-expressions
         if (
             (a_id not in allele_ids)
             or (line_sub.submitter in blacklist)
