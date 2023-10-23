@@ -82,12 +82,10 @@ class HTMLBuilder:
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
         seqr_path = get_cohort_seq_type_conf().get('seqr_lookup')
-        self.seqr: dict = {}
+        self.seqr: dict[str, str] = {}
 
         if seqr_path:
-            self.seqr: dict[str, str] = read_json_from_path(  # type: ignore
-                seqr_path, default=self.seqr
-            )
+            self.seqr = read_json_from_path(seqr_path, default=self.seqr)  # type: ignore
             assert isinstance(self.seqr, dict)
 
             # Force user to correct config file if seqr URL/project are missing

@@ -47,6 +47,8 @@ ORDERED_MOIS = [
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
 SCRIPT_CONFIG: dict = dict(get_config(False))
+CONFIG_FIELDS = ['workflow', 'filter', 'panels', 'categories']
+assert all(field in SCRIPT_CONFIG.keys() for field in CONFIG_FIELDS)
 
 
 def get_granular_date():
@@ -784,7 +786,7 @@ def gather_gene_dict_from_contig(
         }
     """
 
-    if 'blacklist' in SCRIPT_CONFIG['filter'].keys():
+    if 'blacklist' in SCRIPT_CONFIG['filter']:
         blacklist = read_json_from_path(SCRIPT_CONFIG['filter']['blacklist'])
     else:
         blacklist = []

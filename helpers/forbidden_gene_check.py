@@ -62,6 +62,10 @@ def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> 
         if bucket_path.exists():
             with bucket_path.open() as handle:
                 return json.load(handle)
+    else:
+        raise TypeError(
+            f'bucket_path must be str, Path, or None, not {type(bucket_path)}'
+        )
     return default
 
 
