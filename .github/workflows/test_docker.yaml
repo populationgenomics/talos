@@ -16,17 +16,17 @@ jobs:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip
+      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/image-dev/cpg_aip
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@v4
 
     - name: gcloud auth
-      uses: 'google-github-actions/auth@v0'
+      uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GH_IMAGES_DEPLOYER_JSON }}
 
     - name: set up gcloud sdk
-      uses: google-github-actions/setup-gcloud@v0
+      uses: google-github-actions/setup-gcloud@v1
       with:
         project_id: cpg-common
     - name: gcloud docker auth
