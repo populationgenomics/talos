@@ -18,7 +18,6 @@ import json
 import logging
 import sys
 from collections import defaultdict
-from datetime import datetime
 
 import click
 from cyvcf2 import VCFReader
@@ -44,6 +43,7 @@ from reanalysis.utils import (
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
+SCRIPT_CONFIG = get_config(False)
 
 
 def set_up_moi_filters(
@@ -140,7 +140,11 @@ def apply_moi_to_variants(
             # pass on whether this variant is support only
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
-            variant_results = moi_lookup[panel_gene_data.get('moi')].run(
+            panel_moi = panel_gene_data.get('moi')
+            assert isinstance(panel_moi, str)
+            runner = moi_lookup[panel_moi]
+            assert isinstance(runner, MOIRunner)
+            variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
                 partial_pen=variant.info.get('categoryboolean1', False),
@@ -209,7 +213,7 @@ def clean_and_filter(
             for sample, content in participant_panels.items()
         }
 
-    gene_details = {}
+    gene_details: dict[str, set[int]] = {}
 
     for each_event in result_list:
 
@@ -256,7 +260,7 @@ def clean_and_filter(
             each_event.panels['matched'] = [
                 panel_meta[pid]
                 for pid in phenotype_intersection
-                if pid != get_config()['workflow'].get('default_panel', 137)
+                if pid != SCRIPT_CONFIG['workflow'].get('default_panel', 137)
             ]
 
         if cohort_intersection:
@@ -321,10 +325,10 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
     """
 
     # contains all sample IDs for the given families
-    family_dict = defaultdict(set)
+    family_dict: dict[str, set[str]] = defaultdict(set)
 
     # the final dict of counts to return
-    stat_counter = defaultdict(int)
+    stat_counter: dict[str, int] = defaultdict(int)
 
     # iterate over samples in the VCF
     for sample_id in samples:
@@ -474,6 +478,7 @@ def main(
 
     # parse panelapp data from dict
     panelapp_data = read_json_from_path(panelapp)
+    assert isinstance(panelapp_data, dict)
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(
@@ -484,6 +489,7 @@ def main(
     vcf_opened = VCFReader(labelled_vcf)
 
     pheno_panels = read_json_from_path(participant_panels)
+    assert isinstance(pheno_panels, dict)
 
     # create the new gene map
     new_gene_map = get_new_gene_map(panelapp_data, pheno_panels)
@@ -535,14 +541,14 @@ def main(
         'results': analysis_results,
         'metadata': {
             'input_file': input_path,
-            'cohort': get_config()['workflow']['dataset'],
+            'cohort': SCRIPT_CONFIG['workflow']['dataset'],
             'run_datetime': get_granular_date(),
             'family_breakdown': count_families(
                 pedigree_digest, samples=vcf_opened.samples
             ),
             'panels': panelapp_data['metadata'],
-            'container': get_config()['workflow']['driver_image'],
-            'categories': get_config()['categories'],
+            'container': SCRIPT_CONFIG['workflow']['driver_image'],
+            'categories': SCRIPT_CONFIG['categories'],
         },
     }
 

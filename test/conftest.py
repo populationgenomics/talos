@@ -97,7 +97,7 @@ def fixture_make_a_vcf(make_a_mt, tmp_path_factory) -> str:
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')
-def fixture_fake_obo() -> str:
+def fixture_fake_obo() -> Path:
     """path to fake obo"""
     return FAKE_OBO
 

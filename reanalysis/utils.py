@@ -48,6 +48,7 @@ ORDERED_MOIS = [
 ]
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
+SCRIPT_CONFIG: dict = dict(get_config(False))
 
 
 def get_granular_date():
@@ -58,7 +59,7 @@ def get_granular_date():
     if _GRANULAR_DATE is None:
         # allow an override here - synthetic historic runs
         try:
-            if fake_date := get_config().get('workflow', {}).get('fake_date'):
+            if fake_date := SCRIPT_CONFIG.get('workflow', {}).get('fake_date'):
                 _GRANULAR_DATE = fake_date
         except AssertionError:
             logging.info(f'No config loaded, falling back to {_GRANULAR_DATE}')
@@ -221,8 +222,8 @@ def get_cohort_config(dataset: str | None = None):
         the dict of cohort and genome/exome specific content
     """
 
-    dataset = dataset or get_config()['workflow']['dataset']
-    cohort_details = get_config().get('cohorts', {}).get(dataset)
+    dataset = dataset or SCRIPT_CONFIG['workflow']['dataset']
+    cohort_details = SCRIPT_CONFIG.get('cohorts', {}).get(dataset)
     assert cohort_details, f'{dataset} is not represented in config'
     return cohort_details
 
@@ -236,8 +237,8 @@ def get_cohort_seq_type_conf():
         the dict of cohort and genome/exome specific content
     """
     cohort_conf = get_cohort_config()
-    dataset = get_config()['workflow']['dataset']
-    seq_type = get_config()['workflow']['sequencing_type']
+    dataset = SCRIPT_CONFIG['workflow']['dataset']
+    seq_type = SCRIPT_CONFIG['workflow']['sequencing_type']
     cohort_details = cohort_conf.get(seq_type, {})
     assert cohort_details, f'{dataset} - {seq_type} is not represented in config'
     return cohort_details
@@ -259,7 +260,7 @@ def get_new_gene_map(
     # find the dataset-specific panel data, if present
     # add the 'core' panel to it
     config_cohort_panels: list[int] = get_cohort_config().get('cohort_panels', [])
-    cohort_panels = config_cohort_panels + [get_config()['panels']['default_panel']]
+    cohort_panels = config_cohort_panels + [SCRIPT_CONFIG['panels']['default_panel']]
 
     # collect all genes new in at least one panel
     new_genes = {
@@ -642,7 +643,7 @@ class AbstractVariant:
         Returns:
             return a flag if this sample has low read depth
         """
-        threshold = get_config()['filter'].get('minimum_depth', 10)
+        threshold = SCRIPT_CONFIG['filter'].get('minimum_depth', 10)
         if self.depths[sample] < threshold:
             return ['Low Read Depth']
         return []
@@ -713,7 +714,7 @@ class ReportedVariant:
     genotypes: dict[str, str]
     support_vars: set[str] = field(default_factory=set)
     flags: list[str] = field(default_factory=list)
-    panels: dict[str, str] = field(default_factory=dict)
+    panels: dict[str, str | list[int]] = field(default_factory=dict)
     phenotypes: list[str] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
     first_seen: str = get_granular_date()
@@ -785,8 +786,8 @@ def gather_gene_dict_from_contig(
         }
     """
 
-    if 'blacklist' in get_config()['filter'].keys():
-        blacklist = read_json_from_path(get_config()['filter']['blacklist'])
+    if 'blacklist' in SCRIPT_CONFIG['filter'].keys():
+        blacklist = read_json_from_path(SCRIPT_CONFIG['filter']['blacklist'])
     else:
         blacklist = []
 
@@ -955,7 +956,7 @@ def extract_csq(csq_contents) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = get_config()['csq']['csq_string']
+    csq_categories = SCRIPT_CONFIG['csq']['csq_string']
 
     # iterate over all consequences, and make each into a dict
     return [
@@ -1164,19 +1165,21 @@ def date_annotate_results(
     # if there's no historic data, make some
     if historic is None:
         historic = {
-            'metadata': {'categories': get_config()['categories']},
+            'metadata': {'categories': SCRIPT_CONFIG['categories']},
             'results': {},
         }
 
     # update to latest format
     elif 'results' not in historic.keys():
         historic = {
-            'metadata': {'categories': get_config()['categories']},
+            'metadata': {'categories': SCRIPT_CONFIG['categories']},
             'results': historic,
         }
 
     # update to latest category descriptions
-    historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
+    historic['metadata'].setdefault('categories', {}).update(
+        SCRIPT_CONFIG['categories']
+    )
 
     for sample, content in current.items():
 

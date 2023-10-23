@@ -44,8 +44,3 @@ repos:
             --install-types,
             --non-interactive,
           ]
-  - repo: https://github.com/dhruvmanila/remove-print-statements
-    rev: 'v0.5.0'
-    hooks:
-    - id: remove-print-statements
-      args: ['--verbose']
