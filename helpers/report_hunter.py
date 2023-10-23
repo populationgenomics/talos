@@ -49,6 +49,26 @@ REPORT_QUERY = gql(
 # pylint: disable=unsubscriptable-object
 
 
+# this very verbose logging is to ensure that the log level requested (INFO)
+# doesn't cause the unintentional logging of every Metamist query
+# create a named logger
+script_logger = logging.getLogger(__name__)
+script_logger.setLevel(logging.INFO)
+
+# create a stream handler to write output
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setLevel(logging.INFO)
+
+# create format string for messages
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s'
+)
+stream_handler.setFormatter(formatter)
+
+# set the logger to use this handler
+script_logger.addHandler(stream_handler)
+
+
 @dataclass
 class Report:
     """
@@ -68,7 +88,9 @@ def get_my_projects():
     returns the dataset names
     """
     response: dict[str, Any] = query(PROJECT_QUERY)
-    return {dataset['dataset'] for dataset in response['myProjects']}
+    all_projects = {dataset['dataset'] for dataset in response['myProjects']}
+    script_logger.info(f'Running for projects: {", ".join(sorted(all_projects))}')
+    return all_projects
 
 
 def get_project_analyses(project: str) -> list[dict]:
@@ -116,8 +138,8 @@ def main(latest: bool = False):
             singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
             try:
                 report_address = analysis['output'].replace(
-                    get_config()['storage'][cohort]['web'],
-                    get_config()['storage'][cohort]['web_url'],
+                    get_config(False)['storage'][cohort]['web'],
+                    get_config(False)['storage'][cohort]['web_url'],
                 )
                 all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                     dataset=cohort,
@@ -127,10 +149,10 @@ def main(latest: bool = False):
                     date=analysis['timestampCompleted'].split('T')[0],
                 )
             except KeyError:
-                logging.info(
+                script_logger.info(
                     'Failed to construct a Report entry - is this a report HTML entry?'
                 )
-                logging.info(analysis)
+                script_logger.info(analysis)
 
     # if there were no reports, don't bother with the HTML
     if not all_cohorts:
@@ -149,7 +171,7 @@ def main(latest: bool = False):
     # write to common web bucket - either attached to a single dataset, or communal
     to_path(
         join(
-            get_config()['storage']['common']['test']['web'],
+            get_config(False)['storage']['common']['test']['web'],
             'reanalysis',
             'latest_aip_index.html' if latest else 'aip_index.html',
         )
@@ -157,12 +179,6 @@ def main(latest: bool = False):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
     # run once for all main reports, then again for the latest-only reports
     main()
     main(latest=True)
