@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.5.0
     hooks:
       - id: check-yaml
         exclude: '\.*conda/.*'
@@ -14,25 +14,24 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.31.1
+    rev: v0.37.0
     hooks:
       - id: markdownlint
         args: ["--config", ".markdownlint.json"]
 
   - repo: https://github.com/ambv/black
-    rev: 22.3.0
+    rev: 22.10.0
     hooks:
       - id: black
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.0.264"
+    rev: "v0.1.0"
     hooks:
       - id: ruff
 
-      # mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.961
+    rev: v1.6.1
     hooks:
       - id: mypy
         args:
