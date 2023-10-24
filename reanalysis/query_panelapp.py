@@ -125,7 +125,8 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        if new_gene := panel_id not in old_data.get(ensg, []):
+        new_gene = panel_id not in old_data.get(ensg, [])
+        if new_gene:
             old_data.setdefault(ensg, []).append(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
