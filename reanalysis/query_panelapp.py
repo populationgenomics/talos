@@ -199,7 +199,7 @@ def read_panels_from_participant_file(panel_json: str) -> set[int]:
     Returns:
         set of all the panels across all participants
     """
-    participant_panels = read_json_from_path(panel_json)
+    participant_panels = read_json_from_path(panel_json, {})
     panel_set = set()
     for details in participant_panels.values():
         panel_set.update(details.get('panels', []))
