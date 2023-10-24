@@ -1,15 +1,15 @@
 click>=8.1.3
-cloudpathlib[all]>=0.9.0
-cpg-utils>=4.15.0
-cpg_workflows>=1.12.6
+cloudpathlib[all]>=0.16.0
+cpg-utils>=4.17.0
+cpg_workflows>=1.17.1
 cyvcf2==0.30.18
-dill>=0.3.5.1
+dill>=0.3.7
 hail!=0.2.120
 Jinja2==3.0.3
-metamist>=6.0.2
-networkx>=2.8.3
-obonet>=0.3.1
-pandas>=1.4.3
+metamist>=6.4.0
+networkx>=3
+obonet>=1
+pandas>=2
 peddy>=0.4.8
 requests>=2.25.1,<2.30.0 # vulnerability in 2.30.0
 seqr-loader>=1.2.5

@@ -31,8 +31,6 @@ PanelData = dict[str, dict | list[dict]]
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
-FORBIDDEN_GENES = None
-COHORT_CONFIG: dict | None = None
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -62,6 +60,7 @@ def get_panel_green(
     panel_id: int = DEFAULT_PANEL,
     version: str | None = None,
     blacklist: list[str] | None = None,
+    forbidden_genes: set[str] | None = None,
 ):
     """
     Takes a panel number, and pulls all GRCh38 gene details from PanelApp
@@ -73,10 +72,13 @@ def get_panel_green(
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
         blacklist (): list of symbols/ENSG IDs to remove from this panel
+        forbidden_genes (set[str]): genes to remove for this cohort
     """
 
     if blacklist is None:
         blacklist = []
+    if forbidden_genes is None:
+        forbidden_genes = set()
 
     # include the version if required
     panel_url = f'{PANELAPP_BASE}/{panel_id}' + (
@@ -99,7 +101,7 @@ def get_panel_green(
         if (
             gene['confidence_level'] != '3'
             or gene['entity_type'] != 'gene'
-            or symbol in FORBIDDEN_GENES
+            or symbol in forbidden_genes
         ):
             continue
 
@@ -119,7 +121,7 @@ def get_panel_green(
             ensg is None
             or ensg in blacklist
             or symbol in blacklist
-            or ensg in FORBIDDEN_GENES
+            or ensg in forbidden_genes
         ):
             logging.info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
@@ -244,13 +246,16 @@ def find_core_panel_version() -> str | None:
     return None
 
 
-def get_new_genes(current_genes: set[str], old_version: str) -> set[str]:
+def get_new_genes(
+    current_genes: set[str], old_version: str, forbidden: set[str] | None = None
+) -> set[str]:
     """
     query for two versions of the same panel
     find all genes new on that panel between versions
     Args:
         current_genes (): current Mendeliome genes
         old_version ():
+        forbidden ():
 
     Returns:
         a set of all genes now in the Mendeliome (and green)
@@ -258,7 +263,7 @@ def get_new_genes(current_genes: set[str], old_version: str) -> set[str]:
     """
 
     old: PanelData = {'metadata': [], 'genes': {}}
-    get_panel_green(old, old_data={}, version=old_version)
+    get_panel_green(old, old_data={}, version=old_version, forbidden_genes=forbidden)
 
     return current_genes.difference(set(old['genes'].keys()))
 
@@ -307,10 +312,8 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    global COHORT_CONFIG, FORBIDDEN_GENES
-    COHORT_CONFIG = get_cohort_config(dataset)
-    FORBIDDEN_GENES = read_json_from_path(
-        COHORT_CONFIG.get('forbidden', 'missing'), set()
+    forbidden_genes = read_json_from_path(
+        get_cohort_config(dataset).get('forbidden', 'missing'), set()
     )
 
     # historic data overrides default 'previous' list for cohort
@@ -319,7 +322,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         logging.info(f'Grabbing legacy panel data from {old_file}')
         old_data: dict = read_json_from_path(old_file, default=old_data)
 
-    elif previous := COHORT_CONFIG.get('gene_prior'):
+    elif previous := get_cohort_config(dataset).get('gene_prior'):
         logging.info(f'Reading legacy data from {previous}')
         old_data: dict = read_json_from_path(previous, default=old_data)
 
@@ -335,7 +338,12 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     gene_dict: PanelData = {'metadata': [], 'genes': {}}
 
     # first add the base content
-    get_panel_green(gene_dict, old_data=old_data, blacklist=remove_from_core)
+    get_panel_green(
+        gene_dict,
+        old_data=old_data,
+        blacklist=remove_from_core,
+        forbidden_genes=forbidden_genes,
+    )
 
     # store the list of genes currently on the core panel
     if twelve_months:
@@ -348,7 +356,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         logging.info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
-    if extra_panels := COHORT_CONFIG.get('cohort_panels'):
+    if extra_panels := get_cohort_config(dataset).get('cohort_panels'):
         logging.info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 
@@ -358,7 +366,12 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         if panel == DEFAULT_PANEL:
             continue
 
-        get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data)
+        get_panel_green(
+            gene_dict=gene_dict,
+            panel_id=panel,
+            old_data=old_data,
+            forbidden_genes=forbidden_genes,
+        )
 
     # now get the best MOI
     get_best_moi(gene_dict['genes'])

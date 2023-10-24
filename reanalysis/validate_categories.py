@@ -43,8 +43,6 @@ from reanalysis.utils import (
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
-COHORT_CONFIG: dict | None = None
-SCRIPT_CONFIG = get_config(False)
 
 
 def set_up_moi_filters(
@@ -177,6 +175,7 @@ def clean_and_filter(
     results_holder: dict,
     result_list: list[ReportedVariant],
     panelapp_data: dict,
+    dataset: str,
     participant_panels: dict | None = None,
 ) -> dict[str, list[ReportedVariant]]:
     """
@@ -194,13 +193,13 @@ def clean_and_filter(
         results_holder (): container for all results data
         result_list (): list of all ReportedVariant events
         panelapp_data ():
+        dataset (str): dataset to use for getting the config portion
         participant_panels ():
 
     Returns:
         cleaned data
     """
-
-    cohort_panels = set(COHORT_CONFIG.get('cohort_panels', []))
+    cohort_panels = set(get_cohort_config(dataset).get('cohort_panels', []))
 
     panel_meta = {
         content['id']: content['name'] for content in panelapp_data['metadata']
@@ -260,7 +259,7 @@ def clean_and_filter(
             each_event.panels['matched'] = [
                 panel_meta[pid]
                 for pid in phenotype_intersection
-                if pid != SCRIPT_CONFIG['workflow'].get('default_panel', 137)
+                if pid != get_config()['workflow'].get('default_panel', 137)
             ]
 
         if cohort_intersection:
@@ -375,13 +374,18 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
 
 def prepare_results_shell(
-    vcf_samples: list[str], pedigree: Ped, panel_data: dict | None, panelapp: dict
+    vcf_samples: list[str],
+    pedigree: Ped,
+    dataset: str,
+    panel_data: dict | None,
+    panelapp: dict,
 ) -> dict:
     """
     prepare an empty dictionary for the results, feat. participant metadata
     Args:
         vcf_samples (): samples in the VCF header
         pedigree (): the Peddy PED object
+        dataset (str): dataset to use for getting the config portion
         panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
     Returns:
@@ -395,7 +399,7 @@ def prepare_results_shell(
     sample_dict = {}
 
     # find the solved cases in this project
-    solved_cases = COHORT_CONFIG.get('solved_cases', [])
+    solved_cases = get_cohort_config(dataset).get('solved_cases', [])
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
 
     for sample in [
@@ -474,9 +478,6 @@ def main(
         dataset (str): optional, dataset to use
     """
 
-    global COHORT_CONFIG
-    COHORT_CONFIG = get_cohort_config(dataset)
-
     out_json_path = to_path(out_json)
 
     # parse the pedigree from the file
@@ -526,6 +527,7 @@ def main(
         vcf_samples=vcf_opened.samples,
         pedigree=pedigree_digest,
         panel_data=pheno_panels,
+        dataset=dataset,
         panelapp=panelapp_data,
     )
 
@@ -534,6 +536,7 @@ def main(
         results_holder=results_shell,
         result_list=result_list,
         panelapp_data=panelapp_data,
+        dataset=dataset,
         participant_panels=pheno_panels,
     )
 
@@ -547,14 +550,14 @@ def main(
         'results': analysis_results,
         'metadata': {
             'input_file': input_path,
-            'cohort': SCRIPT_CONFIG['workflow']['dataset'],
+            'cohort': get_config()['workflow']['dataset'],
             'run_datetime': get_granular_date(),
             'family_breakdown': count_families(
                 pedigree_digest, samples=vcf_opened.samples
             ),
             'panels': panelapp_data['metadata'],
-            'container': SCRIPT_CONFIG['workflow']['driver_image'],
-            'categories': SCRIPT_CONFIG['categories'],
+            'container': get_config()['workflow']['driver_image'],
+            'categories': get_config()['categories'],
         },
     }
 
