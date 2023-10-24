@@ -547,8 +547,6 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', help='Optional, dataset to use', default=None)
     args = parser.parse_args()
 
-    global DATASET_CONFIG
-    global DATASET_SEQ_CONFIG
     DATASET_CONFIG = get_cohort_config(args.dataset)
     DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
