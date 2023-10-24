@@ -25,8 +25,8 @@ from reanalysis.utils import (
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
-DATASET_CONFIG: dict | None = None
-DATASET_SEQ_CONFIG: dict | None = None
+DATASET_CONFIG = None  # type: ignore
+DATASET_SEQ_CONFIG = None  # type: ignore
 
 
 @dataclass
@@ -84,13 +84,13 @@ class HTMLBuilder:
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            DATASET_CONFIG.get('forbidden', 'missing'), set()
+            DATASET_CONFIG.get('forbidden', 'missing'), set()  # type: ignore
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = DATASET_SEQ_CONFIG.get('seqr_lookup')
+        seqr_path = DATASET_SEQ_CONFIG.get('seqr_lookup')  # type: ignore
         self.seqr: dict[str, str] = {}
 
         if seqr_path:
@@ -99,7 +99,7 @@ class HTMLBuilder:
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert DATASET_SEQ_CONFIG.get(
+                assert DATASET_SEQ_CONFIG.get(  # type: ignore
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
@@ -113,7 +113,7 @@ class HTMLBuilder:
         #     },
         # }
         self.ext_labels: dict[str, dict] = read_json_from_path(  # type: ignore
-            DATASET_SEQ_CONFIG.get('external_labels'), {}
+            DATASET_SEQ_CONFIG.get('external_labels'), {}  # type: ignore
         )
 
         # Read results file, or take it directly
@@ -128,7 +128,7 @@ class HTMLBuilder:
         self.panel_names = {panel['name'] for panel in self.metadata['panels']}
 
         # pull out forced panel matches
-        cohort_panels = DATASET_CONFIG.get('cohort_panels', [])
+        cohort_panels = DATASET_CONFIG.get('cohort_panels', [])  # type: ignore
         self.forced_panels = [
             panel for panel in self.metadata['panels'] if panel['id'] in cohort_panels
         ]
@@ -285,8 +285,8 @@ class HTMLBuilder:
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            'seqr_url': DATASET_SEQ_CONFIG.get('seqr_instance', ''),
-            'seqr_project': DATASET_SEQ_CONFIG.get('seqr_project', ''),
+            'seqr_url': DATASET_SEQ_CONFIG.get('seqr_instance', ''),  # type: ignore
+            'seqr_project': DATASET_SEQ_CONFIG.get('seqr_project', ''),  # type: ignore
             'meta_tables': {},
             'forbidden_genes': [],
             'zero_categorised_samples': [],
