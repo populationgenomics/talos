@@ -316,11 +316,11 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # open to discussing order of precedence here
     if old_file := find_latest_file(start='panel_'):
         logging.info(f'Grabbing legacy panel data from {old_file}')
-        old_data: dict = read_json_from_path(old_file)
+        old_data: dict = read_json_from_path(old_file, default=old_data)
 
     elif previous := COHORT_CONFIG.get('gene_prior'):
         logging.info(f'Reading legacy data from {previous}')
-        old_data: dict = read_json_from_path(previous)
+        old_data: dict = read_json_from_path(previous, default=old_data)
 
     else:
         twelve_months = True
