@@ -16,7 +16,7 @@ import logging
 import re
 import requests
 
-from cpg_utils import to_path
+from cpg_utils import to_path, Path as CPGPathType
 from cpg_utils.config import get_config
 
 
@@ -843,7 +843,7 @@ def gather_gene_dict_from_contig(
 
 
 def read_json_from_path(
-    bucket_path: str | Path | None, default: Any = None
+    bucket_path: str | CPGPathType | None, default: Any = None
 ) -> dict | list | None:
     """
     take a path to a JSON file, read into an object
@@ -863,10 +863,9 @@ def read_json_from_path(
     if isinstance(bucket_path, str):
         bucket_path = to_path(bucket_path)
 
-    if isinstance(bucket_path, Path):
-        if bucket_path.exists():
-            with bucket_path.open() as handle:
-                return json.load(handle)
+    if isinstance(bucket_path, CPGPathType) and bucket_path.exists():
+        with bucket_path.open() as handle:
+            return json.load(handle)
     return default
 
 
