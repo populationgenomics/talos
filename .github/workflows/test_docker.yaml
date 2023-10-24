@@ -16,7 +16,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/image-dev/cpg_aip
+      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/images-dev/cpg_aip
     steps:
     - uses: actions/checkout@v4
 

@@ -100,7 +100,13 @@ def test_results_shell(peddy_ped):
             {'id': 3, 'name': 'etc'},
         ]
     }
-    shell = prepare_results_shell(samples, peddy_ped, sample_panels, panelapp)
+    shell = prepare_results_shell(
+        vcf_samples=samples,
+        pedigree=peddy_ped,
+        panel_data=sample_panels,
+        panelapp=panelapp,
+        dataset='cohort',
+    )
 
     # top level only has the two affected participants
     expected = {
@@ -169,7 +175,10 @@ def test_gene_clean_results_no_personal():
     }
 
     clean = clean_and_filter(
-        results_holder=results_holder, result_list=dirty_data, panelapp_data=panel_genes
+        results_holder=results_holder,
+        result_list=dirty_data,
+        panelapp_data=panel_genes,
+        dataset='cohort',
     )
     assert len(clean['sam1']['variants']) == 1
     assert clean['sam1']['variants'][0].gene == 'ENSG1'
@@ -195,7 +204,13 @@ def test_gene_clean_results_personal():
         'sam3': {'panels': [3, 4], 'hpo_terms': ['HP3']},
     }
 
-    clean = clean_and_filter(results_holder, dirty_data, panel_genes, personal_panels)
+    clean = clean_and_filter(
+        results_holder=results_holder,
+        result_list=dirty_data,
+        panelapp_data=panel_genes,
+        participant_panels=personal_panels,
+        dataset='cohort',
+    )
     assert len(clean['sam1']['variants']) == 1
     assert clean['sam1']['variants'][0].gene == 'ENSG1'
     assert len(clean['sam1']['variants'][0].flags) == 0

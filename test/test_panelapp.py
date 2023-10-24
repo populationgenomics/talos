@@ -43,7 +43,7 @@ def test_panel_query(fake_panelapp):
 
     gd = {'genes': {}, 'metadata': []}
     old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
-    get_panel_green(gd, old_data=old_data)
+    get_panel_green(gd, old_data=old_data, forbidden_genes=set())
     assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
     assert gd['genes']['ENSG00ABCD']['panels'] == [137]
     assert gd['genes']['ENSG00EFGH']['moi'] == {'monoallelic'}
@@ -58,7 +58,24 @@ def test_panel_query_removal(fake_panelapp):
 
     gd = {'genes': {}, 'metadata': []}
     old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
-    get_panel_green(gd, old_data=old_data, blacklist=['ENSG00EFGH'])
+    get_panel_green(
+        gd, old_data=old_data, blacklist=['ENSG00EFGH'], forbidden_genes=set()
+    )
+    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
+    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
+    assert 'ENSG00EFGH' not in gd['genes']
+    assert old_data['ENSG00ABCD'] == [1, 137]
+
+
+def test_panel_query_forbidden(fake_panelapp):
+    """
+    check that the default parsing delivers correct data
+    :param fake_panelapp: fake web hook mock
+    """
+
+    gd = {'genes': {}, 'metadata': []}
+    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    get_panel_green(gd, old_data=old_data, forbidden_genes={'ENSG00EFGH'})
     assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
     assert gd['genes']['ENSG00ABCD']['panels'] == [137]
     assert 'ENSG00EFGH' not in gd['genes']
@@ -67,13 +84,28 @@ def test_panel_query_removal(fake_panelapp):
 
 def test_panel_query_removal_2(fake_panelapp):
     """
-    check that the default parsing delivers correct data
+    check skipping by symbol works as well
     :param fake_panelapp: fake web hook mock
     """
 
     gd = {'genes': {}, 'metadata': []}
     old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
     get_panel_green(gd, old_data=old_data, blacklist=['EFGH'])
+    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
+    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
+    assert 'ENSG00EFGH' not in gd['genes']
+    assert old_data['ENSG00ABCD'] == [1, 137]
+
+
+def test_panel_query_forbidden_2(fake_panelapp):
+    """
+    check skipping by symbol works as well
+    :param fake_panelapp: fake web hook mock
+    """
+
+    gd = {'genes': {}, 'metadata': []}
+    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    get_panel_green(gd, old_data=old_data, forbidden_genes={'EFGH'})
     assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
     assert gd['genes']['ENSG00ABCD']['panels'] == [137]
     assert 'ENSG00EFGH' not in gd['genes']
@@ -107,7 +139,10 @@ def test_panel_query_addition(fake_panelapp):
 
     # should query for and integrate the incidentalome content
     get_panel_green(
-        gd, panel_id=126, old_data={'ENSG00EFGH': [137, 126], 'ENSG00IJKL': [137]}
+        gd,
+        panel_id=126,
+        old_data={'ENSG00EFGH': [137, 126], 'ENSG00IJKL': [137]},
+        forbidden_genes=set(),
     )
     assert gd['genes']['ENSG00ABCD']['moi'] == {'monoallelic', 'biallelic'}
     assert gd['genes']['ENSG00ABCD']['panels'] == [137, 126]
