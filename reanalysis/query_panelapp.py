@@ -32,6 +32,7 @@ PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
 FORBIDDEN_GENES = None
+COHORT_CONFIG: dict | None = None
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -73,12 +74,6 @@ def get_panel_green(
         version (): version, optional. Latest panel unless stated
         blacklist (): list of symbols/ENSG IDs to remove from this panel
     """
-
-    global FORBIDDEN_GENES
-    if FORBIDDEN_GENES is None:
-        FORBIDDEN_GENES = read_json_from_path(
-            get_cohort_config().get('forbidden', 'missing'), set()
-        )
 
     if blacklist is None:
         blacklist = []
@@ -288,15 +283,18 @@ def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
 @click.command()
 @click.option('--panels', help='JSON of per-participant panels')
 @click.option('--out_path', required=True, help='destination for results')
-def main(panels: str | None, out_path: str):
+@click.option('--dataset', default=None, help='dataset to use, optional')
+def main(panels: str | None, out_path: str, dataset: str | None = None):
     """
     if present, reads in any prior reference data
     if present, reads additional panels to use
     queries panelapp for each panel in turn, aggregating results
+    optional attribute dataset used for running in a pipeline context
 
     Args:
         panels (): file containing per-participant panels
         out_path (): where to write the results out to
+        dataset (): optional dataset to use
     """
 
     logging.info('Starting PanelApp Query Stage')
@@ -307,7 +305,12 @@ def main(panels: str | None, out_path: str):
     twelve_months = None
 
     # find and extract this dataset's portion of the config file
-    cohort_config = get_cohort_config()
+    # set the Forbidden genes (defaulting to an empty set)
+    global COHORT_CONFIG, FORBIDDEN_GENES
+    COHORT_CONFIG = get_cohort_config(dataset)
+    FORBIDDEN_GENES = read_json_from_path(
+        COHORT_CONFIG.get('forbidden', 'missing'), set()
+    )
 
     # historic data overrides default 'previous' list for cohort
     # open to discussing order of precedence here
@@ -315,7 +318,7 @@ def main(panels: str | None, out_path: str):
         logging.info(f'Grabbing legacy panel data from {old_file}')
         old_data: dict = read_json_from_path(old_file)
 
-    elif previous := cohort_config.get('gene_prior'):
+    elif previous := COHORT_CONFIG.get('gene_prior'):
         logging.info(f'Reading legacy data from {previous}')
         old_data: dict = read_json_from_path(previous)
 
@@ -344,7 +347,7 @@ def main(panels: str | None, out_path: str):
         logging.info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
-    if extra_panels := cohort_config.get('cohort_panels'):
+    if extra_panels := COHORT_CONFIG.get('cohort_panels'):
         logging.info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 

@@ -25,6 +25,8 @@ from reanalysis.utils import (
 
 CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
+DATASET_CONFIG: dict | None = None
+DATASET_SEQ_CONFIG: dict | None = None
 
 
 @dataclass
@@ -61,12 +63,19 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str | dict, panelapp_path: str, pedigree: Ped):
+    def __init__(
+        self,
+        results: str | dict,
+        panelapp_path: str,
+        pedigree: Ped,
+        dataset: str | None = None,
+    ):
         """
         Args:
             results (str | dict): path to the results JSON, or the results dict
             panelapp_path (str): where to read panelapp data from
             pedigree (str): path to the PED file
+            dataset (str): dataset to run for
         """
         self.panelapp: dict = read_json_from_path(panelapp_path)  # type: ignore
         assert isinstance(self.panelapp, dict)
@@ -75,13 +84,13 @@ class HTMLBuilder:
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            get_cohort_config().get('forbidden', 'missing'), set()
+            DATASET_CONFIG.get('forbidden', 'missing'), set()
         )
 
         logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = get_cohort_seq_type_conf().get('seqr_lookup')
+        seqr_path = DATASET_SEQ_CONFIG.get('seqr_lookup')
         self.seqr: dict[str, str] = {}
 
         if seqr_path:
@@ -90,7 +99,7 @@ class HTMLBuilder:
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert get_cohort_seq_type_conf().get(
+                assert DATASET_SEQ_CONFIG.get(
                     seqr_key
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
@@ -104,7 +113,7 @@ class HTMLBuilder:
         #     },
         # }
         self.ext_labels: dict[str, dict] = read_json_from_path(  # type: ignore
-            get_cohort_seq_type_conf().get('external_labels'), {}
+            DATASET_SEQ_CONFIG.get('external_labels'), {}
         )
 
         # Read results file, or take it directly
@@ -119,7 +128,7 @@ class HTMLBuilder:
         self.panel_names = {panel['name'] for panel in self.metadata['panels']}
 
         # pull out forced panel matches
-        cohort_panels = get_cohort_config().get('cohort_panels', [])
+        cohort_panels = DATASET_CONFIG.get('cohort_panels', [])
         self.forced_panels = [
             panel for panel in self.metadata['panels'] if panel['id'] in cohort_panels
         ]
@@ -273,12 +282,11 @@ class HTMLBuilder:
 
         report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
 
-        cohort_details = get_cohort_seq_type_conf()
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            'seqr_url': cohort_details.get('seqr_instance', ''),
-            'seqr_project': cohort_details.get('seqr_project', ''),
+            'seqr_url': DATASET_SEQ_CONFIG.get('seqr_instance', ''),
+            'seqr_project': DATASET_SEQ_CONFIG.get('seqr_project', ''),
             'meta_tables': {},
             'forbidden_genes': [],
             'zero_categorised_samples': [],
@@ -530,15 +538,18 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
 
-    logging.info(f'Using templates in {JINJA_TEMPLATE_DIR}')
-
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)
     parser.add_argument('--pedigree', help='PED file', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Optional second report, latest variants only')
+    parser.add_argument('--dataset', help='Optional, dataset to use', default=None)
     args = parser.parse_args()
+
+    global DATASET_CONFIG, DATASET_SEQ_CONFIG
+    DATASET_CONFIG = get_cohort_config(args.dataset)
+    DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
     # build the HTML using all results
     html = HTMLBuilder(

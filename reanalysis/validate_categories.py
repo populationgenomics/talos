@@ -29,10 +29,10 @@ from cpg_utils.config import get_config
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
-    get_cohort_config,
-    get_granular_date,
     filter_results,
     find_comp_hets,
+    get_cohort_config,
+    get_granular_date,
     gather_gene_dict_from_contig,
     get_new_gene_map,
     read_json_from_path,
@@ -43,6 +43,7 @@ from reanalysis.utils import (
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
+COHORT_CONFIG: dict | None = None
 SCRIPT_CONFIG = get_config(False)
 
 
@@ -199,7 +200,7 @@ def clean_and_filter(
         cleaned data
     """
 
-    cohort_panels = set(get_cohort_config().get('cohort_panels', []))
+    cohort_panels = set(COHORT_CONFIG.get('cohort_panels', []))
 
     panel_meta = {
         content['id']: content['name'] for content in panelapp_data['metadata']
@@ -394,7 +395,7 @@ def prepare_results_shell(
     sample_dict = {}
 
     # find the solved cases in this project
-    solved_cases = get_cohort_config().get('solved_cases', [])
+    solved_cases = COHORT_CONFIG.get('solved_cases', [])
     panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
 
     for sample in [
@@ -446,6 +447,7 @@ def prepare_results_shell(
     '--input_path', help='source data', default='Not supplied', show_default=True
 )
 @click.option('--participant_panels', help='panels per participant', default=None)
+@click.option('--dataset', help='optional, dataset to use', default=None)
 def main(
     labelled_vcf: str,
     out_json: str,
@@ -453,6 +455,7 @@ def main(
     pedigree: str,
     input_path: str,
     participant_panels: str | None = None,
+    dataset: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -468,7 +471,11 @@ def main(
         pedigree (str): location of PED file
         input_path (str): VCF/MT used as input
         participant_panels (str): json of panels per participant
+        dataset (str): optional, dataset to use
     """
+
+    global COHORT_CONFIG
+    COHORT_CONFIG = get_cohort_config(dataset)
 
     out_json_path = to_path(out_json)
 
@@ -476,7 +483,7 @@ def main(
     pedigree_digest = Ped(pedigree)
 
     # parse panelapp data from dict
-    panelapp_data = read_json_from_path(panelapp)
+    panelapp_data = read_json_from_path(panelapp, {})
     assert isinstance(panelapp_data, dict)
 
     # set up the inheritance checks
@@ -491,7 +498,7 @@ def main(
     assert isinstance(pheno_panels, dict)
 
     # create the new gene map
-    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels)
+    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels, dataset)
 
     result_list = []
 
