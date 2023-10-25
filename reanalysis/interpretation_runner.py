@@ -153,7 +153,7 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
     """
 
     labelling_job = get_batch().new_job(name='hail filtering')
-    set_job_resources(labelling_job, prior_job=prior_job, memory='32Gi')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='6Gi')
     out_vcf = output_path('hail_categorised.vcf.bgz', 'analysis')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
