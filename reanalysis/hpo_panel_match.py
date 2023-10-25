@@ -114,9 +114,14 @@ def get_participant_hpos(dataset: str) -> tuple[dict, set[str]]:
             HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, ''))
         )
         all_hpo.update(hpos)
+        fam_id = (
+            sg['sample']['participant']['families'][0]['externalId']
+            if sg['sample']['participant']['families']
+            else 'MISSING'
+        )
         hpo_dict[sg['id']] = {
             'external_id': sg['sample']['participant']['externalId'],
-            'family_id': sg['sample']['participant']['families'][0]['externalId'],
+            'family_id': fam_id,
             'hpo_terms': hpos,
             'panels': {137},
         }

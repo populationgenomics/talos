@@ -42,6 +42,9 @@
                                 {% if variant.var_data.info.mutationtaster != 'missing' %}
                                 MutationTaster: {{variant.var_data.info.mutationtaster}}
                                 {% endif %}
+                                {% if variant.var_data.info.am_class != 'missing' %}
+                                AlphaMissense: {{variant.var_data.info.am_class}} ({{variant.var_data.info.am_pathogenicity}})
+                                {% endif %}
                             </dd>
 
                             <dt class="col-sm-3">Links</dt>
