@@ -857,7 +857,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
+def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str, dataset: str):
     """
     write the remaining MatrixTable content to file as a VCF
 
@@ -866,12 +866,13 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
 
     Args:
         mt (): the whole MatrixTable
-        vcf_out (): where to write the VCF
+        vcf_out (str): where to write the VCF
+        dataset (str): the dataset name
     """
 
     # this temp file needs to be in GCP, not local
     # otherwise the batch that generates the file won't be able to read
-    additional_cloud_path = output_path('additional_header.txt', 'tmp')
+    additional_cloud_path = output_path('additional_header.txt', 'tmp', dataset=dataset)
 
     # generate a CSQ string specific to the config file for decoding later
     csq_contents = '|'.join(get_config()['csq']['csq_string'])
@@ -1025,7 +1026,13 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
+def main(
+    mt_path: str,
+    panelapp_path: str,
+    pedigree: str,
+    vcf_out: str,
+    dataset: str | None = None,
+):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
@@ -1035,7 +1042,10 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
         panelapp_path ():
         pedigree ():
         vcf_out (str): where to write VCF out
+        dataset (str): optional dataset name to write output for
     """
+
+    dataset = dataset or get_config()['workflow']['dataset']
 
     # initiate Hail with defined driver spec.
     init_batch(driver_cores=8, driver_memory='highmem')
@@ -1047,7 +1057,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     logging.info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # get temp suffix from the config (can be None or missing)
-    checkpoint_root = output_path('hail_matrix.mt', 'tmp')
+    checkpoint_root = output_path('hail_matrix.mt', 'tmp', dataset=dataset)
 
     # read the parsed panelapp data
     logging.info(f'Reading PanelApp data from {panelapp_path!r}')
@@ -1159,7 +1169,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
         )
     )
 
-    write_matrix_to_vcf(mt=mt, vcf_out=vcf_out)
+    write_matrix_to_vcf(mt=mt, vcf_out=vcf_out, dataset=dataset)
 
 
 if __name__ == '__main__':
@@ -1175,10 +1185,12 @@ if __name__ == '__main__':
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
     parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
+    parser.add_argument('--dataset', help='Dataset to write output for')
     args = parser.parse_args()
     main(
         mt_path=args.mt,
         panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         vcf_out=args.vcf_out,
+        dataset=args.dataset,
     )
