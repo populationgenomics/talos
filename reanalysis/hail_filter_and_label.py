@@ -619,6 +619,45 @@ def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    applies the boolean Category6 flag
+    - AlphaMissense likely Pathogenic on at least one transcript
+    - Thresholds of am_pathogenicity:
+        'Likely benign' if am_pathogenicity < 0.34;
+        'Likely pathogenic' if am_pathogenicity > 0.564;
+        'ambiguous' otherwise.
+
+    If AM class attribute is missing, skip annotation (default to 0)
+
+    Args:
+        mt (hl.MatrixTable):
+    Returns:
+        same variants, categoryboolean6 set to 1 or 0
+    """
+
+    # focus on the auto-annotated AlphaMissense class
+    # allow for the field to be missing
+    if 'am_class' in list(mt.vep.transcript_consequences[0].keys()):
+        logging.warning('AlphaMissense class not found, skipping annotation')
+        return mt.annotate_rows(info=mt.info.annotate(categoryboolean6=MISSING_INT))
+
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categoryboolean6=hl.if_else(
+                hl.len(
+                    mt.vep.transcript_consequences.filter(
+                        lambda x: x.am_class == 'likely_pathogenic'
+                    )
+                )
+                > 0,
+                ONE_INT,
+                MISSING_INT,
+            )
+        )
+    )
+
+
 def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Background class based on in silico annotations
@@ -1143,6 +1182,7 @@ def main(
     mt = annotate_category_2(mt=mt, new_genes=new_expression)
     mt = annotate_category_3(mt=mt)
     mt = annotate_category_5(mt=mt)
+    mt = annotate_category_6(mt=mt)
 
     # ordering is important - category4 (de novo) makes
     # use of category 5, so it must follow

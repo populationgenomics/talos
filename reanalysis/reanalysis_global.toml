@@ -57,6 +57,7 @@ spliceai = 0.5
 3 = 'High Impact Variant'
 4 = 'de Novo'
 5 = 'High SpliceAI Score'
+6 = 'AlphaMissense P/LP'
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 support = 'High in Silico Scores'
 
