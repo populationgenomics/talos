@@ -16,6 +16,7 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_2,
     annotate_category_3,
     annotate_category_5,
+    annotate_category_6,
     annotate_category_support,
     green_and_new_from_panelapp,
     filter_to_population_rare,
@@ -173,6 +174,53 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
     )
     matrix = annotate_category_5(matrix)
     assert matrix.info.categoryboolean5.collect() == [flag]
+
+
+@pytest.mark.parametrize(
+    'am_class,classified',
+    [
+        ('likely_pathogenic', 1),
+        ('not_pathogenic', 0),
+        ('', 0),
+        (hl.missing('tstr'), 0),
+    ],
+)
+def test_class_6_assignment(am_class, classified, make_a_mt):
+    """
+
+    Args:
+        am_class ():
+        classified ():
+        make_a_mt ():
+    """
+
+    anno_matrix = make_a_mt.annotate_rows(
+        vep=hl.Struct(
+            transcript_consequences=hl.array([hl.Struct(am_class=am_class)]),
+        ),
+    )
+
+    anno_matrix = annotate_category_6(anno_matrix)
+    anno_matrix.rows().show()
+    assert anno_matrix.info.categoryboolean6.collect() == [classified]
+
+
+def annotate_c6_missing(make_a_mt, caplog):
+    """
+    test what happens if the am_class attribute is missing
+
+    Args:
+        make_a_mt ():
+    """
+    anno_matrix = make_a_mt.annotate_rows(
+        vep=hl.Struct(
+            transcript_consequences=hl.array([hl.Struct(not_am='a value')]),
+        ),
+    )
+
+    anno_matrix = annotate_category_6(anno_matrix)
+    assert anno_matrix.info.categoryboolean6.collect() == [0]
+    assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
 
 @pytest.mark.parametrize(

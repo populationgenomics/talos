@@ -638,7 +638,7 @@ def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # focus on the auto-annotated AlphaMissense class
     # allow for the field to be missing
-    if 'am_class' in list(mt.vep.transcript_consequences[0].keys()):
+    if 'am_class' not in list(mt.vep.transcript_consequences[0].keys()):
         logging.warning('AlphaMissense class not found, skipping annotation')
         return mt.annotate_rows(info=mt.info.annotate(categoryboolean6=MISSING_INT))
 
