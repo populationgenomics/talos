@@ -16,9 +16,8 @@ from cpg_utils.config import set_config_paths
 PWD = Path(__file__).parent
 INPUT = PWD / 'input'
 CONF_BASE = INPUT / 'reanalysis_global.toml'
-CONF_COHORT = INPUT / 'reanalysis_cohort.toml'
 hl.init(default_reference='GRCh38')
-set_config_paths([str(CONF_BASE), str(CONF_COHORT)])
+set_config_paths([str(CONF_BASE)])
 
 from reanalysis.data_model import (  # noqa: E402
     BaseFields,

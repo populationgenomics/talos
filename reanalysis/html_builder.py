@@ -18,12 +18,12 @@ from cpg_utils import to_path
 
 from reanalysis.utils import (
     read_json_from_path,
+    get_config,
     get_cohort_config,
     get_cohort_seq_type_conf,
 )
 
 
-CATEGORY_ORDERING = ['any', '1', '2', '3', '4', '5', 'pm5', 'support']
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG = None  # type: ignore
 DATASET_SEQ_CONFIG = None  # type: ignore
@@ -166,9 +166,11 @@ class HTMLBuilder:
         which passed through the MOI process, not the absolute number
         of variants in the report
         """
-
-        category_count: dict[str, list[int]] = {key: [] for key in CATEGORY_ORDERING}
-        unique_variants: dict[str, set[str]] = {key: set() for key in CATEGORY_ORDERING}
+        ordered_categories = ['any'] + list(get_config()['categories'].keys())
+        category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
+        unique_variants: dict[str, set[str]] = {
+            key: set() for key in ordered_categories
+        }
 
         samples_with_no_variants: list[str] = []
         ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
@@ -179,7 +181,7 @@ class HTMLBuilder:
                 samples_with_no_variants.append(sample.ext_id)
 
             sample_variants: dict[str, set[str]] = {
-                key: set() for key in CATEGORY_ORDERING
+                key: set() for key in ordered_categories
             }
 
             # iterate over the list of variants
@@ -223,7 +225,7 @@ class HTMLBuilder:
                 'Peak #/sample': max(category_count[key]),
                 'Mean/sample': sum(category_count[key]) / len(category_count[key]),
             }
-            for key in CATEGORY_ORDERING
+            for key in ordered_categories
             if category_count[key]
         ]
 
@@ -233,7 +235,7 @@ class HTMLBuilder:
         # the table re-sorts when parsed into the DataTable
         # so this forced ordering doesn't work
         df.Category = df.Category.astype('category')
-        df.Category = df.Category.cat.set_categories(CATEGORY_ORDERING)
+        df.Category = df.Category.cat.set_categories(ordered_categories)
         df = df.sort_values(by='Category')
 
         return df, samples_with_no_variants, unused_ext_labels
