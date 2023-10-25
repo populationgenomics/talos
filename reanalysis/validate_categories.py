@@ -550,7 +550,7 @@ def main(
         'results': analysis_results,
         'metadata': {
             'input_file': input_path,
-            'cohort': get_config()['workflow']['dataset'],
+            'cohort': dataset,
             'run_datetime': get_granular_date(),
             'family_breakdown': count_families(
                 pedigree_digest, samples=vcf_opened.samples

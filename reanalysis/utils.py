@@ -393,6 +393,9 @@ class AbstractVariant:
         # overwrite the non-standard cyvcf2 representation
         self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
+        # temp so we permit alphamissense missing
+        self.info['am_class'] = self.info.get('am_class', 'missing')
+
         # hot-swap cat 2 from a boolean to a sample list - if appropriate
         if self.info.get('categoryboolean2', 0):
             new_gene_samples = new_genes.get(self.info.get('gene_id'), '')

@@ -77,7 +77,7 @@ class HTMLBuilder:
             pedigree (str): path to the PED file
             dataset (str): dataset to run for
         """
-        self.panelapp: dict = read_json_from_path(panelapp_path)  # type: ignore
+        self.panelapp: dict = read_json_from_path(panelapp_path, {})  # type: ignore
         assert isinstance(self.panelapp, dict)
 
         self.pedigree = Ped(pedigree)
