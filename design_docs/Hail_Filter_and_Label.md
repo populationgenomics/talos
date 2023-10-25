@@ -40,6 +40,10 @@ This shows the progressive filters applied to each variant to reduce the search 
 
 ![CategoryBoolean5](images/Category5.png)
 
+### Category 6
+
+![CategoryBoolean6](images/Category6.png)
+
 ### Category Support
 
 ![CategorySupport](images/CategorySupport.png)
@@ -67,32 +71,33 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 ### Process
 
 1. Read reference files (PanelApp data, [Configuration](../reanalysis/reanalysis_global.toml))
-   * From the PanelApp data, pull `ENSG` values corresponding to GREEN (High Confidence) genes
-   * Most of the steps are configurable based on this file, e.g. the definition of `common in joint call` is a
-     balance of the 2 parameters `min_samples_to_ac_filter`, and `ac_filter_percentge`.
-   * All the config file parameters related to the Hail stage are contained within the top level key `filter`
+    * From the PanelApp data, pull `ENSG` values corresponding to GREEN (High Confidence) genes
+    * Most of the steps are configurable based on this file, e.g. the definition of `common in joint call` is a
+      balance of the 2 parameters `min_samples_to_ac_filter`, and `ac_filter_percentge`.
+    * All the config file parameters related to the Hail stage are contained within the top level key `filter`
 
 2. Read Annotated MatrixTable
-   * If the expected MT path exists, read directly (else fail)
+    * If the expected MT path exists, read directly (else fail)
 
 3. Pull useful annotations from the `vep.*` data structure into the `INFO` fields
-   * Centralising variables makes for cleaner downstream code
-   * Allows for missing values to be replaced with defaults so that hail filter operations all work
-   * Eventually when writing out to a VCF, only annotations in `mt.info` are retained, so to retain these data we have to reposition within the MT structure
+    * Centralising variables makes for cleaner downstream code
+    * Allows for missing values to be replaced with defaults so that hail filter operations all work
+    * Eventually when writing out to a VCF, only annotations in `mt.info` are retained, so to retain these data we have
+      to reposition within the MT structure
 
 4. Filter annotated variants
-   * Common variants, based on ExAC/GnomAD frequencies
-   * Variants without any [Green-Gene](https://panelapp.agha.umccr.org/panels/137/) consequences
-   * Consequences unlikely to be impactful or on non-protein-coding transcripts are removed
-     * ... followed by removal of any variants with no remaining consequences
+    * Common variants, based on ExAC/GnomAD frequencies
+    * Variants without any [Green-Gene](https://panelapp.agha.umccr.org/panels/137/) consequences
+    * Consequences unlikely to be impactful or on non-protein-coding transcripts are removed
+        * ... followed by removal of any variants with no remaining consequences
 
 5. Apply custom category labels, as defined in the flowchart above
-   * Annotations are provisional, as mode-of-inheritance confirmation is not in Hail
-       * _De Novo_ is an outlier here, as the _de novo_ flag is validated within Hail
+    * Annotations are provisional, as mode-of-inheritance confirmation is not in Hail
+        * _De Novo_ is an outlier here, as the _de novo_ flag is validated within Hail
 
 6. Remove any variants with no successful categories applied
-   * When we consider compound-hets & modes of inheritance, consider only variants with at least one assigned category
-   * Removal of un-categorised variants means that all remaining variants can be treated as candidates
+    * When we consider compound-hets & modes of inheritance, consider only variants with at least one assigned category
+    * Removal of un-categorised variants means that all remaining variants can be treated as candidates
 
 7. Concatenate all per-transcript consequences remaining after filters into a single VEP-style `CSQ` field
 
@@ -105,25 +110,27 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 To make downstream operations easier, the different categories are grouped into types. There are currently 3 types:
 
 1. Boolean - The category is a binary flag, either the variant has the flag assigned or does not. These flags are based
-    on the *variant* annotations, so the flag will apply equally to all samples with an alt call at that position
+   on the *variant* annotations, so the flag will apply equally to all samples with an alt call at that position
 2. Samples - The category is a list of sample IDs or 'missing'. This type indicates that the flag has been assigned to
-    only the identified samples, rather than all samples with the variant call. An example of this is _de novo_, where
-    the assignment of the flag is conditional on the MOI, so this won't apply to all samples with a variant call. When
-    processing these variants, only variant calls for samples in this list are treated as being categorised
+   only the identified samples, rather than all samples with the variant call. An example of this is _de novo_, where
+   the assignment of the flag is conditional on the MOI, so this won't apply to all samples with a variant call. When
+   processing these variants, only variant calls for samples in this list are treated as being categorised
 3. Support - Any flag starting with _CategorySupport_ is treated equally, but inferior to all other Categories. This
-    means that the Support flags are never enough to categorise a variant alone, but may support a separate categorised
-    variant in a compound inheritance MOI. If a variant has a Support flag & non-support flags, it will be treated as an
-    independent variant
+   means that the Support flags are never enough to categorise a variant alone, but may support a separate categorised
+   variant in a compound inheritance MOI. If a variant has a Support flag & non-support flags, it will be treated as an
+   independent variant
 4. Details - Any flag starting with _CategoryDetails_ is processed in some way upon ingestion of the VCF. The content of
-    the category label can be anything, with the intention that when each variant is read it is converted into a Boolean
-    or Sample label. The only current implementation of this is the PM5 label. The flag content in this case is a list of
-    all clinvar Pathogenic missense alleles which affect the same residue as this current variant. Upon ingestion of the
-    variant, the collected AlleleIDs are split, filtered to unique, and any exact matches to the current variant are
-    removed. If there are remaining AlleleIDs in the list, an entry is made in the variant's info dictionary (for rendering
-    downstream in the report) and a flag CategoryBooleanPM5 is assigned. This then acts as a regular boolean flag, with
-    the pm5 data in the dictionary available for display if appropriate. This approach means that upon creation and init
-    processing of the AbstractVariant, the CategoryDetails flag no longer exists, and no advanced logic is needed to process
-    it within the MOI logic.
+   the category label can be anything, with the intention that when each variant is read it is converted into a Boolean
+   or Sample label. The only current implementation of this is the PM5 label. The flag content in this case is a list of
+   all clinvar Pathogenic missense alleles which affect the same residue as this current variant. Upon ingestion of the
+   variant, the collected AlleleIDs are split, filtered to unique, and any exact matches to the current variant are
+   removed. If there are remaining AlleleIDs in the list, an entry is made in the variant's info dictionary (for
+   rendering
+   downstream in the report) and a flag CategoryBooleanPM5 is assigned. This then acts as a regular boolean flag, with
+   the pm5 data in the dictionary available for display if appropriate. This approach means that upon creation and init
+   processing of the AbstractVariant, the CategoryDetails flag no longer exists, and no advanced logic is needed to
+   process
+   it within the MOI logic.
 
 ### USP - ACMG PM5
 
@@ -137,9 +144,9 @@ infrastructure, there may be easier ways to accomplish the preparatory stems in 
 * Acquire the latest VCF format file containing all the variants in ClinVar
 * Annotate this VCF using VEP, outputting a MatrixTable data structure
 * Using the code in [reanalysis/clinvar_by_codon.py](../reanalysis/clinvar_by_codon.py), reorganise this data into a
-    lookup table, with all protein & residues as keys, linked to all co-located clinvar Alleles. See [Clinvar By Codon](
-    Helpers.md#clinvar-by-codon-clinvarbycodonpy) for details. Save that Hail Table to a common location as an input
-    file.
+  lookup table, with all protein & residues as keys, linked to all co-located clinvar Alleles. See [Clinvar By Codon](
+  Helpers.md#clinvar-by-codon-clinvarbycodonpy) for details. Save that Hail Table to a common location as an input
+  file.
 
 | Residue affected | ClinVar Alleles                                           |
 |------------------|-----------------------------------------------------------|
@@ -148,15 +155,17 @@ infrastructure, there may be easier ways to accomplish the preparatory stems in 
 
 * During the Hail labelling runtime, import that Codon-indexed-ClinVar table
 * Do a similar re-indexing to shuffle the real cohort callset data into a similar format; filter to missense variants,
-index on the protein ID, and aggregate to contain all individual variants which cause a change at that residue:
+  index on the protein ID, and aggregate to contain all individual variants which cause a change at that residue:
 
 | Residue affected | Variants                         |
 |------------------|----------------------------------|
 | ENSP12345::123   | [chr2:123456:A:C]                |
 | ENSP67890::678   | [chr4:67899:A:C, chr4:67890:G:C] |
 
-* Join the tables of ClinVar and real variant data, then explode and aggregate by variant. The resulting table is indexed
-on variant Locus & Alleles, and connects each variant with _all pathogenic ClinVar missenses which affect this residue_
+* Join the tables of ClinVar and real variant data, then explode and aggregate by variant. The resulting table is
+  indexed
+  on variant Locus & Alleles, and connects each variant with _all pathogenic ClinVar missenses which affect this
+  residue_
 
 | Variant         | ClinVar Alleles                                           |
 |-----------------|-----------------------------------------------------------|
@@ -164,5 +173,6 @@ on variant Locus & Alleles, and connects each variant with _all pathogenic ClinV
 | chr4:67890:G:C  | AlleleID::Pathogenic::#Stars+AlleleID::Pathogenic::#Stars |
 | chr4:67899:A:C  | AlleleID::Pathogenic::#Stars+AlleleID::Pathogenic::#Stars |
 
-* This table is then used to annotate the callset MT - if the variant exists in this table, the CategoryDetailsPM5 content
-is the string of related ClinVar content, otherwise the value is set to `missing`
+* This table is then used to annotate the callset MT - if the variant exists in this table, the CategoryDetailsPM5
+  content
+  is the string of related ClinVar content, otherwise the value is set to `missing`
