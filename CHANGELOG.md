@@ -14,6 +14,29 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[2.0.0 & 2.0.1] - 2023-10-26
+
+This bump is less substantial than the version number suggests, but in hindsight the previous
+version should probably have been a major bump due to wholesale changes in how input is provided.
+
+### Added
+
+* CategoryBoolean6 (AlphaMissense) is now active, and should be implemented in a backwards
+  compatible way (no failure if annotation is absent)
+* VCF export includes `am_class` and `am_pathogenicity` (defaulting to empty String)
+* If these fields are not missing, they should render in the report's variant drop-down drawer
+
+### Changed
+
+* The Hail Labelling stage also takes a dataset argument (used to generate a dataset-specific
+  path for the temporary files/checkpoints)
+* Removed a second config file from the test framework (consolidate all fields into 1 file)
+* MyPy and Ruff are implemented as replacement linting tools. Stricter, and a billion times faster
+
+### Deprecated
+
+* Flake8 and PyLint are removed as linting tools
+
 [1.2.0] - 2023-10-16
 
 ### Changed

@@ -6,6 +6,3 @@ DataProc instances. To allow for a more flexible implementation, the CPG has cre
 within the [cpg_workflows package](https://github.com/populationgenomics/production-pipelines/tree/main/cpg_workflows).
 This acts directly on a VCF, fragmenting the raw data and annotating in parallelised jobs, forming the annotated data
 back into a [Hail MatrixTable](https://hail.is/docs/0.2/hail.MatrixTable.html), which is the AIP starting point.
-
-Once the Hail issues [12428](https://github.com/hail-is/hail/pull/12428) and a corresponding `GRCh38` version are closed
-we will return to direct annotation through Hail.
