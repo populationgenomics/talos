@@ -25,7 +25,7 @@ gnomad_max_hemi = 1
 
 [csq]
 description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
-csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'variant_class', 'ensp', 'lof', 'am_class', 'am_pathogenicity']
+csq_string = ['allele', 'consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'amino_acids', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
 
 [filter]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'

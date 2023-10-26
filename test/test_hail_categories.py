@@ -399,34 +399,28 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,five,support,pm5,length',
+    'one,two,three,four,five,six,support,pm5,length',
     [
-        (0, 0, 0, 'missing', 0, 0, 'missing', 0),
-        (0, 0, 0, 'missing', 0, 0, 'notmissing', 1),
-        (0, 1, 0, 'missing', 0, 0, 'missing', 1),
-        (0, 0, 1, 'missing', 0, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 0, 1, 'missing', 1),
-        (0, 0, 0, 'not_blank', 0, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 1, 0, 'missing', 1),
-        (0, 1, 1, 'missing', 0, 1, 'missing', 1),
-        (1, 0, 0, 'missing', 0, 1, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 0, 0, 'missing', 0),
+        (0, 0, 0, 'missing', 0, 1, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 0, 0, 'notmissing', 1),
+        (0, 1, 0, 'missing', 0, 0, 0, 'missing', 1),
+        (0, 0, 1, 'missing', 0, 0, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 0, 1, 'missing', 1),
+        (0, 0, 0, 'not_blank', 0, 0, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 1, 0, 0, 'missing', 1),
+        (0, 1, 1, 'missing', 0, 0, 1, 'missing', 1),
+        (1, 0, 0, 'missing', 0, 0, 1, 'missing', 1),
     ],
 )
 def test_filter_to_classified(
-    one, two, three, four, five, support, pm5, length, make_a_mt
+    one, two, three, four, five, six, support, pm5, length, make_a_mt
 ):
     """
 
     Args:
-        one ():
-        two ():
-        three ():
-        four ():
-        five ():
-        support ():
-        pm5 ():
-        length ():
-        make_a_mt ():
+        one argument per category
+        make_a_mt (): a template matrix table
     """
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
@@ -435,6 +429,7 @@ def test_filter_to_classified(
             categoryboolean3=three,
             categorysample4=four,
             categoryboolean5=five,
+            categoryboolean6=six,
             categorysupport=support,
             categorydetailsPM5=pm5,
         )

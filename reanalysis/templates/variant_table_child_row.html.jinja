@@ -30,6 +30,9 @@
 
                             <dt class="col-sm-3">In silicos</dt>
                             <dd class="col-sm-9">
+                                {% if variant.var_data.info.alpha_missense_max != 'missing' %}
+                                AlphaMissense Max: {{variant.var_data.info.alpha_missense_max|round(2)}}<br>
+                                {% endif %}
                                 SpliceAI: <a
                                     href="{{ macros.spliceai_lookup_url(variant)}}"
                                     target="_blank">
@@ -40,7 +43,7 @@
                                 Revel: {{variant.var_data.info.revel|round(2)}}<br>
                                 CADD: {{variant.var_data.info.cadd|round(0)}}<br>
                                 {% if variant.var_data.info.mutationtaster != 'missing' %}
-                                MutationTaster: {{variant.var_data.info.mutationtaster}}
+                                MutationTaster: {{variant.var_data.info.mutationtaster}}<br>
                                 {% endif %}
                             </dd>
 
