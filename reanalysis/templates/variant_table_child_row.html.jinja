@@ -30,6 +30,9 @@
 
                             <dt class="col-sm-3">In silicos</dt>
                             <dd class="col-sm-9">
+                                {% if variant.var_data.info.alpha_missense_max != 'missing' %}
+                                AlphaMissense Max: {{variant.var_data.info.alpha_missense_max|round(2)}}<br>
+                                {% endif %}
                                 SpliceAI: <a
                                     href="{{ macros.spliceai_lookup_url(variant)}}"
                                     target="_blank">
@@ -40,10 +43,7 @@
                                 Revel: {{variant.var_data.info.revel|round(2)}}<br>
                                 CADD: {{variant.var_data.info.cadd|round(0)}}<br>
                                 {% if variant.var_data.info.mutationtaster != 'missing' %}
-                                MutationTaster: {{variant.var_data.info.mutationtaster}}
-                                {% endif %}
-                                {% if variant.var_data.info.am_class != 'missing' %}
-                                AlphaMissense: {{variant.var_data.info.am_class}} ({{variant.var_data.info.am_pathogenicity}})
+                                MutationTaster: {{variant.var_data.info.mutationtaster}}<br>
                                 {% endif %}
                             </dd>
 
@@ -98,6 +98,20 @@
                             <dt class="col-sm-3">Category 5</dt>
                             <dd class="col-sm-9">
                                 High SpliceAI score
+                            </dd>
+                            {% endif %}
+
+                            {% if '6' in variant.var_data.categories %}
+                            <dt class="col-sm-3">Category 6</dt>
+                            <dd class="col-sm-9">
+                                AlphaMissense Pathogenic Prediction
+                            </dd>
+                            {% endif %}
+
+                            {% if 'support' in variant.var_data.categories %}
+                            <dt class="col-sm-3">Category Support</dt>
+                            <dd class="col-sm-9">
+                                Consensus in silico Pathogenic
                             </dd>
                             {% endif %}
 
@@ -176,6 +190,8 @@
                                 <th>Exon</th>
                                 <th>Biotype</th>
                                 <th>MANE ID</th>
+                                <th>AM Class</th>
+                                <th>AM Score</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -189,6 +205,8 @@
                                 <td>{{csq.exon}}</td>
                                 <td>{{csq.biotype}}</td>
                                 <td>{{csq.mane_select}}</td>
+                                <td>{{csq.am_class}}</td>
+                                <td>{% if csq.am_pathogenicity is float %} {{csq.am_pathogenicity|round(2)}} {% endif %}</td>
                             </tr>
                             {% endfor %}
                             </body>

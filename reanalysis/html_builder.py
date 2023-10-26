@@ -68,14 +68,12 @@ class HTMLBuilder:
         results: str | dict,
         panelapp_path: str,
         pedigree: Ped,
-        dataset: str | None = None,
     ):
         """
         Args:
             results (str | dict): path to the results JSON, or the results dict
             panelapp_path (str): where to read panelapp data from
             pedigree (str): path to the PED file
-            dataset (str): dataset to run for
         """
         self.panelapp: dict = read_json_from_path(panelapp_path, {})  # type: ignore
         assert isinstance(self.panelapp, dict)
@@ -435,6 +433,16 @@ class Variant:
             self.non_mane_consequences,
             self.mane_hgvsps,
         ) = self.parse_csq()
+
+        # pull up the highest AlphaMissense score, if present
+        am_scores = [
+            float(csq['am_pathogenicity'])
+            for csq in self.var_data['transcript_consequences']
+            if csq.get('am_pathogenicity')
+        ]
+        self.var_data['info']['alpha_missense_max'] = (
+            max(am_scores) if am_scores else 'missing'
+        )
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'

@@ -393,9 +393,6 @@ class AbstractVariant:
         # overwrite the non-standard cyvcf2 representation
         self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
-        # temp so we permit alphamissense missing
-        self.info['am_class'] = self.info.get('am_class', 'missing')
-
         # hot-swap cat 2 from a boolean to a sample list - if appropriate
         if self.info.get('categoryboolean2', 0):
             new_gene_samples = new_genes.get(self.info.get('gene_id'), '')
@@ -975,10 +972,17 @@ def extract_csq(csq_contents) -> list[dict]:
     csq_categories = get_config()['csq']['csq_string']
 
     # iterate over all consequences, and make each into a dict
-    return [
+    txc_dict = [
         dict(zip(csq_categories, each_csq.split('|')))
         for each_csq in csq_contents.split(',')
     ]
+
+    # update this String to be either a float, or missing
+    for each_dict in txc_dict:
+        am_path = each_dict.get('am_pathogenicity')
+        each_dict['am_pathogenicity'] = float(am_path) if am_path else ''
+
+    return txc_dict
 
 
 class CustomEncoder(json.JSONEncoder):

@@ -891,6 +891,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != 'missing')
         | (mt.info.categoryboolean5 == 1)
+        | (mt.info.categoryboolean6 == 1)
         | (mt.info.categorysupport == 1)
         | (mt.info.categorydetailsPM5 != MISSING_STRING)
     )
