@@ -160,7 +160,7 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--output {out_vcf} '
+        f'--vcf_out {out_vcf} '
     )
 
     logging.info(f'Labelling Command: {labelling_command}')
@@ -200,7 +200,7 @@ def handle_results_job(
         f'--labelled_vcf {labelled_vcf} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--out_json_path {output} '
+        f'--out_json {output} '
         f'--input_path {input_path} '
         f'{gene_filter_files}'
     )
