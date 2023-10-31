@@ -230,7 +230,7 @@ def get_pedigree_for_project(
     response = query(PED_QUERY, variables={'project': project})
     pedigree = response['project']['pedigree']
     lookup = {
-        sg['sample']['participant']['externalId']: sg['id']
+        sg['sample']['participant']['externalId']: [sg['id']]
         for sg in response['project']['sequencingGroups']
     }
     return pedigree, lookup
