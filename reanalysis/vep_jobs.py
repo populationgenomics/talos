@@ -4,8 +4,6 @@
 Creates a Hail Batch job to run the command line VEP tool.
 """
 
-from typing import Literal
-
 import hailtop.batch as hb
 from hailtop.batch.job import Job
 from hailtop.batch import Batch
@@ -27,18 +25,13 @@ from cpg_workflows.utils import can_reuse, exists
 def subset_vcf(
     b: hb.Batch,
     vcf: hb.ResourceGroup,
-    interval: hb.ResourceFile | None = None,
-    variant_types: list[Literal['INDEL', 'SNP', 'MNP', 'MIXED']] | None = None,
+    interval: hb.ResourceFile,
     job_attrs: dict | None = None,
     output_vcf_path: Path | None = None,
 ) -> Job:
     """
     Subset VCF to provided intervals.
     """
-    if not interval and not variant_types:
-        raise ValueError(
-            'Either interval or variant_types must be defined for subset_vcf'
-        )
 
     job_name = 'Subset VCF'
     job_attrs = (job_attrs or {}) | {'tool': 'gatk SelectVariants'}
@@ -51,15 +44,12 @@ def subset_vcf(
     )
     reference = fasta_res_group(b)
     assert isinstance(j.output_vcf, hb.ResourceGroup)
-    variant_types_param = ' '.join(
-        f'--select-type-to-include {vt}' for vt in (variant_types or [])
-    )
+
     cmd = f"""
     gatk SelectVariants \\
     -R {reference.base} \\
     -V {vcf['vcf.gz']} \\
-    {f"-L {interval}" if interval else ''} \
-    {variant_types_param} \\
+    -L {interval} \\
     -O {j.output_vcf['vcf.gz']}
     """
     j.command(
@@ -224,7 +214,6 @@ def add_vep_jobs(
         vep_one_job = vep_one(
             b,
             vcf=input_vcf_parts[idx]['vcf.gz'],
-            out_format='json',
             out_path=result_part_paths[idx],
             job_attrs=(job_attrs or {}) | {'part': f'{idx + 1}/{scatter_count}'},
         )
@@ -276,7 +265,6 @@ def vep_one(
     b: Batch,
     vcf: Path | hb.ResourceFile,
     out_path: Path | None = None,
-    out_format: Literal['vcf', 'json'] = 'vcf',
     job_attrs: dict | None = None,
 ) -> Job | None:
     """
@@ -286,58 +274,54 @@ def vep_one(
         return None
 
     j = b.new_job('VEP', (job_attrs or {}) | {'tool': 'vep'})
-    j.image(image_path('vep'))
-    STANDARD.set_resources(j, storage_gb=50, mem_gb=50, ncpu=16)
+    j.image(image_path('vep_110'))
+
+    # vep is single threaded, with a middling memory requirement
+    # during test it caps out around 4GB, though this could be
+    # larger for some long-running jobs
+    j.memory('highmem').storage('10Gi').cpu(1)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
 
-    if out_format == 'vcf':
-        j.declare_resource_group(
-            output={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
-        )
-        assert isinstance(j.output, hb.ResourceGroup)
-        output = j.output['vcf.gz']
-    else:
-        assert isinstance(j.output, hb.ResourceFile)
-        output = j.output
-
     # gcsfuse works only with the root bucket, without prefix:
-    vep_mount_path = reference_path('vep_mount')
+    vep_mount_path = reference_path('vep_110_mount')
     data_mount = to_path(f'/{vep_mount_path.drive}')
     j.cloudfuse(vep_mount_path.drive, str(data_mount), read_only=True)
     vep_dir = data_mount / '/'.join(vep_mount_path.parts[2:])
+
+    # assume VEP 110 has a standard install location
     loftee_conf = {
-        'loftee_path': '$LOFTEE_PLUGIN_PATH',
         'gerp_bigwig': f'{vep_dir}/gerp_conservation_scores.homo_sapiens.GRCh38.bw',
         'human_ancestor_fa': f'{vep_dir}/human_ancestor.fa.gz',
         'conservation_file': f'{vep_dir}/loftee.sql',
+        'loftee_path': '$VEP_DIR_PLUGINS',
     }
 
+    # sexy new plugin - only present in 110 build
+    alpha_missense_plugin = (
+        f'--plugin AlphaMissense,file={vep_dir}/AlphaMissense_hg38.tsv.gz '
+    )
     authenticate_cloud_credentials_in_job(j)
     cmd = f"""\
-    ls {vep_dir}
-    ls {vep_dir}/vep
-
-    LOFTEE_PLUGIN_PATH=$MAMBA_ROOT_PREFIX/share/ensembl-vep
     FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
-
     vep \\
     --format vcf \\
-    --{out_format} {'--compress_output bgzip' if out_format == 'vcf' else ''} \\
-    -o {output} \\
+    --json \\
+    -o {j.output} \\
     -i {vcf} \\
     --everything \\
+    --mane_select \\
+    --no_stats \\
     --allele_number \\
     --minimal \\
+    --species homo_sapiens \\
     --cache --offline --assembly GRCh38 \\
     --dir_cache {vep_dir}/vep/ \\
-    --dir_plugins $LOFTEE_PLUGIN_PATH \\
     --fasta $FASTA \\
+    {alpha_missense_plugin} \
     --plugin LoF,{','.join(f'{k}:{v}' for k, v in loftee_conf.items())}
     """
-    if out_format == 'vcf':
-        cmd += f'tabix -p vcf {output}'
 
     j.command(
         command(
