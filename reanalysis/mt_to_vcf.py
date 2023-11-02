@@ -60,21 +60,17 @@ def download_gencode(gencode_release: str = '44'):
     gz_stream.close()
 
 
-def parse_gtf_from_local(gtf_override: str | None = None):
+def parse_gtf_from_local(bedfile: str):
     """
     Read over the localised GTF and parse into a BED file
     This is done by looping over all gene entries, and
     condensing overlapping adjacent gene region definitions
 
     Args:
-        gtf_override (str|None): non-default GTF to use
-    Returns:
-        the path to an interval merged BED file
+        bedfile (str): where to write the BED file to
     """
 
-    gtf_file = gtf_override or LOCAL_GTF
-
-    logging.info(f'Loading {gtf_file}')
+    logging.info(f'Loading {LOCAL_GTF}')
 
     def strip_from_list(val_list: list) -> tuple[str, int, int]:
         """
@@ -92,7 +88,7 @@ def parse_gtf_from_local(gtf_override: str | None = None):
     cur_chr = None
     start = None
     end = None
-    with gzip.open(gtf_file, 'rt') as gencode_file:
+    with gzip.open(LOCAL_GTF, 'rt') as gencode_file:
 
         # iterate over this file and do all the things
         for i, line in enumerate(gencode_file):
@@ -112,7 +108,7 @@ def parse_gtf_from_local(gtf_override: str | None = None):
                 continue
 
             elif cur_chr != fields[0]:
-                out_rows.append([cur_chr, start, end])
+                out_rows.append('\t'.join([str(x) for x in [cur_chr, start, end]]))
                 cur_chr, start, end = strip_from_list(fields)
                 continue
 
@@ -121,18 +117,17 @@ def parse_gtf_from_local(gtf_override: str | None = None):
                 start = min(this_start, start)
                 end = max(this_end, end)
             else:
-                out_rows.append([cur_chr, start, end])
+                out_rows.append('\t'.join([str(x) for x in [cur_chr, start, end]]))
                 cur_chr, start, end = this_chr, this_start, this_end
 
-        out_rows.append([cur_chr, start, end])
+        out_rows.append('\t'.join([str(x) for x in [cur_chr, start, end]]))
 
     # save as a BED file, return path to the BED file
-    with open(LOCAL_BED, 'w', encoding='utf-8') as bed_file:
-        for row in out_rows:
-            bed_file.write('\t'.join([str(x) for x in row]) + '\n')
+    with to_path(bedfile).open('w', encoding='utf-8') as bed_file:
+        bed_file.writelines('\n'.join(out_rows) + '\n')
 
 
-def main(mt_path: str, write_path: str):
+def main(mt_path: str, write_path: str, bedfile: str):
     """
     takes an input MT, and reads it out as a VCF
     inserted new conditions to minimise the data produced
@@ -140,6 +135,7 @@ def main(mt_path: str, write_path: str):
     Args:
         mt_path ():
         write_path ():
+        bedfile (str): path to a BED file to filter by
     """
     init_batch()
 
@@ -163,9 +159,11 @@ def main(mt_path: str, write_path: str):
     # write as a BED file
     # read in and annotate the MT
     # filter by defined intervals
-    download_gencode('44')
-    parse_gtf_from_local()
-    interval_table = hl.import_bed(LOCAL_BED, reference_genome='GRCh38')
+    if not to_path(bedfile).exists():
+        download_gencode('44')
+        parse_gtf_from_local(bedfile)
+
+    interval_table = hl.import_bed(bedfile, reference_genome='GRCh38')
     filtered_mt = mt.filter_rows(hl.is_defined(interval_table[mt.locus]))
 
     # filter out non-variant rows
@@ -199,7 +197,8 @@ if __name__ == '__main__':
         stream=sys.stderr,
     )
     parser = ArgumentParser()
-    parser.add_argument('--input', type=str, help='input MatrixTable path')
-    parser.add_argument('--output', type=str, help='path to write VCF out to')
+    parser.add_argument('--input', help='input MatrixTable path')
+    parser.add_argument('--output', help='path to write VCF out to')
+    parser.add_argument('--bedfile', help='path to an ROI BED file')
     args = parser.parse_args()
-    main(mt_path=args.input, write_path=args.output)
+    main(mt_path=args.input, write_path=args.output, bedfile=args.bedfile)

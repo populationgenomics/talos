@@ -104,7 +104,13 @@ def setup_mt_to_vcf(input_file: str) -> Job:
     job = get_batch().new_job(name='Convert MT to VCF')
     set_job_resources(job)
 
-    cmd = f'python3 {mt_to_vcf.__file__} --input {input_file} --output {INPUT_AS_VCF}'
+    bed_file = output_path('roi.bed', 'analysis')
+    cmd = (
+        f'python3 {mt_to_vcf.__file__} '
+        f'--input {input_file} '
+        f'--output {INPUT_AS_VCF} '
+        f'--bedfile {bed_file}'
+    )
 
     logging.info(f'Command used to convert MT: {cmd}')
     job.command(cmd)
