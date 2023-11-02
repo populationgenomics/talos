@@ -53,8 +53,6 @@ HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
 SITES_ONLY = output_path('sitesonly.vcf.bgz', 'tmp')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
-
-
 # endregion
 
 

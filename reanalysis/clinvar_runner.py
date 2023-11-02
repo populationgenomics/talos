@@ -187,7 +187,9 @@ def main(date: str | None = None, folder: str | None = None):
 
     # generate a new round of clinvar decisions
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
-        dependency = generate_clinvar_table(clinvar_table_path, folder, snv_vcf, date)
+        dependency = generate_clinvar_table(
+            clinvar_table_path, cloud_folder, snv_vcf, date
+        )
 
     # create the annotation job(s)
     if not annotated_clinvar.exists():
