@@ -19,6 +19,7 @@ New behaviour - by default region filter prior to VCf export
 
 import gzip
 import logging
+import os
 import sys
 from argparse import ArgumentParser
 
@@ -127,7 +128,7 @@ def parse_gtf_from_local(bedfile: str):
         bed_file.writelines('\n'.join(out_rows) + '\n')
 
 
-def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str):
+def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str, tmp: str):
     """
     takes an input MT, and reads it out as a VCF
     inserted new conditions to minimise the data produced
@@ -137,6 +138,7 @@ def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str):
         write_path ():
         sitesonly (str): path to write sites only VCF out to
         bedfile (str): path to a BED file to filter by
+        tmp (str): path to write temp files to
     """
     init_batch()
 
@@ -165,22 +167,18 @@ def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str):
         parse_gtf_from_local(bedfile)
 
     interval_table = hl.import_bed(bedfile, reference_genome='GRCh38')
-    filtered_mt = mt.filter_rows(hl.is_defined(interval_table[mt.locus]))
+    mt = mt.filter_rows(hl.is_defined(interval_table[mt.locus]))
 
     # filter out non-variant rows
-    filtered_mt = hl.variant_qc(filtered_mt)
-    filtered_mt = filtered_mt.filter_rows(filtered_mt.variant_qc.n_non_ref > 0)
+    mt = hl.variant_qc(mt)
+    mt = mt.filter_rows(mt.variant_qc.n_non_ref > 0)
 
     # required to repeat the MT -> VCF -> MT cycle
-    if 'info' in filtered_mt.row_value and 'AC' in filtered_mt.info:
-        if isinstance(filtered_mt['info']['AC'], hl.Int32Expression):
-            filtered_mt = filtered_mt.annotate_rows(
-                info=filtered_mt.info.annotate(AC=[filtered_mt.info.AC])
-            )
+    if 'info' in mt.row_value and 'AC' in mt.info:
+        if isinstance(mt['info']['AC'], hl.Int32Expression):
+            mt = mt.annotate_rows(info=mt.info.annotate(AC=[mt.info.AC]))
         else:
-            filtered_mt = filtered_mt.annotate_rows(
-                info=filtered_mt.info.annotate(AC=[1])
-            )
+            mt = mt.annotate_rows(info=mt.info.annotate(AC=[1]))
 
     # if we wanted to accurately populate the header fields, we'd need to
     # add a metadata annotation to the MT -> VCF export
@@ -190,8 +188,14 @@ def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str):
     # as provided by hl.get_vcf_metadata(path_to_vcf)
     # but we don't have a VCF as a starting point
 
+    mt = mt.checkpoint(
+        os.path.join(tmp, 'mt_filtered.mt'),
+        overwrite=True,
+    )
+
+    # write the full VCF
     hl.export_vcf(
-        filtered_mt,
+        mt,
         write_path,
         append_to_header=additional_cloud_path,
         tabix=True,
@@ -199,7 +203,7 @@ def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str):
 
     # and export the site-only VCF
     hl.export_vcf(
-        filtered_mt.rows(),
+        mt.rows(),
         sitesonly,
         append_to_header=additional_cloud_path,
         tabix=True,
@@ -218,10 +222,12 @@ if __name__ == '__main__':
     parser.add_argument('--output', help='path to write VCF out to')
     parser.add_argument('--sites_only', help='path to write sites only VCF')
     parser.add_argument('--bed_file', help='path to an ROI BED file')
+    parser.add_argument('--tmp', help='directory to write temp files to')
     args = parser.parse_args()
     main(
         mt_path=args.input,
         write_path=args.output,
         sitesonly=args.sites_only,
         bedfile=args.bed_file,
+        tmp=args.tmp,
     )
