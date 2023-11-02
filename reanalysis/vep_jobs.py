@@ -18,7 +18,7 @@ from cpg_utils.hail_batch import (
     query_command,
 )
 from cpg_workflows.resources import STANDARD
-from cpg_workflows.utils import can_reuse, exists
+from cpg_workflows.utils import exists
 
 
 def subset_vcf(
@@ -26,15 +26,13 @@ def subset_vcf(
     vcf: hb.ResourceGroup,
     interval: hb.ResourceFile,
     job_attrs: dict | None = None,
-    output_vcf_path: Path | None = None,
 ) -> Job:
     """
     Subset VCF to provided intervals.
     """
 
-    job_name = 'Subset VCF'
     job_attrs = (job_attrs or {}) | {'tool': 'gatk SelectVariants'}
-    j = b.new_job(job_name, job_attrs)
+    j = b.new_job('Subset VCF', job_attrs)
     j.image(image_path('gatk'))
     STANDARD.set_resources(j, ncpu=2)
 
@@ -57,8 +55,6 @@ def subset_vcf(
             monitor_space=True,
         )
     )
-    if output_vcf_path:
-        b.write_output(j.output_vcf, str(output_vcf_path).replace('.vcf.gz', ''))
     return j
 
 
@@ -168,7 +164,7 @@ def add_vep_jobs(
     unless `out_path` ends with ".ht", in which case writes a Hail table.
     """
 
-    if out_path and can_reuse(out_path):
+    if out_path and exists(out_path):
         return []
 
     jobs: list[Job] = []
@@ -189,8 +185,16 @@ def add_vep_jobs(
     if intervals_j:
         jobs.append(intervals_j)
 
+    result_parts_bucket = tmp_prefix / 'vep' / 'parts'
+    result_part_paths = []
+
     # Splitting variant calling by intervals
     for idx in range(scatter_count):
+        result_part_path = result_parts_bucket / f'part{idx + 1}.jsonl'
+        result_part_paths.append(result_part_path)
+        if exists(result_part_path):
+            continue
+
         subset_j = subset_vcf(
             b,
             vcf=siteonly_vcf,
@@ -198,16 +202,7 @@ def add_vep_jobs(
             job_attrs=(job_attrs or {}) | {'part': f'{idx + 1}/{scatter_count}'},
         )
         jobs.append(subset_j)
-        assert isinstance(subset_j.output_vcf, hb.ResourceGroup)
         input_vcf_parts.append(subset_j.output_vcf)
-
-    result_parts_bucket = tmp_prefix / 'vep' / 'parts'
-    result_part_paths = []
-    for idx in range(scatter_count):
-        result_part_path = result_parts_bucket / f'part{idx + 1}.jsonl'
-        result_part_paths.append(result_part_path)
-        if can_reuse(result_part_path):
-            continue
 
         # noinspection PyTypeChecker
         vep_one_job = vep_one(
@@ -269,7 +264,7 @@ def vep_one(
     """
     Run a single VEP job.
     """
-    if out_path and to_path(out_path).exists():
+    if out_path and exists(to_path(out_path)):
         return None
 
     j = b.new_job('VEP', (job_attrs or {}) | {'tool': 'vep'})
