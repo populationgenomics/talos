@@ -35,6 +35,12 @@ GENCODE_GTF_URL = (
     'http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/'
     'release_{gencode_release}/gencode.v{gencode_release}.annotation.gtf.gz'
 )
+
+# distance between adjacent genes before they're merged into a single span
+# compromise here between reducing regions and reducing intergenic capture
+# n == 1000: 26400 BED rows
+# n == 5000: 17500 BED rows
+BED_MERGE_MARGIN = 5000
 LOCAL_BED = 'localfile.bed'
 LOCAL_GTF = 'localfile.gtf.gz'
 
@@ -54,29 +60,39 @@ def download_gencode(gencode_release: str = '44'):
     gz_stream.close()
 
 
-def parse_gtf_from_local():
+def parse_gtf_from_local(gtf_override: str | None = None):
     """
-    Read over the localised file and read into a dict
+    Read over the localised GTF and parse into a BED file
+    This is done by looping over all gene entries, and
+    condensing overlapping adjacent gene region definitions
+
+    Args:
+        gtf_override (str|None): non-default GTF to use
     Returns:
         the path to an interval merged BED file
     """
 
-    logging.info(f'Loading {LOCAL_GTF}')
+    gtf_file = gtf_override or LOCAL_GTF
+
+    logging.info(f'Loading {gtf_file}')
 
     def strip_from_list(val_list: list) -> tuple[str, int, int]:
         """
         quick method to reduce line count
         """
         chrom_string = val_list[0]
-        start_int = max(int(val_list[3]) - 1000, 1)
-        end_int = int(val_list[4]) + 1000
+        start_int = max(int(val_list[3]) - BED_MERGE_MARGIN, 1)
+        end_int = min(
+            int(val_list[4]) + BED_MERGE_MARGIN,
+            hl.get_reference('GRCh38').lengths[chrom_string],
+        )
         return chrom_string, start_int, end_int
 
     out_rows = []
     cur_chr = None
     start = None
     end = None
-    with gzip.open(LOCAL_GTF, 'rt') as gencode_file:
+    with gzip.open(gtf_file, 'rt') as gencode_file:
 
         # iterate over this file and do all the things
         for i, line in enumerate(gencode_file):
@@ -93,18 +109,21 @@ def parse_gtf_from_local():
             # first line
             if cur_chr is None:
                 cur_chr, start, end = strip_from_list(fields)
+                continue
 
-            elif cur_chr == fields[0]:
-                if int(fields[3]) - 1000 < end or int(fields[4]) < end:
-                    start = max(int(fields[3]) - 1000, start)
-                    end = max(int(fields[4]) + 1000, end)
-                # no overlap - publish and start over
-                else:
-                    out_rows.append([cur_chr, start, end])
-                    cur_chr, start, end = strip_from_list(fields)
-            else:
+            elif cur_chr != fields[0]:
                 out_rows.append([cur_chr, start, end])
                 cur_chr, start, end = strip_from_list(fields)
+                continue
+
+            this_chr, this_start, this_end = strip_from_list(fields)
+            if this_start < end or this_end < end:
+                start = min(this_start, start)
+                end = max(this_end, end)
+            else:
+                out_rows.append([cur_chr, start, end])
+                cur_chr, start, end = this_chr, this_start, this_end
+
         out_rows.append([cur_chr, start, end])
 
     # save as a BED file, return path to the BED file
