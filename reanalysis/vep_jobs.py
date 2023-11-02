@@ -15,7 +15,6 @@ from cpg_utils.hail_batch import (
     image_path,
     reference_path,
     command,
-    authenticate_cloud_credentials_in_job,
     query_command,
 )
 from cpg_workflows.resources import STANDARD
@@ -264,13 +263,13 @@ def gather_vep_json_to_ht(
 def vep_one(
     b: Batch,
     vcf: Path | hb.ResourceFile,
-    out_path: Path | None = None,
+    out_path: Path,
     job_attrs: dict | None = None,
 ) -> Job | None:
     """
     Run a single VEP job.
     """
-    if out_path and can_reuse(out_path):
+    if out_path and to_path(out_path).exists():
         return None
 
     j = b.new_job('VEP', (job_attrs or {}) | {'tool': 'vep'})
@@ -302,8 +301,8 @@ def vep_one(
     alpha_missense_plugin = (
         f'--plugin AlphaMissense,file={vep_dir}/AlphaMissense_hg38.tsv.gz '
     )
-    authenticate_cloud_credentials_in_job(j)
-    cmd = f"""\
+    j.command(
+        f"""\
     FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
     vep \\
     --format vcf \\
@@ -322,14 +321,8 @@ def vep_one(
     {alpha_missense_plugin} \
     --plugin LoF,{','.join(f'{k}:{v}' for k, v in loftee_conf.items())}
     """
-
-    j.command(
-        command(
-            cmd,
-            setup_gcp=True,
-            monitor_space=True,
-        )
     )
-    if out_path:
-        b.write_output(j.output, str(out_path).replace('.vcf.gz', ''))
+
+    b.write_output(j.output, str(out_path).replace('.vcf.gz', ''))
+
     return j
