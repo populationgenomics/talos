@@ -170,6 +170,7 @@ def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str, tmp: str):
     mt = mt.filter_rows(hl.is_defined(interval_table[mt.locus]))
 
     # filter out non-variant rows
+    mt = mt.filter_rows(mt.filters.length() == 0)
     mt = hl.variant_qc(mt)
     mt = mt.filter_rows(mt.variant_qc.n_non_ref > 0)
 
