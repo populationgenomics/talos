@@ -31,7 +31,6 @@ from cpg_utils.hail_batch import (
 )
 from cpg_workflows.batch import get_batch
 from reanalysis.vep_jobs import add_vep_jobs
-from reanalysis.sites_only import add_make_sitesonly_job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -52,6 +51,7 @@ EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 ANNOTATED_MT = output_path('annotated_variants.mt')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz')
+SITES_ONLY = output_path('sitesonly.vcf.bgz', 'tmp')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
 
 
@@ -109,7 +109,8 @@ def setup_mt_to_vcf(input_file: str) -> Job:
         f'python3 {mt_to_vcf.__file__} '
         f'--input {input_file} '
         f'--output {INPUT_AS_VCF} '
-        f'--bedfile {bed_file}'
+        f'--sites_only {SITES_ONLY} '
+        f'--bed_file {bed_file} '
     )
 
     logging.info(f'Command used to convert MT: {cmd}')
@@ -411,37 +412,13 @@ def main(
 
     # region: split & annotate VCF
     if not to_path(ANNOTATED_MT).exists():
-        # run annotation, default values from RefData
-
-        siteonly_vcf_path = to_path(output_path('siteonly.vcf.gz', 'tmp'))
-        input_vcf_in_batch = get_batch().read_input_group(
-            **{
-                'vcf.gz': str(input_path),
-                'vcf.gz.tbi': str(input_path) + '.tbi',
-            }
-        )
-        logging.info(input_path)
-        vcf_storage = get_config()['workflow'].get('vcf_size_in_gb', 150) + 10
-        logging.info(f'Storage: {vcf_storage}')
-        sites_job, _siteonly_resource_group = add_make_sitesonly_job(
-            b=get_batch(),
-            input_vcf=input_vcf_in_batch,
-            output_vcf_path=siteonly_vcf_path,
-            storage_gb=vcf_storage,
-        )
-
-        # set the job dependency and cycle the 'prior' job
-        if sites_job:
-            if prior_job:
-                sites_job.depends_on(prior_job)
-            prior_job = sites_job
 
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
 
         # generate the jobs which run VEP & collect the results
         vep_jobs = add_vep_jobs(
             b=get_batch(),
-            input_siteonly_vcf_path=siteonly_vcf_path,
+            input_siteonly_vcf_path=to_path(SITES_ONLY),
             tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
             scatter_count=get_config()['workflow'].get('scatter_count', 50),
             out_path=to_path(vep_ht_tmp),

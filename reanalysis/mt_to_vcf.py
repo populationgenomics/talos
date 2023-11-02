@@ -127,7 +127,7 @@ def parse_gtf_from_local(bedfile: str):
         bed_file.writelines('\n'.join(out_rows) + '\n')
 
 
-def main(mt_path: str, write_path: str, bedfile: str):
+def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str):
     """
     takes an input MT, and reads it out as a VCF
     inserted new conditions to minimise the data produced
@@ -135,6 +135,7 @@ def main(mt_path: str, write_path: str, bedfile: str):
     Args:
         mt_path ():
         write_path ():
+        sitesonly (str): path to write sites only VCF out to
         bedfile (str): path to a BED file to filter by
     """
     init_batch()
@@ -181,9 +182,25 @@ def main(mt_path: str, write_path: str, bedfile: str):
                 info=filtered_mt.info.annotate(AC=[1])
             )
 
+    # if we wanted to accurately populate the header fields, we'd need to
+    # add a metadata annotation to the MT -> VCF export
+    # input format = {
+    # 'filter': {'VQSR':{'Description': 'VQSR triggered'}, 'FILTER2' {'Description': 'FILTER2 triggered'}
+    # }, 'info': ...
+    # as provided by hl.get_vcf_metadata(path_to_vcf)
+    # but we don't have a VCF as a starting point
+
     hl.export_vcf(
         filtered_mt,
         write_path,
+        append_to_header=additional_cloud_path,
+        tabix=True,
+    )
+
+    # and export the site-only VCF
+    hl.export_vcf(
+        filtered_mt.rows(),
+        sitesonly,
         append_to_header=additional_cloud_path,
         tabix=True,
     )
@@ -199,6 +216,12 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--input', help='input MatrixTable path')
     parser.add_argument('--output', help='path to write VCF out to')
-    parser.add_argument('--bedfile', help='path to an ROI BED file')
+    parser.add_argument('--sites_only', help='path to write sites only VCF')
+    parser.add_argument('--bed_file', help='path to an ROI BED file')
     args = parser.parse_args()
-    main(mt_path=args.input, write_path=args.output, bedfile=args.bedfile)
+    main(
+        mt_path=args.input,
+        write_path=args.output,
+        sitesonly=args.sites_only,
+        bedfile=args.bed_file,
+    )
