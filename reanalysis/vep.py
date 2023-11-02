@@ -143,5 +143,5 @@ def vep_json_to_ht(vep_result_paths: list[str], out_path: str):
     start = hl.parse_int(original_vcf_line.split('\t')[1])
     chrom = ht.vep.seq_region_name
     ht = ht.annotate(locus=hl.locus(chrom, start))
-    ht = ht.key_by(ht.locus)
+    ht = ht.key_by(ht.locus, ht.alleles)
     ht.write(str(out_path), overwrite=True)
