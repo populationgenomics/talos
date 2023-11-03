@@ -404,7 +404,7 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            if not to_path(INPUT_AS_VCF).exists() and to_path(SITES_ONLY).exists():
+            if not (to_path(INPUT_AS_VCF).exists() and to_path(SITES_ONLY).exists()):
                 prior_job = setup_mt_to_vcf(input_file=input_path)
 
             # overwrite input path with file we just created
