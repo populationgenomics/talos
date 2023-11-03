@@ -580,7 +580,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     # collect all sample IDs per locus, and squash into a String Array
     # delimit to compress that Array into single Strings
     dn_table = dn_table.annotate(
-        values=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
+        dn_ids=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
     )
 
     # log the number of variants found this way
@@ -591,7 +591,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         info=mt.info.annotate(
             **{
                 'categorysample4': hl.or_else(
-                    dn_table[mt.row_key]['values'], MISSING_STRING
+                    dn_table[mt.row_key].dn_ids, MISSING_STRING
                 )
             }
         )
