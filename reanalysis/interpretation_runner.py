@@ -396,6 +396,7 @@ def main(
     )
 
     global ANNOTATED_MT
+    global SITES_ONLY
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path
@@ -403,11 +404,15 @@ def main(
             ANNOTATED_MT = input_path
 
         else:
-            if not to_path(INPUT_AS_VCF).exists():
+            if not to_path(INPUT_AS_VCF).exists() and to_path(SITES_ONLY).exists():
                 prior_job = setup_mt_to_vcf(input_file=input_path)
 
             # overwrite input path with file we just created
             input_path = INPUT_AS_VCF
+
+    # is VCF, needs annotating
+    elif not skip_annotation:
+        SITES_ONLY = input_path
     # endregion
 
     # region: split & annotate VCF
