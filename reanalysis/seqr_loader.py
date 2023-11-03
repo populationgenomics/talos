@@ -14,7 +14,7 @@ def annotate_cohort(
     vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None, vep_only: bool = False
 ):
     """
-    Convert VCF to matrix table, annotate for Seqr Loader, add VEP and VQSR annotations.
+    Convert VCF to matrix table, annotate for Seqr Loader, add VEP
 
     Args:
         vcf_path ():
@@ -22,9 +22,6 @@ def annotate_cohort(
         vep_ht_path ():
         checkpoint_prefix ():
         vep_only ():
-
-    Returns:
-
     """
 
     # set up a logger in this Hail Query runtime

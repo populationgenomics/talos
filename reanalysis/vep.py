@@ -5,82 +5,142 @@ Query function to parse JSON VEP results.
 import hail as hl
 
 
-def vep_json_to_ht(vep_results_paths, out_path):
+def vep_json_to_ht(vep_result_paths: list[str], out_path: str):
     """
     Parse results from VEP with annotations formatted in JSON,
     and write into a Hail Table.
     """
     # Defining schema inside the function, so we can submit
     # the function to the Batch Job:
-    json_schema = (
-        'Struct{assembly_name:String,allele_string:String,ancestral:String,'
-        'colocated_variants:Array[Struct{aa_allele:String,aa_maf:Float64,'
-        'afr_allele:String,afr_maf:Float64,allele_string:String,'
-        'amr_allele:String,amr_maf:Float64,clin_sig:Array[String],'
-        'end:Int32,eas_allele:String,eas_maf:Float64,ea_allele:String,'
-        'ea_maf:Float64,eur_allele:String,eur_maf:Float64,'
-        'exac_adj_allele:String,exac_adj_maf:Float64,exac_allele:String,'
-        'exac_afr_allele:String,exac_afr_maf:Float64,'
-        'exac_amr_allele:String,exac_amr_maf:Float64,'
-        'exac_eas_allele:String,exac_eas_maf:Float64,'
-        'exac_fin_allele:String,exac_fin_maf:Float64,exac_maf:Float64,'
-        'exac_nfe_allele:String,exac_nfe_maf:Float64,'
-        'exac_oth_allele:String,exac_oth_maf:Float64,'
-        'exac_sas_allele:String,exac_sas_maf:Float64,id:String,'
-        'minor_allele:String,minor_allele_freq:Float64,'
-        'phenotype_or_disease:Int32,pubmed:Array[Int32],sas_allele:String,'
-        'sas_maf:Float64,somatic:Int32,start:Int32,strand:Int32}],'
-        'context:String,end:Int32,id:String,input:String,'
-        'intergenic_consequences:Array[Struct{allele_num:Int32,'
-        'consequence_terms:Array[String],impact:String,minimised:Int32,'
-        'variant_allele:String}],most_severe_consequence:String,'
-        'motif_feature_consequences:Array[Struct{allele_num:Int32,'
-        'consequence_terms:Array[String],high_inf_pos:String,impact:String,'
-        'minimised:Int32,motif_feature_id:String,motif_name:String,'
-        'motif_pos:Int32,motif_score_change:Float64,strand:Int32,'
-        'variant_allele:String}],regulatory_feature_consequences:Array['
-        'Struct{allele_num:Int32,biotype:String,consequence_terms:Array['
-        'String],impact:String,minimised:Int32,'
-        'regulatory_feature_id:String,variant_allele:String}],'
-        'seq_region_name:String,start:Int32,strand:Int32,'
-        'transcript_consequences:Array[Struct{allele_num:Int32,'
-        'amino_acids:String,appris:String,biotype:String,canonical:Int32,'
-        'mane_select:String,mane_plus_clinical:String,ccds:String,'
-        'cdna_start:Int32,cdna_end:Int32,cds_end:Int32,cds_start:Int32,'
-        'codons:String,consequence_terms:Array[String],distance:Int32,'
-        'domains:Array[Struct{db:String,name:String}],exon:String,'
-        'gene_id:String,gene_pheno:Int32,gene_symbol:String,'
-        'gene_symbol_source:String,hgnc_id:String,hgvsc:String,'
-        'hgvsp:String,hgvs_offset:Int32,impact:String,intron:String,'
-        'lof:String,lof_flags:String,lof_filter:String,lof_info:String,'
-        'minimised:Int32,polyphen_prediction:String,polyphen_score:Float64,'
-        'protein_end:Int32,protein_start:Int32,protein_id:String,'
-        'sift_prediction:String,sift_score:Float64,strand:Int32,'
-        'swissprot:String,transcript_id:String,trembl:String,tsl:Int32,'
-        'uniparc:String,variant_allele:String}],variant_class:String}'
+    json_schema = hl.dtype(
+        """struct{
+        minimised:int32,
+        assembly_name:str,
+        allele_string:str,
+        ancestral:str,
+        colocated_variants:array<struct{
+            allele_string:str,
+            clin_sig:array<str>,
+            clin_sig_allele:str,
+            end:int32,
+            id:str,
+            minimised:int32,
+            minor_allele:str,
+            minor_allele_freq:float64,
+            phenotype_or_disease:int32,
+            pubmed:array<int32>,
+            seq_region_name:str,
+            somatic:int32,
+            start:int32,
+            strand:int32
+        }>,
+        context:str,
+        end:int32,
+        id:str,
+        input:str,
+        intergenic_consequences:array<struct{
+            allele_num:int32,
+            consequence_terms:array<str>,
+            impact:str,minimised:int32,
+            variant_allele:str
+        }>,
+        most_severe_consequence:str,
+        motif_feature_consequences:array<struct{
+            allele_num:int32,
+            consequence_terms:array<str>,
+            high_inf_pos:str,
+            impact:str,
+            minimised:int32,
+            motif_feature_id:str,
+            motif_name:str,
+            motif_pos:int32,
+            motif_score_change:float64,
+            strand:int32,
+            transcription_factors:array<str>,
+            variant_allele:str
+        }>,
+        regulatory_feature_consequences:array<struct{
+            allele_num:int32,
+            biotype:str,
+            consequence_terms:array<str>,
+            impact:str,
+            minimised:int32,
+            regulatory_feature_id:str,
+            variant_allele:str
+        }>,
+        seq_region_name:str,
+        start:int32,
+        strand:int32,
+        transcript_consequences:array<struct{
+            allele_num:int32,
+            amino_acids:str,
+            appris:str,
+            biotype:str,
+            canonical:int32,
+            mane_select:str,
+            mane_plus_clinical:str,
+            ccds:str,
+            cdna_start:int32,
+            cdna_end:int32,
+            cds_end:int32,
+            cds_start:int32,
+            codons:str,
+            consequence_terms:array<str>,
+            distance:int32,
+            domains:array<struct{
+                db:str,
+                name:str
+            }>,
+            exon:str,
+            gene_id:str,
+            gene_pheno:int32,
+            gene_symbol:str,
+            gene_symbol_source:str,
+            hgnc_id:str,
+            hgvsc:str,
+            hgvsp:str,
+            hgvs_offset:int32,
+            impact:str,
+            intron:str,
+            lof:str,
+            lof_flags:str,
+            lof_filter:str,
+            lof_info:str,
+            minimised:int32,
+            mirna:array<str>,
+            polyphen_prediction:str,
+            polyphen_score:float64,
+            protein_end:int32,
+            protein_start:int32,
+            protein_id:str,
+            sift_prediction:str,
+            sift_score:float64,
+            strand:int32,
+            swissprot:array<str>,
+            transcript_id:str,
+            trembl:array<str>,
+            tsl:int32,
+            uniparc:array<str>,
+            uniprot_isoform:array<str>,
+            variant_allele:str,
+            am_class:str,
+            am_pathogenicity:float64,
+            source:str,
+            flags:array<str>
+        }>,
+        variant_class:str
+    }"""
     )
-    for k, v in [
-        ('String', 'str'),
-        ('Array', 'array'),
-        ('Set', 'set'),
-        ('Tuple', 'tuple'),
-        ('Struct', 'struct'),
-        ('[', '<'),
-        (']', '>'),
-        ('Int32', 'int32'),
-        ('Int64', 'int64'),
-        ('Float64', 'float64'),
-        ('Float32', 'float32'),
-    ]:
-        json_schema = json_schema.replace(k, v)
-
-    schema = hl.dtype(json_schema)
-    ht = hl.import_table(vep_results_paths, no_header=True, types={'f0': schema})
+    ht = hl.import_table(
+        paths=vep_result_paths, no_header=True, types={'f0': json_schema}
+    )
     ht = ht.transmute(vep=ht.f0)
+
     # Can't use ht.vep.start for start because it can be modified by VEP (e.g. it
     # happens for indels). So instead parsing POS from the original VCF line stored
     # as ht.vep.input field.
-    start = hl.parse_int(ht.vep.input.split('\t')[1])
+    original_vcf_line = ht.vep.input
+    start = hl.parse_int(original_vcf_line.split('\t')[1])
     chrom = ht.vep.seq_region_name
     ht = ht.annotate(
         locus=hl.locus(chrom, start),

@@ -4,7 +4,7 @@ cpg-utils>=4.17.0
 cpg_workflows>=1.17.1
 cyvcf2==0.30.18
 dill>=0.3.7
-hail!=0.2.120
+hail>=0.2.120
 Jinja2==3.0.3
 metamist>=6.4.0
 networkx>=3
