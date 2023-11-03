@@ -529,7 +529,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.MatrixTable:
+def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
     default uses the Hail builtin method (very strict)
@@ -537,7 +537,7 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
 
     Args:
         mt ():
-        plink_family_file (): path to a pedigree in PLINK format
+        ped_file_path (): path to a pedigree in PLINK format
 
     Returns:
         same variants, categorysample4 either 'missing' or sample IDs
@@ -548,7 +548,7 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
 
     de_novo_matrix = filter_by_consequence(mt)
 
-    pedigree = hl.Pedigree.read(plink_family_file)
+    pedigree = hl.Pedigree.read(ped_file_path)
 
     logging.info('Updating synthetic PL values for WT calls where missing')
 
@@ -591,7 +591,7 @@ def annotate_category_4(mt: hl.MatrixTable, plink_family_file: str) -> hl.Matrix
         info=mt.info.annotate(
             **{
                 'categorysample4': hl.or_else(
-                    dn_table[mt.row_key].values, MISSING_STRING
+                    dn_table[mt.row_key]['values'], MISSING_STRING
                 )
             }
         )
@@ -1187,7 +1187,7 @@ def main(
 
     # ordering is important - category4 (de novo) makes
     # use of category 5, so it must follow
-    mt = annotate_category_4(mt=mt, plink_family_file=pedigree)
+    mt = annotate_category_4(mt=mt, ped_file_path=pedigree)
     mt = annotate_category_support(mt=mt)
 
     # if a clinvar-codon table is supplied, use that for PM5
