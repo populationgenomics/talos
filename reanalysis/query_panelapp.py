@@ -318,7 +318,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # historic data overrides default 'previous' list for cohort
     # open to discussing order of precedence here
-    if old_file := find_latest_file(start='panel_'):
+    if old_file := find_latest_file(dataset=dataset, start='panel_'):
         logging.info(f'Grabbing legacy panel data from {old_file}')
         old_data: dict = read_json_from_path(old_file, default=old_data)
 
@@ -392,7 +392,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # write the output to long term storage
     write_output_json(output_path=out_path, object_to_write=gene_dict)
 
-    save_new_historic(old_data, prefix='panel_')
+    save_new_historic(old_data, dataset=dataset, prefix='panel_')
 
 
 if __name__ == '__main__':
