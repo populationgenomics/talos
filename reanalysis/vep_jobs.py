@@ -17,7 +17,7 @@ from cpg_utils.hail_batch import (
     command,
     query_command,
 )
-from cpg_workflows.resources import STANDARD
+from cpg_workflows.resources import HIGHMEM, STANDARD
 from cpg_workflows.utils import exists
 
 
@@ -271,8 +271,8 @@ def vep_one(
     j.image(image_path('vep_110'))
 
     # vep is single threaded, with a middling memory requirement
-    # tests have exceeded 8GB, so bump to ~16 (2 * highmem)
-    j.memory('highmem').storage('10Gi').cpu(2)
+    # tests have exceeded 8GB, so bump to ~13 (2 * highmem)
+    HIGHMEM.set_resources(j, ncpu=2, storage_gb=10)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
