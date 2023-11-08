@@ -542,7 +542,7 @@ def main(
 
     # annotate previously seen results using cumulative data file(s)
     analysis_results = filter_results(
-        analysis_results, singletons=bool('singleton' in pedigree)
+        analysis_results, singletons=bool('singleton' in pedigree), dataset=dataset
     )
 
     # create the full final output file

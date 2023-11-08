@@ -271,9 +271,8 @@ def vep_one(
     j.image(image_path('vep_110'))
 
     # vep is single threaded, with a middling memory requirement
-    # during test it caps out around 4GB, though this could be
-    # larger for some long-running jobs
-    j.memory('highmem').storage('10Gi').cpu(1)
+    # tests have exceeded 8GB, so bump to 16
+    j.memory('16Gi').storage('10Gi').cpu(1)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
@@ -306,7 +305,6 @@ def vep_one(
     -i {vcf} \\
     --everything \\
     --mane_select \\
-    --no_stats \\
     --allele_number \\
     --minimal \\
     --species homo_sapiens \\

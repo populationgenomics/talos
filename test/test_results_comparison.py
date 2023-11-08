@@ -244,7 +244,7 @@ def test_find_latest(tmp_path):
     touch(join(tmp_str, 'file2.json'))
     sleep(0.2)
     touch(join(tmp_str, 'file3.json'))
-    assert 'file3.json' in find_latest_file(tmp_str)
+    assert 'file3.json' in find_latest_file(tmp_str, dataset='cohort')
 
 
 def test_find_latest_singletons(tmp_path):
@@ -257,7 +257,9 @@ def test_find_latest_singletons(tmp_path):
     touch(join(tmp_str, 'file2.json'))
     sleep(0.2)
     touch(join(tmp_str, 'file3.json'))
-    assert 'singletons_file1.json' in find_latest_file(tmp_str, start='singletons')
+    assert 'singletons_file1.json' in find_latest_file(
+        tmp_str, start='singletons', dataset='cohort'
+    )
 
 
 def test_find_latest_with_ext(tmp_path):

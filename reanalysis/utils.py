@@ -1072,7 +1072,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     return comp_het_results
 
 
-def filter_results(results: dict, singletons: bool) -> dict:
+def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -1085,7 +1085,7 @@ def filter_results(results: dict, singletons: bool) -> dict:
     Returns: same results annotated with date-first-seen
     """
 
-    historic_folder = get_cohort_seq_type_conf().get('historic_results')
+    historic_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
 
     if historic_folder is None:
         logging.info('No historic data folder, no filtering')
@@ -1100,30 +1100,33 @@ def filter_results(results: dict, singletons: bool) -> dict:
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
     # in 1000 years this might cause a problem :/ \s
-    latest_results_path = find_latest_file(start=prefix or '2')
+    latest_results_path = find_latest_file(dataset=dataset, start=prefix or '2')
 
     logging.info(f'latest results: {latest_results_path}')
 
     latest_results: dict = read_json_from_path(latest_results_path)  # type: ignore
 
     results, cumulative = date_annotate_results(results, latest_results)
-    save_new_historic(results=cumulative, prefix=prefix)
+    save_new_historic(results=cumulative, prefix=prefix, dataset=dataset)
 
     return results
 
 
-def save_new_historic(results: dict, prefix: str = '', directory: str | None = None):
+def save_new_historic(
+    results: dict, dataset: str, prefix: str = '', directory: str | None = None
+):
     """
     save the new results in the historic results dir
 
     Args:
         results (): object to save as a JSON file
+        dataset (str): the dataset to save results for
         prefix (str): name prefix for this file (optional)
         directory (): defaults to historic_data from config
     """
 
     if directory is None:
-        directory = get_cohort_seq_type_conf().get('historic_results')
+        directory = get_cohort_seq_type_conf(dataset).get('historic_results')
         if directory is None:
             logging.info('No historic results directory, nothing written')
             return
@@ -1136,11 +1139,12 @@ def save_new_historic(results: dict, prefix: str = '', directory: str | None = N
 
 
 def find_latest_file(
-    results_folder: str | None = None, start: str = '', ext: str = 'json'
+    dataset: str, results_folder: str | None = None, start: str = '', ext: str = 'json'
 ) -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
+        dataset (): the dataset to fetch results for
         results_folder (): local or remote folder
         start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
@@ -1149,7 +1153,7 @@ def find_latest_file(
     """
 
     if results_folder is None:
-        results_folder = get_cohort_seq_type_conf().get('historic_results')
+        results_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
         if results_folder is None:
             logging.info('`historic_results` not present in config')
             return None
