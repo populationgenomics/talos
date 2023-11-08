@@ -271,8 +271,8 @@ def vep_one(
     j.image(image_path('vep_110'))
 
     # vep is single threaded, with a middling memory requirement
-    # tests have exceeded 8GB, so bump to 16
-    j.memory('16Gi').storage('10Gi').cpu(1)
+    # tests have exceeded 8GB, so bump to ~16 (2 * highmem)
+    j.memory('highmem').storage('10Gi').cpu(2)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
