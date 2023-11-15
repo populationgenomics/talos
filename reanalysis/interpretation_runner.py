@@ -349,6 +349,8 @@ def main(
         skip_annotation (bool): if the input is annotated, don't re-run
     """
 
+    runtime_conf = get_config(True)
+
     assert to_path(
         input_path
     ).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
@@ -359,7 +361,7 @@ def main(
     # separate paths for familial and singleton analysis
     if singletons:
         assert (
-            'singleton' in get_config()['workflow']['output_prefix']
+            'singleton' in runtime_conf['workflow']['output_prefix']
         ), 'To keep singletons separate, include "singleton" in the file path'
 
     # modify output paths depending on analysis type
@@ -425,7 +427,7 @@ def main(
             b=get_batch(),
             input_siteonly_vcf_path=to_path(SITES_ONLY),
             tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
-            scatter_count=get_config()['workflow'].get('scatter_count', 50),
+            scatter_count=runtime_conf['workflow'].get('scatter_count', 50),
             out_path=to_path(vep_ht_tmp),
         )
 
@@ -437,7 +439,7 @@ def main(
             prior_job = vep_jobs[-1]
 
         j = get_batch().new_job('annotate cohort')
-        j.image(get_config()['workflow']['driver_image'])
+        j.image(runtime_conf['workflow']['driver_image'])
         j.command(
             query_command(
                 seqr_loader,
@@ -498,7 +500,7 @@ def main(
     # endregion
 
     # region: register outputs in metamist if required
-    if registry := get_config()['workflow'].get('status_reporter'):
+    if registry := runtime_conf['workflow'].get('status_reporter'):
         logging.info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(
             files=sorted(output_dict.values()),

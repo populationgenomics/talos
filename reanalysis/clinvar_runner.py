@@ -146,6 +146,9 @@ def main(date: str | None = None, folder: str | None = None):
         folder (str | None): a folder to write to, optional
     """
 
+    # print the config we use once
+    _conf = get_config(True)
+
     if folder is None:
         cloud_folder = to_path(
             join(
