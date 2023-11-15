@@ -2,6 +2,7 @@
 classes and methods shared across reanalysis components
 """
 
+import time
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
 from datetime import datetime
@@ -200,22 +201,39 @@ class Coordinates:
         )
 
 
-def get_json_response(url: str) -> Any:
+def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
     List use-case (activities endpoint) no longer supported
 
     Args:
-        url (): str URL to retrieve JSON format data from
+        url (str): URL to retrieve JSON format data from
+        max_retries (int): maximum number of retries
+        base_delay (int): initial delay between retries
+        max_delay (int): maximum delay between retries
 
     Returns:
         the JSON response from the endpoint
     """
 
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()
-    return response.json()
+    retries = 0
+    while retries < max_retries:
+        try:
+            response = requests.get(
+                url, headers={'Accept': 'application/json'}, timeout=60
+            )
+            response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
+            return response.json()
+        except (requests.RequestException, TimeoutError) as e:
+            logging.error(f'Request failed: {e}')
+            retries += 1
+            if retries < max_retries:
+                delay = min(base_delay * 2**retries, max_delay)
+                logging.warning(f'Retrying in {delay} seconds...')
+                time.sleep(delay)
+
+    raise TimeoutError('Max retries reached. Request failed.')
 
 
 def get_cohort_config(dataset: str | None = None):
