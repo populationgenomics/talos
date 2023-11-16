@@ -54,7 +54,10 @@ def restructure_mt_by_gene(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     # split out consequences
-    return mt.explode_rows(mt.sortedTranscriptConsequences)
+    mt = mt.explode_rows(mt.sortedTranscriptConsequences)
+    return mt.annotate_rows(
+        info=mt.info.annotate(gene_id=mt.sortedTranscriptConsequences.gene_id)
+    )
 
 
 def annotate_sv1(
@@ -133,7 +136,7 @@ def main(
     get_logger().info(f'Starting Hail with reference genome {genome_build()}')
     # un-comment this to play locally
     # hl.init(default_reference=genome_build())
-    init_batch(driver_cores=8, driver_memory='highmem')
+    init_batch(driver_cores=1, driver_memory='lowmem')
 
     # if we already generated the annotated output, load instead
     if not to_path(mt_path.rstrip('/') + '/').exists():
@@ -172,7 +175,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logger = get_logger(__file__)
-    logger.info(f'Running Hail filtering process for {args.dataset} SVs')
+    logger.info('Running Hail filtering process for SVs')
 
     main(
         mt_path=args.mt,

@@ -364,6 +364,7 @@ class DominantAutosomal(BaseMoi):
 
         # autosomal dominant doesn't require support, but consider het and hom
         samples_with_this_variant = principal.het_samples.union(principal.hom_samples)
+
         for sample_id in samples_with_this_variant:
 
             # skip primary analysis for unaffected members
@@ -373,8 +374,11 @@ class DominantAutosomal(BaseMoi):
                 self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal.sample_category_check(sample_id, allow_support=False)
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
-                and not principal.info.get('categoryboolean1')
+                (
+                    principal.depths[sample_id] < self.minimum_depth
+                    and not principal.info.get('categoryboolean1')
+                )
+                and 'SVTYPE' not in principal.info
             ):
                 continue
 

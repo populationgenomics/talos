@@ -440,13 +440,19 @@ class AbstractVariant:
             new_genes (dict):
         """
 
+        # overwrite the non-standard cyvcf2 representation
+        self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
+
         # extract the coordinates into a separate object
-        if 'SVTYPE' in var.INFO:
+        # bump depths for SV calls
+        if 'svtype' in self.info:
+            self.depths = {sam: 999 for sam in samples}
             self.coords = Coordinates(
-                var.CHROM.replace('chr', ''), var.POS, var.ALT[0], var.INFO['SVLEN']
+                var.CHROM.replace('chr', ''), var.POS, var.ALT[0], self.info['svlen']
             )
 
         else:
+            self.depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
             self.coords = Coordinates(
                 var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
             )
@@ -456,9 +462,6 @@ class AbstractVariant:
         self.het_samples, self.hom_samples = get_non_ref_samples(
             variant=var, samples=samples
         )
-
-        # overwrite the non-standard cyvcf2 representation
-        self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
         # hot-swap cat 2 from a boolean to a sample list - if appropriate
         if self.info.get('categoryboolean2', 0):
@@ -520,7 +523,7 @@ class AbstractVariant:
         self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
-        self.depths = dict(zip(samples, map(float, var.gt_depths)))
+
         self.categories: list = []
 
     def organise_pm5(self):
@@ -910,19 +913,23 @@ def gather_gene_dict_from_contig(
         contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
     if second_source:
+        second_source_variants = 0
         for variant in second_source(contig):
             # create an abstract SV variant
             abs_var = AbstractVariant(
                 var=variant, samples=second_source.samples, as_singletons=singletons
             )
             # update the variant count
-            contig_variants += 1
+            second_source_variants += 1
 
             # update the gene index dictionary
             contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
+        logging.info(f'Contig {contig} contained {second_source_variants} variants')
+
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
+
     return contig_dict
 
 
