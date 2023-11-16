@@ -60,6 +60,7 @@ spliceai = 0.5
 6 = 'AlphaMissense P/LP'
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 support = 'High in Silico Scores'
+sv1 = 'Predicted LOF SV'
 
 [hail]
 cancel_after_n_failures = 1

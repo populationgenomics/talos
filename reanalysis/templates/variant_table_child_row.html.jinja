@@ -33,15 +33,21 @@
                                 {% if variant.var_data.info.alpha_missense_max != 'missing' %}
                                 AlphaMissense Max: {{variant.var_data.info.alpha_missense_max|round(2)}}<br>
                                 {% endif %}
+                                {% if variant.var_data.info.splice_ai_delta %}
                                 SpliceAI: <a
                                     href="{{ macros.spliceai_lookup_url(variant)}}"
                                     target="_blank">
                                     {{variant.var_data.info.splice_ai_delta|round(2)}}
                                 </a>
+                                {% endif %}
                                 {% if variant.var_data.info.splice_ai_csq not in ['missing', 'No_consequence']
                                 %}({{variant.var_data.info.splice_ai_csq }}){% endif %}<br>
+                                {% if variant.var_data.info.revel %}
                                 Revel: {{variant.var_data.info.revel|round(2)}}<br>
+                                {% endif %}
+                                {% if variant.var_data.info.cadd %}
                                 CADD: {{variant.var_data.info.cadd|round(0)}}<br>
+                                {% endif %}
                                 {% if variant.var_data.info.mutationtaster != 'missing' %}
                                 MutationTaster: {{variant.var_data.info.mutationtaster}}<br>
                                 {% endif %}
@@ -112,6 +118,13 @@
                             <dt class="col-sm-3">Category Support</dt>
                             <dd class="col-sm-9">
                                 Consensus in silico Pathogenic
+                            </dd>
+                            {% endif %}
+
+                            {% if 'sv1' in variant.var_data.categories %}
+                            <dt class="col-sm-3">LOF SV</dt>
+                            <dd class="col-sm-9">
+                                Predicted LoF Structural Variant
                             </dd>
                             {% endif %}
 
