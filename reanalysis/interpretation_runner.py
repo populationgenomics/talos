@@ -32,6 +32,7 @@ from reanalysis.vep_jobs import add_vep_jobs
 
 from reanalysis import (
     hail_filter_and_label,
+    hail_filter_sv,
     html_builder,
     metamist_registration,
     mt_to_vcf,
@@ -53,6 +54,7 @@ EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 # static paths to write outputs
 ANNOTATED_MT = output_path('annotated_variants.mt')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
+HAIL_SV_VCF_OUT = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz', 'analysis')
 SITES_ONLY = output_path('sitesonly.vcf.bgz', 'tmp')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
@@ -75,7 +77,7 @@ def set_job_resources(
         storage (str): storage setting to use
     """
     # apply all settings to this job
-    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
+    job.cpu(1).image(get_config()['workflow']['driver_image']).memory(memory).storage(
         storage
     )
 
@@ -149,6 +151,33 @@ def handle_panelapp_job(
     return panelapp_job
 
 
+def handle_hail_sv_filtering(
+    sv_mt: str, pedigree: str, prior_job: Job | None = None
+) -> BashJob:
+    """
+    run hail filtering on the SV input MT (if supplied)
+
+    Args:
+        sv_mt (str): location of the SV MT
+        pedigree (str): location of a localised PED file
+        prior_job (Job): required for setting dependency
+    """
+
+    labelling_job = get_batch().new_job(name='Hail SV labelling')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='lowmem')
+    labelling_command = (
+        f'python3 {hail_filter_sv.__file__} '
+        f'--mt {ANNOTATED_MT} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--pedigree {pedigree} '
+        f'--vcf_out {HAIL_SV_VCF_OUT} '
+    )
+
+    get_logger().info(f'Labelling Command: {labelling_command}')
+    labelling_job.command(labelling_command)
+    return labelling_job
+
+
 def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJob:
     """
     hail-query backend version of the filtering implementation
@@ -162,15 +191,14 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
         the Batch job running the hail filtering process
     """
 
-    labelling_job = get_batch().new_job(name='hail filtering')
-    set_job_resources(labelling_job, prior_job=prior_job, memory='6Gi')
-    out_vcf = output_path('hail_categorised.vcf.bgz', 'analysis')
+    labelling_job = get_batch().new_job(name='Hail small-variant labelling')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='lowemem')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--vcf_out {out_vcf} '
+        f'--vcf_out {HAIL_VCF_OUT} '
     )
 
     get_logger().info(f'Labelling Command: {labelling_command}')
@@ -336,6 +364,7 @@ def handle_registration_jobs(
 
 def main(
     input_path: str,
+    sv_path: str,
     pedigree: str,
     participant_panels: str | None,
     singletons: bool = False,
@@ -346,6 +375,7 @@ def main(
 
     Args:
         input_path (str): path to the VCF/MT
+        sv_path (str): path to SV MT
         pedigree (str): family file for this analysis
         participant_panels (str): file containing panels-per-family (optional)
         singletons (bool): run as Singletons (with appropriate output paths)
@@ -405,7 +435,6 @@ def main(
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path
-
             ANNOTATED_MT = input_path
 
         else:
@@ -471,6 +500,15 @@ def main(
     pedigree_in_batch = get_batch().read_input(pedigree)
 
     # region: hail categorisation
+    if not to_path(HAIL_SV_VCF_OUT).exists() and sv_path and to_path(sv_path).exists():
+        get_logger().info(
+            f"The Labelled VCF {HAIL_SV_VCF_OUT!r} doesn't exist; regenerating"
+        )
+        prior_job = handle_hail_sv_filtering(
+            sv_mt=sv_path, prior_job=prior_job, pedigree=pedigree_in_batch
+        )
+        output_dict['hail_sv_vcf'] = HAIL_SV_VCF_OUT
+
     if not to_path(HAIL_VCF_OUT).exists():
         get_logger().info(
             f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating"
@@ -544,6 +582,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-i', help='variant data to analyse', required=True)
+    parser.add_argument('-sv', help='SV data to analyse', required=False)
     parser.add_argument('--pedigree', help='in Plink format', required=True)
     parser.add_argument('--participant_panels', help='per-participant panel details')
     parser.add_argument(
@@ -559,6 +598,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         input_path=args.i,
+        sv_path=args.sv,
         pedigree=args.pedigree,
         participant_panels=args.participant_panels,
         skip_annotation=args.skip_annotation,
