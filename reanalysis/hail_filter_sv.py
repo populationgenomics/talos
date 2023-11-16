@@ -14,7 +14,6 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cpg_utils import to_path
-from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, genome_build
 
 from reanalysis.hail_filter_and_label import (
@@ -111,7 +110,6 @@ def main(
     panelapp_path: str,
     pedigree: str,
     vcf_out: str,
-    dataset: str | None = None,
 ):
     """
     Read MT, filter, and apply category annotation
@@ -122,11 +120,7 @@ def main(
         panelapp_path ():
         pedigree ():
         vcf_out (str): where to write VCF out
-        dataset (str): optional dataset name to write output for
     """
-    dataset = dataset or get_config(True)['workflow']['dataset']
-
-    # this workflow should be too simple (at this time) for checkpoints
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
@@ -175,7 +169,6 @@ if __name__ == '__main__':
     parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
     parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
-    parser.add_argument('--dataset', help='Dataset to write output for')
     args = parser.parse_args()
 
     logger = get_logger(__file__)
@@ -186,5 +179,4 @@ if __name__ == '__main__':
         panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         vcf_out=args.vcf_out,
-        dataset=args.dataset,
     )
