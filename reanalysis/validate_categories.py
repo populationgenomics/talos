@@ -443,6 +443,7 @@ def prepare_results_shell(
 
 @click.command
 @click.option('--labelled_vcf', help='Category-labelled VCF')
+@click.option('--labelled_sv', help='Category-labelled SV VCF', default=None)
 @click.option('--out_json', help='Prefix to write JSON results to')
 @click.option('--panelapp', help='Path to JSON file of PanelApp data')
 @click.option('--pedigree', help='Path to joint-call PED file')
@@ -457,6 +458,7 @@ def main(
     panelapp: str,
     pedigree: str,
     input_path: str,
+    labelled_sv: str | None = None,
     participant_panels: str | None = None,
     dataset: str | None = None,
 ):
@@ -469,6 +471,7 @@ def main(
 
     Args:
         labelled_vcf (str): VCF output from Hail Labelling stage
+        labelled_sv (str | None): optional second VCF (SV)
         out_json (str): location to write output file
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
@@ -501,12 +504,17 @@ def main(
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
+
+    # optional SV behaviour
+    sv_opened = VCFReader(labelled_sv) if labelled_sv is not None else None
+
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
+            second_source=sv_opened,
             new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
@@ -565,5 +573,8 @@ def main(
 
 
 if __name__ == '__main__':
+    # do something pointless to print the config
+
     get_logger(__file__).info('Starting MOI testing phase')
+
     main()

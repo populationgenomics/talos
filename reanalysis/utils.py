@@ -287,7 +287,7 @@ def get_cohort_config(dataset: str | None = None):
 
     global COHORT_CONFIG
     if COHORT_CONFIG is None:
-        dataset = dataset or get_config(False)['workflow']['dataset']
+        dataset = dataset or get_config()['workflow']['dataset']
         COHORT_CONFIG = get_config().get('cohorts', {}).get(dataset)
         if COHORT_CONFIG is None:
             raise AssertionError(f'{dataset} is not represented in config')
@@ -308,7 +308,7 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     """
     global COHORT_SEQ_CONFIG
     if COHORT_SEQ_CONFIG is None:
-        dataset = dataset or get_config(False)['workflow']['dataset']
+        dataset = dataset or get_config()['workflow']['dataset']
         cohort_conf = get_cohort_config(dataset)
         seq_type = get_config()['workflow']['sequencing_type']
         COHORT_SEQ_CONFIG = cohort_conf.get(seq_type, {})
@@ -431,6 +431,8 @@ class AbstractVariant:
         new_genes: dict[str, str] | None = None,
     ):
         """
+        Intention - this works for both small and structural variants
+
         Args:
             var (cyvcf2.Variant):
             samples (list):
@@ -439,9 +441,15 @@ class AbstractVariant:
         """
 
         # extract the coordinates into a separate object
-        self.coords = Coordinates(
-            var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
-        )
+        if 'SVTYPE' in var.INFO:
+            self.coords = Coordinates(
+                var.CHROM.replace('chr', ''), var.POS, var.ALT[0], var.INFO['SVLEN']
+            )
+
+        else:
+            self.coords = Coordinates(
+                var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
+            )
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
@@ -525,10 +533,11 @@ class AbstractVariant:
         Returns:
             None, updates self. attributes
         """
-        try:
-            pm5_content = self.info.pop('categorydetailspm5')
-        except KeyError:
+
+        if 'categorydetailspm5' not in self.info:
             return
+
+        pm5_content = self.info.pop('categorydetailspm5')
 
         # nothing to do here
         if pm5_content == 'missing':
@@ -840,16 +849,20 @@ def gather_gene_dict_from_contig(
     variant_source,
     new_gene_map: dict[str, str],
     singletons: bool = False,
+    second_source=None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
+
+    optionally takes a second VCF and incorporates into same dict
 
     Args:
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         new_gene_map ():
         singletons ():
+        second_source (): an optional second VCF (SV)
 
     Returns:
         A lookup in the form
@@ -895,6 +908,18 @@ def gather_gene_dict_from_contig(
 
         # update the gene index dictionary
         contig_dict[abs_var.info.get('gene_id')].append(abs_var)
+
+    if second_source:
+        for variant in second_source(contig):
+            # create an abstract SV variant
+            abs_var = AbstractVariant(
+                var=variant, samples=second_source.samples, as_singletons=singletons
+            )
+            # update the variant count
+            contig_variants += 1
+
+            # update the gene index dictionary
+            contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
