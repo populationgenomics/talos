@@ -213,6 +213,7 @@ def handle_results_job(
     output: str,
     prior_job: Job | None = None,
     participant_panels: str | None = None,
+    labelled_sv: str | None = None,
 ):
     """
     one container to run the MOI checks, and the presentation
@@ -224,6 +225,7 @@ def handle_results_job(
         output (str): path to JSON file to write
         prior_job (Job): to depend on, or None
         participant_panels (str): Optional, path to pheno-matched panels
+        labelled_sv (str | None): path to labelled SV VCF, if run
     """
 
     results_job = get_batch().new_job(name='MOI tests')
@@ -233,9 +235,13 @@ def handle_results_job(
         f'--participant_panels {participant_panels} ' if participant_panels else ''
     )
 
+    # add the labelled SV argument if appropriate
+    labelled_sv = f'--labelled_sv {labelled_sv} ' if labelled_sv else ''
+
     results_command = (
         f'python3 {validate_categories.__file__} '
         f'--labelled_vcf {labelled_vcf} '
+        f'{labelled_sv} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {output} '
@@ -524,9 +530,22 @@ def main(
         get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
     )
 
+    labelled_sv_vcf_in_batch = (
+        None
+        if sv_path is None
+        else get_batch()
+        .read_input_group(vcf=HAIL_SV_VCF_OUT, tbi=HAIL_SV_VCF_OUT + '.tbi')
+        .vcf
+    )
+
     # region: run results job
+    # very iffy, I do not like it
+    if sv_path:
+        input_path = f'{input_path}, {sv_path}'
+
     prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
+        labelled_sv=labelled_sv_vcf_in_batch,
         pedigree=pedigree_in_batch,
         input_path=input_path,
         output=output_dict['results'],

@@ -15,8 +15,6 @@ participants relative to the MOI described in PanelApp
 """
 
 import json
-import logging
-import sys
 from collections import defaultdict
 
 import click
@@ -31,9 +29,10 @@ from reanalysis.utils import (
     canonical_contigs_from_vcf,
     filter_results,
     find_comp_hets,
+    gather_gene_dict_from_contig,
     get_cohort_config,
     get_granular_date,
-    gather_gene_dict_from_contig,
+    get_logger,
     get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
@@ -123,7 +122,7 @@ def apply_moi_to_variants(
 
         # variant appears to be in a red gene
         if panel_gene_data is None:
-            logging.error(f'How did this gene creep in? {gene}')
+            get_logger().error(f'How did this gene creep in? {gene}')
             continue
 
         for variant in variants:
@@ -492,9 +491,6 @@ def main(
         panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
-    # open the VCF using a cyvcf2 reader
-    vcf_opened = VCFReader(labelled_vcf)
-
     pheno_panels = read_json_from_path(participant_panels)
     assert isinstance(pheno_panels, dict)
 
@@ -503,6 +499,8 @@ def main(
 
     result_list = []
 
+    # open the small variant VCF using a cyvcf2 reader
+    vcf_opened = VCFReader(labelled_vcf)
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
         # assemble {gene: [var1, var2, ..]}
@@ -567,10 +565,5 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
+    get_logger(__file__).info('Starting MOI testing phase')
     main()
