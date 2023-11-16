@@ -18,7 +18,6 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, genome_build
 
 from reanalysis.hail_filter_and_label import (
-    filter_on_quality_flags,
     green_and_new_from_panelapp,
     subselect_mt_to_pedigree,
     ONE_INT,
@@ -148,17 +147,12 @@ def main(
 
     mt = hl.read_matrix_table(mt_path)
 
-    # plug in this dummy variable so that we can use
-    # some more shared methods with the Small Variant use-case
-    mt = mt.annotate_rows(info=mt.info.annotate(clinvar_aip=MISSING_INT))
-
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     # apply blanket filters
-    mt = filter_on_quality_flags(mt)
     mt = filter_matrix_by_ac(mt)
-    mt = filter_matrix_by_af(mt, af_threshold=0.05)
+    mt = filter_matrix_by_af(mt)
 
     # pre-filter the MT and rearrange
     mt = restructure_mt_by_gene(mt)
