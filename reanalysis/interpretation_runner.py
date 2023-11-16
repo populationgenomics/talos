@@ -14,8 +14,6 @@ re-run currently requires the deletion of previous outputs
 """
 
 
-import logging
-import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
@@ -26,10 +24,10 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
+    get_batch,
     output_path,
     query_command,
 )
-from cpg_workflows.batch import get_batch
 from reanalysis.vep_jobs import add_vep_jobs
 
 from reanalysis import (
@@ -41,7 +39,12 @@ from reanalysis import (
     validate_categories,
     seqr_loader,
 )
-from reanalysis.utils import FileTypes, identify_file_type, get_granular_date
+from reanalysis.utils import (
+    FileTypes,
+    identify_file_type,
+    get_granular_date,
+    get_logger,
+)
 
 # region: CONSTANTS
 # exact time that this run occurred
@@ -113,7 +116,7 @@ def setup_mt_to_vcf(input_file: str) -> Job:
         f'--tmp {tmp_root} '
     )
 
-    logging.info(f'Command used to convert MT: {cmd}')
+    get_logger().info(f'Command used to convert MT: {cmd}')
     job.command(cmd)
     return job
 
@@ -141,7 +144,7 @@ def handle_panelapp_job(
     if participant_panels is not None:
         query_cmd += f'--panels {participant_panels} '
 
-    logging.info(f'PanelApp Command: {query_cmd}')
+    get_logger().info(f'PanelApp Command: {query_cmd}')
     panelapp_job.command(query_cmd)
     return panelapp_job
 
@@ -170,7 +173,7 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
         f'--vcf_out {out_vcf} '
     )
 
-    logging.info(f'Labelling Command: {labelling_command}')
+    get_logger().info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
     return labelling_job
 
@@ -211,7 +214,7 @@ def handle_results_job(
         f'--input_path {input_path} '
         f'{gene_filter_files}'
     )
-    logging.info(f'Results command: {results_command}')
+    get_logger().info(f'Results command: {results_command}')
     results_job.command(results_command)
     return results_job
 
@@ -265,7 +268,7 @@ def handle_result_presentation_job(
 
     # if we don't have a valid method, return the prior job
     if output_mode not in scripts_and_inputs:
-        logging.warning(f'Invalid presentation mode: {output_mode}')
+        get_logger().warning(f'Invalid presentation mode: {output_mode}')
         return prior_job
 
     # extract the required inputs for the selected script
@@ -283,7 +286,7 @@ def handle_result_presentation_job(
     )
     html_command = f'python3 {script} {script_params}'
 
-    logging.info(f'HTML generation command: {html_command}')
+    get_logger().info(f'HTML generation command: {html_command}')
     display.command(html_command)
     return display
 
@@ -315,7 +318,7 @@ def handle_registration_jobs(
 
     # if we don't have a valid method, return the prior job
     if registry not in registrars:
-        logging.error(f'Invalid registration mode: {registry}')
+        get_logger().error(f'Invalid registration mode: {registry}')
         return
 
     # create a new job that will run even if the rest of the workflow fails
@@ -327,7 +330,7 @@ def handle_registration_jobs(
         f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
     )
 
-    logging.info(f'Metadata registration command: {metadata_command}')
+    get_logger().info(f'Metadata registration command: {metadata_command}')
     registration_job.command(metadata_command)
 
 
@@ -355,7 +358,7 @@ def main(
         input_path
     ).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
 
-    logging.info('Starting the reanalysis batch')
+    get_logger().info('Starting the reanalysis batch')
 
     # region: output files lookup
     # separate paths for familial and singleton analysis
@@ -469,7 +472,9 @@ def main(
 
     # region: hail categorisation
     if not to_path(HAIL_VCF_OUT).exists():
-        logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
+        get_logger().info(
+            f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating"
+        )
         prior_job = handle_hail_filtering(
             prior_job=prior_job, pedigree=pedigree_in_batch
         )
@@ -501,7 +506,7 @@ def main(
 
     # region: register outputs in metamist if required
     if registry := runtime_conf['workflow'].get('status_reporter'):
-        logging.info(f'Metadata registration will be done using {registry}')
+        get_logger().info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(
             files=sorted(output_dict.values()),
             pedigree=pedigree_in_batch,
@@ -526,13 +531,7 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
-    logging.info(
+    get_logger(__name__).info(
         r"""Welcome To The
           ___  _____ ______
          / _ \|_   _|| ___ \
