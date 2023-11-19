@@ -451,25 +451,30 @@ class AbstractVariant:
             var_type (VariantType):
         """
 
-        self.var_type = var_type
-
         # overwrite the non-standard cyvcf2 representation
         self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
+
+        # presumption of small variant/indel unless otherwise specified
+        # we could bulk this out as index, snv, etc...
+        self.info['var_type'] = var_type
 
         # extract the coordinates into a separate object
         # bump depths for SV calls
         if 'svtype' in self.info:
-            self.var_type = VariantType.SV
-            self.depths = {sam: 999 for sam in samples}
             self.coords = Coordinates(
                 var.CHROM.replace('chr', ''), var.POS, var.ALT[0], self.info['svlen']
             )
+            # artificial depths used to trick logic
+            self.depths = {sam: 999 for sam in samples}
+            self.info['seqr_link'] = self.info['variantid']
+            self.info['var_type'] = VariantType.SV
 
         else:
-            self.depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
             self.coords = Coordinates(
                 var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
             )
+            self.depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
+            self.info['seqr_link'] = self.coords.string_format
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
@@ -1110,6 +1115,8 @@ class CustomEncoder(json.JSONEncoder):
             return o.__dict__
         if isinstance(o, set):
             return list(o)
+        if isinstance(o, Enum):
+            return o.value
         return json.JSONEncoder.default(self, o)
 
 
