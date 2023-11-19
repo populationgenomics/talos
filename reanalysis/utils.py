@@ -114,6 +114,15 @@ def get_granular_date():
     return _GRANULAR_DATE
 
 
+class VariantType(Enum):
+    """
+    enumeration of permitted variant types
+    """
+
+    SMALL = 'SMALL'
+    SV = 'SV'
+
+
 class FileTypes(Enum):
     """
     enumeration of permitted input file types
@@ -429,6 +438,7 @@ class AbstractVariant:
         samples: list[str],
         as_singletons=False,
         new_genes: dict[str, str] | None = None,
+        var_type: VariantType = VariantType.SMALL,
     ):
         """
         Intention - this works for both small and structural variants
@@ -438,7 +448,10 @@ class AbstractVariant:
             samples (list):
             as_singletons (bool):
             new_genes (dict):
+            var_type (VariantType):
         """
+
+        self.var_type = var_type
 
         # overwrite the non-standard cyvcf2 representation
         self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
@@ -446,6 +459,7 @@ class AbstractVariant:
         # extract the coordinates into a separate object
         # bump depths for SV calls
         if 'svtype' in self.info:
+            self.var_type = VariantType.SV
             self.depths = {sam: 999 for sam in samples}
             self.coords = Coordinates(
                 var.CHROM.replace('chr', ''), var.POS, var.ALT[0], self.info['svlen']
@@ -1016,7 +1030,6 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str:
             return 'Hemi_Mono_In_Female'
         case _:
             return default
-    return default
 
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
@@ -1115,7 +1128,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     }
 
     Args:
-        var_list ():
+        var_list (list[AbstractVariant]): all variants in this gene
         pedigree (): Peddy.ped
     """
 
@@ -1172,6 +1185,7 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
+        dataset (str): dataset name for sourcing config section
 
     Returns: same results annotated with date-first-seen
     """

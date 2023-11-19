@@ -108,6 +108,28 @@ def filter_matrix_by_ac(
     )
 
 
+def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Rearrange the filters in the MT
+    We're generally happy that everything reaching here is high quality
+    But we need to write a VCF without Filters (to match the header)
+
+    Args:
+        mt ():
+
+    Returns:
+        same MT but restructured a little
+    """
+
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            VCF_FILTERS=hl.delimit(mt.filters), variantId=mt.variantId
+        )
+    )
+    mt = mt.annotate_rows(filters=hl.empty_set(hl.tstr))
+    return mt
+
+
 def main(
     mt_path: str,
     panelapp_path: str,
@@ -150,6 +172,7 @@ def main(
     # apply blanket filters
     mt = filter_matrix_by_ac(mt)
     mt = filter_matrix_by_af(mt)
+    mt = rearrange_filters(mt)
 
     # pre-filter the MT and rearrange
     mt = restructure_mt_by_gene(mt)
