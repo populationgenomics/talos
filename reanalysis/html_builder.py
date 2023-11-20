@@ -444,6 +444,13 @@ class Variant:
             max(am_scores) if am_scores else 'missing'
         )
 
+        # this is the weird gnomad callset ID
+        if self.var_data['info']['var_type'] == 'SV':
+            if 'gnomad_v2.1_sv_svid' in self.var_data['info']:
+                self.var_data['info']['gnomad_key'] = self.var_data['info'][
+                    'gnomad_v2.1_sv_svid'
+                ].split('v2.1_')[-1]
+
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 

@@ -2,6 +2,8 @@
 classes and methods shared across reanalysis components
 """
 
+import logging
+import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, is_dataclass, field
@@ -13,7 +15,6 @@ from string import punctuation
 from typing import Any
 
 import json
-import logging
 import re
 import requests
 
@@ -55,6 +56,46 @@ COHORT_SEQ_CONFIG: dict | None = None
 # CONFIG_FIELDS = ['workflow']  # , 'filter', 'panels', 'categories']
 # assert all(field in get_config(False).keys() for field in CONFIG_FIELDS)
 
+LOGGER = None
+
+
+def get_logger(
+    logger_name: str = 'AIP-logger', log_level: int = logging.INFO
+) -> logging.Logger:
+    """
+    creates a logger instance (so as not to use the root logger)
+
+    Args:
+        logger_name (str):
+        log_level ():
+
+    Returns:
+        a logger instance, or the global logger if already defined
+    """
+    global LOGGER
+
+    if LOGGER is None:
+        # this very verbose logging is to ensure that the log level requested (INFO)
+        # doesn't cause the unintentional logging of every Metamist query
+        # create a named logger
+        LOGGER = logging.getLogger(logger_name)
+        LOGGER.setLevel(log_level)
+
+        # create a stream handler to write output
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(log_level)
+
+        # create format string for messages
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s'
+        )
+        stream_handler.setFormatter(formatter)
+
+        # set the logger to use this handler
+        LOGGER.addHandler(stream_handler)
+
+    return LOGGER
+
 
 def get_granular_date():
     """
@@ -71,6 +112,15 @@ def get_granular_date():
         if _GRANULAR_DATE is None:
             _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
     return _GRANULAR_DATE
+
+
+class VariantType(Enum):
+    """
+    enumeration of permitted variant types
+    """
+
+    SMALL = 'SMALL'
+    SV = 'SV'
 
 
 class FileTypes(Enum):
@@ -246,7 +296,7 @@ def get_cohort_config(dataset: str | None = None):
 
     global COHORT_CONFIG
     if COHORT_CONFIG is None:
-        dataset = dataset or get_config(False)['workflow']['dataset']
+        dataset = dataset or get_config()['workflow']['dataset']
         COHORT_CONFIG = get_config().get('cohorts', {}).get(dataset)
         if COHORT_CONFIG is None:
             raise AssertionError(f'{dataset} is not represented in config')
@@ -267,7 +317,7 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     """
     global COHORT_SEQ_CONFIG
     if COHORT_SEQ_CONFIG is None:
-        dataset = dataset or get_config(False)['workflow']['dataset']
+        dataset = dataset or get_config()['workflow']['dataset']
         cohort_conf = get_cohort_config(dataset)
         seq_type = get_config()['workflow']['sequencing_type']
         COHORT_SEQ_CONFIG = cohort_conf.get(seq_type, {})
@@ -388,28 +438,49 @@ class AbstractVariant:
         samples: list[str],
         as_singletons=False,
         new_genes: dict[str, str] | None = None,
+        var_type: VariantType = VariantType.SMALL,
     ):
         """
+        Intention - this works for both small and structural variants
+
         Args:
             var (cyvcf2.Variant):
             samples (list):
             as_singletons (bool):
             new_genes (dict):
+            var_type (VariantType):
         """
 
+        # overwrite the non-standard cyvcf2 representation
+        self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
+
+        # presumption of small variant/indel unless otherwise specified
+        # we could bulk this out as index, snv, etc...
+        self.info['var_type'] = var_type
+
         # extract the coordinates into a separate object
-        self.coords = Coordinates(
-            var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
-        )
+        # bump depths for SV calls
+        if 'svtype' in self.info:
+            self.coords = Coordinates(
+                var.CHROM.replace('chr', ''), var.POS, var.ALT[0], self.info['svlen']
+            )
+            # artificial depths used to trick logic
+            self.depths = {sam: 999 for sam in samples}
+            self.info['seqr_link'] = self.info['variantid']
+            self.info['var_type'] = VariantType.SV
+
+        else:
+            self.coords = Coordinates(
+                var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
+            )
+            self.depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
+            self.info['seqr_link'] = self.coords.string_format
 
         # get all zygosities once per variant
         # abstraction avoids pulling per-sample calls again later
         self.het_samples, self.hom_samples = get_non_ref_samples(
             variant=var, samples=samples
         )
-
-        # overwrite the non-standard cyvcf2 representation
-        self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
         # hot-swap cat 2 from a boolean to a sample list - if appropriate
         if self.info.get('categoryboolean2', 0):
@@ -471,7 +542,7 @@ class AbstractVariant:
         self.phased = get_phase_data(samples, var)
 
         self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
-        self.depths = dict(zip(samples, map(float, var.gt_depths)))
+
         self.categories: list = []
 
     def organise_pm5(self):
@@ -484,10 +555,11 @@ class AbstractVariant:
         Returns:
             None, updates self. attributes
         """
-        try:
-            pm5_content = self.info.pop('categorydetailspm5')
-        except KeyError:
+
+        if 'categorydetailspm5' not in self.info:
             return
+
+        pm5_content = self.info.pop('categorydetailspm5')
 
         # nothing to do here
         if pm5_content == 'missing':
@@ -684,12 +756,16 @@ class AbstractVariant:
     def check_ab_ratio(self, sample: str) -> list[str]:
         """
         AB ratio test for this sample's variant call
+        Escaped for SVs
         Args:
             sample (str): sample ID
 
         Returns:
             list[str]: empty, or indicating an AB ratio failure
         """
+        if 'svtype' in self.info:
+            return []
+
         het = sample in self.het_samples
         hom = sample in self.hom_samples
         variant_ab = self.ab_ratios.get(sample, 0.0)
@@ -799,16 +875,20 @@ def gather_gene_dict_from_contig(
     variant_source,
     new_gene_map: dict[str, str],
     singletons: bool = False,
+    second_source=None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
     iterates over all variants in the region, and builds a lookup
+
+    optionally takes a second VCF and incorporates into same dict
 
     Args:
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         new_gene_map ():
         singletons ():
+        second_source (): an optional second VCF (SV)
 
     Returns:
         A lookup in the form
@@ -855,8 +935,24 @@ def gather_gene_dict_from_contig(
         # update the gene index dictionary
         contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
+    if second_source:
+        second_source_variants = 0
+        for variant in second_source(contig):
+            # create an abstract SV variant
+            abs_var = AbstractVariant(
+                var=variant, samples=second_source.samples, as_singletons=singletons
+            )
+            # update the variant count
+            second_source_variants += 1
+
+            # update the gene index dictionary
+            contig_dict[abs_var.info.get('gene_id')].append(abs_var)
+
+        logging.info(f'Contig {contig} contained {second_source_variants} variants')
+
     logging.info(f'Contig {contig} contained {contig_variants} variants')
     logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
+
     return contig_dict
 
 
@@ -943,7 +1039,6 @@ def get_simple_moi(input_moi: str | None, chrom: str) -> str:
             return 'Hemi_Mono_In_Female'
         case _:
             return default
-    return default
 
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
@@ -1024,6 +1119,8 @@ class CustomEncoder(json.JSONEncoder):
             return o.__dict__
         if isinstance(o, set):
             return list(o)
+        if isinstance(o, Enum):
+            return o.value
         return json.JSONEncoder.default(self, o)
 
 
@@ -1042,7 +1139,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     }
 
     Args:
-        var_list ():
+        var_list (list[AbstractVariant]): all variants in this gene
         pedigree (): Peddy.ped
     """
 
@@ -1099,6 +1196,7 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
     Args:
         results (): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
+        dataset (str): dataset name for sourcing config section
 
     Returns: same results annotated with date-first-seen
     """

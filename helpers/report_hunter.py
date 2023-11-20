@@ -9,8 +9,6 @@ Generate a second report for the latest variant only report
 """
 
 
-import logging
-import sys
 from dataclasses import dataclass
 from os.path import join
 from pathlib import Path
@@ -21,6 +19,8 @@ import jinja2
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from metamist.graphql import gql, query
+
+from reanalysis.utils import get_logger
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
@@ -47,24 +47,7 @@ REPORT_QUERY = gql(
 )
 
 
-# this very verbose logging is to ensure that the log level requested (INFO)
-# doesn't cause the unintentional logging of every Metamist query
-# create a named logger
-script_logger = logging.getLogger(__name__)
-script_logger.setLevel(logging.INFO)
-
-# create a stream handler to write output
-stream_handler = logging.StreamHandler(sys.stdout)
-stream_handler.setLevel(logging.INFO)
-
-# create format string for messages
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s'
-)
-stream_handler.setFormatter(formatter)
-
-# set the logger to use this handler
-script_logger.addHandler(stream_handler)
+script_logger = get_logger(logger_name=__file__)
 
 
 @dataclass

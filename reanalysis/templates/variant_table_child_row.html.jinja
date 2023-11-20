@@ -11,51 +11,78 @@
                         <dl class="row">
                             <dt class="col-sm-3">Variant</dt>
                             <dd class="col-sm-9">
-                                {{variant.chrom}}:{{variant.pos}}-{{variant.ref}}-{{variant.alt}}
+                            {% if variant.var_data.info.var_type == 'SMALL' %}
+                                {{variant.var_data.info.seqr_link}}
+                                <dt class="col-sm-3">Filter status</dt>
+                                <dd class="col-sm-9">{{variant.var_data.info.as_filterstatus}}</dd>
+
+                            {% elif variant.var_data.info.var_type == 'SV' %}
+                                {{ variant.var_data.info.svtype }} {{ variant.var_data.info.svlen }}bp
+
+                            {% endif %}
                             </dd>
 
-                            <dt class="col-sm-3">Filter status</dt>
-                            <dd class="col-sm-9">{{variant.var_data.info.as_filterstatus}}</dd>
 
                             <dt class="col-sm-3">Allele Counts</dt>
+
                             <dd class="col-sm-9">
                                 This Callset: {{variant.var_data.info.ac}} / {{variant.var_data.info.an}}<br>
-                                gnomAD WGS: <a
-                                    href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
-                                    target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
-                                gnomAD WES: <a
-                                    href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
-                                    target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
-                            </dd>
-
-                            <dt class="col-sm-3">In silicos</dt>
-                            <dd class="col-sm-9">
-                                {% if variant.var_data.info.alpha_missense_max != 'missing' %}
-                                AlphaMissense Max: {{variant.var_data.info.alpha_missense_max|round(2)}}<br>
-                                {% endif %}
-                                SpliceAI: <a
-                                    href="{{ macros.spliceai_lookup_url(variant)}}"
-                                    target="_blank">
-                                    {{variant.var_data.info.splice_ai_delta|round(2)}}
-                                </a>
-                                {% if variant.var_data.info.splice_ai_csq not in ['missing', 'No_consequence']
-                                %}({{variant.var_data.info.splice_ai_csq }}){% endif %}<br>
-                                Revel: {{variant.var_data.info.revel|round(2)}}<br>
-                                CADD: {{variant.var_data.info.cadd|round(0)}}<br>
-                                {% if variant.var_data.info.mutationtaster != 'missing' %}
-                                MutationTaster: {{variant.var_data.info.mutationtaster}}<br>
+                                {% if variant.var_data.info.var_type == 'SMALL' %}
+                                    gnomAD WGS: <a
+                                        href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
+                                        target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
+                                    gnomAD WES: <a
+                                        href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
+                                        target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
+                                {% elif (variant.var_data.info.var_type == 'SV') and (variant.var_data.info.gnomad_key) %}
+                                    gnomAD v2.1: <a
+                                        href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key}}?dataset=gnomad_sv_r2_1"
+                                        target="_blank">{{variant.var_data.info['gnomad_v2.1_sv_af'] | round(4)}}</a><br>
                                 {% endif %}
                             </dd>
+                            {% if variant.var_data.info.var_type == 'SMALL' %}
+                                <dt class="col-sm-3">In silicos</dt>
+                                <dd class="col-sm-9">
+                                    {% if variant.var_data.info.alpha_missense_max != 'missing' %}
+                                    AlphaMissense Max: {{variant.var_data.info.alpha_missense_max|round(2)}}<br>
+                                    {% endif %}
+                                    {% if variant.var_data.info.splice_ai_delta %}
+                                    SpliceAI: <a
+                                        href="{{ macros.spliceai_lookup_url(variant)}}"
+                                        target="_blank">
+                                        {{variant.var_data.info.splice_ai_delta|round(2)}}
+                                    </a>
+                                    {% endif %}
+                                    {% if variant.var_data.info.splice_ai_csq not in ['missing', 'No_consequence']
+                                    %}({{variant.var_data.info.splice_ai_csq }}){% endif %}<br>
+                                    {% if variant.var_data.info.revel %}
+                                    Revel: {{variant.var_data.info.revel|round(2)}}<br>
+                                    {% endif %}
+                                    {% if variant.var_data.info.cadd %}
+                                    CADD: {{variant.var_data.info.cadd|round(0)}}<br>
+                                    {% endif %}
+                                    {% if variant.var_data.info.mutationtaster != 'missing' %}
+                                    MutationTaster: {{variant.var_data.info.mutationtaster}}<br>
+                                    {% endif %}
+                                </dd>
 
-                            <dt class="col-sm-3">Links</dt>
-                            <dd class="col-sm-9">
-                                <a href="{{ macros.spliceai_lookup_url(variant)}}" target="_blank">SpliceAI</a> |
-                                <a href="{{ macros.ucsc_url(variant)}}" target="_blank">UCSC</a> |
-                                <a href="{{ macros.decipher_url(variant.genes.0.0)}}" target="_blank">Decipher</a>
-                                <a href="{{ macros.decipher_url(variant.genes.0.0, protein_view=False)}}" target="_blank">(Clinical)</a> |
-                                <a href="{{ macros.omim_gene_search_url(variant.genes.0.1)}} " target="_blank">OMIM</a>
-                            </dd>
-
+                                <dt class="col-sm-3">Links</dt>
+                                <dd class="col-sm-9">
+                                    <a href="{{ macros.spliceai_lookup_url(variant)}}" target="_blank">SpliceAI</a> |
+                                    <a href="{{ macros.ucsc_url(variant)}}" target="_blank">UCSC</a> |
+                                    <a href="{{ macros.decipher_url(variant.genes.0.0)}}" target="_blank">Decipher</a>
+                                    <a href="{{ macros.decipher_url(variant.genes.0.0, protein_view=False)}}" target="_blank">(Clinical)</a> |
+                                    <a href="{{ macros.omim_gene_search_url(variant.genes.0.1)}} " target="_blank">OMIM</a>
+                                </dd>
+                            {% elif variant.var_data.info.var_type == 'SV' %}
+                                <dt class="col-sm-3">Additional</dt>
+                                <dd class="col-sm-9">
+                                    LoF Genes: {{variant.var_data.info.predicted_lof}}<br>
+                                    Algorithms: {{variant.var_data.info.algorithms}}<br>
+                                    Evidence Types: {{variant.var_data.info.evidence}}<br>
+                                    <a href="{{ macros.omim_gene_search_url(variant.genes.0.1)}} " target="_blank">OMIM</a>
+                                </dd>
+                            {% endif %}
                         </dl>
                     </div>
                 </div>
@@ -112,6 +139,13 @@
                             <dt class="col-sm-3">Category Support</dt>
                             <dd class="col-sm-9">
                                 Consensus in silico Pathogenic
+                            </dd>
+                            {% endif %}
+
+                            {% if 'sv1' in variant.var_data.categories %}
+                            <dt class="col-sm-3">LOF SV</dt>
+                            <dd class="col-sm-9">
+                                Predicted LoF Structural Variant
                             </dd>
                             {% endif %}
 
@@ -175,45 +209,47 @@
         </div>
 
         {# Transcripts table #}
-        <div class="col-sm-12 mt-2">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Gencode Transcripts</h5>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>HGVS </th>
-                                <th>HGVS P</th>
-                                <th>Consequence</th>
-                                <th>LOFTE</th>
-                                <th>Exon</th>
-                                <th>Biotype</th>
-                                <th>MANE ID</th>
-                                <th>AM Class</th>
-                                <th>AM Score</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for csq in variant.var_data.transcript_consequences%}
-                            <tr>
-                                <td>{{csq.symbol}}</td>
-                                <td>{{csq.hgvsc}}</td>
-                                <td>{{csq.hgvsp.split(':')[1]}}</td>
-                                <td>{{csq.consequence}}</td>
-                                <td>{{csq.lof}}</td>
-                                <td>{{csq.exon}}</td>
-                                <td>{{csq.biotype}}</td>
-                                <td>{{csq.mane_select}}</td>
-                                <td>{{csq.am_class}}</td>
-                                <td>{% if csq.am_pathogenicity is float %} {{csq.am_pathogenicity|round(2)}} {% endif %}</td>
-                            </tr>
-                            {% endfor %}
-                            </body>
-                    </table>
+        {% if variant.var_data.transcript_consequences %}
+            <div class="col-sm-12 mt-2">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Gencode Transcripts</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>HGVS </th>
+                                    <th>HGVS P</th>
+                                    <th>Consequence</th>
+                                    <th>LOFTE</th>
+                                    <th>Exon</th>
+                                    <th>Biotype</th>
+                                    <th>MANE ID</th>
+                                    <th>AM Class</th>
+                                    <th>AM Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for csq in variant.var_data.transcript_consequences%}
+                                <tr>
+                                    <td>{{csq.symbol}}</td>
+                                    <td>{{csq.hgvsc}}</td>
+                                    <td>{{csq.hgvsp.split(':')[1]}}</td>
+                                    <td>{{csq.consequence}}</td>
+                                    <td>{{csq.lof}}</td>
+                                    <td>{{csq.exon}}</td>
+                                    <td>{{csq.biotype}}</td>
+                                    <td>{{csq.mane_select}}</td>
+                                    <td>{{csq.am_class}}</td>
+                                    <td>{% if csq.am_pathogenicity is float %} {{csq.am_pathogenicity|round(2)}} {% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                                </body>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+        {% endif %}
         {# <ul>
             {% for k,v in variant.var_data.items() %}
             <li>{{k}}:{{ v|pprint }}</li>

@@ -337,7 +337,11 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
         MT with all filtered variants removed
     """
 
-    return mt.filter_rows((mt.filters.length() == 0) | (mt.info.clinvar_aip == ONE_INT))
+    return mt.filter_rows(
+        hl.is_missing(mt.filters)
+        | (mt.filters.length() == 0)
+        | (mt.info.clinvar_aip == ONE_INT)
+    )
 
 
 def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:

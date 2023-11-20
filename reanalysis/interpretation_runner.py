@@ -14,8 +14,6 @@ re-run currently requires the deletion of previous outputs
 """
 
 
-import logging
-import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
@@ -26,14 +24,15 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
+    get_batch,
     output_path,
     query_command,
 )
-from cpg_workflows.batch import get_batch
 from reanalysis.vep_jobs import add_vep_jobs
 
 from reanalysis import (
     hail_filter_and_label,
+    hail_filter_sv,
     html_builder,
     metamist_registration,
     mt_to_vcf,
@@ -41,7 +40,12 @@ from reanalysis import (
     validate_categories,
     seqr_loader,
 )
-from reanalysis.utils import FileTypes, identify_file_type, get_granular_date
+from reanalysis.utils import (
+    FileTypes,
+    identify_file_type,
+    get_granular_date,
+    get_logger,
+)
 
 # region: CONSTANTS
 # exact time that this run occurred
@@ -50,6 +54,7 @@ EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 # static paths to write outputs
 ANNOTATED_MT = output_path('annotated_variants.mt')
 HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
+HAIL_SV_VCF_OUT = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz', 'analysis')
 SITES_ONLY = output_path('sitesonly.vcf.bgz', 'tmp')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
@@ -72,7 +77,7 @@ def set_job_resources(
         storage (str): storage setting to use
     """
     # apply all settings to this job
-    job.cpu(2).image(get_config()['workflow']['driver_image']).memory(memory).storage(
+    job.cpu(1).image(get_config()['workflow']['driver_image']).memory(memory).storage(
         storage
     )
 
@@ -113,7 +118,7 @@ def setup_mt_to_vcf(input_file: str) -> Job:
         f'--tmp {tmp_root} '
     )
 
-    logging.info(f'Command used to convert MT: {cmd}')
+    get_logger().info(f'Command used to convert MT: {cmd}')
     job.command(cmd)
     return job
 
@@ -141,9 +146,36 @@ def handle_panelapp_job(
     if participant_panels is not None:
         query_cmd += f'--panels {participant_panels} '
 
-    logging.info(f'PanelApp Command: {query_cmd}')
+    get_logger().info(f'PanelApp Command: {query_cmd}')
     panelapp_job.command(query_cmd)
     return panelapp_job
+
+
+def handle_hail_sv_filtering(
+    sv_mt: str, pedigree: str, prior_job: Job | None = None
+) -> BashJob:
+    """
+    run hail filtering on the SV input MT (if supplied)
+
+    Args:
+        sv_mt (str): location of the SV MT
+        pedigree (str): location of a localised PED file
+        prior_job (Job): required for setting dependency
+    """
+
+    labelling_job = get_batch().new_job(name='Hail SV labelling')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='lowmem')
+    labelling_command = (
+        f'python3 {hail_filter_sv.__file__} '
+        f'--mt {ANNOTATED_MT} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--pedigree {pedigree} '
+        f'--vcf_out {HAIL_SV_VCF_OUT} '
+    )
+
+    get_logger().info(f'Labelling Command: {labelling_command}')
+    labelling_job.command(labelling_command)
+    return labelling_job
 
 
 def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJob:
@@ -159,18 +191,17 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
         the Batch job running the hail filtering process
     """
 
-    labelling_job = get_batch().new_job(name='hail filtering')
-    set_job_resources(labelling_job, prior_job=prior_job, memory='6Gi')
-    out_vcf = output_path('hail_categorised.vcf.bgz', 'analysis')
+    labelling_job = get_batch().new_job(name='Hail small-variant labelling')
+    set_job_resources(labelling_job, prior_job=prior_job, memory='lowemem')
     labelling_command = (
         f'python3 {hail_filter_and_label.__file__} '
         f'--mt {ANNOTATED_MT} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
-        f'--vcf_out {out_vcf} '
+        f'--vcf_out {HAIL_VCF_OUT} '
     )
 
-    logging.info(f'Labelling Command: {labelling_command}')
+    get_logger().info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
     return labelling_job
 
@@ -182,6 +213,7 @@ def handle_results_job(
     output: str,
     prior_job: Job | None = None,
     participant_panels: str | None = None,
+    labelled_sv: str | None = None,
 ):
     """
     one container to run the MOI checks, and the presentation
@@ -193,6 +225,7 @@ def handle_results_job(
         output (str): path to JSON file to write
         prior_job (Job): to depend on, or None
         participant_panels (str): Optional, path to pheno-matched panels
+        labelled_sv (str | None): path to labelled SV VCF, if run
     """
 
     results_job = get_batch().new_job(name='MOI tests')
@@ -202,16 +235,20 @@ def handle_results_job(
         f'--participant_panels {participant_panels} ' if participant_panels else ''
     )
 
+    # add the labelled SV argument if appropriate
+    labelled_sv = f'--labelled_sv {labelled_sv} ' if labelled_sv else ''
+
     results_command = (
         f'python3 {validate_categories.__file__} '
         f'--labelled_vcf {labelled_vcf} '
+        f'{labelled_sv} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--out_json {output} '
         f'--input_path {input_path} '
         f'{gene_filter_files}'
     )
-    logging.info(f'Results command: {results_command}')
+    get_logger().info(f'Results command: {results_command}')
     results_job.command(results_command)
     return results_job
 
@@ -265,7 +302,7 @@ def handle_result_presentation_job(
 
     # if we don't have a valid method, return the prior job
     if output_mode not in scripts_and_inputs:
-        logging.warning(f'Invalid presentation mode: {output_mode}')
+        get_logger().warning(f'Invalid presentation mode: {output_mode}')
         return prior_job
 
     # extract the required inputs for the selected script
@@ -283,7 +320,7 @@ def handle_result_presentation_job(
     )
     html_command = f'python3 {script} {script_params}'
 
-    logging.info(f'HTML generation command: {html_command}')
+    get_logger().info(f'HTML generation command: {html_command}')
     display.command(html_command)
     return display
 
@@ -315,7 +352,7 @@ def handle_registration_jobs(
 
     # if we don't have a valid method, return the prior job
     if registry not in registrars:
-        logging.error(f'Invalid registration mode: {registry}')
+        get_logger().error(f'Invalid registration mode: {registry}')
         return
 
     # create a new job that will run even if the rest of the workflow fails
@@ -327,12 +364,13 @@ def handle_registration_jobs(
         f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
     )
 
-    logging.info(f'Metadata registration command: {metadata_command}')
+    get_logger().info(f'Metadata registration command: {metadata_command}')
     registration_job.command(metadata_command)
 
 
 def main(
     input_path: str,
+    sv_path: str,
     pedigree: str,
     participant_panels: str | None,
     singletons: bool = False,
@@ -343,6 +381,7 @@ def main(
 
     Args:
         input_path (str): path to the VCF/MT
+        sv_path (str): path to SV MT
         pedigree (str): family file for this analysis
         participant_panels (str): file containing panels-per-family (optional)
         singletons (bool): run as Singletons (with appropriate output paths)
@@ -355,7 +394,7 @@ def main(
         input_path
     ).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
 
-    logging.info('Starting the reanalysis batch')
+    get_logger().info('Starting the reanalysis batch')
 
     # region: output files lookup
     # separate paths for familial and singleton analysis
@@ -402,7 +441,6 @@ def main(
     if input_file_type == FileTypes.MATRIX_TABLE:
         if skip_annotation:
             # overwrite the expected annotation output path
-
             ANNOTATED_MT = input_path
 
         else:
@@ -468,8 +506,19 @@ def main(
     pedigree_in_batch = get_batch().read_input(pedigree)
 
     # region: hail categorisation
+    if not to_path(HAIL_SV_VCF_OUT).exists() and sv_path and to_path(sv_path).exists():
+        get_logger().info(
+            f"The Labelled VCF {HAIL_SV_VCF_OUT!r} doesn't exist; regenerating"
+        )
+        prior_job = handle_hail_sv_filtering(
+            sv_mt=sv_path, prior_job=prior_job, pedigree=pedigree_in_batch
+        )
+        output_dict['hail_sv_vcf'] = HAIL_SV_VCF_OUT
+
     if not to_path(HAIL_VCF_OUT).exists():
-        logging.info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
+        get_logger().info(
+            f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating"
+        )
         prior_job = handle_hail_filtering(
             prior_job=prior_job, pedigree=pedigree_in_batch
         )
@@ -481,9 +530,22 @@ def main(
         get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
     )
 
+    labelled_sv_vcf_in_batch = (
+        None
+        if sv_path is None
+        else get_batch()
+        .read_input_group(vcf=HAIL_SV_VCF_OUT, tbi=HAIL_SV_VCF_OUT + '.tbi')
+        .vcf
+    )
+
     # region: run results job
+    # very iffy, I do not like it
+    if sv_path:
+        input_path = f'{input_path}, {sv_path}'
+
     prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
+        labelled_sv=labelled_sv_vcf_in_batch,
         pedigree=pedigree_in_batch,
         input_path=input_path,
         output=output_dict['results'],
@@ -501,7 +563,7 @@ def main(
 
     # region: register outputs in metamist if required
     if registry := runtime_conf['workflow'].get('status_reporter'):
-        logging.info(f'Metadata registration will be done using {registry}')
+        get_logger().info(f'Metadata registration will be done using {registry}')
         handle_registration_jobs(
             files=sorted(output_dict.values()),
             pedigree=pedigree_in_batch,
@@ -526,13 +588,7 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
-    logging.info(
+    get_logger(__name__).info(
         r"""Welcome To The
           ___  _____ ______
          / _ \|_   _|| ___ \
@@ -545,6 +601,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-i', help='variant data to analyse', required=True)
+    parser.add_argument('-sv', help='SV data to analyse', required=False)
     parser.add_argument('--pedigree', help='in Plink format', required=True)
     parser.add_argument('--participant_panels', help='per-participant panel details')
     parser.add_argument(
@@ -560,6 +617,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     main(
         input_path=args.i,
+        sv_path=args.sv,
         pedigree=args.pedigree,
         participant_panels=args.participant_panels,
         skip_annotation=args.skip_annotation,

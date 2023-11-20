@@ -15,8 +15,6 @@ participants relative to the MOI described in PanelApp
 """
 
 import json
-import logging
-import sys
 from collections import defaultdict
 
 import click
@@ -31,9 +29,10 @@ from reanalysis.utils import (
     canonical_contigs_from_vcf,
     filter_results,
     find_comp_hets,
+    gather_gene_dict_from_contig,
     get_cohort_config,
     get_granular_date,
-    gather_gene_dict_from_contig,
+    get_logger,
     get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
@@ -123,7 +122,7 @@ def apply_moi_to_variants(
 
         # variant appears to be in a red gene
         if panel_gene_data is None:
-            logging.error(f'How did this gene creep in? {gene}')
+            get_logger().error(f'How did this gene creep in? {gene}')
             continue
 
         for variant in variants:
@@ -444,6 +443,7 @@ def prepare_results_shell(
 
 @click.command
 @click.option('--labelled_vcf', help='Category-labelled VCF')
+@click.option('--labelled_sv', help='Category-labelled SV VCF', default=None)
 @click.option('--out_json', help='Prefix to write JSON results to')
 @click.option('--panelapp', help='Path to JSON file of PanelApp data')
 @click.option('--pedigree', help='Path to joint-call PED file')
@@ -458,6 +458,7 @@ def main(
     panelapp: str,
     pedigree: str,
     input_path: str,
+    labelled_sv: str | None = None,
     participant_panels: str | None = None,
     dataset: str | None = None,
 ):
@@ -470,6 +471,7 @@ def main(
 
     Args:
         labelled_vcf (str): VCF output from Hail Labelling stage
+        labelled_sv (str | None): optional second VCF (SV)
         out_json (str): location to write output file
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
@@ -492,9 +494,6 @@ def main(
         panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
-    # open the VCF using a cyvcf2 reader
-    vcf_opened = VCFReader(labelled_vcf)
-
     pheno_panels = read_json_from_path(participant_panels)
     assert isinstance(pheno_panels, dict)
 
@@ -503,12 +502,19 @@ def main(
 
     result_list = []
 
+    # open the small variant VCF using a cyvcf2 reader
+    vcf_opened = VCFReader(labelled_vcf)
+
+    # optional SV behaviour
+    sv_opened = VCFReader(labelled_sv) if labelled_sv is not None else None
+
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
+            second_source=sv_opened,
             new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
@@ -567,10 +573,8 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
+    # do something pointless to print the config
+
+    get_logger(__file__).info('Starting MOI testing phase')
+
     main()

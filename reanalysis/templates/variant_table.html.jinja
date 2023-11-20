@@ -36,11 +36,15 @@
     </td>
     <td>
         {# Coordinates #}
-        <a href="{{seqr_url}}/variant_search/variant/{{variant}}/family/{{sample.seqr_id}}" target="_blank">
+        <a href="{{seqr_url}}/variant_search/variant/{{variant.var_data.info.seqr_link}}/family/{{sample.seqr_id}}" target="_blank">
             {{variant.chrom}}:{{variant.pos}}
         </a>
         <br>
-        {{ variant.ref|truncate(8, True) }}>{{ variant.alt|truncate(8, True) }}
+        {% if variant.var_data.info.var_type == 'SMALL' %}
+            {{ variant.ref }}&rarr;{{ variant.alt }}
+        {% else %}
+            {{ variant.var_data.info.svtype }} {{ variant.var_data.info.svlen }}bp
+        {% endif %}
     </td>
     <td>
         {# Gene symbol #}
