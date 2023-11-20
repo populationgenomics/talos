@@ -34,7 +34,7 @@
                                     gnomAD WES: <a
                                         href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
                                         target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
-                                {% elif variant.var_data.info.var_type == 'SV' %}
+                                {% elif (variant.var_data.info.var_type == 'SV') and (variant.var_data.info.gnomad_key) %}
                                     gnomAD v2.1: <a
                                         href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key}}?dataset=gnomad_sv_r2_1"
                                         target="_blank">{{variant.var_data.info['gnomad_v2.1_sv_af'] | round(4)}}</a><br>

@@ -47,7 +47,7 @@ REPORT_QUERY = gql(
 )
 
 
-script_logger = get_logger(logger_name=__name__)
+script_logger = get_logger(logger_name=__file__)
 
 
 @dataclass

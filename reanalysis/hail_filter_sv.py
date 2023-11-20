@@ -28,7 +28,7 @@ def filter_matrix_by_af(
     mt: hl.MatrixTable, af_threshold: float = 0.05
 ) -> hl.MatrixTable:
     """
-    Filter a MatrixTable on AF
+    Filter a MatrixTable on AF, allow AF to be missing
 
     Args:
         mt (hl.MatrixTable): the input MT
@@ -38,7 +38,9 @@ def filter_matrix_by_af(
         same MT, with common variants removed
     """
 
-    return mt.filter_rows(mt.info['gnomad_v2.1_sv_AF'] < af_threshold)
+    return mt.filter_rows(
+        (hl.or_else(mt.info['gnomad_v2.1_sv_AF'], MISSING_INT) < af_threshold)
+    )
 
 
 def restructure_mt_by_gene(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -103,7 +105,7 @@ def filter_matrix_by_ac(
     """
 
     return mt.filter_rows(
-        (mt.info.MALE_AF[0] <= ac_threshold) & (mt.info.FEMALE_AF[0] < ac_threshold)
+        (mt.info.MALE_AF[0] <= ac_threshold) & (mt.info.FEMALE_AF[0] <= ac_threshold)
     )
 
 
@@ -122,11 +124,11 @@ def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            VCF_FILTERS=hl.delimit(mt.filters), variantId=mt.variantId
+            VCF_FILTERS=hl.delimit(mt.filters),
+            variantId=mt.variantId,
         )
     )
-    mt = mt.annotate_rows(filters=hl.empty_set(hl.tstr))
-    return mt
+    return mt.annotate_rows(filters=hl.empty_set(hl.tstr))
 
 
 def main(
