@@ -736,6 +736,8 @@ class AbstractVariant:
         """
         gets all report flags for this sample - currently only one flag
         """
+        if self.info['var_type'] == VariantType.SV:
+            return []
         return self.check_ab_ratio(sample) + self.check_read_depth(sample)
 
     def check_read_depth(self, sample: str) -> list[str]:

@@ -111,24 +111,17 @@ def filter_matrix_by_ac(
 
 def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    Rearrange the filters in the MT
-    We're generally happy that everything reaching here is high quality
-    But we need to write a VCF without Filters (to match the header)
+    Rearrange the variantId MT, and remove filter-failing variants
 
     Args:
         mt ():
-
-    Returns:
-        same MT but restructured a little
     """
-
-    mt = mt.annotate_rows(
+    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+    return mt.annotate_rows(
         info=mt.info.annotate(
-            VCF_FILTERS=hl.delimit(mt.filters),
             variantId=mt.variantId,
         )
     )
-    return mt.annotate_rows(filters=hl.empty_set(hl.tstr))
 
 
 def main(

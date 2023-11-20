@@ -24,9 +24,14 @@
     <td style="white-space: nowrap">
         {# Individual ID #}
         <a href="#" class="toggle"><i class="bi-card-text"></i></a>
-        <a href="{{seqr_url}}/project/{{seqr_project}}/family_page/{{sample.seqr_id}}" target="_blank">
+        {% if sample.seqr_id %}
+            <a href="{{seqr_url}}/project/{{seqr_project}}/family_page/{{sample.seqr_id}}" target="_blank">
+                {{sample.ext_id}}
+            </a>
+        {% else %}
+
             {{sample.ext_id}}
-        </a>
+        {% endif %}
         {% if sample.name != sample.ext_id %}
             <br><span class="text-muted">({{ sample }})</span>
         {% endif %}
@@ -36,9 +41,13 @@
     </td>
     <td>
         {# Coordinates #}
-        <a href="{{seqr_url}}/variant_search/variant/{{variant.var_data.info.seqr_link}}/family/{{sample.seqr_id}}" target="_blank">
+        {% if sample.seqr_id %}
+            <a href="{{seqr_url}}/variant_search/variant/{{variant.var_data.info.seqr_link}}/family/{{sample.seqr_id}}" target="_blank">
+                {{variant.chrom}}:{{variant.pos}}
+            </a>
+        {% else %}
             {{variant.chrom}}:{{variant.pos}}
-        </a>
+        {% endif %}
         <br>
         {% if variant.var_data.info.var_type == 'SMALL' %}
             {{ variant.ref }}&rarr;{{ variant.alt }}
@@ -82,7 +91,7 @@
             {{variant.mane_consequences|join(', ')|replace("_variant", "")|replace("_", " ")}}
             <br>
             {{ variant.mane_hgvsps|join(', ') }}
-        {% else %}
+        {% elif variant.var_data.info.var_type == 'SMALL' %}
             <span class="badge text-bg-warning">Non-canonical transcript only</span>
         {% endif %}
     </td>
