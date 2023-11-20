@@ -756,12 +756,16 @@ class AbstractVariant:
     def check_ab_ratio(self, sample: str) -> list[str]:
         """
         AB ratio test for this sample's variant call
+        Escaped for SVs
         Args:
             sample (str): sample ID
 
         Returns:
             list[str]: empty, or indicating an AB ratio failure
         """
+        if 'svtype' in self.info:
+            return []
+
         het = sample in self.het_samples
         hom = sample in self.hom_samples
         variant_ab = self.ab_ratios.get(sample, 0.0)
