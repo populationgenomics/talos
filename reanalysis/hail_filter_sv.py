@@ -4,8 +4,7 @@ Initially this will only contain a single category
 
 CategoryBooleanSV1:
 - rare
-- deletion in a listed gene
-- ???
+- predicted LoF in a listed gene
 """
 
 
@@ -47,7 +46,7 @@ def restructure_mt_by_gene(mt: hl.MatrixTable) -> hl.MatrixTable:
     split each transcript consequence annotation onto a separate row
 
     Args:
-        mt (): the input MT
+        mt (hl.MatrixTable): the input MT
 
     Returns:
         hl.MatrixTable: the filtered MT
@@ -98,7 +97,7 @@ def filter_matrix_by_ac(
 
     Args:
         mt (hl.MatrixTable):
-        ac_threshold (float):
+        ac_threshold (float): remove variants more common than this in JointCall
     Returns:
         MT with all common-in-this-JC variants removed
     """
@@ -152,6 +151,7 @@ def main(
     panelapp = read_json_from_path(panelapp_path)['genes']  # type: ignore
 
     # pull green and new genes from the panelapp data
+    # new is not currently incorporated in this analysis
     green_expression, _new_expression = green_and_new_from_panelapp(panelapp)
 
     # initiate Hail with defined driver spec.
@@ -164,6 +164,7 @@ def main(
     if not to_path(mt_path.rstrip('/') + '/').exists():
         raise FileExistsError(f'Input MatrixTable doesn\'t exist: {mt_path}')
 
+    # read in the input data (annotated)
     mt = hl.read_matrix_table(mt_path)
 
     # subset to currently considered samples
@@ -174,11 +175,12 @@ def main(
     mt = filter_matrix_by_af(mt)
     mt = rearrange_filters(mt)
 
-    # pre-filter the MT and rearrange
+    # pre-filter the MT and rearrange fields for export
     mt = restructure_mt_by_gene(mt)
 
     # label some SVs
     mt = annotate_sv1(mt, green_expression)
+    # add further category annotations here
 
     # filter to labelled entries
     mt = mt.filter_rows(mt.info.categorybooleansv1 == ONE_INT)
