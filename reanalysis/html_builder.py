@@ -371,7 +371,7 @@ class Sample:
         self.ext_id = metadata['ext_id']
         self.panel_ids = metadata['panel_ids']
         self.panel_names = metadata['panel_names']
-        self.seqr_id = html_builder.seqr.get(name, name)
+        self.seqr_id = html_builder.seqr.get(name, None)
         self.ext_labels = ext_labels
         self.html_builder = html_builder
 
