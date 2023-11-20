@@ -91,7 +91,7 @@
             {{variant.mane_consequences|join(', ')|replace("_variant", "")|replace("_", " ")}}
             <br>
             {{ variant.mane_hgvsps|join(', ') }}
-        {% else %}
+        {% elif variant.var_data.info.var_type == 'SMALL' %}
             <span class="badge text-bg-warning">Non-canonical transcript only</span>
         {% endif %}
     </td>
