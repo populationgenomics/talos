@@ -1092,7 +1092,7 @@ def main(
     dataset = dataset or get_config()['workflow']['dataset']
 
     # initiate Hail with defined driver spec.
-    init_batch(driver_cores=8, driver_memory='highmem')
+    init_batch(driver_cores=2, driver_memory='standard')
 
     # checkpoints should be kept independent
     checkpoint_number = 0

@@ -153,7 +153,7 @@ def main(
     get_logger().info(f'Starting Hail with reference genome {genome_build()}')
     # un-comment this to play locally
     # hl.init(default_reference=genome_build())
-    init_batch(driver_cores=1, driver_memory='lowmem')
+    init_batch(driver_cores=2, driver_memory='standard')
 
     # if we already generated the annotated output, load instead
     if not to_path(mt_path.rstrip('/') + '/').exists():
