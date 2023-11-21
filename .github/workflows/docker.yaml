@@ -3,6 +3,15 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to use (defaults to "test")'
+        default: "test"
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
   VERSION: 2.1.0
@@ -17,14 +26,18 @@ jobs:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-      BASE_IMAGE: australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip
+      IMAGE_NAME: cpg_aip
+      DOCKER_DEV: australia-southeast1-docker.pkg.dev/cpg-common/images-dev
+      DOCKER_MAIN: australia-southeast1-docker.pkg.dev/cpg-common/images
     steps:
     - uses: actions/checkout@v4
 
-    - name: gcloud auth
+    - id: "google-cloud-auth"
+      name: "Authenticate to Google Cloud"
       uses: google-github-actions/auth@v1
       with:
-        credentials_json: ${{ secrets.GH_IMAGES_DEPLOYER_JSON }}
+        workload_identity_provider: "projects/1051897107465/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+        service_account: "gh-images-deployer@cpg-common.iam.gserviceaccount.com"
 
     - name: set up gcloud sdk
       uses: google-github-actions/setup-gcloud@v1
@@ -34,12 +47,21 @@ jobs:
     - name: gcloud docker auth
       run: |
         gcloud auth configure-docker australia-southeast1-docker.pkg.dev
+
     - name: build
       run: |
-        docker build . -f Dockerfile --tag $BASE_IMAGE:$VERSION
+        docker build . -f Dockerfile --tag $IMAGE_NAME:$VERSION
+
+    - name: manual build
+      if: ${{ github.event_name == 'workflow_dispatch' }}
+      run: |
+        docker tag $IMAGE_NAME:$VERSION $DOCKER_DEV/$IMAGE_NAME:$VERSION
+        docker push $DOCKER_DEV/$IMAGE_NAME:$VERSION
 
     - name: push latest
+      if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       run: |
-        docker tag $BASE_IMAGE:$VERSION $BASE_IMAGE:latest
-        docker push $BASE_IMAGE:$VERSION
-        docker push $BASE_IMAGE:latest
+        docker tag $IMAGE_NAME:$VERSION $DOCKER_MAIN/$IMAGE_NAME:$VERSION
+        docker tag $IMAGE_NAME:$VERSION $DOCKER_MAIN/$IMAGE_NAME:latest
+        docker push $DOCKER_MAIN/$IMAGE_NAME:$VERSION
+        docker push $DOCKER_MAIN/$IMAGE_NAME:latest
