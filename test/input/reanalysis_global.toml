@@ -22,6 +22,7 @@ gnomad_max_homs_dominant = 0
 gnomad_max_homs_recessive = 1
 gnomad_max_ac_dominant = 10
 gnomad_max_hemi = 1
+callset_af_sv_dominant = 0.01
 
 [csq]
 description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
