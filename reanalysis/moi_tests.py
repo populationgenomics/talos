@@ -17,10 +17,12 @@ from reanalysis.utils import (
     CompHetDict,
     MinimalVariant,
     ReportedVariant,
+    VariantType,
     X_CHROMOSOME,
 )
 
 # config keys to use for dominant MOI tests
+CALLSET_AF_SV_DOMINANT = 'callset_af_sv_dominant'
 GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
 GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
 GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
@@ -29,6 +31,9 @@ GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
 INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
 INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
 PEDDY_AFFECTED = PHENOTYPE().AFFECTED
+SV_AF_KEY = 'gnomad_v2.1_sv_AF'
+SV_HEMI = {'male_n_hemialt'}
+SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
 def check_for_second_hit(
@@ -261,20 +266,19 @@ class BaseMoi:
         }
 
     @staticmethod
-    def check_frequency(info: dict, keys: set[str], threshold: int | float) -> bool:
+    def check_frequency_passes(info: dict, thresholds: dict[str, int | float]) -> bool:
         """
         Method to check multiple info keys against a single threshold
         This just reduces the line count, as this is called a bunch of times
 
         Args:
             info (): the dict of values for this dict
-            keys (): the iterable of keys to check
-            threshold (): the threshold to test against
+            thresholds (): the dict of keys - thresholds to test against
 
         Returns:
             True if any of the info attributes is above the threshold
         """
-        return any({info.get(key, 0) > threshold for key in keys})
+        return all({info.get(key, 0) <= test for key, test in thresholds.items()})
 
     def check_comp_het(
         self, sample_id: str, variant_1: AbstractVariant, variant_2: AbstractVariant
@@ -326,9 +330,25 @@ class DominantAutosomal(BaseMoi):
         """
         Simplest: AD MOI
         """
+
         self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
         self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
+        self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
+        self.sv_af_threshold = get_config()['moi_tests'][CALLSET_AF_SV_DOMINANT]
+
+        # prepare the AF test dicts
+        self.freq_tests = {
+            VariantType.SMALL: {key: self.hom_threshold for key in INFO_HOMS}
+            | {
+                'gnomad_ac': self.ac_threshold,
+                'gnomad_af': self.ad_threshold,
+            },
+            VariantType.SV: {
+                'af': self.sv_af_threshold,
+                SV_AF_KEY: self.sv_af_threshold,
+            },
+        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -347,17 +367,10 @@ class DominantAutosomal(BaseMoi):
 
         classifications = []
 
-        # more stringent Pop.Freq checks for dominant
-        # reject support for dominant MOI
-        if principal.support_only or (
-            (
-                self.check_frequency(principal.info, INFO_HOMS, self.hom_threshold)
-                or self.check_frequency(
-                    principal.info, {'gnomad_ac'}, self.ac_threshold
-                )
-                or self.check_frequency(
-                    principal.info, {'gnomad_af'}, self.ad_threshold
-                )
+        # reject support for dominant MOI, apply checks based on var type
+        if principal.support_only or not (
+            self.check_frequency_passes(
+                principal.info, self.freq_tests[principal.info['var_type']]
             )
         ):
             return classifications
@@ -517,6 +530,10 @@ class RecessiveAutosomalHomo(BaseMoi):
     ):
         """ """
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.freq_tests = {
+            VariantType.SMALL: {key: self.hom_threshold for key in INFO_HOMS},
+            VariantType.SV: {key: self.hom_threshold for key in SV_HOMS},
+        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -540,9 +557,11 @@ class RecessiveAutosomalHomo(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if principal.support_only or (
-            self.check_frequency(principal.info, INFO_HOMS, self.hom_threshold)
-            and not principal.info.get('categoryboolean1')
+        if principal.support_only or not (
+            self.check_frequency_passes(
+                principal.info, self.freq_tests[principal.info['var_type']]
+            )
+            or principal.info.get('categoryboolean1')
         ):
             return classifications
 
@@ -607,6 +626,18 @@ class XDominant(BaseMoi):
         self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
         self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
+
+        self.freq_tests = {
+            VariantType.SMALL: {key: self.hom_threshold for key in INFO_HOMS}
+            | {key: self.hemi_threshold for key in INFO_HEMI}
+            | {
+                'gnomad_ad': self.ad_threshold,
+                'gnomad_ac': self.ac_threshold,
+            },
+            VariantType.SV: {key: self.hom_threshold for key in SV_HOMS}
+            | {key: self.hemi_threshold for key in SV_HEMI},
+        }
+
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -632,11 +663,8 @@ class XDominant(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if (
-            self.check_frequency(principal.info, INFO_HOMS, self.hom_threshold)
-            or self.check_frequency(principal.info, {'gnomad_ad'}, self.ad_threshold)
-            or self.check_frequency(principal.info, {'gnomad_ac'}, self.ac_threshold)
-            or self.check_frequency(principal.info, INFO_HEMI, self.hemi_threshold)
+        if not self.check_frequency_passes(
+            principal.info, self.freq_tests[principal.info['var_type']]
         ):
             return classifications
 
@@ -704,6 +732,14 @@ class XRecessiveMale(BaseMoi):
 
         self.hom_dom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
         self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
+
+        self.freq_tests = {
+            VariantType.SMALL: {key: self.hom_dom_threshold for key in INFO_HOMS}
+            | {key: self.hemi_threshold for key in INFO_HEMI},
+            VariantType.SV: {key: self.hom_dom_threshold for key in SV_HOMS}
+            | {key: self.hemi_threshold for key in SV_HEMI},
+        }
+
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -721,13 +757,9 @@ class XRecessiveMale(BaseMoi):
 
         classifications = []
 
-        # never consider support on X for males
         # remove from analysis if too many homs are present in population databases
-        if principal.support_only or (
-            (
-                self.check_frequency(principal.info, INFO_HOMS, self.hom_dom_threshold)
-                or self.check_frequency(principal.info, INFO_HEMI, self.hemi_threshold)
-            )
+        if not self.check_frequency_passes(
+            principal.info, self.freq_tests[principal.info['var_type']]
         ):
             return classifications
 
@@ -742,7 +774,7 @@ class XRecessiveMale(BaseMoi):
 
         for sample_id in males:
 
-            # specific affected sample category check
+            # specific affected sample category check, never consider support on X for males
             if (
                 not (
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
@@ -797,6 +829,10 @@ class XRecessiveFemaleHom(BaseMoi):
         """
 
         self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.freq_tests = {
+            VariantType.SMALL: {key: self.hom_rec_threshold for key in INFO_HOMS},
+            VariantType.SV: {key: self.hom_rec_threshold for key in SV_HOMS},
+        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -816,13 +852,11 @@ class XRecessiveFemaleHom(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if principal.support_only or (
-            (
-                self.check_frequency(
-                    principal.info, threshold=self.hom_rec_threshold, keys=INFO_HOMS
-                )
+        if principal.support_only or not (
+            self.check_frequency_passes(
+                principal.info, self.freq_tests[principal.info['var_type']]
             )
-            and not principal.info.get('categoryboolean1')
+            or principal.info.get('categoryboolean1')
         ):
             return classifications
 
@@ -888,6 +922,10 @@ class XRecessiveFemaleCH(BaseMoi):
         """
 
         self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.freq_tests = {
+            VariantType.SMALL: {key: self.hom_rec_threshold for key in INFO_HOMS},
+            VariantType.SV: {key: self.hom_rec_threshold for key in SV_HOMS},
+        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -910,9 +948,12 @@ class XRecessiveFemaleCH(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if self.check_frequency(
-            principal.info, threshold=self.hom_rec_threshold, keys=INFO_HOMS
-        ) and not principal.info.get('categoryboolean1'):
+        if not (
+            self.check_frequency_passes(
+                principal.info, self.freq_tests[principal.info['var_type']]
+            )
+            or principal.info.get('categoryboolean1')
+        ):
             return classifications
 
         het_females = {
@@ -944,13 +985,11 @@ class XRecessiveFemaleCH(BaseMoi):
                 # allow for de novo check - also screen out high-AF partners
                 if (
                     not partner.sample_category_check(sample_id, allow_support=True)
-                    or (
-                        self.check_frequency(
-                            partner.info,
-                            threshold=self.hom_rec_threshold,
-                            keys=INFO_HOMS,
+                    or not (
+                        self.check_frequency_passes(
+                            partner.info, self.freq_tests[partner.info['var_type']]
                         )
-                        and not partner.info.get('categoryboolean1')
+                        or partner.info.get('categoryboolean1')
                     )
                 ) or (
                     principal.sample_support_only(sample_id)

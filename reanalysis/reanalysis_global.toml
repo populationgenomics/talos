@@ -30,6 +30,7 @@ gnomad_max_homs_dominant = 0
 gnomad_max_homs_recessive = 1
 gnomad_max_ac_dominant = 10
 gnomad_max_hemi = 1
+callset_af_sv_dominant = 0.01
 
 [csq]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
@@ -41,6 +42,7 @@ ac_threshold = 0.01
 additional_csq = ['missense_variant']
 af_semi_rare = 0.01
 cadd = 28.1
+callset_af_sv_recessive = 0.03
 critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
 gerp = 1.0
 eigen = 0.25
@@ -69,7 +71,7 @@ default_memory = 'highmem'
 
 [images]
 gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:2.1.0'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:2.1.1'
 vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
 cpg_workflows = "australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest"
 

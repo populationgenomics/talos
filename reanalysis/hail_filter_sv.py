@@ -13,6 +13,7 @@ from argparse import ArgumentParser
 import hail as hl
 
 from cpg_utils import to_path
+from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, genome_build
 
 from reanalysis.hail_filter_and_label import (
@@ -25,7 +26,7 @@ from reanalysis.utils import get_logger, read_json_from_path
 
 
 def filter_matrix_by_af(
-    mt: hl.MatrixTable, af_threshold: float = 0.05
+    mt: hl.MatrixTable, af_threshold: float = 0.03
 ) -> hl.MatrixTable:
     """
     Filter a MatrixTable on AF, allow AF to be missing
@@ -90,7 +91,7 @@ def annotate_sv1(
 
 
 def filter_matrix_by_ac(
-    mt: hl.MatrixTable, ac_threshold: float | None = 0.05
+    mt: hl.MatrixTable, ac_threshold: float | None = 0.03
 ) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
@@ -166,8 +167,12 @@ def main(
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     # apply blanket filters
-    mt = filter_matrix_by_ac(mt)
-    mt = filter_matrix_by_af(mt)
+    mt = filter_matrix_by_ac(
+        mt, ac_threshold=get_config()['filter']['callset_af_sv_recessive']
+    )
+    mt = filter_matrix_by_af(
+        mt, af_threshold=get_config()['filter']['callset_af_sv_recessive']
+    )
     mt = rearrange_filters(mt)
 
     # pre-filter the MT and rearrange fields for export
