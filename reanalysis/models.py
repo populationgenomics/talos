@@ -2,7 +2,7 @@
 A home for all data models used in AIP
 """
 
-
+from enum import Enum
 from pydantic import BaseModel, Field
 from reanalysis.utils import get_granular_date
 
@@ -21,6 +21,7 @@ class Coordinates(BaseModel):
     ref: str
     alt: str
 
+    @property
     def string_format(self) -> str:
         """
         forms a string representation: chr-pos-ref-alt
@@ -60,16 +61,23 @@ class Coordinates(BaseModel):
         )
 
 
+class VariantType(Enum):
+    """
+    enumeration of permitted variant types
+    """
+
+    SMALL = 'SMALL'
+    SV = 'SV'
+
+
 class Variant(BaseModel):
     """
     the abstracted representation of a variant from any source
-
-    Discriminators could be interesting to separate SV/Small/STR
-    https://docs.pydantic.dev/latest/concepts/fields/#discriminator
+    todo move some more of the parsing logic into here as an init?
     """
 
-    info: dict[str, str | int | float]
     coordinates: Coordinates = Field(repr=True)
+    info: dict[str, str | int | float] = Field(default_factory=dict)
     categories: list[str] = Field(default_factory=list)
     het_samples: set[str] = Field(default_factory=set, exclude=True)
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
@@ -220,6 +228,7 @@ class SmallVariant(Variant):
     depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     ab_ratios: dict[str, float] = Field(default_factory=dict, exclude=True)
     transcript_consequences: list[dict[str, str]] = Field(default_factory=list)
+    var_type: str = VariantType.SMALL.value
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
@@ -264,7 +273,10 @@ class SmallVariant(Variant):
         return []
 
 
-class SV_Variant(Variant):
+class StructuralVariant(Variant):
+
+    var_type: str = VariantType.SV.value
+
     def check_ab_ratio(self, *args, **kwargs) -> list[str]:
         """
         dummy method for AB ratio checking - not implemented for SVs
@@ -289,8 +301,8 @@ class ReportVariant(BaseModel):
     A representation of a variant in a report
     """
 
-    var_data: SmallVariant | SV_Variant
     sample: str
+    var_data: SmallVariant | StructuralVariant
     categories: list[str] = Field(default_factory=list)
     family: str = Field(default_factory=str)
     gene: str = Field(default_factory=str)

@@ -8,6 +8,8 @@ from typing import Any, Dict, List
 from unittest import mock
 
 import pytest
+
+from reanalysis.models import Coordinates, SmallVariant
 from reanalysis.moi_tests import (
     check_for_second_hit,
     BaseMoi,
@@ -22,11 +24,11 @@ from reanalysis.moi_tests import (
     XRecessiveFemaleHom,
 )
 
-from reanalysis.utils import Coordinates
 
-TEST_COORDS = Coordinates('1', 1, 'A', 'C')
-TEST_COORDS2 = Coordinates('2', 2, 'G', 'T')
-TEST_COORDS_X = Coordinates('X', 2, 'G', 'T')
+TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
+TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
+TEST_COORDS_X_1 = Coordinates(chrom='X', pos=1, ref='G', alt='T')
+TEST_COORDS_X_2 = Coordinates(chrom='X', pos=2, ref='G', alt='T')
 
 
 @dataclass
@@ -48,7 +50,7 @@ class SimpleVariant:
     sample_support = []
     transcript_consequences = []
     phased = {}
-    var_type = VariantType.SMALL
+    var_type = VariantType.SMALL.value
 
     def sample_category_check(self, sample, allow_support=True):
         """
@@ -312,12 +314,13 @@ def test_recessive_autosomal_hom_passes(peddy_ped):
     check that when the info values are defaults (0)
     we accept a homozygous variant as a Recessive
     """
-
-    passing_variant = RecessiveSimpleVariant(
+    passing_variant = SmallVariant(
         hom_samples={'male'},
-        coords=TEST_COORDS,
+        info={'categoryboolean1': True},
+        coordinates=TEST_COORDS,
         ab_ratios={'male': 1.0},
-        info={'var_type': VariantType.SMALL},
+        depths={'male': 15},
+        boolean_categories=['categoryboolean1'],
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     results = rec.run(passing_variant)
@@ -335,7 +338,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(peddy_ped):
         hom_samples={'male'},
         coords=TEST_COORDS,
         ab_ratios={'male': 0.4},
-        info={'var_type': VariantType.SMALL},
+        info={'var_type': VariantType.SMALL.value},
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     results = rec.run(passing_variant)
@@ -494,11 +497,10 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
     check that a male is accepted as a het
     :return:
     """
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
         info={'gnomad_hemi': 0, 'var_type': VariantType.SMALL},
         het_samples={'female', 'male'},
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
     )
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
@@ -513,11 +515,10 @@ def test_x_dominant_female_hom_passes(peddy_ped):
     check that a male is accepted as a het
     :return:
     """
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
         info={'gnomad_hemi': 0, 'var_type': VariantType.SMALL},
         hom_samples={'female'},
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
     )
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
@@ -530,11 +531,10 @@ def test_x_dominant_male_hom_passes(peddy_ped):
     check that a male is accepted as a het
     :return:
     """
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
         info={'gnomad_hemi': 0, 'var_type': VariantType.SMALL},
         hom_samples={'male'},
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
     )
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
@@ -556,12 +556,11 @@ def test_x_dominant_info_fails(info, peddy_ped):
     :param info:
     :return:
     """
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = SimpleVariant(
         info=info,
         hom_samples={'male'},
         het_samples=set(),
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
         categoryboolean1=False,
     )
     x_dom = XDominant(pedigree=peddy_ped)
@@ -574,10 +573,9 @@ def test_x_recessive_male_hom_passes(peddy_ped):
     :return:
     """
 
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = RecessiveSimpleVariant(
         hom_samples={'female', 'male'},
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
         ab_ratios={'female': 1.0, 'male': 1.0},
         info={'var_type': VariantType.SMALL},
     )
@@ -592,10 +590,9 @@ def test_x_recessive_female_hom_passes(peddy_ped):
     :return:
     """
 
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = RecessiveSimpleVariant(
         hom_samples={'female', 'male'},
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
         ab_ratios={'female': 1.0, 'male': 1.0},
         info={'var_type': VariantType.SMALL},
     )
@@ -610,10 +607,9 @@ def test_x_recessive_male_het_passes(peddy_ped):
 
     :return:
     """
-    x_coords = Coordinates('x', 1, 'A', 'C')
     passing_variant = RecessiveSimpleVariant(
         het_samples={'male'},
-        coords=x_coords,
+        coords=TEST_COORDS_X_1,
         ab_ratios={'male': 0.5},
         info={'var_type': VariantType.SMALL},
     )
@@ -631,19 +627,19 @@ def test_x_recessive_female_het_passes(peddy_ped):
 
     passing_variant = RecessiveSimpleVariant(
         het_samples={'female'},
-        coords=Coordinates('x', 1, 'A', 'C'),
+        coords=TEST_COORDS_X_1,
         categorysample4=['female'],
         ab_ratios={'female': 0.5},
         info={'var_type': VariantType.SMALL},
     )
     passing_variant_2 = RecessiveSimpleVariant(
         het_samples={'female'},
-        coords=Coordinates('x', 2, 'A', 'C'),
+        coords=TEST_COORDS_X_2,
         categorysample4=['female'],
         ab_ratios={'female': 0.5},
         info={'var_type': VariantType.SMALL},
     )
-    comp_hets = {'female': {'x-1-A-C': [passing_variant_2]}}
+    comp_hets = {'female': {'X-1-G-T': [passing_variant_2]}}
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
@@ -658,7 +654,7 @@ def test_het_de_novo_het_passes(peddy_ped):
 
     passing_variant = RecessiveSimpleVariant(
         het_samples={'female'},
-        coords=Coordinates('x', 1, 'A', 'C'),
+        coords=TEST_COORDS_X_1,
         categorysample4=['female'],
         ab_ratios={'female': 0.5},
         info={'var_type': VariantType.SMALL},
@@ -678,7 +674,7 @@ def test_het_de_novo_het_passes_flagged(peddy_ped):
 
     passing_variant = RecessiveSimpleVariant(
         het_samples={'female'},
-        coords=Coordinates('x', 1, 'A', 'C'),
+        coords=TEST_COORDS_X_1,
         categorysample4=['female'],
         ab_ratios={'female': 0.5},
         info={'var_type': VariantType.SMALL},
@@ -696,14 +692,14 @@ def test_x_recessive_female_het_fails(peddy_ped):
 
     passing_variant = RecessiveSimpleVariant(
         het_samples={'female'},
-        coords=Coordinates('x', 1, 'A', 'C'),
+        coords=TEST_COORDS_X_1,
         categorysample4=['male'],
         ab_ratios={'female': 0.5},
         info={'var_type': VariantType.SMALL},
     )
     passing_variant_2 = RecessiveSimpleVariant(
         het_samples={'male'},
-        coords=Coordinates('x', 2, 'A', 'C'),
+        coords=TEST_COORDS_X_2,
         categorysample4=['male'],
         ab_ratios={'male': 0.5},
         info={'var_type': VariantType.SMALL},
@@ -723,7 +719,7 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.patch, peddy_ped)
     second_hit.return_value = []
     passing_variant = RecessiveSimpleVariant(
         het_samples={'female'},
-        coords=Coordinates('x', 1, 'A', 'C'),
+        coords=TEST_COORDS_X_1,
         ab_ratios={'female': 0.5},
         info={'var_type': VariantType.SMALL},
     )
@@ -873,7 +869,7 @@ def test_genotype_calls(peddy_ped):
         info=info_dict,
         het_samples={'male', 'female'},
         hom_samples=set(),
-        coords=TEST_COORDS_X,
+        coords=TEST_COORDS_X_1,
     )
     assert base_moi.get_family_genotypes(x_variant, 'male') == {
         'father_1': 'WT',
@@ -890,7 +886,7 @@ def test_genotype_calls(peddy_ped):
         info=info_dict,
         het_samples=set(),
         hom_samples={'male', 'female'},
-        coords=TEST_COORDS_X,
+        coords=TEST_COORDS_X_1,
     )
     assert base_moi.get_family_genotypes(x_variant_2, 'male') == {
         'father_1': 'WT',

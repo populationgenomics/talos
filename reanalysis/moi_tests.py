@@ -532,8 +532,8 @@ class RecessiveAutosomalHomo(BaseMoi):
         """ """
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
         self.freq_tests = {
-            VariantType.SMALL: {key: self.hom_threshold for key in INFO_HOMS},
-            VariantType.SV: {key: self.hom_threshold for key in SV_HOMS},
+            VariantType.SMALL.value: {key: self.hom_threshold for key in INFO_HOMS},
+            VariantType.SV.value: {key: self.hom_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
@@ -560,7 +560,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         # remove if too many homs are present in population databases
         if principal.support_only or not (
             self.check_frequency_passes(
-                principal.info, self.freq_tests[principal.info['var_type']]
+                principal.info, self.freq_tests[principal.var_type]
             )
             or principal.info.get('categoryboolean1')
         ):
@@ -590,6 +590,7 @@ class RecessiveAutosomalHomo(BaseMoi):
             ):
                 continue
 
+            # todo make this a pydantic model
             classifications.append(
                 ReportedVariant(
                     sample=sample_id,
