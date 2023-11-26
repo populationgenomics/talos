@@ -785,6 +785,8 @@ class AbstractVariant:
 class MinimalVariant:
     """
     subset of the AbstractVariant data type
+    todo this is redundant with a model_dump exclude
+    https://docs.pydantic.dev/latest/concepts/serialization/#advanced-include-and-exclude
     """
 
     def __init__(self, variant: AbstractVariant, sample: str):
@@ -817,6 +819,9 @@ class ReportedVariant:
     the MOI applicable
     the support ing variant(s), if any
     allows for the presence of flags e.g. Borderline AB ratio
+
+    todo should self.categories (vardata.categories)
+    todo actually be populated here instead of in the variant?
     """
 
     sample: str
