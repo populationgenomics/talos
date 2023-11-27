@@ -498,6 +498,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     sample_id=sample_id, variant_1=principal, variant_2=partner_variant
                 ):
                     continue
+
                 classifications.append(
                     ReportedVariant(
                         sample=sample_id,
