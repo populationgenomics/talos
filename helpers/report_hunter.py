@@ -20,7 +20,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from metamist.graphql import gql, query
 
-from reanalysis.utils import get_logger
+from reanalysis.static_values import get_logger
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(

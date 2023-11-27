@@ -3,22 +3,22 @@ test class for the utils collection
 """
 
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import List
 import pytest
 from cyvcf2 import VCFReader
 from reanalysis.utils import (
-    AbstractVariant,
-    Coordinates,
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_new_gene_map,
     get_non_ref_samples,
     get_simple_moi,
     identify_file_type,
+)
+from reanalysis.models import (
     FileTypes,
-    MinimalVariant,
-    ReportedVariant,
+    ReportVariant,
+    Coordinates,
+    SmallVariant,
+    StructuralVariant,
 )
 
 
@@ -26,16 +26,16 @@ def test_coord_sorting():
     """
     check that coord sorting methods work
     """
-    coord_1 = Coordinates('4', 20, 'A', 'C')
-    coord_1b = Coordinates('4', 21, 'A', 'C')
-    coord_1c = Coordinates('4', 21, 'A', 'C')
-    coord_2 = Coordinates('5', 20, 'A', 'C')
+    coord_1 = Coordinates(chrom='4', pos=20, ref='A', alt='C')
+    coord_1b = Coordinates(chrom='4', pos=21, ref='A', alt='C')
+    coord_1c = Coordinates(chrom='4', pos=21, ref='A', alt='C')
+    coord_2 = Coordinates(chrom='5', pos=20, ref='A', alt='C')
     assert coord_1 < coord_2
     assert coord_1 < coord_1b
     assert not coord_1b < coord_1c
 
 
-def test_abs_var_sorting(two_trio_abs_variants: list[AbstractVariant]):
+def test_abs_var_sorting(two_trio_abs_variants: list[SmallVariant]):
     """
     test sorting and equivalence at the AbsVar level
     """
@@ -53,7 +53,7 @@ def test_reported_variant_ordering(trio_abs_variant):
     """
     test that equivalence between Report objects works as exp.
     """
-    report_1 = ReportedVariant(
+    report_1 = ReportVariant(
         sample='1',
         family='1',
         gene='2',
@@ -61,7 +61,7 @@ def test_reported_variant_ordering(trio_abs_variant):
         reasons={'test'},
         genotypes={},
     )
-    report_2 = ReportedVariant(
+    report_2 = ReportVariant(
         sample='1',
         family='1',
         gene='2',
@@ -131,26 +131,19 @@ def test_get_simple_moi(string: str, expected: str, chrom: str):
     assert get_simple_moi(string, chrom) == expected
 
 
-def test_get_non_ref_samples():
+def test_get_non_ref_samples(cyvcf_example_variant):
     """
     this simple test can be done without the use of a cyvcf2 object
     :return:
     """
 
-    @dataclass
-    class SuperSimple:
-        """test_fixture"""
-
-        gt_types: List[int]
-
-    samples = ['a', 'b', 'c', 'd', 'e']
-    variant = SuperSimple([0, 1, 2, 3, 1])
-    het, hom = get_non_ref_samples(variant=variant, samples=samples)
-    assert het == {'b', 'e'}
-    assert hom == {'d'}
+    samples = ['male', 'father', 'mother']
+    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples)
+    assert het == {'male'}
+    assert hom == {}
 
 
-def test_av_categories(trio_abs_variant: AbstractVariant):
+def test_av_categories(trio_abs_variant: SmallVariant | StructuralVariant):
     """
     Cat. 3, and Cat. 4 for PROBAND only:
     """
@@ -164,7 +157,7 @@ def test_av_categories(trio_abs_variant: AbstractVariant):
     assert not trio_abs_variant.sample_categorised_check('father_1')
 
 
-def test_av_phase(trio_abs_variant: AbstractVariant):
+def test_av_phase(trio_abs_variant: SmallVariant):
     """
     nothing here yet
     :param trio_abs_variant:
@@ -189,12 +182,12 @@ def test_gene_dict(two_trio_variants_vcf):
     assert len(var_dict['ENSG00000075043']) == 2
 
 
-def test_comp_hets(two_trio_abs_variants: list[AbstractVariant], peddy_ped):
+def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     """
     {
         'male': {
-            '20-63406931-C-CGG': [AbstractVariant()],
-            '20-63406991-C-CGG': [AbstractVariant()]
+            '20-63406931-C-CGG': [Variant()],
+            '20-63406991-C-CGG': [Variant()]
         }
     }
     :param two_trio_abs_variants:
@@ -228,7 +221,7 @@ def test_phased_dict(phased_vcf_path):
         assert variant.phased['mother_1'] == {420: '0|1'}
 
 
-def test_phased_comp_hets(phased_variants: list[AbstractVariant], peddy_ped):
+def test_phased_comp_hets(phased_variants: list[SmallVariant], peddy_ped):
     """
     phased variants shouldn't form a comp-het
     'mother_1' is het for both variants, but phase-set is same for both
@@ -315,11 +308,3 @@ def test_new_gene_map_complex():
         'ENSG3': 'sam2',
         'ENSG4': 'sam,sam2',
     }
-
-
-def test_minimise(trio_abs_variant: AbstractVariant):
-    """
-    check the variant minimiser
-    """
-    minvar = MinimalVariant(trio_abs_variant, 'male')
-    assert sorted(minvar.categories) == ['3', '4']

@@ -41,11 +41,10 @@ from reanalysis import (
     seqr_loader,
 )
 from reanalysis.utils import (
-    FileTypes,
     identify_file_type,
-    get_granular_date,
-    get_logger,
 )
+from reanalysis.models import FileTypes
+from reanalysis.static_values import get_granular_date, get_logger
 
 # region: CONSTANTS
 # exact time that this run occurred

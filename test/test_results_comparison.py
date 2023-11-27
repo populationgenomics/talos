@@ -10,12 +10,9 @@ from copy import deepcopy
 
 from cpg_utils.config import get_config
 
-from reanalysis.utils import (
-    date_annotate_results,
-    find_latest_file,
-    get_granular_date,
-    Coordinates,
-)
+from reanalysis.utils import date_annotate_results, find_latest_file
+from reanalysis.models import Coordinates
+from reanalysis.static_values import get_granular_date
 
 CATEGORY_META = get_config()['categories']
 
@@ -42,8 +39,8 @@ class MiniReport:
     independent: bool = False
 
 
-COORD_1 = Coordinates('1', 1, 'A', 'G')
-COORD_2 = Coordinates('2', 2, 'A', 'G')
+COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')
+COORD_2 = Coordinates(chrom='2', pos=2, ref='A', alt='G')
 
 GENERIC_REPORT = MiniReport(MiniVariant(categories=['1'], coords=COORD_1))
 GENERIC_REPORT_12 = MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))

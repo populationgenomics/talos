@@ -4,11 +4,31 @@ A home for all data models used in AIP
 
 from enum import Enum
 from pydantic import BaseModel, Field
-from reanalysis.utils import get_granular_date
-
+from reanalysis.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
+
+
+class VariantType(Enum):
+    """
+    enumeration of permitted variant types
+    """
+
+    SMALL = 'SMALL'
+    SV = 'SV'
+
+
+class FileTypes(Enum):
+    """
+    enumeration of permitted input file types
+    """
+
+    HAIL_TABLE = '.ht'
+    MATRIX_TABLE = '.mt'
+    VCF = '.vcf'
+    VCF_GZ = '.vcf.gz'
+    VCF_BGZ = '.vcf.bgz'
 
 
 class Coordinates(BaseModel):
@@ -61,24 +81,13 @@ class Coordinates(BaseModel):
         )
 
 
-class VariantType(Enum):
-    """
-    enumeration of permitted variant types
-    """
-
-    SMALL = 'SMALL'
-    SV = 'SV'
-
-
 class Variant(BaseModel):
     """
     the abstracted representation of a variant from any source
-    todo move some more of the parsing logic into here as an init?
     """
 
     coordinates: Coordinates = Field(repr=True)
-    info: dict[str, str | int | float] = Field(default_factory=dict)
-    categories: list[str] = Field(default_factory=list)
+    info: dict[str, str | int | float | list[str] | bool] = Field(default_factory=dict)
     het_samples: set[str] = Field(default_factory=set, exclude=True)
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)
@@ -153,7 +162,9 @@ class Variant(BaseModel):
         Returns:
             True if support only
         """
-        return self.has_support and not self.sample_categorised_check(sample_id)
+        return self.has_support and not (
+            self.category_non_support or self.sample_categorised_check(sample_id)
+        )
 
     def category_values(self, sample: str) -> list[str]:
         """
@@ -227,8 +238,9 @@ class Variant(BaseModel):
 class SmallVariant(Variant):
     depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     ab_ratios: dict[str, float] = Field(default_factory=dict, exclude=True)
-    transcript_consequences: list[dict[str, str]] = Field(default_factory=list)
-    var_type: str = VariantType.SMALL.value
+    transcript_consequences: list[dict[str, str | float | int]] = Field(
+        default_factory=list
+    )
 
     def get_sample_flags(self, sample: str) -> list[str]:
         """
@@ -274,9 +286,6 @@ class SmallVariant(Variant):
 
 
 class StructuralVariant(Variant):
-
-    var_type: str = VariantType.SV.value
-
     def check_ab_ratio(self, *args, **kwargs) -> list[str]:
         """
         dummy method for AB ratio checking - not implemented for SVs
@@ -314,14 +323,7 @@ class ReportVariant(BaseModel):
     phenotypes: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
     first_seen: str = Field(default=get_granular_date())
-    independent: bool = False
-
-    @property
-    def is_independent(self):
-        """
-        check if this variant acts independently
-        """
-        return len(self.support_vars) == 0
+    independent: bool = Field(default=False)
 
     def __eq__(self, other):
         """

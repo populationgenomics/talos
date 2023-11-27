@@ -24,6 +24,7 @@ from peddy.peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
+from reanalysis.models import ReportVariant
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
@@ -31,14 +32,12 @@ from reanalysis.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_cohort_config,
-    get_granular_date,
-    get_logger,
     get_new_gene_map,
     read_json_from_path,
     CustomEncoder,
     GeneDict,
-    ReportedVariant,
 )
+from reanalysis.static_values import get_granular_date, get_logger
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
@@ -98,7 +97,7 @@ def apply_moi_to_variants(
     moi_lookup: dict[str, MOIRunner],
     panelapp_data: dict[str, dict[str, str | bool]],
     pedigree: Ped,
-) -> list[ReportedVariant]:
+) -> list[ReportVariant]:
     """
     take all variants on a given contig & MOI filters
     find all variants/compound hets which fit the PanelApp MOI
@@ -145,7 +144,7 @@ def apply_moi_to_variants(
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
-                partial_pen=variant.info.get('categoryboolean1', False),
+                partial_pen=bool(variant.info.get('categoryboolean1', False)),
             )
 
             # Flag! If this is a Category 1 (ClinVar) variant, and we are
@@ -172,11 +171,11 @@ def apply_moi_to_variants(
 
 def clean_and_filter(
     results_holder: dict,
-    result_list: list[ReportedVariant],
+    result_list: list[ReportVariant],
     panelapp_data: dict,
     dataset: str,
     participant_panels: dict | None = None,
-) -> dict[str, list[ReportedVariant]]:
+) -> dict[str, list[ReportVariant]]:
     """
     It's possible 1 variant can be classified multiple ways
     e.g. different MOIs (dominant and comp het)
@@ -190,7 +189,7 @@ def clean_and_filter(
 
     Args:
         results_holder (): container for all results data
-        result_list (): list of all ReportedVariant events
+        result_list (): list of all ReportVariant events
         panelapp_data ():
         dataset (str): dataset to use for getting the config portion
         participant_panels ():
@@ -214,8 +213,6 @@ def clean_and_filter(
     gene_details: dict[str, set[int]] = {}
 
     for each_event in result_list:
-
-        each_event.independent = each_event.is_independent
 
         # grab some attributes from the event
         sample = each_event.sample

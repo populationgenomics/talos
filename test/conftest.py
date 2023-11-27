@@ -12,6 +12,7 @@ from peddy.peddy import Ped
 
 from cpg_utils.config import set_config_paths
 
+
 # force this to come first
 PWD = Path(__file__).parent
 INPUT = PWD / 'input'
@@ -27,9 +28,9 @@ from reanalysis.data_model import (  # noqa: E402
     SneakyTable,
 )
 
-from reanalysis.utils import AbstractVariant, read_json_from_path  # noqa: E402
+from reanalysis.utils import read_json_from_path, create_small_variant  # noqa: E402
 
-LABELLED = INPUT / '1_labelled_variant.vcf.bgz'
+LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
 DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
 FAKE_OBO = INPUT / 'hpo_test.obo'
@@ -150,7 +151,7 @@ def fixture_phased_trio_variants():
     """path to the phased trio VCF"""
 
     vcf_reader = VCFReader(PHASED_TRIO)
-    two_variants = [AbstractVariant(var, vcf_reader.samples) for var in vcf_reader]
+    two_variants = [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
     return two_variants
 
 
@@ -177,7 +178,17 @@ def fixture_trio_abs_variant():
     vcf_reader = VCFReader(LABELLED)
     cyvcf_var = next(vcf_reader)
 
-    return AbstractVariant(cyvcf_var, vcf_reader.samples)
+    return create_small_variant(cyvcf_var, vcf_reader.samples)
+
+
+@pytest.fixture(name='cyvcf_example_variant')
+def fixture_cyvcf_variant():
+    """
+    sends the location of the Trio Pedigree (PLINK)
+    Cat. 3, and Cat. 4 for PROBAND only
+    """
+    vcf_reader = VCFReader(LABELLED)
+    return next(vcf_reader)
 
 
 @pytest.fixture(name='two_trio_abs_variants')
@@ -188,7 +199,7 @@ def fixture_two_trio_abs_variants():
     2) Cat. 1 + 3, and Cat. 4 for PROBAND only
     """
     vcf_reader = VCFReader(LABELLED)
-    two_variants = [AbstractVariant(var, vcf_reader.samples) for var in vcf_reader]
+    two_variants = [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
     return two_variants
 
 

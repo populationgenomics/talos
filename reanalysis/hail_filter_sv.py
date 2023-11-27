@@ -22,7 +22,8 @@ from reanalysis.hail_filter_and_label import (
     ONE_INT,
     MISSING_INT,
 )
-from reanalysis.utils import get_logger, read_json_from_path
+from reanalysis.utils import read_json_from_path
+from reanalysis.static_values import get_logger
 
 
 def filter_matrix_by_af(
