@@ -108,7 +108,7 @@ def get_granular_date():
             if fake_date := get_config().get('workflow', {}).get('fake_date'):
                 _GRANULAR_DATE = fake_date
         except AssertionError:
-            logging.info(f'No config loaded, falling back to {_GRANULAR_DATE}')
+            get_logger().info(f'No config loaded, falling back to {_GRANULAR_DATE}')
         if _GRANULAR_DATE is None:
             _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
     return _GRANULAR_DATE
@@ -276,11 +276,11 @@ def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
             response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
             return response.json()
         except (requests.RequestException, TimeoutError) as e:
-            logging.error(f'Request failed: {e}')
+            get_logger().error(f'Request failed: {e}')
             retries += 1
             if retries < max_retries:
                 delay = min(base_delay * 2**retries, max_delay)
-                logging.warning(f'Retrying in {delay} seconds...')
+                get_logger().warning(f'Retrying in {delay} seconds...')
                 time.sleep(delay)
 
     raise TimeoutError('Max retries reached. Request failed.')
@@ -412,7 +412,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
     except KeyError:
-        logging.info('failed to find PS phase attributes')
+        get_logger().info('failed to find PS phase attributes')
         try:
             # retry using PGT & PID
             for sample, phase_gt, phase_id in zip(
@@ -421,7 +421,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
                 if phase_gt != '.' and phase_id != '.':
                     phased_dict[sample][phase_id] = phase_gt
         except KeyError:
-            logging.info('also failed using PID and PGT')
+            get_logger().info('also failed using PID and PGT')
 
     return dict(phased_dict)
 
@@ -488,7 +488,7 @@ class AbstractVariant:
 
             # if 'all', keep cohort-wide boolean flag
             if new_gene_samples == 'all':
-                logging.debug('New applies to all samples')
+                get_logger().debug('New applies to all samples')
 
             # otherwise assign only a specific sample list
             elif new_gene_samples:
@@ -662,7 +662,9 @@ class AbstractVariant:
         Returns:
             True if support only
         """
-        return self.has_support and not self.sample_categorised_check(sample_id)
+        return self.has_support and not (
+            self.category_non_support or self.sample_categorised_check(sample_id)
+        )
 
     def category_values(self, sample: str) -> list[str]:
         """
@@ -922,7 +924,7 @@ def gather_gene_dict_from_contig(
         )
 
         if abs_var.coords.string_format in blacklist:
-            logging.info(
+            get_logger().info(
                 f'Skipping blacklisted variant: {abs_var.coords.string_format}'
             )
             continue
@@ -950,10 +952,12 @@ def gather_gene_dict_from_contig(
             # update the gene index dictionary
             contig_dict[abs_var.info.get('gene_id')].append(abs_var)
 
-        logging.info(f'Contig {contig} contained {second_source_variants} variants')
+        get_logger().info(
+            f'Contig {contig} contained {second_source_variants} variants'
+        )
 
-    logging.info(f'Contig {contig} contained {contig_variants} variants')
-    logging.info(f'Contig {contig} contained {len(contig_dict)} genes')
+    get_logger().info(f'Contig {contig} contained {contig_variants} variants')
+    get_logger().info(f'Contig {contig} contained {len(contig_dict)} genes')
 
     return contig_dict
 
@@ -994,11 +998,11 @@ def write_output_json(output_path: str, object_to_write: dict):
         object_to_write ():
     """
 
-    logging.info(f'Writing output JSON file to {output_path}')
+    get_logger().info(f'Writing output JSON file to {output_path}')
     out_route = to_path(output_path)
 
     if out_route.exists():
-        logging.info(f'Output path {output_path!r} exists, will be overwritten')
+        get_logger().info(f'Output path {output_path!r} exists, will be overwritten')
 
     with out_route.open('w') as fh:
         json.dump(object_to_write, fh, indent=4, default=list)
@@ -1206,11 +1210,11 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
     historic_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
 
     if historic_folder is None:
-        logging.info('No historic data folder, no filtering')
+        get_logger().info('No historic data folder, no filtering')
         # results, _cumulative = date_annotate_results(results)
         return results
 
-    logging.info('Attempting to filter current results against historic')
+    get_logger().info('Attempting to filter current results against historic')
 
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty
@@ -1220,7 +1224,7 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
     # in 1000 years this might cause a problem :/ \s
     latest_results_path = find_latest_file(dataset=dataset, start=prefix or '2')
 
-    logging.info(f'latest results: {latest_results_path}')
+    get_logger().info(f'latest results: {latest_results_path}')
 
     latest_results: dict = read_json_from_path(latest_results_path)  # type: ignore
 
@@ -1246,14 +1250,14 @@ def save_new_historic(
     if directory is None:
         directory = get_cohort_seq_type_conf(dataset).get('historic_results')
         if directory is None:
-            logging.info('No historic results directory, nothing written')
+            get_logger().info('No historic results directory, nothing written')
             return
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         json.dump(results, handle, indent=4, default=list)
 
-    logging.info(f'Wrote new data to {new_file}')
+    get_logger().info(f'Wrote new data to {new_file}')
 
 
 def find_latest_file(
@@ -1273,10 +1277,10 @@ def find_latest_file(
     if results_folder is None:
         results_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
         if results_folder is None:
-            logging.info('`historic_results` not present in config')
+            get_logger().info('`historic_results` not present in config')
             return None
 
-    logging.info(f'Using results from {results_folder}')
+    get_logger().info(f'Using results from {results_folder}')
 
     date_sorted_files = sorted(
         to_path(results_folder).glob(f'{start}*.{ext}'),
