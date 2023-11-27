@@ -10,15 +10,6 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 
-class VariantType(Enum):
-    """
-    enumeration of permitted variant types
-    """
-
-    SMALL = 'SMALL'
-    SV = 'SV'
-
-
 class FileTypes(Enum):
     """
     enumeration of permitted input file types
@@ -99,10 +90,10 @@ class Variant(BaseModel):
         return repr(self)
 
     def __lt__(self, other):
-        return self.coords < other.coords
+        return self.coordinates < other.coordinates
 
     def __eq__(self, other):
-        return self.coords == other.coords
+        return self.coordinates == other.coordinates
 
     @property
     def has_boolean_categories(self) -> bool:
@@ -333,8 +324,8 @@ class ReportVariant(BaseModel):
         # other_supvar = set(other.support_vars)
         return (
             self.sample == other.sample
-            and self.var_data.coords == other.var_data.coords
+            and self.var_data.coordinates == other.var_data.coordinates
         )
 
     def __lt__(self, other):
-        return self.var_data.coords < other.var_data.coords
+        return self.var_data.coordinates < other.var_data.coordinates

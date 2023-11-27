@@ -24,7 +24,7 @@ class MiniVariant:
     """
 
     categories: list
-    coords: Coordinates
+    coordinates: Coordinates
 
 
 @dataclass
@@ -42,9 +42,9 @@ class MiniReport:
 COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')
 COORD_2 = Coordinates(chrom='2', pos=2, ref='A', alt='G')
 
-GENERIC_REPORT = MiniReport(MiniVariant(categories=['1'], coords=COORD_1))
-GENERIC_REPORT_12 = MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))
-GENERIC_REPORT_2 = MiniReport(MiniVariant(categories=['2'], coords=COORD_2))
+GENERIC_REPORT = MiniReport(MiniVariant(categories=['1'], coordinates=COORD_1))
+GENERIC_REPORT_12 = MiniReport(MiniVariant(categories=['1', '2'], coordinates=COORD_1))
+GENERIC_REPORT_2 = MiniReport(MiniVariant(categories=['2'], coordinates=COORD_2))
 
 OLD_DATE = datetime(year=2000, month=1, day=1).strftime('%Y-%m-%d')
 
@@ -90,7 +90,7 @@ def test_date_annotate_two():
         'sample': {
             'variants': [
                 MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1),
+                    MiniVariant(categories=['1'], coordinates=COORD_1),
                     first_seen=OLD_DATE,
                 )
             ]
@@ -208,7 +208,7 @@ def test_date_annotate_five():
         'sample': {
             'variants': [
                 MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1),
+                    MiniVariant(categories=['1'], coordinates=COORD_1),
                     first_seen=get_granular_date(),
                 )
             ]
@@ -216,7 +216,7 @@ def test_date_annotate_five():
         'sample2': {
             'variants': [
                 MiniReport(
-                    MiniVariant(categories=['2'], coords=COORD_2),
+                    MiniVariant(categories=['2'], coordinates=COORD_2),
                     first_seen=get_granular_date(),
                 )
             ]

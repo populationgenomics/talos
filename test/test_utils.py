@@ -45,7 +45,7 @@ def test_abs_var_sorting(two_trio_abs_variants: list[SmallVariant]):
     assert var1 == var1
     assert sorted([var2, var1]) == [var1, var2]
     # not sure if I should be able to just override the chrom...
-    var1.coords.chrom = 'HLA1234'
+    var1.coordinates.chrom = 'HLA1234'
     assert var1 > var2
 
 
@@ -74,8 +74,8 @@ def test_reported_variant_ordering(trio_abs_variant):
     report_1.sample = '2'
     assert report_1 != report_2
     report_2.sample = '2'
-    report_1.var_data.coords.chrom = '1'
-    report_2.var_data.coords.chrom = '11'
+    report_1.var_data.coordinates.chrom = '1'
+    report_2.var_data.coordinates.chrom = '11'
     assert report_1 < report_2
 
 
@@ -140,7 +140,7 @@ def test_get_non_ref_samples(cyvcf_example_variant):
     samples = ['male', 'father', 'mother']
     het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples)
     assert het == {'male'}
-    assert hom == {}
+    assert not hom
 
 
 def test_av_categories(trio_abs_variant: SmallVariant | StructuralVariant):
@@ -198,8 +198,8 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     results = ch_dict.get('male')
     assert len(results) == 2
     key_1, key_2 = list(results.keys())
-    assert results[key_1][0].coords.string_format == key_2
-    assert results[key_2][0].coords.string_format == key_1
+    assert results[key_1][0].coordinates.string_format == key_2
+    assert results[key_2][0].coordinates.string_format == key_1
 
 
 def test_phased_dict(phased_vcf_path):

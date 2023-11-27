@@ -150,7 +150,7 @@ def fixture_phased_trio_vcf_path():
 def fixture_phased_trio_variants():
     """path to the phased trio VCF"""
 
-    vcf_reader = VCFReader(PHASED_TRIO)
+    vcf_reader = VCFReader(str(PHASED_TRIO))
     two_variants = [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
     return two_variants
 
