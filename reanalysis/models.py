@@ -396,7 +396,7 @@ class HistoricSampleVariant(BaseModel):
         default_factory=list,
         description='supporting variants if this has been identified in a comp-he',
     )
-    independent: bool = True
+    independent: bool = Field(default=True)
 
 
 class HistoricVariants(BaseModel):

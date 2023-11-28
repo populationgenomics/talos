@@ -569,7 +569,7 @@ def gather_gene_dict_from_contig(
     variant_source,
     new_gene_map: dict[str, str],
     singletons: bool = False,
-    second_source=None,
+    sv_source=None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -582,7 +582,7 @@ def gather_gene_dict_from_contig(
         variant_source (): the VCF reader instance
         new_gene_map ():
         singletons ():
-        second_source (): an optional second VCF (SV)
+        sv_source (): an optional second VCF (SV)
 
     Returns:
         A lookup in the form
@@ -606,45 +606,47 @@ def gather_gene_dict_from_contig(
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
 
-        abs_var = create_small_variant(
+        small_variant = create_small_variant(
             var=variant,
             samples=variant_source.samples,
             as_singletons=singletons,
             new_genes=new_gene_map,
         )
 
-        if abs_var.coordinates.string_format in blacklist:
+        if small_variant.coordinates.string_format in blacklist:
             get_logger().info(
-                f'Skipping blacklisted variant: {abs_var.coordinates.string_format}'
+                f'Skipping blacklisted variant: {small_variant.coordinates.string_format}'
             )
             continue
 
         # if unclassified, skip the whole variant
-        if not abs_var.is_classified:
+        if not small_variant.is_classified:
             continue
 
         # update the variant count
         contig_variants += 1
 
         # update the gene index dictionary
-        contig_dict[abs_var.info.get('gene_id')].append(abs_var)
+        contig_dict[small_variant.info.get('gene_id')].append(small_variant)
 
-    if second_source:
-        second_source_variants = 0
-        for variant in second_source(contig):
+    if sv_source:
+        structural_variants = 0
+        for variant in sv_source(contig):
+
             # create an abstract SV variant
-            abs_var = create_structural_variant(
-                var=variant, samples=second_source.samples
+            structural_variant = create_structural_variant(
+                var=variant, samples=sv_source.samples
             )
+
             # update the variant count
-            second_source_variants += 1
+            structural_variants += 1
 
             # update the gene index dictionary
-            contig_dict[abs_var.info.get('gene_id')].append(abs_var)
+            contig_dict[structural_variant.info.get('gene_id')].append(
+                structural_variant
+            )
 
-        get_logger().info(
-            f'Contig {contig} contained {second_source_variants} variants'
-        )
+        get_logger().info(f'Contig {contig} contained {structural_variants} variants')
 
     get_logger().info(f'Contig {contig} contained {contig_variants} variants')
     get_logger().info(f'Contig {contig} contained {len(contig_dict)} genes')

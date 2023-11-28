@@ -224,18 +224,14 @@ def clean_and_filter(
         # shouldn't be possible
         assert each_event.categories, f'No categories for {each_event}'
 
-        # grab some attributes from the event
-        sample = each_event.sample
-        gene = each_event.gene
-
         # find all panels for this gene
-        if gene in gene_details:
-            all_panels = gene_details[gene]
+        if each_event.gene in gene_details:
+            all_panels = gene_details[each_event.gene]
 
         else:
             # don't re-cast sets for every single variant
-            all_panels = set(panelapp_data.genes[gene].panels)
-            gene_details[gene] = all_panels
+            all_panels = set(panelapp_data.genes[each_event.gene].panels)
+            gene_details[each_event.gene] = all_panels
 
         # get all forced panels this gene intersects with
         cohort_intersection: set[int] = cohort_panels.intersection(all_panels)
@@ -246,9 +242,9 @@ def clean_and_filter(
         if participant_panels is not None:
 
             # intersection to find participant phenotype-matched panels
-            phenotype_intersection: set[int] = participant_panels[sample].intersection(
-                all_panels
-            )
+            phenotype_intersection: set[int] = participant_panels[
+                each_event.sample
+            ].intersection(all_panels)
 
             # is this gene relevant for this participant?
             # this test includes matched, cohort-level, and core panel
@@ -271,12 +267,12 @@ def clean_and_filter(
         # If this variant and that variant have same sample/pos, equivalent
         # If either was independent, set that flag to True
         # Add a union of all Support Variants from both events
-        if each_event not in results_holder[sample].variants:
-            results_holder[sample].variants.append(each_event)
+        if each_event not in results_holder[each_event.sample].variants:
+            results_holder[each_event.sample].variants.append(each_event)
 
         else:
-            prev_event = results_holder[sample].variants[
-                results_holder[sample].variants.index(each_event)
+            prev_event = results_holder[each_event.sample].variants[
+                results_holder[each_event.sample].variants.index(each_event)
             ]
 
             # if this is independent, set independent to True
@@ -402,7 +398,7 @@ def prepare_results_shell(
 
     # find the solved cases in this project
     solved_cases = get_cohort_config(dataset).get('solved_cases', [])
-    panel_meta = {content['id']: content['name'] for content in panelapp.metadata}
+    panel_meta = {content.id: content.name for content in panelapp.metadata}
 
     # limit to affected samples present in both Pedigree and VCF
     for sample in [
@@ -500,7 +496,7 @@ def main(
     out_json_path = to_path(out_json)
 
     # parse the pedigree from the file
-    pedigree_digest = Ped(pedigree)
+    ped = Ped(pedigree)
 
     # parse panelapp data from dict
     raw_panel_json = read_json_from_path(panelapp, {'metadata': [], 'genes': dict()})
@@ -508,9 +504,7 @@ def main(
     panelapp_data = PanelApp.model_construct(raw_panel_json)
 
     # set up the inheritance checks
-    moi_lookup = set_up_moi_filters(
-        panelapp_data=panelapp_data, pedigree=pedigree_digest
-    )
+    moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
 
     # todo model this
     pheno_panels = read_json_from_path(participant_panels)
@@ -519,13 +513,13 @@ def main(
     # create the new gene map
     new_gene_map = get_new_gene_map(panelapp_data, pheno_panels, dataset)
 
-    result_list = []
+    result_list: list[ReportVariant] = []
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
 
     # optional SV behaviour
-    sv_opened = VCFReader(labelled_sv) if labelled_sv is not None else None
+    sv_opened = VCFReader(labelled_sv) if labelled_sv else None
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -533,7 +527,7 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            second_source=sv_opened,
+            sv_source=sv_opened,
             new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
@@ -542,15 +536,15 @@ def main(
             apply_moi_to_variants(
                 variant_dict=contig_dict,
                 moi_lookup=moi_lookup,
-                panelapp_data=panelapp_data['genes'],
-                pedigree=pedigree_digest,
+                panelapp_data=panelapp_data.genes,
+                pedigree=ped,
             )
         )
 
     # create a shell to store results in
     results_shell = prepare_results_shell(
         vcf_samples=vcf_opened.samples,
-        pedigree=pedigree_digest,
+        pedigree=ped,
         panel_data=pheno_panels,
         dataset=dataset,
         panelapp=panelapp_data,
@@ -578,9 +572,7 @@ def main(
                 **{
                     'input_file': input_path,
                     'cohort': dataset,
-                    'family_breakdown': count_families(
-                        pedigree_digest, samples=vcf_opened.samples
-                    ),
+                    'family_breakdown': count_families(ped, samples=vcf_opened.samples),
                     'panels': panelapp_data.metadata,
                     'container': get_config()['workflow']['driver_image'],
                 }
