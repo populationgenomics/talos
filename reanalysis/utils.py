@@ -4,9 +4,7 @@ classes and methods shared across reanalysis components
 
 import time
 from collections import defaultdict
-from dataclasses import is_dataclass
 from datetime import datetime
-from enum import Enum
 from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
 from string import punctuation
@@ -16,6 +14,7 @@ import json
 import re
 
 import cyvcf2
+import peddy
 import requests
 
 from cpg_utils import to_path, Path as CPGPathType
@@ -23,6 +22,7 @@ from cpg_utils.config import get_config
 
 from reanalysis.models import (
     Coordinates,
+    PanelApp,
     ReportVariant,
     SmallVariant,
     StructuralVariant,
@@ -255,7 +255,9 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
 
 
 def get_new_gene_map(
-    panelapp_data: dict, pheno_panels: dict | None = None, dataset: str | None = None
+    panelapp_data: PanelApp,
+    pheno_panels: dict = None,
+    dataset: str | None = None,
 ) -> dict[str, str]:
     """
     The aim here is to generate a list of all the samples for whom
@@ -792,35 +794,8 @@ def extract_csq(csq_contents) -> list[dict]:
     return txc_dict
 
 
-# todo remove completely, use pydantic
-class CustomEncoder(json.JSONEncoder):
-    """
-    to be used as a JSON encoding class
-    - replaces all sets with lists
-    - replaces dataclass objects with a dictionary of the same
-    """
-
-    def default(self, o):
-        """
-        takes an arbitrary object, and forms a JSON representation
-        where the object doesn't have an easy string representation,
-        transform to a valid object: set -> list, class -> dict
-
-        Args:
-            o (): python object being JSON encoded
-        """
-
-        if is_dataclass(o) or isinstance(o, (SmallVariant, StructuralVariant)):
-            return o.__dict__
-        if isinstance(o, set):
-            return list(o)
-        if isinstance(o, Enum):
-            return o.value
-        return json.JSONEncoder.default(self, o)
-
-
 def find_comp_hets(
-    var_list: list[SmallVariant | StructuralVariant], pedigree
+    var_list: list[SmallVariant | StructuralVariant], pedigree: peddy.Ped
 ) -> CompHetDict:
     """
     manual implementation to find compound hets
@@ -837,7 +812,7 @@ def find_comp_hets(
 
     Args:
         var_list (list[SmallVariant | StructuralVariant]): all variants in this gene
-        pedigree (): Peddy.ped
+        pedigree (): Peddy.Ped
     """
 
     # create an empty dictionary

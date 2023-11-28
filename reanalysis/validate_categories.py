@@ -14,7 +14,6 @@ for each variant in each participant, check MOI in affected
 participants relative to the MOI described in PanelApp
 """
 
-import json
 from collections import defaultdict
 
 import click
@@ -24,7 +23,17 @@ from peddy.peddy import Ped
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-from reanalysis.models import ReportVariant
+from reanalysis.models import (
+    FamilyMembers,
+    PanelApp,
+    PanelDetail,
+    ParticipantMeta,
+    ParticipantResults,
+    ReportVariant,
+    ResultData,
+    ResultMeta,
+    ReportPanel,
+)
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
@@ -34,17 +43,16 @@ from reanalysis.utils import (
     get_cohort_config,
     get_new_gene_map,
     read_json_from_path,
-    CustomEncoder,
     GeneDict,
 )
-from reanalysis.static_values import get_granular_date, get_logger
+from reanalysis.static_values import get_logger
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
 
 
 def set_up_moi_filters(
-    panelapp_data: dict,
+    panelapp_data: PanelApp,
     pedigree: Ped,
 ) -> dict[str, MOIRunner]:
     """
@@ -69,7 +77,7 @@ def set_up_moi_filters(
     A billion variants, 6 MOI = 6 test instances, each created once
 
     Args:
-        panelapp_data (dict):
+        panelapp_data (PanelApp):
         pedigree (Ped):
 
     Returns:
@@ -79,10 +87,10 @@ def set_up_moi_filters(
     moi_dictionary = {}
 
     # iterate over all genes
-    for gene_data in panelapp_data['genes'].values():
+    for gene_data in panelapp_data.genes.values():
 
         # extract the per-gene MOI, don't re-simplify
-        gene_moi = gene_data.get('moi')
+        gene_moi = gene_data.moi
 
         # if we haven't seen this MOI before, set up the appropriate filter
         if gene_moi not in moi_dictionary:
@@ -95,7 +103,7 @@ def set_up_moi_filters(
 def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
-    panelapp_data: dict[str, dict[str, str | bool]],
+    panelapp_data: dict[str, PanelDetail],
     pedigree: Ped,
 ) -> list[ReportVariant]:
     """
@@ -137,8 +145,7 @@ def apply_moi_to_variants(
             # pass on whether this variant is support only
             # - no dominant MOI
             # - discarded if two support-only form a comp-het
-            panel_moi = panel_gene_data.get('moi')
-            assert isinstance(panel_moi, str)
+            panel_moi = panel_gene_data.moi
             runner = moi_lookup[panel_moi]
             assert isinstance(runner, MOIRunner)
             variant_results = runner.run(
@@ -150,7 +157,7 @@ def apply_moi_to_variants(
             # Flag! If this is a Category 1 (ClinVar) variant, and we are
             # interpreting under a lenient MOI, add flag for analysts
             # control this in just one place
-            if panel_gene_data.get('moi') == 'Mono_And_Biallelic' and variant.info.get(
+            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get(
                 'categoryboolean1', False
             ):
 
@@ -172,7 +179,7 @@ def apply_moi_to_variants(
 def clean_and_filter(
     results_holder: dict,
     result_list: list[ReportVariant],
-    panelapp_data: dict,
+    panelapp_data: PanelApp,
     dataset: str,
     participant_panels: dict | None = None,
 ) -> dict[str, list[ReportVariant]]:
@@ -199,8 +206,8 @@ def clean_and_filter(
     """
     cohort_panels = set(get_cohort_config(dataset).get('cohort_panels', []))
 
-    panel_meta = {
-        content['id']: content['name'] for content in panelapp_data['metadata']
+    panel_meta: dict[int, str] = {
+        content.id: content.name for content in panelapp_data.metadata
     }
 
     # if we have a lookup, grab the relevant information
@@ -214,14 +221,12 @@ def clean_and_filter(
 
     for each_event in result_list:
 
+        # shouldn't be possible
+        assert each_event.categories, f'No categories for {each_event}'
+
         # grab some attributes from the event
         sample = each_event.sample
         gene = each_event.gene
-        variant = each_event.var_data
-
-        # no classifications = not interesting. Shouldn't be possible
-        if not variant.categories:
-            continue
 
         # find all panels for this gene
         if gene in gene_details:
@@ -229,50 +234,49 @@ def clean_and_filter(
 
         else:
             # don't re-cast sets for every single variant
-            all_panels = set(panelapp_data['genes'][gene]['panels'])
+            all_panels = set(panelapp_data.genes[gene].panels)
             gene_details[gene] = all_panels
 
         # get all forced panels this gene intersects with
-        cohort_intersection: set = cohort_panels.intersection(all_panels)
+        cohort_intersection: set[int] = cohort_panels.intersection(all_panels)
 
+        matched_panels = []
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
 
             # intersection to find participant phenotype-matched panels
-            phenotype_intersection: set = participant_panels[sample].intersection(
+            phenotype_intersection: set[int] = participant_panels[sample].intersection(
                 all_panels
             )
 
-            # re-intersect to join phenotype matched with cohort-forced
-            full_intersection = phenotype_intersection.union(cohort_intersection)
-
             # is this gene relevant for this participant?
             # this test includes matched, cohort-level, and core panel
-            if not full_intersection:
+            if not phenotype_intersection.union(cohort_intersection):
                 continue
 
-            each_event.panels['matched'] = [
+            matched_panels = [
                 panel_meta[pid]
                 for pid in phenotype_intersection
                 if pid != get_config()['workflow'].get('default_panel', 137)
             ]
 
+        forced_panels = []
         if cohort_intersection:
-            each_event.panels['forced'] = [
-                panel_meta[pid] for pid in cohort_intersection
-            ]
+            forced_panels = [panel_meta[pid] for pid in cohort_intersection]
+
+        each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
 
         # equivalence logic might need a small change here -
         # If this variant and that variant have same sample/pos, equivalent
         # If either was independent, set that flag to True
         # Add a union of all Support Variants from both events
-        if each_event not in results_holder[sample]['variants']:
-            results_holder[sample]['variants'].append(each_event)
+        if each_event not in results_holder[sample].variants:
+            results_holder[sample].variants.append(each_event)
 
         else:
-            prev_event = results_holder[sample]['variants'][
-                results_holder[sample]['variants'].index(each_event)
+            prev_event = results_holder[sample].variants[
+                results_holder[sample].variants.index(each_event)
             ]
 
             # if this is independent, set independent to True
@@ -283,7 +287,9 @@ def clean_and_filter(
             prev_event.support_vars.update(each_event.support_vars)
 
             prev_event.reasons.update(each_event.reasons)
-            prev_event.gene = ','.join(prev_event.gene.split(',') + [each_event.gene])
+            prev_event.gene = ','.join(
+                set(*[prev_event.gene.split(',') + [each_event.gene]])
+            )
 
             # combine flags across variants, and remove Ambiguous marking
             # if it's no longer appropriate
@@ -297,7 +303,7 @@ def clean_and_filter(
 
     # organise the variants by chromosomal location
     for sample in results_holder:
-        results_holder[sample]['variants'].sort()
+        results_holder[sample].variants.sort()
 
     return results_holder
 
@@ -374,8 +380,8 @@ def prepare_results_shell(
     pedigree: Ped,
     dataset: str,
     panel_data: dict | None,
-    panelapp: dict,
-) -> dict:
+    panelapp: PanelApp,
+) -> dict[str, ParticipantResults]:
     """
     prepare an empty dictionary for the results, feat. participant metadata
     Args:
@@ -396,8 +402,9 @@ def prepare_results_shell(
 
     # find the solved cases in this project
     solved_cases = get_cohort_config(dataset).get('solved_cases', [])
-    panel_meta = {content['id']: content['name'] for content in panelapp['metadata']}
+    panel_meta = {content['id']: content['name'] for content in panelapp.metadata}
 
+    # limit to affected samples present in both Pedigree and VCF
     for sample in [
         sam
         for sam in pedigree.samples()
@@ -405,35 +412,48 @@ def prepare_results_shell(
     ]:
         sample_id = sample.sample_id
         family_id = sample.family_id
-        family = pedigree.families[family_id]
 
         family_members = {
-            member.sample_id: {
-                'sex': str(member.sex)
-                if str(member.sex) in {'male', 'female'}
-                else 'unknown',
-                'affected': member.affected == PEDDY_AFFECTED,
-                'ext_id': panel_data.get(member.sample_id, {}).get(
-                    'external_id', member.sample_id
+            member.sample_id: FamilyMembers(
+                **{
+                    'sex': str(member.sex)
+                    if str(member.sex) in {'male', 'female'}
+                    else 'unknown',
+                    'affected': member.affected == PEDDY_AFFECTED,
+                    'ext_id': panel_data.get(member.sample_id, {}).get(
+                        'external_id', member.sample_id
+                    ),
+                }
+            )
+            for member in pedigree.families[family_id]
+        }
+        sample_dict[sample_id] = ParticipantResults(
+            **{
+                'variants': [],
+                'metadata': ParticipantMeta(
+                    **{
+                        'ext_id': panel_data.get(sample_id, {}).get(
+                            'external_id', sample_id
+                        ),
+                        'family_id': pedigree[sample_id].family_id,
+                        'members': family_members,
+                        'phenotypes': panel_data.get(sample_id, {}).get(
+                            'hpo_terms', []
+                        ),
+                        'panel_ids': panel_data.get(sample_id, {}).get('panels', []),
+                        'panel_names': [
+                            panel_meta[panel_id]
+                            for panel_id in panel_data.get(sample_id, {}).get(
+                                'panels', []
+                            )
+                        ],
+                        'solved': bool(
+                            sample_id in solved_cases or family_id in solved_cases
+                        ),
+                    }
                 ),
             }
-            for member in family
-        }
-        sample_dict[sample_id] = {
-            'variants': [],
-            'metadata': {
-                'ext_id': panel_data.get(sample_id, {}).get('external_id', sample_id),
-                'family_id': pedigree[sample_id].family_id,
-                'members': family_members,
-                'phenotypes': panel_data.get(sample_id, {}).get('hpo_terms', []),
-                'panel_ids': panel_data.get(sample_id, {}).get('panels', []),
-                'panel_names': [
-                    panel_meta[panel_id]
-                    for panel_id in panel_data.get(sample_id, {}).get('panels', [])
-                ],
-                'solved': bool(sample_id in solved_cases or family_id in solved_cases),
-            },
-        }
+        )
 
     return sample_dict
 
@@ -483,14 +503,16 @@ def main(
     pedigree_digest = Ped(pedigree)
 
     # parse panelapp data from dict
-    panelapp_data = read_json_from_path(panelapp, {})
-    assert isinstance(panelapp_data, dict)
+    raw_panel_json = read_json_from_path(panelapp, {'metadata': [], 'genes': dict()})
+    assert isinstance(raw_panel_json, dict)
+    panelapp_data = PanelApp.model_construct(raw_panel_json)
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(
         panelapp_data=panelapp_data, pedigree=pedigree_digest
     )
 
+    # todo model this
     pheno_panels = read_json_from_path(participant_panels)
     assert isinstance(pheno_panels, dict)
 
@@ -549,24 +571,26 @@ def main(
     )
 
     # create the full final output file
-    final_results = {
-        'results': analysis_results,
-        'metadata': {
-            'input_file': input_path,
-            'cohort': dataset,
-            'run_datetime': get_granular_date(),
-            'family_breakdown': count_families(
-                pedigree_digest, samples=vcf_opened.samples
+    final_results = ResultData(
+        **{
+            'results': analysis_results,
+            'metadata': ResultMeta(
+                **{
+                    'input_file': input_path,
+                    'cohort': dataset,
+                    'family_breakdown': count_families(
+                        pedigree_digest, samples=vcf_opened.samples
+                    ),
+                    'panels': panelapp_data.metadata,
+                    'container': get_config()['workflow']['driver_image'],
+                }
             ),
-            'panels': panelapp_data['metadata'],
-            'container': get_config()['workflow']['driver_image'],
-            'categories': get_config()['categories'],
-        },
-    }
+        }
+    )
 
-    # store results using the custom-encoder to transform sets & DataClasses
-    with out_json_path.open('w') as fh:
-        json.dump(final_results, fh, cls=CustomEncoder, indent=4)
+    # write the output to long term storage using Pydantic
+    with open(out_json_path, 'w') as out_file:
+        out_file.write(final_results.model_dump_json(indent=4))
 
 
 if __name__ == '__main__':

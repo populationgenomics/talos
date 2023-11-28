@@ -11,6 +11,7 @@ networkx>=3
 obonet>=1
 pandas>=2
 peddy>=0.4.8
+pydantic>=2.5.2
 requests>=2.31.0
 seqr-loader>=1.2.5
 tabulate>=0.8.9

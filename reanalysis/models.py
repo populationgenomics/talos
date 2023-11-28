@@ -1,9 +1,12 @@
 """
 A home for all data models used in AIP
 """
-
 from enum import Enum
+
 from pydantic import BaseModel, Field
+
+from cpg_utils.config import get_config
+
 from reanalysis.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
@@ -296,9 +299,18 @@ class StructuralVariant(Variant):
         return []
 
 
+class ReportPanel(BaseModel):
+    """
+    simple storage for all the panels to present in tooltips
+    """
+
+    forced: list[str] = Field(default_factory=list)
+    matched: list[str] = Field(default_factory=list)
+
+
 class ReportVariant(BaseModel):
     """
-    A representation of a variant in a report
+    A variant passing MOI tests, to be reported
     """
 
     sample: str
@@ -310,7 +322,7 @@ class ReportVariant(BaseModel):
     genotypes: dict[str, str] = Field(default_factory=dict)
     support_vars: set[str] = Field(default_factory=set)
     flags: list[str] = Field(default_factory=list)
-    panels: dict[str, str | list[int]] = Field(default_factory=dict)
+    panels: ReportPanel = Field(default_factory=ReportPanel)
     phenotypes: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
     first_seen: str = Field(default=get_granular_date())
@@ -329,3 +341,137 @@ class ReportVariant(BaseModel):
 
     def __lt__(self, other):
         return self.var_data.coordinates < other.var_data.coordinates
+
+
+class PanelDetail(BaseModel):
+    """
+    A gene from PanelApp, combining all MOI and panel IDs
+    where the gene features on multiple panels
+    """
+
+    symbol: str
+    chrom: str = Field(default_factory=str)
+    all_moi: set[str] = Field(default_factory=set)
+    moi: str = Field(default_factory=str)
+    new: list[int] = Field(default_factory=list)
+    panels: list[int] = Field(default_factory=list)
+
+
+class PanelShort(BaseModel):
+    """
+    Short panel summary, used in the metadata section
+    """
+
+    name: str
+    version: str
+    id: int
+
+
+class PanelList(BaseModel):
+    panels: list[PanelShort] = Field(default_factory=list)
+
+
+class PanelApp(BaseModel):
+    metadata: list[PanelShort]
+    genes: dict[str, PanelDetail]
+
+
+class HistoricPanels(BaseModel):
+    ...
+
+
+class CategoryMeta(BaseModel):
+    """
+    The mapping of category names to their display names
+    """
+
+    categories: dict[str, str] = Field(default=get_config()['categories'])
+
+
+class HistoricSampleVariant(BaseModel):
+    """ """
+
+    categories: dict[str, str]
+    support_vars: list[str] = Field(
+        default_factory=list,
+        description='supporting variants if this has been identified in a comp-he',
+    )
+    independent: bool = True
+
+
+class HistoricVariants(BaseModel):
+    """
+    The model representing the state transition file
+    All relevant metadata relating to the available categories
+    Then a per-participant dict of variants, containing the categories
+    they have been assigned, date first seen, and supporting variants
+    """
+
+    metadata: CategoryMeta
+    results: dict[str, HistoricSampleVariant]
+
+
+class ResultMeta(BaseModel):
+    """
+    metadata for a result set
+    """
+
+    input_file: str
+    cohort: str
+    run_datetime: str = Field(default=get_granular_date())
+    family_breakdown: dict[str, int] = Field(default_factory=dict)
+    panels: PanelList = Field(default_factory=PanelList)
+    container: str = Field(default_factory=str)
+    categories: dict[str, str] = Field(default=get_config()['categories'])
+
+
+class MemberSex(Enum):
+    MALE = 'male'
+    FEMALE = 'female'
+    UNKNOWN = 'unknown'
+
+
+class FamilyMembers(BaseModel):
+    affected: bool = Field(default=False)
+    ext_id: str = Field(default_factory=str)
+    sex: MemberSex = Field(default=MemberSex.UNKNOWN)
+
+
+class ParticipantMeta(BaseModel):
+    ext_id: str
+    family_id: str
+    members: dict[str, FamilyMembers] = Field(default_factory=dict)
+    phenotypes: list[str] = Field(default_factory=list)
+    panel_ids: list[int] = Field(default_factory=list)
+    panel_names: list[str] = Field(default_factory=list)
+    solved: bool = Field(default=False)
+
+
+class ParticipantResults(BaseModel):
+    """
+    A representation of a result set
+    """
+
+    variants: list[ReportVariant]
+    metadata: ParticipantMeta
+
+
+class ResultData(BaseModel):
+    """
+    A representation of a result set
+    """
+
+    results: dict[str, list[ReportVariant]]
+    metadata: ResultMeta
+
+
+class ModelVariant(BaseModel):
+    """
+    might be required for the VCF generator
+    """
+
+    ...
+
+
+class PhenoMatchedPanels(BaseModel):
+    ...
