@@ -353,7 +353,7 @@ class PanelDetail(BaseModel):
     chrom: str = Field(default_factory=str)
     all_moi: set[str] = Field(default_factory=set)
     moi: str = Field(default_factory=str)
-    new: list[int] = Field(default_factory=list)
+    new: set[int] = Field(default_factory=set)
     panels: list[int] = Field(default_factory=list)
 
 
@@ -362,9 +362,9 @@ class PanelShort(BaseModel):
     Short panel summary, used in the metadata section
     """
 
-    name: str
-    version: str
     id: int
+    version: str
+    name: str = Field(default_factory=str)
 
 
 class PanelList(BaseModel):
@@ -372,12 +372,12 @@ class PanelList(BaseModel):
 
 
 class PanelApp(BaseModel):
-    metadata: list[PanelShort]
+    metadata: PanelList
     genes: dict[str, PanelDetail]
 
 
 class HistoricPanels(BaseModel):
-    ...
+    genes: dict[str, set[int]] = Field(default_factory=dict)
 
 
 class CategoryMeta(BaseModel):

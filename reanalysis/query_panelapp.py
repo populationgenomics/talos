@@ -13,7 +13,7 @@ from dateutil.relativedelta import relativedelta
 import click
 from cpg_utils.config import get_config
 
-from reanalysis.models import PanelShort, PanelDetail, PanelApp
+from reanalysis.models import HistoricPanels, PanelShort, PanelDetail, PanelApp
 from reanalysis.utils import (
     find_latest_file,
     get_cohort_config,
@@ -54,7 +54,7 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
 
 def get_panel_green(
     gene_dict: PanelApp,
-    old_data: dict[str, list],
+    old_data: HistoricPanels | None = None,
     panel_id: int = DEFAULT_PANEL,
     version: str | None = None,
     blacklist: list[str] | None = None,
@@ -66,12 +66,14 @@ def get_panel_green(
 
     Args:
         gene_dict (): PanelApp obj to continue populating
-        old_data (dict[str, list]): dict of lists - panels per gene
+        old_data (HistoricPanels): dict of lists - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
         blacklist (): list of symbols/ENSG IDs to remove from this panel
         forbidden_genes (set[str]): genes to remove for this cohort
     """
+    if old_data is None:
+        old_data = HistoricPanels()
 
     if blacklist is None:
         blacklist = []
@@ -126,9 +128,9 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = panel_id not in old_data.get(ensg, [])
+        new_gene = panel_id not in old_data.genes.get(ensg, {})
         if new_gene:
-            old_data.setdefault(ensg, []).append(panel_id)
+            old_data[ensg].add(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
@@ -145,7 +147,7 @@ def get_panel_green(
 
             # if this is/was new - it's new
             if new_gene:
-                this_gene.new.append(panel_id)
+                this_gene.new.add(panel_id)
 
         else:
 
@@ -263,7 +265,7 @@ def get_new_genes(
         which were absent in the given panel version
     """
 
-    old: PanelApp = PanelApp(**{'metadata': [], 'genes': {}})
+    old: HistoricPanels = PanelApp(**{'metadata': [], 'genes': {}})
     get_panel_green(old, old_data={}, version=old_version, forbidden_genes=forbidden)
 
     return current_genes.difference(set(old.genes.keys()))
@@ -306,8 +308,6 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     get_logger().info('Starting PanelApp Query Stage')
 
-    old_data: dict = {}
-
     # make responsive to config
     twelve_months = None
 
@@ -317,15 +317,18 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         get_cohort_config(dataset).get('forbidden', 'missing'), set()
     )
 
+    old_data = HistoricPanels()
+
     # historic data overrides default 'previous' list for cohort
     # open to discussing order of precedence here
     if old_file := find_latest_file(dataset=dataset, start='panel_'):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
-        old_data: dict = read_json_from_path(old_file, default=old_data)
+        old_data = read_json_from_path(old_file, return_model=HistoricPanels)
 
+    # todo this will fail at the moment
     elif previous := get_cohort_config(dataset).get('gene_prior'):
         get_logger().info(f'Reading legacy data from {previous}')
-        old_data: dict = read_json_from_path(previous, default=old_data)
+        old_data = read_json_from_path(previous, return_model=HistoricPanels)
 
     else:
         twelve_months = True
