@@ -22,8 +22,11 @@ from cpg_utils.config import get_config
 
 from reanalysis.models import (
     Coordinates,
+    HistoricSampleVariant,
+    HistoricVariants,
     PanelApp,
-    ReportVariant,
+    HistoricPanels,
+    ResultData,
     SmallVariant,
     StructuralVariant,
     FileTypes,
@@ -655,8 +658,14 @@ def gather_gene_dict_from_contig(
 
 
 def read_json_from_path(
-    bucket_path: str | CPGPathType | None, default: Any = None
-) -> dict | list | None:
+    bucket_path: str | CPGPathType | None,
+    default: Any = None,
+    return_model: HistoricVariants
+    | HistoricPanels
+    | ResultData
+    | PanelApp
+    | None = None,
+) -> list | None | HistoricVariants | HistoricPanels | ResultData | PanelApp:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -664,6 +673,7 @@ def read_json_from_path(
     Args:
         bucket_path (str):
         default (Any):
+        return_model (pydantic.BaseModel): any Model to read/validate as
 
     Returns:
         either the object from the JSON file, or None
@@ -677,8 +687,14 @@ def read_json_from_path(
 
     if isinstance(bucket_path, CPGPathType) and bucket_path.exists():
         with bucket_path.open() as handle:
-            return json.load(handle)
-    return default
+            json_data = json.load(handle)
+            if return_model:
+                return return_model.model_construct(**json_data)
+            return json_data
+    if default:
+        return default
+
+    raise ValueError(f'No data found at {bucket_path}')
 
 
 def write_output_json(output_path: str, object_to_write: dict):
@@ -863,14 +879,14 @@ def find_comp_hets(
     return comp_het_results
 
 
-def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
+def filter_results(results: ResultData, singletons: bool, dataset: str):
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
     write two files (total, and latest - previous)
 
     Args:
-        results (): the results produced during this run
+        results (ResultData): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
         dataset (str): dataset name for sourcing config section
 
@@ -881,8 +897,7 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
-        # results, _cumulative = date_annotate_results(results)
-        return results
+        return
 
     get_logger().info('Attempting to filter current results against historic')
 
@@ -896,36 +911,31 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
 
     get_logger().info(f'latest results: {latest_results_path}')
 
-    latest_results: dict = read_json_from_path(latest_results_path)  # type: ignore
+    latest_results: HistoricVariants | None = read_json_from_path(
+        latest_results_path, return_model=HistoricVariants  # type: ignore
+    )
 
-    results, cumulative = date_annotate_results(results, latest_results)
-    save_new_historic(results=cumulative, prefix=prefix, dataset=dataset)
-
-    return results
+    date_annotate_results(results, latest_results)
+    save_new_historic(results=latest_results, prefix=prefix, dataset=dataset)
 
 
 def save_new_historic(
-    results: dict, dataset: str, prefix: str = '', directory: str | None = None
+    results: HistoricVariants | HistoricPanels, dataset: str, prefix: str = ''
 ):
     """
     save the new results in the historic results dir
 
     Args:
-        results (): object to save as a JSON file
+        results (): object to save as JSON
         dataset (str): the dataset to save results for
         prefix (str): name prefix for this file (optional)
-        directory (): defaults to historic_data from config
     """
 
-    if directory is None:
-        directory = get_cohort_seq_type_conf(dataset).get('historic_results')
-        if directory is None:
-            get_logger().info('No historic results directory, nothing written')
-            return
+    directory = get_cohort_seq_type_conf(dataset).get('historic_results')
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
-        json.dump(results, handle, indent=4, default=list)
+        handle.write(results.model_dump_json(indent=4))
 
     get_logger().info(f'Wrote new data to {new_file}')
 
@@ -964,81 +974,67 @@ def find_latest_file(
 
 
 def date_annotate_results(
-    current: dict[str, dict | list[ReportVariant]], historic: dict | None = None
-) -> tuple[dict, dict]:
+    current: ResultData, historic: HistoricVariants | None = None
+):
     """
     takes the current data, and annotates with previous dates if found
     build/update the historic data within the same loop
     much simpler logic overall
 
     Args:
-        current (dict): results generated during this run
-        historic (): optionally, historic data
+        current (ResultData): results generated during this run
+        historic (HistoricVariants): optionally, historic data
 
-    Returns: date-annotated results and cumulative data
+    Returns:
+        updated/instantiated cumulative data
     """
 
     # if there's no historic data, make some
     if historic is None:
-        historic = {
-            'metadata': {'categories': get_config()['categories']},
-            'results': {},
-        }
-
-    # update to latest format
-    elif 'results' not in historic.keys():
-        historic = {
-            'metadata': {'categories': get_config()['categories']},
-            'results': historic,
-        }
+        historic = HistoricVariants()
 
     # update to latest category descriptions
-    historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
+    historic.metadata.categories.update(get_config()['categories'])
 
-    for sample, content in current.items():
-
-        # totally absent? start populating for this sample
-        if sample not in historic['results']:
-            historic['results'][sample] = {}
+    for sample, content in current.results.items():
 
         # check each variant found in this round
-        for var in content['variants']:  # type: ignore
+        for var in content.variants:
             var_id = var.var_data.coordinates.string_format
-            current_cats = set(var.var_data.categories)
+            current_cats = set(var.categories)
 
             # this variant was previously seen
-            if var_id in historic['results'][sample]:
-
-                hist = historic['results'][sample][var_id]
+            if hist := historic.results[sample].get(var_id):
 
                 # bool if this was ever independent
-                hist['independent'] = var.independent or hist.get('independent', False)
+                hist.independent = var.independent or hist.independent
 
                 # if we have any new categories don't alter the date
-                if new_cats := current_cats - set(hist['categories'].keys()):
+                if new_cats := current_cats - set(hist.categories):
 
                     # add any new categories
                     for cat in new_cats:
-                        hist['categories'][cat] = get_granular_date()
+                        hist.categories[cat] = get_granular_date()
 
                 # same categories, new support
                 elif new_sups := [
-                    sup for sup in var.support_vars if sup not in hist['support_vars']
+                    sup for sup in var.support_vars if sup not in hist.support_vars
                 ]:
-                    hist['support_vars'].extend(new_sups)
+                    hist.support_vars.extend(new_sups)
 
                 # otherwise alter the first_seen date
                 else:
                     # choosing to take the latest _new_ category date
-                    recent = sorted(hist['categories'].values(), reverse=True)[0]
-                    var.first_seen = recent
+                    var.first_seen = sorted(hist.categories.values(), reverse=True)[0]
 
             # totally new variant
             else:
-                historic['results'][sample][var_id] = {
-                    'categories': {cat: get_granular_date() for cat in current_cats},
-                    'support_vars': var.support_vars,
-                    'independent': var.independent,
-                }
-
-    return current, historic
+                historic.results[sample][var_id] = HistoricSampleVariant(
+                    **{
+                        'categories': {
+                            cat: get_granular_date() for cat in current_cats
+                        },
+                        'support_vars': var.support_vars,
+                        'independent': var.independent,
+                    }
+                )

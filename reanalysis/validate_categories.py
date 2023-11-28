@@ -81,7 +81,7 @@ def set_up_moi_filters(
         pedigree (Ped):
 
     Returns:
-        a list
+        a dict of all MOI classes, indexed by MOI string
     """
 
     moi_dictionary = {}
@@ -221,8 +221,10 @@ def clean_and_filter(
 
     for each_event in result_list:
 
-        # shouldn't be possible
-        assert each_event.categories, f'No categories for {each_event}'
+        # shouldn't be possible, here as a precaution
+        assert (
+            each_event.categories
+        ), f'No categories for {each_event.var_data.coordinates.string_format}'
 
         # find all panels for this gene
         if each_event.gene in gene_details:
@@ -283,13 +285,11 @@ def clean_and_filter(
             prev_event.support_vars.update(each_event.support_vars)
 
             prev_event.reasons.update(each_event.reasons)
-            prev_event.gene = ','.join(
-                set(*[prev_event.gene.split(',') + [each_event.gene]])
-            )
+            prev_event.gene = ','.join({*prev_event.gene.split(','), each_event.gene})
 
             # combine flags across variants, and remove Ambiguous marking
             # if it's no longer appropriate
-            both_flags = sorted(set(prev_event.flags + each_event.flags))
+            both_flags = sorted({*prev_event.flags, *each_event.flags})
             if (
                 prev_event.reasons != {'Autosomal Dominant'}
                 and AMBIGUOUS_FLAG in both_flags
@@ -499,9 +499,7 @@ def main(
     ped = Ped(pedigree)
 
     # parse panelapp data from dict
-    raw_panel_json = read_json_from_path(panelapp, {'metadata': [], 'genes': dict()})
-    assert isinstance(raw_panel_json, dict)
-    panelapp_data = PanelApp.model_construct(raw_panel_json)
+    panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)  # type: ignore
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
@@ -559,13 +557,8 @@ def main(
         participant_panels=pheno_panels,
     )
 
-    # annotate previously seen results using cumulative data file(s)
-    analysis_results = filter_results(
-        analysis_results, singletons=bool('singleton' in pedigree), dataset=dataset
-    )
-
     # create the full final output file
-    final_results = ResultData(
+    results_model = ResultData(
         **{
             'results': analysis_results,
             'metadata': ResultMeta(
@@ -580,14 +573,16 @@ def main(
         }
     )
 
+    # annotate previously seen results using cumulative data file(s)
+    filter_results(
+        results_model, singletons=bool('singleton' in pedigree), dataset=dataset
+    )
+
     # write the output to long term storage using Pydantic
     with open(out_json_path, 'w') as out_file:
-        out_file.write(final_results.model_dump_json(indent=4))
+        out_file.write(results_model.model_dump_json(indent=4))
 
 
 if __name__ == '__main__':
-    # do something pointless to print the config
-
     get_logger(__file__).info('Starting MOI testing phase')
-
     main()

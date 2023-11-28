@@ -317,16 +317,16 @@ class ReportVariant(BaseModel):
     var_data: SmallVariant | StructuralVariant
     categories: list[str] = Field(default_factory=list)
     family: str = Field(default_factory=str)
-    gene: str = Field(default_factory=str)
-    reasons: set[str] = Field(default_factory=set)
-    genotypes: dict[str, str] = Field(default_factory=dict)
-    support_vars: set[str] = Field(default_factory=set)
+    first_seen: str = Field(default=get_granular_date())
     flags: list[str] = Field(default_factory=list)
+    gene: str = Field(default_factory=str)
+    genotypes: dict[str, str] = Field(default_factory=dict)
+    independent: bool = Field(default=False)
+    labels: list[str] = Field(default_factory=list)
     panels: ReportPanel = Field(default_factory=ReportPanel)
     phenotypes: list[str] = Field(default_factory=list)
-    labels: list[str] = Field(default_factory=list)
-    first_seen: str = Field(default=get_granular_date())
-    independent: bool = Field(default=False)
+    reasons: set[str] = Field(default_factory=set)
+    support_vars: set[str] = Field(default_factory=set)
 
     def __eq__(self, other):
         """
@@ -394,7 +394,7 @@ class HistoricSampleVariant(BaseModel):
     categories: dict[str, str]
     support_vars: list[str] = Field(
         default_factory=list,
-        description='supporting variants if this has been identified in a comp-he',
+        description='supporting variants if this has been identified in a comp-het',
     )
     independent: bool = Field(default=True)
 
@@ -407,8 +407,8 @@ class HistoricVariants(BaseModel):
     they have been assigned, date first seen, and supporting variants
     """
 
-    metadata: CategoryMeta
-    results: dict[str, HistoricSampleVariant]
+    metadata: CategoryMeta = Field(default_factory=CategoryMeta)
+    results: dict[str, HistoricSampleVariant] = Field(default_factory=dict)
 
 
 class ResultMeta(BaseModel):
@@ -461,7 +461,7 @@ class ResultData(BaseModel):
     A representation of a result set
     """
 
-    results: dict[str, list[ReportVariant]]
+    results: dict[str, ParticipantResults]
     metadata: ResultMeta
 
 
