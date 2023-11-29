@@ -13,6 +13,8 @@ from reanalysis.hpo_panel_match import (
     get_panels,
     match_hpo_terms,
 )
+from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
+
 
 PANELAPP = 'https://fake_panelapp.agha.umccr.org/api/v1/panels/'
 
@@ -21,8 +23,6 @@ PANELAPP = 'https://fake_panelapp.agha.umccr.org/api/v1/panels/'
 def fixture_fake_panelapp_overview(requests_mock, fake_panelapp_overview):
     """
     a new fixture to contain the panel data
-    :param requests_mock:
-    :param fake_panelapp_overview:
     """
     requests_mock.register_uri(
         'GET',
@@ -52,10 +52,6 @@ def test_match_hpo_terms(fake_obo_path):
     assert match_hpo_terms(
         panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:2'
     ) == {1, 2}
-    # assert (
-    #     match_hpo_terms(panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:3')
-    #     == set()
-    # )
 
 
 def test_match_hpos_to_panels(fake_obo_path):
@@ -107,38 +103,44 @@ def test_match_participants_to_panels():
     -------
 
     """
-    party_hpo = {
-        'luke_skywalker': {
+    party_hpo = PhenotypeMatchedPanels(
+        **{
+            'samples': {
+                'luke_skywalker': {
+                    'external_id': 'participant1',
+                    'family_id': 'fam1',
+                    'hpo_terms': {'HP:1', 'HP:2'},
+                    'panels': {137},
+                },
+                'participant2': {
+                    'external_id': 'participant2',
+                    'family_id': 'fam2',
+                    'hpo_terms': {'HP:1', 'HP:6'},
+                    'panels': {137},
+                },
+            }
+        }
+    )
+    hpo_to_panels = {
+        'HP:1': {101, 102},
+        'HP:2': {2002},
+        'HP:3': {00, 1, 2},
+        'HP:6': {666},
+    }
+    match_participants_to_panels(participant_hpos=party_hpo, hpo_panels=hpo_to_panels)
+    assert party_hpo.samples['luke_skywalker'] == ParticipantHPOPanels(
+        **{
             'external_id': 'participant1',
             'family_id': 'fam1',
             'hpo_terms': {'HP:1', 'HP:2'},
-            'panels': {'137'},
-        },
-        'participant2': {
+            'panels': {137, 101, 102, 2002},
+        }
+    )
+    assert party_hpo.samples['participant2'] == ParticipantHPOPanels(
+        **{
             'external_id': 'participant2',
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
-            'panels': {'137'},
-        },
-    }
-    hpo_to_panels = {
-        'HP:1': {'room', '101'},
-        'HP:2': {'2002'},
-        'HP:3': {'nothing', 'at', 'all'},
-        'HP:6': {'666'},
-    }
-    match_participants_to_panels(participant_hpos=party_hpo, hpo_panels=hpo_to_panels)
-    assert party_hpo == {
-        'luke_skywalker': {
-            'external_id': 'participant1',
-            'family_id': 'fam1',
-            'hpo_terms': sorted(['HP:1', 'HP:2']),
-            'panels': sorted(['137', 'room', '101', '2002']),
-        },
-        'participant2': {
-            'external_id': 'participant2',
-            'family_id': 'fam2',
-            'hpo_terms': sorted(['HP:1', 'HP:6']),
-            'panels': sorted(['137', 'room', '101', '666']),
-        },
-    }
+            'panels': {137, 101, 102, 666},
+        }
+    )
