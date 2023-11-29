@@ -130,7 +130,7 @@ def get_panel_green(
         # check if this is a new gene in this analysis
         new_gene = panel_id not in old_data.genes.get(ensg, {})
         if new_gene:
-            old_data[ensg].add(panel_id)
+            old_data.genes.setdefault(ensg, set()).add(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
@@ -158,7 +158,7 @@ def get_panel_green(
                     'all_moi': {exact_moi}
                     if exact_moi not in IRRELEVANT_MOI
                     else set(),
-                    'new': {panel_id} if new_gene else {},
+                    'new': {panel_id} if new_gene else set(),
                     'panels': {panel_id},
                     'chrom': chrom,
                 }
@@ -341,7 +341,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     )
 
     # set up the gene dict
-    gene_dict: PanelApp = PanelApp(**{'metadata': [], 'genes': {}})
+    gene_dict = PanelApp(genes={})
 
     # first add the base content
     get_panel_green(
@@ -353,7 +353,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # store the list of genes currently on the core panel
     if twelve_months:
-        twelve_months = set(gene_dict['genes'].keys())
+        twelve_months = set(gene_dict['genes'])
 
     # if participant panels were provided, add each of those to the gene data
     panel_list = set()
