@@ -171,7 +171,7 @@ def apply_moi_to_variants(
                         continue
 
                     if each_result.reasons == {'Autosomal Dominant'}:
-                        each_result.flags += [AMBIGUOUS_FLAG]
+                        each_result.flags.add(AMBIGUOUS_FLAG)
 
             results.extend(variant_results)
 
@@ -179,12 +179,12 @@ def apply_moi_to_variants(
 
 
 def clean_and_filter(
-    results_holder: dict,
+    results_holder: ResultData,
     result_list: list[ReportVariant],
     panelapp_data: PanelApp,
     dataset: str,
-    participant_panels: dict | None = None,
-) -> dict[str, list[ReportVariant]]:
+    participant_panels: PhenotypeMatchedPanels | None = None,
+) -> ResultData:
     """
     It's possible 1 variant can be classified multiple ways
     e.g. different MOIs (dominant and comp het)
@@ -212,13 +212,6 @@ def clean_and_filter(
         content.id: content.name for content in panelapp_data.metadata
     }
 
-    # if we have a lookup, grab the relevant information
-    if participant_panels is not None:
-        participant_panels = {
-            sample: set(content['panels'])
-            for sample, content in participant_panels.items()
-        }
-
     gene_details: dict[str, set[int]] = {}
 
     for each_event in result_list:
@@ -240,30 +233,30 @@ def clean_and_filter(
         # get all forced panels this gene intersects with
         cohort_intersection: set[int] = cohort_panels.intersection(all_panels)
 
-        matched_panels = []
+        matched_panels = set()
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
 
             # intersection to find participant phenotype-matched panels
-            phenotype_intersection: set[int] = participant_panels[
+            phenotype_intersection = participant_panels.samples[
                 each_event.sample
-            ].intersection(all_panels)
+            ].panels.intersection(all_panels)
 
             # is this gene relevant for this participant?
             # this test includes matched, cohort-level, and core panel
             if not phenotype_intersection.union(cohort_intersection):
                 continue
 
-            matched_panels = [
+            matched_panels = {
                 panel_meta[pid]
                 for pid in phenotype_intersection
                 if pid != get_config()['workflow'].get('default_panel', 137)
-            ]
+            }
 
-        forced_panels = []
+        forced_panels = set()
         if cohort_intersection:
-            forced_panels = [panel_meta[pid] for pid in cohort_intersection]
+            forced_panels = {panel_meta[pid] for pid in cohort_intersection}
 
         each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
 
@@ -271,12 +264,12 @@ def clean_and_filter(
         # If this variant and that variant have same sample/pos, equivalent
         # If either was independent, set that flag to True
         # Add a union of all Support Variants from both events
-        if each_event not in results_holder[each_event.sample].variants:
-            results_holder[each_event.sample].variants.append(each_event)
+        if each_event not in results_holder.results[each_event.sample].variants:
+            results_holder.results[each_event.sample].variants.append(each_event)
 
         else:
-            prev_event = results_holder[each_event.sample].variants[
-                results_holder[each_event.sample].variants.index(each_event)
+            prev_event = results_holder.results[each_event.sample].variants[
+                results_holder.results[each_event.sample].variants.index(each_event)
             ]
 
             # if this is independent, set independent to True
@@ -291,7 +284,7 @@ def clean_and_filter(
 
             # combine flags across variants, and remove Ambiguous marking
             # if it's no longer appropriate
-            both_flags = sorted({*prev_event.flags, *each_event.flags})
+            both_flags = {*prev_event.flags, *each_event.flags}
             if (
                 prev_event.reasons != {'Autosomal Dominant'}
                 and AMBIGUOUS_FLAG in both_flags
@@ -299,9 +292,9 @@ def clean_and_filter(
                 both_flags.remove(AMBIGUOUS_FLAG)
             prev_event.flags = both_flags
 
-    # organise the variants by chromosomal location
-    for sample in results_holder:
-        results_holder[sample].variants.sort()
+    # organise the variants by chromosomal location... why?
+    for sample in results_holder.results:
+        results_holder.results[sample].variants.sort()
 
     return results_holder
 
@@ -374,29 +367,33 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
 
 def prepare_results_shell(
+    results_meta: ResultMeta,
     vcf_samples: list[str],
     pedigree: Ped,
     dataset: str,
     panelapp: PanelApp,
     panel_data: PhenotypeMatchedPanels | None = None,
-) -> dict[str, ParticipantResults]:
+) -> ResultData:
     """
-    prepare an empty dictionary for the results, feat. participant metadata
+    Creates a ResultData object, with participant metadata filled out
+
     Args:
+        results_meta (): metadata for the results
         vcf_samples (): samples in the VCF header
         pedigree (): the Peddy PED object
         dataset (str): dataset to use for getting the config portion
         panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
+
     Returns:
-        a pre-populated dict with sample metadata filled in
+        ResultData with sample metadata filled in
     """
 
     if panel_data is None:
         panel_data = PhenotypeMatchedPanels()
 
     # create an empty dict for all the samples
-    sample_dict = {}
+    results_shell = ResultData(metadata=results_meta)
 
     # find the solved cases in this project
     solved_cases = get_cohort_config(dataset).get('solved_cases', [])
@@ -427,7 +424,7 @@ def prepare_results_shell(
             for member in pedigree.families[family_id]
         }
         sample_panel_data = panel_data.samples.get(sample_id, ParticipantHPOPanels())
-        sample_dict[sample_id] = ParticipantResults(
+        results_shell.results[sample_id] = ParticipantResults(
             **{
                 'variants': [],
                 'metadata': ParticipantMeta(
@@ -449,7 +446,7 @@ def prepare_results_shell(
             }
         )
 
-    return sample_dict
+    return results_shell
 
 
 @click.command
@@ -537,8 +534,34 @@ def main(
             )
         )
 
+    # create the full final output file
+    results_meta = ResultMeta(
+        **{
+            'input_file': input_path,
+            'cohort': dataset,
+            'family_breakdown': count_families(ped, samples=vcf_opened.samples),
+            'panels': panelapp_data.metadata,
+            'container': get_config()['workflow']['driver_image'],
+        }
+    )
+    # results_shell = ResultData(
+    #     **{
+    #         'results': [],
+    #         'metadata': ResultMeta(
+    #             **{
+    #                 'input_file': input_path,
+    #                 'cohort': dataset,
+    #                 'family_breakdown': count_families(ped, samples=vcf_opened.samples),
+    #                 'panels': panelapp_data.metadata,
+    #                 'container': get_config()['workflow']['driver_image'],
+    #             }
+    #         ),
+    #     }
+    # )
+
     # create a shell to store results in
-    results_shell = prepare_results_shell(
+    results_model = prepare_results_shell(
+        results_meta=results_meta,
         vcf_samples=vcf_opened.samples,
         pedigree=ped,
         panel_data=pheno_panels,
@@ -547,28 +570,12 @@ def main(
     )
 
     # remove duplicate and invalid variants
-    analysis_results = clean_and_filter(
-        results_holder=results_shell,
+    results_model = clean_and_filter(
+        results_holder=results_model,
         result_list=result_list,
         panelapp_data=panelapp_data,
         dataset=dataset,
         participant_panels=pheno_panels,
-    )
-
-    # create the full final output file
-    results_model = ResultData(
-        **{
-            'results': analysis_results,
-            'metadata': ResultMeta(
-                **{
-                    'input_file': input_path,
-                    'cohort': dataset,
-                    'family_breakdown': count_families(ped, samples=vcf_opened.samples),
-                    'panels': panelapp_data.metadata,
-                    'container': get_config()['workflow']['driver_image'],
-                }
-            ),
-        }
     )
 
     # annotate previously seen results using cumulative data file(s)

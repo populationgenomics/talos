@@ -231,7 +231,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(peddy_ped):
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
-    assert passing_variant.get_sample_flags('male') == ['AB Ratio']
+    assert passing_variant.get_sample_flags('male') == {'AB Ratio'}
 
 
 def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
@@ -292,7 +292,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
-    assert results[0].flags == ['AB Ratio']
+    assert results[0].flags == {'AB Ratio'}
 
 
 def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
@@ -324,7 +324,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
-    assert results[0].flags == []
+    assert not results[0].flags
 
 
 def test_recessive_autosomal_comp_het_fails_no_ch_return(peddy_ped):
@@ -409,8 +409,8 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
     results = x_dom.run(passing_variant)
 
     assert len(results) == 2
-    reasons = sorted([result.reasons.pop() for result in results])
-    assert reasons == ['X_Dominant', 'X_Dominant']
+    reasons = {result.reasons.pop() for result in results}
+    assert reasons == {'X_Dominant', 'X_Dominant'}
 
 
 def test_x_dominant_female_hom_passes(peddy_ped):

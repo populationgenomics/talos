@@ -511,7 +511,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         ),
                         support_vars={partner_variant.coordinates.string_format},
                         flags=principal.get_sample_flags(sample_id)
-                        + partner_variant.get_sample_flags(sample_id),
+                        | partner_variant.get_sample_flags(sample_id),
                         independent=False,
                     ),
                 )
@@ -1033,7 +1033,7 @@ class XRecessiveFemaleCH(BaseMoi):
                         ),
                         support_vars={partner.coordinates.string_format},
                         flags=principal.get_sample_flags(sample_id)
-                        + partner.get_sample_flags(sample_id),
+                        | partner.get_sample_flags(sample_id),
                         independent=False,
                     )
                 )

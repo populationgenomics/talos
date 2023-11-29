@@ -160,7 +160,7 @@ class Variant(BaseModel):
             self.category_non_support or self.sample_categorised_check(sample_id)
         )
 
-    def category_values(self, sample: str) -> list[str]:
+    def category_values(self, sample: str) -> set[str]:
         """
         get all variant categories
         steps category flags down to booleans - true for this sample
@@ -169,25 +169,25 @@ class Variant(BaseModel):
             sample (str): sample id
 
         Returns:
-            list of all categories applied to this variant
+            set of all categories applied to this variant
         """
 
         # step down all category flags to boolean flags
-        categories = [
+        categories = {
             category.replace('categorysample', '')
             for category in self.sample_categories
             if sample in self.info[category]  # type: ignore
-        ]
-        categories.extend(
-            [
+        }
+        categories.update(
+            {
                 bool_cat.replace('categoryboolean', '')
                 for bool_cat in self.boolean_categories
                 if self.info[bool_cat]
-            ]
+            }
         )
 
         if self.has_support:
-            categories.append('support')
+            categories.add('support')
 
         return categories
 
@@ -228,6 +228,24 @@ class Variant(BaseModel):
             return big_cat or self.has_support
         return big_cat
 
+    def check_ab_ratio(self, *args, **kwargs) -> set[str]:
+        """
+        dummy method for AB ratio checking - not implemented for SVs
+        """
+        return set()
+
+    def get_sample_flags(self, *args, **kwargs) -> set[str]:
+        """
+        dummy method for flag checking - not implemented for SVs (yet)
+        """
+        return set()
+
+    def check_read_depth(self, *args, **kwargs) -> set[str]:
+        """
+        dummy method for read depth checking - not implemented for SVs
+        """
+        return set()
+
 
 class SmallVariant(Variant):
     depths: dict[str, int] = Field(default_factory=dict, exclude=True)
@@ -236,13 +254,13 @@ class SmallVariant(Variant):
         default_factory=list
     )
 
-    def get_sample_flags(self, sample: str) -> list[str]:
+    def get_sample_flags(self, sample: str) -> set[str]:
         """
         gets all report flags for this sample - currently only one flag
         """
-        return self.check_ab_ratio(sample) + self.check_read_depth(sample)
+        return self.check_ab_ratio(sample) | self.check_read_depth(sample)
 
-    def check_read_depth(self, sample: str, threshold: int = 10) -> list[str]:
+    def check_read_depth(self, sample: str, threshold: int = 10) -> set[str]:
         """
         flag low read depth for this sample
 
@@ -254,10 +272,10 @@ class SmallVariant(Variant):
             return a flag if this sample has low read depth
         """
         if self.depths[sample] < threshold:
-            return ['Low Read Depth']
-        return []
+            return {'Low Read Depth'}
+        return set()
 
-    def check_ab_ratio(self, sample: str) -> list[str]:
+    def check_ab_ratio(self, sample: str) -> set[str]:
         """
         AB ratio test for this sample's variant call
 
@@ -265,7 +283,7 @@ class SmallVariant(Variant):
             sample (str): sample ID
 
         Returns:
-            list[str]: empty, or indicating an AB ratio failure
+            set[str]: empty, or indicating an AB ratio failure
         """
         het = sample in self.het_samples
         hom = sample in self.hom_samples
@@ -275,28 +293,12 @@ class SmallVariant(Variant):
             or (het and not 0.25 <= variant_ab <= 0.75)
             or (hom and variant_ab <= 0.85)
         ):
-            return ['AB Ratio']
-        return []
+            return {'AB Ratio'}
+        return set()
 
 
 class StructuralVariant(Variant):
-    def check_ab_ratio(self, *args, **kwargs) -> list[str]:
-        """
-        dummy method for AB ratio checking - not implemented for SVs
-        """
-        return []
-
-    def get_sample_flags(self, *args, **kwargs) -> list[str]:
-        """
-        dummy method for flag checking - not implemented for SVs (yet)
-        """
-        return []
-
-    def check_read_depth(self, *args, **kwargs) -> list[str]:
-        """
-        dummy method for read depth checking - not implemented for SVs
-        """
-        return []
+    ...
 
 
 class ReportPanel(BaseModel):
@@ -304,8 +306,8 @@ class ReportPanel(BaseModel):
     simple storage for all the panels to present in tooltips
     """
 
-    forced: list[str] = Field(default_factory=list)
-    matched: list[str] = Field(default_factory=list)
+    forced: set[str] = Field(default_factory=set)
+    matched: set[str] = Field(default_factory=set)
 
 
 class ReportVariant(BaseModel):
@@ -315,16 +317,16 @@ class ReportVariant(BaseModel):
 
     sample: str
     var_data: SmallVariant | StructuralVariant
-    categories: list[str] = Field(default_factory=list)
+    categories: set[str] = Field(default_factory=set)
     family: str = Field(default_factory=str)
     first_seen: str = Field(default=get_granular_date())
-    flags: list[str] = Field(default_factory=list)
+    flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
     genotypes: dict[str, str] = Field(default_factory=dict)
     independent: bool = Field(default=False)
-    labels: list[str] = Field(default_factory=list)
+    labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
-    phenotypes: list[str] = Field(default_factory=list)
+    phenotypes: set[str] = Field(default_factory=set)
     reasons: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
 
@@ -363,7 +365,7 @@ class PanelShort(BaseModel):
     """
 
     id: int
-    version: str
+    version: str = Field(default_factory=str)
     name: str = Field(default_factory=str)
 
 
@@ -412,8 +414,8 @@ class ResultMeta(BaseModel):
     metadata for a result set
     """
 
-    input_file: str
-    cohort: str
+    input_file: str = Field(default_factory=str)
+    cohort: str = Field(default_factory=str)
     run_datetime: str = Field(default=get_granular_date())
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     panels: list[PanelShort] = Field(default_factory=list)
@@ -448,8 +450,8 @@ class ParticipantResults(BaseModel):
     A representation of a result set
     """
 
-    variants: list[ReportVariant]
-    metadata: ParticipantMeta
+    variants: list[ReportVariant] = Field(default_factory=list)
+    metadata: ParticipantMeta = Field(default_factory=ParticipantMeta)
 
 
 class ResultData(BaseModel):
@@ -457,8 +459,8 @@ class ResultData(BaseModel):
     A representation of a result set
     """
 
-    results: dict[str, ParticipantResults]
-    metadata: ResultMeta
+    results: dict[str, ParticipantResults] = Field(default_factory=dict)
+    metadata: ResultMeta = Field(default_factory=ResultMeta)
 
 
 class ModelVariant(BaseModel):
