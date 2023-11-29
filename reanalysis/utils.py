@@ -22,14 +22,15 @@ from cpg_utils.config import get_config
 
 from reanalysis.models import (
     Coordinates,
+    FileTypes,
+    HistoricPanels,
     HistoricSampleVariant,
     HistoricVariants,
     PanelApp,
-    HistoricPanels,
+    PhenotypeMatchedPanels,
     ResultData,
     SmallVariant,
     StructuralVariant,
-    FileTypes,
 )
 from reanalysis.static_values import get_granular_date, get_logger
 
@@ -259,7 +260,7 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
 
 def get_new_gene_map(
     panelapp_data: PanelApp,
-    pheno_panels: dict = None,
+    pheno_panels: PhenotypeMatchedPanels = None,
     dataset: str | None = None,
 ) -> dict[str, str]:
     """
@@ -270,6 +271,14 @@ def get_new_gene_map(
 
     Generate a map of
     {gene: [samples, where, this, is, 'new']}
+
+    Args:
+        panelapp_data ():
+        pheno_panels (PhenotypeMatchedPanels):
+        dataset ():
+
+    Returns:
+
     """
 
     # find the dataset-specific panel data, if present
@@ -281,9 +290,9 @@ def get_new_gene_map(
 
     # collect all genes new in at least one panel
     new_genes = {
-        ensg: content['new']
-        for ensg, content in panelapp_data['genes'].items()
-        if content['new']
+        ensg: content.new
+        for ensg, content in panelapp_data.genes.items()
+        if content.new
     }
 
     # if there's no panel matching, new applies to everyone
@@ -294,8 +303,8 @@ def get_new_gene_map(
     panel_samples = defaultdict(set)
 
     # double layered iteration, but only on a small object
-    for sample, data in pheno_panels.items():
-        for panel in data['panels']:
+    for sample, data in pheno_panels.samples.items():
+        for panel in data.panels:
             panel_samples[panel].add(sample)
 
     pheno_matched_new = {}
@@ -664,8 +673,9 @@ def read_json_from_path(
     | HistoricPanels
     | ResultData
     | PanelApp
+    | PhenotypeMatchedPanels
     | None = None,
-) -> list | None | HistoricVariants | HistoricPanels | ResultData | PanelApp:
+) -> list | None | HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -673,7 +683,7 @@ def read_json_from_path(
     Args:
         bucket_path (str):
         default (Any):
-        return_model (pydantic.BaseModel): any Model to read/validate as
+        return_model (pydantic Models): any Model to read/validate as
 
     Returns:
         either the object from the JSON file, or None

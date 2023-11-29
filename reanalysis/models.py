@@ -354,7 +354,7 @@ class PanelDetail(BaseModel):
     all_moi: set[str] = Field(default_factory=set)
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
-    panels: list[int] = Field(default_factory=list)
+    panels: set[int] = Field(default_factory=set)
 
 
 class PanelShort(BaseModel):
@@ -367,12 +367,8 @@ class PanelShort(BaseModel):
     name: str = Field(default_factory=str)
 
 
-class PanelList(BaseModel):
-    panels: list[PanelShort] = Field(default_factory=list)
-
-
 class PanelApp(BaseModel):
-    metadata: PanelList
+    metadata: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, PanelDetail]
 
 
@@ -420,7 +416,7 @@ class ResultMeta(BaseModel):
     cohort: str
     run_datetime: str = Field(default=get_granular_date())
     family_breakdown: dict[str, int] = Field(default_factory=dict)
-    panels: PanelList = Field(default_factory=PanelList)
+    panels: list[PanelShort] = Field(default_factory=list)
     container: str = Field(default_factory=str)
     categories: dict[str, str] = Field(default=get_config()['categories'])
 
@@ -473,5 +469,14 @@ class ModelVariant(BaseModel):
     ...
 
 
-class PhenoMatchedPanels(BaseModel):
-    ...
+class ParticipantHPOPanels(BaseModel):
+
+    external_id: str = Field(default_factory=str)
+    family_id: str = Field(default_factory=str)
+    hpo_terms: set[str] = Field(default_factory=set)
+    panels: set[int] = Field(default_factory=set)
+
+
+class PhenotypeMatchedPanels(BaseModel):
+    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
+    all_panels: set[int] = Field(default_factory=set)

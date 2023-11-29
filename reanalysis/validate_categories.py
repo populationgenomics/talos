@@ -27,8 +27,10 @@ from reanalysis.models import (
     FamilyMembers,
     PanelApp,
     PanelDetail,
+    ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
+    PhenotypeMatchedPanels,
     ReportVariant,
     ResultData,
     ResultMeta,
@@ -375,8 +377,8 @@ def prepare_results_shell(
     vcf_samples: list[str],
     pedigree: Ped,
     dataset: str,
-    panel_data: dict | None,
     panelapp: PanelApp,
+    panel_data: PhenotypeMatchedPanels | None = None,
 ) -> dict[str, ParticipantResults]:
     """
     prepare an empty dictionary for the results, feat. participant metadata
@@ -391,7 +393,7 @@ def prepare_results_shell(
     """
 
     if panel_data is None:
-        panel_data = {}
+        panel_data = PhenotypeMatchedPanels()
 
     # create an empty dict for all the samples
     sample_dict = {}
@@ -416,32 +418,28 @@ def prepare_results_shell(
                     if str(member.sex) in {'male', 'female'}
                     else 'unknown',
                     'affected': member.affected == PEDDY_AFFECTED,
-                    'ext_id': panel_data.get(member.sample_id, {}).get(
-                        'external_id', member.sample_id
-                    ),
+                    'ext_id': panel_data.samples.get(
+                        member.sample_id, ParticipantHPOPanels()
+                    ).external_id
+                    or member.sample_id,
                 }
             )
             for member in pedigree.families[family_id]
         }
+        sample_panel_data = panel_data.samples.get(sample_id, ParticipantHPOPanels())
         sample_dict[sample_id] = ParticipantResults(
             **{
                 'variants': [],
                 'metadata': ParticipantMeta(
                     **{
-                        'ext_id': panel_data.get(sample_id, {}).get(
-                            'external_id', sample_id
-                        ),
+                        'ext_id': sample_panel_data.external_id or sample_id,
                         'family_id': pedigree[sample_id].family_id,
                         'members': family_members,
-                        'phenotypes': panel_data.get(sample_id, {}).get(
-                            'hpo_terms', []
-                        ),
-                        'panel_ids': panel_data.get(sample_id, {}).get('panels', []),
+                        'phenotypes': sample_panel_data.hpo_terms,
+                        'panel_ids': sample_panel_data.panels,
                         'panel_names': [
                             panel_meta[panel_id]
-                            for panel_id in panel_data.get(sample_id, {}).get(
-                                'panels', []
-                            )
+                            for panel_id in sample_panel_data.panels
                         ],
                         'solved': bool(
                             sample_id in solved_cases or family_id in solved_cases
@@ -504,9 +502,9 @@ def main(
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
 
-    # todo model this
-    pheno_panels = read_json_from_path(participant_panels)
-    assert isinstance(pheno_panels, dict)
+    pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
+        participant_panels, return_model=PhenotypeMatchedPanels, default=None  # type: ignore
+    )
 
     # create the new gene map
     new_gene_map = get_new_gene_map(panelapp_data, pheno_panels, dataset)
@@ -579,8 +577,11 @@ def main(
     )
 
     # write the output to long term storage using Pydantic
+
     with open(out_json_path, 'w') as out_file:
-        out_file.write(results_model.model_dump_json(indent=4))
+        out_file.write(
+            ResultData.model_validate(results_model).model_dump_json(indent=4)
+        )
 
 
 if __name__ == '__main__':

@@ -66,7 +66,7 @@ def get_panel_green(
 
     Args:
         gene_dict (): PanelApp obj to continue populating
-        old_data (HistoricPanels): dict of lists - panels per gene
+        old_data (HistoricPanels): dict of sets - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
         blacklist (): list of symbols/ENSG IDs to remove from this panel
@@ -139,7 +139,7 @@ def get_panel_green(
             this_gene = gene_dict.genes[ensg]
 
             # now we find it on this panel
-            this_gene.panels.append(panel_id)
+            this_gene.panels.add(panel_id)
 
             # add this moi to the set
             if exact_moi not in IRRELEVANT_MOI:
@@ -158,8 +158,8 @@ def get_panel_green(
                     'all_moi': {exact_moi}
                     if exact_moi not in IRRELEVANT_MOI
                     else set(),
-                    'new': [panel_id] if new_gene else [],
-                    'panels': [panel_id],
+                    'new': {panel_id} if new_gene else {},
+                    'panels': {panel_id},
                     'chrom': chrom,
                 }
             )

@@ -2,8 +2,16 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-from dataclasses import dataclass, field
 
+from reanalysis.models import (
+    Coordinates,
+    PanelApp,
+    PhenotypeMatchedPanels,
+    # ResultData,
+    # ReportPanel,
+    ReportVariant,
+    SmallVariant,
+)
 from reanalysis.validate_categories import (
     clean_and_filter,
     count_families,
@@ -11,70 +19,42 @@ from reanalysis.validate_categories import (
 )
 
 
-@dataclass
-class PicoVariant:
-    """
-    some categories
-    """
-
-    categories: list
-
-
-@dataclass
-class PicoReport:
-    """
-    smallest Reportable variant object for this test
-    """
-
-    gene: str
-    sample: str
-    var_data: PicoVariant
-    reasons: set[str] = field(default_factory=set)
-    flags: list[str] = field(default_factory=list)
-    panels: dict[str, dict] = field(default_factory=dict)
-    independent: bool = False
-
-    def __lt__(self, other):
-        return True
-
-    def __eq__(self, other):
-        return False
-
-    @property
-    def is_independent(self):
-        """
-        always False
-        """
-        return False
+TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
+TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
+VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={})
+VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={})
+REP_SAM1_1 = ReportVariant(
+    sample='sam1', var_data=VAR_1, categories=['1'], gene='ENSG1'
+)
+REP_SAM1_None = ReportVariant(sample='sam1', var_data=VAR_1, gene='ENSG2')
+REP_SAM2_None = ReportVariant(sample='sam2', var_data=VAR_1, gene='ENSG3')
+REP_SAM3_1 = ReportVariant(
+    sample='sam1', var_data=VAR_1, categories=['1'], gene='ENSG4'
+)
+REP_SAM3_2 = ReportVariant(
+    sample='sam1', var_data=VAR_1, categories=['2'], gene='ENSG5'
+)
 
 
-cat_1 = PicoVariant(['1'])
-cat_2 = PicoVariant(['2'])
-cat_none = PicoVariant([])
-
-dirty_data = [
-    PicoReport('ENSG1', 'sam1', cat_1),
-    PicoReport('ENSG2', 'sam1', cat_none),
-    PicoReport('ENSG3', 'sam2', cat_none),
-    PicoReport('ENSG4', 'sam3', cat_2),
-    PicoReport('ENSG5', 'sam3', cat_1),
-]
-panel_genes = {
-    'metadata': [
-        {'id': 137, 'name': 137},
-        {'id': 1, 'name': 1},
-        {'id': 2, 'name': 2},
-        {'id': 3, 'name': 3},
-        {'id': 4, 'name': 4},
-    ],
-    'genes': {
-        'ENSG1': {'panels': [137, 1], 'new': []},
-        'ENSG2': {'panels': [], 'new': []},
-        'ENSG3': {'panels': [2], 'new': []},
-        'ENSG4': {'panels': [3], 'new': [3]},
-        'ENSG5': {'panels': [4], 'new': []},
-    },
-}
+dirty_data = [REP_SAM1_1, REP_SAM1_None, REP_SAM2_None, REP_SAM3_1, REP_SAM3_2]
+panel_genes = PanelApp(
+    **{
+        'metadata': [
+            {'id': 137, 'name': 137},
+            {'id': 1, 'name': 1},
+            {'id': 2, 'name': 2},
+            {'id': 3, 'name': 3},
+            {'id': 4, 'name': 4},
+        ],
+        'genes': {
+            'ENSG1': {'panels': [137, 1], 'new': []},
+            'ENSG2': {'panels': [], 'new': []},
+            'ENSG3': {'panels': [2], 'new': []},
+            'ENSG4': {'panels': [3], 'new': [3]},
+            'ENSG5': {'panels': [4], 'new': []},
+        },
+    }
+)
 
 
 def test_results_shell(peddy_ped):
@@ -84,22 +64,33 @@ def test_results_shell(peddy_ped):
 
     """
     samples = ['male', 'female', 'irrelevant']
-    sample_panels = {
-        'male': {'panels': [1, 3], 'external_id': 'MALE!', 'hpo_terms': ['Boneitis']},
-        'female': {
-            'panels': [1, 2],
-            'external_id': 'FEMALE!',
-            'hpo_terms': ['HPfemale'],
-        },
-        'other': [4],
-    }
-    panelapp = {
-        'metadata': [
-            {'id': 1, 'name': 'lorem'},
-            {'id': 2, 'name': 'ipsum'},
-            {'id': 3, 'name': 'etc'},
-        ]
-    }
+    sample_panels = PhenotypeMatchedPanels(
+        **{
+            'samples': {
+                'male': {
+                    'panels': {1, 3},
+                    'external_id': 'MALE!',
+                    'hpo_terms': {'Boneitis'},
+                },
+                'female': {
+                    'panels': {1, 2},
+                    'external_id': 'FEMALE!',
+                    'hpo_terms': {'HPfemale'},
+                },
+            },
+            'all_panels': {1, 2, 3},
+        }
+    )
+    panelapp = PanelApp(
+        **{
+            'metadata': [
+                {'id': 1, 'name': 'lorem'},
+                {'id': 2, 'name': 'ipsum'},
+                {'id': 3, 'name': 'etc'},
+            ],
+            'genes': {'symbol': 'ENSG1'},
+        }
+    )
     shell = prepare_results_shell(
         vcf_samples=samples,
         pedigree=peddy_ped,
@@ -180,12 +171,12 @@ def test_gene_clean_results_no_personal():
         panelapp_data=panel_genes,
         dataset='cohort',
     )
-    assert len(clean['sam1']['variants']) == 1
-    assert clean['sam1']['variants'][0].gene == 'ENSG1'
-    assert clean['sam1']['variants'][0].flags == []
-    assert len(clean['sam2']['variants']) == 0
-    assert len(clean['sam3']['variants']) == 2
-    assert {x.gene for x in clean['sam3']['variants']} == {'ENSG4', 'ENSG5'}
+    assert len(clean['sam1']) == 1
+    assert clean['sam1'][0].gene == 'ENSG1'
+    assert clean['sam1'][0].flags == []
+    assert len(clean['sam2']) == 0
+    assert len(clean['sam3']) == 2
+    assert {x.gene for x in clean['sam3']} == {'ENSG4', 'ENSG5'}
 
 
 def test_gene_clean_results_personal():
@@ -239,7 +230,7 @@ def test_update_results_meta(peddy_ped):
     }
 
 
-def test_update_results_missing_father(peddy_ped):
+def test_count_families_missing_father(peddy_ped):
     """
     testing the dict update
     """
@@ -252,7 +243,7 @@ def test_update_results_missing_father(peddy_ped):
     ) == {'affected': 2, 'male': 2, 'female': 3, 'trios': 1, '2': 1}
 
 
-def test_update_results_quad(quad_ped):
+def test_count_families_quad(quad_ped):
     """
     testing the dict update
     """
