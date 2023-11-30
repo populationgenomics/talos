@@ -921,9 +921,15 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
 
     get_logger().info(f'latest results: {latest_results_path}')
 
-    latest_results: HistoricVariants | None = read_json_from_path(
-        latest_results_path, return_model=HistoricVariants  # type: ignore
-    )
+    # get latest results as a HistoricVariants object, or fail - on fail, return
+    if (
+        latest_results := read_json_from_path(
+            latest_results_path, return_model=HistoricVariants  # type: ignore
+        )
+    ) is None:
+        return
+    else:
+        assert isinstance(latest_results, HistoricVariants)
 
     date_annotate_results(results, latest_results)
     save_new_historic(results=latest_results, prefix=prefix, dataset=dataset)
@@ -983,13 +989,15 @@ def find_latest_file(
     return str(date_sorted_files[0].absolute())
 
 
-def date_annotate_results(
-    current: ResultData, historic: HistoricVariants | None = None
-):
+def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
     takes the current data, and annotates with previous dates if found
     build/update the historic data within the same loop
     much simpler logic overall
+
+    logically we can't reach this method in production without historic
+    data being present. This method no longer permits historic data to be
+    missing, and edits objects in place
 
     Args:
         current (ResultData): results generated during this run
@@ -999,25 +1007,27 @@ def date_annotate_results(
         updated/instantiated cumulative data
     """
 
-    # if there's no historic data, make some
-    if historic is None:
-        historic = HistoricVariants()
-
     # update to latest category descriptions
     historic.metadata.categories.update(get_config()['categories'])
 
     for sample, content in current.results.items():
 
+        sample_historic = historic.results.get(sample, {})
+
         # check each variant found in this round
         for var in content.variants:
             var_id = var.var_data.coordinates.string_format
-            current_cats = set(var.categories)
+            current_cats = var.categories
 
             # this variant was previously seen
-            if hist := historic.results[sample].get(var_id):
+            if hist := sample_historic.get(var_id):
 
                 # bool if this was ever independent
-                hist.independent = var.independent or hist.independent
+                # if newly independent, bump the date for current assignments
+                if var.independent and not hist.independent:
+                    hist.independent = True
+                    for cat in current_cats:
+                        hist.categories[cat] = get_granular_date()
 
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - set(hist.categories):
@@ -1039,7 +1049,7 @@ def date_annotate_results(
 
             # totally new variant
             else:
-                historic.results[sample][var_id] = HistoricSampleVariant(
+                historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
                     **{
                         'categories': {
                             cat: get_granular_date() for cat in current_cats

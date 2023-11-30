@@ -406,7 +406,8 @@ class HistoricVariants(BaseModel):
     """
 
     metadata: CategoryMeta = Field(default_factory=CategoryMeta)
-    results: dict[str, HistoricSampleVariant] = Field(default_factory=dict)
+    # dict - participant ID -> variant -> variant data
+    results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
 
 
 class ResultMeta(BaseModel):
