@@ -258,11 +258,12 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     return COHORT_SEQ_CONFIG
 
 
+# todo rethink this whole method?
 def get_new_gene_map(
     panelapp_data: PanelApp,
     pheno_panels: PhenotypeMatchedPanels = None,
     dataset: str | None = None,
-) -> dict[str, str]:
+) -> dict[str, set[str]]:
     """
     The aim here is to generate a list of all the samples for whom
     a given gene should be treated as new during this analysis. This
@@ -281,15 +282,14 @@ def get_new_gene_map(
 
     """
 
-    # find the dataset-specific panel data, if present
-    # add the 'core' panel to it
-    config_cohort_panels: list[int] = get_cohort_config(dataset).get(
-        'cohort_panels', []
-    )
-    cohort_panels = config_cohort_panels + [get_config()['panels']['default_panel']]
+    # any dataset-specific panel data, + 'core' panel
+    cohort_panels = [
+        *get_cohort_config(dataset).get('cohort_panels', []),
+        get_config()['panels']['default_panel'],
+    ]
 
     # collect all genes new in at least one panel
-    new_genes = {
+    new_genes: dict[str, set[int]] = {
         ensg: content.new
         for ensg, content in panelapp_data.genes.items()
         if content.new
@@ -297,10 +297,10 @@ def get_new_gene_map(
 
     # if there's no panel matching, new applies to everyone
     if pheno_panels is None:
-        return {ensg: 'all' for ensg in new_genes.keys()}
+        return {ensg: {'all'} for ensg in new_genes}
 
     # if we have pheno-matched participants, more complex
-    panel_samples = defaultdict(set)
+    panel_samples: dict[int, set[str]] = defaultdict(set)
 
     # double layered iteration, but only on a small object
     for sample, data in pheno_panels.samples.items():
@@ -312,16 +312,17 @@ def get_new_gene_map(
     # iterate over the new genes and find out who they are new for
     for gene, panels in new_genes.items():
         if any(panel in cohort_panels for panel in panels):
-            pheno_matched_new[gene] = 'all'
+            pheno_matched_new[gene] = {'all'}
             continue
 
         # else, find the specific samples
         samples = set()
         for panel_id in panels:
+            # this line causes problems running mismatched pheno/panel data
             if panel_id not in panel_samples:
                 raise AssertionError(f'PanelID {panel_id} not attached to any samples')
             samples.update(panel_samples[panel_id])
-        pheno_matched_new[gene] = ','.join(sorted(samples))
+        pheno_matched_new[gene] = samples
 
     return pheno_matched_new
 
@@ -426,7 +427,7 @@ def create_small_variant(
     var: cyvcf2.Variant,
     samples: list[str],
     as_singletons=False,
-    new_genes: dict[str, str] | None = None,
+    new_genes: dict[str, set[str]] | None = None,
 ):
     """
     takes a small variant and creates a Model from it
@@ -447,11 +448,11 @@ def create_small_variant(
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
     # hot-swap cat 2 from a boolean to a sample list - if appropriate
-    if info.get('categoryboolean2', 0):
-        new_gene_samples = new_genes.get(info.get('gene_id'), '')
+    if info.get('categoryboolean2', 0) and new_genes:
+        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())
 
         # if 'all', keep cohort-wide boolean flag
-        if new_gene_samples == 'all':
+        if new_gene_samples == {'all'}:
             get_logger().debug('New applies to all samples')
 
         # otherwise assign only a specific sample list
@@ -459,31 +460,32 @@ def create_small_variant(
             _boolcat = info.pop('categoryboolean2')
             info['categorysample2'] = new_gene_samples
 
-        # else just remove it - shouldn't happen in prod
-        else:
-            _boolcat = info.pop('categoryboolean2')
-
     # set the class attributes
     boolean_categories = [
         key for key in info.keys() if key.startswith('categoryboolean')
     ]
     sample_categories = [key for key in info.keys() if key.startswith('categorysample')]
-    sample_support = [key for key in info.keys() if key.startswith('categorysupport')]
+    support_categories = [
+        key for key in info.keys() if key.startswith('categorysupport')
+    ]
 
     # overwrite with true booleans
-    for cat in sample_support + boolean_categories:
+    for cat in support_categories + boolean_categories:
         info[cat] = info.get(cat, 0) == 1
 
-    # sample categories are a list of strings or 'missing'
+    # sample categories are a set of strings or 'missing'
     # if cohort runs as singletons, remove possibility of de novo
-    # if not singletons, split each into a list of sample IDs
+    # if not singletons, split each into a set of sample IDs
+    # todo I have messed with this, check it works
     for sam_cat in sample_categories:
         if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
-            info[sam_cat] = []
-        else:
+            info[sam_cat] = set()
+        elif isinstance(info[sam_cat], str):
             info[sam_cat] = (
-                info[sam_cat].split(',') if info[sam_cat] != 'missing' else []
+                info[sam_cat].split(',') if info[sam_cat] != 'missing' else set()
             )
+        elif isinstance(info[sam_cat], list):
+            info[sam_cat] = set(info[sam_cat])
 
     # organise PM5
     info = organise_pm5(info)
@@ -498,7 +500,7 @@ def create_small_variant(
         hom_samples=hom_samples,
         boolean_categories=boolean_categories,
         sample_categories=sample_categories,
-        sample_support=sample_support,
+        sample_support=support_categories,
         phased=phased,
         depths=depths,
         ab_ratios=ab_ratios,
@@ -579,7 +581,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    new_gene_map: dict[str, str],
+    new_gene_map: dict[str, set[str]],
     singletons: bool = False,
     sv_source=None,
 ) -> GeneDict:
