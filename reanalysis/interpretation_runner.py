@@ -167,7 +167,7 @@ def handle_hail_sv_filtering(
     set_job_resources(labelling_job, prior_job=prior_job)
     labelling_command = (
         f'python3 {hail_filter_sv.__file__} '
-        f'--mt {ANNOTATED_MT} '
+        f'--mt {sv_mt} '
         f'--panelapp {PANELAPP_JSON_OUT} '
         f'--pedigree {pedigree} '
         f'--vcf_out {HAIL_SV_VCF_OUT} '
