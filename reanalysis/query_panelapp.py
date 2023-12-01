@@ -13,7 +13,13 @@ from dateutil.relativedelta import relativedelta
 import click
 from cpg_utils.config import get_config
 
-from reanalysis.models import HistoricPanels, PanelShort, PanelDetail, PanelApp
+from reanalysis.models import (
+    HistoricPanels,
+    PanelShort,
+    PanelDetail,
+    PanelApp,
+    PhenotypeMatchedPanels,
+)
 from reanalysis.utils import (
     find_latest_file,
     get_cohort_config,
@@ -204,7 +210,9 @@ def read_panels_from_participant_file(panel_json: str) -> set[int]:
     Returns:
         set of all the panels across all participants
     """
-    participant_panels = read_json_from_path(panel_json, {})
+    participant_panels = read_json_from_path(
+        panel_json, return_model=PhenotypeMatchedPanels
+    )
     panel_set = set()
     for details in participant_panels.values():
         panel_set.update(details.get('panels', []))
@@ -358,7 +366,10 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # if participant panels were provided, add each of those to the gene data
     panel_list = set()
     if panels is not None:
-        panel_list = read_panels_from_participant_file(panels)
+        hpo_panel_object = read_json_from_path(
+            panels, return_model=PhenotypeMatchedPanels
+        )
+        panel_list = hpo_panel_object.all_panels
         get_logger().info(
             f'Phenotype matched panels: {", ".join(map(str, panel_list))}'
         )
@@ -402,7 +413,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # write the output to long term storage
     with open(out_path, 'w') as out_file:
         # p = PanelApp.model_construct(**j)
-        out_file.write(gene_dict.model_dump_json(indent=4))
+        out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
     save_new_historic(old_data, dataset=dataset, prefix='panel_')
 

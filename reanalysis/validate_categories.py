@@ -544,22 +544,8 @@ def main(
             'container': get_config()['workflow']['driver_image'],
         }
     )
-    # results_shell = ResultData(
-    #     **{
-    #         'results': [],
-    #         'metadata': ResultMeta(
-    #             **{
-    #                 'input_file': input_path,
-    #                 'cohort': dataset,
-    #                 'family_breakdown': count_families(ped, samples=vcf_opened.samples),
-    #                 'panels': panelapp_data.metadata,
-    #                 'container': get_config()['workflow']['driver_image'],
-    #             }
-    #         ),
-    #     }
-    # )
 
-    # create a shell to store results in
+    # create a shell to store results in, adds participant metadata
     results_model = prepare_results_shell(
         results_meta=results_meta,
         vcf_samples=vcf_opened.samples,
@@ -584,7 +570,7 @@ def main(
     )
 
     # write the output to long term storage using Pydantic
-
+    # validate the model against the schema, then write the result if successful
     with open(out_json_path, 'w') as out_file:
         out_file.write(
             ResultData.model_validate(results_model).model_dump_json(indent=4)
