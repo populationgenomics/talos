@@ -273,10 +273,12 @@ def get_new_genes(
         which were absent in the given panel version
     """
 
-    old: HistoricPanels = PanelApp(**{'metadata': [], 'genes': {}})
-    get_panel_green(old, old_data={}, version=old_version, forbidden_genes=forbidden)
+    old: PanelApp = PanelApp(**{'metadata': [], 'genes': {}})
+    get_panel_green(
+        old, old_data=HistoricPanels(), version=old_version, forbidden_genes=forbidden
+    )
 
-    return current_genes.difference(set(old.genes.keys()))
+    return current_genes.difference(set(old.genes))
 
 
 def overwrite_new_status(gene_dict: PanelApp, new_genes: set[str]):
