@@ -701,31 +701,12 @@ def read_json_from_path(
         with bucket_path.open() as handle:
             json_data = json.load(handle)
             if return_model:
-                return return_model.model_construct(**json_data)
+                return return_model.model_validate(json_data)
             return json_data
     if default:
         return default
 
     raise ValueError(f'No data found at {bucket_path}')
-
-
-def write_output_json(output_path: str, object_to_write: dict):
-    """
-    writes object to a json file, to_path provides platform abstraction
-
-    Args:
-        output_path ():
-        object_to_write ():
-    """
-
-    get_logger().info(f'Writing output JSON file to {output_path}')
-    out_route = to_path(output_path)
-
-    if out_route.exists():
-        get_logger().info(f'Output path {output_path!r} exists, will be overwritten')
-
-    with out_route.open('w') as fh:
-        json.dump(object_to_write, fh, indent=4, default=list)
 
 
 def get_simple_moi(input_moi: str | None, chrom: str) -> str:

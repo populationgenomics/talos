@@ -105,7 +105,6 @@ def test_results_shell(peddy_ped):
         **{
             'results': {
                 'male': {
-                    'variants': [],
                     'metadata': {
                         'ext_id': 'MALE!',
                         'family_id': 'family_1',
@@ -129,11 +128,9 @@ def test_results_shell(peddy_ped):
                         'phenotypes': ['Boneitis'],
                         'panel_ids': [1, 3],
                         'panel_names': ['lorem', 'etc'],
-                        'solved': False,
                     },
                 },
                 'female': {
-                    'variants': [],
                     'metadata': {
                         'ext_id': 'FEMALE!',
                         'family_id': 'family_2',
@@ -205,7 +202,6 @@ def test_gene_clean_results_personal():
         **{
             'results': {
                 'sam1': {
-                    'variants': [],
                     'metadata': {
                         'ext_id': 'sam1',
                         'family_id': 'family_1',
@@ -213,11 +209,9 @@ def test_gene_clean_results_personal():
                     },
                 },
                 'sam2': {
-                    'variants': [],
                     'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'},
                 },
                 'sam3': {
-                    'variants': [],
                     'metadata': {
                         'ext_id': 'sam3',
                         'family_id': 'family_3',
@@ -264,7 +258,7 @@ def test_update_results_meta(peddy_ped):
 
     ped_samples = ['male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2']
 
-    assert count_families(pedigree=peddy_ped, samples=ped_samples,) == {
+    assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
         'affected': 2,
         'male': 3,
         'female': 3,
@@ -279,10 +273,13 @@ def test_count_families_missing_father(peddy_ped):
 
     ped_samples = ['male', 'female', 'mother_1', 'mother_2', 'father_2']
 
-    assert count_families(
-        pedigree=peddy_ped,
-        samples=ped_samples,
-    ) == {'affected': 2, 'male': 2, 'female': 3, 'trios': 1, '2': 1}
+    assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
+        'affected': 2,
+        'male': 2,
+        'female': 3,
+        'trios': 1,
+        '2': 1,
+    }
 
 
 def test_count_families_quad(quad_ped):

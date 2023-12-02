@@ -323,9 +323,10 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_genes = read_json_from_path(
-        get_cohort_config(dataset).get('forbidden', 'missing'), set()
-    )
+    forbidden_path = get_cohort_config(dataset).get('forbidden')
+    forbidden_genes = set()
+    if forbidden_path:
+        forbidden_genes = read_json_from_path(forbidden_path, forbidden_genes)
 
     old_data = HistoricPanels()
 
@@ -414,7 +415,6 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # write the output to long term storage
     with open(out_path, 'w') as out_file:
-        # p = PanelApp.model_construct(**j)
         out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
     save_new_historic(old_data, dataset=dataset, prefix='panel_')

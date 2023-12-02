@@ -757,7 +757,6 @@ def test_check_familial_inheritance_no_calls(peddy_ped):
     """
     test the check_familial_inheritance method where there are no calls
     will fail as affected proband not in calls
-    :return:
     """
 
     base_moi = BaseMoi(pedigree=peddy_ped, applied_moi='applied')
@@ -773,8 +772,6 @@ def test_check_familial_inheritance_no_calls(peddy_ped):
 def test_genotype_calls(peddy_ped):
     """
     test the manual genotype assignments
-    Args:
-        peddy_ped ():
     """
     base_moi = DominantAutosomal(pedigree=peddy_ped, applied_moi='applied')
 
@@ -832,9 +829,7 @@ def test_genotype_calls(peddy_ped):
         'mother_2': 'WT',
     }
 
-    variant_missing = SmallVariant(
-        info=info_dict, het_samples=set(), hom_samples=set(), coordinates=TEST_COORDS
-    )
+    variant_missing = SmallVariant(info=info_dict, coordinates=TEST_COORDS)
     assert base_moi.get_family_genotypes(variant_missing, 'male') == {
         'father_1': 'WT',
         'male': 'WT',
