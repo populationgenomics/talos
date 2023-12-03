@@ -81,7 +81,9 @@ class Variant(BaseModel):
     """
 
     coordinates: Coordinates = Field(repr=True)
-    info: dict[str, str | int | float | list[str] | bool] = Field(default_factory=dict)
+    info: dict[
+        str, str | int | float | list[str] | list[float] | dict[str, str] | bool
+    ] = Field(default_factory=dict)
     het_samples: set[str] = Field(default_factory=set, exclude=True)
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)
@@ -298,7 +300,15 @@ class SmallVariant(Variant):
 
 
 class StructuralVariant(Variant):
+    """
+    placeholder for any methods/data specific to Structural Variants
+    """
+
     ...
+
+
+# register all interchangeable models here
+VARIANT_MODELS = SmallVariant | StructuralVariant
 
 
 class ReportPanel(BaseModel):
@@ -316,7 +326,7 @@ class ReportVariant(BaseModel):
     """
 
     sample: str
-    var_data: SmallVariant | StructuralVariant
+    var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
     family: str = Field(default_factory=str)
     first_seen: str = Field(default=get_granular_date())

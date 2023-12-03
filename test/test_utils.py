@@ -20,7 +20,7 @@ from reanalysis.models import (
     PhenotypeMatchedPanels,
     ReportVariant,
     SmallVariant,
-    StructuralVariant,
+    VARIANT_MODELS,
 )
 
 
@@ -145,7 +145,7 @@ def test_get_non_ref_samples(cyvcf_example_variant):
     assert not hom
 
 
-def test_av_categories(trio_abs_variant: SmallVariant | StructuralVariant):
+def test_av_categories(trio_abs_variant: VARIANT_MODELS):
     """
     Cat. 3, and Cat. 4 for PROBAND only:
     """

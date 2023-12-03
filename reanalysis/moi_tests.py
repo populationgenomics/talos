@@ -12,7 +12,12 @@ from peddy.peddy import Ped, PHENOTYPE
 
 from cpg_utils.config import get_config
 
-from reanalysis.models import SmallVariant, StructuralVariant, ReportVariant
+from reanalysis.models import (
+    SmallVariant,
+    StructuralVariant,
+    ReportVariant,
+    VARIANT_MODELS,
+)
 from reanalysis.utils import CompHetDict, X_CHROMOSOME
 
 # config keys to use for dominant MOI tests
@@ -32,7 +37,7 @@ SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 def check_for_second_hit(
     first_variant: str, comp_hets: CompHetDict, sample: str
-) -> list[SmallVariant | StructuralVariant]:
+) -> list[VARIANT_MODELS]:
     """
     checks for a second hit partner in this gene
 
@@ -159,13 +164,35 @@ class BaseMoi:
     @abstractmethod
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
         """
         run all applicable inheritance patterns and finds good fits
         """
+
+    def check_various_things(self, variant: VARIANT_MODELS, sample_id: str) -> bool:
+        """
+
+        Args:
+            variant ():
+            sample_id ():
+
+        Returns:
+
+        """
+        if (
+            not (
+                self.pedigree[sample_id].affected == PEDDY_AFFECTED
+                and variant.sample_category_check(sample_id, allow_support=False)
+            )
+        ) or (
+            variant.check_read_depth(sample_id, self.minimum_depth)
+            and not variant.info.get('categoryboolean1')
+        ):
+            return True
+        return False
 
     def check_familial_inheritance(
         self, sample_id: str, called_variants: set[str], partial_pen: bool = False
@@ -209,12 +236,12 @@ class BaseMoi:
         return True
 
     def get_family_genotypes(
-        self, variant: SmallVariant | StructuralVariant, sample_id: str
+        self, variant: VARIANT_MODELS, sample_id: str
     ) -> dict[str, str]:
         """
 
         Args:
-            variant (SmallVariant | StructuralVariant):
+            variant (VARIANT_MODELS):
             sample_id (str): the sample ID to gather genotypes for
 
         Returns:
@@ -277,8 +304,8 @@ class BaseMoi:
     def check_comp_het(
         self,
         sample_id: str,
-        variant_1: SmallVariant | StructuralVariant,
-        variant_2: SmallVariant | StructuralVariant,
+        variant_1: VARIANT_MODELS,
+        variant_2: VARIANT_MODELS,
     ) -> bool:
         """
         use parents to accept or dismiss the comp-het
@@ -290,8 +317,8 @@ class BaseMoi:
 
         Args:
             sample_id (str): sample ID to check for
-            variant_1 (SmallVariant | StructuralVariant): first variant of comp-het pair
-            variant_2 (SmallVariant | StructuralVariant): second variant of comp-het pair
+            variant_1 (VARIANT_MODELS): first variant of comp-het pair
+            variant_2 (VARIANT_MODELS): second variant of comp-het pair
 
         Returns:
             bool: True if these two variants form a comp-het
@@ -350,7 +377,7 @@ class DominantAutosomal(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -383,7 +410,7 @@ class DominantAutosomal(BaseMoi):
                 self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal.sample_category_check(sample_id, allow_support=False)
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -431,7 +458,7 @@ class RecessiveAutosomalCH(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -440,7 +467,7 @@ class RecessiveAutosomalCH(BaseMoi):
         counts as being phased if a compound het is split between parents
 
         Args:
-            principal (SmallVariant | StructuralVariant): main variant being evaluated
+            principal (VARIANT_MODELS): main variant being evaluated
             comp_het (dict): comp-het partners
             partial_pen (bool):
 
@@ -464,7 +491,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -480,7 +507,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     principal.sample_support_only(sample_id)
                     and partner_variant.sample_support_only(sample_id)
                 ) or (
-                    partner_variant.depths[sample_id] < self.minimum_depth
+                    partner_variant.check_read_depth(sample_id, self.minimum_depth)
                     and not partner_variant.info.get('categoryboolean1')
                 ):
                     continue
@@ -540,7 +567,7 @@ class RecessiveAutosomalHomo(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -548,7 +575,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         explicitly tests HOMs
 
         Args:
-            principal (SmallVariant | StructuralVariant): main variant being evaluated
+            principal (VARIANT_MODELS): main variant being evaluated
             comp_het (dict): comp-het partners
             partial_pen (bool):
 
@@ -578,7 +605,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -646,7 +673,7 @@ class XDominant(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -686,7 +713,7 @@ class XDominant(BaseMoi):
                     and self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 )
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -750,7 +777,7 @@ class XRecessiveMale(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -787,7 +814,7 @@ class XRecessiveMale(BaseMoi):
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -847,7 +874,7 @@ class XRecessiveFemaleHom(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -884,7 +911,7 @@ class XRecessiveFemaleHom(BaseMoi):
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -944,7 +971,7 @@ class XRecessiveFemaleCH(BaseMoi):
 
     def run(
         self,
-        principal: SmallVariant | StructuralVariant,
+        principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
@@ -983,7 +1010,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
             ) or (
-                principal.depths[sample_id] < self.minimum_depth
+                principal.check_read_depth(sample_id, self.minimum_depth)
                 and not principal.info.get('categoryboolean1')
             ):
                 continue
@@ -1010,9 +1037,9 @@ class XRecessiveFemaleCH(BaseMoi):
                     continue
 
                 # check for minimum depth in partner
-                if partner.depths[
-                    sample_id
-                ] < self.minimum_depth and not partner.info.get('categoryboolean1'):
+                if partner.check_read_depth(
+                    sample_id, self.minimum_depth
+                ) and not partner.info.get('categoryboolean1'):
                     continue
 
                 if not self.check_comp_het(

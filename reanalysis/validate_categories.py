@@ -167,7 +167,7 @@ def apply_moi_to_variants(
                 for each_result in variant_results:
 
                     # never tag if this variant/sample is de novo
-                    if '4' in each_result.var_data.categories:
+                    if '4' in each_result.categories:
                         continue
 
                     if each_result.reasons == {'Autosomal Dominant'}:

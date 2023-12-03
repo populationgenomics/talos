@@ -31,6 +31,7 @@ from reanalysis.models import (
     ResultData,
     SmallVariant,
     StructuralVariant,
+    VARIANT_MODELS,
 )
 from reanalysis.static_values import get_granular_date, get_logger
 
@@ -527,7 +528,7 @@ def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
         chrom=var.CHROM.replace('chr', ''),
         pos=var.POS,
         ref=var.ALT[0],
-        alt=info['svlen'],
+        alt=str(info['svlen']),
     )
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -555,8 +556,8 @@ def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
 
 # CompHetDict structure: {sample: {variant_string: [variant, ...]}}
 # sample: string, e,g, CGP12345
-CompHetDict = dict[str, dict[str, list[SmallVariant | StructuralVariant]]]
-GeneDict = dict[str, list[SmallVariant | StructuralVariant]]
+CompHetDict = dict[str, dict[str, list[VARIANT_MODELS]]]
+GeneDict = dict[str, list[VARIANT_MODELS]]
 
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
@@ -805,9 +806,7 @@ def extract_csq(csq_contents) -> list[dict]:
     return txc_dict
 
 
-def find_comp_hets(
-    var_list: list[SmallVariant | StructuralVariant], pedigree: peddy.Ped
-) -> CompHetDict:
+def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompHetDict:
     """
     manual implementation to find compound hets
     variants provided in the format
@@ -822,7 +821,7 @@ def find_comp_hets(
     }
 
     Args:
-        var_list (list[SmallVariant | StructuralVariant]): all variants in this gene
+        var_list (list[VARIANT_MODELS]): all variants in this gene
         pedigree (): Peddy.Ped
     """
 
