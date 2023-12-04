@@ -172,7 +172,9 @@ class BaseMoi:
         run all applicable inheritance patterns and finds good fits
         """
 
-    def check_various_things(self, variant: VARIANT_MODELS, sample_id: str) -> bool:
+    def check_affected_category_depths(
+        self, variant: VARIANT_MODELS, sample_id: str
+    ) -> bool:
         """
 
         Args:
