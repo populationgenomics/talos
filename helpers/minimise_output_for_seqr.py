@@ -16,9 +16,8 @@ containing only the data required for the SEQR app.
 
 import json
 from argparse import ArgumentParser
-from collections import defaultdict
 
-import toml
+from reanalysis.models import MiniForSeqr, MiniVariant, ResultData
 
 
 def coord_to_string(coord: dict) -> str:
@@ -34,54 +33,46 @@ def coord_to_string(coord: dict) -> str:
     return f"{coord['chrom']}-{coord['pos']}-{coord['ref']}-{coord['alt']}"
 
 
-def main(input_file: str, output: str, config_file: str):
+def main(input_file: str, output: str):
     """
     reads in the input file, shrinks it, and writes the output file
 
     Args:
         input_file (str):
         output (str):
-        config_file (str):
-
-    Returns:
-
     """
-    with open(config_file, encoding='utf-8') as f:
-        config = toml.load(f)
 
     with open(input_file, encoding='utf-8') as f:
-        data = json.load(f)
+        data = ResultData.model_validate(json.load(f))
 
-    lil_data = {
-        'metadata': {'categories': config['categories']},
-        'results': defaultdict(dict),
-    }
+    lil_data = MiniForSeqr(
+        **{
+            'metadata': {'categories': data.metadata.categories},
+        }
+    )
 
-    for individual, details in data['results'].items():
-        for variant in details['variants']:
-            var_data = variant['var_data']
-            lil_data['results'][individual][  # type: ignore
-                coord_to_string(var_data['coords'])
-            ] = {  # type: ignore
-                'categories': var_data['categories'],
-                # 'labels': variant['labels'],
-                'support_vars': variant['support_vars'],
-                # 'independent': variant['independent'],
-            }
+    for individual, details in data.results.items():
+        lil_data.results[individual] = {}
+        for variant in details.variants:
+            var_data = variant.var_data
+            lil_data.results[individual][
+                var_data.coordinates.string_format
+            ] = MiniVariant(
+                **{
+                    'categories': variant.categories,
+                    'support_vars': variant.support_vars,
+                    'independent': variant.independent,
+                }
+            )
 
     with open(output, 'w', encoding='utf-8') as f:
-        json.dump(lil_data, f, indent=4)
+        f.write(MiniForSeqr.model_validate(lil_data).model_dump_json(indent=4))
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('input_file', help='the input file to process')
     parser.add_argument('output_file', help='the output file to write to')
-    parser.add_argument('config_file', help='the config file to use')
     args = parser.parse_args()
 
-    main(
-        input_file=args.input_file,
-        output=args.output_file,
-        config_file=args.config_file,
-    )
+    main(input_file=args.input_file, output=args.output_file)

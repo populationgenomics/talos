@@ -9,8 +9,19 @@ from cpg_utils.config import get_config
 
 from reanalysis.static_values import get_granular_date
 
+CATEGORY_DICT = None
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
+
+
+def get_category_dict():
+    """
+    lazily load the Category Dict
+    """
+    global CATEGORY_DICT
+    if CATEGORY_DICT is None:
+        CATEGORY_DICT = get_config()['categories']
+    return CATEGORY_DICT
 
 
 class FileTypes(Enum):
@@ -391,9 +402,10 @@ class HistoricPanels(BaseModel):
 class CategoryMeta(BaseModel):
     """
     The mapping of category names to their display names
+    todo lazily load this
     """
 
-    categories: dict[str, str] = Field(default=get_config()['categories'])
+    categories: dict[str, str] = Field(default=CATEGORY_DICT)
 
 
 class HistoricSampleVariant(BaseModel):
@@ -431,7 +443,7 @@ class ResultMeta(BaseModel):
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     panels: list[PanelShort] = Field(default_factory=list)
     container: str = Field(default_factory=str)
-    categories: dict[str, str] = Field(default=get_config()['categories'])
+    categories: dict[str, str] = Field(default=CATEGORY_DICT)
 
 
 class MemberSex(Enum):
@@ -493,3 +505,14 @@ class ParticipantHPOPanels(BaseModel):
 class PhenotypeMatchedPanels(BaseModel):
     samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     all_panels: set[int] = Field(default_factory=set)
+
+
+class MiniVariant(BaseModel):
+    categories: set[str] = Field(default_factory=set)
+    support_vars: set[str] = Field(default_factory=set)
+    independent: bool = Field(default=True)
+
+
+class MiniForSeqr(BaseModel):
+    metadata: CategoryMeta = Field(default_factory=CategoryMeta)
+    results: dict[str, dict[str, MiniVariant]] = Field(default_factory=dict)
