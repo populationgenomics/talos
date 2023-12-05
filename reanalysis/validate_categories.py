@@ -24,6 +24,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 
 from reanalysis.models import (
+    CATEGORY_DICT,
     FamilyMembers,
     PanelApp,
     PanelDetail,
@@ -579,4 +580,5 @@ def main(
 
 if __name__ == '__main__':
     get_logger(__file__).info('Starting MOI testing phase')
+    get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
     main()

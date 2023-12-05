@@ -1,27 +1,20 @@
 """
 A home for all data models used in AIP
 """
+import toml
 from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from cpg_utils.config import get_config
+from cpg_utils import to_path
 
 from reanalysis.static_values import get_granular_date
 
-CATEGORY_DICT = None
+
+AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
+CATEGORY_DICT = AIP_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
-
-
-def get_category_dict():
-    """
-    lazily load the Category Dict
-    """
-    global CATEGORY_DICT
-    if CATEGORY_DICT is None:
-        CATEGORY_DICT = get_config()['categories']
-    return CATEGORY_DICT
 
 
 class FileTypes(Enum):

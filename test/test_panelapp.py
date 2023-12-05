@@ -2,17 +2,11 @@
 tests for the PanelApp parser
 """
 
-import json
-
 import pytest
 from copy import deepcopy
 
 from reanalysis.models import HistoricPanels, PanelApp, PanelDetail
-from reanalysis.query_panelapp import (
-    get_best_moi,
-    get_panel_green,
-    read_panels_from_participant_file,
-)
+from reanalysis.query_panelapp import get_best_moi, get_panel_green
 
 
 empty_gene_dict = PanelApp(genes={})
@@ -153,21 +147,6 @@ def test_panel_query_addition(fake_panelapp):
     assert gd.genes['ENSG00IJKL'].all_moi == {'both'}
     assert gd.genes['ENSG00IJKL'].panels == {123, 137}
     assert 'ENSG00EFGH' not in gd.genes
-
-
-def test_get_list_from_participants(tmp_path):
-    """
-    tests the unique panel finder
-    """
-    party_data = {
-        'i': {'panels': [1, 2], 'what': 'does'},
-        'am': {'panels': [1, 3], 'the': 'fox'},
-        'sam': {'panels': [9, 99], 'say?': 'Wa-pa-pa-pa-pa-pa-pow!'},
-    }
-    tmp_json = tmp_path / 'temp.json'
-    with open(tmp_json, 'w', encoding='utf-8') as handle:
-        json.dump(party_data, handle)
-    assert read_panels_from_participant_file(str(tmp_json)) == {1, 2, 3, 9, 99}
 
 
 def test_get_best_moi_empty():

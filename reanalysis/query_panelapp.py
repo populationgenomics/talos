@@ -201,25 +201,6 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
-def read_panels_from_participant_file(panel_json: str) -> set[int]:
-    """
-    reads the per-participants panels into a set
-    Args:
-        panel_json (): path to a per-participant panel dump
-
-    Returns:
-        set of all the panels across all participants
-    """
-    participant_panels = read_json_from_path(
-        panel_json, return_model=PhenotypeMatchedPanels
-    )
-    panel_set = set()
-    for details in participant_panels.values():
-        panel_set.update(details.get('panels', []))
-
-    return panel_set
-
-
 def find_core_panel_version() -> str | None:
     """
     take the default panel ID from config
@@ -334,12 +315,12 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # open to discussing order of precedence here
     if old_file := find_latest_file(dataset=dataset, start='panel_'):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
-        old_data = read_json_from_path(old_file, return_model=HistoricPanels)
+        old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
 
     # todo this will fail at the moment
     elif previous := get_cohort_config(dataset).get('gene_prior'):
         get_logger().info(f'Reading legacy data from {previous}')
-        old_data = read_json_from_path(previous, return_model=HistoricPanels)
+        old_data = read_json_from_path(previous, return_model=HistoricPanels)  # type: ignore
 
     else:
         twelve_months = True
@@ -370,7 +351,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     panel_list = set()
     if panels is not None:
         hpo_panel_object = read_json_from_path(
-            panels, return_model=PhenotypeMatchedPanels
+            panels, return_model=PhenotypeMatchedPanels  # type: ignore
         )
         panel_list = hpo_panel_object.all_panels
         get_logger().info(
