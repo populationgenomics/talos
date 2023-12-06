@@ -266,18 +266,21 @@ class SmallVariant(Variant):
         """
         return self.check_ab_ratio(sample) | self.check_read_depth(sample)
 
-    def check_read_depth(self, sample: str, threshold: int = 10) -> set[str]:
+    def check_read_depth(
+        self, sample: str, threshold: int = 10, var_is_cat_1: bool = False
+    ) -> set[str]:
         """
         flag low read depth for this sample
 
         Args:
             sample (str): sample ID matching VCF
             threshold (int): cut-off for flagging as a failure
+            var_is_cat_1 (bool): flag if this variant is a category 1
 
         Returns:
             return a flag if this sample has low read depth
         """
-        if self.depths[sample] < threshold:
+        if self.depths[sample] < threshold and not var_is_cat_1:
             return {'Low Read Depth'}
         return set()
 

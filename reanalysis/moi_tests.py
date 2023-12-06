@@ -36,7 +36,10 @@ SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
 def check_for_second_hit(
-    first_variant: str, comp_hets: CompHetDict, sample: str
+    first_variant: str,
+    comp_hets: CompHetDict,
+    sample: str,
+    require_non_support: bool = False,
 ) -> list[VARIANT_MODELS]:
     """
     checks for a second hit partner in this gene
@@ -53,18 +56,27 @@ def check_for_second_hit(
         } ...
     }
 
-    :param first_variant: string representation of variant1
-    :param comp_hets: lookup dict for compound hets
-    :param sample: ID string
-    :return:
+    Args:
+        first_variant (str): string representation of variant1
+        comp_hets (dict[str, Variant]): lookup for compound hets
+        sample (str): sample ID
+        require_non_support (bool): if true, don't return Support only
+
+    Returns:
+        a list of variants which are potential partners
     """
 
     # check if the sample has any comp-hets
-    if sample not in comp_hets.keys():
+    if sample not in comp_hets:
         return []
 
-    sample_dict = comp_hets.get(sample)
-    return sample_dict.get(first_variant, [])
+    partners = comp_hets[sample].get(first_variant, [])
+    if require_non_support:
+        return [
+            partner for partner in partners if not partner.sample_support_only(sample)
+        ]
+    else:
+        return partners
 
 
 class MOIRunner:
@@ -189,9 +201,10 @@ class BaseMoi:
                 self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and variant.sample_category_check(sample_id, allow_support=False)
             )
-        ) or (
-            variant.check_read_depth(sample_id, self.minimum_depth)
-            and not variant.info.get('categoryboolean1')
+        ) or variant.check_read_depth(
+            sample_id,
+            self.minimum_depth,
+            var_is_cat_1=variant.info.get('categoryboolean1'),
         ):
             return True
         return False
@@ -412,8 +425,11 @@ class DominantAutosomal(BaseMoi):
                 self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and principal.sample_category_check(sample_id, allow_support=False)
             ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+                principal.check_read_depth(
+                    sample_id,
+                    self.minimum_depth,
+                    var_is_cat_1=principal.info.get('categoryboolean1'),
+                )
             ):
                 continue
 
@@ -456,6 +472,11 @@ class RecessiveAutosomalCH(BaseMoi):
         applied_moi: str = 'Autosomal Recessive Comp-Het',
     ):
         """ """
+        self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.freq_tests = {
+            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
+            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
+        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -482,6 +503,15 @@ class RecessiveAutosomalCH(BaseMoi):
 
         classifications = []
 
+        # remove if too many homs are present in population databases
+        if not (
+            self.check_frequency_passes(
+                principal.info, self.freq_tests[principal.__class__.__name__]
+            )
+            or principal.info.get('categoryboolean1')
+        ):
+            return classifications
+
         # if hets are present, try and find support
         for sample_id in principal.het_samples:
 
@@ -493,8 +523,11 @@ class RecessiveAutosomalCH(BaseMoi):
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
             ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+                principal.check_read_depth(
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
+                )
             ):
                 continue
 
@@ -502,24 +535,27 @@ class RecessiveAutosomalCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
+                require_non_support=principal.sample_support_only(sample_id),
             ):
 
-                # skip the double-support scenario
-                if (
-                    principal.sample_support_only(sample_id)
-                    and partner_variant.sample_support_only(sample_id)
-                ) or (
-                    partner_variant.check_read_depth(sample_id, self.minimum_depth)
-                    and not partner_variant.info.get('categoryboolean1')
+                if partner_variant.check_read_depth(
+                    sample_id,
+                    self.minimum_depth,
+                    partner_variant.info.get('categoryboolean1'),
+                ) or not (
+                    self.check_frequency_passes(
+                        partner_variant.info,
+                        self.freq_tests[partner_variant.__class__.__name__],
+                    )
                 ):
                     continue
 
-                # categorised for this specific sample, allow support in partner
-                # - also screen out high-AF partners
-                if not partner_variant.sample_category_check(
-                    sample_id, allow_support=True
-                ):
-                    continue
+                # # categorised for this specific sample, allow support in partner
+                # # - also screen out high-AF partners
+                # if not partner_variant.sample_category_check(
+                #     sample_id, allow_support=True
+                # ):
+                #     continue
 
                 # check if this is a candidate for comp-het inheritance
                 if not self.check_comp_het(
@@ -606,9 +642,8 @@ class RecessiveAutosomalHomo(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+            ) or principal.check_read_depth(
+                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -714,9 +749,8 @@ class XDominant(BaseMoi):
                     principal.sample_category_check(sample_id, allow_support=False)
                     and self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 )
-            ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+            ) or principal.check_read_depth(
+                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -815,9 +849,8 @@ class XRecessiveMale(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+            ) or principal.check_read_depth(
+                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -912,9 +945,8 @@ class XRecessiveFemaleHom(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+            ) or principal.check_read_depth(
+                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -1011,9 +1043,8 @@ class XRecessiveFemaleCH(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
-            ) or (
-                principal.check_read_depth(sample_id, self.minimum_depth)
-                and not principal.info.get('categoryboolean1')
+            ) or principal.check_read_depth(
+                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
             ):
                 continue
 
@@ -1021,27 +1052,24 @@ class XRecessiveFemaleCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
+                require_non_support=principal.sample_support_only(sample_id),
             ):
 
                 # allow for de novo check - also screen out high-AF partners
-                if (
-                    not partner.sample_category_check(sample_id, allow_support=True)
-                    or not (
-                        self.check_frequency_passes(
-                            partner.info, self.freq_tests[partner.__class__.__name__]
-                        )
-                        or partner.info.get('categoryboolean1')
+                if not partner.sample_category_check(
+                    sample_id, allow_support=True
+                ) or not (
+                    self.check_frequency_passes(
+                        partner.info, self.freq_tests[partner.__class__.__name__]
                     )
-                ) or (
-                    principal.sample_support_only(sample_id)
-                    and partner.sample_support_only(sample_id)
+                    or partner.info.get('categoryboolean1')
                 ):
                     continue
 
                 # check for minimum depth in partner
                 if partner.check_read_depth(
-                    sample_id, self.minimum_depth
-                ) and not partner.info.get('categoryboolean1'):
+                    sample_id, self.minimum_depth, partner.info.get('categoryboolean1')
+                ):
                     continue
 
                 if not self.check_comp_het(

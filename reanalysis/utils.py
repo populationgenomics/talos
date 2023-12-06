@@ -356,7 +356,8 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             # phase set is a number
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
-    except KeyError:
+    except KeyError as ke:
+        raise ke
         get_logger().info('failed to find PS phase attributes')
         try:
             # retry using PGT & PID
@@ -461,6 +462,9 @@ def create_small_variant(
             _boolcat = info.pop('categoryboolean2')
             info['categorysample2'] = new_gene_samples
 
+    # organise PM5
+    info = organise_pm5(info)
+
     # set the class attributes
     boolean_categories = [
         key for key in info.keys() if key.startswith('categoryboolean')
@@ -488,8 +492,6 @@ def create_small_variant(
         elif isinstance(info[sam_cat], list):
             info[sam_cat] = set(info[sam_cat])
 
-    # organise PM5
-    info = organise_pm5(info)
     phased = get_phase_data(samples, var)
     ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
     transcript_consequences = extract_csq(csq_contents=info.pop('csq', []))
@@ -542,15 +544,12 @@ def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
     for cat in boolean_categories:
         info[cat] = info.get(cat, 0) == 1
 
-    phased = get_phase_data(samples, var)
-
     return StructuralVariant(
         coordinates=coordinates,
         info=info,
         het_samples=het_samples,
         hom_samples=hom_samples,
         boolean_categories=boolean_categories,
-        phased=phased,
     )
 
 
@@ -661,7 +660,7 @@ def gather_gene_dict_from_contig(
                 structural_variant
             )
 
-        get_logger().info(f'Contig {contig} contained {structural_variants} variants')
+        get_logger().info(f'Contig {contig} contained {structural_variants} SVs')
 
     get_logger().info(f'Contig {contig} contained {contig_variants} variants')
     get_logger().info(f'Contig {contig} contained {len(contig_dict)} genes')
