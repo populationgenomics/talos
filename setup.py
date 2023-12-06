@@ -38,7 +38,7 @@ setup(
         'matthew.welland@populationgenomics.org.au, '
         'cas.simons@populationgenomics.org.au'
     ),
-    package_data={'reanalysis': ['templates/*.jinja']},
+    package_data={'reanalysis': ['templates/*.jinja', 'reanalysis_global.toml']},
     url='https://github.com/populationgenomics/automated-interpretation-pipeline',
     license='MIT',
     classifiers=[
