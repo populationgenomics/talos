@@ -61,22 +61,22 @@ class Coordinates(BaseModel):
             return True
         return False
 
-    def __eq__(self, other) -> bool:
-        """
-        equivalence check
-        Args:
-            other (Coordinates):
-
-        Returns:
-            true if self == other
-
-        """
-        return (
-            self.chrom == other.chrom
-            and self.pos == other.pos
-            and self.ref == other.ref
-            and self.alt == other.alt
-        )
+    # def __eq__(self, other) -> bool:
+    #     """
+    #     equivalence check
+    #     Args:
+    #         other (Coordinates):
+    #
+    #     Returns:
+    #         true if self == other
+    #
+    #     """
+    #     return (
+    #         self.chrom == other.chrom
+    #         and self.pos == other.pos
+    #         and self.ref == other.ref
+    #         and self.alt == other.alt
+    #     )
 
 
 class VariantCommon(BaseModel):
@@ -437,13 +437,13 @@ class ResultMeta(BaseModel):
     metadata for a result set
     """
 
-    input_file: str = Field(default_factory=str)
-    cohort: str = Field(default_factory=str)
-    run_datetime: str = Field(default=get_granular_date())
-    family_breakdown: dict[str, int] = Field(default_factory=dict)
-    panels: list[PanelShort] = Field(default_factory=list)
-    container: str = Field(default_factory=str)
     categories: dict[str, str] = Field(default=CATEGORY_DICT)
+    cohort: str = Field(default_factory=str)
+    container: str = Field(default_factory=str)
+    family_breakdown: dict[str, int] = Field(default_factory=dict)
+    input_file: str = Field(default_factory=str)
+    panels: list[PanelShort] = Field(default_factory=list)
+    run_datetime: str = Field(default=get_granular_date())
 
 
 class MemberSex(Enum):

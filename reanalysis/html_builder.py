@@ -492,7 +492,7 @@ def check_date_filter(
         ]
 
     # pop off all the samples with no variants
-    for sample_id in results_dict.results.keys():
+    for sample_id in list(results_dict.results.keys()):
         if not results_dict.results[sample_id].variants:
             results_dict.results.pop(sample_id)
 
