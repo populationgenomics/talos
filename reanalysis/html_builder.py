@@ -246,7 +246,10 @@ class HTMLBuilder:
         """
 
         tables = {
-            'Panels': pd.DataFrame(self.metadata.panels),
+            'Panels': pd.DataFrame(
+                {'ID': panel.id, 'Version': panel.version, 'Name': panel.name}
+                for panel in self.metadata.panels
+            ),
             'Meta': pd.DataFrame(
                 {
                     'Data': key.capitalize(),
@@ -382,6 +385,7 @@ class Variant:
         ext_labels: list,
         gene_map: dict[str, PanelDetail],
     ):
+        self.var_type = report_variant.var_data.__class__.__name__
         self.chrom = report_variant.var_data.coordinates.chrom
         self.pos = report_variant.var_data.coordinates.pos
         self.ref = report_variant.var_data.coordinates.ref

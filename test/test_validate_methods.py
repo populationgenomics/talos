@@ -22,8 +22,8 @@ from reanalysis.validate_categories import (
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
-VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={})
-VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={})
+VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={}, transcript_consequences=[])
+VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={}, transcript_consequences=[])
 REP_SAM1_1 = ReportVariant(
     sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1'
 )

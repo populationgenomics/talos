@@ -114,6 +114,7 @@ def test_dominant_autosomal_fails_on_depth(peddy_ped):
         het_samples={'male'},
         coordinates=TEST_COORDS,
         depths={'male': 1},
+        transcript_consequences=[],
     )
     results = dom.run(principal=shallow_variant)  # noqa
     assert len(results) == 0
@@ -145,6 +146,7 @@ def test_dominant_autosomal_passes(peddy_ped):
         coordinates=TEST_COORDS,
         boolean_categories=boolean_categories,
         depths={'male': 999},
+        transcript_consequences=[],
     )
     results = dom.run(principal=passing_variant)
     assert len(results) == 1
@@ -157,6 +159,7 @@ def test_dominant_autosomal_passes(peddy_ped):
         coordinates=TEST_COORDS,
         boolean_categories=boolean_categories,
         depths={'male': 999},
+        transcript_consequences=[],
     )
     results = dom.run(principal=passing_variant)
     assert len(results) == 1
@@ -167,6 +170,7 @@ def test_dominant_autosomal_passes(peddy_ped):
         info=info_dict,
         coordinates=TEST_COORDS,
         boolean_categories=boolean_categories,
+        transcript_consequences=[],
     )
     assert len(dom.run(principal=passing_variant)) == 0
 
@@ -189,7 +193,10 @@ def test_dominant_autosomal_fails(info, peddy_ped):
 
     # fails due to high af
     failing_variant = SmallVariant(
-        info=info, het_samples={'male'}, coordinates=TEST_COORDS
+        info=info,
+        het_samples={'male'},
+        coordinates=TEST_COORDS,
+        transcript_consequences=[],
     )
     assert not dom.run(principal=failing_variant)
 
@@ -206,6 +213,7 @@ def test_recessive_autosomal_hom_passes(peddy_ped):
         depths={'male': 15},
         boolean_categories=['categoryboolean1'],
         info={'categoryboolean1': True, 'gene_id': 'TEST1'},
+        transcript_consequences=[],
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     results = rec.run(passing_variant)
@@ -226,6 +234,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(peddy_ped):
         depths={'male': 40},
         boolean_categories=['categoryboolean1'],
         info={'categoryboolean1': True, 'gene_id': 'TEST1'},
+        transcript_consequences=[],
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     results = rec.run(passing_variant)
@@ -248,6 +257,7 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
         het_samples={'male'},
@@ -256,6 +266,7 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
@@ -278,6 +289,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
         het_samples={'male'},
@@ -286,6 +298,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
@@ -310,6 +323,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
         het_samples={'female'},
@@ -318,6 +332,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
@@ -341,6 +356,7 @@ def test_recessive_autosomal_comp_het_fails_no_ch_return(peddy_ped):
         het_samples={'male'},
         depths={'male': 50},
         coordinates=TEST_COORDS,
+        transcript_consequences=[],
     )
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
     assert not rec.run(failing_variant)
@@ -361,6 +377,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
         ab_ratios={'male': 0.5},
         depths={'male': 50},
         info={'gene_id': 'TEST1'},
+        transcript_consequences=[],
     )
     failing_variant2 = SmallVariant(
         het_samples={'female'},
@@ -368,6 +385,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
         ab_ratios={'female': 0.5},
         depths={'female': 50},
         info={'gene_id': 'TEST1'},
+        transcript_consequences=[],
     )
 
     rec = RecessiveAutosomalCH(pedigree=peddy_ped)
@@ -387,7 +405,11 @@ def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
 
     failing_variant = SmallVariant(
-        info=info, het_samples={'male'}, hom_samples={'male'}, coordinates=TEST_COORDS
+        info=info,
+        het_samples={'male'},
+        hom_samples={'male'},
+        coordinates=TEST_COORDS,
+        transcript_consequences=[],
     )
     rec = RecessiveAutosomalHomo(pedigree=peddy_ped)
     assert not rec.run(failing_variant)
@@ -404,6 +426,7 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
         het_samples={'female', 'male'},
         depths={'female': 50, 'male': 50},
         coordinates=TEST_COORDS_X_1,
+        transcript_consequences=[],
     )
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
@@ -425,6 +448,7 @@ def test_x_dominant_female_hom_passes(peddy_ped):
         depths={'female': 100},
         ab_ratios={'female': 0.5},
         coordinates=TEST_COORDS_X_1,
+        transcript_consequences=[],
     )
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
@@ -443,6 +467,7 @@ def test_x_dominant_male_hom_passes(peddy_ped):
         hom_samples={'male'},
         depths={'male': 100},
         coordinates=TEST_COORDS_X_1,
+        transcript_consequences=[],
     )
     x_dom = XDominant(pedigree=peddy_ped)
     results = x_dom.run(passing_variant)
@@ -467,6 +492,7 @@ def test_x_dominant_info_fails(info, peddy_ped):
         hom_samples={'male'},
         coordinates=TEST_COORDS_X_1,
         boolean_categories=['categoryboolean1'],
+        transcript_consequences=[],
     )
     x_dom = XDominant(pedigree=peddy_ped)
     assert len(x_dom.run(passing_variant)) == 0
@@ -485,6 +511,7 @@ def test_x_recessive_male_hom_passes(peddy_ped):
         depths={'female': 100, 'male': 100},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     x_rec = XRecessiveMale(pedigree=peddy_ped)
     results = x_rec.run(passing_variant, comp_het={})
@@ -504,6 +531,7 @@ def test_x_recessive_female_hom_passes(peddy_ped):
         depths={'female': 100, 'male': 100},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     x_rec = XRecessiveFemaleHom(pedigree=peddy_ped)
     results = x_rec.run(passing_variant, comp_het={})
@@ -523,6 +551,7 @@ def test_x_recessive_male_het_passes(peddy_ped):
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        transcript_consequences=[],
     )
     x_rec = XRecessiveMale(pedigree=peddy_ped)
     results = x_rec.run(passing_variant)
@@ -546,6 +575,7 @@ def test_x_recessive_female_het_passes(peddy_ped):
             'gene_id': 'TEST1',
             'categorysample4': ['female'],
         },
+        transcript_consequences=[],
     )
     passing_variant_2 = SmallVariant(
         het_samples={'female'},
@@ -557,6 +587,7 @@ def test_x_recessive_female_het_passes(peddy_ped):
             'gene_id': 'TEST1',
             'categorysample4': ['female'],
         },
+        transcript_consequences=[],
     )
     comp_hets = {'female': {'X-1-G-T': [passing_variant_2]}}
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
@@ -578,6 +609,7 @@ def test_het_de_novo_passes(peddy_ped):
         ab_ratios={'female': 0.5},
         depths={'female': 99},
         info={'gene_id': 'TEST1', 'categorysample4': ['female']},
+        transcript_consequences=[],
     )
     dom_a = DominantAutosomal(pedigree=peddy_ped)
     results = dom_a.run(passing_variant)
@@ -599,6 +631,7 @@ def test_het_de_novo_het_passes_flagged(peddy_ped):
         ab_ratios={'female': 0.5},
         depths={'female': 99},
         info={'gene_id': 'TEST1', 'categorysample4': ['female']},
+        transcript_consequences=[],
     )
     dom_a = DominantAutosomal(pedigree=peddy_ped)
     results = dom_a.run(passing_variant)
@@ -621,6 +654,7 @@ def test_x_recessive_female_het_fails(peddy_ped):
             'gene_id': 'TEST1',
             'categorysample4': ['male'],
         },
+        transcript_consequences=[],
     )
     passing_variant_2 = SmallVariant(
         het_samples={'male'},
@@ -632,6 +666,7 @@ def test_x_recessive_female_het_fails(peddy_ped):
             'gene_id': 'TEST1',
             'categorysample4': ['male'],
         },
+        transcript_consequences=[],
     )
     comp_hets = {'female': {'x-2-A-C': [passing_variant_2]}}
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
@@ -653,6 +688,7 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, peddy_ped):
             'categorysample1': True,
             'boolean_categories': 'categorysample1',
         },
+        transcript_consequences=[],
     )
     second_hit.return_value = []
     x_rec = XRecessiveFemaleCH(pedigree=peddy_ped)
@@ -786,6 +822,7 @@ def test_genotype_calls(peddy_ped):
         het_samples={'male'},
         hom_samples={'female'},
         coordinates=TEST_COORDS,
+        transcript_consequences=[],
     )
     assert base_moi.get_family_genotypes(variant, 'male') == {
         'father_1': 'WT',
@@ -801,6 +838,7 @@ def test_genotype_calls(peddy_ped):
         info=info_dict,
         het_samples={'male', 'female'},
         coordinates=TEST_COORDS_X_1,
+        transcript_consequences=[],
     )
     assert base_moi.get_family_genotypes(x_variant, 'male') == {
         'father_1': 'WT',
@@ -817,6 +855,7 @@ def test_genotype_calls(peddy_ped):
         info=info_dict,
         hom_samples={'male', 'female'},
         coordinates=TEST_COORDS_X_1,
+        transcript_consequences=[],
     )
     assert base_moi.get_family_genotypes(x_variant_2, 'male') == {
         'father_1': 'WT',
@@ -829,7 +868,11 @@ def test_genotype_calls(peddy_ped):
         'mother_2': 'WT',
     }
 
-    variant_missing = SmallVariant(info=info_dict, coordinates=TEST_COORDS)
+    variant_missing = SmallVariant(
+        info=info_dict,
+        coordinates=TEST_COORDS,
+        transcript_consequences=[],
+    )
     assert base_moi.get_family_genotypes(variant_missing, 'male') == {
         'father_1': 'WT',
         'male': 'WT',

@@ -79,7 +79,7 @@ class Coordinates(BaseModel):
         )
 
 
-class Variant(BaseModel):
+class VariantCommon(BaseModel):
     """
     the abstracted representation of a variant from any source
     """
@@ -253,12 +253,19 @@ class Variant(BaseModel):
         return set()
 
 
-class SmallVariant(Variant):
+class SmallVariant(VariantCommon):
+    """
+    a representation of a small variant
+    note that transcript_consequences is not optional
+    we require that something specific to SmallVariant(s) is mandatory
+    this is in order to correctly deserialise the Small/Structural objects
+    into the appropriate types. If it is optional, Pydantic can coerce
+    everything as a SmallVariant
+    """
+
     depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     ab_ratios: dict[str, float] = Field(default_factory=dict, exclude=True)
-    transcript_consequences: list[dict[str, str | float | int]] = Field(
-        default_factory=list
-    )
+    transcript_consequences: list[dict[str, str | float | int]]
 
     def get_sample_flags(self, sample: str) -> set[str]:
         """
@@ -306,12 +313,10 @@ class SmallVariant(Variant):
         return set()
 
 
-class StructuralVariant(Variant):
+class StructuralVariant(VariantCommon):
     """
     placeholder for any methods/data specific to Structural Variants
     """
-
-    ...
 
 
 # register all interchangeable models here
@@ -398,7 +403,6 @@ class HistoricPanels(BaseModel):
 class CategoryMeta(BaseModel):
     """
     The mapping of category names to their display names
-    todo lazily load this
     """
 
     categories: dict[str, str] = Field(default=CATEGORY_DICT)

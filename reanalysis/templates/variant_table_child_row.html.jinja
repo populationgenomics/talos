@@ -11,12 +11,12 @@
                         <dl class="row">
                             <dt class="col-sm-3">Variant</dt>
                             <dd class="col-sm-9">
-                            {% if variant.var_data.info.var_type == 'SMALL' %}
+                            {% if variant.var_type == 'SmallVariant' %}
                                 {{variant.var_data.info.seqr_link}}
                                 <dt class="col-sm-3">Filter status</dt>
                                 <dd class="col-sm-9">{{variant.var_data.info.as_filterstatus}}</dd>
 
-                            {% elif variant.var_data.info.var_type == 'SV' %}
+                            {% elif variant.var_type == 'StructuralVariant' %}
                                 {{ variant.var_data.info.svtype }} {{ variant.var_data.info.svlen }}bp
 
                             {% endif %}
@@ -27,20 +27,20 @@
 
                             <dd class="col-sm-9">
                                 This Callset: {{variant.var_data.info.ac}} / {{variant.var_data.info.an}}<br>
-                                {% if variant.var_data.info.var_type == 'SMALL' %}
+                                {% if variant.var_type == 'SmallVariant' %}
                                     gnomAD WGS: <a
                                         href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
                                         target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
                                     gnomAD WES: <a
                                         href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
                                         target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
-                                {% elif (variant.var_data.info.var_type == 'SV') and (variant.var_data.info.gnomad_key) %}
+                                {% elif (variant.var_type == 'StructuralVariant') and (variant.var_data.info.gnomad_key) %}
                                     gnomAD v2.1: <a
                                         href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key}}?dataset=gnomad_sv_r2_1"
                                         target="_blank">{{variant.var_data.info['gnomad_v2.1_sv_af'] | round(4)}}</a><br>
                                 {% endif %}
                             </dd>
-                            {% if variant.var_data.info.var_type == 'SMALL' %}
+                            {% if variant.var_type == 'SmallVariant' %}
                                 <dt class="col-sm-3">In silicos</dt>
                                 <dd class="col-sm-9">
                                     {% if variant.var_data.info.alpha_missense_max != 'missing' %}
@@ -74,7 +74,7 @@
                                     <a href="{{ macros.decipher_url(variant.genes.0.0, protein_view=False)}}" target="_blank">(Clinical)</a> |
                                     <a href="{{ macros.omim_gene_search_url(variant.genes.0.1)}} " target="_blank">OMIM</a>
                                 </dd>
-                            {% elif variant.var_data.info.var_type == 'SV' %}
+                            {% elif variant.var_type == 'StructuralVariant' %}
                                 <dt class="col-sm-3">Additional</dt>
                                 <dd class="col-sm-9">
                                     LoF Genes: {{variant.var_data.info.predicted_lof}}<br>
@@ -93,56 +93,56 @@
                         <h5 class="card-title"> Qualifying AIP categories</h5>
                         <dl class="row">
 
-                            {% if '1' in variant.var_data.categories %}
+                            {% if '1' in variant.categories %}
                             <dt class="col-sm-3">Category 1</dt>
                             <dd class="col-sm-9">
                                 Variant P/LP in clinvar
                             </dd>
                             {% endif %}
 
-                            {% if '2' in variant.var_data.categories %}
+                            {% if '2' in variant.categories %}
                             <dt class="col-sm-3">Category 2</dt>
                             <dd class="col-sm-9">
                                 Recently reported disease associated gene
                             </dd>
                             {% endif %}
 
-                            {% if '3' in variant.var_data.categories %}
+                            {% if '3' in variant.categories %}
                             <dt class="col-sm-3">Category 3</dt>
                             <dd class="col-sm-9">
                                 High impact variant
                             </dd>
                             {% endif %}
 
-                            {% if '4' in variant.var_data.categories %}
+                            {% if '4' in variant.categories %}
                             <dt class="col-sm-3">De novo </dt>
                             <dd class="col-sm-9">
                                 De novo variant
                             </dd>
                             {% endif %}
 
-                            {% if '5' in variant.var_data.categories %}
+                            {% if '5' in variant.categories %}
                             <dt class="col-sm-3">Category 5</dt>
                             <dd class="col-sm-9">
                                 High SpliceAI score
                             </dd>
                             {% endif %}
 
-                            {% if '6' in variant.var_data.categories %}
+                            {% if '6' in variant.categories %}
                             <dt class="col-sm-3">Category 6</dt>
                             <dd class="col-sm-9">
                                 AlphaMissense Pathogenic Prediction
                             </dd>
                             {% endif %}
 
-                            {% if 'support' in variant.var_data.categories %}
+                            {% if 'support' in variant.categories %}
                             <dt class="col-sm-3">Category Support</dt>
                             <dd class="col-sm-9">
                                 Consensus in silico Pathogenic
                             </dd>
                             {% endif %}
 
-                            {% if 'sv1' in variant.var_data.categories %}
+                            {% if 'sv1' in variant.categories %}
                             <dt class="col-sm-3">LOF SV</dt>
                             <dd class="col-sm-9">
                                 Predicted LoF Structural Variant
@@ -161,7 +161,7 @@
                             <dd class="col-sm-9">
                             {% for sample_id, gt in variant.genotypes.items() %}
                                 {{macros.ped_symbol(
-                                    sample.family_members[sample_id].sex,
+                                    sample.family_members[sample_id].sex.value,
                                     sample.family_members[sample_id].affected
                                   )}}
                                 {{sample.family_members[sample_id].ext_id}} - {{gt}} <br>

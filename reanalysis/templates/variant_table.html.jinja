@@ -49,7 +49,7 @@
             {{variant.chrom}}:{{variant.pos}}
         {% endif %}
         <br>
-        {% if variant.var_data.info.var_type == 'SMALL' %}
+        {% if variant.var_type == 'SmallVariant' %}
             {{ variant.ref }}&rarr;{{ variant.alt }}
         {% else %}
             {{ variant.var_data.info.svtype }} {{ variant.var_data.info.svlen }}bp
@@ -75,11 +75,11 @@
         |replace("Autosomal Recessive Compound-Het","AR-CH")
         |replace("Autosomal Dominant","AD")
         }}
-        {%- endfor %})
+        {% endfor %})
     </td>
     <td>
         {# Categories #}
-        {{variant.var_data.categories|join(", ")|replace("_", " ")}}
+        {{variant.categories|join(", ")|replace("_", " ")}}
     </td>
     <td>
         {# First Seen #}
@@ -87,11 +87,11 @@
     </td>
     <td>
         {# CSQ #}
-        {% if variant.mane_consequences %}
-            {{variant.mane_consequences|join(', ')|replace("_variant", "")|replace("_", " ")}}
+        {% if variant.mane_csq %}
+            {{variant.mane_csq|join(', ')|replace("_variant", "")|replace("_", " ")}}
             <br>
             {{ variant.mane_hgvsps|join(', ') }}
-        {% elif variant.var_data.info.var_type == 'SMALL' %}
+        {% elif variant.var_type == 'SmallVariant' %}
             <span class="badge text-bg-warning">Non-canonical transcript only</span>
         {% endif %}
     </td>
@@ -105,19 +105,19 @@
             <br>
             {% for i in range(variant.var_data.info.clinvar_stars|int) -%}
                 <i class="bi-star"></i>
-            {%- endfor %}
+            {% endfor %}
         {% endif %}
     </td>
     <td>
         {# PM5 ClinVar #}
-        {% if 'pm5' in variant.var_data.categories %}
+        {% if 'pm5' in variant.categories %}
             {% for allele, stars in variant.var_data.info.pm5_data.items() %}
 
                 <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[alleleid]"
                     target="_blank">
                     {{allele}}
                 </a>
-            {%- endfor %}
+            {% endfor %}
         {% endif %}
     </td>
     <td>

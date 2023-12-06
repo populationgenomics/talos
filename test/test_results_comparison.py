@@ -22,8 +22,8 @@ from reanalysis.static_values import get_granular_date
 COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')
 COORD_2 = Coordinates(chrom='2', pos=2, ref='A', alt='G')
 
-VAR_1 = SmallVariant(coordinates=COORD_1, info={})
-VAR_2 = SmallVariant(coordinates=COORD_2, info={})
+VAR_1 = SmallVariant(coordinates=COORD_1, info={}, transcript_consequences=[])
+VAR_2 = SmallVariant(coordinates=COORD_2, info={}, transcript_consequences=[])
 REP_SAM1_1 = ReportVariant(
     sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1'
 )
