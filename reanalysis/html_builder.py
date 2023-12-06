@@ -2,10 +2,7 @@
 Methods for taking the final output and generating static report content
 """
 
-import logging
-import sys
 from argparse import ArgumentParser
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,11 +13,21 @@ from peddy.peddy import Ped
 
 from cpg_utils import to_path
 
+from reanalysis.models import (
+    PanelApp,
+    PanelDetail,
+    ParticipantMeta,
+    ReportVariant,
+    ResultData,
+    SmallVariant,
+    StructuralVariant,
+)
 from reanalysis.utils import (
-    read_json_from_path,
     get_config,
     get_cohort_config,
     get_cohort_seq_type_conf,
+    get_logger,
+    read_json_from_path,
 )
 
 
@@ -42,16 +49,19 @@ class DataTable:
     description: str = ''
 
 
-def variant_in_forbidden_gene(variant_dict, forbidden_genes):
+def variant_in_forbidden_gene(variant_obj: ReportVariant, forbidden_genes):
     """
     Check if gene id or gene symbol is on forbidden gene list
     """
-    for gene_id in variant_dict['gene'].split(','):
+    for gene_id in variant_obj.gene.split(','):
         if gene_id in forbidden_genes:
             return True
 
+    if isinstance(variant_obj.var_data, StructuralVariant):
+        return False
+
     # Allow for exclusion by Symbol too
-    for tx_con in variant_dict['var_data']['transcript_consequences']:
+    for tx_con in variant_obj.var_data.transcript_consequences:
         if tx_con['symbol'] in forbidden_genes:
             return True
 
@@ -63,29 +73,23 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(
-        self,
-        results: str | dict,
-        panelapp_path: str,
-        pedigree: Ped,
-    ):
+    def __init__(self, results: str | ResultData, panelapp_path: str, pedigree: Ped):
         """
         Args:
-            results (str | dict): path to the results JSON, or the results dict
+            results (str | ResultData): path to the results JSON, or the results object
             panelapp_path (str): where to read panelapp data from
             pedigree (str): path to the PED file
         """
-        self.panelapp: dict = read_json_from_path(panelapp_path, {})  # type: ignore
-        assert isinstance(self.panelapp, dict)
+        self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
 
         self.pedigree = Ped(pedigree)
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            DATASET_CONFIG.get('forbidden', 'missing'), set()  # type: ignore
+            DATASET_CONFIG.get('forbidden', 'missing'), default=set()  # type: ignore
         )
 
-        logging.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
+        get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
         seqr_path = DATASET_SEQ_CONFIG.get('seqr_lookup')  # type: ignore
@@ -116,38 +120,36 @@ class HTMLBuilder:
 
         # Read results file, or take it directly
         if isinstance(results, str):
-            results_dict = read_json_from_path(results)
+            results_dict = read_json_from_path(results, return_model=ResultData)  # type: ignore
         else:
             results_dict = results
 
-        assert isinstance(results_dict, dict)
+        assert isinstance(results_dict, ResultData)
 
-        self.metadata = results_dict['metadata']
-        self.panel_names = {panel['name'] for panel in self.metadata['panels']}
+        self.metadata = results_dict.metadata
+        self.panel_names = {panel.name for panel in self.metadata.panels}
 
         # pull out forced panel matches
         cohort_panels = DATASET_CONFIG.get('cohort_panels', [])  # type: ignore
         self.forced_panels = [
-            panel for panel in self.metadata['panels'] if panel['id'] in cohort_panels
+            panel for panel in self.metadata.panels if panel.id in cohort_panels
         ]
         self.forced_panel_names = {
-            panel['name']
-            for panel in self.metadata['panels']
-            if panel['id'] in cohort_panels
+            panel.name for panel in self.metadata.panels if panel.id in cohort_panels
         }
 
         # Process samples and variants
         self.samples: list[Sample] = []
         self.solved: list[str] = []
-        for sample, content in results_dict['results'].items():
-            if content['metadata'].get('solved', False):
+        for sample, content in results_dict.results.items():
+            if content.metadata.solved:
                 self.solved.append(sample)
                 continue
             self.samples.append(
                 Sample(
                     name=sample,
-                    metadata=content['metadata'],
-                    variants=content['variants'],
+                    metadata=content.metadata,
+                    variants=content.variants,
                     ext_labels=self.ext_labels.get(sample, {}),
                     html_builder=self,
                 )
@@ -185,13 +187,13 @@ class HTMLBuilder:
             # iterate over the list of variants
             for variant in sample.variants:
 
-                var_string = str(variant)
+                var_string = variant.var_data.coordinates.string_format
                 unique_variants['any'].add(var_string)
                 sample_variants['any'].add(var_string)
 
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
-                for category_value in variant.var_data.get('categories'):
+                for category_value in variant.categories:
                     sample_variants[category_value].add(var_string)
                     unique_variants[category_value].add(var_string)
 
@@ -244,16 +246,19 @@ class HTMLBuilder:
         """
 
         tables = {
-            'Panels': pd.DataFrame(self.metadata['panels']),
+            'Panels': pd.DataFrame(self.metadata.panels),
             'Meta': pd.DataFrame(
-                {'Data': key.capitalize(), 'Value': self.metadata[key]}
+                {
+                    'Data': key.capitalize(),
+                    'Value': self.metadata.__getattribute__(key),
+                }
                 for key in ['cohort', 'input_file', 'run_datetime', 'container']
             ),
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
                     for fam_type, fam_count in sorted(
-                        self.metadata['family_breakdown'].items()
+                        self.metadata.family_breakdown.items()
                     )
                 ]
             ),
@@ -274,11 +279,7 @@ class HTMLBuilder:
             latest (bool):
         """
 
-        (
-            summary_table,
-            zero_categorised_samples,
-            unused_ext_labels,
-        ) = self.get_summary_stats()
+        (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
         report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
 
@@ -288,8 +289,8 @@ class HTMLBuilder:
             'seqr_url': DATASET_SEQ_CONFIG.get('seqr_instance', ''),  # type: ignore
             'seqr_project': DATASET_SEQ_CONFIG.get('seqr_project', ''),  # type: ignore
             'meta_tables': {},
-            'forbidden_genes': [],
-            'zero_categorised_samples': [],
+            'forbidden_genes': sorted(self.forbidden_genes),
+            'zero_categorised_samples': zero_cat_samples,
             'unused_ext_labels': unused_ext_labels,
             'summary_table': None,
             'report_title': report_title,
@@ -304,12 +305,6 @@ class HTMLBuilder:
                 columns=list(meta_table.columns),
                 rows=list(meta_table.to_records(index=False)),
             )
-
-        if self.forbidden_genes:
-            template_context['forbidden_genes'] = sorted(self.forbidden_genes)
-
-        if len(zero_categorised_samples) > 0:
-            template_context['zero_categorised_samples'] = zero_categorised_samples
 
         template_context['summary_table'] = DataTable(
             id='summary-table',
@@ -330,27 +325,6 @@ class HTMLBuilder:
         )
 
 
-def _ext_var_labels_from_variant_dict(variant_dict: dict, ext_labels: dict) -> list:
-    """
-    Returns a list of external labels specific to the variant (for this sample)
-
-    Args:
-        variant_dict ():
-        ext_labels ():
-
-    Returns:
-
-    """
-
-    var_string = (
-        f"{variant_dict['var_data']['coords']['chrom']}-"
-        f"{variant_dict['var_data']['coords']['pos']}-"
-        f"{variant_dict['var_data']['coords']['ref']}-"
-        f"{variant_dict['var_data']['coords']['alt']}"
-    )
-    return ext_labels.get(var_string, [])
-
-
 class Sample:
     """
     Sample related logic
@@ -359,18 +333,18 @@ class Sample:
     def __init__(
         self,
         name: str,
-        metadata: dict,
-        variants: list[dict[str, Any]],
-        ext_labels: dict[str, str],
+        metadata: ParticipantMeta,
+        variants: list[ReportVariant],
+        ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
         self.name = name
-        self.family_id = metadata['family_id']
-        self.family_members = metadata['members']
-        self.phenotypes = metadata['phenotypes']
-        self.ext_id = metadata['ext_id']
-        self.panel_ids = metadata['panel_ids']
-        self.panel_names = metadata['panel_names']
+        self.family_id = metadata.family_id
+        self.family_members = metadata.members
+        self.phenotypes = metadata.phenotypes
+        self.ext_id = metadata.ext_id
+        self.panel_ids = metadata.panel_ids
+        self.panel_names = metadata.panel_names
         self.seqr_id = html_builder.seqr.get(name, None)
         self.ext_labels = ext_labels
         self.html_builder = html_builder
@@ -378,13 +352,15 @@ class Sample:
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [
             Variant(
-                variant_dict,
+                report_variant,
                 self,
-                _ext_var_labels_from_variant_dict(variant_dict, ext_labels),
-                html_builder.panelapp['genes'],
+                ext_labels.get(report_variant.var_data.coordinates.string_format, []),
+                html_builder.panelapp.genes,
             )
-            for variant_dict in variants
-            if not variant_in_forbidden_gene(variant_dict, html_builder.forbidden_genes)
+            for report_variant in variants
+            if not variant_in_forbidden_gene(
+                report_variant, html_builder.forbidden_genes
+            )
         ]
 
     def __str__(self):
@@ -401,76 +377,61 @@ class Variant:
 
     def __init__(
         self,
-        variant_dict: dict,
+        report_variant: ReportVariant,
         sample: Sample,
         ext_labels: list,
-        gene_map: dict[str, Any],
+        gene_map: dict[str, PanelDetail],
     ):
-        self.chrom = variant_dict['var_data']['coords']['chrom']
-        self.pos = variant_dict['var_data']['coords']['pos']
-        self.ref = variant_dict['var_data']['coords']['ref']
-        self.alt = variant_dict['var_data']['coords']['alt']
-        self.first_seen: str = variant_dict['first_seen']
-        self.var_data = variant_dict['var_data']
-        self.support_vars = variant_dict['support_vars']
-        self.warning_flags = variant_dict['flags']
-        self.panel_flags = variant_dict['panels'].get('matched', [])
-        self.forced_matches = variant_dict['panels'].get('forced', [])
-        self.reasons = variant_dict['reasons']
-        self.genotypes = variant_dict['genotypes']
+        self.chrom = report_variant.var_data.coordinates.chrom
+        self.pos = report_variant.var_data.coordinates.pos
+        self.ref = report_variant.var_data.coordinates.ref
+        self.alt = report_variant.var_data.coordinates.alt
+        self.categories = report_variant.categories
+        self.first_seen: str = report_variant.first_seen
+        self.var_data = report_variant.var_data
+        self.support_vars = report_variant.support_vars
+        self.warning_flags = report_variant.flags
+        self.panel_flags = report_variant.panels.matched
+        self.forced_matches = report_variant.panels.forced
+        self.reasons = report_variant.reasons
+        self.genotypes = report_variant.genotypes
         self.sample = sample
         self.ext_labels = ext_labels
 
         # List of (gene_id, symbol)
         self.genes: list[tuple[str, str]] = []
-        for gene_id in variant_dict['gene'].split(','):
-            symbol = gene_map.get(gene_id, {'symbol': gene_id})['symbol']
+        for gene_id in report_variant.gene.split(','):
+            symbol = gene_map.get(gene_id, PanelDetail(symbol=gene_id)).symbol
             self.genes.append((gene_id, symbol))
 
         # Summaries CSQ strings
-        (
-            self.mane_consequences,
-            self.non_mane_consequences,
-            self.mane_hgvsps,
-        ) = self.parse_csq()
+        if isinstance(self.var_data, SmallVariant):
+            (self.mane_csq, self.non_mane_csq, self.mane_hgvsps) = self.parse_csq()
 
         # pull up the highest AlphaMissense score, if present
-        am_scores = [
-            float(csq['am_pathogenicity'])
-            for csq in self.var_data['transcript_consequences']
-            if csq.get('am_pathogenicity')
-        ]
-        self.var_data['info']['alpha_missense_max'] = (
+        am_scores = (
+            [
+                float(csq['am_pathogenicity'])
+                for csq in self.var_data.transcript_consequences
+                if csq.get('am_pathogenicity')
+            ]
+            if isinstance(self.var_data, SmallVariant)
+            else []
+        )
+
+        self.var_data.info['alpha_missense_max'] = (
             max(am_scores) if am_scores else 'missing'
         )
 
         # this is the weird gnomad callset ID
-        if self.var_data['info']['var_type'] == 'SV':
-            if 'gnomad_v2.1_sv_svid' in self.var_data['info']:
-                self.var_data['info']['gnomad_key'] = self.var_data['info'][
+        if isinstance(self.var_data, StructuralVariant):
+            if 'gnomad_v2.1_sv_svid' in self.var_data.info:
+                self.var_data.info['gnomad_key'] = self.var_data.info[  # type: ignore
                     'gnomad_v2.1_sv_svid'
                 ].split('v2.1_')[-1]
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
-
-    def same_locus(self, other: object) -> bool:
-        """
-        method of determining an exactly matching variant
-        Args:
-            other (Variant):
-
-        Returns:
-            True if chrom, position, and alleles all match
-        """
-        if not isinstance(other, Variant):
-            return False
-        return (
-            self.chrom == other.chrom
-            and self.pos == other.pos
-            and self.ref == other.ref
-            and self.alt == other.alt
-        )
 
     def parse_csq(self):
         """
@@ -483,7 +444,7 @@ class Variant:
         non_mane_consequences = set()
         mane_hgvsps = set()
 
-        for csq in self.var_data.get('transcript_consequences', []):
+        for csq in self.var_data.transcript_consequences:
             if 'consequence' not in csq:
                 continue
 
@@ -500,7 +461,9 @@ class Variant:
         return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
-def check_date_filter(results: str, filter_date: str | None = None) -> dict | None:
+def check_date_filter(
+    results: str, filter_date: str | None = None
+) -> ResultData | None:
     """
     Check if there's a date filter in the config
     if there is, load the results JSON and filter out variants
@@ -511,49 +474,35 @@ def check_date_filter(results: str, filter_date: str | None = None) -> dict | No
     """
 
     # Load the results JSON
-    results_dict: dict = read_json_from_path(results)  # type: ignore
+    results_dict: ResultData = read_json_from_path(results, return_model=ResultData)  # type: ignore
 
     # pick up the current date from datetime or config
     if filter_date is None:
-        filter_date = results_dict['metadata']['run_datetime']
-
-    filtered_results = {
-        'metadata': results_dict['metadata'],
-        'results': defaultdict(dict),
-    }
+        filter_date = results_dict.metadata.run_datetime
 
     # Filter out variants based on date
-    for sample, content in results_dict['results'].items():
+    for content in results_dict.results.values():
         # keep only this run's new variants
-        keep_variants = [
-            variant
-            for variant in content['variants']
-            if variant['first_seen'] == filter_date
+        content.variants = [
+            variant for variant in content.variants if variant.first_seen == filter_date
         ]
 
-        # if no variants to keep, don't add anything
-        if keep_variants:
-            filtered_results['results'][sample] = {
-                'metadata': content['metadata'],
-                'variants': keep_variants,
-            }
+    # pop off all the samples with no variants
+    for sample_id in results_dict.results.keys():
+        if not results_dict.results[sample_id].variants:
+            results_dict.results.pop(sample_id)
 
     # check if there's anything to return
-    if filtered_results['results']:
-        logging.info(f'Filtered results obtained for {filter_date}')
-        return filtered_results
+    if results_dict.results:
+        get_logger().info(f'Filtered results obtained for {filter_date}')
+        return results_dict
 
-    logging.info(f'No filtered results obtained for {filter_date}')
+    get_logger().info(f'No filtered results obtained for {filter_date}')
     return None
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
+    get_logger(__file__).info('Running HTML builder')
 
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)
@@ -576,11 +525,11 @@ if __name__ == '__main__':
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
     if args.latest and (
-        filtered_result_dict := check_date_filter(results=args.results)
+        date_filtered_object := check_date_filter(results=args.results)
     ):
         # build the HTML for latest reports only
         latest_html = HTMLBuilder(
-            results=filtered_result_dict,
+            results=date_filtered_object,
             panelapp_path=args.panelapp,
             pedigree=args.pedigree,
         )

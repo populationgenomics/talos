@@ -703,7 +703,8 @@ def read_json_from_path(
             if return_model:
                 return return_model.model_validate(json_data)
             return json_data
-    if default:
+
+    if default is not None:
         return default
 
     raise ValueError(f'No data found at {bucket_path}')
