@@ -571,7 +571,7 @@ def main(
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
-    with open(out_json_path, 'w') as out_file:
+    with to_path(out_json_path).open('w') as out_file:
         out_file.write(
             ResultData.model_validate(results_model).model_dump_json(indent=4)
         )
