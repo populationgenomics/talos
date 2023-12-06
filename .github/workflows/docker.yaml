@@ -55,8 +55,8 @@ jobs:
     - name: manual build
       if: ${{ github.event_name == 'workflow_dispatch' }}
       run: |
-        docker tag $IMAGE_NAME:$VERSION $DOCKER_DEV/$IMAGE_NAME:$VERSION
-        docker push $DOCKER_DEV/$IMAGE_NAME:$VERSION
+        docker tag $IMAGE_NAME:$VERSION $DOCKER_DEV/$IMAGE_NAME:${{ github.event.inputs.tag }}
+        docker push $DOCKER_DEV/$IMAGE_NAME:${{ github.event.inputs.tag }}
 
     - name: push latest
       if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
