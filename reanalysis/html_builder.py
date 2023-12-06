@@ -9,9 +9,8 @@ from typing import Any
 
 import jinja2
 import pandas as pd
-from peddy.peddy import Ped
-
 from cpg_utils import to_path
+from peddy.peddy import Ped
 
 from reanalysis.models import (
     PanelApp,
@@ -29,7 +28,6 @@ from reanalysis.utils import (
     get_logger,
     read_json_from_path,
 )
-
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG = None  # type: ignore

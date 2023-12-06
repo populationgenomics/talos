@@ -8,10 +8,10 @@ Complete revision
 # mypy: ignore-errors
 
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
 import click
 from cpg_utils.config import get_config
+from dateutil.relativedelta import relativedelta
 
 from reanalysis.models import (
     HistoricPanels,

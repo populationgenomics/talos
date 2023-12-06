@@ -8,9 +8,8 @@ We then run a permissive MOI match for the variant
 # mypy: ignore-errors
 from abc import abstractmethod
 
-from peddy.peddy import Ped, PHENOTYPE
-
 from cpg_utils.config import get_config
+from peddy.peddy import Ped, PHENOTYPE
 
 from reanalysis.models import (
     SmallVariant,

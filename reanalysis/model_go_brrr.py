@@ -24,7 +24,6 @@ from reanalysis.data_model import (
     Splice,
 )
 
-
 # region: 2 vars, no tx, phased trio, boring
 # dull example, single tx consequence, all default values, i.e. only gene symbol & ID
 t = TXFields('a', 'ensga')

@@ -23,12 +23,10 @@ import os
 import sys
 from argparse import ArgumentParser
 
-import requests
 import hail as hl
-
+import requests
 from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
-
 
 CANON_CHROMS = [f'chr{chrom}' for chrom in range(1, 23)] + ['X', 'Y', 'M']
 # path for downloading GenCode GTF file

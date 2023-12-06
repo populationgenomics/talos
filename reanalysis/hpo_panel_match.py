@@ -17,13 +17,11 @@ from collections import defaultdict
 
 import networkx
 import requests
-from obonet import read_obo
-
 from cpg_utils import to_path
 from metamist.graphql import gql, query
+from obonet import read_obo
 
 from reanalysis.models import PhenotypeMatchedPanels, ParticipantHPOPanels
-
 
 HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')

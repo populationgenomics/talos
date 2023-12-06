@@ -2,6 +2,8 @@
 classes and methods shared across reanalysis components
 """
 
+import json
+import re
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -10,13 +12,9 @@ from pathlib import Path
 from string import punctuation
 from typing import Any
 
-import json
-import re
-
 import cyvcf2
 import peddy
 import requests
-
 from cpg_utils import to_path, Path as CPGPathType
 from cpg_utils.config import get_config
 

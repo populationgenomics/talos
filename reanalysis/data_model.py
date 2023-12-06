@@ -24,9 +24,9 @@ the annotation(s), the genotype(s), and the sample affection status.
 
 
 import json
+from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
 from os.path import join
-from dataclasses import dataclass, field, is_dataclass
 
 import hail as hl
 from cloudpathlib import AnyPath

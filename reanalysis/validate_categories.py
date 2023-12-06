@@ -17,11 +17,10 @@ participants relative to the MOI described in PanelApp
 from collections import defaultdict
 
 import click
-from cyvcf2 import VCFReader
-from peddy.peddy import Ped
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+from cyvcf2 import VCFReader
+from peddy.peddy import Ped
 
 from reanalysis.models import (
     CATEGORY_DICT,
@@ -38,6 +37,7 @@ from reanalysis.models import (
     ReportPanel,
 )
 from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
+from reanalysis.static_values import get_logger
 from reanalysis.utils import (
     canonical_contigs_from_vcf,
     filter_results,
@@ -48,7 +48,6 @@ from reanalysis.utils import (
     read_json_from_path,
     GeneDict,
 )
-from reanalysis.static_values import get_logger
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}

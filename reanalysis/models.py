@@ -1,15 +1,13 @@
 """
 A home for all data models used in AIP
 """
-import toml
 from enum import Enum
 
+import toml
+from cpg_utils import to_path
 from pydantic import BaseModel, Field
 
-from cpg_utils import to_path
-
 from reanalysis.static_values import get_granular_date
-
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = AIP_CONF['categories']
@@ -60,23 +58,6 @@ class Coordinates(BaseModel):
         if self.chrom in CHROM_ORDER:
             return True
         return False
-
-    # def __eq__(self, other) -> bool:
-    #     """
-    #     equivalence check
-    #     Args:
-    #         other (Coordinates):
-    #
-    #     Returns:
-    #         true if self == other
-    #
-    #     """
-    #     return (
-    #         self.chrom == other.chrom
-    #         and self.pos == other.pos
-    #         and self.ref == other.ref
-    #         and self.alt == other.alt
-    #     )
 
 
 class VariantCommon(BaseModel):

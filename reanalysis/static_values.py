@@ -3,11 +3,9 @@ This is a placeholder, completely base class to prevent circular imports
 """
 import logging
 import sys
-
 from datetime import datetime
 
 from cpg_utils.config import get_config
-
 
 _GRANULAR_DATE: str | None = None
 LOGGER = None

@@ -10,8 +10,6 @@ from datetime import datetime
 from os.path import join
 
 import click
-from hailtop.batch.job import Job
-
 from cpg_utils import to_path, Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
@@ -19,6 +17,7 @@ from cpg_utils.hail_batch import (
     get_batch,
     query_command,
 )
+from hailtop.batch.job import Job
 
 from reanalysis import clinvar_by_codon, summarise_clinvar_entries, seqr_loader
 from reanalysis.vep_jobs import add_vep_jobs
