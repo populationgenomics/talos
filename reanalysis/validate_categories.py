@@ -538,7 +538,7 @@ def main(
     results_meta = ResultMeta(
         **{
             'input_file': input_path,
-            'cohort': dataset,
+            'cohort': dataset or get_config()['workflow']['dataset'] or 'unknown',
             'family_breakdown': count_families(ped, samples=vcf_opened.samples),
             'panels': panelapp_data.metadata,
             'container': get_config()['workflow']['driver_image'],
