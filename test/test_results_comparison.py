@@ -2,229 +2,190 @@
 test file for annotation with first-seen dates
 """
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from os.path import join
 from time import sleep
 from copy import deepcopy
 
-from cpg_utils.config import get_config
-
-from reanalysis.utils import (
-    date_annotate_results,
-    find_latest_file,
-    get_granular_date,
+from reanalysis.utils import date_annotate_results, find_latest_file
+from reanalysis.models import (
     Coordinates,
+    SmallVariant,
+    ReportVariant,
+    ResultData,
+    HistoricVariants,
+    HistoricSampleVariant,
 )
-
-CATEGORY_META = get_config()['categories']
-
-
-@dataclass
-class MiniVariant:
-    """
-    tiny class to simulate the variants
-    """
-
-    categories: list
-    coords: Coordinates
+from reanalysis.static_values import get_granular_date
 
 
-@dataclass
-class MiniReport:
-    """
-    tiny class to simulate the reports
-    """
+COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')
+COORD_2 = Coordinates(chrom='2', pos=2, ref='A', alt='G')
 
-    var_data: MiniVariant
-    support_vars: list[str] = field(default_factory=list)
-    first_seen: str = get_granular_date()
-    independent: bool = False
-
-
-COORD_1 = Coordinates('1', 1, 'A', 'G')
-COORD_2 = Coordinates('2', 2, 'A', 'G')
-
-GENERIC_REPORT = MiniReport(MiniVariant(categories=['1'], coords=COORD_1))
-GENERIC_REPORT_12 = MiniReport(MiniVariant(categories=['1', '2'], coords=COORD_1))
-GENERIC_REPORT_2 = MiniReport(MiniVariant(categories=['2'], coords=COORD_2))
+VAR_1 = SmallVariant(coordinates=COORD_1, info={}, transcript_consequences=[])
+VAR_2 = SmallVariant(coordinates=COORD_2, info={}, transcript_consequences=[])
+REP_SAM1_1 = ReportVariant(
+    sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1'
+)
+REP_SAM1_1_Independent = ReportVariant(
+    sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1', independent=True
+)
+REP_SAM2_2 = ReportVariant(
+    sample='sam2', var_data=VAR_2, categories={'2'}, gene='ENSG2', independent=True
+)
+REP_SAM2_12 = ReportVariant(
+    sample='sam2', var_data=VAR_2, categories={'1', '2'}, gene='ENSG2'
+)
 
 OLD_DATE = datetime(year=2000, month=1, day=1).strftime('%Y-%m-%d')
 
 
 def test_date_annotate_one():
     """
-    checks we can add one entry to a None historic
+    same category, old date - revert 'first-seen'
     """
-    results = {'sample': {'variants': [GENERIC_REPORT]}}
-    new_results, cumulative = date_annotate_results(results)
-    assert results == new_results
-    assert cumulative == {
-        'metadata': {'categories': CATEGORY_META},
-        'results': {
-            'sample': {
-                COORD_1.string_format: {
-                    'categories': {'1': get_granular_date()},
-                    'support_vars': [],
-                    'independent': False,
+    results = ResultData(
+        **{
+            'results': {
+                'sam1': {
+                    'variants': [deepcopy(REP_SAM1_1)],
+                    'metadata': {'ext_id': 'jeff', 'family_id': 'jeff'},
                 }
             }
-        },
-    }
+        }
+    )
+    historic = HistoricVariants(
+        **{
+            'results': {
+                'sam1': {
+                    VAR_1.coordinates.string_format: {
+                        'categories': {'1': OLD_DATE},
+                        'independent': False,
+                    }
+                }
+            }
+        }
+    )
+    date_annotate_results(results, historic)
+    assert results.results['sam1'].variants[0].first_seen == OLD_DATE
 
 
 def test_date_annotate_two():
     """
-    same category, old date - revert 'first-seen'
+    if there's a new category, don't update dates
     """
-    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)]}}
-    historic = {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': OLD_DATE},
-                'support_vars': [],
-                'labels': [],
-                'independent': False,
+    results = ResultData(
+        **{
+            'results': {
+                'sam2': {
+                    'metadata': {'ext_id': 'sam2', 'family_id': '2'},
+                    'variants': [deepcopy(REP_SAM2_12)],
+                }
             }
         }
-    }
-    results, _cumulative = date_annotate_results(results, historic)
-    assert results == {
-        'sample': {
-            'variants': [
-                MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1),
-                    first_seen=OLD_DATE,
-                )
-            ]
+    )
+    prior_results = deepcopy(results)
+    historic = HistoricVariants(
+        **{
+            'results': {
+                'sam2': {
+                    COORD_2.string_format: {
+                        'categories': {'1': OLD_DATE},
+                        'independent': False,
+                    }
+                }
+            }
         }
-    }
+    )
+    date_annotate_results(results, historic)
+    assert len(historic.results['sam2'][COORD_2.string_format].categories) == 2
+    assert historic.results['sam2'][COORD_2.string_format].categories['1'] == OLD_DATE
+    assert (
+        historic.results['sam2'][COORD_2.string_format].categories['2']
+        == get_granular_date()
+    )
+    assert results == prior_results
 
 
 def test_date_annotate_three():
     """
-    if there's a new category, don't update dates
+    if a variant is newly independent, update the dates?
     """
-    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT_12)]}}
-    historic = {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': OLD_DATE},
-                'support_vars': [],
-                'labels': [],
-                'independent': False,
-            }
-        }
-    }
-    new_results, cumulative = date_annotate_results(results, historic)
-    assert cumulative == {
-        'metadata': {'categories': CATEGORY_META},
-        'results': {
-            'sample': {
-                COORD_1.string_format: {
-                    'categories': {'1': OLD_DATE, '2': get_granular_date()},
-                    'support_vars': [],
-                    'labels': [],
-                    'independent': False,
+    results = ResultData(
+        **{
+            'results': {
+                'sam1': {
+                    'metadata': {'ext_id': 'sam1', 'family_id': '1'},
+                    'variants': [deepcopy(REP_SAM1_1_Independent)],
                 }
             }
-        },
-    }
-    assert results == new_results
+        }
+    )
+    historic = HistoricVariants(
+        **{
+            'results': {
+                'sam1': {
+                    COORD_1.string_format: {
+                        'categories': {'1': OLD_DATE},
+                        'support_vars': ['flipflop'],
+                        'independent': False,
+                    }
+                }
+            }
+        }
+    )
+    date_annotate_results(results, historic)
+    assert historic.results['sam1'][COORD_1.string_format] == HistoricSampleVariant(
+        **{
+            'categories': {'1': get_granular_date()},
+            'support_vars': ['flipflop'],
+            'independent': True,
+        }
+    )
 
 
 def test_date_annotate_four():
     """
     if there's a new category, don't update dates
     """
-    results = {'sample': {'variants': [deepcopy(GENERIC_REPORT)]}}
-    historic = {
-        'sample': {
-            COORD_1.string_format: {
-                'categories': {'1': OLD_DATE},
-                'support_vars': ['flipflop'],
-                'independent': False,
-                'labels': [],
+    results = ResultData(
+        **{
+            'results': {
+                'sam1': {
+                    'metadata': {'ext_id': 'sam1', 'family_id': '1'},
+                    'variants': [deepcopy(REP_SAM1_1)],
+                },
+                'sam2': {
+                    'metadata': {'ext_id': 'sam2', 'family_id': '2'},
+                    'variants': [deepcopy(REP_SAM2_2)],
+                },
             }
         }
-    }
-    new_results, historic = date_annotate_results(results, historic)
-    assert historic == {
-        'metadata': {'categories': CATEGORY_META},
-        'results': {
-            'sample': {
-                COORD_1.string_format: {
-                    'categories': {'1': OLD_DATE},
-                    'labels': [],
-                    'independent': False,
-                    'support_vars': ['flipflop'],
-                }
-            }
-        },
-    }
-    assert results == new_results
-
-
-def test_date_annotate_five():
-    """
-    if there's a new category, don't update dates
-    """
-    results = {
-        'sample': {'variants': [deepcopy(GENERIC_REPORT)]},
-        'sample2': {'variants': [deepcopy(GENERIC_REPORT_2)]},
-    }
-    historic = {
-        'metadata': {'categories': CATEGORY_META},
-        'results': {
-            'sample': {
-                COORD_1.string_format: {
-                    'categories': {'2': OLD_DATE},
-                    'support_vars': [],
-                    'independent': False,
-                }
+    )
+    historic = HistoricVariants(
+        **{
+            'results': {
+                'sam1': {COORD_1.string_format: {'categories': {'2': OLD_DATE}}},
+                'sam3': {},
             },
-            'sample3': {},
-        },
-    }
-    results, historic = date_annotate_results(results, historic)
-    assert historic == {
-        'metadata': {'categories': CATEGORY_META},
-        'results': {
-            'sample': {
-                COORD_1.string_format: {
-                    'categories': {'1': get_granular_date(), '2': OLD_DATE},
-                    'support_vars': [],
-                    'independent': False,
-                }
+        }
+    )
+    date_annotate_results(results, historic)
+    assert historic == HistoricVariants(
+        **{
+            'results': {
+                'sam1': {
+                    COORD_1.string_format: {
+                        'categories': {'1': get_granular_date(), '2': OLD_DATE}
+                    }
+                },
+                'sam2': {
+                    COORD_2.string_format: {'categories': {'2': get_granular_date()}}
+                },
+                'sam3': {},
             },
-            'sample2': {
-                COORD_2.string_format: {
-                    'categories': {'2': get_granular_date()},
-                    'support_vars': [],
-                    'independent': False,
-                }
-            },
-            'sample3': {},
-        },
-    }
-    assert results == {
-        'sample': {
-            'variants': [
-                MiniReport(
-                    MiniVariant(categories=['1'], coords=COORD_1),
-                    first_seen=get_granular_date(),
-                )
-            ]
-        },
-        'sample2': {
-            'variants': [
-                MiniReport(
-                    MiniVariant(categories=['2'], coords=COORD_2),
-                    first_seen=get_granular_date(),
-                )
-            ]
-        },
-    }
+        }
+    )
 
 
 def touch(filepath: str):

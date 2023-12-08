@@ -270,7 +270,7 @@ def main(
 
     panel_remote = remote_root / 'participant_panels.json'
     with panel_remote.open('w') as handle:
-        json.dump(hpo_panel_dict, handle, indent=4, default=list)
+        handle.write(hpo_panel_dict.model_dump_json(indent=4))
         logging.info(f'Wrote panel file to {panel_remote}')
 
     # get the list of all pedigree members as list of dictionaries

@@ -2,25 +2,36 @@
 classes and methods shared across reanalysis components
 """
 
-import logging
-import sys
+import json
+import re
 import time
 from collections import defaultdict
-from dataclasses import dataclass, is_dataclass, field
 from datetime import datetime
-from enum import Enum
 from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
 from string import punctuation
 from typing import Any
 
-import json
-import re
+import cyvcf2
+import peddy
 import requests
-
 from cpg_utils import to_path, Path as CPGPathType
 from cpg_utils.config import get_config
 
+from reanalysis.models import (
+    Coordinates,
+    FileTypes,
+    HistoricPanels,
+    HistoricSampleVariant,
+    HistoricVariants,
+    PanelApp,
+    PhenotypeMatchedPanels,
+    ResultData,
+    SmallVariant,
+    StructuralVariant,
+    VARIANT_MODELS,
+)
+from reanalysis.static_values import get_granular_date, get_logger
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -34,8 +45,6 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
 TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
-
-_GRANULAR_DATE: str | None = None
 
 # most lenient to most conservative
 # usage = if we have two MOIs for the same gene, take the broadest
@@ -55,84 +64,6 @@ COHORT_SEQ_CONFIG: dict | None = None
 
 # CONFIG_FIELDS = ['workflow']  # , 'filter', 'panels', 'categories']
 # assert all(field in get_config(False).keys() for field in CONFIG_FIELDS)
-
-LOGGER = None
-
-
-def get_logger(
-    logger_name: str = 'AIP-logger', log_level: int = logging.INFO
-) -> logging.Logger:
-    """
-    creates a logger instance (so as not to use the root logger)
-
-    Args:
-        logger_name (str):
-        log_level ():
-
-    Returns:
-        a logger instance, or the global logger if already defined
-    """
-    global LOGGER
-
-    if LOGGER is None:
-        # this very verbose logging is to ensure that the log level requested (INFO)
-        # doesn't cause the unintentional logging of every Metamist query
-        # create a named logger
-        LOGGER = logging.getLogger(logger_name)
-        LOGGER.setLevel(log_level)
-
-        # create a stream handler to write output
-        stream_handler = logging.StreamHandler(sys.stdout)
-        stream_handler.setLevel(log_level)
-
-        # create format string for messages
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s'
-        )
-        stream_handler.setFormatter(formatter)
-
-        # set the logger to use this handler
-        LOGGER.addHandler(stream_handler)
-
-    return LOGGER
-
-
-def get_granular_date():
-    """
-    cached getter/setter
-    """
-    global _GRANULAR_DATE
-    if _GRANULAR_DATE is None:
-        # allow an override here - synthetic historic runs
-        try:
-            if fake_date := get_config().get('workflow', {}).get('fake_date'):
-                _GRANULAR_DATE = fake_date
-        except AssertionError:
-            get_logger().info(f'No config loaded, falling back to {_GRANULAR_DATE}')
-        if _GRANULAR_DATE is None:
-            _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
-    return _GRANULAR_DATE
-
-
-class VariantType(Enum):
-    """
-    enumeration of permitted variant types
-    """
-
-    SMALL = 'SMALL'
-    SV = 'SV'
-
-
-class FileTypes(Enum):
-    """
-    enumeration of permitted input file types
-    """
-
-    HAIL_TABLE = '.ht'
-    MATRIX_TABLE = '.mt'
-    VCF = '.vcf'
-    VCF_GZ = '.vcf.gz'
-    VCF_BGZ = '.vcf.bgz'
 
 
 def chunks(iterable, chunk_size):
@@ -200,55 +131,56 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
 
 
-@dataclass
-class Coordinates:
-    """
-    a home for the positional variant attributes
-    """
-
-    chrom: str
-    pos: int
-    ref: str
-    alt: str
-
-    @property
-    def string_format(self) -> str:
-        """
-        forms a string representation: chr-pos-ref-alt
-        """
-        return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
-
-    def __lt__(self, other) -> bool:
-        """
-        enables positional sorting
-        """
-        # this will return False for same chrom and position
-        if self.chrom == other.chrom:
-            return self.pos < other.pos
-        # otherwise take the relative index from sorted chromosomes list
-        if self.chrom in CHROM_ORDER and other.chrom in CHROM_ORDER:
-            return CHROM_ORDER.index(self.chrom) < CHROM_ORDER.index(other.chrom)
-        # if self is on a canonical chromosome, sort before HLA/Decoy etc.
-        if self.chrom in CHROM_ORDER:
-            return True
-        return False
-
-    def __eq__(self, other) -> bool:
-        """
-        equivalence check
-        Args:
-            other (Coordinates):
-
-        Returns:
-            true if self == other
-
-        """
-        return (
-            self.chrom == other.chrom
-            and self.pos == other.pos
-            and self.ref == other.ref
-            and self.alt == other.alt
-        )
+#
+# @dataclass
+# class Coordinates:
+#     """
+#     a home for the positional variant attributes
+#     """
+#
+#     chrom: str
+#     pos: int
+#     ref: str
+#     alt: str
+#
+#     @property
+#     def string_format(self) -> str:
+#         """
+#         forms a string representation: chr-pos-ref-alt
+#         """
+#         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
+#
+#     def __lt__(self, other) -> bool:
+#         """
+#         enables positional sorting
+#         """
+#         # this will return False for same chrom and position
+#         if self.chrom == other.chrom:
+#             return self.pos < other.pos
+#         # otherwise take the relative index from sorted chromosomes list
+#         if self.chrom in CHROM_ORDER and other.chrom in CHROM_ORDER:
+#             return CHROM_ORDER.index(self.chrom) < CHROM_ORDER.index(other.chrom)
+#         # if self is on a canonical chromosome, sort before HLA/Decoy etc.
+#         if self.chrom in CHROM_ORDER:
+#             return True
+#         return False
+#
+#     def __eq__(self, other) -> bool:
+#         """
+#         equivalence check
+#         Args:
+#             other (Coordinates):
+#
+#         Returns:
+#             true if self == other
+#
+#         """
+#         return (
+#             self.chrom == other.chrom
+#             and self.pos == other.pos
+#             and self.ref == other.ref
+#             and self.alt == other.alt
+#         )
 
 
 def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
@@ -325,9 +257,12 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     return COHORT_SEQ_CONFIG
 
 
+# todo rethink this whole method?
 def get_new_gene_map(
-    panelapp_data: dict, pheno_panels: dict | None = None, dataset: str | None = None
-) -> dict[str, str]:
+    panelapp_data: PanelApp,
+    pheno_panels: PhenotypeMatchedPanels = None,
+    dataset: str | None = None,
+) -> dict[str, set[str]]:
     """
     The aim here is to generate a list of all the samples for whom
     a given gene should be treated as new during this analysis. This
@@ -336,32 +271,39 @@ def get_new_gene_map(
 
     Generate a map of
     {gene: [samples, where, this, is, 'new']}
+
+    Args:
+        panelapp_data ():
+        pheno_panels (PhenotypeMatchedPanels):
+        dataset ():
+
+    Returns:
+
     """
 
-    # find the dataset-specific panel data, if present
-    # add the 'core' panel to it
-    config_cohort_panels: list[int] = get_cohort_config(dataset).get(
-        'cohort_panels', []
-    )
-    cohort_panels = config_cohort_panels + [get_config()['panels']['default_panel']]
+    # any dataset-specific panel data, + 'core' panel
+    cohort_panels = [
+        *get_cohort_config(dataset).get('cohort_panels', []),
+        get_config()['panels']['default_panel'],
+    ]
 
     # collect all genes new in at least one panel
-    new_genes = {
-        ensg: content['new']
-        for ensg, content in panelapp_data['genes'].items()
-        if content['new']
+    new_genes: dict[str, set[int]] = {
+        ensg: content.new
+        for ensg, content in panelapp_data.genes.items()
+        if content.new
     }
 
     # if there's no panel matching, new applies to everyone
     if pheno_panels is None:
-        return {ensg: 'all' for ensg in new_genes.keys()}
+        return {ensg: {'all'} for ensg in new_genes}
 
     # if we have pheno-matched participants, more complex
-    panel_samples = defaultdict(set)
+    panel_samples: dict[int, set[str]] = defaultdict(set)
 
     # double layered iteration, but only on a small object
-    for sample, data in pheno_panels.items():
-        for panel in data['panels']:
+    for sample, data in pheno_panels.samples.items():
+        for panel in data.panels:
             panel_samples[panel].add(sample)
 
     pheno_matched_new = {}
@@ -369,16 +311,17 @@ def get_new_gene_map(
     # iterate over the new genes and find out who they are new for
     for gene, panels in new_genes.items():
         if any(panel in cohort_panels for panel in panels):
-            pheno_matched_new[gene] = 'all'
+            pheno_matched_new[gene] = {'all'}
             continue
 
         # else, find the specific samples
         samples = set()
         for panel_id in panels:
+            # this line causes problems running mismatched pheno/panel data
             if panel_id not in panel_samples:
                 raise AssertionError(f'PanelID {panel_id} not attached to any samples')
             samples.update(panel_samples[panel_id])
-        pheno_matched_new[gene] = ','.join(sorted(samples))
+        pheno_matched_new[gene] = samples
 
     return pheno_matched_new
 
@@ -411,7 +354,8 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             # phase set is a number
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
-    except KeyError:
+    except KeyError as ke:
+        raise ke
         get_logger().info('failed to find PS phase attributes')
         try:
             # retry using PGT & PID
@@ -426,433 +370,191 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     return dict(phased_dict)
 
 
-@dataclass
-class AbstractVariant:
+def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     """
-    create class to contain all content from cyvcf2 object
+    method dedicated to handling the new pm5 annotations
+
+    e.g. categorydetailsPM5=27037::Pathogenic::1+27048::Pathogenic::1;
+    1. break into component allele data
+
+    Returns:
+        None, updates self. attributes
     """
 
-    def __init__(
-        self,
-        var,
-        samples: list[str],
-        as_singletons=False,
-        new_genes: dict[str, str] | None = None,
-        var_type: VariantType = VariantType.SMALL,
-    ):
-        """
-        Intention - this works for both small and structural variants
+    if 'categorydetailspm5' not in info_dict:
+        return info_dict
 
-        Args:
-            var (cyvcf2.Variant):
-            samples (list):
-            as_singletons (bool):
-            new_genes (dict):
-            var_type (VariantType):
-        """
+    pm5_content = info_dict.pop('categorydetailspm5')
 
-        # overwrite the non-standard cyvcf2 representation
-        self.info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
+    # nothing to do here
+    if pm5_content == 'missing':
+        info_dict['categorybooleanpm5'] = 0
+        return info_dict
 
-        # presumption of small variant/indel unless otherwise specified
-        # we could bulk this out as index, snv, etc...
-        self.info['var_type'] = var_type
+    # current clinvar annotation, if any
+    current_clinvar = str(info_dict.get('clinvar_allele', 'not_this'))
 
-        # extract the coordinates into a separate object
-        # bump depths for SV calls
-        if 'svtype' in self.info:
-            self.coords = Coordinates(
-                var.CHROM.replace('chr', ''), var.POS, var.ALT[0], self.info['svlen']
+    # instantiate a dict to store csq-matched results
+    pm5_data = {}
+
+    # break the strings into a set
+    pm5_strings = set(pm5_content.split('+'))
+    for clinvar_entry in pm5_strings:
+
+        # fragment each entry
+        allele_id, stars = clinvar_entry.split('::')
+
+        # never consider the exact match, pm5 is always separate
+        if allele_id == current_clinvar:
+            continue
+
+        # if non-self, add to the dict
+        pm5_data[allele_id] = stars
+
+    # case where no non-self alleles were found
+    # assigning False and not-assigning are equivalent, just return
+    if pm5_data:
+        # set boolean category and specific data
+        info_dict['categorybooleanpm5'] = 1
+        info_dict['pm5_data'] = pm5_data
+    else:
+        info_dict['categorybooleanpm5'] = 0
+
+    return info_dict
+
+
+def create_small_variant(
+    var: cyvcf2.Variant,
+    samples: list[str],
+    as_singletons=False,
+    new_genes: dict[str, set[str]] | None = None,
+):
+    """
+    takes a small variant and creates a Model from it
+
+    Args:
+        var ():
+        samples ():
+        as_singletons ():
+        new_genes ():
+    """
+    coordinates = Coordinates(
+        chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0]
+    )
+    depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
+    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {
+        'seqr_link': coordinates.string_format
+    }
+    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
+
+    # hot-swap cat 2 from a boolean to a sample list - if appropriate
+    if info.get('categoryboolean2', 0) and new_genes:
+        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())
+
+        # if 'all', keep cohort-wide boolean flag
+        if new_gene_samples == {'all'}:
+            get_logger().debug('New applies to all samples')
+
+        # otherwise assign only a specific sample list
+        elif new_gene_samples:
+            _boolcat = info.pop('categoryboolean2')
+            info['categorysample2'] = new_gene_samples
+
+    # organise PM5
+    info = organise_pm5(info)
+
+    # set the class attributes
+    boolean_categories = [
+        key for key in info.keys() if key.startswith('categoryboolean')
+    ]
+    sample_categories = [key for key in info.keys() if key.startswith('categorysample')]
+    support_categories = [
+        key for key in info.keys() if key.startswith('categorysupport')
+    ]
+
+    # overwrite with true booleans
+    for cat in support_categories + boolean_categories:
+        info[cat] = info.get(cat, 0) == 1
+
+    # sample categories are a set of strings or 'missing'
+    # if cohort runs as singletons, remove possibility of de novo
+    # if not singletons, split each into a set of sample IDs
+    # todo I have messed with this, check it works
+    for sam_cat in sample_categories:
+        if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
+            info[sam_cat] = set()
+        elif isinstance(info[sam_cat], str):
+            info[sam_cat] = (
+                info[sam_cat].split(',') if info[sam_cat] != 'missing' else set()
             )
-            # artificial depths used to trick logic
-            self.depths = {sam: 999 for sam in samples}
-            self.info['seqr_link'] = self.info['variantid']
-            self.info['var_type'] = VariantType.SV
+        elif isinstance(info[sam_cat], list):
+            info[sam_cat] = set(info[sam_cat])
 
-        else:
-            self.coords = Coordinates(
-                var.CHROM.replace('chr', ''), var.POS, var.REF, var.ALT[0]
-            )
-            self.depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
-            self.info['seqr_link'] = self.coords.string_format
+    phased = get_phase_data(samples, var)
+    ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
+    transcript_consequences = extract_csq(csq_contents=info.pop('csq', []))
 
-        # get all zygosities once per variant
-        # abstraction avoids pulling per-sample calls again later
-        self.het_samples, self.hom_samples = get_non_ref_samples(
-            variant=var, samples=samples
-        )
-
-        # hot-swap cat 2 from a boolean to a sample list - if appropriate
-        if self.info.get('categoryboolean2', 0):
-            new_gene_samples = new_genes.get(self.info.get('gene_id'), '')
-
-            # if 'all', keep cohort-wide boolean flag
-            if new_gene_samples == 'all':
-                get_logger().debug('New applies to all samples')
-
-            # otherwise assign only a specific sample list
-            elif new_gene_samples:
-                _boolcat = self.info.pop('categoryboolean2')
-                self.info['categorysample2'] = new_gene_samples
-
-            # else just remove it - shouldn't happen in prod
-            else:
-                _boolcat = self.info.pop('categoryboolean2')
-
-        # do something spicy with PM5
-        self.organise_pm5()
-
-        # set the class attributes
-        self.boolean_categories = [
-            key for key in self.info.keys() if key.startswith('categoryboolean')
-        ]
-        self.sample_categories = [
-            key for key in self.info.keys() if key.startswith('categorysample')
-        ]
-        self.sample_support = [
-            key for key in self.info.keys() if key.startswith('categorysupport')
-        ]
-
-        # overwrite with true booleans
-        for cat in self.sample_support + self.boolean_categories:
-            self.info[cat] = self.info.get(cat, 0) == 1
-
-        # sample categories are a list of strings or 'missing'
-        # if cohort runs as singletons, remove possibility of de novo
-        # if not singletons, split each into a list of sample IDs
-        for sam_cat in self.sample_categories:
-            if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
-                self.info[sam_cat] = []
-            else:
-                self.info[sam_cat] = (
-                    self.info[sam_cat].split(',')
-                    if self.info[sam_cat] != 'missing'
-                    else []
-                )
-
-        self.transcript_consequences: list[dict[str, str]] = []
-        if 'csq' in self.info:
-            self.transcript_consequences = extract_csq(
-                csq_contents=self.info.pop('csq')
-            )
-
-        # identify variant sets phased with this one
-        # cyvcf2 uses a default value for the phase set, skip that
-        # this is restricted to a single int for phase_set
-        self.phased = get_phase_data(samples, var)
-
-        self.ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
-
-        self.categories: list = []
-
-    def organise_pm5(self):
-        """
-        method dedicated to handling the new pm5 annotations
-
-        e.g. categorydetailsPM5=27037::Pathogenic::1+27048::Pathogenic::1;
-        1. break into component allele data
-
-        Returns:
-            None, updates self. attributes
-        """
-
-        if 'categorydetailspm5' not in self.info:
-            return
-
-        pm5_content = self.info.pop('categorydetailspm5')
-
-        # nothing to do here
-        if pm5_content == 'missing':
-            self.info['categorybooleanpm5'] = 0
-            return
-
-        # current clinvar annotation, if any
-        current_clinvar = str(self.info.get('clinvar_allele', 'not_this'))
-
-        # instantiate a dict to store csq-matched results
-        pm5_data = {}
-
-        # break the strings into a set
-        pm5_strings = set(pm5_content.split('+'))
-        for clinvar_entry in pm5_strings:
-
-            # fragment each entry
-            allele_id, stars = clinvar_entry.split('::')
-
-            # never consider the exact match, pm5 is always separate
-            if allele_id == current_clinvar:
-                continue
-
-            # if non-self, add to the dict
-            pm5_data[allele_id] = stars
-
-        # case where no non-self alleles were found
-        # assigning False and not-assigning are equivalent, just return
-        if pm5_data:
-            # set boolean category and specific data
-            self.info['categorybooleanpm5'] = 1
-            self.info['pm5_data'] = pm5_data
-        else:
-            self.info['categorybooleanpm5'] = 0
-
-    def __str__(self):
-        return repr(self)
-
-    def __lt__(self, other):
-        return self.coords < other.coords
-
-    def __eq__(self, other):
-        return self.coords == other.coords
-
-    @property
-    def has_boolean_categories(self) -> bool:
-        """
-        check that the variant has at least one assigned class
-        """
-        return any(self.info[value] for value in self.boolean_categories)
-
-    @property
-    def has_sample_categories(self) -> bool:
-        """
-        check that the variant has any list-category entries
-        """
-        return any(self.info[value] for value in self.sample_categories)
-
-    @property
-    def has_support(self) -> bool:
-        """
-        check for a True flag in any CategorySupport* attribute
-        Returns:
-            True if variant is support
-        """
-        return any(self.info[value] for value in self.sample_support)
-
-    @property
-    def category_non_support(self) -> bool:
-        """
-        check the variant has at least one non-support category assigned
-        Returns:
-            True if var has a non-support category assigned
-        """
-        return self.has_sample_categories or self.has_boolean_categories
-
-    @property
-    def is_classified(self) -> bool:
-        """
-        check for at least one assigned class, inc. support
-        Returns:
-            True if classified
-        """
-        return self.category_non_support or self.has_support
-
-    @property
-    def support_only(self) -> bool:
-        """
-        check that the variant is exclusively cat. support
-        Returns:
-            True if support only
-        """
-        return self.has_support and not self.category_non_support
-
-    def sample_support_only(self, sample_id: str) -> bool:
-        """
-        check that the variant is exclusively cat. support
-        check that this sample is missing from sample flags
-
-        Returns:
-            True if support only
-        """
-        return self.has_support and not (
-            self.category_non_support or self.sample_categorised_check(sample_id)
-        )
-
-    def category_values(self, sample: str) -> list[str]:
-        """
-        get all variant categories
-        steps category flags down to booleans - true for this sample
-
-        Args:
-            sample (str): sample id
-
-        Returns:
-            list of all categories applied to this variant
-        """
-
-        # step down all category flags to boolean flags
-        categories = [
-            category.replace('categorysample', '')
-            for category in self.sample_categories
-            if sample in self.info[category]
-        ]
-        categories.extend(
-            [
-                bool_cat.replace('categoryboolean', '')
-                for bool_cat in self.boolean_categories
-                if self.info[bool_cat]
-            ]
-        )
-
-        if self.has_support:
-            categories.append('support')
-
-        return categories
-
-    def sample_categorised_check(self, sample_id: str) -> bool:
-        """
-        check if any *sample categories applied for this sample
-
-        Args:
-            sample_id (str): the specific sample ID to check
-
-        Returns:
-            bool: True if this sample features in any
-                  named-sample category, includes 'all'
-        """
-
-        return any(
-            sam in self.info[sam_cat]
-            for sam_cat in self.sample_categories
-            for sam in [sample_id, 'all']
-        )
-
-    def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
-        """
-        take a specific sample and check for assigned categories
-        optionally, include checks for support category
-
-        Args:
-            sample_id (str):
-            allow_support: (bool) also check for support
-
-        Returns:
-            True if the variant is categorised for this sample
-        """
-        big_cat = self.has_boolean_categories or self.sample_categorised_check(
-            sample_id
-        )
-        if allow_support:
-            return big_cat or self.has_support
-        return big_cat
-
-    def get_sample_flags(self, sample: str) -> list[str]:
-        """
-        gets all report flags for this sample - currently only one flag
-        """
-        if self.info['var_type'] == VariantType.SV:
-            return []
-        return self.check_ab_ratio(sample) + self.check_read_depth(sample)
-
-    def check_read_depth(self, sample: str) -> list[str]:
-        """
-        flag low read depth for this sample
-
-        Args:
-            sample ():
-
-        Returns:
-            return a flag if this sample has low read depth
-        """
-        threshold = get_config()['filter'].get('minimum_depth', 10)
-        if self.depths[sample] < threshold:
-            return ['Low Read Depth']
-        return []
-
-    def check_ab_ratio(self, sample: str) -> list[str]:
-        """
-        AB ratio test for this sample's variant call
-        Escaped for SVs
-        Args:
-            sample (str): sample ID
-
-        Returns:
-            list[str]: empty, or indicating an AB ratio failure
-        """
-        if 'svtype' in self.info:
-            return []
-
-        het = sample in self.het_samples
-        hom = sample in self.hom_samples
-        variant_ab = self.ab_ratios.get(sample, 0.0)
-        if (
-            (variant_ab <= 0.15)
-            or (het and not 0.25 <= variant_ab <= 0.75)
-            or (hom and variant_ab <= 0.85)
-        ):
-            return ['AB Ratio']
-        return []
+    return SmallVariant(
+        coordinates=coordinates,
+        info=info,
+        het_samples=het_samples,
+        hom_samples=hom_samples,
+        boolean_categories=boolean_categories,
+        sample_categories=sample_categories,
+        sample_support=support_categories,
+        phased=phased,
+        depths=depths,
+        ab_ratios=ab_ratios,
+        transcript_consequences=transcript_consequences,
+    )
 
 
-class MinimalVariant:
+def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
     """
-    subset of the AbstractVariant data type
+    takes an SV and creates a Model from it
+    far less complicated than the SmallVariant model
+
+    Args:
+        var ():
+        samples ():
     """
 
-    def __init__(self, variant: AbstractVariant, sample: str):
-        self.coords: Coordinates = variant.coords
-        self.categories: list[str] = variant.category_values(sample)
-        # no need to carry these though to the report
-        avoid_flags = (
-            variant.sample_categories
-            + variant.boolean_categories
-            + variant.sample_support
-        )
-        self.info: dict[str, Any] = {
-            key: value for key, value in variant.info.items() if key not in avoid_flags
-        }
-        self.transcript_consequences = variant.transcript_consequences
-        self.phased = variant.phased
+    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
+
+    # this is the right ID for Seqr
+    info['seqr_link'] = info['variantid']
+
+    coordinates = Coordinates(
+        chrom=var.CHROM.replace('chr', ''),
+        pos=var.POS,
+        ref=var.ALT[0],
+        alt=str(info['svlen']),
+    )
+
+    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
+
+    # set the class attributes
+    boolean_categories = [
+        key for key in info.keys() if key.startswith('categoryboolean')
+    ]
+
+    # overwrite with true booleans
+    for cat in boolean_categories:
+        info[cat] = info.get(cat, 0) == 1
+
+    return StructuralVariant(
+        coordinates=coordinates,
+        info=info,
+        het_samples=het_samples,
+        hom_samples=hom_samples,
+        boolean_categories=boolean_categories,
+    )
 
 
 # CompHetDict structure: {sample: {variant_string: [variant, ...]}}
 # sample: string, e,g, CGP12345
-CompHetDict = dict[str, dict[str, list[AbstractVariant]]]
-GeneDict = dict[str, list[AbstractVariant]]
-
-
-@dataclass
-class ReportedVariant:
-    """
-    minimal model representing variant categorisation event
-    the initial variant (minimised)
-    the MOI applicable
-    the support ing variant(s), if any
-    allows for the presence of flags e.g. Borderline AB ratio
-    """
-
-    sample: str
-    family: str
-    gene: str
-    var_data: MinimalVariant
-    reasons: set[str]
-    genotypes: dict[str, str]
-    support_vars: set[str] = field(default_factory=set)
-    flags: list[str] = field(default_factory=list)
-    panels: dict[str, str | list[int]] = field(default_factory=dict)
-    phenotypes: list[str] = field(default_factory=list)
-    labels: list[str] = field(default_factory=list)
-    first_seen: str = get_granular_date()
-    independent: bool = False
-
-    @property
-    def is_independent(self):
-        """
-        check if this variant acts independently
-        """
-        return len(self.support_vars) == 0
-
-    def __eq__(self, other):
-        """
-        makes reported variants comparable
-        """
-        # self_supvar = set(self.support_vars)
-        # other_supvar = set(other.support_vars)
-        return (
-            self.sample == other.sample
-            and self.var_data.coords == other.var_data.coords
-        )
-
-    def __lt__(self, other):
-        return self.var_data.coords < other.var_data.coords
+CompHetDict = dict[str, dict[str, list[VARIANT_MODELS]]]
+GeneDict = dict[str, list[VARIANT_MODELS]]
 
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
@@ -877,9 +579,9 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    new_gene_map: dict[str, str],
+    new_gene_map: dict[str, set[str]],
     singletons: bool = False,
-    second_source=None,
+    sv_source=None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -892,7 +594,7 @@ def gather_gene_dict_from_contig(
         variant_source (): the VCF reader instance
         new_gene_map ():
         singletons ():
-        second_source (): an optional second VCF (SV)
+        sv_source (): an optional second VCF (SV)
 
     Returns:
         A lookup in the form
@@ -916,45 +618,47 @@ def gather_gene_dict_from_contig(
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
 
-        abs_var = AbstractVariant(
+        small_variant = create_small_variant(
             var=variant,
             samples=variant_source.samples,
             as_singletons=singletons,
             new_genes=new_gene_map,
         )
 
-        if abs_var.coords.string_format in blacklist:
+        if small_variant.coordinates.string_format in blacklist:
             get_logger().info(
-                f'Skipping blacklisted variant: {abs_var.coords.string_format}'
+                f'Skipping blacklisted variant: {small_variant.coordinates.string_format}'
             )
             continue
 
         # if unclassified, skip the whole variant
-        if not abs_var.is_classified:
+        if not small_variant.is_classified:
             continue
 
         # update the variant count
         contig_variants += 1
 
         # update the gene index dictionary
-        contig_dict[abs_var.info.get('gene_id')].append(abs_var)
+        contig_dict[small_variant.info.get('gene_id')].append(small_variant)
 
-    if second_source:
-        second_source_variants = 0
-        for variant in second_source(contig):
+    if sv_source:
+        structural_variants = 0
+        for variant in sv_source(contig):
+
             # create an abstract SV variant
-            abs_var = AbstractVariant(
-                var=variant, samples=second_source.samples, as_singletons=singletons
+            structural_variant = create_structural_variant(
+                var=variant, samples=sv_source.samples
             )
+
             # update the variant count
-            second_source_variants += 1
+            structural_variants += 1
 
             # update the gene index dictionary
-            contig_dict[abs_var.info.get('gene_id')].append(abs_var)
+            contig_dict[structural_variant.info.get('gene_id')].append(
+                structural_variant
+            )
 
-        get_logger().info(
-            f'Contig {contig} contained {second_source_variants} variants'
-        )
+        get_logger().info(f'Contig {contig} contained {structural_variants} SVs')
 
     get_logger().info(f'Contig {contig} contained {contig_variants} variants')
     get_logger().info(f'Contig {contig} contained {len(contig_dict)} genes')
@@ -963,8 +667,15 @@ def gather_gene_dict_from_contig(
 
 
 def read_json_from_path(
-    bucket_path: str | CPGPathType | None, default: Any = None
-) -> dict | list | None:
+    bucket_path: str | CPGPathType | None,
+    default: Any = None,
+    return_model: HistoricVariants
+    | HistoricPanels
+    | ResultData
+    | PanelApp
+    | PhenotypeMatchedPanels
+    | None = None,
+) -> list | None | HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -972,6 +683,7 @@ def read_json_from_path(
     Args:
         bucket_path (str):
         default (Any):
+        return_model (pydantic Models): any Model to read/validate as
 
     Returns:
         either the object from the JSON file, or None
@@ -985,27 +697,15 @@ def read_json_from_path(
 
     if isinstance(bucket_path, CPGPathType) and bucket_path.exists():
         with bucket_path.open() as handle:
-            return json.load(handle)
-    return default
+            json_data = json.load(handle)
+            if return_model:
+                return return_model.model_validate(json_data)
+            return json_data
 
+    if default is not None:
+        return default
 
-def write_output_json(output_path: str, object_to_write: dict):
-    """
-    writes object to a json file, to_path provides platform abstraction
-
-    Args:
-        output_path ():
-        object_to_write ():
-    """
-
-    get_logger().info(f'Writing output JSON file to {output_path}')
-    out_route = to_path(output_path)
-
-    if out_route.exists():
-        get_logger().info(f'Output path {output_path!r} exists, will be overwritten')
-
-    with out_route.open('w') as fh:
-        json.dump(object_to_write, fh, indent=4, default=list)
+    raise ValueError(f'No data found at {bucket_path}')
 
 
 def get_simple_moi(input_moi: str | None, chrom: str) -> str:
@@ -1104,33 +804,7 @@ def extract_csq(csq_contents) -> list[dict]:
     return txc_dict
 
 
-class CustomEncoder(json.JSONEncoder):
-    """
-    to be used as a JSON encoding class
-    - replaces all sets with lists
-    - replaces dataclass objects with a dictionary of the same
-    """
-
-    def default(self, o):
-        """
-        takes an arbitrary object, and forms a JSON representation
-        where the object doesn't have an easy string representation,
-        transform to a valid object: set -> list, class -> dict
-
-        Args:
-            o (): python object being JSON encoded
-        """
-
-        if is_dataclass(o) or isinstance(o, MinimalVariant):
-            return o.__dict__
-        if isinstance(o, set):
-            return list(o)
-        if isinstance(o, Enum):
-            return o.value
-        return json.JSONEncoder.default(self, o)
-
-
-def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
+def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompHetDict:
     """
     manual implementation to find compound hets
     variants provided in the format
@@ -1145,8 +819,8 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
     }
 
     Args:
-        var_list (list[AbstractVariant]): all variants in this gene
-        pedigree (): Peddy.ped
+        var_list (list[VARIANT_MODELS]): all variants in this gene
+        pedigree (): Peddy.Ped
     """
 
     # create an empty dictionary
@@ -1154,9 +828,11 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
-        assert var_1.coords.chrom == var_2.coords.chrom
+        assert var_1.coordinates.chrom == var_2.coordinates.chrom
 
-        if (var_1.coords == var_2.coords) or var_1.coords.chrom in NON_HOM_CHROM:
+        if (
+            var_1.coordinates == var_2.coordinates
+        ) or var_1.coordinates.chrom in NON_HOM_CHROM:
             continue
 
         # iterate over any samples with a het overlap
@@ -1165,7 +841,7 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
             ped_sample = pedigree.get(sample)
 
             # don't assess male compound hets on sex chromosomes
-            if ped_sample.sex == 'male' and var_1.coords.chrom in X_CHROMOSOME:
+            if ped_sample.sex == 'male' and var_1.coordinates.chrom in X_CHROMOSOME:
                 continue
 
             # check for both variants being in the same phase set
@@ -1184,23 +860,23 @@ def find_comp_hets(var_list: list[AbstractVariant], pedigree) -> CompHetDict:
                         phased = True
             if not phased:
                 comp_het_results[sample].setdefault(
-                    var_1.coords.string_format, []
+                    var_1.coordinates.string_format, []
                 ).append(var_2)
                 comp_het_results[sample].setdefault(
-                    var_2.coords.string_format, []
+                    var_2.coordinates.string_format, []
                 ).append(var_1)
 
     return comp_het_results
 
 
-def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
+def filter_results(results: ResultData, singletons: bool, dataset: str):
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
     write two files (total, and latest - previous)
 
     Args:
-        results (): the results produced during this run
+        results (ResultData): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
         dataset (str): dataset name for sourcing config section
 
@@ -1211,8 +887,7 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
-        # results, _cumulative = date_annotate_results(results)
-        return results
+        return
 
     get_logger().info('Attempting to filter current results against historic')
 
@@ -1226,36 +901,37 @@ def filter_results(results: dict, singletons: bool, dataset: str) -> dict:
 
     get_logger().info(f'latest results: {latest_results_path}')
 
-    latest_results: dict = read_json_from_path(latest_results_path)  # type: ignore
+    # get latest results as a HistoricVariants object, or fail - on fail, return
+    if (
+        latest_results := read_json_from_path(
+            latest_results_path, return_model=HistoricVariants  # type: ignore
+        )
+    ) is None:
+        return
+    else:
+        assert isinstance(latest_results, HistoricVariants)
 
-    results, cumulative = date_annotate_results(results, latest_results)
-    save_new_historic(results=cumulative, prefix=prefix, dataset=dataset)
-
-    return results
+    date_annotate_results(results, latest_results)
+    save_new_historic(results=latest_results, prefix=prefix, dataset=dataset)
 
 
 def save_new_historic(
-    results: dict, dataset: str, prefix: str = '', directory: str | None = None
+    results: HistoricVariants | HistoricPanels, dataset: str, prefix: str = ''
 ):
     """
     save the new results in the historic results dir
 
     Args:
-        results (): object to save as a JSON file
+        results (): object to save as JSON
         dataset (str): the dataset to save results for
         prefix (str): name prefix for this file (optional)
-        directory (): defaults to historic_data from config
     """
 
-    if directory is None:
-        directory = get_cohort_seq_type_conf(dataset).get('historic_results')
-        if directory is None:
-            get_logger().info('No historic results directory, nothing written')
-            return
+    directory = get_cohort_seq_type_conf(dataset).get('historic_results')
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
-        json.dump(results, handle, indent=4, default=list)
+        handle.write(results.model_dump_json(indent=4))
 
     get_logger().info(f'Wrote new data to {new_file}')
 
@@ -1293,93 +969,72 @@ def find_latest_file(
     return str(date_sorted_files[0].absolute())
 
 
-def date_annotate_results(
-    current: dict[str, dict | list[ReportedVariant]], historic: dict | None = None
-) -> tuple[dict, dict]:
+def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
     takes the current data, and annotates with previous dates if found
     build/update the historic data within the same loop
     much simpler logic overall
 
-    Args:
-        current (dict): results generated during this run
-        historic (): optionally, historic data
+    logically we can't reach this method in production without historic
+    data being present. This method no longer permits historic data to be
+    missing, and edits objects in place
 
-    Returns: date-annotated results and cumulative data
+    Args:
+        current (ResultData): results generated during this run
+        historic (HistoricVariants): optionally, historic data
+
+    Returns:
+        updated/instantiated cumulative data
     """
 
-    # if there's no historic data, make some
-    if historic is None:
-        historic = {
-            'metadata': {'categories': get_config()['categories']},
-            'results': {},
-        }
-
-    # update to latest format
-    elif 'results' not in historic.keys():
-        historic = {
-            'metadata': {'categories': get_config()['categories']},
-            'results': historic,
-        }
-
     # update to latest category descriptions
-    historic['metadata'].setdefault('categories', {}).update(get_config()['categories'])
+    historic.metadata.categories.update(get_config()['categories'])
 
-    for sample, content in current.items():
+    for sample, content in current.results.items():
 
-        # totally absent? start populating for this sample
-        if sample not in historic['results']:
-            historic['results'][sample] = {}
+        sample_historic = historic.results.get(sample, {})
 
         # check each variant found in this round
-        for var in content['variants']:  # type: ignore
-            var_id = var.var_data.coords.string_format
-            current_cats = set(var.var_data.categories)
+        for var in content.variants:
+            var_id = var.var_data.coordinates.string_format
+            current_cats = var.categories
 
             # this variant was previously seen
-            if var_id in historic['results'][sample]:
-
-                hist = historic['results'][sample][var_id]
-
-                historic_cats = set(hist['categories'].keys())
+            if hist := sample_historic.get(var_id):
 
                 # bool if this was ever independent
-                hist['independent'] = var.independent or hist.get('independent', False)
+                # if newly independent, bump the date for current assignments
+                if var.independent and not hist.independent:
+                    hist.independent = True
+                    for cat in current_cats:
+                        hist.categories[cat] = get_granular_date()
 
                 # if we have any new categories don't alter the date
-                if new_cats := current_cats - historic_cats:
+                if new_cats := current_cats - set(hist.categories):
 
                     # add any new categories
                     for cat in new_cats:
-                        hist['categories'][cat] = get_granular_date()
+                        hist.categories[cat] = get_granular_date()
 
                 # same categories, new support
                 elif new_sups := [
-                    sup for sup in var.support_vars if sup not in hist['support_vars']
+                    sup for sup in var.support_vars if sup not in hist.support_vars
                 ]:
-                    hist['support_vars'].extend(new_sups)
+                    hist.support_vars.extend(new_sups)
 
                 # otherwise alter the first_seen date
                 else:
                     # choosing to take the latest _new_ category date
-                    recent = sorted(hist['categories'].values(), reverse=True)[0]
-                    var.first_seen = recent
+                    var.first_seen = sorted(hist.categories.values(), reverse=True)[0]
 
             # totally new variant
             else:
-                historic['results'][sample][var_id] = {
-                    'categories': {cat: get_granular_date() for cat in current_cats},
-                    'support_vars': var.support_vars,
-                    'independent': var.independent,
-                }
-
-    return current, historic
-
-
-def get_priority_label():
-    """
-    dummy method for now
-    Returns:
-        empty list, may return a collection of tags in future
-    """
-    return []
+                historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
+                    **{
+                        'categories': {
+                            cat: get_granular_date() for cat in current_cats
+                        },
+                        'support_vars': var.support_vars,
+                        'independent': var.independent,
+                    }
+                )

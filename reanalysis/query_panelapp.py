@@ -7,27 +7,32 @@ Complete revision
 
 # mypy: ignore-errors
 
-import logging
-import sys
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
 import click
+from cpg_utils import to_path
 from cpg_utils.config import get_config
+from dateutil.relativedelta import relativedelta
 
+from reanalysis.models import (
+    HistoricPanels,
+    PanelShort,
+    PanelDetail,
+    PanelApp,
+    PhenotypeMatchedPanels,
+)
 from reanalysis.utils import (
     find_latest_file,
     get_cohort_config,
     get_json_response,
+    get_logger,
     get_simple_moi,
     read_json_from_path,
     save_new_historic,
-    write_output_json,
     IRRELEVANT_MOI,
     ORDERED_MOIS,
 )
 
-PanelData = dict[str, dict | list[dict]]
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
@@ -49,14 +54,14 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     panel_genes = panel_json.get('genes')
 
     # log name and version
-    logging.info(f'{panel_name} version: {panel_version}')
+    get_logger().info(f'{panel_name} version: {panel_version}')
 
     return panel_name, panel_version, panel_genes
 
 
 def get_panel_green(
-    gene_dict: PanelData,
-    old_data: dict[str, list],
+    gene_dict: PanelApp,
+    old_data: HistoricPanels | None = None,
     panel_id: int = DEFAULT_PANEL,
     version: str | None = None,
     blacklist: list[str] | None = None,
@@ -67,16 +72,19 @@ def get_panel_green(
     For each gene, keep the MOI, symbol, ENSG (where present)
 
     Args:
-        gene_dict (): dictionary to continue populating
-        old_data (dict[str, list]): dict of lists - panels per gene
+        gene_dict (): PanelApp obj to continue populating
+        old_data (HistoricPanels): dict of sets - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
         version (): version, optional. Latest panel unless stated
         blacklist (): list of symbols/ENSG IDs to remove from this panel
         forbidden_genes (set[str]): genes to remove for this cohort
     """
+    if old_data is None:
+        old_data = HistoricPanels()
 
     if blacklist is None:
         blacklist = []
+
     if forbidden_genes is None:
         forbidden_genes = set()
 
@@ -88,8 +96,8 @@ def get_panel_green(
     panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
     # add metadata for this panel & version
-    gene_dict['metadata'].append(
-        {'name': panel_name, 'version': panel_version, 'id': panel_id}
+    gene_dict.metadata.append(
+        PanelShort(**{'name': panel_name, 'version': panel_version, 'id': panel_id})
     )
 
     # iterate over the genes in this panel result
@@ -123,41 +131,45 @@ def get_panel_green(
             or symbol in blacklist
             or ensg in forbidden_genes
         ):
-            logging.info(f'Gene {symbol}/{ensg} removed from {panel_name}')
+            get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = panel_id not in old_data.get(ensg, [])
+        new_gene = panel_id not in old_data.genes.get(ensg, {})
         if new_gene:
-            old_data.setdefault(ensg, []).append(panel_id)
+            old_data.genes.setdefault(ensg, set()).add(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
         # either update or add a new entry
-        if ensg in gene_dict['genes'].keys():
-            this_gene = gene_dict['genes'][ensg]
+        if ensg in gene_dict.genes:
+            this_gene = gene_dict.genes[ensg]
 
             # now we find it on this panel
-            this_gene['panels'].append(panel_id)
+            this_gene.panels.add(panel_id)
 
             # add this moi to the set
             if exact_moi not in IRRELEVANT_MOI:
-                this_gene['moi'].add(exact_moi)
+                this_gene.all_moi.add(exact_moi)
 
             # if this is/was new - it's new
             if new_gene:
-                this_gene['new'].append(panel_id)
+                this_gene.new.add(panel_id)
 
         else:
 
             # save the entity into the final dictionary
-            gene_dict['genes'][ensg] = {
-                'symbol': symbol,
-                'moi': {exact_moi} if exact_moi not in IRRELEVANT_MOI else set(),
-                'new': [panel_id] if new_gene else [],
-                'panels': [panel_id],
-                'chrom': chrom,
-            }
+            gene_dict.genes[ensg] = PanelDetail(
+                **{
+                    'symbol': symbol,
+                    'all_moi': {exact_moi}
+                    if exact_moi not in IRRELEVANT_MOI
+                    else set(),
+                    'new': {panel_id} if new_gene else set(),
+                    'panels': {panel_id},
+                    'chrom': chrom,
+                }
+            )
 
 
 def get_best_moi(gene_dict: dict):
@@ -174,39 +186,20 @@ def get_best_moi(gene_dict: dict):
     for content in gene_dict.values():
 
         # accept the simplest MOI if no exact moi found
-        if not content['moi']:
-            content['moi'] = get_simple_moi(None, chrom=content['chrom'])
+        if not content.all_moi:
+            content.moi = get_simple_moi(None, chrom=content.chrom)
             continue
 
         # otherwise accept the most lenient valid MOI
-        moi_set = {
-            get_simple_moi(moi, chrom=content['chrom']) for moi in content['moi']
-        }
+        moi_set = {get_simple_moi(moi, chrom=content.chrom) for moi in content.all_moi}
 
         # force a combined MOI here
         if 'Biallelic' in moi_set and 'Monoallelic' in moi_set:
-            content['moi'] = 'Mono_And_Biallelic'
+            content.moi = 'Mono_And_Biallelic'
 
         else:
             # take the more lenient of the gene MOI options
-            content['moi'] = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
-
-
-def read_panels_from_participant_file(panel_json: str) -> set[int]:
-    """
-    reads the per-participants panels into a set
-    Args:
-        panel_json (): path to a per-participant panel dump
-
-    Returns:
-        set of all the panels across all participants
-    """
-    participant_panels = read_json_from_path(panel_json, {})
-    panel_set = set()
-    for details in participant_panels.values():
-        panel_set.update(details.get('panels', []))
-
-    return panel_set
+            content.moi = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
 def find_core_panel_version() -> str | None:
@@ -262,13 +255,15 @@ def get_new_genes(
         which were absent in the given panel version
     """
 
-    old: PanelData = {'metadata': [], 'genes': {}}
-    get_panel_green(old, old_data={}, version=old_version, forbidden_genes=forbidden)
+    old: PanelApp = PanelApp(**{'metadata': [], 'genes': {}})
+    get_panel_green(
+        old, old_data=HistoricPanels(), version=old_version, forbidden_genes=forbidden
+    )
 
-    return current_genes.difference(set(old['genes'].keys()))
+    return current_genes.difference(set(old.genes))
 
 
-def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
+def overwrite_new_status(gene_dict: PanelApp, new_genes: set[str]):
     """
     ignores any previous notion of new, replaces it with a manually assigned one
 
@@ -279,11 +274,11 @@ def overwrite_new_status(gene_dict: PanelData, new_genes: set[str]):
 
     panel_id = DEFAULT_PANEL
 
-    for gene, gene_data in gene_dict['genes'].items():
+    for gene, gene_data in gene_dict.genes.items():
         if gene in new_genes:
-            gene_data['new'] = [panel_id]
+            gene_data.new = [panel_id]
         else:
-            gene_data['new'] = []
+            gene_data.new = []
 
 
 @click.command()
@@ -303,28 +298,30 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         dataset (): optional dataset to use
     """
 
-    logging.info('Starting PanelApp Query Stage')
-
-    old_data: dict = {}
+    get_logger().info('Starting PanelApp Query Stage')
 
     # make responsive to config
     twelve_months = None
 
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_genes = read_json_from_path(
-        get_cohort_config(dataset).get('forbidden', 'missing'), set()
-    )
+    forbidden_path = get_cohort_config(dataset).get('forbidden')
+    forbidden_genes = set()
+    if forbidden_path:
+        forbidden_genes = read_json_from_path(forbidden_path, forbidden_genes)
+
+    old_data = HistoricPanels()
 
     # historic data overrides default 'previous' list for cohort
     # open to discussing order of precedence here
     if old_file := find_latest_file(dataset=dataset, start='panel_'):
-        logging.info(f'Grabbing legacy panel data from {old_file}')
-        old_data: dict = read_json_from_path(old_file, default=old_data)
+        get_logger().info(f'Grabbing legacy panel data from {old_file}')
+        old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
 
+    # todo this will fail at the moment
     elif previous := get_cohort_config(dataset).get('gene_prior'):
-        logging.info(f'Reading legacy data from {previous}')
-        old_data: dict = read_json_from_path(previous, default=old_data)
+        get_logger().info(f'Reading legacy data from {previous}')
+        old_data = read_json_from_path(previous, return_model=HistoricPanels)  # type: ignore
 
     else:
         twelve_months = True
@@ -332,10 +329,12 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # are there any genes to skip from the Mendeliome? i.e. only report
     # if in a specifically phenotype-matched panel
     remove_from_core: list[str] = get_config()['panels'].get('require_pheno_match', [])
-    logging.info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
+    get_logger().info(
+        f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}'
+    )
 
     # set up the gene dict
-    gene_dict: PanelData = {'metadata': [], 'genes': {}}
+    gene_dict = PanelApp(genes={})
 
     # first add the base content
     get_panel_green(
@@ -347,17 +346,24 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # store the list of genes currently on the core panel
     if twelve_months:
-        twelve_months = set(gene_dict['genes'].keys())
+        twelve_months = set(gene_dict['genes'])
 
     # if participant panels were provided, add each of those to the gene data
     panel_list = set()
     if panels is not None:
-        panel_list = read_panels_from_participant_file(panels)
-        logging.info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
+        hpo_panel_object = read_json_from_path(
+            panels, return_model=PhenotypeMatchedPanels  # type: ignore
+        )
+        panel_list = hpo_panel_object.all_panels
+        get_logger().info(
+            f'Phenotype matched panels: {", ".join(map(str, panel_list))}'
+        )
 
     # now check if there are cohort-wide override panels
     if extra_panels := get_cohort_config(dataset).get('cohort_panels'):
-        logging.info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
+        get_logger().info(
+            f'Cohort-specific panels: {", ".join(map(str, extra_panels))}'
+        )
         panel_list.update(extra_panels)
 
     for panel in panel_list:
@@ -374,7 +380,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         )
 
     # now get the best MOI
-    get_best_moi(gene_dict['genes'])
+    get_best_moi(gene_dict.genes)
 
     # if we didn't have prior reference data, scrub down new statuses
     # new_genes can be empty as a result of a successful query
@@ -383,24 +389,19 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         old_version = find_core_panel_version()
         if old_version is None:
             raise ValueError('Could not find a version from 12 months ago')
-        logging.info(
+        get_logger().info(
             f'No prior data found, running panel diff vs. panel version {old_version}'
         )
         new_gene_set = get_new_genes(twelve_months, old_version)
         overwrite_new_status(gene_dict, new_gene_set)
 
     # write the output to long term storage
-    write_output_json(output_path=out_path, object_to_write=gene_dict)
+    with to_path(out_path).open('w') as out_file:
+        out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
     save_new_historic(old_data, dataset=dataset, prefix='panel_')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
 
     main()

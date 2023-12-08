@@ -20,7 +20,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from metamist.graphql import gql, query
 
-from reanalysis.utils import get_logger
+from reanalysis.static_values import get_logger
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
@@ -98,7 +98,10 @@ def main(latest: bool = False):
     all_cohorts = {}
 
     for cohort in get_my_projects():
-        if 'test' in cohort:
+        if (
+            cohort not in get_config()['cohorts'].keys()
+            or cohort not in get_config()['storage'].keys()
+        ):
             continue
 
         for analysis in get_project_analyses(cohort):
@@ -117,23 +120,17 @@ def main(latest: bool = False):
             # pull the exome/singleton flags
             exome_output = 'Exome' if 'exome' in output_path else 'Familial'
             singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
-            try:
-                report_address = analysis['output'].replace(
-                    get_config(False)['storage'][cohort]['web'],
-                    get_config(False)['storage'][cohort]['web_url'],
-                )
-                all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
-                    dataset=cohort,
-                    address=report_address,
-                    genome_or_exome=exome_output,
-                    subtype=singleton_output,
-                    date=analysis['timestampCompleted'].split('T')[0],
-                )
-            except KeyError:
-                script_logger.info(
-                    'Failed to construct a Report entry - is this a report HTML entry?'
-                )
-                script_logger.info(analysis)
+            report_address = analysis['output'].replace(
+                get_config(False)['storage'][cohort]['web'],
+                get_config(False)['storage'][cohort]['web_url'],
+            )
+            all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
+                dataset=cohort,
+                address=report_address,
+                genome_or_exome=exome_output,
+                subtype=singleton_output,
+                date=analysis['timestampCompleted'].split('T')[0],
+            )
 
     # if there were no reports, don't bother with the HTML
     if not all_cohorts:

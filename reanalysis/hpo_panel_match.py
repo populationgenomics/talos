@@ -10,7 +10,6 @@ automated-interpretation-pipeline/blob/main/helpers/hpo_panel_matching.py
 """
 
 
-import json
 import logging
 import re
 from argparse import ArgumentParser
@@ -18,11 +17,11 @@ from collections import defaultdict
 
 import networkx
 import requests
-from obonet import read_obo
-
 from cpg_utils import to_path
 from metamist.graphql import gql, query
+from obonet import read_obo
 
+from reanalysis.models import PhenotypeMatchedPanels, ParticipantHPOPanels
 
 HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')
@@ -77,7 +76,7 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
         dict: {HPO_Term: [panel_ID, panel_ID],}
     """
 
-    hpo_dict = defaultdict(set)
+    panels_by_hpo = defaultdict(set)
 
     while True:
         endpoint_data = get_json_response(endpoint)
@@ -86,16 +85,17 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
             # can be split over multiple strings
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
-                hpo_dict[match].add(int(panel['id']))
+                panels_by_hpo[match].add(int(panel['id']))
 
         # cycle through additional pages
         if endpoint := endpoint_data['next']:
             continue
+        break
 
-        return dict(hpo_dict)
+    return dict(panels_by_hpo)
 
 
-def get_participant_hpos(dataset: str) -> tuple[dict, set[str]]:
+def get_participant_hpos(dataset: str) -> tuple[PhenotypeMatchedPanels, set[str]]:
     """
     gql query, pull out family details and HPO terms
     may be a little overloaded at the moment
@@ -107,7 +107,7 @@ def get_participant_hpos(dataset: str) -> tuple[dict, set[str]]:
     """
 
     result = query(PARTICIPANT_QUERY, variables={'project': dataset})
-    hpo_dict = {}
+    hpo_dict = PhenotypeMatchedPanels()
     all_hpo: set[str] = set()
     for sg in result['project']['sequencingGroups']:
         hpos = set(
@@ -119,12 +119,14 @@ def get_participant_hpos(dataset: str) -> tuple[dict, set[str]]:
             if sg['sample']['participant']['families']
             else 'MISSING'
         )
-        hpo_dict[sg['id']] = {
-            'external_id': sg['sample']['participant']['externalId'],
-            'family_id': fam_id,
-            'hpo_terms': hpos,
-            'panels': {137},
-        }
+        hpo_dict.samples[sg['id']] = ParticipantHPOPanels(
+            **{
+                'external_id': sg['sample']['participant']['externalId'],
+                'family_id': fam_id,
+                'hpo_terms': hpos,
+                'panels': {137},
+            }
+        )
     return hpo_dict, all_hpo
 
 
@@ -228,7 +230,9 @@ def match_hpos_to_panels(
     return hpo_to_panels
 
 
-def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict):
+def match_participants_to_panels(
+    participant_hpos: PhenotypeMatchedPanels, hpo_panels: dict
+):
     """
     take the two maps of Participants: HPOs, and HPO: Panels
     blend the two to find panels per participant
@@ -237,19 +241,20 @@ def match_participants_to_panels(participant_hpos: dict, hpo_panels: dict):
     for each matched term, add the panel(s) to the participant's private set
 
     Args:
-        participant_hpos (dict): CPG ID to other details
+        participant_hpos (PhenotypeMatchedPanels): CPG ID to phenotype details
         hpo_panels (dict): lookup of panels per HPO term
     """
 
-    for party_data in participant_hpos.values():
-        for hpo_term in party_data['hpo_terms']:
+    for party_data in participant_hpos.samples.values():
+        for hpo_term in party_data.hpo_terms:
             if hpo_term in hpo_panels:
-                party_data['panels'].update(hpo_panels[hpo_term])
-        party_data['panels'] = sorted(party_data['panels'])
-        party_data['hpo_terms'] = sorted(party_data['hpo_terms'])
+                # add relevant panels for this participant
+                party_data.panels.update(hpo_panels[hpo_term])
+                # and add to the collection of all panels
+                participant_hpos.all_panels.update(hpo_panels[hpo_term])
 
 
-def main(dataset: str, hpo_file: str, panel_out: str):
+def main(dataset: str, hpo_file: str, panel_out: str) -> PhenotypeMatchedPanels:
     """
     main method to do the fun things
 
@@ -258,15 +263,21 @@ def main(dataset: str, hpo_file: str, panel_out: str):
         hpo_file (str): path to a localised HPO OBO file
         panel_out (str): where to write final panel file
     """
+    # PhenotypeMatchedPanels
     panels_by_hpo = get_panels()
     hpo_dict, all_hpo = get_participant_hpos(dataset=dataset)
     hpo_to_panels = match_hpos_to_panels(
         hpo_to_panel_map=panels_by_hpo, hpo_file=hpo_file, all_hpos=all_hpo
     )
     match_participants_to_panels(hpo_dict, hpo_to_panels)
+
+    # validate the object
+    valid_pheno_dict = PhenotypeMatchedPanels.model_validate(hpo_dict)
+
+    # validate and write using pydantic
     with to_path(panel_out).open('w', encoding='utf-8') as handle:
-        json.dump(hpo_dict, handle, indent=4)
-    return hpo_dict
+        handle.write(valid_pheno_dict.model_dump_json(indent=4))
+    return valid_pheno_dict
 
 
 if __name__ == '__main__':
@@ -275,4 +286,4 @@ if __name__ == '__main__':
     parser.add_argument('--hpo', help='local copy of HPO obo file')
     parser.add_argument('--out', help='panel file to write')
     args = parser.parse_args()
-    _hpo_dict = main(dataset=args.dataset, hpo_file=args.hpo, panel_out=args.out)
+    main(dataset=args.dataset, hpo_file=args.hpo, panel_out=args.out)

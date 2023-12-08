@@ -5,9 +5,6 @@ Creates a Hail Batch job to run the command line VEP tool.
 """
 
 import hailtop.batch as hb
-from hailtop.batch.job import Job
-from hailtop.batch import Batch
-
 from cpg_utils import Path, to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
@@ -19,6 +16,8 @@ from cpg_utils.hail_batch import (
 )
 from cpg_workflows.resources import HIGHMEM, STANDARD
 from cpg_workflows.utils import exists
+from hailtop.batch import Batch
+from hailtop.batch.job import Job
 
 
 def subset_vcf(

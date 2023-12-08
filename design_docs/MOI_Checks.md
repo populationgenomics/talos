@@ -20,24 +20,28 @@ variant to decide whether we include it in the final report.
 Static Objects:
 
 - Configuration File: used throughout the pipeline, this contains all runtime settings
-  - When we are assessing each variant, we may choose to apply thresholds (e.f. MAF, frequency in a joint call). These
-  may change with each run, so we take those parameters from a central configuration file
+    - When we are assessing each variant, we may choose to apply thresholds (e.f. MAF, frequency in a joint call). These
+      may change with each run, so we take those parameters from a central configuration file
 - PanelApp data: associates genes with evidenced inheritance patterns
-  - For each 'green' (high evidence) gene contains inheritance pattern to be applied & panels where the gene is 'new'
-  (if any).
+    - For each 'green' (high evidence) gene contains inheritance pattern to be applied & panels where the gene is 'new'
+      (if any).
 
 Dynamic Objects:
 
 - AbstractVariant: Each variant in turn is read from the source (VCF) and cast in a custom AbstractVariant Class
-representation. This is for a couple of reasons:
+  representation. This is for a couple of reasons:
 
-  1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly different
-  representation. This normalises all logic to a common class, and allows for different sources/parsers to generate a
-  common format.
-  2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to issues
-  with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so async/await
-  structure can be added in at any level.
-  3. Making an abstract object from simple types will lead to simpler unit testing.
+    1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly
+       different
+       representation. This normalises all logic to a common class, and allows for different sources/parsers to generate
+       a
+       common format.
+    2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to
+       issues
+       with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so
+       async/await
+       structure can be added in at any level.
+    3. Making an abstract object from simple types will lead to simpler unit testing.
 
 - Compound Het lookup: This object is built per-gene as we iterate over all genes independently
 
@@ -52,7 +56,7 @@ following details:
    rather than storing static booleans
 6. If physical phasing is evident for any sample calls, record the numerical phase set ID, and sample-specific GT
     1. Within a phase set ID, two variants are in-phase if their GT is also the same, i.e. for phase set #1, variants
-   with the GT `0|1` and `1|0` are explicitly out of phase, so knowing the PS ID alone is not sufficient
+       with the GT `0|1` and `1|0` are explicitly out of phase, so knowing the PS ID alone is not sufficient
 
 The AbstractVariant has a few internal methods:
 
@@ -63,31 +67,31 @@ The AbstractVariant has a few internal methods:
 - `category_non_support`: returns True if any non-support category is assigned
 - `is_classified`: returns True if any category is assigned
 - `category_values`: returns a list of strings for each assigned category, i.e.
-  - if a variant is True for category 2 and 3, the return will be `['2', '3']`
-  - if a variant is True for category 2 and 4, the return will be `['2', 'de_novo']`
+    - if a variant is True for category 2 and 3, the return will be `['2', '3']`
+    - if a variant is True for category 2 and 4, the return will be `['2', 'de_novo']`
 - `sample_specific_category_check`: returns True if the specific sample is _de novo_,
-or if the variant has a boolean category assigned - accepts a switch to also check for `Support`
+  or if the variant has a boolean category assigned - accepts a switch to also check for `Support`
 - `get_sample_flags`: checks for any variant flags - currently this only implements one check - AB Ratio test
 
 ## Variant Gathering
 
 The Variant gathering strategy observed in this application is:
 
- - parse the VCF header to obtain all chromosome names
- - for each contig in turn, extract all variants & create an Abstract representation of each
- - group variants by gene ID, forming a structure `{'gene_name': [Variant1, Variant2, ...], }`
-   - each variant contains exactly one gene annotation, from an earlier split, so grouping is accurate
-   - each gene can be processed separately if required, allowing logical parallelisation breaks
- - once all variants on a contig are extracted, iterate over variants grouped by gene
+- parse the VCF header to obtain all chromosome names
+- for each contig in turn, extract all variants & create an Abstract representation of each
+- group variants by gene ID, forming a structure `{'gene_name': [Variant1, Variant2, ...], }`
+    - each variant contains exactly one gene annotation, from an earlier split, so grouping is accurate
+    - each gene can be processed separately if required, allowing logical parallelisation breaks
+- once all variants on a contig are extracted, iterate over variants grouped by gene
 
 Justification:
 
 1. Use of the AbstractVariant structure means each variant can be pickled, so each group can be processed in parallel
-(Cyvcf2 and pyvcf objects can't be pickled directly)
+   (Cyvcf2 and pyvcf objects can't be pickled directly)
 2. Allows us to collect the panelapp details once per gene, instead of once per variant; minor efficiency gain
 3. Gathering all variants relevant to an MOI test means that when generating the results, we can access all attributes
-of the relevant variants for presentation, e.g. instead of just variant coordinates for the variant pair, we can show
-the exact consequence(s) that led to category labelling
+   of the relevant variants for presentation, e.g. instead of just variant coordinates for the variant pair, we can show
+   the exact consequence(s) that led to category labelling
 
 ## Compound-Heterozygous checks
 
@@ -106,11 +110,12 @@ for this sample. These objects can be retrieved directly from this dictionary, a
 inheritance checks.
 
 ```python
-from reanalysis.utils import AbstractVariant
+from reanalysis.models import SmallVariant, StructuralVariant
+
 _comp_het = {
     "sample": {
-        "coords_string_1": [AbstractVariant, AbstractVariant],
-        "coords_string_2": [AbstractVariant, AbstractVariant]
+        "coords_string_1": [SmallVariant, StructuralVariant],
+        "coords_string_2": [SmallVariant, SmallVariant]
     }
 }
 ```
@@ -126,28 +131,28 @@ Includes one controlling class `MoiRunner`, and one functional class `BaseMoi` a
 derivatives each define a single Mode of Inheritance e.g.
 
 - DominantAutosomal - requires a variant to be exceptionally rare, and homozygotes to be absent from population
-databases. All samples with a heterozygous variant call are passed as fitting with the MOI
+  databases. All samples with a heterozygous variant call are passed as fitting with the MOI
 
 - XRecessive - Male samples are passed so long as the AF is below a stringent threshold, Female samples must be
-Homozygous or supported in a trans compound-het
+  Homozygous or supported in a trans compound-het
 
 The separation between the methods defining the filter algorithm, and the MoiRunner using one or more algorithms
 allows multiple filters to be applied for a given MOI string e.g.
 
 - "BOTH monoallelic and biallelic, autosomal or pseudoautosomal" from PanelApp is easy to interpret as
-2 filters, monoallelic, and biallelic
+  2 filters, monoallelic, and biallelic
 - "X-LINKED: hemizygous mutation in males, biallelic mutations in females" for male samples we call a
-DominantMOI filter, for females we call a Recessive filter
+  DominantMOI filter, for females we call a Recessive filter
 
 The usage paradigm is:
 
 1. Create an instance of the `MoiRunner`, passing a target MOI string and some configuration parameters
 2. During the setup, the MOI string is used to determine which filters to add into the filter list
 3. The `MoiRunner` implements a `.run()` method, which takes a single variant and the lookup of all compound-hets within
-this gene, and passes through each filter in turn
+   this gene, and passes through each filter in turn
 4. Where a variant passes all conditions within a filter class, a 'result' object is created
 5. The result of `.run()` is a list of valid modes of inheritance (ReportedVariant), each including details of the
-variant(s), and samples
+   variant(s), and samples
 
 ### Family Checks
 
@@ -156,11 +161,11 @@ of participants. The inheritance rules are applied unilaterally to every member 
 directional manner, e.g. when considering each candidate variant:
 
 - for a monoallelic variant, inherited with complete penetrance, we enforce a unilateral rule - every person with the
-variant must also be affected. If this rule is violated for any individual member, the variant does not pass the
-inheritance test.
+  variant must also be affected. If this rule is violated for any individual member, the variant does not pass the
+  inheritance test.
 - for a biallelic variant pair, all participants with the variant pair must also be affected. If the variant considered
-is Homozygous, we permit unaffected members to be heterozygous. Similarly, for compound-het inheritance, unaffected
-participants may have either variant but not both.
+  is Homozygous, we permit unaffected members to be heterozygous. Similarly, for compound-het inheritance, unaffected
+  participants may have either variant but not both.
 
 Complete and Incomplete penetrance modes are available in this module. For the Complete penetrance
 inheritance model:
@@ -206,7 +211,8 @@ which will generate a reported variant structure for the sample(s) which passed 
 ## Flags
 
 When a reportable event is found, a JSON blob representing the variant and sample is created. If the relevant gene was
-in one or more of the additional panels requested (see [additional panels](PanelApp_interaction.md#per-participant-panels)),
+in one or more of the additional panels requested (
+see [additional panels](PanelApp_interaction.md#per-participant-panels)),
 the names/IDs of those panels are appended to the list of any variant-specific panels.
 
 This leaves us the flexibility to mark individual samples/families as having disease-relevant panels, which can then be

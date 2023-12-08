@@ -11,7 +11,6 @@ CategoryBooleanSV1:
 from argparse import ArgumentParser
 
 import hail as hl
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, genome_build
@@ -22,7 +21,8 @@ from reanalysis.hail_filter_and_label import (
     ONE_INT,
     MISSING_INT,
 )
-from reanalysis.utils import get_logger, read_json_from_path
+from reanalysis.static_values import get_logger
+from reanalysis.utils import read_json_from_path
 
 
 def filter_matrix_by_af(

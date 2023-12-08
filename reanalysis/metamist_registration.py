@@ -4,19 +4,17 @@
 takes one or more files, checks they were created, register in metamist
 """
 import logging
+import sys
 from os.path import join
 from pathlib import Path
-import sys
 
 import click
-from peddy import Ped
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-
 from metamist.apis import AnalysisApi
 from metamist.model.analysis import Analysis
 from metamist.model.analysis_status import AnalysisStatus
+from peddy import Ped
 
 
 def register_html(file_path: str, samples: list[str]):

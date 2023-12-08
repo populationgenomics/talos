@@ -2,15 +2,14 @@
 tests for the PanelApp parser
 """
 
-import json
-
 import pytest
+from copy import deepcopy
 
-from reanalysis.query_panelapp import (
-    get_best_moi,
-    get_panel_green,
-    read_panels_from_participant_file,
-)
+from reanalysis.models import HistoricPanels, PanelApp, PanelDetail
+from reanalysis.query_panelapp import get_best_moi, get_panel_green
+
+
+empty_gene_dict = PanelApp(genes={})
 
 
 @pytest.fixture(name='fake_panelapp')
@@ -41,13 +40,13 @@ def test_panel_query(fake_panelapp):
     :param fake_panelapp: fake web hook mock
     """
 
-    gd = {'genes': {}, 'metadata': []}
-    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    gd = deepcopy(empty_gene_dict)
+    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
     get_panel_green(gd, old_data=old_data, forbidden_genes=set())
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
-    assert gd['genes']['ENSG00EFGH']['moi'] == {'monoallelic'}
-    assert old_data['ENSG00ABCD'] == [1, 137]
+    assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
+    assert gd.genes['ENSG00ABCD'].panels == {137}
+    assert gd.genes['ENSG00EFGH'].all_moi == {'monoallelic'}
+    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_removal(fake_panelapp):
@@ -56,15 +55,13 @@ def test_panel_query_removal(fake_panelapp):
     :param fake_panelapp: fake web hook mock
     """
 
-    gd = {'genes': {}, 'metadata': []}
-    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
-    get_panel_green(
-        gd, old_data=old_data, blacklist=['ENSG00EFGH'], forbidden_genes=set()
-    )
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
-    assert 'ENSG00EFGH' not in gd['genes']
-    assert old_data['ENSG00ABCD'] == [1, 137]
+    gd = deepcopy(empty_gene_dict)
+    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
+    get_panel_green(gd, old_data=old_data, blacklist=['ENSG00EFGH'])
+    assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
+    assert gd.genes['ENSG00ABCD'].panels == {137}
+    assert 'ENSG00EFGH' not in gd.genes
+    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_forbidden(fake_panelapp):
@@ -72,14 +69,14 @@ def test_panel_query_forbidden(fake_panelapp):
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
     """
-
-    gd = {'genes': {}, 'metadata': []}
-    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    gd = deepcopy(empty_gene_dict)
+    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
     get_panel_green(gd, old_data=old_data, forbidden_genes={'ENSG00EFGH'})
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
-    assert 'ENSG00EFGH' not in gd['genes']
-    assert old_data['ENSG00ABCD'] == [1, 137]
+    assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
+    assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
+    assert gd.genes['ENSG00ABCD'].panels == {137}
+    assert 'ENSG00EFGH' not in gd.genes
+    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_removal_2(fake_panelapp):
@@ -88,13 +85,13 @@ def test_panel_query_removal_2(fake_panelapp):
     :param fake_panelapp: fake web hook mock
     """
 
-    gd = {'genes': {}, 'metadata': []}
-    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    gd = deepcopy(empty_gene_dict)
+    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
     get_panel_green(gd, old_data=old_data, blacklist=['EFGH'])
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
-    assert 'ENSG00EFGH' not in gd['genes']
-    assert old_data['ENSG00ABCD'] == [1, 137]
+    assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
+    assert gd.genes['ENSG00ABCD'].panels == {137}
+    assert 'ENSG00EFGH' not in gd.genes
+    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_forbidden_2(fake_panelapp):
@@ -103,13 +100,13 @@ def test_panel_query_forbidden_2(fake_panelapp):
     :param fake_panelapp: fake web hook mock
     """
 
-    gd = {'genes': {}, 'metadata': []}
-    old_data = {'ENSG00ABCD': [1], 'ENSG00EFGH': [137]}
+    gd = deepcopy(empty_gene_dict)
+    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
     get_panel_green(gd, old_data=old_data, forbidden_genes={'EFGH'})
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == [137]
-    assert 'ENSG00EFGH' not in gd['genes']
-    assert old_data['ENSG00ABCD'] == [1, 137]
+    assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
+    assert gd.genes['ENSG00ABCD'].panels == {137}
+    assert 'ENSG00EFGH' not in gd.genes
+    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_addition(fake_panelapp):
@@ -119,51 +116,37 @@ def test_panel_query_addition(fake_panelapp):
     :param fake_panelapp: fake web hook mock
     """
     # assumed data we already gathered
-    gd = {
-        'metadata': [{'version': '0.11088', 'name': 'Mendeliome', 'id': 137}],
-        'genes': {
-            'ENSG00ABCD': {
-                'symbol': 'ABCD',
-                'moi': {'monoallelic'},
-                'new': [],
-                'panels': [137],
+    gd = PanelApp(
+        **{
+            'metadata': [{'version': '0.11088', 'name': 'Mendeliome', 'id': 137}],
+            'genes': {
+                'ENSG00ABCD': {
+                    'symbol': 'ABCD',
+                    'all_moi': {'monoallelic'},
+                    'new': [],
+                    'panels': [137],
+                },
+                'ENSG00IJKL': {
+                    'symbol': 'IJKL',
+                    'all_moi': {'both'},
+                    'new': [137],
+                    'panels': [123, 137],
+                },
             },
-            'ENSG00IJKL': {
-                'symbol': 'IJKL',
-                'moi': {'both'},
-                'new': [137],
-                'panels': [123, 137],
-            },
-        },
-    }
+        }
+    )
 
     # should query for and integrate the incidentalome content
     get_panel_green(
         gd,
         panel_id=126,
-        old_data={'ENSG00EFGH': [137, 126], 'ENSG00IJKL': [137]},
-        forbidden_genes=set(),
+        old_data=HistoricPanels(genes={'ENSG00EFGH': {137, 126}, 'ENSG00IJKL': {137}}),
     )
-    assert gd['genes']['ENSG00ABCD']['moi'] == {'monoallelic', 'biallelic'}
-    assert gd['genes']['ENSG00ABCD']['panels'] == [137, 126]
-    assert gd['genes']['ENSG00IJKL']['moi'] == {'both'}
-    assert gd['genes']['ENSG00IJKL']['panels'] == [123, 137]
-    assert 'ENSG00EFGH' not in gd['genes']
-
-
-def test_get_list_from_participants(tmp_path):
-    """
-    tests the unique panel finder
-    """
-    party_data = {
-        'i': {'panels': [1, 2], 'what': 'does'},
-        'am': {'panels': [1, 3], 'the': 'fox'},
-        'sam': {'panels': [9, 99], 'say?': 'Wa-pa-pa-pa-pa-pa-pow!'},
-    }
-    tmp_json = tmp_path / 'temp.json'
-    with open(tmp_json, 'w', encoding='utf-8') as handle:
-        json.dump(party_data, handle)
-    assert read_panels_from_participant_file(str(tmp_json)) == {1, 2, 3, 9, 99}
+    assert gd.genes['ENSG00ABCD'].all_moi == {'monoallelic', 'biallelic'}
+    assert gd.genes['ENSG00ABCD'].panels == {137, 126}
+    assert gd.genes['ENSG00IJKL'].all_moi == {'both'}
+    assert gd.genes['ENSG00IJKL'].panels == {123, 137}
+    assert 'ENSG00EFGH' not in gd.genes
 
 
 def test_get_best_moi_empty():
@@ -171,13 +154,13 @@ def test_get_best_moi_empty():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {}, 'chrom': '1'}}
+    d = {'ensg1': PanelDetail(**{'all_moi': set(), 'chrom': '1', 'symbol': 'ensg1'})}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Biallelic'
+    assert d['ensg1'].moi == 'Biallelic'
 
-    d = {'ensg1': {'moi': {}, 'chrom': 'X'}}
+    d = {'ensg1': PanelDetail(**{'all_moi': set(), 'chrom': 'X', 'symbol': 'ensgX'})}
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Hemi_Bi_In_Female'
+    assert d['ensg1'].moi == 'Hemi_Bi_In_Female'
 
 
 def test_get_best_moi_mono():
@@ -185,9 +168,13 @@ def test_get_best_moi_mono():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'monoallelic'}, 'chrom': '1'}}
+    d = {
+        'ensg1': PanelDetail(
+            **{'all_moi': {'monoallelic'}, 'chrom': '1', 'symbol': 'ensg1'}
+        )
+    }
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Monoallelic'
+    assert d['ensg1'].moi == 'Monoallelic'
 
 
 def test_get_best_moi_mono_and_biallelic():
@@ -195,9 +182,13 @@ def test_get_best_moi_mono_and_biallelic():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'monoallelic', 'biallelic'}, 'chrom': '1'}}
+    d = {
+        'ensg1': PanelDetail(
+            **{'all_moi': {'monoallelic', 'biallelic'}, 'chrom': '1', 'symbol': 'ensg1'}
+        )
+    }
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
+    assert d['ensg1'].moi == 'Mono_And_Biallelic'
 
 
 def test_get_best_moi_1():
@@ -205,9 +196,17 @@ def test_get_best_moi_1():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'Monoallelic', 'Biallelic', 'both'}, 'chrom': '1'}}
+    d = {
+        'ensg1': PanelDetail(
+            **{
+                'all_moi': {'Monoallelic', 'Biallelic', 'both'},
+                'chrom': '1',
+                'symbol': 'ensg1',
+            }
+        )
+    }
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Mono_And_Biallelic'
+    assert d['ensg1'].moi == 'Mono_And_Biallelic'
 
 
 def test_get_best_moi_x():
@@ -215,6 +214,14 @@ def test_get_best_moi_x():
     check that the MOI summary works
     """
 
-    d = {'ensg1': {'moi': {'x-linked biallelic', 'x-linked'}, 'chrom': 'X'}}
+    d = {
+        'ensg1': PanelDetail(
+            **{
+                'all_moi': {'x-linked biallelic', 'x-linked'},
+                'chrom': 'X',
+                'symbol': 'ensgX',
+            }
+        )
+    }
     get_best_moi(d)
-    assert d['ensg1']['moi'] == 'Hemi_Mono_In_Female'
+    assert d['ensg1'].moi == 'Hemi_Mono_In_Female'

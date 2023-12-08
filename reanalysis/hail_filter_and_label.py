@@ -12,18 +12,17 @@ Read, filter, annotate, classify, and write Genetic data
 """
 
 
-import os
 import logging
+import os
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
 import hail as hl
-from peddy import Ped
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, output_path
+from peddy import Ped
 
 from reanalysis.hail_audit import (
     fields_audit,

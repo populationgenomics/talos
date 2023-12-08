@@ -17,8 +17,8 @@ variant_summary.txt
 """
 
 import gzip
-import logging
 import json
+import logging
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -29,10 +29,9 @@ from typing import Generator
 
 import hail as hl
 import pandas as pd
-
 from cpg_utils import to_path, CloudPath
-from cpg_utils.hail_batch import output_path, init_batch
 from cpg_utils.config import ConfigError
+from cpg_utils.hail_batch import output_path, init_batch
 
 from reanalysis.utils import get_cohort_config
 

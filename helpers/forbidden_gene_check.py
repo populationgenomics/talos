@@ -18,6 +18,8 @@ import requests
 
 from cpg_utils import to_path
 
+from reanalysis.models import PhenotypeMatchedPanels
+
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels'
 
 
@@ -177,7 +179,9 @@ def main(panels: str | None, out_path: str, dates: list[str]):
     assert dates, 'whats the point doing this with no dates?'
 
     if panels:
-        all_panels = read_panels_from_participant_file(panels)
+        with open(panels) as handle:
+            panel_obj = PhenotypeMatchedPanels.model_validate(json.load(handle))
+            all_panels = panel_obj.all_panels
     else:
         all_panels = {137}
 

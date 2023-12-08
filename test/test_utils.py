@@ -3,22 +3,24 @@ test class for the utils collection
 """
 
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import List
 import pytest
 from cyvcf2 import VCFReader
 from reanalysis.utils import (
-    AbstractVariant,
-    Coordinates,
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_new_gene_map,
     get_non_ref_samples,
     get_simple_moi,
     identify_file_type,
+)
+from reanalysis.models import (
+    Coordinates,
     FileTypes,
-    MinimalVariant,
-    ReportedVariant,
+    PanelApp,
+    PhenotypeMatchedPanels,
+    ReportVariant,
+    SmallVariant,
+    VARIANT_MODELS,
 )
 
 
@@ -26,16 +28,16 @@ def test_coord_sorting():
     """
     check that coord sorting methods work
     """
-    coord_1 = Coordinates('4', 20, 'A', 'C')
-    coord_1b = Coordinates('4', 21, 'A', 'C')
-    coord_1c = Coordinates('4', 21, 'A', 'C')
-    coord_2 = Coordinates('5', 20, 'A', 'C')
+    coord_1 = Coordinates(chrom='4', pos=20, ref='A', alt='C')
+    coord_1b = Coordinates(chrom='4', pos=21, ref='A', alt='C')
+    coord_1c = Coordinates(chrom='4', pos=21, ref='A', alt='C')
+    coord_2 = Coordinates(chrom='5', pos=20, ref='A', alt='C')
     assert coord_1 < coord_2
     assert coord_1 < coord_1b
     assert not coord_1b < coord_1c
 
 
-def test_abs_var_sorting(two_trio_abs_variants: list[AbstractVariant]):
+def test_abs_var_sorting(two_trio_abs_variants: list[SmallVariant]):
     """
     test sorting and equivalence at the AbsVar level
     """
@@ -45,7 +47,7 @@ def test_abs_var_sorting(two_trio_abs_variants: list[AbstractVariant]):
     assert var1 == var1
     assert sorted([var2, var1]) == [var1, var2]
     # not sure if I should be able to just override the chrom...
-    var1.coords.chrom = 'HLA1234'
+    var1.coordinates.chrom = 'HLA1234'
     assert var1 > var2
 
 
@@ -53,7 +55,7 @@ def test_reported_variant_ordering(trio_abs_variant):
     """
     test that equivalence between Report objects works as exp.
     """
-    report_1 = ReportedVariant(
+    report_1 = ReportVariant(
         sample='1',
         family='1',
         gene='2',
@@ -61,7 +63,7 @@ def test_reported_variant_ordering(trio_abs_variant):
         reasons={'test'},
         genotypes={},
     )
-    report_2 = ReportedVariant(
+    report_2 = ReportVariant(
         sample='1',
         family='1',
         gene='2',
@@ -74,8 +76,8 @@ def test_reported_variant_ordering(trio_abs_variant):
     report_1.sample = '2'
     assert report_1 != report_2
     report_2.sample = '2'
-    report_1.var_data.coords.chrom = '1'
-    report_2.var_data.coords.chrom = '11'
+    report_1.var_data.coordinates.chrom = '1'
+    report_2.var_data.coordinates.chrom = '11'
     assert report_1 < report_2
 
 
@@ -131,26 +133,19 @@ def test_get_simple_moi(string: str, expected: str, chrom: str):
     assert get_simple_moi(string, chrom) == expected
 
 
-def test_get_non_ref_samples():
+def test_get_non_ref_samples(cyvcf_example_variant):
     """
     this simple test can be done without the use of a cyvcf2 object
     :return:
     """
 
-    @dataclass
-    class SuperSimple:
-        """test_fixture"""
-
-        gt_types: List[int]
-
-    samples = ['a', 'b', 'c', 'd', 'e']
-    variant = SuperSimple([0, 1, 2, 3, 1])
-    het, hom = get_non_ref_samples(variant=variant, samples=samples)
-    assert het == {'b', 'e'}
-    assert hom == {'d'}
+    samples = ['male', 'father', 'mother']
+    het, hom = get_non_ref_samples(variant=cyvcf_example_variant, samples=samples)
+    assert het == {'male'}
+    assert not hom
 
 
-def test_av_categories(trio_abs_variant: AbstractVariant):
+def test_av_categories(trio_abs_variant: VARIANT_MODELS):
     """
     Cat. 3, and Cat. 4 for PROBAND only:
     """
@@ -164,7 +159,7 @@ def test_av_categories(trio_abs_variant: AbstractVariant):
     assert not trio_abs_variant.sample_categorised_check('father_1')
 
 
-def test_av_phase(trio_abs_variant: AbstractVariant):
+def test_av_phase(trio_abs_variant: SmallVariant):
     """
     nothing here yet
     :param trio_abs_variant:
@@ -176,8 +171,6 @@ def test_av_phase(trio_abs_variant: AbstractVariant):
 def test_gene_dict(two_trio_variants_vcf):
     """
     gene = ENSG00000075043
-    :param two_trio_variants_vcf:
-    :return:
     """
     reader = VCFReader(two_trio_variants_vcf)
     contig = 'chr20'
@@ -189,12 +182,12 @@ def test_gene_dict(two_trio_variants_vcf):
     assert len(var_dict['ENSG00000075043']) == 2
 
 
-def test_comp_hets(two_trio_abs_variants: list[AbstractVariant], peddy_ped):
+def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     """
     {
         'male': {
-            '20-63406931-C-CGG': [AbstractVariant()],
-            '20-63406991-C-CGG': [AbstractVariant()]
+            '20-63406931-C-CGG': [Variant()],
+            '20-63406991-C-CGG': [Variant()]
         }
     }
     :param two_trio_abs_variants:
@@ -205,15 +198,13 @@ def test_comp_hets(two_trio_abs_variants: list[AbstractVariant], peddy_ped):
     results = ch_dict.get('male')
     assert len(results) == 2
     key_1, key_2 = list(results.keys())
-    assert results[key_1][0].coords.string_format == key_2
-    assert results[key_2][0].coords.string_format == key_1
+    assert results[key_1][0].coordinates.string_format == key_2
+    assert results[key_2][0].coordinates.string_format == key_1
 
 
 def test_phased_dict(phased_vcf_path):
     """
     gene = ENSG00000075043
-    :param phased_vcf_path:
-    :return:
     """
     reader = VCFReader(phased_vcf_path)
     var_dict = gather_gene_dict_from_contig(
@@ -228,7 +219,7 @@ def test_phased_dict(phased_vcf_path):
         assert variant.phased['mother_1'] == {420: '0|1'}
 
 
-def test_phased_comp_hets(phased_variants: list[AbstractVariant], peddy_ped):
+def test_phased_comp_hets(phased_variants: list[SmallVariant], peddy_ped):
     """
     phased variants shouldn't form a comp-het
     'mother_1' is het for both variants, but phase-set is same for both
@@ -239,15 +230,14 @@ def test_phased_comp_hets(phased_variants: list[AbstractVariant], peddy_ped):
     assert len(ch_dict) == 0
 
 
-# FYI default_panel = 137
 def test_new_gene_map_null():
     """
     with no specific pheno data, new at all is new for all
     """
 
-    panel_data = {'genes': {'ENSG1': {'new': [1, 2]}}}
+    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {1, 2}, 'symbol': 'ensg1'}}})
     result = get_new_gene_map(panel_data)
-    assert result == {'ENSG1': 'all'}
+    assert result == {'ENSG1': {'all'}}
 
 
 def test_new_gene_map_core():
@@ -256,10 +246,10 @@ def test_new_gene_map_core():
     even if the core panel isn't assigned to individuals
     """
 
-    panel_data = {'genes': {'ENSG1': {'new': [137]}}}
-    personal_panels = {'sam': {'panels': []}}
+    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {137}, 'symbol': 'ensg1'}}})
+    personal_panels = PhenotypeMatchedPanels()
     result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': 'all'}
+    assert result == {'ENSG1': {'all'}}
 
 
 def test_new_gene_map_cohort_level():
@@ -267,29 +257,28 @@ def test_new_gene_map_cohort_level():
     check that new for the cohort-matched panel is new for all
     """
 
-    panel_data = {'genes': {'ENSG1': {'new': [99]}}}
-    personal_panels = {'sam': {'panels': []}}
+    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {99}, 'symbol': 'ensg1'}}})
+    personal_panels = PhenotypeMatchedPanels()
     result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': 'all'}
+    assert result == {'ENSG1': {'all'}}
 
 
 def test_new_gene_map_mix_n_match():
     """
     now test the pheno-matched new
     """
-
-    panel_data = {'genes': {'ENSG1': {'new': [1]}}}
-    personal_panels = {'sam': {'panels': [1, 2]}}
+    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {1}, 'symbol': 'ensg1'}}})
+    personal_panels = PhenotypeMatchedPanels(**{'samples': {'sam': {'panels': {1, 2}}}})
     result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': 'sam'}
+    assert result == {'ENSG1': {'sam'}}
 
 
 def test_new_gene_map_fail_handled():
     """
     What if we find a panel that wasn't assigned to anyone
     """
-    panel_data = {'genes': {'ENSG1': {'new': [2]}}}
-    personal_panels = {'sam': {'panels': [1]}}
+    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {2}, 'symbol': 'ensg1'}}})
+    personal_panels = PhenotypeMatchedPanels(**{'samples': {'sam': {'panels': {1}}}})
     with pytest.raises(AssertionError):
         get_new_gene_map(panel_data, personal_panels)
 
@@ -298,28 +287,23 @@ def test_new_gene_map_complex():
     """
     ENSG2 is new for everyone
     """
-
-    panel_data = {
-        'genes': {
-            'ENSG1': {'new': [1]},
-            'ENSG2': {'new': [137]},
-            'ENSG3': {'new': [4]},
-            'ENSG4': {'new': [2]},
+    panel_data = PanelApp(
+        **{
+            'genes': {
+                'ENSG1': {'new': {1}, 'symbol': 'ensg1'},
+                'ENSG2': {'new': {137}, 'symbol': 'ensg2'},
+                'ENSG3': {'new': {4}, 'symbol': 'ensg3'},
+                'ENSG4': {'new': {2}, 'symbol': 'ensg4'},
+            }
         }
-    }
-    personal_panels = {'sam': {'panels': [1, 2]}, 'sam2': {'panels': [4, 2]}}
+    )
+    personal_panels = PhenotypeMatchedPanels(
+        **{'samples': {'sam': {'panels': {1, 2}}, 'sam2': {'panels': {4, 2}}}}
+    )
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {
-        'ENSG1': 'sam',
-        'ENSG2': 'all',
-        'ENSG3': 'sam2',
-        'ENSG4': 'sam,sam2',
+        'ENSG1': {'sam'},
+        'ENSG2': {'all'},
+        'ENSG3': {'sam2'},
+        'ENSG4': {'sam', 'sam2'},
     }
-
-
-def test_minimise(trio_abs_variant: AbstractVariant):
-    """
-    check the variant minimiser
-    """
-    minvar = MinimalVariant(trio_abs_variant, 'male')
-    assert sorted(minvar.categories) == ['3', '4']

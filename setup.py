@@ -32,13 +32,13 @@ setup(
     name='automated-interpretation-pipeline',
     description='CPG Variant Prioritisation',
     long_description=readme,
-    version='2.1.1',
+    version='3.0.0',
     author='Matthew Welland, CPG',
     author_email=(
         'matthew.welland@populationgenomics.org.au, '
         'cas.simons@populationgenomics.org.au'
     ),
-    package_data={'reanalysis': ['templates/*.jinja']},
+    package_data={'reanalysis': ['templates/*.jinja', 'reanalysis_global.toml']},
     url='https://github.com/populationgenomics/automated-interpretation-pipeline',
     license='MIT',
     classifiers=[

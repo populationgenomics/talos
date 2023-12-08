@@ -17,8 +17,6 @@ re-run currently requires the deletion of previous outputs
 from argparse import ArgumentParser
 from datetime import datetime
 
-from hailtop.batch.job import BashJob, Job
-
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
@@ -28,7 +26,7 @@ from cpg_utils.hail_batch import (
     output_path,
     query_command,
 )
-from reanalysis.vep_jobs import add_vep_jobs
+from hailtop.batch.job import BashJob, Job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -40,12 +38,12 @@ from reanalysis import (
     validate_categories,
     seqr_loader,
 )
+from reanalysis.models import FileTypes
+from reanalysis.static_values import get_granular_date, get_logger
 from reanalysis.utils import (
-    FileTypes,
     identify_file_type,
-    get_granular_date,
-    get_logger,
 )
+from reanalysis.vep_jobs import add_vep_jobs
 
 # region: CONSTANTS
 # exact time that this run occurred

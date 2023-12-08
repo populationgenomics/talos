@@ -9,7 +9,6 @@ import logging
 
 import hail as hl
 
-
 BASE_FIELDS_REQUIRED = [
     ('locus', hl.LocusExpression),
     ('alleles', hl.ArrayExpression),

@@ -24,13 +24,39 @@ the annotation(s), the genotype(s), and the sample affection status.
 
 
 import json
+from dataclasses import dataclass, field, is_dataclass
+from enum import Enum
 from os.path import join
-from dataclasses import dataclass, field
 
 import hail as hl
 from cloudpathlib import AnyPath
 
-from reanalysis.utils import CustomEncoder
+
+class CustomEncoder(json.JSONEncoder):
+    """
+    to be used as a JSON encoding class
+    - replaces all sets with lists
+    - replaces dataclass objects with a dictionary of the same
+    """
+
+    def default(self, o):
+        """
+        takes an arbitrary object, and forms a JSON representation
+        where the object doesn't have an easy string representation,
+        transform to a valid object: set -> list, class -> dict
+
+        Args:
+            o (): python object being JSON encoded
+        """
+
+        if is_dataclass(o):
+            return o.__dict__
+        if isinstance(o, set):
+            return list(o)
+        if isinstance(o, Enum):
+            return o.value
+        return json.JSONEncoder.default(self, o)
+
 
 schema = (
     'struct{'
