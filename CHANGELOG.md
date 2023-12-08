@@ -14,6 +14,48 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[3.0.0] - 2023-12-08
+
+This was a MASSIVE refactor affecting almost all parts of the codebase. Instead of characterising
+data in various places using type hinting, I've now introducted Pydantic models to formally represent
+the data used in each part of the application (see reanalysis/models.py). This has the benefit of
+making the code more readable, and also allows for the use of Pydantic's validation and parsing.
+
+A key note is that all serialised/deserialised data is now done through a Pydantic validation layer,
+forcing the data to conform to the model. This may require some objects (e.g. state/history files)
+to be reformatted, as during this work I identified some inconsistencies in the data.
+
+### Added
+
+* Data models for every aspect of the analysis
+* Pydantic validation layer for all serialised/deserialised data
+* Specifically, all variants inherit from VariantCommon, and Structural and Small Variants each have
+  a fundamentally different object representation, with a common interface but some internal methods
+  specific to each variant type. This is extensible (e.g. further inheritance for STRs)
+
+### Changed
+
+* All minimial-case representations of Variants or Reportable events used in unit tests are now
+  represented as full Pydantic models for the corresponding data type
+* So many little things, this was a +3000/-2000 line change
+
+[2.1.0] - 2023-11-20
+
+This change involved the introduction of SV data, and the co-processing of SV and Small Variant
+data in a unified analysis process. The SV data format expected is based on the GATK-SV pipeline
+and annotation.
+
+This also includes the addition of the `sv1` category, which represents LoF structural variants
+
+### Added
+
+* SV data is now processed alongside small variants
+* `sv1` category specific to SV data
+
+### Changed
+
+* Some of the AbstractVariant loading is modified to allow for SV data (e.g. defaults for depths)
+
 [2.0.0 & 2.0.1] - 2023-10-26
 
 This bump is less substantial than the version number suggests, but in hindsight the previous
