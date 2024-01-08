@@ -22,6 +22,7 @@ from metamist.graphql import gql, query
 
 from reanalysis.static_values import get_logger
 
+
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
     """
@@ -98,10 +99,7 @@ def main(latest: bool = False):
     all_cohorts = {}
 
     for cohort in get_my_projects():
-        if (
-            cohort not in get_config()['cohorts'].keys()
-            or cohort not in get_config()['storage'].keys()
-        ):
+        if cohort not in get_config()['storage'].keys():
             continue
 
         for analysis in get_project_analyses(cohort):
@@ -122,7 +120,7 @@ def main(latest: bool = False):
             singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
             report_address = analysis['output'].replace(
                 get_config(False)['storage'][cohort]['web'],
-                get_config(False)['storage'][cohort]['web_url'],
+                get_config()['storage'][cohort]['web_url'],
             )
             all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                 dataset=cohort,
@@ -149,7 +147,7 @@ def main(latest: bool = False):
     # write to common web bucket - either attached to a single dataset, or communal
     to_path(
         join(
-            get_config(False)['storage']['common']['test']['web'],
+            get_config()['storage']['common']['test']['web'],
             'reanalysis',
             'latest_aip_index.html' if latest else 'aip_index.html',
         )
