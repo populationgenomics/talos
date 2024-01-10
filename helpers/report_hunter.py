@@ -22,7 +22,6 @@ from metamist.graphql import gql, query
 
 from reanalysis.static_values import get_logger
 
-
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
     """
