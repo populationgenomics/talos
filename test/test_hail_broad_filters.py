@@ -3,6 +3,7 @@ unit testing collection for the hail MT methods
 """
 
 import pytest
+
 import hail as hl
 
 from reanalysis.hail_filter_and_label import (

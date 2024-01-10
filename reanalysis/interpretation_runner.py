@@ -17,6 +17,8 @@ re-run currently requires the deletion of previous outputs
 from argparse import ArgumentParser
 from datetime import datetime
 
+from hailtop.batch.job import BashJob, Job
+
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
@@ -26,7 +28,6 @@ from cpg_utils.hail_batch import (
     output_path,
     query_command,
 )
-from hailtop.batch.job import BashJob, Job
 
 from reanalysis import (
     hail_filter_and_label,
@@ -35,14 +36,12 @@ from reanalysis import (
     metamist_registration,
     mt_to_vcf,
     query_panelapp,
-    validate_categories,
     seqr_loader,
+    validate_categories,
 )
 from reanalysis.models import FileTypes
 from reanalysis.static_values import get_granular_date, get_logger
-from reanalysis.utils import (
-    identify_file_type,
-)
+from reanalysis.utils import identify_file_type
 from reanalysis.vep_jobs import add_vep_jobs
 
 # region: CONSTANTS
@@ -455,7 +454,6 @@ def main(
 
     # region: split & annotate VCF
     if not to_path(ANNOTATED_MT).exists():
-
         vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
 
         # generate the jobs which run VEP & collect the results

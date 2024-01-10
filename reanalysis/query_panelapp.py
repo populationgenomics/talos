@@ -10,18 +10,21 @@ Complete revision
 from datetime import datetime
 
 import click
+from dateutil.relativedelta import relativedelta
+
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from dateutil.relativedelta import relativedelta
 
 from reanalysis.models import (
     HistoricPanels,
-    PanelShort,
-    PanelDetail,
     PanelApp,
+    PanelDetail,
+    PanelShort,
     PhenotypeMatchedPanels,
 )
 from reanalysis.utils import (
+    IRRELEVANT_MOI,
+    ORDERED_MOIS,
     find_latest_file,
     get_cohort_config,
     get_json_response,
@@ -29,8 +32,6 @@ from reanalysis.utils import (
     get_simple_moi,
     read_json_from_path,
     save_new_historic,
-    IRRELEVANT_MOI,
-    ORDERED_MOIS,
 )
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
@@ -102,7 +103,6 @@ def get_panel_green(
 
     # iterate over the genes in this panel result
     for gene in panel_genes:
-
         symbol = gene.get('entity_name')
 
         # only retain green genes
@@ -157,7 +157,6 @@ def get_panel_green(
                 this_gene.new.add(panel_id)
 
         else:
-
             # save the entity into the final dictionary
             gene_dict.genes[ensg] = PanelDetail(
                 **{
@@ -184,7 +183,6 @@ def get_best_moi(gene_dict: dict):
     """
 
     for content in gene_dict.values():
-
         # accept the simplest MOI if no exact moi found
         if not content.all_moi:
             content.moi = get_simple_moi(None, chrom=content.chrom)
@@ -225,7 +223,6 @@ def find_core_panel_version() -> str | None:
 
     # iterate through all activities on this panel
     for activity in activities:
-
         # cast the activity datetime to day-resolution
         activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d')
 
@@ -367,7 +364,6 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         panel_list.update(extra_panels)
 
     for panel in panel_list:
-
         # skip mendeliome - we already queried for it
         if panel == DEFAULT_PANEL:
             continue
@@ -385,7 +381,6 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # if we didn't have prior reference data, scrub down new statuses
     # new_genes can be empty as a result of a successful query
     if twelve_months:
-
         old_version = find_core_panel_version()
         if old_version is None:
             raise ValueError('Could not find a version from 12 months ago')
@@ -403,5 +398,4 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
 
 if __name__ == '__main__':
-
     main()

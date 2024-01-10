@@ -9,8 +9,9 @@ from typing import Any
 
 import jinja2
 import pandas as pd
-from cpg_utils import to_path
 from peddy.peddy import Ped
+
+from cpg_utils import to_path
 
 from reanalysis.models import (
     PanelApp,
@@ -22,9 +23,9 @@ from reanalysis.models import (
     StructuralVariant,
 )
 from reanalysis.utils import (
-    get_config,
     get_cohort_config,
     get_cohort_seq_type_conf,
+    get_config,
     get_logger,
     read_json_from_path,
 )
@@ -174,7 +175,6 @@ class HTMLBuilder:
         ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
 
         for sample in self.samples:
-
             if len(sample.variants) == 0:
                 samples_with_no_variants.append(sample.ext_id)
 
@@ -184,7 +184,6 @@ class HTMLBuilder:
 
             # iterate over the list of variants
             for variant in sample.variants:
-
                 var_string = variant.var_data.coordinates.string_format
                 unique_variants['any'].add(var_string)
                 sample_variants['any'].add(var_string)

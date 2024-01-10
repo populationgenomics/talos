@@ -3,14 +3,13 @@ script testing methods within reanalysis/validate_categories.py
 """
 
 
-from reanalysis.models import (
+from reanalysis.models import (  # ReportPanel,
     Coordinates,
     PanelApp,
     PhenotypeMatchedPanels,
+    ReportVariant,
     ResultData,
     ResultMeta,
-    # ReportPanel,
-    ReportVariant,
     SmallVariant,
 )
 from reanalysis.validate_categories import (
@@ -18,7 +17,6 @@ from reanalysis.validate_categories import (
     count_families,
     prepare_results_shell,
 )
-
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')

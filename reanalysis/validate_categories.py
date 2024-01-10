@@ -17,10 +17,11 @@ participants relative to the MOI described in PanelApp
 from collections import defaultdict
 
 import click
-from cpg_utils import to_path
-from cpg_utils.config import get_config
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
+
+from cpg_utils import to_path
+from cpg_utils.config import get_config
 
 from reanalysis.models import (
     CATEGORY_DICT,
@@ -31,14 +32,15 @@ from reanalysis.models import (
     ParticipantMeta,
     ParticipantResults,
     PhenotypeMatchedPanels,
+    ReportPanel,
     ReportVariant,
     ResultData,
     ResultMeta,
-    ReportPanel,
 )
-from reanalysis.moi_tests import MOIRunner, PEDDY_AFFECTED
+from reanalysis.moi_tests import PEDDY_AFFECTED, MOIRunner
 from reanalysis.static_values import get_logger
 from reanalysis.utils import (
+    GeneDict,
     canonical_contigs_from_vcf,
     filter_results,
     find_comp_hets,
@@ -46,7 +48,6 @@ from reanalysis.utils import (
     get_cohort_config,
     get_new_gene_map,
     read_json_from_path,
-    GeneDict,
 )
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
@@ -90,7 +91,6 @@ def set_up_moi_filters(
 
     # iterate over all genes
     for gene_data in panelapp_data.genes.values():
-
         # extract the per-gene MOI, don't re-simplify
         gene_moi = gene_data.moi
 
@@ -122,7 +122,6 @@ def apply_moi_to_variants(
     results = []
 
     for gene, variants in variant_dict.items():
-
         comp_het_dict = find_comp_hets(var_list=variants, pedigree=pedigree)
 
         # extract the panel data specific to this gene
@@ -135,7 +134,6 @@ def apply_moi_to_variants(
             continue
 
         for variant in variants:
-
             # is this even possible?
             if not (variant.het_samples or variant.hom_samples):
                 continue
@@ -162,10 +160,8 @@ def apply_moi_to_variants(
             if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get(
                 'categoryboolean1', False
             ):
-
                 # consider each variant in turn
                 for each_result in variant_results:
-
                     # never tag if this variant/sample is de novo
                     if '4' in each_result.categories:
                         continue
@@ -215,7 +211,6 @@ def clean_and_filter(
     gene_details: dict[str, set[int]] = {}
 
     for each_event in result_list:
-
         # shouldn't be possible, here as a precaution
         assert (
             each_event.categories
@@ -237,7 +232,6 @@ def clean_and_filter(
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
-
             # intersection to find participant phenotype-matched panels
             phenotype_intersection = participant_panels.samples[
                 each_event.sample
@@ -337,7 +331,6 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
     # now count family sizes and structures
     for family_id, family_samples in family_dict.items():
-
         # bool flag - if we found a 'trio' don't also
         # count as family size 3
         trio_bool = False
@@ -345,7 +338,6 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
         ped_family = pedigree.families[family_id]
 
         for trio in ped_family.trios():
-
             # check for a trio with all samples present
             if all(each.sample_id in family_samples for each in trio):
                 trio_bool = True

@@ -28,8 +28,9 @@ from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
 from os.path import join
 
-import hail as hl
 from cloudpathlib import AnyPath
+
+import hail as hl
 
 
 class CustomEncoder(json.JSONEncoder):

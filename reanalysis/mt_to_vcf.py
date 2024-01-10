@@ -23,8 +23,10 @@ import os
 import sys
 from argparse import ArgumentParser
 
-import hail as hl
 import requests
+
+import hail as hl
+
 from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
 
@@ -88,7 +90,6 @@ def parse_gtf_from_local(bedfile: str):
     start = None
     end = None
     with gzip.open(LOCAL_GTF, 'rt') as gencode_file:
-
         # iterate over this file and do all the things
         for i, line in enumerate(gencode_file):
             line = line.rstrip('\r\n')

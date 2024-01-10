@@ -15,10 +15,13 @@ from typing import Any
 import cyvcf2
 import peddy
 import requests
-from cpg_utils import to_path, Path as CPGPathType
+
+from cpg_utils import Path as CPGPathType
+from cpg_utils import to_path
 from cpg_utils.config import get_config
 
 from reanalysis.models import (
+    VARIANT_MODELS,
     Coordinates,
     FileTypes,
     HistoricPanels,
@@ -29,7 +32,6 @@ from reanalysis.models import (
     ResultData,
     SmallVariant,
     StructuralVariant,
-    VARIANT_MODELS,
 )
 from reanalysis.static_values import get_granular_date, get_logger
 
@@ -400,7 +402,6 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     # break the strings into a set
     pm5_strings = set(pm5_content.split('+'))
     for clinvar_entry in pm5_strings:
-
         # fragment each entry
         allele_id, stars = clinvar_entry.split('::')
 
@@ -617,7 +618,6 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-
         small_variant = create_small_variant(
             var=variant,
             samples=variant_source.samples,
@@ -644,7 +644,6 @@ def gather_gene_dict_from_contig(
     if sv_source:
         structural_variants = 0
         for variant in sv_source(contig):
-
             # create an abstract SV variant
             structural_variant = create_structural_variant(
                 var=variant, samples=sv_source.samples
@@ -675,7 +674,15 @@ def read_json_from_path(
     | PanelApp
     | PhenotypeMatchedPanels
     | None = None,
-) -> list | None | HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels:
+) -> (
+    list
+    | None
+    | HistoricVariants
+    | HistoricPanels
+    | ResultData
+    | PanelApp
+    | PhenotypeMatchedPanels
+):
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
@@ -764,7 +771,6 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
 
     # this iteration is based on the cyvcf2 representations
     for sam, genotype_int in zip(samples, variant.gt_types):
-
         if genotype_int in BAD_GENOTYPES:
             continue
         if genotype_int == 1:
@@ -846,7 +852,6 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompH
 
             # check for both variants being in the same phase set
             if sample in var_1.phased and sample in var_2.phased:
-
                 # check for presence of the same phase set
                 for phase_set in [
                     ps
@@ -991,7 +996,6 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     historic.metadata.categories.update(get_config()['categories'])
 
     for sample, content in current.results.items():
-
         sample_historic = historic.results.get(sample, {})
 
         # check each variant found in this round
@@ -1001,7 +1005,6 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
 
             # this variant was previously seen
             if hist := sample_historic.get(var_id):
-
                 # bool if this was ever independent
                 # if newly independent, bump the date for current assignments
                 if var.independent and not hist.independent:
@@ -1011,7 +1014,6 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
 
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - set(hist.categories):
-
                     # add any new categories
                     for cat in new_cats:
                         hist.categories[cat] = get_granular_date()

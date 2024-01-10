@@ -27,11 +27,13 @@ from datetime import datetime
 from enum import Enum
 from typing import Generator
 
-import hail as hl
 import pandas as pd
-from cpg_utils import to_path, CloudPath
+
+import hail as hl
+
+from cpg_utils import CloudPath, to_path
 from cpg_utils.config import ConfigError
-from cpg_utils.hail_batch import output_path, init_batch
+from cpg_utils.hail_batch import init_batch, output_path
 
 from reanalysis.utils import get_cohort_config
 
@@ -335,7 +337,6 @@ def get_all_decisions(
         blacklist = []
 
     for line in lines_from_gzip(submission_file):
-
         # if we have a threshold date, and an un-dated entry
         # put it straight in the bin
         if threshold_date is None and line[2] == '-':

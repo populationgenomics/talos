@@ -8,18 +8,17 @@ import pytest
 
 from reanalysis.models import Coordinates, SmallVariant
 from reanalysis.moi_tests import (
-    check_for_second_hit,
     BaseMoi,
     DominantAutosomal,
     MOIRunner,
     RecessiveAutosomalCH,
     RecessiveAutosomalHomo,
     XDominant,
-    XRecessiveMale,
     XRecessiveFemaleCH,
     XRecessiveFemaleHom,
+    XRecessiveMale,
+    check_for_second_hit,
 )
-
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')

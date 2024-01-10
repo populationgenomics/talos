@@ -17,11 +17,12 @@ from collections import defaultdict
 
 import networkx
 import requests
-from cpg_utils import to_path
-from metamist.graphql import gql, query
 from obonet import read_obo
 
-from reanalysis.models import PhenotypeMatchedPanels, ParticipantHPOPanels
+from cpg_utils import to_path
+from metamist.graphql import gql, query
+
+from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
 HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')
@@ -81,7 +82,6 @@ def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
     while True:
         endpoint_data = get_json_response(endpoint)
         for panel in endpoint_data['results']:
-
             # can be split over multiple strings
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):

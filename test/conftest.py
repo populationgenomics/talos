@@ -5,13 +5,13 @@ A home for common test fixtures
 from pathlib import Path
 from typing import Any
 
-import hail as hl
 import pytest
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
-from cpg_utils.config import set_config_paths
+import hail as hl
 
+from cpg_utils.config import set_config_paths
 
 # force this to come first
 PWD = Path(__file__).parent
@@ -23,13 +23,11 @@ set_config_paths([str(CONF_BASE)])
 from reanalysis.data_model import (  # noqa: E402
     BaseFields,
     Entry,
+    SneakyTable,
     TXFields,
     VepVariant,
-    SneakyTable,
 )
-
-from reanalysis.utils import read_json_from_path, create_small_variant  # noqa: E402
-
+from reanalysis.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
 AIP_OUTPUT = INPUT / 'aip_output_example.json'

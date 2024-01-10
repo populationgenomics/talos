@@ -5,7 +5,6 @@ automated installation instructions
 
 from setuptools import find_packages, setup
 
-
 with open('README.md', encoding='utf-8') as handle:
     readme = handle.read()
 

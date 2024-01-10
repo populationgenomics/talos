@@ -18,19 +18,21 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
+from peddy import Ped
+
 import hail as hl
+
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch, output_path
-from peddy import Ped
 
 from reanalysis.hail_audit import (
-    fields_audit,
-    vep_audit,
     BASE_FIELDS_REQUIRED,
     FIELDS_REQUIRED,
     USELESS_FIELDS,
     VEP_TX_FIELDS_REQUIRED,
+    fields_audit,
+    vep_audit,
 )
 from reanalysis.utils import read_json_from_path
 
@@ -62,7 +64,6 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
 
     clinvar_table = get_config()['workflow'].get(key)
     if clinvar_table is not None:
-
         if to_path(clinvar_table).exists():
             logging.info(f'Using clinvar table {clinvar_table}')
             return clinvar_table

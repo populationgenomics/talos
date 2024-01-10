@@ -11,15 +11,16 @@ CategoryBooleanSV1:
 from argparse import ArgumentParser
 
 import hail as hl
+
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import init_batch, genome_build
+from cpg_utils.hail_batch import genome_build, init_batch
 
 from reanalysis.hail_filter_and_label import (
+    MISSING_INT,
+    ONE_INT,
     green_and_new_from_panelapp,
     subselect_mt_to_pedigree,
-    ONE_INT,
-    MISSING_INT,
 )
 from reanalysis.static_values import get_logger
 from reanalysis.utils import read_json_from_path
@@ -190,7 +191,6 @@ def main(
 
 
 if __name__ == '__main__':
-
     # general CLI identical to the small variant version
     parser = ArgumentParser()
     parser.add_argument('--mt', required=True, help='path to input MT')

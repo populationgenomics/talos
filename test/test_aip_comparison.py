@@ -10,9 +10,11 @@ from peddy import Ped
 import hail as hl
 
 from comparison.comparison import (
+    CommonFormatResult,
+    Confidence,
     check_gene_is_green,
-    check_variant_was_normalised,
     check_in_vcf,
+    check_variant_was_normalised,
     common_format_aip,
     common_format_seqr,
     find_affected_samples,
@@ -20,8 +22,6 @@ from comparison.comparison import (
     find_variant_in_mt,
     run_ac_check,
     run_quality_flag_check,
-    CommonFormatResult,
-    Confidence,
 )
 
 

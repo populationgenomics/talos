@@ -128,7 +128,6 @@ def find_version(panel_id: int, all_dates: list[str]) -> dict[str, str | None]:
 
         # iterate through all activities on this panel
         for activity in activities:
-
             # cast the activity datetime to day-resolution
             activity_date = datetime.strptime(
                 activity['created'].split('T')[0], '%Y-%m-%d'
@@ -200,7 +199,6 @@ def main(panels: str | None, out_path: str, dates: list[str]):
 
     # check over all dates
     for date in dates:
-
         logging.info(f'Running the date {date}')
 
         date_genes = set()

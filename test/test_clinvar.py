@@ -7,16 +7,15 @@ from copy import deepcopy
 from datetime import datetime
 
 from reanalysis.summarise_clinvar_entries import (
+    ACMG_THRESHOLD,
+    Consequence,
+    Submission,
     acmg_filter_submissions,
     check_stars,
     consequence_decision,
     get_all_decisions,
     process_line,
-    ACMG_THRESHOLD,
-    Consequence,
-    Submission,
 )
-
 
 CURRENT_TIME = datetime.now()
 BASIC_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.UNKNOWN, 'review')

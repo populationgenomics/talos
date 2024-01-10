@@ -8,7 +8,6 @@ from unittest.mock import patch
 from helpers.prepare_aip_cohort import get_ped_with_permutations
 from helpers.utils import ext_to_int_sample_map
 
-
 PROJECT = 'fake-project'
 SAMPLE_TO_CPG = {
     'sam1': ['cpg1'],
