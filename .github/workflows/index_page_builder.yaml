@@ -4,6 +4,8 @@ on:
   workflow_dispatch: {}
 
   schedule:
+    # trigger at 1:42am on Tuesday and Thursday
+    # set during the hour to reduce collisions
     - cron: '42 1 * * 2,4'
 
 permissions:
