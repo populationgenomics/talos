@@ -9,26 +9,24 @@ Entrypoint for the comparison process
 import logging
 import os
 import sys
-
 from argparse import ArgumentParser
 
 import hailtop.batch as hb
 
+from cpg_utils.config import get_config
 from cpg_utils.git import (
-    prepare_git_job,
     get_git_commit_ref_of_current_repository,
     get_organisation_name_from_current_directory,
     get_repo_name_from_current_directory,
+    prepare_git_job,
 )
 from cpg_utils.hail_batch import (
     authenticate_cloud_credentials_in_job,
     copy_common_env,
     image_path,
-    remote_tmpdir,
     output_path,
+    remote_tmpdir,
 )
-from cpg_utils.config import get_config
-
 
 # local script references
 COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')

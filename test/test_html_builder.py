@@ -4,7 +4,6 @@ tests for the HTML builder
 from reanalysis.html_builder import check_date_filter
 from reanalysis.models import Coordinates, ResultData, SmallVariant
 
-
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={}, transcript_consequences=[])
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='A', alt='C')

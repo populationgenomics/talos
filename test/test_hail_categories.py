@@ -2,11 +2,11 @@
 unit testing collection for the hail MT methods
 """
 
+import pandas as pd
 import pytest
 import toml
 
 import hail as hl
-import pandas as pd
 
 from cpg_utils.config import _config_paths, get_config, set_config_paths
 
@@ -18,10 +18,10 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_5,
     annotate_category_6,
     annotate_category_support,
-    green_and_new_from_panelapp,
-    filter_to_population_rare,
-    split_rows_by_gene_and_filter_to_green,
     filter_to_categorised,
+    filter_to_population_rare,
+    green_and_new_from_panelapp,
+    split_rows_by_gene_and_filter_to_green,
 )
 
 category_1_keys = ['locus', 'clinvar_aip_strong']

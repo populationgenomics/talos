@@ -8,16 +8,17 @@ We then run a permissive MOI match for the variant
 # mypy: ignore-errors
 from abc import abstractmethod
 
+from peddy.peddy import PHENOTYPE, Ped
+
 from cpg_utils.config import get_config
-from peddy.peddy import Ped, PHENOTYPE
 
 from reanalysis.models import (
+    VARIANT_MODELS,
+    ReportVariant,
     SmallVariant,
     StructuralVariant,
-    ReportVariant,
-    VARIANT_MODELS,
 )
-from reanalysis.utils import CompHetDict, X_CHROMOSOME
+from reanalysis.utils import X_CHROMOSOME, CompHetDict
 
 # config keys to use for dominant MOI tests
 CALLSET_AF_SV_DOMINANT = 'callset_af_sv_dominant'
@@ -233,7 +234,6 @@ class BaseMoi:
         # iterate through all family members, no interested in directionality
         # of relationships at the moment
         for member in self.pedigree.families[self.pedigree[sample_id].family_id]:
-
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
@@ -416,7 +416,6 @@ class DominantAutosomal(BaseMoi):
         # autosomal dominant doesn't require support, but consider het and hom
         samples_with_this_variant = principal.het_samples.union(principal.hom_samples)
         for sample_id in samples_with_this_variant:
-
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
             # force a minimum depth on the proband call
@@ -513,7 +512,6 @@ class RecessiveAutosomalCH(BaseMoi):
 
         # if hets are present, try and find support
         for sample_id in principal.het_samples:
-
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
@@ -536,7 +534,6 @@ class RecessiveAutosomalCH(BaseMoi):
                 sample=sample_id,
                 require_non_support=principal.sample_support_only(sample_id),
             ):
-
                 if partner_variant.check_read_depth(
                     sample_id,
                     self.minimum_depth,
@@ -632,7 +629,6 @@ class RecessiveAutosomalHomo(BaseMoi):
             return classifications
 
         for sample_id in principal.hom_samples:
-
             # skip primary analysis for unaffected members
             # require this sample to be categorised - check Sample contents
             # minimum depth of call
@@ -739,7 +735,6 @@ class XDominant(BaseMoi):
         samples_with_this_variant = principal.het_samples.union(principal.hom_samples)
 
         for sample_id in samples_with_this_variant:
-
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
             # force minimum depth
@@ -841,7 +836,6 @@ class XRecessiveMale(BaseMoi):
         }
 
         for sample_id in males:
-
             # specific affected sample category check, never consider support on X for males
             if (
                 not (
@@ -937,7 +931,6 @@ class XRecessiveFemaleHom(BaseMoi):
         }
 
         for sample_id in samples_to_check:
-
             # specific affected sample category check
             if (
                 not (
@@ -1034,7 +1027,6 @@ class XRecessiveFemaleCH(BaseMoi):
 
         # if het females are present, try and find support
         for sample_id in het_females:
-
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
             if (
@@ -1053,7 +1045,6 @@ class XRecessiveFemaleCH(BaseMoi):
                 sample=sample_id,
                 require_non_support=principal.sample_support_only(sample_id),
             ):
-
                 # allow for de novo check - also screen out high-AF partners
                 if not partner.sample_category_check(
                     sample_id, allow_support=True

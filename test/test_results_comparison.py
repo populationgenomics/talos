@@ -2,22 +2,21 @@
 test file for annotation with first-seen dates
 """
 
+from copy import deepcopy
 from datetime import datetime
 from os.path import join
 from time import sleep
-from copy import deepcopy
 
-from reanalysis.utils import date_annotate_results, find_latest_file
 from reanalysis.models import (
     Coordinates,
-    SmallVariant,
+    HistoricSampleVariant,
+    HistoricVariants,
     ReportVariant,
     ResultData,
-    HistoricVariants,
-    HistoricSampleVariant,
+    SmallVariant,
 )
 from reanalysis.static_values import get_granular_date
-
+from reanalysis.utils import date_annotate_results, find_latest_file
 
 COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')
 COORD_2 = Coordinates(chrom='2', pos=2, ref='A', alt='G')

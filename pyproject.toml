@@ -2,5 +2,29 @@
 line-length = 88
 skip-string-normalization = true
 
+[tool.isort]
+py_version = 311
+profile = "black"
+line_length = 88
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "HAIL", "CPG", "FIRSTPARTY", "LOCALFOLDER"]
+known_hail = [
+    "hail",
+    "hailtop",
+]
+# Adjust these for each repository, e.g., removing those that should be
+# local rather than CPG. Also fill in extend_skip below if there are any
+# subdirectories that should be ignored.
+known_cpg = [
+    "analysis_runner",
+    "cpg_infra",
+    "cpg_utils",
+    "cpg_workflows",
+    "gnomad",
+    "hail_scripts",
+    "metamist",
+]
+# extend_skip = ["list", "submodules", "etc", here"]
+
 [tool.ruff]
+line-length = 88
 extend-select = ["T201"]

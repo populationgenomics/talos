@@ -4,8 +4,9 @@ A home for all data models used in AIP
 from enum import Enum
 
 import toml
-from cpg_utils import to_path
 from pydantic import BaseModel, Field
+
+from cpg_utils import to_path
 
 from reanalysis.static_values import get_granular_date
 
@@ -476,7 +477,6 @@ class ModelVariant(BaseModel):
 
 
 class ParticipantHPOPanels(BaseModel):
-
     external_id: str = Field(default_factory=str)
     family_id: str = Field(default_factory=str)
     hpo_terms: set[str] = Field(default_factory=set)

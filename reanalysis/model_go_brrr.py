@@ -16,12 +16,12 @@ import hail as hl
 
 from reanalysis.data_model import (
     BaseFields,
+    Clinvar,
+    Entry,
+    SneakyTable,
+    Splice,
     TXFields,
     VepVariant,
-    SneakyTable,
-    Entry,
-    Clinvar,
-    Splice,
 )
 
 # region: 2 vars, no tx, phased trio, boring

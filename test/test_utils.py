@@ -3,8 +3,19 @@ test class for the utils collection
 """
 
 from copy import deepcopy
+
 import pytest
 from cyvcf2 import VCFReader
+
+from reanalysis.models import (
+    VARIANT_MODELS,
+    Coordinates,
+    FileTypes,
+    PanelApp,
+    PhenotypeMatchedPanels,
+    ReportVariant,
+    SmallVariant,
+)
 from reanalysis.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
@@ -12,15 +23,6 @@ from reanalysis.utils import (
     get_non_ref_samples,
     get_simple_moi,
     identify_file_type,
-)
-from reanalysis.models import (
-    Coordinates,
-    FileTypes,
-    PanelApp,
-    PhenotypeMatchedPanels,
-    ReportVariant,
-    SmallVariant,
-    VARIANT_MODELS,
 )
 
 

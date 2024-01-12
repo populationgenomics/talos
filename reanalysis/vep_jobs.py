@@ -5,19 +5,18 @@ Creates a Hail Batch job to run the command line VEP tool.
 """
 
 import hailtop.batch as hb
+from hailtop.batch import Batch
+from hailtop.batch.job import Job
+
 from cpg_utils import Path, to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import (
+    command,
     fasta_res_group,
     image_path,
-    reference_path,
-    command,
     query_command,
+    reference_path,
 )
-from cpg_workflows.resources import HIGHMEM, STANDARD
-from cpg_workflows.utils import exists
-from hailtop.batch import Batch
-from hailtop.batch.job import Job
 
 
 def subset_vcf(
@@ -33,7 +32,9 @@ def subset_vcf(
     job_attrs = (job_attrs or {}) | {'tool': 'gatk SelectVariants'}
     j = b.new_job('Subset VCF', job_attrs)
     j.image(image_path('gatk'))
-    STANDARD.set_resources(j, ncpu=2)
+    j.storage('16Gi')
+    j.memory('standard')
+    j.cpu(2)
 
     j.declare_resource_group(
         output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
@@ -95,7 +96,7 @@ def scatter_intervals(
         # Special case when we don't need to split
         return None, [b.read_input(str(source_intervals_path))]
 
-    if output_prefix and exists(output_prefix / '1.interval_list'):
+    if output_prefix and to_path(output_prefix / '1.interval_list').exists():
         return None, [
             b.read_input(str(output_prefix / f'{idx + 1}.interval_list'))
             for idx in range(scatter_count)
@@ -106,7 +107,9 @@ def scatter_intervals(
         attributes=(job_attrs or {}) | {'tool': 'picard IntervalListTools'},
     )
     j.image(image_path('picard'))
-    STANDARD.set_resources(j, storage_gb=16, mem_gb=2)
+    j.storage('16Gi')
+    j.memory('2Gi')
+    j.cpu(1)
 
     break_bands_at_multiples_of = {
         'genome': 100000,
@@ -163,7 +166,7 @@ def add_vep_jobs(
     unless `out_path` ends with ".ht", in which case writes a Hail table.
     """
 
-    if out_path and exists(out_path):
+    if out_path and to_path(out_path).exists():
         return []
 
     jobs: list[Job] = []
@@ -191,7 +194,7 @@ def add_vep_jobs(
     for idx in range(scatter_count):
         result_part_path = result_parts_bucket / f'part{idx + 1}.jsonl'
         result_part_paths.append(result_part_path)
-        if exists(result_part_path):
+        if to_path(result_part_path).exists():
             continue
 
         subset_j = subset_vcf(
@@ -263,7 +266,7 @@ def vep_one(
     """
     Run a single VEP job.
     """
-    if out_path and exists(to_path(out_path)):
+    if out_path and to_path(out_path).exists():
         return None
 
     j = b.new_job('VEP', (job_attrs or {}) | {'tool': 'vep'})
@@ -271,7 +274,9 @@ def vep_one(
 
     # vep is single threaded, with a middling memory requirement
     # tests have exceeded 8GB, so bump to ~13 (2 * highmem)
-    HIGHMEM.set_resources(j, ncpu=2, storage_gb=10)
+    j.memory('highmem')
+    j.storage('10Gi')
+    j.cpu(2)
 
     if not isinstance(vcf, hb.ResourceFile):
         vcf = b.read_input(str(vcf))
