@@ -343,7 +343,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # store the list of genes currently on the core panel
     if twelve_months:
-        twelve_months = set(gene_dict['genes'])
+        twelve_months = set(gene_dict.genes)
 
     # if participant panels were provided, add each of those to the gene data
     panel_list = set()
