@@ -14,6 +14,11 @@ status_reporter = 'metamist'
 #clinvar_decisions = "HailTable path to private ClinVar"
 #clinvar_pm5 = "HailTable path to ClinVar PM5"
 
+## optionally, ignore some categories
+#ignore_categories = [
+#    'categoryboolean6'
+#]
+
 [panels]
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'

@@ -133,58 +133,6 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
 
 
-#
-# @dataclass
-# class Coordinates:
-#     """
-#     a home for the positional variant attributes
-#     """
-#
-#     chrom: str
-#     pos: int
-#     ref: str
-#     alt: str
-#
-#     @property
-#     def string_format(self) -> str:
-#         """
-#         forms a string representation: chr-pos-ref-alt
-#         """
-#         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
-#
-#     def __lt__(self, other) -> bool:
-#         """
-#         enables positional sorting
-#         """
-#         # this will return False for same chrom and position
-#         if self.chrom == other.chrom:
-#             return self.pos < other.pos
-#         # otherwise take the relative index from sorted chromosomes list
-#         if self.chrom in CHROM_ORDER and other.chrom in CHROM_ORDER:
-#             return CHROM_ORDER.index(self.chrom) < CHROM_ORDER.index(other.chrom)
-#         # if self is on a canonical chromosome, sort before HLA/Decoy etc.
-#         if self.chrom in CHROM_ORDER:
-#             return True
-#         return False
-#
-#     def __eq__(self, other) -> bool:
-#         """
-#         equivalence check
-#         Args:
-#             other (Coordinates):
-#
-#         Returns:
-#             true if self == other
-#
-#         """
-#         return (
-#             self.chrom == other.chrom
-#             and self.pos == other.pos
-#             and self.ref == other.ref
-#             and self.alt == other.alt
-#         )
-
-
 def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
     """
     takes a request URL, checks for healthy response, returns the JSON
@@ -446,6 +394,11 @@ def create_small_variant(
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {
         'seqr_link': coordinates.string_format
     }
+
+    # optionally - ignore some categories from this analysis
+    if ignore_cats := get_config()['workflow'].get('ignore_categories'):
+        info = {key: val for key, val in info.items() if key not in ignore_cats}
+
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
     # hot-swap cat 2 from a boolean to a sample list - if appropriate

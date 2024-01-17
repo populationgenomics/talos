@@ -5,6 +5,11 @@ scatter_count = 50
 vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
 
+### optionally, ignore some categories
+#ignore_categories = [
+#    'categoryboolean3'
+#]
+
 [panels]
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
