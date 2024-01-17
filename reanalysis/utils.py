@@ -396,7 +396,7 @@ def create_small_variant(
     }
 
     # optionally - ignore some categories from this analysis
-    if ignore_cats := get_config()['workflow']['ignore_categories']:
+    if ignore_cats := get_config()['workflow'].get('ignore_categories'):
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
