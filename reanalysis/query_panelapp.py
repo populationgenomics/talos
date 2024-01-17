@@ -273,9 +273,7 @@ def overwrite_new_status(gene_dict: PanelApp, new_genes: set[str]):
 
     for gene, gene_data in gene_dict.genes.items():
         if gene in new_genes:
-            gene_data.new = [panel_id]
-        else:
-            gene_data.new = []
+            gene_data.new = {panel_id}
 
 
 @click.command()
@@ -394,6 +392,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     with to_path(out_path).open('w') as out_file:
         out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
+    # Only save here if we have a historic location in config
     save_new_historic(old_data, dataset=dataset, prefix='panel_')
 
 
