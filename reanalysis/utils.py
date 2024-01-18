@@ -886,6 +886,9 @@ def save_new_historic(
     """
 
     directory = get_cohort_seq_type_conf(dataset).get('historic_results')
+    if directory is None:
+        get_logger().info('No historic data folder, no saving')
+        return
 
     new_file = to_path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
