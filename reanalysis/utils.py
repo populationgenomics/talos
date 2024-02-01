@@ -849,7 +849,7 @@ def generate_fresh_latest_results(
                 var.var_data.coordinates.string_format
             ] = HistoricSampleVariant(
                 **{
-                    'categories': {cat: get_granular_date() for cat in var.categories},
+                    'categories': {cat: var.first_seen for cat in var.categories},
                     'support_vars': var.support_vars,
                     'independent': var.independent,
                 }
