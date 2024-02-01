@@ -254,7 +254,7 @@ def match_participants_to_panels(
                 participant_hpos.all_panels.update(hpo_panels[hpo_term])
 
 
-def main(dataset: str, hpo_file: str, panel_out: str) -> PhenotypeMatchedPanels:
+def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatchedPanels:
     """
     main method to do the fun things
 
@@ -275,8 +275,9 @@ def main(dataset: str, hpo_file: str, panel_out: str) -> PhenotypeMatchedPanels:
     valid_pheno_dict = PhenotypeMatchedPanels.model_validate(hpo_dict)
 
     # validate and write using pydantic
-    with to_path(panel_out).open('w', encoding='utf-8') as handle:
-        handle.write(valid_pheno_dict.model_dump_json(indent=4))
+    if panel_out:
+        with to_path(panel_out).open('w', encoding='utf-8') as handle:
+            handle.write(valid_pheno_dict.model_dump_json(indent=4))
     return valid_pheno_dict
 
 
