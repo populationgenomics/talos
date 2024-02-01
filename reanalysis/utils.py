@@ -22,6 +22,7 @@ from cpg_utils.config import get_config
 
 from reanalysis.models import (
     VARIANT_MODELS,
+    CategoryMeta,
     Coordinates,
     FileTypes,
     HistoricPanels,
@@ -827,6 +828,35 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompH
     return comp_het_results
 
 
+def generate_fresh_latest_results(
+    current_results: ResultData, dataset: str, prefix: str = ''
+):
+    """
+    This will be called if a cohort has no latest results, but has
+    indicated a place to save them.
+    Args:
+        current_results (ResultData): results from this current run
+        dataset (str): dataset name for sourcing config section
+        prefix (str): optional prefix for the filename
+    """
+
+    new_history = HistoricVariants(
+        metadata=CategoryMeta(categories=get_config().get('categories', {}))
+    )
+    for sample, content in current_results.results.items():
+        for var in content.variants:
+            new_history.results.setdefault(sample, {})[
+                var.var_data.coordinates.string_format
+            ] = HistoricSampleVariant(
+                **{
+                    'categories': {cat: get_granular_date() for cat in var.categories},
+                    'support_vars': var.support_vars,
+                    'independent': var.independent,
+                }
+            )
+    save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
+
+
 def filter_results(results: ResultData, singletons: bool, dataset: str):
     """
     loads the most recent prior result set (if it exists)
@@ -865,9 +895,13 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
             latest_results_path, return_model=HistoricVariants  # type: ignore
         )
     ) is None:
+        # generate and write some new latest data
+        generate_fresh_latest_results(
+            current_results=results, prefix=prefix, dataset=dataset
+        )
         return
-    else:
-        assert isinstance(latest_results, HistoricVariants)
+
+    assert isinstance(latest_results, HistoricVariants)
 
     date_annotate_results(results, latest_results)
     save_new_historic(results=latest_results, prefix=prefix, dataset=dataset)
