@@ -159,7 +159,7 @@ def get_ped_with_permutations(
 def process_pedigree(
     ped_with_permutations: list[dict],
     local_dir: Path,
-    remote_dir: Path,
+    remote_dir: Path | None,
     singletons: bool = False,
 ) -> str:
     """
@@ -207,12 +207,14 @@ def process_pedigree(
     (local_dir / ped_name).write_text(single_line)
 
     # also write to the remote path
-    remote_path = remote_dir / ped_name
-    remote_path.write_text(single_line)
-    logging.info(f'Wrote pedigree with {len(ped_lines)} lines to {remote_path}')
+    if remote_dir:
+        remote_path = remote_dir / ped_name
+        remote_path.write_text(single_line)
+        logging.info(f'Wrote pedigree with {len(ped_lines)} lines to {remote_path}')
 
-    # pass back the remote file path
-    return str(remote_path)
+        # pass back the remote file path
+        return str(remote_path)
+    logging.info('Did not write a remote pedigree file')
 
 
 def get_pedigree_for_project(
@@ -243,6 +245,7 @@ def main(
     seqr_file: str | None = None,
     exome_or_genome: str = 'genome',
     singletons: bool = False,
+    no_copy: bool = False,
 ):
     """
     Who runs the world? main()
@@ -253,6 +256,7 @@ def main(
         seqr_file (str):
         exome_or_genome (str): flag to switch exome/genome behaviour
         singletons ():
+        no_copy (): don't copy files to GCP
     """
 
     local_root = to_path(LOCAL_TEMPLATE.format(dataset=project))
@@ -266,13 +270,14 @@ def main(
     hpo_panel_dict = hpo_match(
         dataset=project,
         hpo_file=obo,
-        panel_out=str(local_root / 'participant_panels.json'),
+        panel_out=None if no_copy else str(local_root / 'participant_panels.json'),
     )
 
     panel_remote = remote_root / 'participant_panels.json'
-    with panel_remote.open('w') as handle:
-        handle.write(hpo_panel_dict.model_dump_json(indent=4))
-        logging.info(f'Wrote panel file to {panel_remote}')
+    if no_copy is False:
+        with panel_remote.open('w') as handle:
+            handle.write(hpo_panel_dict.model_dump_json(indent=4))
+            logging.info(f'Wrote panel file to {panel_remote}')
 
     # get the list of all pedigree members as list of dictionaries
     logging.info('Pulling all pedigree members')
@@ -325,7 +330,10 @@ def main(
     }
 
     ped_file = process_pedigree(
-        ped_with_permutations, local_root, remote_root, singletons=singletons
+        ped_with_permutations=ped_with_permutations,
+        local_dir=local_root,
+        remote_dir=None if no_copy else remote_root,
+        singletons=singletons,
     )
 
     path_prefixes.append('cohort_config.toml')
@@ -339,9 +347,10 @@ def main(
         prior := get_cohort_config(project).get('gene_prior', 'MISSING')
     ):
         pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
-        with to_path(prior).open('w') as handle:
-            json.dump(pre_panelapp, handle, indent=4)
-            logging.info(f'Wrote VCGS gene prior file to {prior}')
+        if no_copy is False:
+            with to_path(prior).open('w') as handle:
+                json.dump(pre_panelapp, handle, indent=4)
+                logging.info(f'Wrote VCGS gene prior file to {prior}')
 
     logging.info(f'--pedigree {ped_file}')
 
@@ -360,6 +369,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--singletons', help='cohort as singletons', action='store_true'
     )
+    parser.add_argument('-nc', help='dont copy files to GCP', action='store_true')
     args = parser.parse_args()
     E_OR_G = 'exome' if args.e else 'genome'
     main(
@@ -368,4 +378,5 @@ if __name__ == '__main__':
         seqr_file=args.seqr,
         exome_or_genome=E_OR_G,
         singletons=args.singletons,
+        no_copy=args.nc,
     )
