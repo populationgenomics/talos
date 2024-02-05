@@ -1,5 +1,7 @@
 # Automated Interpretation Pipeline (AIP)
 
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) ![test](https://github.com/populationgenomics/automated-interpretation-pipeline/actions/workflows/test.yaml/badge.svg) ![black](https://img.shields.io/badge/code%20style-black-000000.svg)
+
 ## Purpose
 
 A variant prioritisation tool, aiming to assist clinical curators by sifting through large datasets and highlighting a
@@ -113,9 +115,9 @@ of all panels on which they have previously been seen. A gene will be treated as
 before, or features in a phenotype-matched panel on which it has not been seen before. i.e.
 
 - if a Gene is promoted to `Green` on the Mendeliome, it will be recorded as `New`, and the prior data will be extended
-to show that the gene was seen on the Mendeliome.
+  to show that the gene was seen on the Mendeliome.
 - if a Gene has previously appeared on the Mendeliome, and during current run it now appears on a new panel, the gene
-will be recorded as `New`, and the new panel will be added to the prior data list.
+  will be recorded as `New`, and the new panel will be added to the prior data list.
 
 ### Variant Results
 
@@ -127,9 +129,10 @@ This data consists of the variant IDs, Categories they've previously been assign
 have formed a compound-het with. When reviewing the variants of a current run, we check for previously seen variants on
 a per-sample basis, e.g.:
 
- - If a variant has been seen as a `Cat.1` before, and appears again as a `Cat.1`, it will be removed
- - If a variant has been seen as a `Cat.1` before, and now is both `Cat.1` & `Cat.2`, the `Cat.1` assignment will be
-removed, and will be reported only as a `Cat.2`. The prior data will be extended to show that it has been a `Cat.1 & 2`
- - If a variant was never seen before, it will appear on the report with no removed Categories
- - If a variant was seen in a compound-het now, and was previously partnered with a different variant, all `Categories`
-will be retained, and the new partner ID will be added to the list of `support_vars` in the prior data
+- If a variant has been seen as a `Cat.1` before, and appears again as a `Cat.1`, it will be removed
+- If a variant has been seen as a `Cat.1` before, and now is both `Cat.1` & `Cat.2`, the `Cat.1` assignment will be
+  removed, and will be reported only as a `Cat.2`. The prior data will be extended to show that it has been
+  a `Cat.1 & 2`
+- If a variant was never seen before, it will appear on the report with no removed Categories
+- If a variant was seen in a compound-het now, and was previously partnered with a different variant, all `Categories`
+  will be retained, and the new partner ID will be added to the list of `support_vars` in the prior data

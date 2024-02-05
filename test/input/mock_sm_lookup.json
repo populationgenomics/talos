@@ -6,7 +6,7 @@
                     {
                         "sequencingGroups": [
                             {
-                                "id": "CPG11"
+                                "id": "CPT11"
                             }
                         ]
                     }
@@ -18,7 +18,7 @@
                     {
                         "sequencingGroups": [
                             {
-                                "id": "CPG12"
+                                "id": "CPT12"
                             }
                         ]
                     }
@@ -30,7 +30,7 @@
                     {
                         "sequencingGroups": [
                             {
-                                "id": "CPG13"
+                                "id": "CPT13"
                             }
                         ]
                     }
@@ -42,7 +42,7 @@
                     {
                         "sequencingGroups": [
                             {
-                                "id": "CPG41"
+                                "id": "CPT41"
                             }
                         ]
                     }

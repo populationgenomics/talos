@@ -283,7 +283,7 @@ def main(
     logging.info('Pulling all pedigree members')
     pedigree_dicts, ext_lookup = get_pedigree_for_project(project=project)
 
-    # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPG12341']]
+    # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPT12341']]
     # parser returns a dictionary, arbitrary # sample IDs per participant
     logging.info('pulling internal-external sample mapping')
 
