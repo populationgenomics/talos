@@ -42,10 +42,10 @@ def test_ext_to_int_sample_map(map_mock, gql_mock, sm_lookup):
     result = ext_to_int_sample_map(project=PROJECT)
     assert isinstance(result, dict)
     assert result == {
-        'FAM1_father': ['CPG11'],
-        'FAM1_mother': ['CPG12'],
-        'FAM1_proband': ['CPG13'],
-        'FAM2_proband': ['CPG41'],
+        'FAM1_father': ['CPT11'],
+        'FAM1_mother': ['CPT12'],
+        'FAM1_proband': ['CPT13'],
+        'FAM2_proband': ['CPT41'],
     }
 
 

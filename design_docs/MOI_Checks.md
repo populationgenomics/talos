@@ -34,13 +34,10 @@ Dynamic Objects:
     1. CyVCF2 was chosen as a parsing library due to speed relative to pyVCF, but each library provides a slightly
        different
        representation. This normalises all logic to a common class, and allows for different sources/parsers to generate
-       a
-       common format.
+       a common format.
     2. CyVCF2 and PyVCF variant object formats contain structures which cannot be pickled by default. This leads to
-       issues
-       with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily, so
-       async/await
-       structure can be added in at any level.
+       issues with introducing parallelisation into the code. A dictionary/set/list-based class can be pickled easily,
+       so async/await structure can be added in at any level.
     3. Making an abstract object from simple types will lead to simpler unit testing.
 
 - Compound Het lookup: This object is built per-gene as we iterate over all genes independently
@@ -139,10 +136,10 @@ derivatives each define a single Mode of Inheritance e.g.
 The separation between the methods defining the filter algorithm, and the MoiRunner using one or more algorithms
 allows multiple filters to be applied for a given MOI string e.g.
 
-- "BOTH monoallelic and biallelic, autosomal or pseudoautosomal" from PanelApp is easy to interpret as
-  2 filters, monoallelic, and biallelic
-- "X-LINKED: hemizygous mutation in males, biallelic mutations in females" for male samples we call a
-  DominantMOI filter, for females we call a Recessive filter
+- "BOTH monoallelic and biallelic, autosomal or pseudoautosomal" from PanelApp is easy to interpret as 2 filters,
+  monoallelic, and biallelic
+- "X-LINKED: hemizygous mutation in males, biallelic mutations in females" for male samples we call a DominantMOI
+  filter, for females we call a Recessive filter
 
 The usage paradigm is:
 
@@ -156,9 +153,9 @@ The usage paradigm is:
 
 ### Family Checks
 
-Instead of tree-traversal within families, MOI checks represent each family as a flat pool
-of participants. The inheritance rules are applied unilaterally to every member of a family group, rather than in a
-directional manner, e.g. when considering each candidate variant:
+Instead of tree-traversal within families, MOI checks represent each family as a flat pool of participants. The
+inheritance rules are applied unilaterally to every member of a family group, rather than in a directional manner, e.g.
+when considering each candidate variant:
 
 - for a monoallelic variant, inherited with complete penetrance, we enforce a unilateral rule - every person with the
   variant must also be affected. If this rule is violated for any individual member, the variant does not pass the
@@ -167,8 +164,7 @@ directional manner, e.g. when considering each candidate variant:
   is Homozygous, we permit unaffected members to be heterozygous. Similarly, for compound-het inheritance, unaffected
   participants may have either variant but not both.
 
-Complete and Incomplete penetrance modes are available in this module. For the Complete penetrance
-inheritance model:
+Complete and Incomplete penetrance modes are available in this module. For the Complete penetrance inheritance model:
 
 - all affected individuals must have the same variant
 - unaffected members cannot have the variant
@@ -184,9 +180,9 @@ doesn't currently permit providing family or member-specific disease data, this 
 
 ### _De Novo_ checks
 
-Within the hail category-labelling process, we implement a
-[ported version of K. Samocha's _de novo_ filtering test](https://github.com/ksamocha/de_novo_scripts) in
-[Hail](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.de_novo). This test uses a number of factors in
+Within the hail category-labelling process, we implement a [ported version of K. Samocha's _de
+novo_ filtering test](https://github.com/ksamocha/de_novo_scripts)
+in [Hail](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.de_novo). This test uses a number of factors in
 either confirming or refuting the _de novo_ call, above and beyond just checking genotype calls:
 
 - Checks the Allelic Balance and read depth of the Proband
@@ -212,8 +208,8 @@ which will generate a reported variant structure for the sample(s) which passed 
 
 When a reportable event is found, a JSON blob representing the variant and sample is created. If the relevant gene was
 in one or more of the additional panels requested (
-see [additional panels](PanelApp_interaction.md#per-participant-panels)),
-the names/IDs of those panels are appended to the list of any variant-specific panels.
+see [additional panels](PanelApp_interaction.md#per-participant-panels)), the names/IDs of those panels are appended to
+the list of any variant-specific panels.
 
 This leaves us the flexibility to mark individual samples/families as having disease-relevant panels, which can then be
 cross-referenced against these flags for visual emphasis in the final report.

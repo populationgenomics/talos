@@ -28,3 +28,20 @@ known_cpg = [
 [tool.ruff]
 line-length = 88
 extend-select = ["T201"]
+ignore = [
+    "ANN101", # Missing type annotation for self in method
+    "ANN201", # Missing return type annotation for public function
+    "E501", # Line length too long
+    "E731", # Do not assign a lambda expression, use a def
+    "E741", # Ambiguous variable name
+    "G004", # Logging statement uses f-string
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments to function call
+    "PLR0915", # Too many statements
+    "PLW0603", # Using the global statement to update `<VAR>` is discouraged
+    "PT018", # Assertion should be broken down into multiple parts
+    "Q000", # Single quotes found but double quotes preferred
+    "S101", # Use of assert detected
+    "I001", # Import block is un-sorted (we use isort directly as ruff sort isn't fully supported)
+]

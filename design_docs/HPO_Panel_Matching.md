@@ -9,7 +9,6 @@ analysed cohorts. The steps of this process are:
 4. Match between cohort HPO terms and HPO terms in PanelApp to find a group of panels relevant to each individual
 5. Exporting this data in a format which can be used in AIP
 
-
 ## PanelApp Querying
 
 We are querying the overview endpoint of the PanelApp API, which provides brief details on each panel, to gather
@@ -32,9 +31,7 @@ ingest the ontology into a [networkx](https://networkx.org/) graph, where all da
 ## Participant Searching
 
 Currently we are geared up to pull data from metamist, the CPG metadata API. The client for this is currently broken, so
-we are using a dump instead.
-
-From this dump, we are finding ParticipantIDs, FamilyIDs, and any corresponding HPO terms.
+we are using a dump instead. From this dump, we are finding ParticipantIDs, FamilyIDs, and any corresponding HPO terms.
 
 ## HPO to panel searching
 
@@ -42,8 +39,8 @@ Get all unique HPO terms across the cohort, then for each unique HPO term:
 
 1. If the HPO term has an exact match from the PanelApp data; if so, add to a set
 2. If the term has a parent (less specific) recursively call the search using the less-specific term
-   - If a term is deprecated or obsolete, check for any replacement terms listed in the ontology and re-run the search
-   - if a term has 'alternative' terms, re-run using those terms
+    - If a term is deprecated or obsolete, check for any replacement terms listed in the ontology and re-run the search
+    - if a term has 'alternative' terms, re-run using those terms
 3. Repeat this search, becoming increasingly vague, until reaching a configured limit
 4. Once the limit is reached, return the collection of all matched panel IDs
 
@@ -58,7 +55,6 @@ The final stage is to associate these identified panels back to the participants
 1. For each participant in turn, pull out the list of HPO terms
 2. For each HPO term, find any panels which were fuzzy-matched to that term
 3. Store the associated panels alongside the HPO term data for the participant
-
 
 ## Result
 
