@@ -54,8 +54,8 @@ For Category 2, a gene being `New` is contextual. The program permits several me
 2. provide a prior version of a panel - a gene is `new` if it has become Green on the panel since this prior version
 3. (future) provide previously parsed panel data - a gene is `new` if Green, and was not present during prior analysis
 
-This includes the proposed, but not yet implemented, use of SpliceAI results. There are two possible uses, and one
-(or both) will be implemented once the proposal has been refined
+This includes the proposed, but not yet implemented, use of SpliceAI results. There are two possible uses, and one(or
+both) will be implemented once the proposal has been refined
 
 1. Category 5 will exist solely for high-confidence SpliceAI annotations
 2. Support will feature Mid-Strength SpliceAI predictions
@@ -72,8 +72,8 @@ Annotated Joint-called MatrixTable. Annotations applied either by, or consistent
 
 1. Read reference files (PanelApp data, [Configuration](../reanalysis/reanalysis_global.toml))
     * From the PanelApp data, pull `ENSG` values corresponding to GREEN (High Confidence) genes
-    * Most of the steps are configurable based on this file, e.g. the definition of `common in joint call` is a
-      balance of the 2 parameters `min_samples_to_ac_filter`, and `ac_filter_percentge`.
+    * Most of the steps are configurable based on this file, e.g. the definition of `common in joint call` is a balance
+      of the 2 parameters `min_samples_to_ac_filter`, and `ac_filter_percentge`.
     * All the config file parameters related to the Hail stage are contained within the top level key `filter`
 
 2. Read Annotated MatrixTable
@@ -129,8 +129,7 @@ To make downstream operations easier, the different categories are grouped into 
    downstream in the report) and a flag CategoryBooleanPM5 is assigned. This then acts as a regular boolean flag, with
    the pm5 data in the dictionary available for display if appropriate. This approach means that upon creation and init
    processing of the AbstractVariant, the CategoryDetails flag no longer exists, and no advanced logic is needed to
-   process
-   it within the MOI logic.
+   process it within the MOI logic.
 
 ### USP - ACMG PM5
 
@@ -145,8 +144,7 @@ infrastructure, there may be easier ways to accomplish the preparatory stems in 
 * Annotate this VCF using VEP, outputting a MatrixTable data structure
 * Using the code in [reanalysis/clinvar_by_codon.py](../reanalysis/clinvar_by_codon.py), reorganise this data into a
   lookup table, with all protein & residues as keys, linked to all co-located clinvar Alleles. See [Clinvar By Codon](
-  Helpers.md#clinvar-by-codon-clinvarbycodonpy) for details. Save that Hail Table to a common location as an input
-  file.
+  Helpers.md#clinvar-by-codon-clinvarbycodonpy) for details. Save that Hail Table to a common location as an input file.
 
 | Residue affected | ClinVar Alleles                                           |
 |------------------|-----------------------------------------------------------|
@@ -162,10 +160,8 @@ infrastructure, there may be easier ways to accomplish the preparatory stems in 
 | ENSP12345::123   | [chr2:123456:A:C]                |
 | ENSP67890::678   | [chr4:67899:A:C, chr4:67890:G:C] |
 
-* Join the tables of ClinVar and real variant data, then explode and aggregate by variant. The resulting table is
-  indexed
-  on variant Locus & Alleles, and connects each variant with _all pathogenic ClinVar missenses which affect this
-  residue_
+* Join tables of ClinVar and real variant data, then explode and aggregate by variant. The resulting table is indexed
+  on variant Locus & Alleles, and connects each variant with _all pathogenic ClinVar missenses which affect this residue
 
 | Variant         | ClinVar Alleles                                           |
 |-----------------|-----------------------------------------------------------|
@@ -174,5 +170,4 @@ infrastructure, there may be easier ways to accomplish the preparatory stems in 
 | chr4:67899:A:C  | AlleleID::Pathogenic::#Stars+AlleleID::Pathogenic::#Stars |
 
 * This table is then used to annotate the callset MT - if the variant exists in this table, the CategoryDetailsPM5
-  content
-  is the string of related ClinVar content, otherwise the value is set to `missing`
+  content is the string of related ClinVar content, otherwise the value is set to `missing`

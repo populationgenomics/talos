@@ -37,13 +37,13 @@ Algorithmically, the following process occurs:
 
 1 Query for the core panel (Mendeliome, unless altered in config)
 
-  * We collect the relevant MOI and symbol for each Green gene
+* We collect the relevant MOI and symbol for each Green gene
 
 2 Gather all phenotype-matched panels from the file
 3 Query for each extra panel in turn, adding new genes from the additional panels
 
-  * At each stage, if MOI was missing in a prior panel and present in the current panel, update the MOI
-  * Record all the panels each gene appears on
+* At each stage, if MOI was missing in a prior panel and present in the current panel, update the MOI
+* Record all the panels each gene appears on
 
 ## Notion of `New`
 
