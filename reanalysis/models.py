@@ -491,7 +491,6 @@ class PhenotypeMatchedPanels(BaseModel):
 class MiniVariant(BaseModel):
     categories: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
-    independent: bool = Field(default=True)
 
 
 class MiniForSeqr(BaseModel):

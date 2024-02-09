@@ -33,9 +33,10 @@ def coord_to_string(coord: dict) -> str:
     return f"{coord['chrom']}-{coord['pos']}-{coord['ref']}-{coord['alt']}"
 
 
-def main(input_file: str, output: str):
+def main(input_file: str, output: str, ext_map: str | None = None):
     """
     reads in the input file, shrinks it, and writes the output file
+
 
     Args:
         input_file (str):
@@ -50,8 +51,16 @@ def main(input_file: str, output: str):
             'metadata': {'categories': data.metadata.categories},
         }
     )
+    ext_map_dict = None
+    if ext_map:
+        with open(ext_map, encoding='utf-8') as f:
+            ext_map_dict = json.load(f)
 
     for individual, details in data.results.items():
+        # optionally update to point to Seqr identities
+        if ext_map_dict:
+            individual = ext_map_dict.get(individual, individual)
+
         lil_data.results[individual] = {}
         for variant in details.variants:
             var_data = variant.var_data
@@ -60,8 +69,8 @@ def main(input_file: str, output: str):
             ] = MiniVariant(
                 **{
                     'categories': variant.categories,
-                    'support_vars': variant.support_vars,
-                    'independent': variant.independent,
+                    'support_vars': variant.support_vars
+                    # 'independent': variant.independent,
                 }
             )
 
@@ -73,6 +82,13 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('input_file', help='the input file to process')
     parser.add_argument('output_file', help='the output file to write to')
+    parser.add_argument(
+        '--external_map',
+        help='mapping of internal to external IDs for seqr',
+        default=None,
+        type=str,
+        required=False,
+    )
     args = parser.parse_args()
 
-    main(input_file=args.input_file, output=args.output_file)
+    main(input_file=args.input_file, output=args.output_file, ext_map=args.external_map)
