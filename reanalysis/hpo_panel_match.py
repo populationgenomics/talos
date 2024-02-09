@@ -265,7 +265,7 @@ def match_participants_to_panels(
                 participant_hpos.all_panels.update(hpo_panels[hpo_term])
 
 
-def make_hpo_great_again(
+def update_hpo_with_description(
     hpo_dict: PhenotypeMatchedPanels, hpo_to_text: dict[str, str]
 ) -> PhenotypeMatchedPanels:
     """
@@ -273,15 +273,15 @@ def make_hpo_great_again(
     human-readable: "HPO:Description"
 
     Args:
-        hpo_dict ():
-        hpo_to_text ():
+        hpo_dict: all participants and their HPO terms
+        hpo_to_text (dict): a lookup to find descriptions per HPO term
 
     Returns:
 
     """
     for party_data in hpo_dict.samples.values():
         party_data.hpo_terms = {
-            f"{hpo}:{hpo_to_text[hpo]}" for hpo in party_data.hpo_terms
+            f"{hpo} - {hpo_to_text[hpo]}" for hpo in party_data.hpo_terms
         }
     return hpo_dict
 
@@ -305,7 +305,7 @@ def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatched
 
     # update the HPO terms attached to the participants to be
     # human-readable: "HPO:Description"
-    hpo_dict = make_hpo_great_again(hpo_dict, hpo_to_text)
+    hpo_dict = update_hpo_with_description(hpo_dict, hpo_to_text)
 
     # validate the object
     valid_pheno_dict = PhenotypeMatchedPanels.model_validate(hpo_dict)

@@ -11,6 +11,7 @@ from reanalysis.hpo_panel_match import (
     match_hpo_terms,
     match_hpos_to_panels,
     match_participants_to_panels,
+    update_hpo_with_description,
 )
 from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
@@ -146,5 +147,40 @@ def test_match_participants_to_panels():
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
             'panels': {137, 101, 102, 666},
+        }
+    )
+
+
+def test_update_hpo_with_description():
+    """
+    test that the description is added to the hpo
+    """
+    hpo_dict = PhenotypeMatchedPanels(
+        **{
+            'samples': {
+                'luke_skywalker': {
+                    'external_id': 'participant1',
+                    'family_id': 'fam1',
+                    'hpo_terms': {'HP:1', 'HP:2'},
+                    'panels': {137},
+                }
+            }
+        }
+    )
+    hpo_to_desc = {'HP:1': 'Philosopher\'s Stone', 'HP:2': 'Chamber of Secrets'}
+    hpo_dict = update_hpo_with_description(hpo_dict, hpo_to_desc)
+    assert hpo_dict == PhenotypeMatchedPanels(
+        **{
+            'samples': {
+                'luke_skywalker': {
+                    'external_id': 'participant1',
+                    'family_id': 'fam1',
+                    'hpo_terms': {
+                        'HP:1 - Philosopher\'s Stone',
+                        'HP:2 - Chamber of Secrets',
+                    },
+                    'panels': {137},
+                }
+            }
         }
     )
