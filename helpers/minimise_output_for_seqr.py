@@ -64,9 +64,7 @@ def main(input_file: str, output: str, ext_map: str | None = None):
         lil_data.results[individual] = {}
         for variant in details.variants:
             var_data = variant.var_data
-            lil_data.results[individual][
-                var_data.coordinates.string_format
-            ] = MiniVariant(
+            lil_data.results[individual][var_data.info['seqr_link']] = MiniVariant(
                 **{
                     'categories': variant.categories,
                     'support_vars': variant.support_vars
