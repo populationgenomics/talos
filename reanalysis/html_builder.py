@@ -4,6 +4,7 @@ Methods for taking the final output and generating static report content
 
 from argparse import ArgumentParser
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -469,6 +470,9 @@ def check_date_filter(
     Check if there's a date filter in the config
     if there is, load the results JSON and filter out variants
 
+    Extra consideration - if one part of a comp-het variant pair is new,
+    retain both sides in the report
+
     Args:
         results (str): path to the results file
         filter_date (str | None): path to the results file
@@ -483,9 +487,21 @@ def check_date_filter(
 
     # Filter out variants based on date
     for content in results_dict.results.values():
-        # keep only this run's new variants
-        content.variants = [
+        # keep only this run's new variants, or partners thereof
+        vars_to_keep = [
             variant for variant in content.variants if variant.first_seen == filter_date
+        ]
+
+        pairs_to_keep = set(
+            chain.from_iterable(var.support_vars for var in vars_to_keep)
+        )
+        content.variants = [
+            variant
+            for variant in content.variants
+            if (
+                variant.first_seen == filter_date
+                or variant.var_data.coordinates.string_format in pairs_to_keep
+            )
         ]
 
     # pop off all the samples with no variants
