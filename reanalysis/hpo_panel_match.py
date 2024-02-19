@@ -207,7 +207,7 @@ def match_hpo_terms(
 
 def match_hpos_to_panels(
     hpo_to_panel_map: dict, hpo_file: str, all_hpos: set[str]
-) -> dict[str, set[int]]:
+) -> tuple[dict[str, set[int]], dict[str, str]]:
     """
     take the HPO terms from the participant metadata, and match to panels
     Args:
@@ -217,8 +217,19 @@ def match_hpos_to_panels(
 
     Returns:
         a dictionary linking all HPO terms to a corresponding set of Panel IDs
+        a second dictionary linking all HPO terms to their plaintext names
     """
+
+    hpo_to_text: dict[str, str] = {}
     hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
+
+    # create a dictionary of HPO terms to their text
+    for hpo in all_hpos:
+        if not hpo_graph.has_node(hpo):
+            logging.error(f'HPO term was absent from the tree: {hpo}')
+            hpo_to_text[hpo] = 'Unknown'
+        else:
+            hpo_to_text[hpo] = hpo_graph.nodes[hpo]['name']
 
     hpo_to_panels = {}
     for hpo in all_hpos:
@@ -227,7 +238,7 @@ def match_hpos_to_panels(
         )
         hpo_to_panels[hpo] = panel_ids
 
-    return hpo_to_panels
+    return hpo_to_panels, hpo_to_text
 
 
 def match_participants_to_panels(
@@ -254,6 +265,27 @@ def match_participants_to_panels(
                 participant_hpos.all_panels.update(hpo_panels[hpo_term])
 
 
+def update_hpo_with_description(
+    hpo_dict: PhenotypeMatchedPanels, hpo_to_text: dict[str, str]
+) -> PhenotypeMatchedPanels:
+    """
+    update the HPO terms attached to the participants to be
+    human-readable: "HPO:Description"
+
+    Args:
+        hpo_dict: all participants and their HPO terms
+        hpo_to_text (dict): a lookup to find descriptions per HPO term
+
+    Returns:
+
+    """
+    for party_data in hpo_dict.samples.values():
+        party_data.hpo_terms = {
+            f"{hpo} - {hpo_to_text[hpo]}" for hpo in party_data.hpo_terms
+        }
+    return hpo_dict
+
+
 def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatchedPanels:
     """
     main method to do the fun things
@@ -266,10 +298,14 @@ def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatched
     # PhenotypeMatchedPanels
     panels_by_hpo = get_panels()
     hpo_dict, all_hpo = get_participant_hpos(dataset=dataset)
-    hpo_to_panels = match_hpos_to_panels(
+    hpo_to_panels, hpo_to_text = match_hpos_to_panels(
         hpo_to_panel_map=panels_by_hpo, hpo_file=hpo_file, all_hpos=all_hpo
     )
     match_participants_to_panels(hpo_dict, hpo_to_panels)
+
+    # update the HPO terms attached to the participants to be
+    # human-readable: "HPO:Description"
+    hpo_dict = update_hpo_with_description(hpo_dict, hpo_to_text)
 
     # validate the object
     valid_pheno_dict = PhenotypeMatchedPanels.model_validate(hpo_dict)
