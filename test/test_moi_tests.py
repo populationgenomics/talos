@@ -255,7 +255,7 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
         ab_ratios={'male': 0.5},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -264,7 +264,7 @@ def test_recessive_autosomal_comp_het_male_passes(peddy_ped):
         ab_ratios={'male': 0.5},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -287,7 +287,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
         ab_ratios={'male': 0.5},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -296,7 +296,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
         ab_ratios={'male': 1.0},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -305,6 +305,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(peddy_ped):
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert results[0].flags == {'AB Ratio'}
+    assert results[0].support_vars == {'passing2'}
 
 
 def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
@@ -321,7 +322,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
         ab_ratios={'female': 0.5},
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -330,7 +331,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
         ab_ratios={'female': 0.5},
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -339,6 +340,7 @@ def test_recessive_autosomal_comp_het_female_passes(peddy_ped):
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
     assert not results[0].flags
+    assert results[0].support_vars == {'passing2'}
 
 
 def test_recessive_autosomal_comp_het_fails_no_ch_return(peddy_ped):
@@ -573,6 +575,7 @@ def test_x_recessive_female_het_passes(peddy_ped):
         info={
             'gene_id': 'TEST1',
             'categorysample4': ['female'],
+            'seqr_link': 'passing1',
         },
         transcript_consequences=[],
     )
@@ -585,6 +588,7 @@ def test_x_recessive_female_het_passes(peddy_ped):
         info={
             'gene_id': 'TEST1',
             'categorysample4': ['female'],
+            'seqr_link': 'passing2',
         },
         transcript_consequences=[],
     )
@@ -593,6 +597,7 @@ def test_x_recessive_female_het_passes(peddy_ped):
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
+    assert results[0].support_vars == {'passing2'}
 
 
 def test_het_de_novo_passes(peddy_ped):
