@@ -980,7 +980,12 @@ def checkpoint_and_repartition(
     Returns:
         the MT after checkpointing, re-reading, and repartitioning
     """
+
     checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
+    if (to_path(checkpoint_extended) / '_SUCCESS').exists():
+        logging.info(f'Found existing checkpoint at {checkpoint_extended}')
+        return hl.read_matrix_table(checkpoint_extended)
+
     logging.info(f'Checkpointing MT to {checkpoint_extended}')
     mt = mt.checkpoint(checkpoint_extended, overwrite=True)
 
