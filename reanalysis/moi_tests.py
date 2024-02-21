@@ -570,7 +570,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         genotypes=self.get_family_genotypes(
                             variant=principal, sample_id=sample_id
                         ),
-                        support_vars={partner_variant.coordinates.string_format},
+                        support_vars={partner_variant.info['seqr_link']},
                         flags=principal.get_sample_flags(sample_id)
                         | partner_variant.get_sample_flags(sample_id),
                         independent=False,
@@ -1078,7 +1078,8 @@ class XRecessiveFemaleCH(BaseMoi):
                         genotypes=self.get_family_genotypes(
                             variant=principal, sample_id=sample_id
                         ),
-                        support_vars={partner.coordinates.string_format},
+                        # needs to comply with Seqr
+                        support_vars={partner.info['seqr_link']},
                         flags=principal.get_sample_flags(sample_id)
                         | partner.get_sample_flags(sample_id),
                         independent=False,
