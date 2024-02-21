@@ -74,7 +74,7 @@ default_memory = 'highmem'
 
 [images]
 gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:3.0.3'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:3.0.4'
 vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
 cpg_workflows = "australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest"
 
