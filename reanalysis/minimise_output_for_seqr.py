@@ -77,7 +77,13 @@ def main(
                     'support_vars': variant.support_vars,
                 }
             )
-    additional_string = 'phenotype-matched' if pheno_match else ''
+
+    if pheno_match:
+        additional_string = 'phenotype-matched'
+        output = output.replace('.json', '_pheno.json')
+    else:
+        additional_string = ''
+
     if not any(lil_data.results.values()):
         logging.info(f'No {additional_string} results found')
         return
