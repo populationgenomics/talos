@@ -9,12 +9,13 @@ containing only the data required for the SEQR app.
     - Individual ID
         - Variant ID
             - Categories (list)
-            - Labels (list)
             - Support Variants (list)
-            - Independent (bool)
+
+Also produce a second version of the same, limited to phenotype-matches
 """
 
 import json
+import logging
 from argparse import ArgumentParser
 
 from reanalysis.models import MiniForSeqr, MiniVariant, ResultData
@@ -33,7 +34,9 @@ def coord_to_string(coord: dict) -> str:
     return f"{coord['chrom']}-{coord['pos']}-{coord['ref']}-{coord['alt']}"
 
 
-def main(input_file: str, output: str, ext_map: str | None = None):
+def main(
+    input_file: str, output: str, ext_map: str | None = None, pheno_match: bool = False
+):
     """
     reads in the input file, shrinks it, and writes the output file
 
@@ -42,6 +45,7 @@ def main(input_file: str, output: str, ext_map: str | None = None):
         input_file (str):
         output (str):
         ext_map (str): optional mapping of internal to external IDs for seqr
+        pheno_match (bool): whether to limit to phenotype-matching variants
     """
 
     with open(input_file, encoding='utf-8') as f:
@@ -65,16 +69,28 @@ def main(input_file: str, output: str, ext_map: str | None = None):
         lil_data.results[individual] = {}
         for variant in details.variants:
             var_data = variant.var_data
+            if pheno_match and not variant.panels.matched:
+                continue
             lil_data.results[individual][var_data.info['seqr_link']] = MiniVariant(
                 **{
                     'categories': variant.categories,
-                    'support_vars': variant.support_vars
-                    # 'independent': variant.independent,
+                    'support_vars': variant.support_vars,
                 }
             )
 
+    if pheno_match:
+        additional_string = 'phenotype-matched'
+        output = output.replace('.json', '_pheno.json')
+    else:
+        additional_string = ''
+
+    if not any(lil_data.results.values()):
+        logging.info(f'No {additional_string} results found')
+        return
     with open(output, 'w', encoding='utf-8') as f:
         f.write(MiniForSeqr.model_validate(lil_data).model_dump_json(indent=4))
+
+    logging.info(f'Wrote {additional_string} output to {output}')
 
 
 if __name__ == '__main__':
@@ -86,8 +102,13 @@ if __name__ == '__main__':
         help='mapping of internal to external IDs for seqr',
         default=None,
         type=str,
-        required=False,
     )
     args = parser.parse_args()
 
     main(input_file=args.input_file, output=args.output_file, ext_map=args.external_map)
+    main(
+        input_file=args.input_file,
+        output=args.output_file,
+        ext_map=args.external_map,
+        pheno_match=True,
+    )

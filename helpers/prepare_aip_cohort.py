@@ -31,10 +31,10 @@ PRE_PANEL_PATH = to_path(__file__).parent.parent / 'reanalysis' / 'pre_panelapp.
 
 PED_QUERY = gql(
     """
-    query PedAndSGs($project: String!) {
+    query PedAndSGs($project: String!, $type: String!) {
         project(name: $project) {
             pedigree
-            sequencingGroups(activeOnly: {eq: true}) {
+            sequencingGroups(type: {eq: $type}, activeOnly: {eq: true}) {
                 id
                 sample {
                     participant {
@@ -218,7 +218,7 @@ def process_pedigree(
 
 
 def get_pedigree_for_project(
-    project: str,
+    project: str, seq_type: str
 ) -> tuple[list[dict[str, str]], dict[str, str]]:
     """
     fetches the project pedigree from sample-metadata
@@ -226,11 +226,12 @@ def get_pedigree_for_project(
 
     Args:
         project (str): project/dataset to use in query
+        seq_type (str): exome or genome
 
     Returns:
         All API returned content
     """
-    response = query(PED_QUERY, variables={'project': project})
+    response = query(PED_QUERY, variables={'project': project, 'type': seq_type})
     pedigree = response['project']['pedigree']
     lookup = {
         sg['sample']['participant']['externalId']: [sg['id']]
@@ -281,7 +282,9 @@ def main(
 
     # get the list of all pedigree members as list of dictionaries
     logging.info('Pulling all pedigree members')
-    pedigree_dicts, ext_lookup = get_pedigree_for_project(project=project)
+    pedigree_dicts, ext_lookup = get_pedigree_for_project(
+        project=project, seq_type=exome_or_genome
+    )
 
     # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPGABCDE']]
     # parser returns a dictionary, arbitrary # sample IDs per participant
