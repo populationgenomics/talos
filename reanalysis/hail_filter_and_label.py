@@ -299,29 +299,6 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
     return mt
 
 
-def filter_matrix_by_ac(
-    mt: hl.MatrixTable,
-    ac_threshold: float = 0.01,
-) -> hl.MatrixTable:
-    """
-    Remove variants with AC in joint-call over threshold
-    Will never remove variants with 5 or fewer instances
-    Also overridden by having a Clinvar Pathogenic anno.
-
-    Args:
-        mt (hl.MatrixTable):
-        ac_threshold (float):
-    Returns:
-        MT with all common-in-this-JC variants removed
-        (unless overridden by clinvar path)
-    """
-
-    return mt.filter_rows(
-        ((mt.AC <= 5) | (mt.AC / mt.AN < ac_threshold))
-        | (mt.info.clinvar_aip == ONE_INT)
-    )
-
-
 def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with 0 quality filters
@@ -353,6 +330,161 @@ def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     return mt.filter_rows((hl.len(mt.alleles) == 2) & (mt.alleles[1] != '*'))
+
+
+def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    pull out select fields which aren't per-consequence
+    store these in INFO (required to be included in VCF export)
+    replace with placeholder (least consequential) if empty
+    e.g. most tools score 0, but for Sift 1 is the least important
+
+    Args:
+        mt ():
+    Returns:
+        Same matrix with re-positioned attributes
+    """
+
+    logging.info('Pulling VEP annotations into INFO field')
+
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            AC=hl.or_else(mt.AC, MISSING_INT),
+            AN=hl.or_else(mt.AN, MISSING_INT),
+            gnomad_ex_af=hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO),
+            gnomad_ex_an=hl.or_else(mt.gnomad_exomes.AN, MISSING_INT),
+            gnomad_ex_ac=hl.or_else(mt.gnomad_exomes.AC, MISSING_INT),
+            gnomad_ex_hom=hl.or_else(mt.gnomad_exomes.Hom, MISSING_INT),
+            gnomad_ex_hemi=hl.or_else(mt.gnomad_exomes.Hemi, MISSING_INT),
+            gnomad_af=hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO),
+            gnomad_an=hl.or_else(mt.gnomad_genomes.AN, MISSING_INT),
+            gnomad_ac=hl.or_else(mt.gnomad_genomes.AC, MISSING_INT),
+            gnomad_hom=hl.or_else(mt.gnomad_genomes.Hom, MISSING_INT),
+            gnomad_hemi=hl.or_else(mt.gnomad_genomes.Hemi, MISSING_INT),
+            splice_ai_delta=hl.or_else(mt.splice_ai.delta_score, MISSING_FLOAT_LO),
+            splice_ai_csq=hl.or_else(
+                mt.splice_ai.splice_consequence, MISSING_STRING
+            ).replace(' ', '_'),
+            cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
+            # these next 3 are per-transcript, with ';' to delimit
+            # pulling these annotations into INFO with ';' to separate
+            # will break INFO parsing for most tools
+            revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
+            mutationtaster=hl.or_else(
+                mt.dbnsfp.MutationTaster_pred, MISSING_STRING
+            ).replace(';', ','),
+        )
+    )
+
+
+def filter_matrix_by_ac(
+    mt: hl.MatrixTable,
+    ac_threshold: float = 0.01,
+) -> hl.MatrixTable:
+    """
+    Remove variants with AC in joint-call over threshold
+    Will never remove variants with 5 or fewer instances
+    Also overridden by having a Clinvar Pathogenic anno.
+
+    Args:
+        mt (hl.MatrixTable):
+        ac_threshold (float):
+    Returns:
+        MT with all common-in-this-JC variants removed
+        (unless overridden by clinvar path)
+    """
+
+    return mt.filter_rows(
+        ((mt.AC <= 5) | (mt.AC / mt.AN < ac_threshold))
+        | (mt.info.clinvar_aip == ONE_INT)
+    )
+
+
+def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    run the rare filter, using Gnomad Exomes and Genomes
+    allow clinvar pathogenic to slip through this filter
+    """
+    # gnomad exomes and genomes below threshold or missing
+    # if missing they were previously replaced with 0.0
+    # 'semi-rare' as dominant filters will be more strictly filtered later
+    rare_af_threshold = get_config()['filter']['af_semi_rare']
+    return mt.filter_rows(
+        (
+            (mt.info.gnomad_ex_af < rare_af_threshold)
+            & (mt.info.gnomad_af < rare_af_threshold)
+        )
+        | (mt.info.clinvar_aip == ONE_INT)
+    )
+
+
+def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Remove fields from the MT which are irrelevant to the analysis
+    Write times for the checkpoints are a substantial portion of the runtime
+    Aim to reduce that by removing the amount of written data
+
+    These fields would not be exported in the VCF anyway, so no downstream
+    impacts caused by removal prior to that write
+
+    Args:
+        mt ():
+    Returns:
+
+    """
+
+    # drop the useless top-level fields
+    mt = mt.drop(*[field for field in USELESS_FIELDS if field in mt.row_value])
+
+    # now drop most VEP fields
+    mt = mt.annotate_rows(
+        vep=hl.Struct(
+            transcript_consequences=mt.vep.transcript_consequences,
+            variant_class=mt.vep.variant_class,
+        )
+    )
+
+    return mt
+
+
+def split_rows_by_gene_and_filter_to_green(
+    mt: hl.MatrixTable, green_genes: hl.SetExpression
+) -> hl.MatrixTable:
+    """
+    splits each GeneId onto a new row, then filters any
+    rows not annotating a Green PanelApp gene
+
+    - first explode the matrix, separate gene per row
+    - throw away all rows without a green gene
+    - on all remaining rows, filter transript consequences
+      to match _this_ gene
+
+    Args:
+        mt ():
+        green_genes (): set of all relevant genes
+    Returns:
+        exploded array
+    """
+
+    # split each gene onto a separate row
+    # transforms 'geneIds' field from set to string
+    mt = mt.explode_rows(mt.geneIds)
+
+    # filter rows without a green gene (removes empty geneIds)
+    mt = mt.filter_rows(green_genes.contains(mt.geneIds))
+
+    # limit the per-row transcript CSQ to those relevant to the single
+    # gene now present on each row
+    mt = mt.annotate_rows(
+        vep=mt.vep.annotate(
+            transcript_consequences=mt.vep.transcript_consequences.filter(
+                lambda x: (mt.geneIds == x.gene_id)
+                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
+            )
+        )
+    )
+
+    return mt
 
 
 def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -712,64 +844,6 @@ def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    run the rare filter, using Gnomad Exomes and Genomes
-    allow clinvar pathogenic to slip through this filter
-    """
-    # gnomad exomes and genomes below threshold or missing
-    # if missing they were previously replaced with 0.0
-    # 'semi-rare' as dominant filters will be more strictly filtered later
-    rare_af_threshold = get_config()['filter']['af_semi_rare']
-    return mt.filter_rows(
-        (
-            (mt.info.gnomad_ex_af < rare_af_threshold)
-            & (mt.info.gnomad_af < rare_af_threshold)
-        )
-        | (mt.info.clinvar_aip == ONE_INT)
-    )
-
-
-def split_rows_by_gene_and_filter_to_green(
-    mt: hl.MatrixTable, green_genes: hl.SetExpression
-) -> hl.MatrixTable:
-    """
-    splits each GeneId onto a new row, then filters any
-    rows not annotating a Green PanelApp gene
-
-    - first explode the matrix, separate gene per row
-    - throw away all rows without a green gene
-    - on all remaining rows, filter transript consequences
-      to match _this_ gene
-
-    Args:
-        mt ():
-        green_genes (): set of all relevant genes
-    Returns:
-        exploded array
-    """
-
-    # split each gene onto a separate row
-    # transforms 'geneIds' field from set to string
-    mt = mt.explode_rows(mt.geneIds)
-
-    # filter rows without a green gene (removes empty geneIds)
-    mt = mt.filter_rows(green_genes.contains(mt.geneIds))
-
-    # limit the per-row transcript CSQ to those relevant to the single
-    # gene now present on each row
-    mt = mt.annotate_rows(
-        vep=mt.vep.annotate(
-            transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: (mt.geneIds == x.gene_id)
-                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
-            )
-        )
-    )
-
-    return mt
-
-
 def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpression:
     """
     Taken shamelessly from the gnomad library source code
@@ -830,51 +904,6 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
 
     # previous consequence filters may make this caution unnecessary
     return hl.or_missing(hl.len(csq) > 0, csq)
-
-
-def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    pull out select fields which aren't per-consequence
-    store these in INFO (required to be included in VCF export)
-    replace with placeholder (least consequential) if empty
-    e.g. most tools score 0, but for Sift 1 is the least important
-
-    Args:
-        mt ():
-    Returns:
-        Same matrix with re-positioned attributes
-    """
-
-    logging.info('Pulling VEP annotations into INFO field')
-
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            AC=hl.or_else(mt.AC, MISSING_INT),
-            AN=hl.or_else(mt.AN, MISSING_INT),
-            gnomad_ex_af=hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO),
-            gnomad_ex_an=hl.or_else(mt.gnomad_exomes.AN, MISSING_INT),
-            gnomad_ex_ac=hl.or_else(mt.gnomad_exomes.AC, MISSING_INT),
-            gnomad_ex_hom=hl.or_else(mt.gnomad_exomes.Hom, MISSING_INT),
-            gnomad_ex_hemi=hl.or_else(mt.gnomad_exomes.Hemi, MISSING_INT),
-            gnomad_af=hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO),
-            gnomad_an=hl.or_else(mt.gnomad_genomes.AN, MISSING_INT),
-            gnomad_ac=hl.or_else(mt.gnomad_genomes.AC, MISSING_INT),
-            gnomad_hom=hl.or_else(mt.gnomad_genomes.Hom, MISSING_INT),
-            gnomad_hemi=hl.or_else(mt.gnomad_genomes.Hemi, MISSING_INT),
-            splice_ai_delta=hl.or_else(mt.splice_ai.delta_score, MISSING_FLOAT_LO),
-            splice_ai_csq=hl.or_else(
-                mt.splice_ai.splice_consequence, MISSING_STRING
-            ).replace(' ', '_'),
-            cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            # these next 3 are per-transcript, with ';' to delimit
-            # pulling these annotations into INFO with ';' to separate
-            # will break INFO parsing for most tools
-            revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
-            mutationtaster=hl.or_else(
-                mt.dbnsfp.MutationTaster_pred, MISSING_STRING
-            ).replace(';', ','),
-        )
-    )
 
 
 def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -1040,35 +1069,6 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     mt = mt.filter_cols(hl.literal(common_samples).contains(mt.s))
 
     logging.info(f'Remaining MatrixTable columns: {mt.count_cols()}')
-
-    return mt
-
-
-def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Remove fields from the MT which are irrelevant to the analysis
-    Write times for the checkpoints are a substantial portion of the runtime
-    Aim to reduce that by removing the amount of written data
-
-    These fields would not be exported in the VCF anyway, so no downstream
-    impacts caused by removal prior to that write
-
-    Args:
-        mt ():
-    Returns:
-
-    """
-
-    # drop the useless top-level fields
-    mt = mt.drop(*[field for field in USELESS_FIELDS if field in mt.row_value])
-
-    # now drop most VEP fields
-    mt = mt.annotate_rows(
-        vep=hl.Struct(
-            transcript_consequences=mt.vep.transcript_consequences,
-            variant_class=mt.vep.variant_class,
-        )
-    )
 
     return mt
 
