@@ -112,6 +112,8 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # if there's private clinvar annotations - use them
     if clinvar := get_clinvar_table():
+        # would this replace the standard annotations with missing if there
+        # is no private annotation to replace it?
         logging.info(f'loading private clinvar annotations from {clinvar}')
         ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
@@ -122,11 +124,6 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
                 clinvar_stars=hl.or_else(ht[mt.row_key].gold_stars, MISSING_INT),
                 clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_INT),
             )
-        )
-
-        # remove all confident benign (only confident in this ht)
-        mt = mt.filter_rows(
-            mt.info.clinvar_significance.lower().contains(BENIGN), keep=False
         )
 
     # use default annotations
@@ -145,12 +142,12 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
             )
         )
 
-        # remove all confidently benign
-        mt = mt.filter_rows(
-            (mt.info.clinvar_significance.lower().contains(BENIGN))
-            & (mt.info.clinvar_stars > 0),
-            keep=False,
-        )
+    # remove all confidently benign
+    mt = mt.filter_rows(
+        (mt.info.clinvar_significance.lower().contains(BENIGN))
+        & (mt.info.clinvar_stars > 0),
+        keep=False,
+    )
 
     # annotate as either strong or regular
     mt = mt.annotate_rows(
@@ -303,7 +300,8 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
 
 
 def filter_matrix_by_ac(
-    mt: hl.MatrixTable, ac_threshold: float | None = 0.01
+    mt: hl.MatrixTable,
+    ac_threshold: float = 0.01,
 ) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
@@ -1150,6 +1148,11 @@ def main(
     # running global quality filter steps
     mt = filter_to_well_normalised(mt=mt)
 
+    # filter variants by frequency
+    mt = extract_annotations(mt=mt)
+    mt = filter_matrix_by_ac(mt=mt)
+    mt = filter_to_population_rare(mt=mt)
+
     # shrink the time taken to write checkpoints
     mt = drop_useless_fields(mt=mt)
 
@@ -1166,23 +1169,8 @@ def main(
 
     checkpoint_number = checkpoint_number + 1
 
-    mt = extract_annotations(mt=mt)
-
-    # filter variants by frequency
-    mt = filter_matrix_by_ac(mt=mt)
-    mt = filter_to_population_rare(mt=mt)
-
     # split genes out to separate rows
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
-
-    mt = checkpoint_and_repartition(
-        mt=mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after applying Rare & Green-Gene filters',
-    )
-
-    checkpoint_number = checkpoint_number + 1
 
     # add Classes to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
@@ -1203,12 +1191,12 @@ def main(
     mt = annotate_codon_clinvar(mt=mt)
 
     mt = filter_to_categorised(mt=mt)
-    mt = checkpoint_and_repartition(
-        mt=mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after filtering to categorised only',
-    )
+    # mt = checkpoint_and_repartition(
+    #     mt=mt,
+    #     checkpoint_root=checkpoint_root,
+    #     checkpoint_num=checkpoint_number,
+    #     extra_logging='after filtering to categorised only',
+    # )
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
