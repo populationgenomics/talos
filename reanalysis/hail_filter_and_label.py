@@ -629,12 +629,10 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     - reduce the per-row transcript CSQ to a limited group
     - reduce the rows to ones where there are remaining tx consequences
+    - alternatively except rows with spliceAI delta above threshold
 
     Args:
         mt ():
-
-    Returns:
-
     """
 
     # at time of writing this is VEP HIGH + missense_variant
@@ -657,8 +655,9 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return filtered_mt.filter_rows(
-        (hl.len(filtered_mt.vep.transcript_consequences) > 0)
-        & (filtered_mt.info.categoryboolean5 == 0)
+        (hl.len(filtered_mt.vep.transcript_consequences) == 0)
+        | (filtered_mt.info.categoryboolean5 == 0),
+        keep=False,
     )
 
 
