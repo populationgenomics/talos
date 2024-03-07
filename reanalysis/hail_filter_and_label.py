@@ -956,7 +956,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str, dataset: str):
 
 
 def green_and_new_from_panelapp(
-    panel_genes: dict[str, dict[str, str]]
+    panel_genes: dict[str, dict[str, str | list[int]]]
 ) -> tuple[hl.SetExpression, hl.SetExpression | None]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
