@@ -1102,7 +1102,11 @@ def main(
     get_logger().info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # get temp suffix from the config (can be None or missing)
-    checkpoint_root = output_path('hail_matrix.mt', 'tmp', dataset=dataset)
+    # make this checkpoint sequencing-type specific to prevent crossover
+    sequencing_type = get_config().get('sequencing_type', 'unknown')
+    checkpoint_root = output_path(
+        f'{sequencing_type}_hail_matrix.mt', 'tmp', dataset=dataset
+    )
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
