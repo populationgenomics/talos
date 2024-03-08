@@ -454,7 +454,7 @@ def test_aip_clinvar_default(make_a_mt):
 @pytest.mark.parametrize(
     'rating,stars,rows,regular,strong',
     [
-        ('benign', 0, 0, 0, 0),  # with private data, any benign is removed
+        ('benign', 0, 1, 0, 0),
         ('benign', 1, 0, 0, 0),
         ('other', 7, 1, 0, 0),
         ('pathogenic', 0, 1, 1, 0),
