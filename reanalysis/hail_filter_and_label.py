@@ -19,6 +19,7 @@ from datetime import datetime
 from peddy import Ped
 
 import hail as hl
+from hail.utils.java import FatalError
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
@@ -990,6 +991,7 @@ def checkpoint_and_repartition(
     checkpoint_root: str,
     checkpoint_num: int,
     extra_logging: str | None = '',
+    re_attemptst: int = 1,
 ) -> hl.MatrixTable:
     """
     uses estimated row data size to repartition MT
@@ -1002,27 +1004,41 @@ def checkpoint_and_repartition(
         checkpoint_root (): where to write the checkpoint to
         checkpoint_num (): the checkpoint increment (insert into file path)
         extra_logging (): informative statement to add to logging counts/partitions
+        re_attemptst (): number of times to retry the checkpointing process
     Returns:
         the MT after checkpointing, re-reading, and repartitioning
     """
+    try:
+        checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
+        if (to_path(checkpoint_extended) / '_SUCCESS').exists():
+            get_logger().info(f'Found existing checkpoint at {checkpoint_extended}')
+            mt = hl.read_matrix_table(checkpoint_extended)
+        else:
+            get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
+            mt = mt.checkpoint(checkpoint_extended, overwrite=True)
 
-    checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
-    if (to_path(checkpoint_extended) / '_SUCCESS').exists():
-        get_logger().info(f'Found existing checkpoint at {checkpoint_extended}')
-        return hl.read_matrix_table(checkpoint_extended)
+        # estimate partitions; fall back to 1 if low row count
+        current_rows = mt.count_rows()
+        partitions = current_rows // 200000 or 1
 
-    get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
-    mt = mt.checkpoint(checkpoint_extended, overwrite=True)
+        get_logger().info(
+            f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
+        )
 
-    # estimate partitions; fall back to 1 if low row count
-    current_rows = mt.count_rows()
-    partitions = current_rows // 200000 or 1
-
-    get_logger().info(
-        f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
-    )
-
-    return mt.repartition(n_partitions=partitions, shuffle=True)
+        return mt.repartition(n_partitions=partitions, shuffle=True)
+    except FatalError as fe:
+        if re_attemptst > 0:
+            get_logger().warning(
+                f'Failed to checkpoint, retrying {re_attemptst} more times'
+            )
+            return checkpoint_and_repartition(
+                mt=mt,
+                checkpoint_root=checkpoint_root,
+                checkpoint_num=checkpoint_num,
+                extra_logging=extra_logging,
+                re_attemptst=re_attemptst - 1,
+            )
+        raise fe
 
 
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
@@ -1103,7 +1119,7 @@ def main(
 
     # get temp suffix from the config (can be None or missing)
     # make this checkpoint sequencing-type specific to prevent crossover
-    sequencing_type = get_config().get('sequencing_type', 'unknown')
+    sequencing_type = get_config()['workflow'].get('sequencing_type', 'unknown')
     checkpoint_root = output_path(
         f'{sequencing_type}_hail_matrix.mt', 'tmp', dataset=dataset
     )

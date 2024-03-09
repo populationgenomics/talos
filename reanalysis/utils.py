@@ -15,10 +15,13 @@ from typing import Any
 import cyvcf2
 import peddy
 import requests
+from gql.gql import DocumentNode
+from gql.transport.exceptions import TransportQueryError, TransportServerError
 
 from cpg_utils import Path as CPGPathType
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+from metamist.graphql import query
 
 from reanalysis.models import (
     VARIANT_MODELS,
@@ -65,8 +68,36 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
 
-# CONFIG_FIELDS = ['workflow']  # , 'filter', 'panels', 'categories']
-# assert all(field in get_config(False).keys() for field in CONFIG_FIELDS)
+
+def wrapped_gql_query(
+    query_node: DocumentNode,
+    variables: dict[str, Any] | None = None,
+    num_attempts: int = 5,
+) -> dict[str, Any]:
+    """
+    wrapper for the gql query method, with retries
+    uses an exponential backoff retry timer to space out attempts
+    Args:
+        query_node ():
+        variables ():
+        num_attempts ():
+
+    Returns:
+        the response from the query
+    """
+    retries = 0
+    while retries < num_attempts:
+        try:
+            return query(query_node, variables=variables)
+        except (TransportQueryError, TransportServerError) as e:
+            get_logger().error(f'Query failed: {e}')
+            retries += 1
+            if retries < num_attempts:
+                delay = max(2**retries, 1)
+                get_logger().warning(f'Retrying in {delay} seconds...')
+                time.sleep(delay)
+
+    raise TimeoutError('Max retries reached. Query failed.')
 
 
 def chunks(iterable, chunk_size):
@@ -306,7 +337,6 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
     except KeyError as ke:
-        raise ke
         get_logger().info('failed to find PS phase attributes')
         try:
             # retry using PGT & PID
@@ -317,6 +347,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
                     phased_dict[sample][phase_id] = phase_gt
         except KeyError:
             get_logger().info('also failed using PID and PGT')
+            raise ke
 
     return dict(phased_dict)
 

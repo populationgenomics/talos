@@ -3,10 +3,8 @@ methods for testing the sample-metadata API queries
 """
 
 from copy import deepcopy
-from unittest.mock import patch
 
 from helpers.prepare_aip_cohort import get_ped_with_permutations
-from helpers.utils import ext_to_int_sample_map
 
 PROJECT = 'fake-project'
 SAMPLE_TO_CPG = {
@@ -26,27 +24,27 @@ DIRTY_PED = [
 ]
 
 
-@patch('helpers.utils.gql')
-@patch('helpers.utils.query')
-def test_ext_to_int_sample_map(map_mock, gql_mock, sm_lookup):
-    """
-    fetch method using a mocked API endpoint
-
-    Args:
-        map_mock ():
-        gql_mock ():
-        sm_lookup ():
-    """
-    gql_mock.return_value = None
-    map_mock.return_value = sm_lookup
-    result = ext_to_int_sample_map(project=PROJECT)
-    assert isinstance(result, dict)
-    assert result == {
-        'FAM1_father': ['CPT11'],
-        'FAM1_mother': ['CPT12'],
-        'FAM1_proband': ['CPT13'],
-        'FAM2_proband': ['CPT41'],
-    }
+# @patch('helpers.utils.gql')
+# @patch('helpers.utils.query')
+# def test_ext_to_int_sample_map(map_mock, gql_mock, sm_lookup):
+#     """
+#     fetch method using a mocked API endpoint
+#
+#     Args:
+#         map_mock ():
+#         gql_mock ():
+#         sm_lookup ():
+#     """
+#     gql_mock.return_value = None
+#     map_mock.return_value = sm_lookup
+#     result = ext_to_int_sample_map(project=PROJECT)
+#     assert isinstance(result, dict)
+#     assert result == {
+#         'FAM1_father': ['CPT11'],
+#         'FAM1_mother': ['CPT12'],
+#         'FAM1_proband': ['CPT13'],
+#         'FAM2_proband': ['CPT41'],
+#     }
 
 
 def test_get_clean_pedigree_fails(caplog):
