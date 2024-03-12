@@ -233,7 +233,7 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
 # todo rethink this whole method?
 def get_new_gene_map(
     panelapp_data: PanelApp,
-    pheno_panels: PhenotypeMatchedPanels = None,
+    pheno_panels: PhenotypeMatchedPanels | None = None,
     dataset: str | None = None,
 ) -> dict[str, set[str]]:
     """
@@ -413,7 +413,7 @@ def create_small_variant(
     coordinates = Coordinates(
         chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0]
     )
-    depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
+    depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {
         'seqr_link': coordinates.string_format
     }
@@ -426,7 +426,7 @@ def create_small_variant(
 
     # hot-swap cat 2 from a boolean to a sample list - if appropriate
     if info.get('categoryboolean2', 0) and new_genes:
-        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())
+        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())  # type: ignore
 
         # if 'all', keep cohort-wide boolean flag
         if new_gene_samples == {'all'}:
@@ -586,6 +586,8 @@ def gather_gene_dict_from_contig(
         blacklist = read_json_from_path(get_config()['filter']['blacklist'])
     else:
         blacklist = []
+
+    assert isinstance(blacklist, list)
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
@@ -870,11 +872,9 @@ def generate_fresh_latest_results(
             new_history.results.setdefault(sample, {})[
                 var.var_data.coordinates.string_format
             ] = HistoricSampleVariant(
-                **{
-                    'categories': {cat: var.first_seen for cat in var.categories},
-                    'support_vars': var.support_vars,
-                    'independent': var.independent,
-                }
+                categories={cat: var.first_seen for cat in var.categories},
+                support_vars=list(var.support_vars),
+                independent=var.independent,
             )
     save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
 
@@ -1044,11 +1044,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
             # totally new variant
             else:
                 historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
-                    **{
-                        'categories': {
-                            cat: get_granular_date() for cat in current_cats
-                        },
-                        'support_vars': var.support_vars,
-                        'independent': var.independent,
-                    }
+                    categories={cat: get_granular_date() for cat in current_cats},
+                    support_vars=list(var.support_vars),
+                    independent=var.independent,
                 )
