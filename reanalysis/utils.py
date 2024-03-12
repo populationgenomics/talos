@@ -12,9 +12,11 @@ from pathlib import Path
 from string import punctuation
 from typing import Any
 
+import backoff
 import cyvcf2
 import peddy
 import requests
+from backoff import expo
 from gql.gql import DocumentNode
 from gql.transport.exceptions import TransportQueryError, TransportServerError
 
@@ -69,35 +71,24 @@ COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
 
 
+@backoff.on_exception(
+    wait_gen=expo, exception=(TransportQueryError, TransportServerError), max_time=20
+)
 def wrapped_gql_query(
-    query_node: DocumentNode,
-    variables: dict[str, Any] | None = None,
-    num_attempts: int = 5,
+    query_node: DocumentNode, variables: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
-    wrapper for the gql query method, with retries
+    wrapped gql query method, with retries
     uses an exponential backoff retry timer to space out attempts
+
     Args:
-        query_node ():
-        variables ():
-        num_attempts ():
+        query_node (the result of a gql() call):
+        variables (dict of parameters, or None):
 
     Returns:
         the response from the query
     """
-    retries = 0
-    while retries < num_attempts:
-        try:
-            return query(query_node, variables=variables)
-        except (TransportQueryError, TransportServerError) as e:
-            get_logger().error(f'Query failed: {e}')
-            retries += 1
-            if retries < num_attempts:
-                delay = max(2**retries, 1)
-                get_logger().warning(f'Retrying in {delay} seconds...')
-                time.sleep(delay)
-
-    raise TimeoutError('Max retries reached. Query failed.')
+    return query(query_node, variables=variables)
 
 
 def chunks(iterable, chunk_size):
@@ -478,7 +469,7 @@ def create_small_variant(
 
     phased = get_phase_data(samples, var)
     ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
-    transcript_consequences = extract_csq(csq_contents=info.pop('csq', []))
+    transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
     return SmallVariant(
         coordinates=coordinates,
@@ -766,7 +757,7 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
     return het_samples, hom_samples
 
 
-def extract_csq(csq_contents) -> list[dict]:
+def extract_csq(csq_contents: str) -> list[dict]:
     """
     handle extraction of the CSQ entries based on string in config
 
