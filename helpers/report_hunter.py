@@ -18,9 +18,10 @@ import jinja2
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from metamist.graphql import gql, query
+from metamist.graphql import gql
 
 from reanalysis.static_values import get_logger
+from reanalysis.utils import wrapped_gql_query
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
@@ -68,7 +69,7 @@ def get_my_projects():
     queries metamist for projects I have access to,
     returns the dataset names
     """
-    response: dict[str, Any] = query(PROJECT_QUERY)
+    response: dict[str, Any] = wrapped_gql_query(PROJECT_QUERY)
     all_projects = {dataset['dataset'] for dataset in response['myProjects']}
     script_logger.info(f'Running for projects: {", ".join(sorted(all_projects))}')
     return all_projects
@@ -81,7 +82,9 @@ def get_project_analyses(project: str) -> list[dict]:
         project (str): project to query for
     """
 
-    response: dict[str, Any] = query(REPORT_QUERY, variables={'project': project})
+    response: dict[str, Any] = wrapped_gql_query(
+        REPORT_QUERY, variables={'project': project}
+    )
     return response['project']['analyses']
 
 
@@ -98,6 +101,7 @@ def main(latest: bool = False):
     all_cohorts = {}
 
     for cohort in get_my_projects():
+        result_found = False
         if cohort not in get_config()['storage'].keys():
             continue
 
@@ -115,7 +119,7 @@ def main(latest: bool = False):
                 cohort_key = cohort
 
             # pull the exome/singleton flags
-            exome_output = 'Exome' if 'exome' in output_path else 'Familial'
+            exome_output = 'Exome' if 'exome' in output_path else 'Genome'
             singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
             report_address = analysis['output'].replace(
                 get_config(False)['storage'][cohort]['web'],
@@ -128,6 +132,10 @@ def main(latest: bool = False):
                 subtype=singleton_output,
                 date=analysis['timestampCompleted'].split('T')[0],
             )
+            result_found = True
+
+        if not result_found:
+            script_logger.info(f'No reports found for {cohort}')
 
     # if there were no reports, don't bother with the HTML
     if not all_cohorts:

@@ -4,7 +4,6 @@ classes and methods shared across reanalysis components
 
 import json
 import re
-import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
@@ -12,13 +11,18 @@ from pathlib import Path
 from string import punctuation
 from typing import Any
 
+import backoff
 import cyvcf2
 import peddy
 import requests
+from backoff import expo
+from gql.gql import DocumentNode
+from gql.transport.exceptions import TransportQueryError, TransportServerError
 
 from cpg_utils import Path as CPGPathType
 from cpg_utils import to_path
 from cpg_utils.config import get_config
+from metamist.graphql import query
 
 from reanalysis.models import (
     VARIANT_MODELS,
@@ -65,8 +69,25 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
 
-# CONFIG_FIELDS = ['workflow']  # , 'filter', 'panels', 'categories']
-# assert all(field in get_config(False).keys() for field in CONFIG_FIELDS)
+
+@backoff.on_exception(
+    wait_gen=expo, exception=(TransportQueryError, TransportServerError), max_time=20
+)
+def wrapped_gql_query(
+    query_node: DocumentNode, variables: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """
+    wrapped gql query method, with retries
+    uses an exponential backoff retry timer to space out attempts
+
+    Args:
+        query_node (the result of a gql() call):
+        variables (dict of parameters, or None):
+
+    Returns:
+        the response from the query
+    """
+    return query(query_node, variables=variables)
 
 
 def chunks(iterable, chunk_size):
@@ -134,7 +155,10 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
 
 
-def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
+@backoff.on_exception(
+    wait_gen=expo, exception=(requests.RequestException, TimeoutError), max_time=20
+)
+def get_json_response(url):
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
@@ -142,31 +166,14 @@ def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
 
     Args:
         url (str): URL to retrieve JSON format data from
-        max_retries (int): maximum number of retries
-        base_delay (int): initial delay between retries
-        max_delay (int): maximum delay between retries
 
     Returns:
         the JSON response from the endpoint
     """
 
-    retries = 0
-    while retries < max_retries:
-        try:
-            response = requests.get(
-                url, headers={'Accept': 'application/json'}, timeout=60
-            )
-            response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
-            return response.json()
-        except (requests.RequestException, TimeoutError) as e:
-            get_logger().error(f'Request failed: {e}')
-            retries += 1
-            if retries < max_retries:
-                delay = min(base_delay * 2**retries, max_delay)
-                get_logger().warning(f'Retrying in {delay} seconds...')
-                time.sleep(delay)
-
-    raise TimeoutError('Max retries reached. Request failed.')
+    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
+    return response.json()
 
 
 def get_cohort_config(dataset: str | None = None):
@@ -211,7 +218,7 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
 # todo rethink this whole method?
 def get_new_gene_map(
     panelapp_data: PanelApp,
-    pheno_panels: PhenotypeMatchedPanels = None,
+    pheno_panels: PhenotypeMatchedPanels | None = None,
     dataset: str | None = None,
 ) -> dict[str, set[str]]:
     """
@@ -306,7 +313,6 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
     except KeyError as ke:
-        raise ke
         get_logger().info('failed to find PS phase attributes')
         try:
             # retry using PGT & PID
@@ -317,6 +323,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
                     phased_dict[sample][phase_id] = phase_gt
         except KeyError:
             get_logger().info('also failed using PID and PGT')
+            raise ke
 
     return dict(phased_dict)
 
@@ -391,7 +398,7 @@ def create_small_variant(
     coordinates = Coordinates(
         chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0]
     )
-    depths = dict(zip(samples, map(float, var.gt_depths)))  # type: ignore
+    depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {
         'seqr_link': coordinates.string_format
     }
@@ -404,7 +411,7 @@ def create_small_variant(
 
     # hot-swap cat 2 from a boolean to a sample list - if appropriate
     if info.get('categoryboolean2', 0) and new_genes:
-        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())
+        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())  # type: ignore
 
         # if 'all', keep cohort-wide boolean flag
         if new_gene_samples == {'all'}:
@@ -447,7 +454,7 @@ def create_small_variant(
 
     phased = get_phase_data(samples, var)
     ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
-    transcript_consequences = extract_csq(csq_contents=info.pop('csq', []))
+    transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
     return SmallVariant(
         coordinates=coordinates,
@@ -564,6 +571,8 @@ def gather_gene_dict_from_contig(
         blacklist = read_json_from_path(get_config()['filter']['blacklist'])
     else:
         blacklist = []
+
+    assert isinstance(blacklist, list)
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
@@ -735,7 +744,7 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
     return het_samples, hom_samples
 
 
-def extract_csq(csq_contents) -> list[dict]:
+def extract_csq(csq_contents: str) -> list[dict]:
     """
     handle extraction of the CSQ entries based on string in config
 
@@ -848,11 +857,9 @@ def generate_fresh_latest_results(
             new_history.results.setdefault(sample, {})[
                 var.var_data.coordinates.string_format
             ] = HistoricSampleVariant(
-                **{
-                    'categories': {cat: var.first_seen for cat in var.categories},
-                    'support_vars': var.support_vars,
-                    'independent': var.independent,
-                }
+                categories={cat: var.first_seen for cat in var.categories},
+                support_vars=list(var.support_vars),
+                independent=var.independent,
             )
     save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
 
@@ -1022,11 +1029,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
             # totally new variant
             else:
                 historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
-                    **{
-                        'categories': {
-                            cat: get_granular_date() for cat in current_cats
-                        },
-                        'support_vars': var.support_vars,
-                        'independent': var.independent,
-                    }
+                    categories={cat: get_granular_date() for cat in current_cats},
+                    support_vars=list(var.support_vars),
+                    independent=var.independent,
                 )

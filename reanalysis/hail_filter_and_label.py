@@ -16,9 +16,11 @@ import os
 from argparse import ArgumentParser
 from datetime import datetime
 
+import backoff
 from peddy import Ped
 
 import hail as hl
+from hail.utils.java import FatalError
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
@@ -985,6 +987,7 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, None
 
 
+@backoff.on_exception(backoff.expo, exception=FatalError, max_time=60, max_tries=3)
 def checkpoint_and_repartition(
     mt: hl.MatrixTable,
     checkpoint_root: str,
@@ -1005,14 +1008,13 @@ def checkpoint_and_repartition(
     Returns:
         the MT after checkpointing, re-reading, and repartitioning
     """
-
     checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
     if (to_path(checkpoint_extended) / '_SUCCESS').exists():
         get_logger().info(f'Found existing checkpoint at {checkpoint_extended}')
-        return hl.read_matrix_table(checkpoint_extended)
-
-    get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
-    mt = mt.checkpoint(checkpoint_extended, overwrite=True)
+        mt = hl.read_matrix_table(checkpoint_extended)
+    else:
+        get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
+        mt = mt.checkpoint(checkpoint_extended, overwrite=True)
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = mt.count_rows()
@@ -1103,7 +1105,7 @@ def main(
 
     # get temp suffix from the config (can be None or missing)
     # make this checkpoint sequencing-type specific to prevent crossover
-    sequencing_type = get_config().get('sequencing_type', 'unknown')
+    sequencing_type = get_config()['workflow'].get('sequencing_type', 'unknown')
     checkpoint_root = output_path(
         f'{sequencing_type}_hail_matrix.mt', 'tmp', dataset=dataset
     )
