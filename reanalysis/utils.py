@@ -4,7 +4,6 @@ classes and methods shared across reanalysis components
 
 import json
 import re
-import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
@@ -156,7 +155,10 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
 
 
-def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
+@backoff.on_exception(
+    wait_gen=expo, exception=(requests.RequestException, TimeoutError), max_time=20
+)
+def get_json_response(url):
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
@@ -164,31 +166,14 @@ def get_json_response(url, max_retries=4, base_delay=1, max_delay=32):
 
     Args:
         url (str): URL to retrieve JSON format data from
-        max_retries (int): maximum number of retries
-        base_delay (int): initial delay between retries
-        max_delay (int): maximum delay between retries
 
     Returns:
         the JSON response from the endpoint
     """
 
-    retries = 0
-    while retries < max_retries:
-        try:
-            response = requests.get(
-                url, headers={'Accept': 'application/json'}, timeout=60
-            )
-            response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
-            return response.json()
-        except (requests.RequestException, TimeoutError) as e:
-            get_logger().error(f'Request failed: {e}')
-            retries += 1
-            if retries < max_retries:
-                delay = min(base_delay * 2**retries, max_delay)
-                get_logger().warning(f'Retrying in {delay} seconds...')
-                time.sleep(delay)
-
-    raise TimeoutError('Max retries reached. Request failed.')
+    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
+    return response.json()
 
 
 def get_cohort_config(dataset: str | None = None):
