@@ -16,6 +16,7 @@ import os
 from argparse import ArgumentParser
 from datetime import datetime
 
+import backoff
 from peddy import Ped
 
 import hail as hl
@@ -986,12 +987,12 @@ def green_and_new_from_panelapp(
     return green_gene_set_expression, None
 
 
+@backoff.on_exception(backoff.expo, exception=FatalError, max_time=60, max_tries=3)
 def checkpoint_and_repartition(
     mt: hl.MatrixTable,
     checkpoint_root: str,
     checkpoint_num: int,
     extra_logging: str | None = '',
-    re_attemptst: int = 1,
 ) -> hl.MatrixTable:
     """
     uses estimated row data size to repartition MT
@@ -1004,41 +1005,26 @@ def checkpoint_and_repartition(
         checkpoint_root (): where to write the checkpoint to
         checkpoint_num (): the checkpoint increment (insert into file path)
         extra_logging (): informative statement to add to logging counts/partitions
-        re_attemptst (): number of times to retry the checkpointing process
     Returns:
         the MT after checkpointing, re-reading, and repartitioning
     """
-    try:
-        checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
-        if (to_path(checkpoint_extended) / '_SUCCESS').exists():
-            get_logger().info(f'Found existing checkpoint at {checkpoint_extended}')
-            mt = hl.read_matrix_table(checkpoint_extended)
-        else:
-            get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
-            mt = mt.checkpoint(checkpoint_extended, overwrite=True)
+    checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
+    if (to_path(checkpoint_extended) / '_SUCCESS').exists():
+        get_logger().info(f'Found existing checkpoint at {checkpoint_extended}')
+        mt = hl.read_matrix_table(checkpoint_extended)
+    else:
+        get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
+        mt = mt.checkpoint(checkpoint_extended, overwrite=True)
 
-        # estimate partitions; fall back to 1 if low row count
-        current_rows = mt.count_rows()
-        partitions = current_rows // 200000 or 1
+    # estimate partitions; fall back to 1 if low row count
+    current_rows = mt.count_rows()
+    partitions = current_rows // 200000 or 1
 
-        get_logger().info(
-            f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
-        )
+    get_logger().info(
+        f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
+    )
 
-        return mt.repartition(n_partitions=partitions, shuffle=True)
-    except FatalError as fe:
-        if re_attemptst > 0:
-            get_logger().warning(
-                f'Failed to checkpoint, retrying {re_attemptst} more times'
-            )
-            return checkpoint_and_repartition(
-                mt=mt,
-                checkpoint_root=checkpoint_root,
-                checkpoint_num=checkpoint_num,
-                extra_logging=extra_logging,
-                re_attemptst=re_attemptst - 1,
-            )
-        raise fe
+    return mt.repartition(n_partitions=partitions, shuffle=True)
 
 
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
