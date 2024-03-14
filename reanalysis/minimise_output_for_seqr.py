@@ -15,10 +15,10 @@ Also produce a second version of the same, limited to phenotype-matches
 """
 
 import json
-import logging
 from argparse import ArgumentParser
 
 from reanalysis.models import MiniForSeqr, MiniVariant, ResultData
+from reanalysis.utils import get_logger
 
 
 def coord_to_string(coord: dict) -> str:
@@ -72,25 +72,23 @@ def main(
             if pheno_match and not variant.panels.matched:
                 continue
             lil_data.results[individual][var_data.info['seqr_link']] = MiniVariant(
-                **{
-                    'categories': variant.categories,
-                    'support_vars': variant.support_vars,
-                }
+                categories=variant.categories, support_vars=variant.support_vars
             )
 
     if pheno_match:
-        additional_string = 'phenotype-matched'
+        additional_string = 'phenotype-matched '
         output = output.replace('.json', '_pheno.json')
     else:
         additional_string = ''
 
     if not any(lil_data.results.values()):
-        logging.info(f'No {additional_string} results found')
-        return
+        get_logger().info(f'No {additional_string}results found')
+
+    # write anyway, so as not to break the pipeline
     with open(output, 'w', encoding='utf-8') as f:
         f.write(MiniForSeqr.model_validate(lil_data).model_dump_json(indent=4))
 
-    logging.info(f'Wrote {additional_string} output to {output}')
+    get_logger().info(f'Wrote {additional_string}output to {output}')
 
 
 if __name__ == '__main__':
