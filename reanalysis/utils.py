@@ -483,6 +483,10 @@ def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
 
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
 
+    # valid processing of inter-chromosomal SVs
+    if all(attribute in info for attribute in ('chr2', 'end2')):
+        info['svlen'] = f'{info["chr2"]}:{info["end2"]}'
+
     # this is the right ID for Seqr
     info['seqr_link'] = info['variantid']
 
