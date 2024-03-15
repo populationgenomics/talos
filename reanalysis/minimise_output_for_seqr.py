@@ -48,6 +48,9 @@ def main(
         pheno_match (bool): whether to limit to phenotype-matching variants
     """
 
+    if pheno_match:
+        get_logger().info('Limiting to phenotype-matching variants')
+
     with open(input_file, encoding='utf-8') as f:
         data = ResultData.model_validate(json.load(f))
 
@@ -75,26 +78,23 @@ def main(
                 categories=variant.categories, support_vars=variant.support_vars
             )
 
-    if pheno_match:
-        additional_string = 'phenotype-matched '
-        output = output.replace('.json', '_pheno.json')
-    else:
-        additional_string = ''
-
     if not any(lil_data.results.values()):
-        get_logger().info(f'No {additional_string}results found')
+        get_logger().info('No results found')
 
     # write anyway, so as not to break the pipeline
     with open(output, 'w', encoding='utf-8') as f:
         f.write(MiniForSeqr.model_validate(lil_data).model_dump_json(indent=4))
 
-    get_logger().info(f'Wrote {additional_string}output to {output}')
+    get_logger().info(f'Wrote output to {output}')
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('input_file', help='the input file to process')
     parser.add_argument('output_file', help='the output file to write to')
+    parser.add_argument(
+        'pheno_file', help='the output file for phenotype-matched data', default=None
+    )
     parser.add_argument(
         '--external_map',
         help='mapping of internal to external IDs for seqr',
@@ -104,9 +104,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(input_file=args.input_file, output=args.output_file, ext_map=args.external_map)
-    main(
-        input_file=args.input_file,
-        output=args.output_file,
-        ext_map=args.external_map,
-        pheno_match=True,
-    )
+    if args.pheno_file:
+        main(
+            input_file=args.input_file,
+            output=args.pheno_file,
+            ext_map=args.external_map,
+            pheno_match=True,
+        )
