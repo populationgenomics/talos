@@ -1,4 +1,4 @@
-FROM australia-southeast1-docker.pkg.dev/analysis-runner/images/driver
+FROM hailgenetics/hail:0.2.127-py3.11
 
 COPY requirements.txt .
 COPY requirements-dev.txt .

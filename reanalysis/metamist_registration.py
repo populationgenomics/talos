@@ -47,7 +47,7 @@ def register_html(file_path: str, samples: list[str]):
     AnalysisApi().create_analysis(
         project=get_config()['workflow']['dataset'],
         analysis=Analysis(
-            sample_ids=samples,
+            sequencing_group_ids=samples,
             type=analysis_type,
             status=AnalysisStatus('completed'),
             output=file_path,
