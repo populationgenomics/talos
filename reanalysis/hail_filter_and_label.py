@@ -366,14 +366,11 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
             splice_ai_csq=hl.or_else(
                 mt.splice_ai.splice_consequence, MISSING_STRING
             ).replace(' ', '_'),
-            cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            # these next 3 are per-transcript, with ';' to delimit
-            # pulling these annotations into INFO with ';' to separate
-            # will break INFO parsing for most tools
-            revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
-            mutationtaster=hl.or_else(
-                mt.dbnsfp.MutationTaster_pred, MISSING_STRING
-            ).replace(';', ','),
+            # we can retain these, but removing completely will lessen the
+            # dependence on multiple annotation sources when standing up a
+            # new installation
+            # cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
+            # revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
         )
     )
 
@@ -511,6 +508,47 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    applies the boolean Category6 flag
+    - AlphaMissense likely Pathogenic on at least one transcript
+    - Thresholds of am_pathogenicity:
+        'Likely benign' if am_pathogenicity < 0.34;
+        'Likely pathogenic' if am_pathogenicity > 0.564;
+        'ambiguous' otherwise.
+
+    If AM class attribute is missing, skip annotation (default to 0)
+    This is run prior to Cat2 annotation - we use C6==True as a replacement
+    for the previous approach of [CADD & REVEL predict damaging]
+
+    Args:
+        mt (hl.MatrixTable):
+    Returns:
+        same variants, categoryboolean6 set to 1 or 0
+    """
+
+    # focus on the auto-annotated AlphaMissense class
+    # allow for the field to be missing
+    if 'am_class' not in list(mt.vep.transcript_consequences[0].keys()):
+        get_logger().warning('AlphaMissense class not found, skipping annotation')
+        return mt.annotate_rows(info=mt.info.annotate(categoryboolean6=MISSING_INT))
+
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categoryboolean6=hl.if_else(
+                hl.len(
+                    mt.vep.transcript_consequences.filter(
+                        lambda x: x.am_class == 'likely_pathogenic'
+                    )
+                )
+                > 0,
+                ONE_INT,
+                MISSING_INT,
+            )
+        )
+    )
+
+
 def annotate_category_2(
     mt: hl.MatrixTable, new_genes: hl.SetExpression | None
 ) -> hl.MatrixTable:
@@ -518,7 +556,7 @@ def annotate_category_2(
     - Gene is new in PanelApp
     - Clinvar contains pathogenic, or
     - Critical protein consequence on at least one transcript
-    - High in silico consequence
+    - High AlphaMissense score
 
     Args:
         mt ():
@@ -553,10 +591,7 @@ def annotate_category_2(
                         > 0
                     )
                     | (mt.info.clinvar_aip == ONE_INT)
-                    | (
-                        (mt.info.cadd > get_config()['filter']['cadd'])
-                        | (mt.info.revel > get_config()['filter']['revel'])
-                    )
+                    | (mt.info.categoryboolean6 == ONE_INT)
                 ),
                 ONE_INT,
                 MISSING_INT,
@@ -753,97 +788,6 @@ def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    applies the boolean Category6 flag
-    - AlphaMissense likely Pathogenic on at least one transcript
-    - Thresholds of am_pathogenicity:
-        'Likely benign' if am_pathogenicity < 0.34;
-        'Likely pathogenic' if am_pathogenicity > 0.564;
-        'ambiguous' otherwise.
-
-    If AM class attribute is missing, skip annotation (default to 0)
-
-    Args:
-        mt (hl.MatrixTable):
-    Returns:
-        same variants, categoryboolean6 set to 1 or 0
-    """
-
-    # focus on the auto-annotated AlphaMissense class
-    # allow for the field to be missing
-    if 'am_class' not in list(mt.vep.transcript_consequences[0].keys()):
-        get_logger().warning('AlphaMissense class not found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categoryboolean6=MISSING_INT))
-
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categoryboolean6=hl.if_else(
-                hl.len(
-                    mt.vep.transcript_consequences.filter(
-                        lambda x: x.am_class == 'likely_pathogenic'
-                    )
-                )
-                > 0,
-                ONE_INT,
-                MISSING_INT,
-            )
-        )
-    )
-
-
-def annotate_category_support(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Background class based on in silico annotations
-    - rare in Gnomad, and
-    - CADD & REVEL above threshold (switched to consensus), or
-    - Massive cross-tool consensus
-    - polyphen and sift are evaluated per-consequence
-    The intention is that this class will never be the sole reason to treat a variant
-    as interesting, but can be used as a broader class with a lower barrier to entry
-    Goal is to have a broader set of variants to find Comp-Hets.
-    This support category can be expanded to encompass other scenarios that qualify
-    variants as 'of second-hit interest only'
-
-    Args:
-        mt ():
-
-    Returns:
-        same variants, categorysupport set to 0 or 1
-    """
-
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categorysupport=hl.if_else(
-                (
-                    (mt.info.cadd > get_config()['filter'].get('cadd'))
-                    & (mt.info.revel > get_config()['filter'].get('revel'))
-                )
-                | (
-                    (
-                        mt.vep.transcript_consequences.any(
-                            lambda x: hl.or_else(x.sift_score, MISSING_FLOAT_HI)
-                            <= get_config()['filter'].get('sift')
-                        )
-                    )
-                    & (
-                        mt.vep.transcript_consequences.any(
-                            lambda x: hl.or_else(x.polyphen_score, MISSING_FLOAT_LO)
-                            >= get_config()['filter'].get('polyphen')
-                        )
-                    )
-                    & (
-                        (mt.info.mutationtaster.contains('D'))
-                        | (mt.info.mutationtaster == 'missing')
-                    )
-                ),
-                ONE_INT,
-                MISSING_INT,
-            )
-        )
-    )
-
-
 def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpression:
     """
     Taken shamelessly from the gnomad library source code
@@ -875,14 +819,6 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
                 'ensp': element.protein_id,
                 'gene': element.gene_id,
                 'symbol': element.gene_symbol,
-                'sift': element.sift_prediction
-                + '('
-                + hl.format('%.3f', element.sift_score)
-                + ')',
-                'polyphen': element.polyphen_prediction
-                + '('
-                + hl.format('%.3f', element.polyphen_score)
-                + ')',
                 'mane_select': element.mane_select,
             }
         )
@@ -908,7 +844,7 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
 
 def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    Filter to rows tagged with a class
+    Filter to rows tagged with a category label
 
     Args:
         mt ():
@@ -918,12 +854,11 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.filter_rows(
         (mt.info.categoryboolean1 == 1)
+        | (mt.info.categoryboolean6 == 1)
         | (mt.info.categoryboolean2 == 1)
         | (mt.info.categoryboolean3 == 1)
-        | (mt.info.categorysample4 != 'missing')
+        | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
-        | (mt.info.categoryboolean6 == 1)
-        | (mt.info.categorysupport == 1)
         | (mt.info.categorydetailsPM5 != MISSING_STRING)
     )
 
@@ -1181,26 +1116,19 @@ def main(
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
     get_logger().info('Applying categories')
     mt = annotate_category_1(mt=mt)
+    mt = annotate_category_6(mt=mt)
     mt = annotate_category_2(mt=mt, new_genes=new_expression)
     mt = annotate_category_3(mt=mt)
     mt = annotate_category_5(mt=mt)
-    mt = annotate_category_6(mt=mt)
 
     # ordering is important - category4 (de novo) makes
     # use of category 5, so it must follow
     mt = annotate_category_4(mt=mt, ped_file_path=pedigree)
-    mt = annotate_category_support(mt=mt)
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt)
 
     mt = filter_to_categorised(mt=mt)
-    # mt = checkpoint_and_repartition(
-    #     mt=mt,
-    #     checkpoint_root=checkpoint_root,
-    #     checkpoint_num=checkpoint_number,
-    #     extra_logging='after filtering to categorised only',
-    # )
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)

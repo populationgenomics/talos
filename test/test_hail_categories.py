@@ -17,7 +17,6 @@ from reanalysis.hail_filter_and_label import (
     annotate_category_3,
     annotate_category_5,
     annotate_category_6,
-    annotate_category_support,
     filter_to_categorised,
     filter_to_population_rare,
     green_and_new_from_panelapp,
@@ -34,14 +33,6 @@ category_2_keys = [
     'consequence_terms',
 ]
 category_3_keys = ['locus', 'clinvar_aip', 'lof', 'consequence_terms']
-support_category_keys = [
-    'locus',
-    'cadd',
-    'revel',
-    'mutationtaster',
-    'gerp',
-    'eigen',
-]
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
@@ -70,26 +61,24 @@ def test_class_1_assignment(value, classified, make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'clinvar_aip,cadd,revel,gene_id,consequence_terms,classified',
+    'clinvar_aip,c6,gene_id,consequence_terms,classified',
     [
-        (1, 0.0, 0.0, 'GREEN', 'missense', 1),
-        (0, 0.0, 0.0, 'GREEN', 'missense', 0),
-        (1, 99.0, 1.0, 'RED', 'frameshift_variant', 0),
-        (1, 99.0, 1.0, 'GREEN', 'frameshift_variant', 1),
-        (0, 28.11, 0.0, 'GREEN', 'synonymous', 1),
-        (0, 0, 0.8, 'GREEN', 'synonymous', 1),
-        (0, 0, 0.0, 'GREEN', 'synonymous', 0),
+        (0, 0, 'GREEN', 'missense', 0),
+        (1, 1, 'RED', 'frameshift_variant', 0),
+        (1, 0, 'GREEN', 'missense', 1),
+        (1, 1, 'GREEN', 'frameshift_variant', 1),
+        (0, 1, 'GREEN', 'synonymous', 1),
+        (0, 1, 'GREEN', 'synonymous', 1),
     ],
 )
-def test_class_2_assignment(
-    clinvar_aip, cadd, revel, gene_id, consequence_terms, classified, make_a_mt
+def test_cat_2_assignment(
+    clinvar_aip, c6, gene_id, consequence_terms, classified, make_a_mt
 ):
     """
     use some fake annotations, apply to the single fake variant
     Args:
         clinvar_aip ():
-        cadd ():
-        revel ():
+        c6 ():
         gene_id ():
         consequence_terms ():
         classified ():
@@ -98,11 +87,7 @@ def test_class_2_assignment(
 
     anno_matrix = make_a_mt.annotate_rows(
         geneIds=gene_id,
-        info=make_a_mt.info.annotate(
-            clinvar_aip=clinvar_aip,
-            cadd=cadd,
-            revel=revel,
-        ),
+        info=make_a_mt.info.annotate(clinvar_aip=clinvar_aip, categoryboolean6=c6),
         vep=hl.Struct(
             transcript_consequences=hl.array(
                 [hl.Struct(consequence_terms=hl.set([consequence_terms]))]
@@ -221,59 +206,6 @@ def annotate_c6_missing(make_a_mt, caplog):
     anno_matrix = annotate_category_6(anno_matrix)
     assert anno_matrix.info.categoryboolean6.collect() == [0]
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
-
-
-@pytest.mark.parametrize(
-    'cadd,revel,mutationtaster,gerp,eigen,sift,polyphen,classified',
-    [
-        (0.0, 0.0, 'n', 0.0, 0.0, 1.0, 0.0, 0),
-        (0.0, 0.9, 'n', 0.0, 0.0, 1.0, 0.0, 0),
-        (29.5, 0.9, 'n', 0.0, 0.0, 1.0, 0.0, 1),
-        (0.0, 0.0, 'D', 0.0, 0.0, 1.0, 0.0, 0),
-        (0.0, 0.0, 'D', 10.0, 0.0, 1.0, 0.0, 0),
-        (0.0, 0.0, 'D', 10.0, 0.5, 1.0, 0.0, 0),
-        (0.0, 0.0, 'D', 10.0, 0.5, 0.0, 0.0, 0),
-        (0.0, 0.0, 'D', 10.0, 0.5, 0.0, 1, 1),
-    ],
-)
-def test_support_assignment(
-    cadd, revel, mutationtaster, gerp, eigen, sift, polyphen, classified, make_a_mt
-):
-    """
-
-    Args:
-        cadd ():
-        revel ():
-        mutationtaster ():
-        gerp ():
-        eigen ():
-        sift ():
-        polyphen ():
-        classified ():
-        make_a_mt ():
-    """
-    anno_matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(
-            cadd=cadd,
-            eigen_phred=eigen,
-            gerp_rs=gerp,
-            mutationtaster=mutationtaster,
-            revel=revel,
-        ),
-        vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [
-                    hl.Struct(
-                        polyphen_score=polyphen,
-                        sift_score=sift,
-                    )
-                ]
-            ),
-        ),
-    )
-
-    anno_matrix = annotate_category_support(anno_matrix)
-    assert anno_matrix.info.categorysupport.collect() == [classified]
 
 
 def test_green_and_new_from_panelapp():
@@ -399,23 +331,20 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,five,six,support,pm5,length',
+    'one,two,three,four,five,six,pm5,length',
     [
-        (0, 0, 0, 'missing', 0, 0, 0, 'missing', 0),
-        (0, 0, 0, 'missing', 0, 1, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 0, 0, 0, 'notmissing', 1),
-        (0, 1, 0, 'missing', 0, 0, 0, 'missing', 1),
-        (0, 0, 1, 'missing', 0, 0, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 0, 0, 1, 'missing', 1),
-        (0, 0, 0, 'not_blank', 0, 0, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 1, 0, 0, 'missing', 1),
-        (0, 1, 1, 'missing', 0, 0, 1, 'missing', 1),
-        (1, 0, 0, 'missing', 0, 0, 1, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 0, 'missing', 0),
+        (1, 0, 0, 'missing', 0, 0, 'missing', 1),
+        (0, 1, 0, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 1, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 0, 'present', 0, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 1, 0, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 1, 'missing', 1),
+        (0, 0, 0, 'missing', 0, 0, 'present', 1),
+        (0, 1, 1, 'missing', 0, 0, 'missing', 1),
     ],
 )
-def test_filter_to_classified(
-    one, two, three, four, five, six, support, pm5, length, make_a_mt
-):
+def test_filter_to_classified(one, two, three, four, five, six, pm5, length, make_a_mt):
     """
 
     Args:
@@ -430,7 +359,6 @@ def test_filter_to_classified(
             categorysample4=four,
             categoryboolean5=five,
             categoryboolean6=six,
-            categorysupport=support,
             categorydetailsPM5=pm5,
         )
     )

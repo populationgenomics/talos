@@ -44,16 +44,10 @@ csq_string = ['allele', 'consequence', 'symbol', 'gene', 'feature', 'mane_select
 ac_threshold = 0.01
 additional_csq = ['missense_variant']
 af_semi_rare = 0.01
-cadd = 28.1
 callset_af_sv_recessive = 0.03
 critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
-gerp = 1.0
-eigen = 0.25
 max_parent_ab = 0.05
 minimum_depth = 10
-polyphen = 0.99
-revel = 0.77
-sift = 0.0
 spliceai = 0.5
 
 [categories]
@@ -64,8 +58,11 @@ spliceai = 0.5
 5 = 'High SpliceAI Score'
 6 = 'AlphaMissense P/LP'
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
-support = 'High in Silico Scores'
 sv1 = 'Predicted LOF SV'
+
+[category_rules]
+# for these categories, require a phenotype-gene match
+phenotype_match = ['6']
 
 [hail]
 cancel_after_n_failures = 1
@@ -74,7 +71,7 @@ default_memory = 'highmem'
 
 [images]
 gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:3.1.0'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:3.2.0'
 vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
 cpg_workflows = "australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest"
 
