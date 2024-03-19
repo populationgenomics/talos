@@ -262,11 +262,10 @@ def clean_and_filter(
         # AND there's only one category assigned
         # AND that category is in the list of categories which require a phenotype match
         # skip this variant
-        # popping without removal from a 1-length set is miserable
         if (
             (not (forced_panels or matched_panels))
-            and (len(each_event.categories) == 1)
-            and (next(iter(each_event.categories)) in cats_require_pheno_match)
+            and (len(each_event.support_vars) == 0)
+            and (all(cat in cats_require_pheno_match for cat in each_event.categories))
         ):
             continue
 
