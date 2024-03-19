@@ -556,7 +556,7 @@ def annotate_category_2(
     - Gene is new in PanelApp
     - Clinvar contains pathogenic, or
     - Critical protein consequence on at least one transcript
-    - High in silico consequence
+    - High AlphaMissense score
 
     Args:
         mt ():
