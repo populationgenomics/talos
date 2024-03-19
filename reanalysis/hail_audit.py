@@ -7,7 +7,7 @@ partially to make this available in other places
 
 import logging
 
-import hail as hl
+import hail as hl  # type: ignore
 
 BASE_FIELDS_REQUIRED = [
     ('locus', hl.LocusExpression),
@@ -35,11 +35,6 @@ FIELDS_REQUIRED = {
         ('Hom', hl.Int32Expression),
         ('Hemi', hl.Int32Expression),
     ],
-    'cadd': [('PHRED', hl.Float32Expression)],
-    'dbnsfp': [
-        ('REVEL_score', hl.StringExpression),
-        ('MutationTaster_pred', hl.StringExpression),
-    ],
     'clinvar': [
         ('clinical_significance', hl.StringExpression),
         ('gold_stars', hl.Int32Expression),
@@ -62,9 +57,6 @@ VEP_TX_FIELDS_REQUIRED = [
     ('biotype', hl.StringExpression),
     ('protein_start', hl.Int32Expression),
     ('protein_end', hl.Int32Expression),
-    ('sift_score', hl.Float64Expression),
-    ('sift_prediction', hl.StringExpression),
-    ('polyphen_score', hl.Float64Expression),
     ('mane_select', hl.StringExpression),
     ('lof', hl.StringExpression),
 ]
