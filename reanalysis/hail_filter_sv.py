@@ -126,6 +126,27 @@ def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Hail's MT -> VCF export doesn't handle hemizygous calls
+    adjust the relevant single allele calls to a biallelic representation
+
+    if GT == 1, recast as [1, 0]
+    if GT == 0, recast as [0, 0]
+
+    Args:
+        mt ():
+    """
+
+    return mt.annotate_entries(
+        GT=hl.if_else(
+            mt.GT.is_diploid(),
+            mt.GT,
+            hl.call([mt.GT.alleles[0], 0]),
+        )
+    )
+
+
 def main(
     mt_path: str,
     panelapp_path: str,
@@ -185,6 +206,9 @@ def main(
 
     # filter to labelled entries
     mt = mt.filter_rows(mt.info.categorybooleansv1 == ONE_INT)
+
+    # Hail's MT -> VCF export doesn't handle hemizygous calls
+    mt = fix_hemi_calls(mt)
 
     # now write that badboi
     hl.export_vcf(mt, vcf_out, tabix=True)
