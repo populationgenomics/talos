@@ -130,8 +130,9 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Hail's MT -> VCF export doesn't handle hemizygous calls
     adjust the relevant single allele calls to a biallelic representation
+    going with Hom-Alt/Hom-Ref
 
-    if GT == 1, recast as [1, 0]
+    if GT == 1, recast as [1, 1]
     if GT == 0, recast as [0, 0]
 
     Args:
@@ -142,7 +143,7 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
         GT=hl.if_else(
             mt.GT.is_diploid(),
             mt.GT,
-            hl.call([mt.GT.alleles[0], 0]),
+            hl.call([mt.GT.alleles[0], mt.GT.alleles[0]]),
         )
     )
 
