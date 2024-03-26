@@ -143,7 +143,7 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
         GT=hl.if_else(
             mt.GT.is_diploid(),
             mt.GT,
-            hl.call([mt.GT.alleles[0], mt.GT.alleles[0]]),
+            hl.if_else(mt.GT.is_non_ref(), hl.call(1, 1), hl.call(0, 0)),
         )
     )
 
