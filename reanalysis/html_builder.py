@@ -1,7 +1,7 @@
 """
 Methods for taking the final output and generating static report content
 """
-
+import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from itertools import chain
@@ -226,6 +226,11 @@ class HTMLBuilder:
             for key in ordered_categories
             if category_count[key]
         ]
+
+        # this can fail if there are no categorised variants... at all
+        if summary_dicts == []:
+            get_logger().info('No categorised variants found')
+            sys.exit(0)
 
         df: pd.DataFrame = pd.DataFrame(summary_dicts)
         df['Mean/sample'] = df['Mean/sample'].round(3)
