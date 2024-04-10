@@ -46,6 +46,7 @@ from reanalysis.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_cohort_config,
+    get_cohort_seq_type_conf,
     get_new_gene_map,
     read_json_from_path,
 )
@@ -543,6 +544,9 @@ def main(
             )
         )
 
+    # do we have seqr projects?
+    seqr_project = get_cohort_seq_type_conf().get('seqr_project')
+
     # create the full final output file
     results_meta = ResultMeta(
         **{
@@ -551,6 +555,7 @@ def main(
             'family_breakdown': count_families(ped, samples=vcf_opened.samples),
             'panels': panelapp_data.metadata,
             'container': get_config()['workflow']['driver_image'],
+            'projects': [seqr_project] if seqr_project else [],
         }
     )
 
