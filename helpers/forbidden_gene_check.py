@@ -6,9 +6,7 @@ date based forbidden gene finding
 """
 
 import json
-import logging
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -20,6 +18,7 @@ import zoneinfo
 from cpg_utils import to_path
 
 from reanalysis.models import PhenotypeMatchedPanels
+from reanalysis.static_values import get_logger
 
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels'
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
@@ -154,14 +153,10 @@ def main(panels: str | None, out_path: str, dates: list[str]):
     We first aggregate all the panels to check across all participants
 
     Apologies in advance to the PanelApp API - many queries
-
     1. Query for all panels to get current union of gene IDs across all panels
-
     2. For each date in turn, find the latest version of those component panels
         at that date
-
     3. Query for those specific panel versions, get the union, then get diff vs. new
-
     4. Write that result to a file
 
     Args:
@@ -170,7 +165,7 @@ def main(panels: str | None, out_path: str, dates: list[str]):
         dates ():
     """
 
-    logging.info('Starting PanelApp Query Stage')
+    get_logger().info('Starting PanelApp Query Stage')
     assert dates, 'whats the point doing this with no dates?'
 
     if panels:
@@ -180,20 +175,20 @@ def main(panels: str | None, out_path: str, dates: list[str]):
     else:
         all_panels = {137}
 
-    logging.info(f'Panels: {all_panels}')
+    get_logger().info(f'Panels: {all_panels}')
 
     latest_genes = set()
     for panel in all_panels:
         latest_genes.update(get_panel_green(panel))
 
-    logging.info(f'total current genes: {len(latest_genes)}')
+    get_logger().info(f'total current genes: {len(latest_genes)}')
 
     # this returns {panel_id: {date: version } }
     panel_versions = {panel_id: find_version(panel_id, dates) for panel_id in all_panels}
 
     # check over all dates
     for date in dates:
-        logging.info(f'Running the date {date}')
+        get_logger().info(f'Running the date {date}')
 
         date_genes = set()
         for panel, versions in panel_versions.items():
@@ -201,7 +196,7 @@ def main(panels: str | None, out_path: str, dates: list[str]):
                 date_genes.update(get_panel_green(panel, version=panel_version))
 
         date_diff = sorted(latest_genes - date_genes)
-        logging.info(f'date-forbidden at {date}: {len(date_diff)}')
+        get_logger().info(f'date-forbidden at {date}: {len(date_diff)}')
 
         filename = os.path.join(out_path, f'{date}_forbidden.json')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -210,11 +205,5 @@ def main(panels: str | None, out_path: str, dates: list[str]):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
-
+    get_logger(__file__).info('Starting forbidden gene check')
     main()

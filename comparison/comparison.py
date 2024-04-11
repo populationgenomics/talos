@@ -9,7 +9,6 @@ See relevant documentation for a description of the algorithm used
 
 # mypy: ignore-errors
 import json
-import logging
 import os
 import re
 import sys
@@ -39,6 +38,7 @@ from reanalysis.hail_filter_and_label import (
     filter_to_well_normalised,
     green_and_new_from_panelapp,
 )
+from reanalysis.static_values import get_logger
 from reanalysis.utils import canonical_contigs_from_vcf, read_json_from_path
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
@@ -211,7 +211,7 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
                 if entry[value] in affected and int(entry[SAMPLE_ALT_TEMPLATE.format(index)]) > 0:
                     sample_dict[entry[value]].append(variant_obj)
 
-    logging.info(f'Variants from Seqr digest: {sample_dict}')
+    get_logger().info(f'Variants from Seqr digest: {sample_dict}')
 
     return sample_dict
 
@@ -223,16 +223,10 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict) -> dict:
     Args:
         aip_results ():
         seqr_results ():
-
-    Returns:
-
     """
 
     flag_matches = {
-        key: {
-            'matched': {'details': [], 'count': 0},
-            'unmatched': {'details': [], 'count': 0},
-        }
+        key: {'matched': {'details': [], 'count': 0}, 'unmatched': {'details': [], 'count': 0}}
         for key in ['EXPECTED', 'UNLIKELY', 'POSSIBLE']
     }
     total_seqr_variants = 0
@@ -254,12 +248,12 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict) -> dict:
                 flag_matches[conf.name][match]['details'].append(f'{sample}::{repr(v)}')
                 flag_matches[conf.name][match]['count'] += 1
 
-    # print a summary into logging
-    logging.info(f'Total Seqr Variants: {total_seqr_variants}')
+    # print a summary into get_logger()
+    get_logger().info(f'Total Seqr Variants: {total_seqr_variants}')
     for confidence, match_types in flag_matches.items():
-        logging.info(f'{confidence}')
+        get_logger().info(f'{confidence}')
         for match_type, match_dict in match_types.items():
-            logging.info(f'\t{match_type} - {match_dict["count"]}')
+            get_logger().info(f'\t{match_type} - {match_dict["count"]}')
 
     return flag_matches
 
@@ -282,12 +276,12 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
 
     missing_samples = seqr_samples - common_samples
     if len(missing_samples) > 0:
-        logging.error(f'Samples completely missing from AIP results: ' f'{", ".join(missing_samples)}')
+        get_logger().error(f'Samples completely missing from AIP results: ' f'{", ".join(missing_samples)}')
 
         # for each of those missing samples, add all variants
         for miss_sample in missing_samples:
             discrepancies[miss_sample] = seqr_results[miss_sample]
-            logging.error(f'Sample {miss_sample}: ' f'{len(seqr_results[miss_sample])} missing variant(s)')
+            get_logger().error(f'Sample {miss_sample}: ' f'{len(seqr_results[miss_sample])} missing variant(s)')
 
     for sample in common_samples:
         # only finds discrepancies, not Matched results - revise
@@ -300,8 +294,8 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
         # log the number of matches
         matched = len([variant for variant in seqr_results[sample] if variant in aip_results[sample]])
 
-        logging.info(f'Sample {sample} - {matched} matched variant(s)')
-        logging.info(f'Sample {sample} - {len(sample_discrepancies)} missing variant(s)')
+        get_logger().info(f'Sample {sample} - {matched} matched variant(s)')
+        get_logger().info(f'Sample {sample} - {len(sample_discrepancies)} missing variant(s)')
 
     return discrepancies
 
@@ -368,7 +362,7 @@ def find_variant_in_mt(matrix: hl.MatrixTable, var: CommonFormatResult) -> hl.Ma
     :return:
     """
     var_locus, var_alleles = var.get_hail_pos()
-    logging.info(f'Querying for {var_locus}: {var_alleles}')
+    get_logger().info(f'Querying for {var_locus}: {var_alleles}')
     return matrix.filter_rows((matrix.locus == var_locus) & (matrix.alleles == var_alleles))
 
 
@@ -626,7 +620,7 @@ def check_mt(
     untiered: ReasonDict = defaultdict(list)
 
     for sample, variant in [(sam, var) for (sam, var_list) in variants.items() for var in var_list]:
-        logging.info(f'running check for {sample}, variant {variant}')
+        get_logger().info(f'running check for {sample}, variant {variant}')
 
         # filter the MT to the required locus
         var_mt = find_variant_in_mt(matrix=matrix, var=variant)
@@ -676,7 +670,7 @@ def check_mt(
         untiered[sample].append((variant, reasons))
 
         if not reasons:
-            logging.error(f'No Fail reasons for Sample {sample}, ' f'Variant {variant}')
+            get_logger().error(f'No Fail reasons for Sample {sample}, ' f'Variant {variant}')
 
     return not_in_mt, untiered
 
@@ -714,7 +708,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     # compare the results of the two datasets
     discrepancies = find_missing(seqr_results=seqr_results, aip_results=aip_results)
     if not discrepancies:
-        logging.info('All variants resolved!')
+        get_logger().info('All variants resolved!')
         sys.exit(0)
 
     # load and digest panel data
@@ -724,17 +718,17 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     # if we had discrepancies, bin into classified and misc.
     in_vcf, not_in_vcf = check_in_vcf(vcf_path=vcf, variants=discrepancies)
 
-    # some logging content here
+    # some get_logger() content here
     for sample in not_in_vcf:
-        logging.info(f'Sample: {sample}')
+        get_logger().info(f'Sample: {sample}')
         for variant in not_in_vcf[sample]:
-            logging.info(f'\tVariant {variant} missing from VCF')
+            get_logger().info(f'\tVariant {variant} missing from VCF')
 
-    # some logging content here
+    # some get_logger() content here
     for sample in in_vcf:
-        logging.info(f'Sample: {sample}')
+        get_logger().info(f'Sample: {sample}')
         for variant in in_vcf[sample]:
-            logging.info(f'\tVariant {variant} requires MOI checking')
+            get_logger().info(f'\tVariant {variant} requires MOI checking')
 
     # if there were any variants missing from the VCF, attempt to find them in the MT
     if len(not_in_vcf) == 0:
@@ -762,12 +756,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
+    get_logger(__file__).info('Running comparison script')
     parser = ArgumentParser()
     parser.add_argument('--results_folder')
     parser.add_argument('--pedigree')
