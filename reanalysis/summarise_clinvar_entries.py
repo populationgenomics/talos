@@ -35,7 +35,8 @@ from cpg_utils import CloudPath, to_path
 from cpg_utils.config import ConfigError
 from cpg_utils.hail_batch import init_batch, output_path
 
-from reanalysis.utils import get_cohort_config, get_logger
+from reanalysis.static_values import get_logger
+from reanalysis.utils import get_cohort_config
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
 CONFLICTING = 'conflicting data from submitters'
