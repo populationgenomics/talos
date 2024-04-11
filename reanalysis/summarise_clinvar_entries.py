@@ -384,6 +384,8 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     """
 
     # apply the date threshold to all submissions
+    print(ACMG_THRESHOLD.tzinfo)
+    print([sub.date.tzinfo for sub in subs])
     date_filt_subs = [sub for sub in subs if sub.date >= ACMG_THRESHOLD or sub.review_status in STRONG_REVIEWS]
 
     # if this contains results, return only those

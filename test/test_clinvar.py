@@ -20,7 +20,7 @@ from reanalysis.summarise_clinvar_entries import (
     process_line,
 )
 
-CURRENT_TIME = datetime.now()
+CURRENT_TIME = datetime.now(tz=TIMEZONE)
 BASIC_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.UNKNOWN, 'review')
 BENIGN_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.BENIGN, 'review')
 PATH_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.PATHOGENIC, 'review')

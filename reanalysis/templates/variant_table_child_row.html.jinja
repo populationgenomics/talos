@@ -172,8 +172,8 @@
                                 Phenotypes:
                             </dt>
                             <dd class="col-sm-9">
-                            {% for phenotype, description in sample.phenotypes %}
-                                {{ phenotype }} - {{ description }}<br>
+                            {% for phenotype in sample.phenotypes %}
+                                {{ phenotype['id'] }} - {{ phenotype['description'] }}<br>
                             {% endfor %}
                             </dd>
 
