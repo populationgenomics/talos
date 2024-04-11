@@ -390,9 +390,7 @@ def main(
         FileTypes.VCF_GZ,
         FileTypes.VCF_BGZ,
         FileTypes.MATRIX_TABLE,
-    ], (
-        f'inappropriate input type provided: {input_file_type}; ' 'this is designed for MT or compressed VCF only'
-    )
+    ], f'inappropriate input type provided: {input_file_type}; this is designed for MT or compressed VCF only'
 
     global ANNOTATED_MT
     global SITES_ONLY
