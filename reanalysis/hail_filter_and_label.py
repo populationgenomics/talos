@@ -11,7 +11,6 @@ Read, filter, annotate, classify, and write Genetic data
 - write as VCF
 """
 
-
 import os
 from argparse import ArgumentParser
 from datetime import datetime
@@ -78,16 +77,14 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
                 'aip_clinvar',
                 datetime.now().strftime('%y-%m'),
                 f'{key}.ht',
-            )
+            ),
         )
         # happy path
         if clinvar_table.exists():
             get_logger().info(f'Using clinvar table {clinvar_table}')
             return str(clinvar_table)
 
-        get_logger().info(
-            f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script'
-        )
+        get_logger().info(f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script')
     except KeyError:
         get_logger().warning('No storage::common::analysis key present')
 
@@ -119,12 +116,10 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         ht = hl.read_table(clinvar)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                clinvar_significance=hl.or_else(
-                    ht[mt.row_key].clinical_significance, MISSING_STRING
-                ),
+                clinvar_significance=hl.or_else(ht[mt.row_key].clinical_significance, MISSING_STRING),
                 clinvar_stars=hl.or_else(ht[mt.row_key].gold_stars, MISSING_INT),
                 clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_INT),
-            )
+            ),
         )
 
     # use default annotations
@@ -135,18 +130,15 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
         # missing contents
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                clinvar_significance=hl.or_else(
-                    mt.clinvar.clinical_significance, MISSING_STRING
-                ),
+                clinvar_significance=hl.or_else(mt.clinvar.clinical_significance, MISSING_STRING),
                 clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
                 clinvar_allele=hl.or_else(mt.clinvar.allele_id, MISSING_INT),
-            )
+            ),
         )
 
     # remove all confidently benign
     mt = mt.filter_rows(
-        (mt.info.clinvar_significance.lower().contains(BENIGN))
-        & (mt.info.clinvar_stars > 0),
+        (mt.info.clinvar_significance.lower().contains(BENIGN)) & (mt.info.clinvar_stars > 0),
         keep=False,
     )
 
@@ -170,7 +162,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable) -> hl.MatrixTable:
                 ONE_INT,
                 MISSING_INT,
             ),
-        )
+        ),
     )
 
     return mt
@@ -220,9 +212,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
 
     if codon_table_path is None:
         get_logger().info('PM5 table not found, skipping annotation')
-        return mt.annotate_rows(
-            info=mt.info.annotate(categorydetailsPM5=MISSING_STRING)
-        )
+        return mt.annotate_rows(info=mt.info.annotate(categorydetailsPM5=MISSING_STRING))
 
     # read in the codon table
     get_logger().info(f'Reading clinvar alleles by codon from {codon_table_path}')
@@ -235,11 +225,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
     codon_variants = codon_variants.filter(
         (hl.len(codon_variants.alleles[0]) == ONE_INT)
         & (hl.len(codon_variants.alleles[1]) == ONE_INT)
-        & (
-            codon_variants.vep.transcript_consequences.consequence_terms.contains(
-                'missense_variant'
-            )
-        )
+        & (codon_variants.vep.transcript_consequences.consequence_terms.contains('missense_variant')),
     )
 
     # set the protein residue as an attribute
@@ -248,17 +234,17 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
             [
                 codon_variants.vep.transcript_consequences.protein_id,
                 hl.str(codon_variants.vep.transcript_consequences.protein_start),
-            ]
-        )
+            ],
+        ),
     )
 
     # 4. re-key the table on Transcript::Codon
     codon_variants = codon_variants.key_by(codon_variants.residue_affected)
 
     # 5. extract the position table (protein change linked to all loci)
-    codon_variants = codon_variants.select(
-        codon_variants.locus, codon_variants.alleles
-    ).collect_by_key(name='positions')
+    codon_variants = codon_variants.select(codon_variants.locus, codon_variants.alleles).collect_by_key(
+        name='positions',
+    )
 
     # join the real variant positions with aggregated clinvar
     # 'values' here is the array of all positions
@@ -269,32 +255,27 @@ def annotate_codon_clinvar(mt: hl.MatrixTable):
 
     # annotate positions back to normal names (not required?)
     codon_variants = codon_variants.transmute(
-        locus=codon_variants.positions.locus, alleles=codon_variants.positions.alleles
+        locus=codon_variants.positions.locus,
+        alleles=codon_variants.positions.alleles,
     )
 
     # re-key by locus/allele
     codon_variants = codon_variants.key_by(codon_variants.locus, codon_variants.alleles)
 
     # aggregate back to position and alleles
-    codon_variants = codon_variants.select(
-        codon_variants.clinvar_alleles
-    ).collect_by_key(name='clinvar_variations')
+    codon_variants = codon_variants.select(codon_variants.clinvar_alleles).collect_by_key(name='clinvar_variations')
 
     codon_variants = codon_variants.annotate(
         clinvar_variations=hl.str('+').join(
-            hl.set(
-                hl.map(lambda x: x.clinvar_alleles, codon_variants.clinvar_variations)
-            )
-        )
+            hl.set(hl.map(lambda x: x.clinvar_alleles, codon_variants.clinvar_variations)),
+        ),
     )
 
     # conditional annotation back into the original MT
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            categorydetailsPM5=hl.or_else(
-                codon_variants[mt.row_key].clinvar_variations, MISSING_STRING
-            )
-        )
+            categorydetailsPM5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
+        ),
     )
 
     return mt
@@ -313,11 +294,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
         MT with all filtered variants removed
     """
 
-    return mt.filter_rows(
-        hl.is_missing(mt.filters)
-        | (mt.filters.length() == 0)
-        | (mt.info.clinvar_aip == ONE_INT)
-    )
+    return mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0) | (mt.info.clinvar_aip == ONE_INT))
 
 
 def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -363,15 +340,13 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
             gnomad_hom=hl.or_else(mt.gnomad_genomes.Hom, MISSING_INT),
             gnomad_hemi=hl.or_else(mt.gnomad_genomes.Hemi, MISSING_INT),
             splice_ai_delta=hl.or_else(mt.splice_ai.delta_score, MISSING_FLOAT_LO),
-            splice_ai_csq=hl.or_else(
-                mt.splice_ai.splice_consequence, MISSING_STRING
-            ).replace(' ', '_'),
+            splice_ai_csq=hl.or_else(mt.splice_ai.splice_consequence, MISSING_STRING).replace(' ', '_'),
             # we can retain these, but removing completely will lessen the
             # dependence on multiple annotation sources when standing up a
             # new installation
             # cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
             # revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
-        )
+        ),
     )
 
 
@@ -392,10 +367,7 @@ def filter_matrix_by_ac(
         (unless overridden by clinvar path)
     """
 
-    return mt.filter_rows(
-        ((mt.AC <= 5) | (mt.AC / mt.AN < ac_threshold))
-        | (mt.info.clinvar_aip == ONE_INT)
-    )
+    return mt.filter_rows(((mt.AC <= 5) | (mt.AC / mt.AN < ac_threshold)) | (mt.info.clinvar_aip == ONE_INT))
 
 
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -408,11 +380,8 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     # 'semi-rare' as dominant filters will be more strictly filtered later
     rare_af_threshold = get_config()['filter']['af_semi_rare']
     return mt.filter_rows(
-        (
-            (mt.info.gnomad_ex_af < rare_af_threshold)
-            & (mt.info.gnomad_af < rare_af_threshold)
-        )
-        | (mt.info.clinvar_aip == ONE_INT)
+        ((mt.info.gnomad_ex_af < rare_af_threshold) & (mt.info.gnomad_af < rare_af_threshold))
+        | (mt.info.clinvar_aip == ONE_INT),
     )
 
 
@@ -439,15 +408,13 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
         vep=hl.Struct(
             transcript_consequences=mt.vep.transcript_consequences,
             variant_class=mt.vep.variant_class,
-        )
+        ),
     )
 
     return mt
 
 
-def split_rows_by_gene_and_filter_to_green(
-    mt: hl.MatrixTable, green_genes: hl.SetExpression
-) -> hl.MatrixTable:
+def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
     splits each GeneId onto a new row, then filters any
     rows not annotating a Green PanelApp gene
@@ -477,9 +444,9 @@ def split_rows_by_gene_and_filter_to_green(
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
                 lambda x: (mt.geneIds == x.gene_id)
-                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
-            )
-        )
+                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM'))),
+            ),
+        ),
     )
 
     return mt
@@ -503,8 +470,8 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
                 mt.info.clinvar_aip_strong == ONE_INT,
                 ONE_INT,
                 MISSING_INT,
-            )
-        )
+            ),
+        ),
     )
 
 
@@ -536,22 +503,15 @@ def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean6=hl.if_else(
-                hl.len(
-                    mt.vep.transcript_consequences.filter(
-                        lambda x: x.am_class == 'likely_pathogenic'
-                    )
-                )
-                > 0,
+                hl.len(mt.vep.transcript_consequences.filter(lambda x: x.am_class == 'likely_pathogenic')) > 0,
                 ONE_INT,
                 MISSING_INT,
-            )
-        )
+            ),
+        ),
     )
 
 
-def annotate_category_2(
-    mt: hl.MatrixTable, new_genes: hl.SetExpression | None
-) -> hl.MatrixTable:
+def annotate_category_2(mt: hl.MatrixTable, new_genes: hl.SetExpression | None) -> hl.MatrixTable:
     """
     - Gene is new in PanelApp
     - Clinvar contains pathogenic, or
@@ -580,13 +540,8 @@ def annotate_category_2(
                     (
                         hl.len(
                             mt.vep.transcript_consequences.filter(
-                                lambda x: hl.len(
-                                    critical_consequences.intersection(
-                                        hl.set(x.consequence_terms)
-                                    )
-                                )
-                                > 0
-                            )
+                                lambda x: hl.len(critical_consequences.intersection(hl.set(x.consequence_terms))) > 0,
+                            ),
                         )
                         > 0
                     )
@@ -595,8 +550,8 @@ def annotate_category_2(
                 ),
                 ONE_INT,
                 MISSING_INT,
-            )
-        )
+            ),
+        ),
     )
 
 
@@ -624,15 +579,8 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
                 (
                     hl.len(
                         mt.vep.transcript_consequences.filter(
-                            lambda x: (
-                                hl.len(
-                                    critical_consequences.intersection(
-                                        hl.set(x.consequence_terms)
-                                    )
-                                )
-                                > 0
-                            )
-                        )
+                            lambda x: (hl.len(critical_consequences.intersection(hl.set(x.consequence_terms))) > 0),
+                        ),
                     )
                     > 0
                 )
@@ -640,16 +588,9 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
                     (
                         hl.len(
                             mt.vep.transcript_consequences.filter(
-                                lambda x: (
-                                    hl.len(
-                                        critical_consequences.intersection(
-                                            hl.set(x.consequence_terms)
-                                        )
-                                    )
-                                    > 0
-                                )
-                                & ((x.lof == LOFTEE_HC) | (hl.is_missing(x.lof)))
-                            )
+                                lambda x: (hl.len(critical_consequences.intersection(hl.set(x.consequence_terms))) > 0)
+                                & ((x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))),
+                            ),
                         )
                         > 0
                     )
@@ -657,8 +598,8 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
                 ),
                 ONE_INT,
                 MISSING_INT,
-            )
-        )
+            ),
+        ),
     )
 
 
@@ -682,18 +623,14 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     filtered_mt = mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: hl.len(
-                    hl.set(x.consequence_terms).intersection(critical_consequences)
-                )
-                > 0
-            )
-        )
+                lambda x: hl.len(hl.set(x.consequence_terms).intersection(critical_consequences)) > 0,
+            ),
+        ),
     )
 
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return filtered_mt.filter_rows(
-        (hl.len(filtered_mt.vep.transcript_consequences) == 0)
-        | (filtered_mt.info.categoryboolean5 == 0),
+        (hl.len(filtered_mt.vep.transcript_consequences) == 0) | (filtered_mt.info.categoryboolean5 == 0),
         keep=False,
     )
 
@@ -728,7 +665,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
             (de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)),
             hl.missing('array<int32>'),
         )
-        .default([0, de_novo_matrix.GQ, 1000])
+        .default([0, de_novo_matrix.GQ, 1000]),
     )
 
     dn_table = hl.de_novo(
@@ -748,22 +685,14 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     # collect all sample IDs per locus, and squash into a String Array
     # delimit to compress that Array into single Strings
-    dn_table = dn_table.annotate(
-        dn_ids=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ',')
-    )
+    dn_table = dn_table.annotate(dn_ids=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ','))
 
     # log the number of variants found this way
     get_logger().info(f'{dn_table.count()} variants showed de novo inheritance')
 
     # annotate those values as a flag if relevant, else 'missing'
     return mt.annotate_rows(
-        info=mt.info.annotate(
-            **{
-                'categorysample4': hl.or_else(
-                    dn_table[mt.row_key].dn_ids, MISSING_STRING
-                )
-            }
-        )
+        info=mt.info.annotate(**{'categorysample4': hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)}),
     )
 
 
@@ -783,8 +712,8 @@ def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
                 mt.info.splice_ai_delta >= get_config()['filter']['spliceai'],
                 ONE_INT,
                 MISSING_INT,
-            )
-        )
+            ),
+        ),
     )
 
 
@@ -820,22 +749,20 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
                 'gene': element.gene_id,
                 'symbol': element.gene_symbol,
                 'mane_select': element.mane_select,
-            }
+            },
         )
 
         # pull the required fields and ordering from config
         csq_fields = get_config()['csq']['csq_string']
 
-        return hl.delimit(
-            [hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|'
-        )
+        return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|')
 
     csq = hl.empty_array(hl.tstr)
     csq = csq.extend(
         hl.or_else(
             vep_expr['transcript_consequences'].map(lambda x: get_csq_from_struct(x)),
             hl.empty_array(hl.tstr),
-        )
+        ),
     )
 
     # previous consequence filters may make this caution unnecessary
@@ -859,7 +786,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
-        | (mt.info.categorydetailsPM5 != MISSING_STRING)
+        | (mt.info.categorydetailsPM5 != MISSING_STRING),
     )
 
 
@@ -885,15 +812,13 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str, dataset: str):
 
     # write this custom header locally
     with to_path(additional_cloud_path).open('w') as handle:
-        handle.write(
-            f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: {csq_contents}">'
-        )
+        handle.write(f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: {csq_contents}">')
     get_logger().info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=additional_cloud_path, tabix=True)
 
 
 def green_and_new_from_panelapp(
-    panel_genes: dict[str, dict[str, str | list[int]]]
+    panel_genes: dict[str, dict[str, str | list[int]]],
 ) -> tuple[hl.SetExpression, hl.SetExpression | None]:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
@@ -912,9 +837,7 @@ def green_and_new_from_panelapp(
     get_logger().info(f'Extracted {len(green_genes)} green genes')
     green_gene_set_expression = hl.literal(green_genes)
 
-    new_genes = {
-        gene for gene in green_genes if len(panel_genes[gene].get('new', [])) > 0
-    }
+    new_genes = {gene for gene in green_genes if len(panel_genes[gene].get('new', [])) > 0}
     get_logger().info(f'Extracted {len(new_genes)} NEW genes')
     if new_genes:
         return green_gene_set_expression, hl.literal(new_genes)
@@ -955,9 +878,7 @@ def checkpoint_and_repartition(
     current_rows = mt.count_rows()
     partitions = current_rows // 200000 or 1
 
-    get_logger().info(
-        f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}'
-    )
+    get_logger().info(f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}')
 
     return mt.repartition(n_partitions=partitions, shuffle=True)
 
@@ -990,7 +911,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     Samples in Pedigree: {len(ped_samples)}
     Samples in MatrixTable: {len(matrix_samples)}
     Common Samples: {len(common_samples)}
-    """
+    """,
     )
 
     if len(common_samples) == 0:
@@ -1041,9 +962,7 @@ def main(
     # get temp suffix from the config (can be None or missing)
     # make this checkpoint sequencing-type specific to prevent crossover
     sequencing_type = get_config()['workflow'].get('sequencing_type', 'unknown')
-    checkpoint_root = output_path(
-        f'{sequencing_type}_hail_matrix.mt', 'tmp', dataset=dataset
-    )
+    checkpoint_root = output_path(f'{sequencing_type}_hail_matrix.mt', 'tmp', dataset=dataset)
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
@@ -1136,7 +1055,7 @@ def main(
         info=mt.info.annotate(
             CSQ=vep_struct_to_csq(mt.vep),
             gene_id=mt.geneIds,
-        )
+        ),
     )
 
     write_matrix_to_vcf(mt=mt, vcf_out=vcf_out, dataset=dataset)

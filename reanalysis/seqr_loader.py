@@ -10,9 +10,7 @@ import hail as hl
 from cpg_utils.hail_batch import genome_build, reference_path
 
 
-def annotate_cohort(
-    vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None, vep_only: bool = False
-):
+def annotate_cohort(vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None, vep_only: bool = False):
     """
     Convert VCF to matrix table, annotate for Seqr Loader, add VEP
 
@@ -77,9 +75,7 @@ def annotate_cohort(
         else:
             logger.info('Adding AC/AF/AN attributes from variant_qc')
             mt = hl.variant_qc(mt)
-            mt = mt.annotate_rows(
-                AN=mt.variant_qc.AN, AF=mt.variant_qc.AF[1], AC=mt.variant_qc.AC[1]
-            )
+            mt = mt.annotate_rows(AN=mt.variant_qc.AN, AF=mt.variant_qc.AF[1], AC=mt.variant_qc.AC[1])
             mt = mt.drop('variant_qc')
 
     # don't fail if the AC/AF attributes are an inappropriate type
@@ -101,7 +97,7 @@ def annotate_cohort(
                 'allele_id': mt.clinvar_data.info.ALLELEID,
                 'clinical_significance': hl.delimit(mt.clinvar_data.info.CLNSIG),
                 'gold_stars': mt.clinvar_data.gold_stars,
-            }
+            },
         ),
     )
 

@@ -1,6 +1,7 @@
 """
 A home for all data models used in AIP
 """
+
 from enum import Enum
 
 import toml
@@ -67,9 +68,7 @@ class VariantCommon(BaseModel):
     """
 
     coordinates: Coordinates = Field(repr=True)
-    info: dict[
-        str, str | int | float | list[str] | list[float] | dict[str, str] | bool
-    ] = Field(default_factory=dict)
+    info: dict[str, str | int | float | list[str] | list[float] | dict[str, str] | bool] = Field(default_factory=dict)
     het_samples: set[str] = Field(default_factory=set, exclude=True)
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)
@@ -144,9 +143,7 @@ class VariantCommon(BaseModel):
         Returns:
             True if support only
         """
-        return self.has_support and not (
-            self.category_non_support or self.sample_categorised_check(sample_id)
-        )
+        return self.has_support and not (self.category_non_support or self.sample_categorised_check(sample_id))
 
     def category_values(self, sample: str) -> set[str]:
         """
@@ -167,11 +164,7 @@ class VariantCommon(BaseModel):
             if sample in self.info[category]  # type: ignore
         }
         categories.update(
-            {
-                bool_cat.replace('categoryboolean', '')
-                for bool_cat in self.boolean_categories
-                if self.info[bool_cat]
-            }
+            {bool_cat.replace('categoryboolean', '') for bool_cat in self.boolean_categories if self.info[bool_cat]},
         )
 
         if self.has_support:
@@ -209,9 +202,7 @@ class VariantCommon(BaseModel):
         Returns:
             True if the variant is categorised for this sample
         """
-        big_cat = self.has_boolean_categories or self.sample_categorised_check(
-            sample_id
-        )
+        big_cat = self.has_boolean_categories or self.sample_categorised_check(sample_id)
         if allow_support:
             return big_cat or self.has_support
         return big_cat
@@ -255,9 +246,7 @@ class SmallVariant(VariantCommon):
         """
         return self.check_ab_ratio(sample) | self.check_read_depth(sample)
 
-    def check_read_depth(
-        self, sample: str, threshold: int = 10, var_is_cat_1: bool = False
-    ) -> set[str]:
+    def check_read_depth(self, sample: str, threshold: int = 10, var_is_cat_1: bool = False) -> set[str]:
         """
         flag low read depth for this sample
 
@@ -286,11 +275,7 @@ class SmallVariant(VariantCommon):
         het = sample in self.het_samples
         hom = sample in self.hom_samples
         variant_ab = self.ab_ratios.get(sample, 0.0)
-        if (
-            (variant_ab <= 0.15)
-            or (het and not 0.25 <= variant_ab <= 0.75)
-            or (hom and variant_ab <= 0.85)
-        ):
+        if (variant_ab <= 0.15) or (het and not 0.25 <= variant_ab <= 0.75) or (hom and variant_ab <= 0.85):
             return {'AB Ratio'}
         return set()
 
@@ -340,10 +325,7 @@ class ReportVariant(BaseModel):
         """
         # self_supvar = set(self.support_vars)
         # other_supvar = set(other.support_vars)
-        return (
-            self.sample == other.sample
-            and self.var_data.coordinates == other.var_data.coordinates
-        )
+        return self.sample == other.sample and self.var_data.coordinates == other.var_data.coordinates
 
     def __lt__(self, other):
         return self.var_data.coordinates < other.var_data.coordinates
@@ -473,8 +455,6 @@ class ModelVariant(BaseModel):
     """
     might be required for the VCF generator
     """
-
-    ...
 
 
 class ParticipantHPOPanels(BaseModel):

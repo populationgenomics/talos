@@ -56,10 +56,7 @@ def test_check_second_hit(first, comp_hets, sample, values):
     :return:
     """
 
-    assert (
-        check_for_second_hit(first_variant=first, comp_hets=comp_hets, sample=sample)
-        == values
-    )
+    assert check_for_second_hit(first_variant=first, comp_hets=comp_hets, sample=sample) == values
 
 
 @pytest.mark.parametrize(
@@ -115,7 +112,7 @@ def test_dominant_autosomal_fails_on_depth(peddy_ped):
         depths={'male': 1},
         transcript_consequences=[],
     )
-    results = dom.run(principal=shallow_variant)  # noqa
+    results = dom.run(principal=shallow_variant)
     assert len(results) == 0
 
 
@@ -396,9 +393,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(peddy_ped):
     )
 
 
-@pytest.mark.parametrize(
-    'info', [{'gnomad_hom': 3, 'gene_id': 'TEST1'}]
-)  # threshold is 2
+@pytest.mark.parametrize('info', [{'gnomad_hom': 3, 'gene_id': 'TEST1'}])  # threshold is 2
 def test_recessive_autosomal_hom_fails(info, peddy_ped):
     """
     check that when the info values are failures
@@ -434,7 +429,7 @@ def test_x_dominant_female_and_male_het_passes(peddy_ped):
 
     assert len(results) == 2
     reasons = {result.reasons.pop() for result in results}
-    assert reasons == {'X_Dominant', 'X_Dominant'}
+    assert reasons == {'X_Dominant'}
 
 
 def test_x_dominant_female_hom_passes(peddy_ped):
@@ -708,9 +703,7 @@ def test_check_familial_inheritance_simple(peddy_ped):
 
     base_moi = BaseMoi(pedigree=peddy_ped, applied_moi='applied')
 
-    result = base_moi.check_familial_inheritance(
-        sample_id='male', called_variants={'male'}
-    )
+    result = base_moi.check_familial_inheritance(sample_id='male', called_variants={'male'})
     assert result
 
 
@@ -722,9 +715,7 @@ def test_check_familial_inheritance_mother_fail(peddy_ped):
 
     base_moi = BaseMoi(pedigree=peddy_ped, applied_moi='applied')
 
-    result = base_moi.check_familial_inheritance(
-        sample_id='male', called_variants={'male', 'mother_1'}
-    )
+    result = base_moi.check_familial_inheritance(sample_id='male', called_variants={'male', 'mother_1'})
     assert not result
 
 
@@ -753,9 +744,7 @@ def test_check_familial_inheritance_father_fail(peddy_ped):
 
     base_moi = BaseMoi(pedigree=peddy_ped, applied_moi='applied')
 
-    result = base_moi.check_familial_inheritance(
-        sample_id='male', called_variants={'male', 'father_1'}
-    )
+    result = base_moi.check_familial_inheritance(sample_id='male', called_variants={'male', 'father_1'})
     assert not result
 
 

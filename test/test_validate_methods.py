@@ -2,7 +2,6 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-
 from reanalysis.models import (  # ReportPanel,
     Coordinates,
     PanelApp,
@@ -22,15 +21,9 @@ TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
 VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={}, transcript_consequences=[])
 VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={}, transcript_consequences=[])
-REP_SAM1_1 = ReportVariant(
-    sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1'
-)
-REP_SAM3_1 = ReportVariant(
-    sample='sam3', var_data=VAR_1, categories={'1'}, gene='ENSG4'
-)
-REP_SAM3_2 = ReportVariant(
-    sample='sam3', var_data=VAR_2, categories={'2'}, gene='ENSG5'
-)
+REP_SAM1_1 = ReportVariant(sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1')
+REP_SAM3_1 = ReportVariant(sample='sam3', var_data=VAR_1, categories={'1'}, gene='ENSG4')
+REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2'}, gene='ENSG5')
 
 
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
@@ -50,7 +43,7 @@ panel_genes = PanelApp(
             'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
             'ENSG5': {'panels': {4}, 'symbol': 'G5'},
         },
-    }
+    },
 )
 
 
@@ -76,7 +69,7 @@ def test_results_shell(peddy_ped):
                 },
             },
             'all_panels': {1, 2, 3},
-        }
+        },
     )
     panelapp = PanelApp(
         **{
@@ -86,7 +79,7 @@ def test_results_shell(peddy_ped):
                 {'id': 3, 'name': 'etc'},
             ],
             'genes': {'ENSG1': {'symbol': 'G1'}},
-        }
+        },
     )
     result_meta = ResultMeta(input_file='', cohort='cohort')
     shell = prepare_results_shell(
@@ -155,8 +148,8 @@ def test_results_shell(peddy_ped):
                         'solved': True,
                     },
                 },
-            }
-        }
+            },
+        },
     )
 
     assert shell.results == expected.results
@@ -173,8 +166,8 @@ def test_gene_clean_results_no_personal():
                 'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1'}},
                 'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
                 'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3'}},
-            }
-        }
+            },
+        },
     )
 
     clean = clean_and_filter(
@@ -216,8 +209,8 @@ def test_gene_clean_results_personal():
                         'panel_ids': {1},
                     },
                 },
-            }
-        }
+            },
+        },
     )
     personal_panels = PhenotypeMatchedPanels(
         **{
@@ -225,8 +218,8 @@ def test_gene_clean_results_personal():
                 'sam1': {'panels': {1}, 'hpo_terms': {'HP1'}},
                 'sam2': {'hpo_terms': {'HP2'}},
                 'sam3': {'panels': {3, 4}, 'hpo_terms': {'HP3'}},
-            }
-        }
+            },
+        },
     )
 
     clean = clean_and_filter(

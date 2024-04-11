@@ -10,6 +10,7 @@ Complete revision
 from datetime import datetime
 
 import click
+import zoneinfo
 from dateutil.relativedelta import relativedelta
 
 from cpg_utils import to_path
@@ -37,6 +38,7 @@ from reanalysis.utils import (
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
 DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -90,27 +92,19 @@ def get_panel_green(
         forbidden_genes = set()
 
     # include the version if required
-    panel_url = f'{PANELAPP_BASE}/{panel_id}' + (
-        f'?version={version}' if version else ''
-    )
+    panel_url = f'{PANELAPP_BASE}/{panel_id}' + (f'?version={version}' if version else '')
 
     panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
     # add metadata for this panel & version
-    gene_dict.metadata.append(
-        PanelShort(**{'name': panel_name, 'version': panel_version, 'id': panel_id})
-    )
+    gene_dict.metadata.append(PanelShort(**{'name': panel_name, 'version': panel_version, 'id': panel_id}))
 
     # iterate over the genes in this panel result
     for gene in panel_genes:
         symbol = gene.get('entity_name')
 
         # only retain green genes
-        if (
-            gene['confidence_level'] != '3'
-            or gene['entity_type'] != 'gene'
-            or symbol in forbidden_genes
-        ):
+        if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene' or symbol in forbidden_genes:
             continue
 
         ensg = None
@@ -125,12 +119,7 @@ def get_panel_green(
                 ensg = ensembl_data['ensembl_id']
                 chrom = ensembl_data['location'].split(':')[0]
 
-        if (
-            ensg is None
-            or ensg in blacklist
-            or symbol in blacklist
-            or ensg in forbidden_genes
-        ):
+        if ensg is None or ensg in blacklist or symbol in blacklist or ensg in forbidden_genes:
             get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
 
@@ -161,13 +150,11 @@ def get_panel_green(
             gene_dict.genes[ensg] = PanelDetail(
                 **{
                     'symbol': symbol,
-                    'all_moi': {exact_moi}
-                    if exact_moi not in IRRELEVANT_MOI
-                    else set(),
+                    'all_moi': {exact_moi} if exact_moi not in IRRELEVANT_MOI else set(),
                     'new': {panel_id} if new_gene else set(),
                     'panels': {panel_id},
                     'chrom': chrom,
-                }
+                },
             )
 
 
@@ -212,19 +199,15 @@ def find_core_panel_version() -> str | None:
         a version string from X months prior - see config
     """
 
-    date_threshold = datetime.today() - relativedelta(
-        months=get_config()['panels']['panel_month_delta']
-    )
+    date_threshold = datetime.today() - relativedelta(months=get_config()['panels']['panel_month_delta'])
 
     # query for data from this endpoint
-    activities: list[dict] = get_json_response(
-        f'{PANELAPP_BASE}/{DEFAULT_PANEL}/activities'
-    )
+    activities: list[dict] = get_json_response(f'{PANELAPP_BASE}/{DEFAULT_PANEL}/activities')
 
     # iterate through all activities on this panel
     for activity in activities:
         # cast the activity datetime to day-resolution
-        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d')
+        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d').replace(tzinfo=TIMEZONE)
 
         # keep going until we land on the day, or skip past it
         if activity_date > date_threshold:
@@ -236,9 +219,7 @@ def find_core_panel_version() -> str | None:
     return None
 
 
-def get_new_genes(
-    current_genes: set[str], old_version: str, forbidden: set[str] | None = None
-) -> set[str]:
+def get_new_genes(current_genes: set[str], old_version: str, forbidden: set[str] | None = None) -> set[str]:
     """
     query for two versions of the same panel
     find all genes new on that panel between versions
@@ -253,9 +234,7 @@ def get_new_genes(
     """
 
     old: PanelApp = PanelApp(**{'metadata': [], 'genes': {}})
-    get_panel_green(
-        old, old_data=HistoricPanels(), version=old_version, forbidden_genes=forbidden
-    )
+    get_panel_green(old, old_data=HistoricPanels(), version=old_version, forbidden_genes=forbidden)
 
     return current_genes.difference(set(old.genes))
 
@@ -324,9 +303,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # are there any genes to skip from the Mendeliome? i.e. only report
     # if in a specifically phenotype-matched panel
     remove_from_core: list[str] = get_config()['panels'].get('require_pheno_match', [])
-    get_logger().info(
-        f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}'
-    )
+    get_logger().info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
     gene_dict = PanelApp(genes={})
@@ -346,19 +323,13 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # if participant panels were provided, add each of those to the gene data
     panel_list = set()
     if panels is not None:
-        hpo_panel_object = read_json_from_path(
-            panels, return_model=PhenotypeMatchedPanels  # type: ignore
-        )
+        hpo_panel_object = read_json_from_path(panels, return_model=PhenotypeMatchedPanels)  # type: ignore
         panel_list = hpo_panel_object.all_panels
-        get_logger().info(
-            f'Phenotype matched panels: {", ".join(map(str, panel_list))}'
-        )
+        get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
     if extra_panels := get_cohort_config(dataset).get('cohort_panels'):
-        get_logger().info(
-            f'Cohort-specific panels: {", ".join(map(str, extra_panels))}'
-        )
+        get_logger().info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 
     for panel in panel_list:
@@ -382,9 +353,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         old_version = find_core_panel_version()
         if old_version is None:
             raise ValueError('Could not find a version from 12 months ago')
-        get_logger().info(
-            f'No prior data found, running panel diff vs. panel version {old_version}'
-        )
+        get_logger().info(f'No prior data found, running panel diff vs. panel version {old_version}')
         new_gene_set = get_new_genes(twelve_months, old_version)
         overwrite_new_status(gene_dict, new_gene_set)
 

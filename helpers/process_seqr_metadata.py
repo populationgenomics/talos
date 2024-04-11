@@ -34,8 +34,7 @@ def get_seqr_details(seqr_meta: str) -> dict[str, dict[str, str]]:
 
     # map CPG ID to individual GUID
     return {
-        sample['sampleId']: sample['familyGuid']
-        for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
+        sample['sampleId']: sample['familyGuid'] for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
     }
 
 

@@ -22,7 +22,6 @@ Expected results in this case would be determined by the gene ID(s),
 the annotation(s), the genotype(s), and the sample affection status.
 """
 
-
 import json
 from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
@@ -31,6 +30,8 @@ from os.path import join
 from cloudpathlib import AnyPath
 
 import hail as hl
+
+from reanalysis.utils import get_logger
 
 
 class CustomEncoder(json.JSONEncoder):
@@ -226,12 +227,7 @@ class Entry:
         self.AD = ad or [15, 15]
         self.DP = sum(self.AD)
         self.GQ = gq or 60
-        self.PL = (
-            pl
-            or [[0, self.GQ, 1000], [self.GQ, 0, 1000], [1000, self.GQ, 0]][
-                gt.count('1')
-            ]
-        )
+        self.PL = pl or [[0, self.GQ, 1000], [self.GQ, 0, 1000], [1000, self.GQ, 0]][gt.count('1')]
         self.PS = ps
 
     @staticmethod
@@ -241,9 +237,7 @@ class Entry:
         Returns:
 
         """
-        return (
-            'struct{GT:str,AD:array<int32>,DP:int32,GQ:int32,PL:array<int32>,PS:int32}'
-        )
+        return 'struct{GT:str,AD:array<int32>,DP:int32,GQ:int32,PL:array<int32>,PS:int32}'
 
 
 @dataclass
@@ -326,8 +320,8 @@ class SneakyTable:
         self.tmp_path = tmp_path
         try:
             hl.init(default_reference='GRCh38')
-        except BaseException:
-            pass
+        except BaseException as be:
+            get_logger().info(f'Hail already initialised: {be}')
 
     def modify_schema(self) -> str:
         """
@@ -382,17 +376,13 @@ class SneakyTable:
 
         # read JSON data from a hail table
         # field must be f0 if no header
-        ht = hl.import_table(
-            self.json_to_file(), no_header=True, types={'f0': json_schema}
-        )
+        ht = hl.import_table(self.json_to_file(), no_header=True, types={'f0': json_schema})
 
         # unwrap the data
         ht = ht.transmute(**ht.f0)
 
         # transmute the locus and alleles, set as keys
-        ht = ht.transmute(locus=hl.parse_locus(ht.locus), alleles=ht.alleles).key_by(
-            'locus', 'alleles'
-        )
+        ht = ht.transmute(locus=hl.parse_locus(ht.locus), alleles=ht.alleles).key_by('locus', 'alleles')
         ht = ht.key_by('locus', 'alleles')
 
         # stopping point for table-only
@@ -408,9 +398,7 @@ class SneakyTable:
         tmp_mt = join(self.tmp_path, 'vep.mt')
 
         # convert to a matrix table, with sample IDs as columns
-        mt = ht.to_matrix_table_row_major(
-            columns=list(self.sample_details.keys()), col_field_name='s'
-        )
+        mt = ht.to_matrix_table_row_major(columns=list(self.sample_details.keys()), col_field_name='s')
 
         # parse the genotype calls as hl.call
         mt = mt.annotate_entries(GT=hl.parse_call(mt.GT))

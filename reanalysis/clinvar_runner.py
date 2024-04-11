@@ -49,10 +49,7 @@ def generate_clinvar_table(
     var_file = 'variant_summary.txt.gz'
 
     bash_job.command(
-        (
-            f'wget -q {directory}{sub_file} -O {bash_job.subs} && '
-            f'wget -q {directory}{var_file} -O {bash_job.vars}'
-        )
+        f'wget -q {directory}{sub_file} -O {bash_job.subs} && ' f'wget -q {directory}{var_file} -O {bash_job.vars}',
     )
 
     # write output files date-specific
@@ -65,12 +62,7 @@ def generate_clinvar_table(
 
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
-    command_options = (
-        f'-s {bash_job.subs} '
-        f'-v {bash_job.vars} '
-        f'-o {clinvar_table_path} '
-        f'--path_snv {snv_vcf} '
-    )
+    command_options = f'-s {bash_job.subs} ' f'-v {bash_job.vars} ' f'-o {clinvar_table_path} ' f'--path_snv {snv_vcf} '
     if date:
         command_options += f' -d {date}'
     summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
@@ -78,9 +70,7 @@ def generate_clinvar_table(
     return summarise
 
 
-def generate_annotated_data(
-    annotation_out: Path, snv_vcf: Path, tmp_path: Path, dependency: Job | None = None
-) -> Job:
+def generate_annotated_data(annotation_out: Path, snv_vcf: Path, tmp_path: Path, dependency: Job | None = None) -> Job:
     """
     if the annotated data Table doesn't exist, generate it
 
@@ -127,7 +117,7 @@ def generate_annotated_data(
             str(tmp_path / 'annotation_temp'),
             True,
             setup_gcp=True,
-        )
+        ),
     )
     if dependency:
         j.depends_on(dependency)
@@ -156,7 +146,7 @@ def main(date: str | None = None, folder: str | None = None):
                 get_config()['storage']['common']['analysis'],
                 'aip_clinvar',
                 datetime.now().strftime('%y-%m'),
-            )
+            ),
         )
 
     elif isinstance(folder, str):
@@ -172,10 +162,7 @@ def main(date: str | None = None, folder: str | None = None):
     annotated_clinvar = cloud_folder / 'annotated_clinvar.mt'
 
     # check if we can just quit already
-    if all(
-        this_path.exists()
-        for this_path in [annotated_clinvar, clinvar_table_path, clinvar_pm5_path]
-    ):
+    if all(this_path.exists() for this_path in [annotated_clinvar, clinvar_table_path, clinvar_pm5_path]):
         logging.info('Clinvar data already exists, exiting')
         return
 
@@ -184,34 +171,28 @@ def main(date: str | None = None, folder: str | None = None):
             get_config()['storage']['common']['tmp'],
             'aip_clinvar',
             datetime.now().strftime('%y-%m'),
-        )
+        ),
     )
 
     dependency = None
 
     # generate a new round of clinvar decisions
     if not all(output.exists() for output in [clinvar_table_path, snv_vcf]):
-        dependency = generate_clinvar_table(
-            clinvar_table_path, cloud_folder, snv_vcf, date
-        )
+        dependency = generate_clinvar_table(clinvar_table_path, cloud_folder, snv_vcf, date)
 
     # create the annotation job(s)
     if not annotated_clinvar.exists():
-        dependency = generate_annotated_data(
-            annotated_clinvar, snv_vcf, temp_path, dependency
-        )
+        dependency = generate_annotated_data(annotated_clinvar, snv_vcf, temp_path, dependency)
 
     # region: run the clinvar_by_codon script
     if not clinvar_pm5_path.exists():
         clinvar_by_codon_job = get_batch().new_job(name='clinvar_by_codon')
-        clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(
-            2
-        ).storage('20G')
+        clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(2).storage('20G')
         authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
         clinvar_by_codon_job.command(
             f'python3 {clinvar_by_codon.__file__} '
             f'--mt_path {annotated_clinvar} '
-            f'--write_path {clinvar_pm5_path}'
+            f'--write_path {clinvar_pm5_path}',
         )
         if dependency:
             clinvar_by_codon_job.depends_on(dependency)

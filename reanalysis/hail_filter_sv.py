@@ -7,7 +7,6 @@ CategoryBooleanSV1:
 - predicted LoF in a listed gene
 """
 
-
 from argparse import ArgumentParser
 
 import hail as hl
@@ -26,9 +25,7 @@ from reanalysis.static_values import get_logger
 from reanalysis.utils import read_json_from_path
 
 
-def filter_matrix_by_af(
-    mt: hl.MatrixTable, af_threshold: float = 0.03
-) -> hl.MatrixTable:
+def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.MatrixTable:
     """
     Filter a MatrixTable on AF, allow AF to be missing
 
@@ -40,9 +37,7 @@ def filter_matrix_by_af(
         same MT, with common variants removed
     """
 
-    return mt.filter_rows(
-        (hl.or_else(mt.info['gnomad_v2.1_sv_AF'], MISSING_INT) < af_threshold)
-    )
+    return mt.filter_rows(hl.or_else(mt.info['gnomad_v2.1_sv_AF'], MISSING_INT) < af_threshold)
 
 
 def restructure_mt_by_gene(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -58,14 +53,10 @@ def restructure_mt_by_gene(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # split out consequences
     mt = mt.explode_rows(mt.sortedTranscriptConsequences)
-    return mt.annotate_rows(
-        info=mt.info.annotate(gene_id=mt.sortedTranscriptConsequences.gene_id)
-    )
+    return mt.annotate_rows(info=mt.info.annotate(gene_id=mt.sortedTranscriptConsequences.gene_id))
 
 
-def annotate_sv1(
-    mt: hl.MatrixTable, green_expression: hl.SetExpression
-) -> hl.MatrixTable:
+def annotate_sv1(mt: hl.MatrixTable, green_expression: hl.SetExpression) -> hl.MatrixTable:
     """
     Annotate SVs with the SV1 category
     Rare, LOF, in a green gene
@@ -86,14 +77,12 @@ def annotate_sv1(
                 & (green_expression.contains(mt.sortedTranscriptConsequences.gene_id)),
                 ONE_INT,
                 MISSING_INT,
-            )
-        )
+            ),
+        ),
     )
 
 
-def filter_matrix_by_ac(
-    mt: hl.MatrixTable, ac_threshold: float | None = 0.03
-) -> hl.MatrixTable:
+def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float | None = 0.03) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
     We don't need to worry about minimum cohort size
@@ -106,9 +95,7 @@ def filter_matrix_by_ac(
         MT with all common-in-this-JC variants removed
     """
 
-    return mt.filter_rows(
-        (mt.info.MALE_AF[0] <= ac_threshold) & (mt.info.FEMALE_AF[0] <= ac_threshold)
-    )
+    return mt.filter_rows((mt.info.MALE_AF[0] <= ac_threshold) & (mt.info.FEMALE_AF[0] <= ac_threshold))
 
 
 def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -122,7 +109,7 @@ def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             variantId=mt.variantId,
-        )
+        ),
     )
 
 
@@ -144,7 +131,7 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
             mt.GT.is_diploid(),
             mt.GT,
             hl.if_else(mt.GT.is_non_ref(), hl.call(1, 1), hl.call(0, 0)),
-        )
+        ),
     )
 
 
@@ -190,12 +177,8 @@ def main(
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     # apply blanket filters
-    mt = filter_matrix_by_ac(
-        mt, ac_threshold=get_config()['filter']['callset_af_sv_recessive']
-    )
-    mt = filter_matrix_by_af(
-        mt, af_threshold=get_config()['filter']['callset_af_sv_recessive']
-    )
+    mt = filter_matrix_by_ac(mt, ac_threshold=get_config()['filter']['callset_af_sv_recessive'])
+    mt = filter_matrix_by_af(mt, af_threshold=get_config()['filter']['callset_af_sv_recessive'])
     mt = rearrange_filters(mt)
 
     # pre-filter the MT and rearrange fields for export

@@ -46,7 +46,6 @@ def test_abs_var_sorting(two_trio_abs_variants: list[SmallVariant]):
 
     var1, var2 = two_trio_abs_variants
     assert var1 < var2
-    assert var1 == var1
     assert sorted([var2, var1]) == [var1, var2]
     # not sure if I should be able to just override the chrom...
     var1.coordinates.chrom = 'HLA1234'
@@ -176,9 +175,7 @@ def test_gene_dict(two_trio_variants_vcf):
     """
     reader = VCFReader(two_trio_variants_vcf)
     contig = 'chr20'
-    var_dict = gather_gene_dict_from_contig(
-        contig=contig, variant_source=reader, new_gene_map={}
-    )
+    var_dict = gather_gene_dict_from_contig(contig=contig, variant_source=reader, new_gene_map={})
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == 2
@@ -198,10 +195,11 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=peddy_ped)
     assert 'male' in ch_dict
     results = ch_dict.get('male')
+    assert isinstance(results, dict)
     assert len(results) == 2
     key_1, key_2 = list(results.keys())
-    assert results[key_1][0].coordinates.string_format == key_2
-    assert results[key_2][0].coordinates.string_format == key_1
+    assert results[key_1][0].coordinates.string_format == key_2  # type: ignore
+    assert results[key_2][0].coordinates.string_format == key_1  # type: ignore
 
 
 def test_phased_dict(phased_vcf_path):
@@ -210,7 +208,9 @@ def test_phased_dict(phased_vcf_path):
     """
     reader = VCFReader(phased_vcf_path)
     var_dict = gather_gene_dict_from_contig(
-        contig='chr20', variant_source=reader, new_gene_map={'ENSG00000075043': {'all'}}
+        contig='chr20',
+        variant_source=reader,
+        new_gene_map={'ENSG00000075043': {'all'}},
     )
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
@@ -296,12 +296,10 @@ def test_new_gene_map_complex():
                 'ENSG2': {'new': {137}, 'symbol': 'ensg2'},
                 'ENSG3': {'new': {4}, 'symbol': 'ensg3'},
                 'ENSG4': {'new': {2}, 'symbol': 'ensg4'},
-            }
-        }
+            },
+        },
     )
-    personal_panels = PhenotypeMatchedPanels(
-        **{'samples': {'sam': {'panels': {1, 2}}, 'sam2': {'panels': {4, 2}}}}
-    )
+    personal_panels = PhenotypeMatchedPanels(**{'samples': {'sam': {'panels': {1, 2}}, 'sam2': {'panels': {4, 2}}}})
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {
         'ENSG1': {'sam'},

@@ -1,36 +1,53 @@
 [tool.black]
-line-length = 88
+line-length = 120
 skip-string-normalization = true
+exclude = '''
+/(
+  seqr-loading-pipelines
+  | gnomad_methods
+  | venv
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
 
-[tool.isort]
-py_version = 311
-profile = "black"
-line_length = 88
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "HAIL", "CPG", "FIRSTPARTY", "LOCALFOLDER"]
-known_hail = [
-    "hail",
-    "hailtop",
-]
-# Adjust these for each repository, e.g., removing those that should be
-# local rather than CPG. Also fill in extend_skip below if there are any
-# subdirectories that should be ignored.
-known_cpg = [
-    "analysis_runner",
-    "cpg_infra",
-    "cpg_utils",
-    "cpg_workflows",
-    "gnomad",
-    "hail_scripts",
-    "metamist",
-]
-# extend_skip = ["list", "submodules", "etc", here"]
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ['gnomad_methods', 'seqr-loading-pipelines']
+testpaths = ['test']
+
 
 [tool.ruff]
-line-length = 88
-extend-select = ["T201"]
+line-length = 120
+
+extend-exclude = [
+    "gnomad_methods",
+    "seqr-loading-pipelines",
+    "venv",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# ignore pydocstyle, flake8-boolean-trap (FBT)
+select = ["A", "B", "C", "E", "F", "G", "I", "N", "Q", "S", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
+
+fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "FBT", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
+
 ignore = [
     "ANN101", # Missing type annotation for self in method
+    "ANN102", # Missing type annotation for `cls` in classmethod
     "ANN201", # Missing return type annotation for public function
+    "ANN204", # Missing type annotation for special method `__init__`
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`
     "E501", # Line length too long
     "E731", # Do not assign a lambda expression, use a def
     "E741", # Ambiguous variable name
@@ -43,5 +60,146 @@ ignore = [
     "PT018", # Assertion should be broken down into multiple parts
     "Q000", # Single quotes found but double quotes preferred
     "S101", # Use of assert detected
-    "I001", # Import block is un-sorted (we use isort directly as ruff sort isn't fully supported)
+    "SLF001", # Private member accessed: `_preemptible`
+
+    "ARG001", # Unused function argument
+    "ARG002", # Unused method argument
+
+    "PLR2004", # Magic value used
+
+    "ANN001",
+    "ANN202",
+    "C408",
+    "TID252",
+    "RET504",
+    "ERA001",
+    "UP032",
+    "RUF100",
+    "ISC001",
+    "PIE804",
+    "F401",
+    "C901",
+    "W605",
+    "RET505",
+    "ANN003",
+    "RUF013",
+    "UP031",
+    "RUF010",
+    "B006",
+    "ANN002",
+    "B023",
+    "EXE001",
+    "G001",
+    "SIM108",
+    "RUF005",
+    "G002",
+    "PD901",
+    "N999",
+    "SIM118",
+    "SIM102",
+    "PLW2901",
+    "S603",
+    "ARG005",
+    "PGH003",
+    "B904",
+    "N802",
+    "ISC003",
+    "ANN205",
+    "S607",
+    "RUF015",
+    "E701",
+    "N818",
+    "PIE790",
+    "N803",
+    "A002",
+    "RUF012",
+    "W291",
+    "S113",
+    "S311",
+    "N806",
+    "PLR5501",
+    "F403",
+    "SIM115",
+    "B007",
+    "F841",
+    "C405",
+    "C419",
+    "SIM300",
+    "PD011",
+    "UP015",
+    "S602",
+    "Q002",
+    "ISC002",
+    "COM819",
+    "C416",
+    "DTZ005",
+    "G003",
+    "S608",
+    "PIE808",
+    "B008",
+    "S108",
+    "E402",
+    "S605",
+    "F821",
+    "RET507",
+    "RET503",
+    "UP030",
+    "UP026",
+    "PLR1714",
+    "C403",
+    "PLR1711",
+    "PIE810",
+    "DTZ011",
+    "S105",
+    "BLE001",
+    "C401",
+    "C400",
+    "PLR0402",
+    "SIM201",
+    "RET506",
+    "C417",
+    "PD010",
+    "PLW1510",
+    "A001",
+    "W292",
+    "PYI024",
+    "Q003",
+    "S301",
+    "RET501",
+    "PD003",
+    "SIM117",
+    "RUF002",
+    "UP027",
+    "SIM105",
+    "E713",
+    "S324",
+    "S310",
+    "Q001",
+    "UP020",
+    "S506",
+    "N805",
+    "E712",
+    "E401",
+    "SIM212",
+    "DTZ002",
+]
+
+[tool.ruff.lint.isort]
+
+section-order = ["future", "standard-library", "third-party", "hail", "cpg", "first-party", "local-folder"]
+
+[tool.ruff.lint.isort.sections]
+hail = [
+    "hail",
+    "hailtop",
+]
+
+cpg = [
+    "analysis_runner",
+    "cpg_infra",
+    "cpg_utils",
+    "cpg_workflows",
+    "gnomad",
+    "hail_scripts",
+    "metamist",
 ]

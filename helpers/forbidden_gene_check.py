@@ -15,12 +15,14 @@ from typing import Any
 
 import click
 import requests
+import zoneinfo
 
 from cpg_utils import to_path
 
 from reanalysis.models import PhenotypeMatchedPanels
 
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels'
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
 
 def get_json_response(url: str) -> Any:
@@ -65,9 +67,7 @@ def read_json_from_path(bucket_path: str | Path | None, default: Any = None) -> 
             with bucket_path.open() as handle:
                 return json.load(handle)
     else:
-        raise TypeError(
-            f'bucket_path must be str, Path, or None, not {type(bucket_path)}'
-        )
+        raise TypeError(f'bucket_path must be str, Path, or None, not {type(bucket_path)}')
     return default
 
 
@@ -82,9 +82,7 @@ def get_panel_green(panel_id: int, version: str | None = None) -> set[str]:
     """
 
     # include the version if required
-    panel_url = f'{PANELAPP_BASE}/{panel_id}' + (
-        f'?version={version}' if version else ''
-    )
+    panel_url = f'{PANELAPP_BASE}/{panel_id}' + (f'?version={version}' if version else '')
 
     # iterate over the genes in this panel result
     return {
@@ -124,14 +122,12 @@ def find_version(panel_id: int, all_dates: list[str]) -> dict[str, str | None]:
 
     for date_string in all_dates:
         date_done = False
-        date_threshold = datetime.strptime(date_string, '%Y-%m-%d')
+        date_threshold = datetime.strptime(date_string, '%Y-%m-%d').replace(tzinfo=TIMEZONE)
 
         # iterate through all activities on this panel
         for activity in activities:
             # cast the activity datetime to day-resolution
-            activity_date = datetime.strptime(
-                activity['created'].split('T')[0], '%Y-%m-%d'
-            )
+            activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d').replace(tzinfo=TIMEZONE)
 
             # keep going until we land on the day, or skip past it
             if activity_date > date_threshold:
@@ -193,9 +189,7 @@ def main(panels: str | None, out_path: str, dates: list[str]):
     logging.info(f'total current genes: {len(latest_genes)}')
 
     # this returns {panel_id: {date: version } }
-    panel_versions = {
-        panel_id: find_version(panel_id, dates) for panel_id in all_panels
-    }
+    panel_versions = {panel_id: find_version(panel_id, dates) for panel_id in all_panels}
 
     # check over all dates
     for date in dates:

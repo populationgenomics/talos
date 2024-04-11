@@ -8,6 +8,7 @@ master script for preparing a run, can be run from local
 - generates the cohort-specific TOML file
 - tweaks for making singleton versions of the given cohort
 """
+
 import json
 import logging
 import os
@@ -44,13 +45,11 @@ PED_QUERY = gql(
             }
         }
     }
-    """
+    """,
 )
 
 
-def get_seqr_details(
-    seqr_meta: str, local_root, remote_root, exome: bool = False
-) -> tuple[str, str]:
+def get_seqr_details(seqr_meta: str, local_root, remote_root, exome: bool = False) -> tuple[str, str]:
     """
     process the seqr data, write locally, copy remotely
     Args:
@@ -70,13 +69,10 @@ def get_seqr_details(
 
     # map CPG ID to individual GUID
     parsed = {
-        sample['sampleId']: sample['familyGuid']
-        for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
+        sample['sampleId']: sample['familyGuid'] for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
     }
 
-    project_id = {
-        sample['projectGuid'] for sample in details_dict['samplesByGuid'].values()
-    }
+    project_id = {sample['projectGuid'] for sample in details_dict['samplesByGuid'].values()}
     assert len(project_id) == 1, f'Multiple projects identified: {project_id}'
     one_project_id: str = project_id.pop()
 
@@ -103,7 +99,9 @@ PED_KEYS = [
 
 
 def get_ped_with_permutations(
-    pedigree_dicts: list[dict], ext_lookup: dict, make_singletons: bool = False
+    pedigree_dicts: list[dict],
+    ext_lookup: dict,
+    make_singletons: bool = False,
 ) -> list[dict]:
     """
     Take the pedigree entry representations from the pedigree endpoint
@@ -151,7 +149,7 @@ def get_ped_with_permutations(
     if failures:
         logging.error(
             f'Samples were available from the Pedigree endpoint, '
-            f'but no ID translation was available: {", ".join(failures)}'
+            f'but no ID translation was available: {", ".join(failures)}',
         )
     return new_entries
 
@@ -192,9 +190,9 @@ def process_pedigree(
                         father,
                         str(entry['sex']),
                         str(entry['affected']),
-                    ]
+                    ],
                 )
-                + '\n'
+                + '\n',
             )
 
     # condense all lines into one
@@ -217,9 +215,7 @@ def process_pedigree(
     logging.info('Did not write a remote pedigree file')
 
 
-def get_pedigree_for_project(
-    project: str, seq_type: str
-) -> tuple[list[dict[str, str]], dict[str, str]]:
+def get_pedigree_for_project(project: str, seq_type: str) -> tuple[list[dict[str, str]], dict[str, str]]:
     """
     fetches the project pedigree from sample-metadata
     list, one dict per participant
@@ -233,10 +229,7 @@ def get_pedigree_for_project(
     """
     response = query(PED_QUERY, variables={'project': project, 'type': seq_type})
     pedigree = response['project']['pedigree']
-    lookup = {
-        sg['sample']['participant']['externalId']: [sg['id']]
-        for sg in response['project']['sequencingGroups']
-    }
+    lookup = {sg['sample']['participant']['externalId']: [sg['id']] for sg in response['project']['sequencingGroups']}
     return pedigree, lookup
 
 
@@ -282,9 +275,7 @@ def main(
 
     # get the list of all pedigree members as list of dictionaries
     logging.info('Pulling all pedigree members')
-    pedigree_dicts, ext_lookup = get_pedigree_for_project(
-        project=project, seq_type=exome_or_genome
-    )
+    pedigree_dicts, ext_lookup = get_pedigree_for_project(project=project, seq_type=exome_or_genome)
 
     # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPGABCDE']]
     # parser returns a dictionary, arbitrary # sample IDs per participant
@@ -307,9 +298,7 @@ def main(
     logging.info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
 
     if seqr_file:
-        project_id, seqr_file = get_seqr_details(
-            seqr_file, local_root, remote_root, exome_or_genome == 'exome'
-        )
+        project_id, seqr_file = get_seqr_details(seqr_file, local_root, remote_root, exome_or_genome == 'exome')
         seqr_files = {
             'seqr_instance': 'https://seqr.populationgenomics.org.au',
             'seqr_project': project_id,
@@ -321,13 +310,9 @@ def main(
     cohort_config = {
         'cohorts': {
             project: {
-                exome_or_genome: {
-                    'historic_results': str(
-                        remote_root / '/'.join(path_prefixes + ['historic_results'])
-                    )
-                }
-                | seqr_files
-            }
+                exome_or_genome: {'historic_results': str(remote_root / '/'.join(path_prefixes + ['historic_results']))}
+                | seqr_files,
+            },
         },
         'workflow': {'sequencing_type': exome_or_genome},
     }
@@ -346,9 +331,7 @@ def main(
         logging.info(f'Wrote cohort config to {local_root / "_".join(path_prefixes)}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
-    if 'pre_panelapp' in (
-        prior := get_cohort_config(project).get('gene_prior', 'MISSING')
-    ):
+    if 'pre_panelapp' in (prior := get_cohort_config(project).get('gene_prior', 'MISSING')):
         pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
         if no_copy is False:
             with to_path(prior).open('w') as handle:
@@ -361,17 +344,11 @@ def main(
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
     parser = ArgumentParser()
-    parser.add_argument(
-        '--project', help='Project name to use in API queries', required=True
-    )
+    parser.add_argument('--project', help='Project name to use in API queries', required=True)
     parser.add_argument('--seqr', help='optional, seqr JSON file')
-    parser.add_argument(
-        '--obo', default=OBO_DEFAULT, help='path to the HPO .obo tree file'
-    )
+    parser.add_argument('--obo', default=OBO_DEFAULT, help='path to the HPO .obo tree file')
     parser.add_argument('-e', help='cohort is exomes', action='store_true')
-    parser.add_argument(
-        '--singletons', help='cohort as singletons', action='store_true'
-    )
+    parser.add_argument('--singletons', help='cohort as singletons', action='store_true')
     parser.add_argument('-nc', help='dont copy files to GCP', action='store_true')
     args = parser.parse_args()
     E_OR_G = 'exome' if args.e else 'genome'

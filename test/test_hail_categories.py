@@ -53,7 +53,7 @@ def test_class_1_assignment(value, classified, make_a_mt):
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
             clinvar_aip_strong=value,
-        )
+        ),
     )
 
     anno_matrix = annotate_category_1(anno_matrix)
@@ -71,9 +71,7 @@ def test_class_1_assignment(value, classified, make_a_mt):
         (0, 1, 'GREEN', 'synonymous', 1),
     ],
 )
-def test_cat_2_assignment(
-    clinvar_aip, c6, gene_id, consequence_terms, classified, make_a_mt
-):
+def test_cat_2_assignment(clinvar_aip, c6, gene_id, consequence_terms, classified, make_a_mt):
     """
     use some fake annotations, apply to the single fake variant
     Args:
@@ -89,9 +87,7 @@ def test_cat_2_assignment(
         geneIds=gene_id,
         info=make_a_mt.info.annotate(clinvar_aip=clinvar_aip, categoryboolean6=c6),
         vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [hl.Struct(consequence_terms=hl.set([consequence_terms]))]
-            ),
+            transcript_consequences=hl.array([hl.Struct(consequence_terms=hl.set([consequence_terms]))]),
         ),
     )
 
@@ -108,9 +104,7 @@ def test_cat_2_assignment(
         (1, hl.missing(hl.tstr), 'frameshift_variant', 1),
     ],
 )
-def test_class_3_assignment(
-    clinvar_aip, loftee, consequence_terms, classified, make_a_mt
-):
+def test_class_3_assignment(clinvar_aip, loftee, consequence_terms, classified, make_a_mt):
     """
 
     Args:
@@ -131,8 +125,8 @@ def test_class_3_assignment(
                     hl.Struct(
                         consequence_terms=hl.set([consequence_terms]),
                         lof=loftee,
-                    )
-                ]
+                    ),
+                ],
             ),
         ),
     )
@@ -154,9 +148,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
         make_a_mt ():
     """
 
-    matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score)
-    )
+    matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score))
     matrix = annotate_category_5(matrix)
     assert matrix.info.categoryboolean5.collect() == [flag]
 
@@ -259,9 +251,7 @@ def test_filter_rows_for_rare(exomes, genomes, clinvar, length, make_a_mt):
 
     """
     anno_matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(
-            gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_aip=clinvar
-        )
+        info=make_a_mt.info.annotate(gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_aip=clinvar),
     )
     matrix = filter_to_population_rare(anno_matrix)
     assert matrix.count_rows() == length
@@ -290,9 +280,7 @@ def test_filter_to_green_genes_and_split(gene_ids, length, make_a_mt):
     anno_matrix = make_a_mt.annotate_rows(
         geneIds=hl.literal(gene_ids),
         vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [hl.Struct(gene_id='gene', biotype='protein_coding', mane_select='')]
-            ),
+            transcript_consequences=hl.array([hl.Struct(gene_id='gene', biotype='protein_coding', mane_select='')]),
         ),
     )
     matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
@@ -312,15 +300,11 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
         vep=hl.Struct(
             transcript_consequences=hl.array(
                 [
-                    hl.Struct(
-                        gene_id='green', biotype='protein_coding', mane_select=''
-                    ),
+                    hl.Struct(gene_id='green', biotype='protein_coding', mane_select=''),
                     hl.Struct(gene_id='green', biotype='batman', mane_select='NM_Bane'),
                     hl.Struct(gene_id='green', biotype='non_coding', mane_select=''),
-                    hl.Struct(
-                        gene_id='NOT_GREEN', biotype='protein_coding', mane_select=''
-                    ),
-                ]
+                    hl.Struct(gene_id='NOT_GREEN', biotype='protein_coding', mane_select=''),
+                ],
             ),
         ),
     )
@@ -360,7 +344,7 @@ def test_filter_to_classified(one, two, three, four, five, six, pm5, length, mak
             categoryboolean5=five,
             categoryboolean6=six,
             categorydetailsPM5=pm5,
-        )
+        ),
     )
     matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
@@ -389,9 +373,7 @@ def test_aip_clinvar_default(make_a_mt):
         ('pathogenic', 1, 1, 1, 1),
     ],
 )
-def test_annotate_aip_clinvar(
-    rating, stars, rows, regular, strong, tmp_path, make_a_mt
-):
+def test_annotate_aip_clinvar(rating, stars, rows, regular, strong, tmp_path, make_a_mt):
     """
     Test intention
     - take a VCF of two variants w/default clinvar annotations
@@ -409,8 +391,8 @@ def test_annotate_aip_clinvar(
                     'clinical_significance': rating,
                     'gold_stars': stars,
                     'allele_id': 1,
-                }
-            ]
+                },
+            ],
         ),
         key=['locus', 'alleles'],
     )
@@ -427,10 +409,5 @@ def test_annotate_aip_clinvar(
 
     returned_table = annotate_aip_clinvar(make_a_mt)
     assert returned_table.count_rows() == rows
-    assert (
-        len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular
-    )
-    assert (
-        len([x for x in returned_table.info.clinvar_aip_strong.collect() if x == 1])
-        == strong
-    )
+    assert len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular
+    assert len([x for x in returned_table.info.clinvar_aip_strong.collect() if x == 1]) == strong

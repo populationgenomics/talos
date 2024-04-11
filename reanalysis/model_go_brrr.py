@@ -64,9 +64,7 @@ t = TXFields(
 clinvar = Clinvar(allele_id=1234, clinical_significance='Pathogenic', gold_stars=1)
 splice = Splice(delta_score=0.02)
 
-v3 = VepVariant(
-    BaseFields('chr1:123457', ['A', 'CC']), [t], clinvar=clinvar, splice=splice
-)
+v3 = VepVariant(BaseFields('chr1:123457', ['A', 'CC']), [t], clinvar=clinvar, splice=splice)
 sn3 = SneakyTable([v3], '.')
 ht = sn3.to_hail(hail_table=True)
 ht.describe()

@@ -74,9 +74,7 @@ def set_job_resources(
         storage (str): storage setting to use
     """
     # apply all settings to this job
-    job.cpu(1).image(get_config()['workflow']['driver_image']).memory(memory).storage(
-        storage
-    )
+    job.cpu(1).image(get_config()['workflow']['driver_image']).memory(memory).storage(storage)
 
     # copy the env variables into the container; specifically CPG_CONFIG_PATH
     copy_common_env(job)
@@ -120,9 +118,7 @@ def setup_mt_to_vcf(input_file: str) -> Job:
     return job
 
 
-def handle_panelapp_job(
-    participant_panels: str | None = None, prior_job: Job | None = None
-) -> Job:
+def handle_panelapp_job(participant_panels: str | None = None, prior_job: Job | None = None) -> Job:
     """
     creates and runs the panelapp query job
 
@@ -148,9 +144,7 @@ def handle_panelapp_job(
     return panelapp_job
 
 
-def handle_hail_sv_filtering(
-    sv_mt: str, pedigree: str, prior_job: Job | None = None
-) -> BashJob:
+def handle_hail_sv_filtering(sv_mt: str, pedigree: str, prior_job: Job | None = None) -> BashJob:
     """
     run hail filtering on the SV input MT (if supplied)
 
@@ -228,9 +222,7 @@ def handle_results_job(
     results_job = get_batch().new_job(name='MOI tests')
     set_job_resources(results_job, prior_job=prior_job)
 
-    gene_filter_files = (
-        f'--participant_panels {participant_panels} ' if participant_panels else ''
-    )
+    gene_filter_files = f'--participant_panels {participant_panels} ' if participant_panels else ''
 
     # add the labelled SV argument if appropriate
     labelled_sv = f'--labelled_sv {labelled_sv} ' if labelled_sv else ''
@@ -250,9 +242,7 @@ def handle_results_job(
     return results_job
 
 
-def handle_result_presentation_job(
-    prior_job: Job | None = None, **kwargs
-) -> Job | None:
+def handle_result_presentation_job(prior_job: Job | None = None, **kwargs) -> Job | None:
     """
     run the presentation element
     allow for selection of the presentation script and its arguments
@@ -292,7 +282,7 @@ def handle_result_presentation_job(
         'cpg': (
             html_builder.__file__,
             ['results', 'panelapp', 'pedigree', 'output', 'latest'],
-        )
+        ),
     }
 
     output_mode = get_config()['workflow'].get('presentation', 'cpg')
@@ -312,9 +302,7 @@ def handle_result_presentation_job(
     set_job_resources(display, prior_job=prior_job)
 
     # assemble command from relevant variables
-    script_params = ' '.join(
-        [f'--{named_input} {kwargs[named_input]} ' for named_input in required_inputs]
-    )
+    script_params = ' '.join([f'--{named_input} {kwargs[named_input]} ' for named_input in required_inputs])
     html_command = f'python3 {script} {script_params}'
 
     get_logger().info(f'HTML generation command: {html_command}')
@@ -322,9 +310,7 @@ def handle_result_presentation_job(
     return display
 
 
-def handle_registration_jobs(
-    files: list[str], registry: str, pedigree: str, prior_job: Job | None = None
-):
+def handle_registration_jobs(files: list[str], registry: str, pedigree: str, prior_job: Job | None = None):
     """
     Take a list of files and register them using the defined method.
     This registration is within a metadata DB, used to track analysis
@@ -357,9 +343,7 @@ def handle_registration_jobs(
     set_job_resources(registration_job, prior_job=prior_job)
     registration_job.always_run(True)
 
-    metadata_command = (
-        f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
-    )
+    metadata_command = f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
 
     get_logger().info(f'Metadata registration command: {metadata_command}')
     registration_job.command(metadata_command)
@@ -387,9 +371,7 @@ def main(
 
     runtime_conf = get_config(True)
 
-    assert to_path(
-        input_path
-    ).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
+    assert to_path(input_path).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
 
     get_logger().info('Starting the reanalysis batch')
 
@@ -402,19 +384,12 @@ def main(
 
     # modify output paths depending on analysis type
     output_dict = {
-        'web_html': output_path(
-            f'{"singleton" if singletons else "summary"}_output.html', 'web'
-        ),
+        'web_html': output_path(f'{"singleton" if singletons else "summary"}_output.html', 'web'),
         'latest_html': output_path(
-            (
-                f'{"singleton" if singletons else "summary"}'
-                f'_latest_{get_granular_date()}.html'
-            ),
+            (f'{"singleton" if singletons else "summary"}' f'_latest_{get_granular_date()}.html'),
             'web',
         ),
-        'results': output_path(
-            f'{"singleton" if singletons else "summary"}_results.json', 'analysis'
-        ),
+        'results': output_path(f'{"singleton" if singletons else "summary"}_results.json', 'analysis'),
     }
     # endregion
 
@@ -429,8 +404,7 @@ def main(
         FileTypes.VCF_BGZ,
         FileTypes.MATRIX_TABLE,
     ], (
-        f'inappropriate input type provided: {input_file_type}; '
-        'this is designed for MT or compressed VCF only'
+        f'inappropriate input type provided: {input_file_type}; ' 'this is designed for MT or compressed VCF only'
     )
 
     global ANNOTATED_MT
@@ -483,7 +457,7 @@ def main(
                 str(vep_ht_tmp),
                 output_path('annotation_temp', 'tmp'),
                 setup_gcp=True,
-            )
+            ),
         )
         if prior_job:
             j.depends_on(prior_job)
@@ -493,9 +467,7 @@ def main(
 
     #  region: query panelapp
     if not to_path(PANELAPP_JSON_OUT).exists():
-        prior_job = handle_panelapp_job(
-            participant_panels=participant_panels, prior_job=prior_job
-        )
+        prior_job = handle_panelapp_job(participant_panels=participant_panels, prior_job=prior_job)
     # endregion
 
     # read the ped file into the Batch
@@ -503,35 +475,21 @@ def main(
 
     # region: hail categorisation
     if not to_path(HAIL_SV_VCF_OUT).exists() and sv_path and to_path(sv_path).exists():
-        get_logger().info(
-            f"The Labelled VCF {HAIL_SV_VCF_OUT!r} doesn't exist; regenerating"
-        )
-        prior_job = handle_hail_sv_filtering(
-            sv_mt=sv_path, prior_job=prior_job, pedigree=pedigree_in_batch
-        )
+        get_logger().info(f"The Labelled VCF {HAIL_SV_VCF_OUT!r} doesn't exist; regenerating")
+        prior_job = handle_hail_sv_filtering(sv_mt=sv_path, prior_job=prior_job, pedigree=pedigree_in_batch)
         output_dict['hail_sv_vcf'] = HAIL_SV_VCF_OUT
 
     if not to_path(HAIL_VCF_OUT).exists():
-        get_logger().info(
-            f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating"
-        )
-        prior_job = handle_hail_filtering(
-            prior_job=prior_job, pedigree=pedigree_in_batch
-        )
+        get_logger().info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
+        prior_job = handle_hail_filtering(prior_job=prior_job, pedigree=pedigree_in_batch)
         output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion
 
     # read VCF into the batch as a local file
-    labelled_vcf_in_batch = (
-        get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
-    )
+    labelled_vcf_in_batch = get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
 
     labelled_sv_vcf_in_batch = (
-        None
-        if sv_path is None
-        else get_batch()
-        .read_input_group(vcf=HAIL_SV_VCF_OUT, tbi=HAIL_SV_VCF_OUT + '.tbi')
-        .vcf
+        None if sv_path is None else get_batch().read_input_group(vcf=HAIL_SV_VCF_OUT, tbi=HAIL_SV_VCF_OUT + '.tbi').vcf
     )
 
     # region: run results job
@@ -572,9 +530,7 @@ def main(
     # if we ran with per-participant panel data, copy to output folder
     # include datetime to differentiate output files and prevent clashes
     if participant_panels:
-        to_path(participant_panels).copy(
-            output_path(f'pid_to_panels_{EXECUTION_TIME}.json', 'analysis')
-        )
+        to_path(participant_panels).copy(output_path(f'pid_to_panels_{EXECUTION_TIME}.json', 'analysis'))
 
     # write pedigree content to the output folder
     to_path(pedigree).copy(output_path(f'pedigree_{EXECUTION_TIME}.fam', 'analysis'))
@@ -592,7 +548,7 @@ if __name__ == '__main__':
         |  _  | | |  |  __/
         | | | |_| |_ | |
         \_| |_/\___/ \_|
-        """
+        """,
     )
 
     parser = ArgumentParser()

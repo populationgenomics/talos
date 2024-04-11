@@ -6,6 +6,7 @@ This is designed to recognise flags in the format 'AIP training: Confidence'
 
 See relevant documentation for a description of the algorithm used
 """
+
 # mypy: ignore-errors
 import json
 import logging
@@ -71,9 +72,7 @@ class CommonFormatResult:
     a common representation of variant details
     """
 
-    def __init__(
-        self, chrom: str, pos: int, ref: str, alt: str, confidence: list[Confidence]
-    ):
+    def __init__(self, chrom: str, pos: int, ref: str, alt: str, confidence: list[Confidence]):
         """
         always normalise contig - upper case, with no CHR prefix
         :param chrom:
@@ -113,9 +112,7 @@ class CommonFormatResult:
             string_chr = f'chr{self.chr}'
 
         if string_chr not in contigs:
-            raise ValueError(
-                f'Contigs in this VCF not compatible with provided locus: {self}'
-            )
+            raise ValueError(f'Contigs in this VCF not compatible with provided locus: {self}')
         return string_chr, f'{string_chr}:{self.pos}-{self.pos}'
 
     def get_hail_pos(self) -> tuple[hl.Locus, list[str]]:
@@ -123,26 +120,16 @@ class CommonFormatResult:
         get relevant values for finding a variant row within a MT
         :return:
         """
-        return hl.Locus(
-            contig=f'chr{self.chr}', position=self.pos, reference_genome='GRCh38'
-        ), [
+        return hl.Locus(contig=f'chr{self.chr}', position=self.pos, reference_genome='GRCh38'), [
             self.ref,
             self.alt,
         ]
 
     def __repr__(self):
-        return (
-            f'{self.chr}:{self.pos}_{self.ref}>{self.alt} '
-            f'- {", ".join(map(str, sorted(self.confidence)))}'
-        )
+        return f'{self.chr}:{self.pos}_{self.ref}>{self.alt} ' f'- {", ".join(map(str, sorted(self.confidence)))}'
 
     def __eq__(self, other):
-        return (
-            self.chr == other.chr
-            and self.pos == other.pos
-            and self.ref == other.ref
-            and self.alt == other.alt
-        )
+        return self.chr == other.chr and self.pos == other.pos and self.ref == other.ref and self.alt == other.alt
 
     def __hash__(self):
         """
@@ -176,7 +163,7 @@ def common_format_aip(results_dict: dict[str, Any]) -> CommonDict:
                     coords['ref'],
                     coords['alt'],
                     [Confidence.EXPECTED],
-                )
+                ),
             )
 
     return sample_dict
@@ -199,19 +186,11 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
 
         # Each Sample ID is under a separate column heading, e.g. sample_1
         # this is instead of proband/mother/father; no mandatory family structure
-        sample_cols = [
-            sample_field
-            for sample_field in seqr_parser.fieldnames
-            if SAMPLE_NUM_RE.match(sample_field)
-        ]
+        sample_cols = [sample_field for sample_field in seqr_parser.fieldnames if SAMPLE_NUM_RE.match(sample_field)]
 
         for entry in seqr_parser:
             # get all valid tags
-            tags = [
-                Confidence(tag)
-                for tag in entry['tags'].split('|')
-                if tag in VALID_VALUES
-            ]
+            tags = [Confidence(tag) for tag in entry['tags'].split('|') if tag in VALID_VALUES]
 
             # no relevant tags, not interested...
             if len(tags) == 0:
@@ -229,10 +208,7 @@ def common_format_seqr(seqr: str, affected: list[str]) -> CommonDict:
             # seqr has no notion of 'proband', so add for each affected
             # see README for discussion
             for index, value in enumerate(sample_cols, 1):
-                if (
-                    entry[value] in affected
-                    and int(entry[SAMPLE_ALT_TEMPLATE.format(index)]) > 0
-                ):
+                if entry[value] in affected and int(entry[SAMPLE_ALT_TEMPLATE.format(index)]) > 0:
                     sample_dict[entry[value]].append(variant_obj)
 
     logging.info(f'Variants from Seqr digest: {sample_dict}')
@@ -265,9 +241,7 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict) -> dict:
         if sample not in aip_results:
             for v in variants:
                 for conf in v.confidence:
-                    flag_matches[conf.name]['unmatched']['details'].append(
-                        f'{sample}::{repr(v)}'
-                    )
+                    flag_matches[conf.name]['unmatched']['details'].append(f'{sample}::{repr(v)}')
                     flag_matches[conf.name]['unmatched']['count'] += 1
                 total_seqr_variants += 1
             continue
@@ -308,44 +282,26 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
 
     missing_samples = seqr_samples - common_samples
     if len(missing_samples) > 0:
-        logging.error(
-            f'Samples completely missing from AIP results: '
-            f'{", ".join(missing_samples)}'
-        )
+        logging.error(f'Samples completely missing from AIP results: ' f'{", ".join(missing_samples)}')
 
         # for each of those missing samples, add all variants
         for miss_sample in missing_samples:
             discrepancies[miss_sample] = seqr_results[miss_sample]
-            logging.error(
-                f'Sample {miss_sample}: '
-                f'{len(seqr_results[miss_sample])} missing variant(s)'
-            )
+            logging.error(f'Sample {miss_sample}: ' f'{len(seqr_results[miss_sample])} missing variant(s)')
 
     for sample in common_samples:
         # only finds discrepancies, not Matched results - revise
-        sample_discrepancies = [
-            variant
-            for variant in seqr_results[sample]
-            if variant not in aip_results[sample]
-        ]
+        sample_discrepancies = [variant for variant in seqr_results[sample] if variant not in aip_results[sample]]
 
         # only populate the index if missing variants found
         if sample_discrepancies:
             discrepancies[sample] = sample_discrepancies
 
         # log the number of matches
-        matched = len(
-            [
-                variant
-                for variant in seqr_results[sample]
-                if variant in aip_results[sample]
-            ]
-        )
+        matched = len([variant for variant in seqr_results[sample] if variant in aip_results[sample]])
 
         logging.info(f'Sample {sample} - {matched} matched variant(s)')
-        logging.info(
-            f'Sample {sample} - {len(sample_discrepancies)} missing variant(s)'
-        )
+        logging.info(f'Sample {sample} - {len(sample_discrepancies)} missing variant(s)')
 
     return discrepancies
 
@@ -405,9 +361,7 @@ def check_in_vcf(vcf_path: str, variants: CommonDict) -> tuple[CommonDict, Commo
     return in_vcf, not_in_vcf
 
 
-def find_variant_in_mt(
-    matrix: hl.MatrixTable, var: CommonFormatResult
-) -> hl.MatrixTable:
+def find_variant_in_mt(matrix: hl.MatrixTable, var: CommonFormatResult) -> hl.MatrixTable:
     """
     :param matrix:
     :param var:
@@ -415,14 +369,10 @@ def find_variant_in_mt(
     """
     var_locus, var_alleles = var.get_hail_pos()
     logging.info(f'Querying for {var_locus}: {var_alleles}')
-    return matrix.filter_rows(
-        (matrix.locus == var_locus) & (matrix.alleles == var_alleles)
-    )
+    return matrix.filter_rows((matrix.locus == var_locus) & (matrix.alleles == var_alleles))
 
 
-def check_gene_is_green(
-    matrix: hl.MatrixTable, green_genes: hl.SetExpression
-) -> hl.MatrixTable:
+def check_gene_is_green(matrix: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
     :param matrix:
     :param green_genes:
@@ -437,10 +387,7 @@ def run_ac_check(matrix: hl.MatrixTable) -> list[str]:
     :param matrix:
     :return:
     """
-    if (
-        filter_matrix_by_ac(matrix, get_config()['filter']['ac_threshold']).count_rows()
-        == 0
-    ):
+    if filter_matrix_by_ac(matrix, get_config()['filter']['ac_threshold']).count_rows() == 0:
         return ['QC: AC too high in joint call']
     return []
 
@@ -491,19 +438,9 @@ def check_cat_1(matrix: hl.MatrixTable) -> list[str]:
     reasons = []
     if matrix.filter_rows(matrix.info.clinvar_stars > 0).count_rows() == 0:
         reasons.append('C1: ClinVar stars 0 or missing')
-    if (
-        matrix.filter_rows(
-            matrix.info.clinvar_sig.lower().contains(PATHOGENIC)
-        ).count_rows()
-        == 0
-    ):
+    if matrix.filter_rows(matrix.info.clinvar_sig.lower().contains(PATHOGENIC)).count_rows() == 0:
         reasons.append('C1: Not ClinVar Pathogenic')
-    if (
-        matrix.filter_rows(
-            matrix.info.clinvar_sig.lower().contains(CONFLICTING)
-        ).count_rows()
-        > 0
-    ):
+    if matrix.filter_rows(matrix.info.clinvar_sig.lower().contains(CONFLICTING)).count_rows() > 0:
         reasons.append('C1: ClinVar rating Conflicting')
     return reasons
 
@@ -521,12 +458,9 @@ def filter_csq_to_set(matrix: hl.MatrixTable) -> hl.MatrixTable:
     csq_mt = matrix.annotate_rows(
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
-                lambda x: hl.len(
-                    critical_consequences.intersection(hl.set(x.consequence_terms))
-                )
-                > 0
-            )
-        )
+                lambda x: hl.len(critical_consequences.intersection(hl.set(x.consequence_terms))) > 0,
+            ),
+        ),
     )
 
     # return rows which have remaining consequences
@@ -541,7 +475,7 @@ def check_cadd_revel(matrix: hl.MatrixTable) -> int:
 
     return matrix.filter_rows(
         (matrix.info.cadd > get_config()['filter']['in_silico']['cadd'])
-        | (matrix.info.revel > get_config()['filter']['in_silico']['revel'])
+        | (matrix.info.revel > get_config()['filter']['in_silico']['revel']),
     ).count_rows()
 
 
@@ -564,12 +498,7 @@ def check_cat_2(matrix: hl.MatrixTable, new_genes: hl.SetExpression) -> list[str
         # stop here, nothing left to search
         return reasons
 
-    if (
-        matrix.filter_rows(
-            matrix.info.clinvar_sig.lower().contains(PATHOGENIC)
-        ).count_rows()
-        == 0
-    ):
+    if matrix.filter_rows(matrix.info.clinvar_sig.lower().contains(PATHOGENIC)).count_rows() == 0:
         reasons.append('C2: Not ClinVar Pathogenic')
 
     if check_cadd_revel(matrix) == 0:
@@ -587,12 +516,7 @@ def check_cat_3(matrix: hl.MatrixTable) -> list[str]:
     reasons: list[str] = []
 
     # row-dependent annotation check
-    if (
-        matrix.filter_rows(
-            matrix.info.clinvar_sig.lower().contains(PATHOGENIC)
-        ).count_rows()
-        == 0
-    ):
+    if matrix.filter_rows(matrix.info.clinvar_sig.lower().contains(PATHOGENIC)).count_rows() == 0:
         reasons.append('C3: No ClinVar Pathogenic')
 
     csq_filtered = filter_csq_to_set(matrix=matrix)
@@ -604,9 +528,7 @@ def check_cat_3(matrix: hl.MatrixTable) -> list[str]:
     # further filter to rows which aren't ruled out by LOFTEE
     if (
         csq_filtered.filter_rows(
-            csq_filtered.vep.transcript_consequences.any(
-                lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))
-            )
+            csq_filtered.vep.transcript_consequences.any(lambda x: (x.lof == LOFTEE_HC) | (hl.is_missing(x.lof))),
         ).count_rows()
         == 0
     ):
@@ -628,8 +550,8 @@ def check_cat_support(matrix: hl.MatrixTable) -> list[str]:
     if (
         matrix.filter_rows(
             matrix.vep.transcript_consequences.any(
-                lambda x: x.sift_score <= get_config()['filter']['in_silico']['sift']
-            )
+                lambda x: x.sift_score <= get_config()['filter']['in_silico']['sift'],
+            ),
         ).count_rows()
         == 0
     ):
@@ -638,17 +560,15 @@ def check_cat_support(matrix: hl.MatrixTable) -> list[str]:
     if (
         matrix.filter_rows(
             matrix.vep.transcript_consequences.any(
-                lambda x: x.polyphen_score
-                >= get_config()['filter']['in_silico']['polyphen']
-            )
+                lambda x: x.polyphen_score >= get_config()['filter']['in_silico']['polyphen'],
+            ),
         ).count_rows()
         == 0
     ):
         reasons.append('Support: PolyPhen not significant')
     if (
         matrix.filter_rows(
-            (matrix.info.mutationtaster.contains('D'))
-            | (matrix.info.mutationtaster == 'missing')
+            (matrix.info.mutationtaster.contains('D')) | (matrix.info.mutationtaster == 'missing'),
         ).count_rows()
         == 0
     ):
@@ -674,9 +594,9 @@ def prepare_mt(matrix: hl.MatrixTable) -> hl.MatrixTable:
         vep=matrix.vep.annotate(
             transcript_consequences=matrix.vep.transcript_consequences.filter(
                 lambda x: (matrix.geneIds == x.gene_id)
-                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM')))
-            )
-        )
+                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM'))),
+            ),
+        ),
     )
 
     # move annotations, use original method
@@ -705,9 +625,7 @@ def check_mt(
     not_in_mt: CommonDict = defaultdict(list)
     untiered: ReasonDict = defaultdict(list)
 
-    for sample, variant in [
-        (sam, var) for (sam, var_list) in variants.items() for var in var_list
-    ]:
+    for sample, variant in [(sam, var) for (sam, var_list) in variants.items() for var in var_list]:
         logging.info(f'running check for {sample}, variant {variant}')
 
         # filter the MT to the required locus
@@ -779,9 +697,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
 
     # normalise data formats from AIP result file
     aip_results = common_format_aip(
-        results_dict=read_json_from_path(
-            os.path.join(results_folder, 'summary_results.json')
-        )
+        results_dict=read_json_from_path(os.path.join(results_folder, 'summary_results.json')),
     )
 
     # Search for all affected sample IDs in the Peddy Pedigree

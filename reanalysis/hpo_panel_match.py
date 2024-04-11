@@ -9,13 +9,12 @@ automated-interpretation-pipeline/blob/main/helpers/hpo_panel_matching.py
 - write a new file containing participant-panel matches
 """
 
-
 import logging
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
 
-import networkx
+import networkx as nx
 import requests
 from obonet import read_obo
 
@@ -45,7 +44,7 @@ PARTICIPANT_QUERY = gql(
                 id
             }
         }
-    }"""
+    }""",
 )
 
 
@@ -110,9 +109,7 @@ def get_participant_hpos(dataset: str) -> tuple[PhenotypeMatchedPanels, set[str]
     hpo_dict = PhenotypeMatchedPanels()
     all_hpo: set[str] = set()
     for sg in result['project']['sequencingGroups']:
-        hpos = set(
-            HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, ''))
-        )
+        hpos = set(HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, '')))
         all_hpo.update(hpos)
         fam_id = (
             sg['sample']['participant']['families'][0]['externalId']
@@ -125,14 +122,14 @@ def get_participant_hpos(dataset: str) -> tuple[PhenotypeMatchedPanels, set[str]
                 'family_id': fam_id,
                 'hpo_terms': hpos,
                 'panels': {137},
-            }
+            },
         )
     return hpo_dict, all_hpo
 
 
 def match_hpo_terms(
     panel_map: dict[str, set[int]],
-    hpo_tree: networkx.MultiDiGraph,
+    hpo_tree: nx.MultiDiGraph,
     hpo_str: str,
     layers_scanned: int = 0,
     selections: set[int] | None = None,
@@ -189,7 +186,7 @@ def match_hpo_terms(
                     hpo_term,
                     layers_scanned + 1,
                     selections,
-                )
+                ),
             )
     # search for parent(s), even if the term is obsolete
     for hpo_term in hpo_node.get('is_a', []):
@@ -200,13 +197,15 @@ def match_hpo_terms(
                 hpo_term,
                 layers_scanned + 1,
                 selections,
-            )
+            ),
         )
     return selections
 
 
 def match_hpos_to_panels(
-    hpo_to_panel_map: dict, hpo_file: str, all_hpos: set[str]
+    hpo_to_panel_map: dict,
+    hpo_file: str,
+    all_hpos: set[str],
 ) -> tuple[dict[str, set[int]], dict[str, str]]:
     """
     take the HPO terms from the participant metadata, and match to panels
@@ -233,17 +232,13 @@ def match_hpos_to_panels(
 
     hpo_to_panels = {}
     for hpo in all_hpos:
-        panel_ids = match_hpo_terms(
-            panel_map=hpo_to_panel_map, hpo_tree=hpo_graph, hpo_str=hpo
-        )
+        panel_ids = match_hpo_terms(panel_map=hpo_to_panel_map, hpo_tree=hpo_graph, hpo_str=hpo)
         hpo_to_panels[hpo] = panel_ids
 
     return hpo_to_panels, hpo_to_text
 
 
-def match_participants_to_panels(
-    participant_hpos: PhenotypeMatchedPanels, hpo_panels: dict
-):
+def match_participants_to_panels(participant_hpos: PhenotypeMatchedPanels, hpo_panels: dict):
     """
     take the two maps of Participants: HPOs, and HPO: Panels
     blend the two to find panels per participant
@@ -266,7 +261,8 @@ def match_participants_to_panels(
 
 
 def update_hpo_with_description(
-    hpo_dict: PhenotypeMatchedPanels, hpo_to_text: dict[str, str]
+    hpo_dict: PhenotypeMatchedPanels,
+    hpo_to_text: dict[str, str],
 ) -> PhenotypeMatchedPanels:
     """
     update the HPO terms attached to the participants to be
@@ -280,9 +276,7 @@ def update_hpo_with_description(
 
     """
     for party_data in hpo_dict.samples.values():
-        party_data.hpo_terms = {
-            f"{hpo} - {hpo_to_text[hpo]}" for hpo in party_data.hpo_terms
-        }
+        party_data.hpo_terms = {f"{hpo} - {hpo_to_text[hpo]}" for hpo in party_data.hpo_terms}
     return hpo_dict
 
 
@@ -299,7 +293,9 @@ def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatched
     panels_by_hpo = get_panels()
     hpo_dict, all_hpo = get_participant_hpos(dataset=dataset)
     hpo_to_panels, hpo_to_text = match_hpos_to_panels(
-        hpo_to_panel_map=panels_by_hpo, hpo_file=hpo_file, all_hpos=all_hpo
+        hpo_to_panel_map=panels_by_hpo,
+        hpo_file=hpo_file,
+        all_hpos=all_hpo,
     )
     match_participants_to_panels(hpo_dict, hpo_to_panels)
 

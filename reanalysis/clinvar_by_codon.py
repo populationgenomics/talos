@@ -36,18 +36,14 @@ def protein_indexed_clinvar(mt_path: str, write_path: str):
 
     # 1. retain only relevant annotations
     vep_clinvar = vep_clinvar.rows()
-    vep_clinvar = vep_clinvar.select(
-        tx_csq=vep_clinvar.vep.transcript_consequences, info=vep_clinvar.info
-    )
+    vep_clinvar = vep_clinvar.select(tx_csq=vep_clinvar.vep.transcript_consequences, info=vep_clinvar.info)
 
     # 2. split rows out to separate transcript consequences
     vep_clinvar = vep_clinvar.explode(vep_clinvar.tx_csq)
 
     # 3. filter down to missense
     # a reasonable filter here would also include MANE transcripts
-    vep_clinvar = vep_clinvar.filter(
-        vep_clinvar.tx_csq.consequence_terms.contains('missense_variant')
-    )
+    vep_clinvar = vep_clinvar.filter(vep_clinvar.tx_csq.consequence_terms.contains('missense_variant'))
 
     # 4. squash the clinvar and protein content into single strings
     vep_clinvar = vep_clinvar.annotate(
@@ -55,13 +51,13 @@ def protein_indexed_clinvar(mt_path: str, write_path: str):
             [
                 hl.str(vep_clinvar.info.allele_id),
                 hl.str(vep_clinvar.info.gold_stars),
-            ]
+            ],
         ),
         newkey=hl.str('::').join(
             [
                 vep_clinvar.tx_csq.protein_id,
                 hl.str(vep_clinvar.tx_csq.protein_start),
-            ]
+            ],
         ),
     )
 
@@ -73,9 +69,7 @@ def protein_indexed_clinvar(mt_path: str, write_path: str):
 
     # 7. squash the multiple clinvar entries back to a single string
     vep_clinvar = vep_clinvar.transmute(
-        clinvar_alleles=hl.str('+').join(
-            hl.set(hl.map(lambda x: x.clinvar_entry, vep_clinvar.values))
-        )
+        clinvar_alleles=hl.str('+').join(hl.set(hl.map(lambda x: x.clinvar_entry, vep_clinvar.values))),
     )
 
     # 8. write the table of all ENSP:residue#: Clinvar[+Clinvar,]

@@ -133,7 +133,7 @@ def test_panel_query_addition(fake_panelapp):
                     'panels': [123, 137],
                 },
             },
-        }
+        },
     )
 
     # should query for and integrate the incidentalome content
@@ -168,11 +168,7 @@ def test_get_best_moi_mono():
     check that the MOI summary works
     """
 
-    d = {
-        'ensg1': PanelDetail(
-            **{'all_moi': {'monoallelic'}, 'chrom': '1', 'symbol': 'ensg1'}
-        )
-    }
+    d = {'ensg1': PanelDetail(**{'all_moi': {'monoallelic'}, 'chrom': '1', 'symbol': 'ensg1'})}
     get_best_moi(d)
     assert d['ensg1'].moi == 'Monoallelic'
 
@@ -182,11 +178,7 @@ def test_get_best_moi_mono_and_biallelic():
     check that the MOI summary works
     """
 
-    d = {
-        'ensg1': PanelDetail(
-            **{'all_moi': {'monoallelic', 'biallelic'}, 'chrom': '1', 'symbol': 'ensg1'}
-        )
-    }
+    d = {'ensg1': PanelDetail(**{'all_moi': {'monoallelic', 'biallelic'}, 'chrom': '1', 'symbol': 'ensg1'})}
     get_best_moi(d)
     assert d['ensg1'].moi == 'Mono_And_Biallelic'
 
@@ -202,8 +194,8 @@ def test_get_best_moi_1():
                 'all_moi': {'Monoallelic', 'Biallelic', 'both'},
                 'chrom': '1',
                 'symbol': 'ensg1',
-            }
-        )
+            },
+        ),
     }
     get_best_moi(d)
     assert d['ensg1'].moi == 'Mono_And_Biallelic'
@@ -220,8 +212,8 @@ def test_get_best_moi_x():
                 'all_moi': {'x-linked biallelic', 'x-linked'},
                 'chrom': 'X',
                 'symbol': 'ensgX',
-            }
-        )
+            },
+        ),
     }
     get_best_moi(d)
     assert d['ensg1'].moi == 'Hemi_Mono_In_Female'
