@@ -120,7 +120,7 @@ def get_participant_hpos(dataset: str) -> tuple[PhenotypeMatchedPanels, set[str]
             **{
                 'external_id': sg['sample']['participant']['externalId'],
                 'family_id': fam_id,
-                'hpo_terms': hpos,
+                'hpo_terms': {hpo: '' for hpo in hpos},
                 'panels': {137},
             },
         )
@@ -276,7 +276,7 @@ def update_hpo_with_description(
 
     """
     for party_data in hpo_dict.samples.values():
-        party_data.hpo_terms = {f"{hpo} - {hpo_to_text[hpo]}" for hpo in party_data.hpo_terms}
+        party_data.hpo_terms = {hpo: hpo_to_text[hpo] for hpo in party_data.hpo_terms}
     return hpo_dict
 
 
