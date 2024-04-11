@@ -49,7 +49,7 @@ def generate_clinvar_table(
     var_file = 'variant_summary.txt.gz'
 
     bash_job.command(
-        f'wget -q {directory}{sub_file} -O {bash_job.subs} && ' f'wget -q {directory}{var_file} -O {bash_job.vars}',
+        f'wget -q {directory}{sub_file} -O {bash_job.subs} && wget -q {directory}{var_file} -O {bash_job.vars}',
     )
 
     # write output files date-specific
@@ -62,7 +62,7 @@ def generate_clinvar_table(
 
     summarise.cpu(2).image(get_config()['workflow']['driver_image']).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
-    command_options = f'-s {bash_job.subs} ' f'-v {bash_job.vars} ' f'-o {clinvar_table_path} ' f'--path_snv {snv_vcf} '
+    command_options = f'-s {bash_job.subs} -v {bash_job.vars} -o {clinvar_table_path} --path_snv {snv_vcf} '
     if date:
         command_options += f' -d {date}'
     summarise.command(f'python3 {summarise_clinvar_entries.__file__} {command_options}')
@@ -180,7 +180,7 @@ def main(date: str | None = None, folder: str | None = None):
         clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(2).storage('20G')
         authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
         clinvar_by_codon_job.command(
-            f'python3 {clinvar_by_codon.__file__} --mt_path {annotated_clinvar} ' f'--write_path {clinvar_pm5_path}',
+            f'python3 {clinvar_by_codon.__file__} --mt_path {annotated_clinvar} --write_path {clinvar_pm5_path}',
         )
         if dependency:
             clinvar_by_codon_job.depends_on(dependency)

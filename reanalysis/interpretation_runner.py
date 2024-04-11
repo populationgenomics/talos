@@ -373,7 +373,7 @@ def main(
     output_dict = {
         'web_html': output_path(f'{"singleton" if singletons else "summary"}_output.html', 'web'),
         'latest_html': output_path(
-            (f'{"singleton" if singletons else "summary"}' f'_latest_{get_granular_date()}.html'),
+            (f'{"singleton" if singletons else "summary"}_latest_{get_granular_date()}.html'),
             'web',
         ),
         'results': output_path(f'{"singleton" if singletons else "summary"}_results.json', 'analysis'),

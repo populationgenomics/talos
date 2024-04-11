@@ -126,7 +126,7 @@ class CommonFormatResult:
         ]
 
     def __repr__(self):
-        return f'{self.chr}:{self.pos}_{self.ref}>{self.alt} ' f'- {", ".join(map(str, sorted(self.confidence)))}'
+        return f'{self.chr}:{self.pos}_{self.ref}>{self.alt} - {", ".join(map(str, sorted(self.confidence)))}'
 
     def __eq__(self, other):
         return self.chr == other.chr and self.pos == other.pos and self.ref == other.ref and self.alt == other.alt
@@ -276,12 +276,12 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
 
     missing_samples = seqr_samples - common_samples
     if len(missing_samples) > 0:
-        get_logger().error(f'Samples completely missing from AIP results: ' f'{", ".join(missing_samples)}')
+        get_logger().error(f'Samples completely missing from AIP results: {", ".join(missing_samples)}')
 
         # for each of those missing samples, add all variants
         for miss_sample in missing_samples:
             discrepancies[miss_sample] = seqr_results[miss_sample]
-            get_logger().error(f'Sample {miss_sample}: ' f'{len(seqr_results[miss_sample])} missing variant(s)')
+            get_logger().error(f'Sample {miss_sample}: {len(seqr_results[miss_sample])} missing variant(s)')
 
     for sample in common_samples:
         # only finds discrepancies, not Matched results - revise
@@ -670,7 +670,7 @@ def check_mt(
         untiered[sample].append((variant, reasons))
 
         if not reasons:
-            get_logger().error(f'No Fail reasons for Sample {sample}, ' f'Variant {variant}')
+            get_logger().error(f'No Fail reasons for Sample {sample}, Variant {variant}')
 
     return not_in_mt, untiered
 

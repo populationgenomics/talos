@@ -117,7 +117,7 @@ def fields_audit(mt: hl.MatrixTable, base_fields: list[tuple], nested_fields: di
             for annotation, datatype in group_types:
                 if annotation in mt[field_group]:
                     if not isinstance(mt[field_group][annotation], datatype):
-                        problems.append(f'{annotation}:' f'{datatype}/' f'{type(mt[field_group][annotation])}')
+                        problems.append(f'{annotation}: {datatype}/{type(mt[field_group][annotation])}')
                 else:
                     problems.append(f'{annotation}:missing')
     for problem in problems:
