@@ -405,10 +405,7 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # now drop most VEP fields
     mt = mt.annotate_rows(
-        vep=hl.Struct(
-            transcript_consequences=mt.vep.transcript_consequences,
-            variant_class=mt.vep.variant_class,
-        ),
+        vep=hl.Struct(transcript_consequences=mt.vep.transcript_consequences, variant_class=mt.vep.variant_class),
     )
 
     return mt
@@ -466,11 +463,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolean1=hl.if_else(
-                mt.info.clinvar_aip_strong == ONE_INT,
-                ONE_INT,
-                MISSING_INT,
-            ),
+            categoryboolean1=hl.if_else(mt.info.clinvar_aip_strong == ONE_INT, ONE_INT, MISSING_INT),
         ),
     )
 
@@ -661,10 +654,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     de_novo_matrix = de_novo_matrix.annotate_entries(
         PL=hl.case()
         .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
-        .when(
-            (de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)),
-            hl.missing('array<int32>'),
-        )
+        .when((de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)), hl.missing('array<int32>'))
         .default([0, de_novo_matrix.GQ, 1000]),
     )
 
@@ -759,10 +749,7 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
 
     csq = hl.empty_array(hl.tstr)
     csq = csq.extend(
-        hl.or_else(
-            vep_expr['transcript_consequences'].map(lambda x: get_csq_from_struct(x)),
-            hl.empty_array(hl.tstr),
-        ),
+        hl.or_else(vep_expr['transcript_consequences'].map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)),
     )
 
     # previous consequence filters may make this caution unnecessary
@@ -1052,10 +1039,7 @@ def main(
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
     mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            CSQ=vep_struct_to_csq(mt.vep),
-            gene_id=mt.geneIds,
-        ),
+        info=mt.info.annotate(CSQ=vep_struct_to_csq(mt.vep), gene_id=mt.geneIds),
     )
 
     write_matrix_to_vcf(mt=mt, vcf_out=vcf_out, dataset=dataset)

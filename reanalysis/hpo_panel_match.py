@@ -9,7 +9,6 @@ automated-interpretation-pipeline/blob/main/helpers/hpo_panel_matching.py
 - write a new file containing participant-panel matches
 """
 
-import logging
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -22,6 +21,7 @@ from cpg_utils import to_path
 from metamist.graphql import gql, query
 
 from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
+from reanalysis.static_values import get_logger
 
 HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')
@@ -173,7 +173,7 @@ def match_hpo_terms(
     # if a node is invalid, recursively call this method for each replacement D:
     # there are simpler ways, just none that are as fun to write
     if not hpo_tree.has_node(hpo_str):
-        logging.error(f'HPO term was absent from the tree: {hpo_str}')
+        get_logger().error(f'HPO term was absent from the tree: {hpo_str}')
         return selections
 
     hpo_node = hpo_tree.nodes[hpo_str]
@@ -225,7 +225,7 @@ def match_hpos_to_panels(
     # create a dictionary of HPO terms to their text
     for hpo in all_hpos:
         if not hpo_graph.has_node(hpo):
-            logging.error(f'HPO term was absent from the tree: {hpo}')
+            get_logger().error(f'HPO term was absent from the tree: {hpo}')
             hpo_to_text[hpo] = 'Unknown'
         else:
             hpo_to_text[hpo] = hpo_graph.nodes[hpo]['name']
@@ -314,6 +314,7 @@ def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatched
 
 
 if __name__ == '__main__':
+    get_logger(__file__).info('Starting HPO~Panel matching')
     parser = ArgumentParser()
     parser.add_argument('--dataset', help='metamist project name')
     parser.add_argument('--hpo', help='local copy of HPO obo file')

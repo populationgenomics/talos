@@ -18,7 +18,6 @@ variant_summary.txt
 
 import gzip
 import json
-import logging
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -36,7 +35,7 @@ from cpg_utils import CloudPath, to_path
 from cpg_utils.config import ConfigError
 from cpg_utils.hail_batch import init_batch, output_path
 
-from reanalysis.utils import get_cohort_config
+from reanalysis.utils import get_cohort_config, get_logger
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
 CONFLICTING = 'conflicting data from submitters'
@@ -330,9 +329,9 @@ def get_all_decisions(
     try:
         cohort_config = get_cohort_config()
         blacklist = cohort_config.get('clinvar_filter', [])
-        logging.info(f'Blacklisted sites: {blacklist}')
+        get_logger().info(f'Blacklisted sites: {blacklist}')
     except (AssertionError, KeyError):
-        logging.info('Failure to identify blacklisted sites for this project')
+        get_logger().info('Failure to identify blacklisted sites for this project')
         blacklist = []
 
     for line in lines_from_gzip(submission_file):
@@ -472,7 +471,7 @@ def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
         info=hl.struct(allele_id=clinvar_table.allele_id, gold_stars=clinvar_table.gold_stars),
     )
     hl.export_vcf(clinvar_table, vcf_path, tabix=True)
-    logging.info(f'Wrote SNV VCF to {vcf_path}')
+    get_logger().info(f'Wrote SNV VCF to {vcf_path}')
 
 
 def main(
@@ -493,10 +492,10 @@ def main(
         path_snv (str): if defined, path to write SNV VCF file
     """
 
-    logging.info('Getting alleleID-VariantID-Loci from variant summary')
+    get_logger().info('Getting alleleID-VariantID-Loci from variant summary')
     allele_map = get_allele_locus_map(variants)
 
-    logging.info('Getting all decisions, indexed on clinvar AlleleID')
+    get_logger().info('Getting all decisions, indexed on clinvar AlleleID')
     decision_dict = get_all_decisions(submission_file=subs, threshold_date=date, allele_ids=set(allele_map.keys()))
 
     # placeholder to fill wth per-allele decisions
@@ -539,7 +538,7 @@ def main(
     except (ConfigError, KeyError):
         temp_output = f'{date_string}_clinvar_table.json'
 
-    logging.info(f'temp JSON location: {temp_output}')
+    get_logger().info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
     with to_path(temp_output).open('w') as handle:
@@ -549,12 +548,12 @@ def main(
     ht = parse_into_table(json_path=temp_output, out_path=out)
 
     if path_snv:
-        logging.info('Writing out SNV VCF')
+        get_logger().info('Writing out SNV VCF')
         snv_missense_filter(ht, path_snv)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    get_logger(__file__).info('Starting ClinVar summarisation')
 
     parser = ArgumentParser()
     parser.add_argument('-s', help='submission_summary.txt.gz from NCBI', required=True)
@@ -575,12 +574,6 @@ if __name__ == '__main__':
         datetime.strptime(args.d, '%Y-%m-%d').replace(tzinfo=TIMEZONE) if isinstance(args.d, str) else args.d
     )
 
-    logging.info(f'Date threshold: {processed_date}')
+    get_logger().info(f'Date threshold: {processed_date}')
 
-    main(
-        subs=args.s,
-        variants=args.v,
-        out=args.o,
-        date=processed_date,
-        path_snv=args.path_snv,
-    )
+    main(subs=args.s, variants=args.v, out=args.o, date=processed_date, path_snv=args.path_snv)

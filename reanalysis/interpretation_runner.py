@@ -58,12 +58,7 @@ PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
 # endregion
 
 
-def set_job_resources(
-    job: Job,
-    prior_job: Job | None = None,
-    memory: str = 'standard',
-    storage: str = '20Gi',
-):
+def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = 'standard', storage: str = '20Gi'):
     """
     apply resources to the job
 
@@ -105,12 +100,9 @@ def setup_mt_to_vcf(input_file: str) -> Job:
     bed_file = output_path('roi.bed', 'analysis')
     tmp_root = output_path('mt_to_vcf', 'tmp')
     cmd = (
-        f'python3 {mt_to_vcf.__file__} '
-        f'--input {input_file} '
-        f'--output {INPUT_AS_VCF} '
-        f'--sites_only {SITES_ONLY} '
-        f'--bed_file {bed_file} '
-        f'--tmp {tmp_root} '
+        f'python3 {mt_to_vcf.__file__} --input {input_file} '
+        f'--output {INPUT_AS_VCF} --sites_only {SITES_ONLY} '
+        f'--bed_file {bed_file} --tmp {tmp_root} '
     )
 
     get_logger().info(f'Command used to convert MT: {cmd}')
@@ -157,10 +149,8 @@ def handle_hail_sv_filtering(sv_mt: str, pedigree: str, prior_job: Job | None = 
     labelling_job = get_batch().new_job(name='Hail SV labelling')
     set_job_resources(labelling_job, prior_job=prior_job)
     labelling_command = (
-        f'python3 {hail_filter_sv.__file__} '
-        f'--mt {sv_mt} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
-        f'--pedigree {pedigree} '
+        f'python3 {hail_filter_sv.__file__} --mt {sv_mt} '
+        f'--panelapp {PANELAPP_JSON_OUT} --pedigree {pedigree} '
         f'--vcf_out {HAIL_SV_VCF_OUT} '
     )
 
@@ -185,11 +175,8 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
     labelling_job = get_batch().new_job(name='Hail small-variant labelling')
     set_job_resources(labelling_job, prior_job=prior_job)
     labelling_command = (
-        f'python3 {hail_filter_and_label.__file__} '
-        f'--mt {ANNOTATED_MT} '
-        f'--panelapp {PANELAPP_JSON_OUT} '
-        f'--pedigree {pedigree} '
-        f'--vcf_out {HAIL_VCF_OUT} '
+        f'python3 {hail_filter_and_label.__file__} --mt {ANNOTATED_MT}'
+        f'--panelapp {PANELAPP_JSON_OUT} --pedigree {pedigree} --vcf_out {HAIL_VCF_OUT}'
     )
 
     get_logger().info(f'Labelling Command: {labelling_command}')
@@ -556,16 +543,8 @@ if __name__ == '__main__':
     parser.add_argument('-sv', help='SV data to analyse', required=False)
     parser.add_argument('--pedigree', help='in Plink format', required=True)
     parser.add_argument('--participant_panels', help='per-participant panel details')
-    parser.add_argument(
-        '--singletons',
-        help='boolean, set if this run is a singleton pedigree',
-        action='store_true',
-    )
-    parser.add_argument(
-        '--skip_annotation',
-        help='if set, annotation will not be repeated',
-        action='store_true',
-    )
+    parser.add_argument('--singletons', help='boolean, set if this run is a singleton pedigree', action='store_true')
+    parser.add_argument('--skip_annotation', help='if set, annotation will not be repeated', action='store_true')
     args = parser.parse_args()
     main(
         input_path=args.i,

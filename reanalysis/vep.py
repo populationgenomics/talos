@@ -140,9 +140,6 @@ def vep_json_to_ht(vep_result_paths: list[str], out_path: str):
     original_vcf_line = ht.vep.input
     start = hl.parse_int(original_vcf_line.split('\t')[1])
     chrom = ht.vep.seq_region_name
-    ht = ht.annotate(
-        locus=hl.locus(chrom, start),
-        alleles=[ht.vep.input.split('\t')[3], ht.vep.input.split('\t')[4]],
-    )
+    ht = ht.annotate(locus=hl.locus(chrom, start), alleles=[ht.vep.input.split('\t')[3], ht.vep.input.split('\t')[4]])
     ht = ht.key_by(ht.locus, ht.alleles)
     ht.write(str(out_path), overwrite=True)

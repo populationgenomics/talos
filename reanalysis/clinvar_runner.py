@@ -142,11 +142,7 @@ def main(date: str | None = None, folder: str | None = None):
 
     if folder is None:
         cloud_folder = to_path(
-            join(
-                get_config()['storage']['common']['analysis'],
-                'aip_clinvar',
-                datetime.now().strftime('%y-%m'),
-            ),
+            join(get_config()['storage']['common']['analysis'], 'aip_clinvar', datetime.now().strftime('%y-%m')),
         )
 
     elif isinstance(folder, str):
@@ -166,13 +162,7 @@ def main(date: str | None = None, folder: str | None = None):
         logging.info('Clinvar data already exists, exiting')
         return
 
-    temp_path = to_path(
-        join(
-            get_config()['storage']['common']['tmp'],
-            'aip_clinvar',
-            datetime.now().strftime('%y-%m'),
-        ),
-    )
+    temp_path = to_path(join(get_config()['storage']['common']['tmp'], 'aip_clinvar', datetime.now().strftime('%y-%m')))
 
     dependency = None
 
@@ -190,9 +180,7 @@ def main(date: str | None = None, folder: str | None = None):
         clinvar_by_codon_job.image(get_config()['workflow']['driver_image']).cpu(2).storage('20G')
         authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
         clinvar_by_codon_job.command(
-            f'python3 {clinvar_by_codon.__file__} '
-            f'--mt_path {annotated_clinvar} '
-            f'--write_path {clinvar_pm5_path}',
+            f'python3 {clinvar_by_codon.__file__} --mt_path {annotated_clinvar} ' f'--write_path {clinvar_pm5_path}',
         )
         if dependency:
             clinvar_by_codon_job.depends_on(dependency)

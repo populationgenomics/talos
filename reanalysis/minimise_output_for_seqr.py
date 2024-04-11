@@ -18,7 +18,7 @@ import json
 from argparse import ArgumentParser
 
 from reanalysis.models import MiniForSeqr, MiniVariant, ResultData
-from reanalysis.utils import get_logger
+from reanalysis.static_values import get_logger
 
 
 def coord_to_string(coord: dict) -> str:
@@ -52,11 +52,7 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
     with open(input_file, encoding='utf-8') as f:
         data = ResultData.model_validate(json.load(f))
 
-    lil_data = MiniForSeqr(
-        **{
-            'metadata': {'categories': data.metadata.categories},
-        },
-    )
+    lil_data = MiniForSeqr(**{'metadata': {'categories': data.metadata.categories}})
     ext_map_dict = None
     if ext_map:
         with open(ext_map, encoding='utf-8') as f:
@@ -92,19 +88,9 @@ if __name__ == '__main__':
     parser.add_argument('input_file', help='the input file to process')
     parser.add_argument('output_file', help='the output file to write to')
     parser.add_argument('pheno_file', help='the output file for phenotype-matched data', default=None)
-    parser.add_argument(
-        '--external_map',
-        help='mapping of internal to external IDs for seqr',
-        default=None,
-        type=str,
-    )
+    parser.add_argument('--external_map', help='mapping of internal to external IDs for seqr', default=None)
     args = parser.parse_args()
 
     main(input_file=args.input_file, output=args.output_file, ext_map=args.external_map)
     if args.pheno_file:
-        main(
-            input_file=args.input_file,
-            output=args.pheno_file,
-            ext_map=args.external_map,
-            pheno_match=True,
-        )
+        main(input_file=args.input_file, output=args.pheno_file, ext_map=args.external_map, pheno_match=True)

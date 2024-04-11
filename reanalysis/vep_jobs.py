@@ -19,12 +19,7 @@ from cpg_utils.hail_batch import (
 )
 
 
-def subset_vcf(
-    b: hb.Batch,
-    vcf: hb.ResourceGroup,
-    interval: hb.ResourceFile,
-    job_attrs: dict | None = None,
-) -> Job:
+def subset_vcf(b: hb.Batch, vcf: hb.ResourceGroup, interval: hb.ResourceFile, job_attrs: dict | None = None) -> Job:
     """
     Subset VCF to provided intervals.
     """
@@ -104,10 +99,7 @@ def scatter_intervals(
     j.memory('2Gi')
     j.cpu(1)
 
-    break_bands_at_multiples_of = {
-        'genome': 100000,
-        'exome': 0,
-    }.get(sequencing_type, 0)
+    break_bands_at_multiples_of = {'genome': 100000, 'exome': 0}.get(sequencing_type, 0)
 
     cmd = f"""
     mkdir $BATCH_TMPDIR/out
@@ -133,10 +125,7 @@ def scatter_intervals(
     j.command(command(cmd))
     if output_prefix:
         for idx in range(scatter_count):
-            b.write_output(
-                j[f'{idx + 1}.interval_list'],
-                str(output_prefix / f'{idx + 1}.interval_list'),
-            )
+            b.write_output(j[f'{idx + 1}.interval_list'], str(output_prefix / f'{idx + 1}.interval_list'))
 
     intervals: list[hb.ResourceFile] = []
     for idx in range(scatter_count):
@@ -164,10 +153,7 @@ def add_vep_jobs(
 
     jobs: list[Job] = []
     siteonly_vcf = b.read_input_group(
-        **{
-            'vcf.gz': str(input_siteonly_vcf_path),
-            'vcf.gz.tbi': str(input_siteonly_vcf_path) + '.tbi',
-        },
+        **{'vcf.gz': str(input_siteonly_vcf_path), 'vcf.gz.tbi': str(input_siteonly_vcf_path) + '.tbi'},
     )
 
     input_vcf_parts: list[hb.ResourceGroup] = []
@@ -250,12 +236,7 @@ def gather_vep_json_to_ht(
     return j
 
 
-def vep_one(
-    b: Batch,
-    vcf: Path | hb.ResourceFile,
-    out_path: Path,
-    job_attrs: dict | None = None,
-) -> Job | None:
+def vep_one(b: Batch, vcf: Path | hb.ResourceFile, out_path: Path, job_attrs: dict | None = None) -> Job | None:
     """
     Run a single VEP job.
     """

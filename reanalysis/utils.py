@@ -55,13 +55,7 @@ TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
 
 # most lenient to most conservative
 # usage = if we have two MOIs for the same gene, take the broadest
-ORDERED_MOIS = [
-    'Mono_And_Biallelic',
-    'Monoallelic',
-    'Hemi_Mono_In_Female',
-    'Hemi_Bi_In_Female',
-    'Biallelic',
-]
+ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic']
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
 
@@ -466,12 +460,7 @@ def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
     # this is the right ID for Seqr
     info['seqr_link'] = info['variantid']
 
-    coordinates = Coordinates(
-        chrom=var.CHROM.replace('chr', ''),
-        pos=var.POS,
-        ref=var.ALT[0],
-        alt=str(info['svlen']),
-    )
+    coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.ALT[0], alt=str(info['svlen']))
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 

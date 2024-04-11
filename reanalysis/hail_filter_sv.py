@@ -106,11 +106,7 @@ def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
         mt ():
     """
     mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            variantId=mt.variantId,
-        ),
-    )
+    return mt.annotate_rows(info=mt.info.annotate(variantId=mt.variantId))
 
 
 def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -210,9 +206,4 @@ if __name__ == '__main__':
     logger = get_logger(__file__)
     logger.info('Running Hail filtering process for SVs')
 
-    main(
-        mt_path=args.mt,
-        panelapp_path=args.panelapp,
-        pedigree=args.pedigree,
-        vcf_out=args.vcf_out,
-    )
+    main(mt_path=args.mt, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.vcf_out)

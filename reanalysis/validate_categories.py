@@ -55,10 +55,7 @@ AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
 
 
-def set_up_moi_filters(
-    panelapp_data: PanelApp,
-    pedigree: Ped,
-) -> dict[str, MOIRunner]:
+def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Ped) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -486,7 +483,7 @@ def main(
     pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
         participant_panels,
         return_model=PhenotypeMatchedPanels,  # type: ignore
-        default=None,  # type: ignore
+        default=None,
     )
 
     # create the new gene map

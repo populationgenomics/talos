@@ -31,7 +31,7 @@ from cloudpathlib import AnyPath
 
 import hail as hl
 
-from reanalysis.utils import get_logger
+from reanalysis.static_values import get_logger
 
 
 class CustomEncoder(json.JSONEncoder):
@@ -232,11 +232,7 @@ class Entry:
 
     @staticmethod
     def get_schema_entry():
-        """
-        how to represent this data type
-        Returns:
-
-        """
+        """how to represent this data type"""
         return 'struct{GT:str,AD:array<int32>,DP:int32,GQ:int32,PL:array<int32>,PS:int32}'
 
 
@@ -303,12 +299,7 @@ class SneakyTable:
     and generate a Hail Matrix Table from them
     """
 
-    def __init__(
-        self,
-        variants: list[VepVariant],
-        tmp_path: str,
-        sample_details: dict[str, str] | None = None,
-    ):
+    def __init__(self, variants: list[VepVariant], tmp_path: str, sample_details: dict[str, str] | None = None):
         """
         Args:
             variants (list[VepVariant]): list of VepVariant objects

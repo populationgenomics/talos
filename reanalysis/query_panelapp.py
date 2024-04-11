@@ -16,13 +16,7 @@ from dateutil.relativedelta import relativedelta
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 
-from reanalysis.models import (
-    HistoricPanels,
-    PanelApp,
-    PanelDetail,
-    PanelShort,
-    PhenotypeMatchedPanels,
-)
+from reanalysis.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from reanalysis.utils import (
     IRRELEVANT_MOI,
     ORDERED_MOIS,

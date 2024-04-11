@@ -46,12 +46,7 @@ def annotate_cohort(vcf_path, out_mt_path, vep_ht_path, checkpoint_prefix=None, 
         return t
 
     logger.info(f'Importing VCF {vcf_path}')
-    mt = hl.import_vcf(
-        str(vcf_path),
-        reference_genome=genome_build(),
-        skip_invalid_loci=True,
-        force_bgz=True,
-    )
+    mt = hl.import_vcf(str(vcf_path), reference_genome=genome_build(), skip_invalid_loci=True, force_bgz=True)
 
     logger.info(f'Loading VEP Table from {vep_ht_path}')
     vep_ht = _read(vep_ht_path)

@@ -3,7 +3,6 @@
 """
 takes one or more files, checks they were created, register in metamist
 """
-import logging
 import sys
 from os.path import join
 from pathlib import Path
@@ -16,6 +15,8 @@ from cpg_utils.config import get_config
 from metamist.apis import AnalysisApi
 from metamist.model.analysis import Analysis
 from metamist.model.analysis_status import AnalysisStatus
+
+from reanalysis.static_values import get_logger
 
 
 def register_html(file_path: str, samples: list[str]):
@@ -93,28 +94,23 @@ def main(pedigree: str, files: list[str]):
         pedigree (str): Pedigree file to pull samples from
     """
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
+    get_logger(__file__).info('Starting file registration')
 
     if get_config()['workflow']['access_level'] == 'test':
-        logging.warning('Refusing to register files generated in test')
+        get_logger().warning('Refusing to register files generated in test')
         # never update metamist in test mode - no permission
         sys.exit(0)
 
     samples = get_samples_from_pedigree(pedigree)
 
-    logging.info(f'Metamist entries are lined to {len(samples)} samples')
+    get_logger().info(f'Metamist entries are lined to {len(samples)} samples')
 
     for file in files:
         if to_path(file).exists():
             register_html(file_path=file, samples=samples)
         else:
-            logging.error(f'Could not see file {file}, will not be registered')
-    logging.info('Completed file registration')
+            get_logger().error(f'Could not see file {file}, will not be registered')
+    get_logger().info('Completed file registration')
 
 
 if __name__ == '__main__':
