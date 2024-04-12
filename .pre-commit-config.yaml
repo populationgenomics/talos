@@ -15,10 +15,10 @@ repos:
       - id: check-added-large-files
         exclude: '\.*.interval_list'
 
-  # - repo: https://github.com/populationgenomics/pre-commits
-  #   rev: "v0.1.3"
-  #   hooks:
-  #     - id: cpg-id-checker
+  - repo: https://github.com/populationgenomics/pre-commits
+    rev: "v0.1.3"
+    hooks:
+     - id: cpg-id-checker
 
   - repo: https://github.com/ambv/black
     rev: 24.3.0
