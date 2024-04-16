@@ -58,9 +58,7 @@ def fixture_hail_cleanup():
     yield ''
 
     log_files = [
-        filename
-        for filename in PWD.parent.iterdir()
-        if filename.name.startswith('hail') and filename.suffix == '.log'
+        filename for filename in PWD.parent.iterdir() if filename.name.startswith('hail') and filename.suffix == '.log'
     ]
 
     # remove all hail log files
@@ -82,9 +80,7 @@ def fixture_make_a_mt(tmp_path_factory) -> hl.MatrixTable:
         [TXFields('a', 'ensga')],
         sample_data=sample_data,
     )
-    return SneakyTable(
-        [v], sample_details=sample_schema, tmp_path=str(tmp_path)
-    ).to_hail()
+    return SneakyTable([v], sample_details=sample_schema, tmp_path=str(tmp_path)).to_hail()
 
 
 @pytest.fixture(name='make_a_vcf', scope='session')

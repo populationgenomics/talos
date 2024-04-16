@@ -129,11 +129,9 @@ def vep_json_to_ht(vep_result_paths: list[str], out_path: str):
             flags:array<str>
         }>,
         variant_class:str
-    }"""
+    }""",
     )
-    ht = hl.import_table(
-        paths=vep_result_paths, no_header=True, types={'f0': json_schema}
-    )
+    ht = hl.import_table(paths=vep_result_paths, no_header=True, types={'f0': json_schema})
     ht = ht.transmute(vep=ht.f0)
 
     # Can't use ht.vep.start for start because it can be modified by VEP (e.g. it
@@ -142,9 +140,6 @@ def vep_json_to_ht(vep_result_paths: list[str], out_path: str):
     original_vcf_line = ht.vep.input
     start = hl.parse_int(original_vcf_line.split('\t')[1])
     chrom = ht.vep.seq_region_name
-    ht = ht.annotate(
-        locus=hl.locus(chrom, start),
-        alleles=[ht.vep.input.split('\t')[3], ht.vep.input.split('\t')[4]],
-    )
+    ht = ht.annotate(locus=hl.locus(chrom, start), alleles=[ht.vep.input.split('\t')[3], ht.vep.input.split('\t')[4]])
     ht = ht.key_by(ht.locus, ht.alleles)
     ht.write(str(out_path), overwrite=True)

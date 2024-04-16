@@ -18,7 +18,6 @@ variant_summary.txt
 
 import gzip
 import json
-import logging
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -28,6 +27,7 @@ from enum import Enum
 from typing import Generator
 
 import pandas as pd
+import zoneinfo
 
 import hail as hl
 
@@ -35,6 +35,7 @@ from cpg_utils import CloudPath, to_path
 from cpg_utils.config import ConfigError
 from cpg_utils.hail_batch import init_batch, output_path
 
+from reanalysis.static_values import get_logger
 from reanalysis.utils import get_cohort_config
 
 BENIGN_SIGS = {'Benign', 'Likely benign', 'Benign/Likely benign', 'protective'}
@@ -54,10 +55,12 @@ MINORITY_RATIO = 0.2
 STRONG_REVIEWS = ['practice guideline', 'reviewed by expert panel']
 ORDERED_ALLELES = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
+
 # published Nov 2015, available pre-print since March 2015
 # assumed to be influential since 2016
-ACMG_THRESHOLD = datetime(year=2016, month=1, day=1)
-VERY_OLD = datetime(year=1970, month=1, day=1)
+ACMG_THRESHOLD = datetime(year=2016, month=1, day=1, tzinfo=TIMEZONE)
+VERY_OLD = datetime(year=1970, month=1, day=1, tzinfo=TIMEZONE)
 LARGEST_COMPLEX_INDELS = 40
 BASES = re.compile(r'[ACGTN]+')
 
@@ -78,13 +81,9 @@ class Consequence(Enum):
 try:
     cohort_conf = get_cohort_config()
     assert 'clinvar' in cohort_conf
-    QUALIFIED_BLACKLIST = [
-        (Consequence.BENIGN, cohort_conf['clinvar'].get('filter_benign', []))
-    ]
+    QUALIFIED_BLACKLIST = [(Consequence.BENIGN, cohort_conf['clinvar'].get('filter_benign', []))]
 except AssertionError:
-    QUALIFIED_BLACKLIST = [
-        (Consequence.BENIGN, ['illumina laboratory services; illumina'])
-    ]
+    QUALIFIED_BLACKLIST = [(Consequence.BENIGN, ['illumina laboratory services; illumina'])]
 
 
 @dataclass
@@ -222,9 +221,7 @@ def consequence_decision(subs: list[Submission]) -> Consequence:
         elif (max(pathogenic, benign) >= (total * MAJORITY_RATIO)) and (
             min(pathogenic, benign) <= (total * MINORITY_RATIO)
         ):
-            decision = (
-                Consequence.BENIGN if benign > pathogenic else Consequence.PATHOGENIC
-            )
+            decision = Consequence.BENIGN if benign > pathogenic else Consequence.PATHOGENIC
         else:
             decision = Consequence.CONFLICTING
 
@@ -281,7 +278,7 @@ def process_line(data: list[str]) -> tuple[int, Submission]:
         classification = Consequence.UNCERTAIN
     else:
         classification = Consequence.UNKNOWN
-    date = datetime.strptime(data[2], '%b %d, %Y') if data[2] != '-' else VERY_OLD
+    date = datetime.strptime(data[2], '%b %d, %Y').replace(tzinfo=TIMEZONE) if data[2] != '-' else VERY_OLD
     sub = data[9].lower()
     rev_status = data[6].lower()
 
@@ -307,7 +304,9 @@ def dict_list_to_ht(list_of_dicts: list) -> hl.Table:
 
 
 def get_all_decisions(
-    submission_file: str, threshold_date: datetime | None, allele_ids: set
+    submission_file: str,
+    threshold_date: datetime | None,
+    allele_ids: set,
 ) -> dict[int, list[Submission]]:
     """
     obtains all submissions per-allele which pass basic criteria
@@ -331,9 +330,9 @@ def get_all_decisions(
     try:
         cohort_config = get_cohort_config()
         blacklist = cohort_config.get('clinvar_filter', [])
-        logging.info(f'Blacklisted sites: {blacklist}')
+        get_logger().info(f'Blacklisted sites: {blacklist}')
     except (AssertionError, KeyError):
-        logging.info('Failure to identify blacklisted sites for this project')
+        get_logger().info('Failure to identify blacklisted sites for this project')
         blacklist = []
 
     for line in lines_from_gzip(submission_file):
@@ -357,10 +356,7 @@ def get_all_decisions(
 
         # screen out some submitters per-consequence
         for consequence, submitters in QUALIFIED_BLACKLIST:
-            if (
-                line_sub.classification == consequence
-                and line_sub.submitter in submitters
-            ):
+            if line_sub.classification == consequence and line_sub.submitter in submitters:
                 continue
 
         submission_dict[a_id].append(line_sub)
@@ -388,11 +384,7 @@ def acmg_filter_submissions(subs: list[Submission]) -> list[Submission]:
     """
 
     # apply the date threshold to all submissions
-    date_filt_subs = [
-        sub
-        for sub in subs
-        if sub.date >= ACMG_THRESHOLD or sub.review_status in STRONG_REVIEWS
-    ]
+    date_filt_subs = [sub for sub in subs if sub.date >= ACMG_THRESHOLD or sub.review_status in STRONG_REVIEWS]
 
     # if this contains results, return only those
     # default to returning everything
@@ -410,9 +402,7 @@ def sort_decisions(all_subs: list[dict]) -> list[dict]:
         a list of submissions, sorted hierarchically on chr & pos
     """
 
-    return sorted(
-        all_subs, key=lambda x: (ORDERED_ALLELES.index(x['contig']), x['position'])
-    )
+    return sorted(all_subs, key=lambda x: (ORDERED_ALLELES.index(x['contig']), x['position']))
 
 
 def parse_into_table(json_path: str, out_path: str) -> hl.Table:
@@ -441,7 +431,7 @@ def parse_into_table(json_path: str, out_path: str) -> hl.Table:
         'clinical_significance:str,'
         'gold_stars:int32,'
         'allele_id:int32'
-        '}'
+        '}',
     )
 
     # import the table, and transmute to top-level attributes
@@ -474,17 +464,15 @@ def snv_missense_filter(clinvar_table: hl.Table, vcf_path: str):
     clinvar_table = clinvar_table.filter(
         (hl.len(clinvar_table.alleles[0]) == 1)
         & (hl.len(clinvar_table.alleles[1]) == 1)
-        & (clinvar_table.clinical_significance == 'Pathogenic')
+        & (clinvar_table.clinical_significance == 'Pathogenic'),
     )
 
     # persist the clinvar annotations in VCF
     clinvar_table = clinvar_table.annotate(
-        info=hl.struct(
-            allele_id=clinvar_table.allele_id, gold_stars=clinvar_table.gold_stars
-        )
+        info=hl.struct(allele_id=clinvar_table.allele_id, gold_stars=clinvar_table.gold_stars),
     )
     hl.export_vcf(clinvar_table, vcf_path, tabix=True)
-    logging.info(f'Wrote SNV VCF to {vcf_path}')
+    get_logger().info(f'Wrote SNV VCF to {vcf_path}')
 
 
 def main(
@@ -505,13 +493,11 @@ def main(
         path_snv (str): if defined, path to write SNV VCF file
     """
 
-    logging.info('Getting alleleID-VariantID-Loci from variant summary')
+    get_logger().info('Getting alleleID-VariantID-Loci from variant summary')
     allele_map = get_allele_locus_map(variants)
 
-    logging.info('Getting all decisions, indexed on clinvar AlleleID')
-    decision_dict = get_all_decisions(
-        submission_file=subs, threshold_date=date, allele_ids=set(allele_map.keys())
-    )
+    get_logger().info('Getting all decisions, indexed on clinvar AlleleID')
+    decision_dict = get_all_decisions(submission_file=subs, threshold_date=date, allele_ids=set(allele_map.keys()))
 
     # placeholder to fill wth per-allele decisions
     all_decisions = []
@@ -540,22 +526,20 @@ def main(
                 'clinical_significance': rating.value,
                 'gold_stars': stars,
                 'allele_id': allele_map[allele_id]['allele'],
-            }
+            },
         )
 
     # sort all collected decisions, trying to reduce overhead in HT later
     all_decisions = sort_decisions(all_decisions)
 
     # if there's no defined config, write a local file
-    date_string = (
-        date.strftime('%Y-%m-%d') if date else datetime.now().strftime('%Y-%m-%d')
-    )
+    date_string = date.strftime('%Y-%m-%d') if date else datetime.now().strftime('%Y-%m-%d')
     try:
         temp_output = output_path(f'{date_string}_clinvar_table.json', category='tmp')
     except (ConfigError, KeyError):
         temp_output = f'{date_string}_clinvar_table.json'
 
-    logging.info(f'temp JSON location: {temp_output}')
+    get_logger().info(f'temp JSON location: {temp_output}')
 
     # open this temp path and write the json contents, line by line
     with to_path(temp_output).open('w') as handle:
@@ -565,12 +549,12 @@ def main(
     ht = parse_into_table(json_path=temp_output, out_path=out)
 
     if path_snv:
-        logging.info('Writing out SNV VCF')
+        get_logger().info('Writing out SNV VCF')
         snv_missense_filter(ht, path_snv)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    get_logger(__file__).info('Starting ClinVar summarisation')
 
     parser = ArgumentParser()
     parser.add_argument('-s', help='submission_summary.txt.gz from NCBI', required=True)
@@ -588,15 +572,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     processed_date = (
-        datetime.strptime(args.d, '%Y-%m-%d') if isinstance(args.d, str) else args.d
+        datetime.strptime(args.d, '%Y-%m-%d').replace(tzinfo=TIMEZONE) if isinstance(args.d, str) else args.d
     )
 
-    logging.info(f'Date threshold: {processed_date}')
+    get_logger().info(f'Date threshold: {processed_date}')
 
-    main(
-        subs=args.s,
-        variants=args.v,
-        out=args.o,
-        date=processed_date,
-        path_snv=args.path_snv,
-    )
+    main(subs=args.s, variants=args.v, out=args.o, date=processed_date, path_snv=args.path_snv)

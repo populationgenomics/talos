@@ -20,7 +20,7 @@ DIRTY_PED = [
         'maternal_id': 'sam3',
         'sex': 1,
         'affected': 1,
-    }
+    },
 ]
 
 
@@ -63,9 +63,7 @@ def test_get_clean_pedigree():
 
     :return:
     """
-    cleaned = get_ped_with_permutations(
-        pedigree_dicts=deepcopy(DIRTY_PED), ext_lookup=SAMPLE_TO_CPG
-    )
+    cleaned = get_ped_with_permutations(pedigree_dicts=deepcopy(DIRTY_PED), ext_lookup=SAMPLE_TO_CPG)
     assert cleaned == [
         {
             'family_id': 'FAM1',
@@ -74,5 +72,5 @@ def test_get_clean_pedigree():
             'maternal_id': ['cpg3'],
             'sex': 1,
             'affected': 1,
-        }
+        },
     ]

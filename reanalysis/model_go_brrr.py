@@ -29,11 +29,7 @@ from reanalysis.data_model import (
 t = TXFields('a', 'ensga')
 
 # let's make a weirdly phased trio
-sample_data = {
-    'sam1': Entry('0|1', ps=1),
-    'sam2': Entry('0/1'),
-    'sam3': Entry('1|0', ps=1),
-}
+sample_data = {'sam1': Entry('0|1', ps=1), 'sam2': Entry('0/1'), 'sam3': Entry('1|0', ps=1)}
 # and for each of these Sample entries take the default schema
 sample_schema = {k: v.get_schema_entry() for k, v in sample_data.items()}
 
@@ -55,18 +51,11 @@ hl.export_vcf(mt, 'mt.vcf.bgz', tabix=True)
 # endregion
 
 # region: more interesting, clinvar+, frameshift, low SpliceAI, table only
-t = TXFields(
-    gene_symbol='B',
-    gene_id='ENSG1234',
-    biotype='protein_coding',
-    consequence_terms=['frameshift_variant'],
-)
+t = TXFields(gene_symbol='B', gene_id='ENSG1234', biotype='protein_coding', consequence_terms=['frameshift_variant'])
 clinvar = Clinvar(allele_id=1234, clinical_significance='Pathogenic', gold_stars=1)
 splice = Splice(delta_score=0.02)
 
-v3 = VepVariant(
-    BaseFields('chr1:123457', ['A', 'CC']), [t], clinvar=clinvar, splice=splice
-)
+v3 = VepVariant(BaseFields('chr1:123457', ['A', 'CC']), [t], clinvar=clinvar, splice=splice)
 sn3 = SneakyTable([v3], '.')
 ht = sn3.to_hail(hail_table=True)
 ht.describe()

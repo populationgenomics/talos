@@ -19,12 +19,7 @@ from cpg_utils.hail_batch import (
 )
 
 
-def subset_vcf(
-    b: hb.Batch,
-    vcf: hb.ResourceGroup,
-    interval: hb.ResourceFile,
-    job_attrs: dict | None = None,
-) -> Job:
+def subset_vcf(b: hb.Batch, vcf: hb.ResourceGroup, interval: hb.ResourceFile, job_attrs: dict | None = None) -> Job:
     """
     Subset VCF to provided intervals.
     """
@@ -36,9 +31,7 @@ def subset_vcf(
     j.memory('standard')
     j.cpu(2)
 
-    j.declare_resource_group(
-        output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'}
-    )
+    j.declare_resource_group(output_vcf={'vcf.gz': '{root}.vcf.gz', 'vcf.gz.tbi': '{root}.vcf.gz.tbi'})
     reference = fasta_res_group(b)
     assert isinstance(j.output_vcf, hb.ResourceGroup)
 
@@ -53,7 +46,7 @@ def subset_vcf(
         command(
             cmd,
             monitor_space=True,
-        )
+        ),
     )
     return j
 
@@ -88,19 +81,14 @@ def scatter_intervals(
     """
     assert scatter_count > 0, scatter_count
     sequencing_type = get_config()['workflow']['sequencing_type']
-    source_intervals_path = source_intervals_path or reference_path(
-        f'broad/{sequencing_type}_calling_interval_lists'
-    )
+    source_intervals_path = source_intervals_path or reference_path(f'broad/{sequencing_type}_calling_interval_lists')
 
     if scatter_count == 1:
         # Special case when we don't need to split
         return None, [b.read_input(str(source_intervals_path))]
 
     if output_prefix and to_path(output_prefix / '1.interval_list').exists():
-        return None, [
-            b.read_input(str(output_prefix / f'{idx + 1}.interval_list'))
-            for idx in range(scatter_count)
-        ]
+        return None, [b.read_input(str(output_prefix / f'{idx + 1}.interval_list')) for idx in range(scatter_count)]
 
     j = b.new_job(
         f'Make {scatter_count} intervals for {sequencing_type}',
@@ -111,10 +99,7 @@ def scatter_intervals(
     j.memory('2Gi')
     j.cpu(1)
 
-    break_bands_at_multiples_of = {
-        'genome': 100000,
-        'exome': 0,
-    }.get(sequencing_type, 0)
+    break_bands_at_multiples_of = {'genome': 100000, 'exome': 0}.get(sequencing_type, 0)
 
     cmd = f"""
     mkdir $BATCH_TMPDIR/out
@@ -140,10 +125,7 @@ def scatter_intervals(
     j.command(command(cmd))
     if output_prefix:
         for idx in range(scatter_count):
-            b.write_output(
-                j[f'{idx + 1}.interval_list'],
-                str(output_prefix / f'{idx + 1}.interval_list'),
-            )
+            b.write_output(j[f'{idx + 1}.interval_list'], str(output_prefix / f'{idx + 1}.interval_list'))
 
     intervals: list[hb.ResourceFile] = []
     for idx in range(scatter_count):
@@ -171,10 +153,7 @@ def add_vep_jobs(
 
     jobs: list[Job] = []
     siteonly_vcf = b.read_input_group(
-        **{
-            'vcf.gz': str(input_siteonly_vcf_path),
-            'vcf.gz.tbi': str(input_siteonly_vcf_path) + '.tbi',
-        }
+        **{'vcf.gz': str(input_siteonly_vcf_path), 'vcf.gz.tbi': str(input_siteonly_vcf_path) + '.tbi'},
     )
 
     input_vcf_parts: list[hb.ResourceGroup] = []
@@ -250,19 +229,14 @@ def gather_vep_json_to_ht(
             [str(p) for p in vep_results_paths],
             str(out_path),
             setup_gcp=True,
-        )
+        ),
     )
     if depends_on:
         j.depends_on(*depends_on)
     return j
 
 
-def vep_one(
-    b: Batch,
-    vcf: Path | hb.ResourceFile,
-    out_path: Path,
-    job_attrs: dict | None = None,
-) -> Job | None:
+def vep_one(b: Batch, vcf: Path | hb.ResourceFile, out_path: Path, job_attrs: dict | None = None) -> Job | None:
     """
     Run a single VEP job.
     """
@@ -296,9 +270,7 @@ def vep_one(
     }
 
     # sexy new plugin - only present in 110 build
-    alpha_missense_plugin = (
-        f'--plugin AlphaMissense,file={vep_dir}/AlphaMissense_hg38.tsv.gz '
-    )
+    alpha_missense_plugin = f'--plugin AlphaMissense,file={vep_dir}/AlphaMissense_hg38.tsv.gz '
     j.command(
         f"""\
     FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
@@ -317,7 +289,7 @@ def vep_one(
     --fasta $FASTA \\
     {alpha_missense_plugin} \
     --plugin LoF,{','.join(f'{k}:{v}' for k, v in loftee_conf.items())}
-    """
+    """,
     )
 
     b.write_output(j.output, str(out_path).replace('.vcf.gz', ''))

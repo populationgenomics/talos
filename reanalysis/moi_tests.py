@@ -5,6 +5,7 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant
 """
+
 # mypy: ignore-errors
 from abc import abstractmethod
 
@@ -12,12 +13,7 @@ from peddy.peddy import PHENOTYPE, Ped
 
 from cpg_utils.config import get_config
 
-from reanalysis.models import (
-    VARIANT_MODELS,
-    ReportVariant,
-    SmallVariant,
-    StructuralVariant,
-)
+from reanalysis.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
 from reanalysis.utils import X_CHROMOSOME, CompHetDict
 
 # config keys to use for dominant MOI tests
@@ -72,9 +68,7 @@ def check_for_second_hit(
 
     partners = comp_hets[sample].get(first_variant, [])
     if require_non_support:
-        return [
-            partner for partner in partners if not partner.sample_support_only(sample)
-        ]
+        return [partner for partner in partners if not partner.sample_support_only(sample)]
     else:
         return partners
 
@@ -92,16 +86,15 @@ class MOIRunner:
 
         This logic is only called once per MOI, not once per variant
 
-        :param pedigree:
-        :param target_moi:
+        Args:
+            pedigree ():
+            target_moi ():
         """
 
         # for unknown, we catch all possible options?
         # should we be doing both checks for Monoallelic?
         if target_moi == 'Monoallelic':
-            self.filter_list = [
-                DominantAutosomal(pedigree=pedigree),
-            ]
+            self.filter_list = [DominantAutosomal(pedigree=pedigree)]
         elif target_moi in ['Mono_And_Biallelic', 'Unknown']:
             self.filter_list = [
                 DominantAutosomal(pedigree=pedigree),
@@ -109,16 +102,10 @@ class MOIRunner:
                 RecessiveAutosomalCH(pedigree=pedigree),
             ]
         elif target_moi == 'Biallelic':
-            self.filter_list = [
-                RecessiveAutosomalHomo(pedigree=pedigree),
-                RecessiveAutosomalCH(pedigree=pedigree),
-            ]
+            self.filter_list = [RecessiveAutosomalHomo(pedigree=pedigree), RecessiveAutosomalCH(pedigree=pedigree)]
 
         elif target_moi == 'Hemi_Mono_In_Female':
-            self.filter_list = [
-                XRecessiveMale(pedigree=pedigree),
-                XDominant(pedigree=pedigree),
-            ]
+            self.filter_list = [XRecessiveMale(pedigree=pedigree), XDominant(pedigree=pedigree)]
 
         elif target_moi == 'Hemi_Bi_In_Female':
             self.filter_list = [
@@ -130,12 +117,7 @@ class MOIRunner:
         else:
             raise KeyError(f'MOI type {target_moi} is not addressed in MOI')
 
-    def run(
-        self,
-        principal_var,
-        comp_het: CompHetDict | None = None,
-        partial_pen: bool = False,
-    ) -> list[ReportVariant]:
+    def run(self, principal_var, comp_het: CompHetDict | None = None, partial_pen: bool = False) -> list[ReportVariant]:
         """
         run method - triggers each relevant inheritance model
 
@@ -150,11 +132,7 @@ class MOIRunner:
 
         moi_matched = []
         for model in self.filter_list:
-            moi_matched.extend(
-                model.run(
-                    principal=principal_var, comp_het=comp_het, partial_pen=partial_pen
-                )
-            )
+            moi_matched.extend(model.run(principal=principal_var, comp_het=comp_het, partial_pen=partial_pen))
         return moi_matched
 
 
@@ -184,9 +162,7 @@ class BaseMoi:
         run all applicable inheritance patterns and finds good fits
         """
 
-    def check_affected_category_depths(
-        self, variant: VARIANT_MODELS, sample_id: str
-    ) -> bool:
+    def check_affected_category_depths(self, variant: VARIANT_MODELS, sample_id: str) -> bool:
         """
 
         Args:
@@ -194,24 +170,18 @@ class BaseMoi:
             sample_id ():
 
         Returns:
-
+            bool: True if the variant passes the depth checks
         """
         if (
             not (
                 self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 and variant.sample_category_check(sample_id, allow_support=False)
             )
-        ) or variant.check_read_depth(
-            sample_id,
-            self.minimum_depth,
-            var_is_cat_1=variant.info.get('categoryboolean1'),
-        ):
+        ) or variant.check_read_depth(sample_id, self.minimum_depth, var_is_cat_1=variant.info.get('categoryboolean1')):
             return True
         return False
 
-    def check_familial_inheritance(
-        self, sample_id: str, called_variants: set[str], partial_pen: bool = False
-    ) -> bool:
+    def check_familial_inheritance(self, sample_id: str, called_variants: set[str], partial_pen: bool = False) -> bool:
         """
         check for single variant inheritance
         - find the family ID from this sample
@@ -237,21 +207,14 @@ class BaseMoi:
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
-            if (
-                member.affected == PEDDY_AFFECTED
-                and member.sample_id not in called_variants
-            ) or (
-                member.sample_id in called_variants
-                and not partial_pen
-                and not member.affected == PEDDY_AFFECTED
+            if (member.affected == PEDDY_AFFECTED and member.sample_id not in called_variants) or (
+                member.sample_id in called_variants and not partial_pen and not member.affected == PEDDY_AFFECTED
             ):
                 return False
 
         return True
 
-    def get_family_genotypes(
-        self, variant: VARIANT_MODELS, sample_id: str
-    ) -> dict[str, str]:
+    def get_family_genotypes(self, variant: VARIANT_MODELS, sample_id: str) -> dict[str, str]:
         """
 
         Args:
@@ -274,9 +237,7 @@ class BaseMoi:
             """
 
             if variant.coordinates.chrom in X_CHROMOSOME:
-                if sex == 'male' and (
-                    member_id in variant.het_samples or member_id in variant.hom_samples
-                ):
+                if sex == 'male' and (member_id in variant.het_samples or member_id in variant.hom_samples):
                     return 'Hemi'
 
                 if member_id in variant.het_samples:
@@ -294,9 +255,7 @@ class BaseMoi:
         sample_ped_entry = self.pedigree[sample_id]
         family = self.pedigree.families[sample_ped_entry.family_id]
         return {
-            member.sample_id: get_sample_genotype(
-                member_id=member.sample_id, sex=member.sex
-            )
+            member.sample_id: get_sample_genotype(member_id=member.sample_id, sex=member.sex)
             for member in family.samples
         }
 
@@ -315,12 +274,7 @@ class BaseMoi:
         """
         return all({info.get(key, 0) <= test for key, test in thresholds.items()})
 
-    def check_comp_het(
-        self,
-        sample_id: str,
-        variant_1: VARIANT_MODELS,
-        variant_2: VARIANT_MODELS,
-    ) -> bool:
+    def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """
         use parents to accept or dismiss the comp-het
         If the 'comp-het' pair are inherited from a single parent, they are in cis
@@ -347,8 +301,7 @@ class BaseMoi:
                 continue
 
             if (
-                (parent.sample_id in variant_1.het_samples)
-                and (parent.sample_id in variant_2.het_samples)
+                (parent.sample_id in variant_1.het_samples) and (parent.sample_id in variant_2.het_samples)
             ) or parent.affected == PEDDY_AFFECTED:
                 return False
         return True
@@ -360,11 +313,7 @@ class DominantAutosomal(BaseMoi):
     Applied_MOI by name is overridden
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'Autosomal Dominant',
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'Autosomal Dominant'):
         """
         Simplest: AD MOI
         """
@@ -378,14 +327,8 @@ class DominantAutosomal(BaseMoi):
         # prepare the AF test dicts
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
-            | {
-                'gnomad_ac': self.ac_threshold,
-                'gnomad_af': self.ad_threshold,
-            },
-            StructuralVariant.__name__: {
-                'af': self.sv_af_threshold,
-                SV_AF_KEY: self.sv_af_threshold,
-            },
+            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            StructuralVariant.__name__: {'af': self.sv_af_threshold, SV_AF_KEY: self.sv_af_threshold},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
@@ -407,9 +350,7 @@ class DominantAutosomal(BaseMoi):
 
         # reject support for dominant MOI, apply checks based on var type
         if principal.support_only or not (
-            self.check_frequency_passes(
-                principal.info, self.freq_tests[principal.__class__.__name__]
-            )
+            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
         ):
             return classifications
 
@@ -447,12 +388,10 @@ class DominantAutosomal(BaseMoi):
                     var_data=principal,
                     categories=principal.category_values(sample_id),
                     reasons={self.applied_moi},
-                    genotypes=self.get_family_genotypes(
-                        variant=principal, sample_id=sample_id
-                    ),
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
                     independent=True,
-                )
+                ),
             )
 
         return classifications
@@ -464,11 +403,7 @@ class RecessiveAutosomalCH(BaseMoi):
     requires single hom variant, or compound het
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'Autosomal Recessive Comp-Het',
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'Autosomal Recessive Comp-Het'):
         """ """
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
         self.freq_tests = {
@@ -503,9 +438,7 @@ class RecessiveAutosomalCH(BaseMoi):
 
         # remove if too many homs are present in population databases
         if not (
-            self.check_frequency_passes(
-                principal.info, self.freq_tests[principal.__class__.__name__]
-            )
+            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
             or principal.info.get('categoryboolean1')
         ):
             return classifications
@@ -519,13 +452,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
-            ) or (
-                principal.check_read_depth(
-                    sample_id,
-                    self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
-                )
-            ):
+            ) or (principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))):
                 continue
 
             for partner_variant in check_for_second_hit(
@@ -554,9 +481,7 @@ class RecessiveAutosomalCH(BaseMoi):
                 #     continue
 
                 # check if this is a candidate for comp-het inheritance
-                if not self.check_comp_het(
-                    sample_id=sample_id, variant_1=principal, variant_2=partner_variant
-                ):
+                if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner_variant):
                     continue
 
                 classifications.append(
@@ -567,12 +492,9 @@ class RecessiveAutosomalCH(BaseMoi):
                         var_data=principal,
                         categories=principal.category_values(sample_id),
                         reasons={self.applied_moi},
-                        genotypes=self.get_family_genotypes(
-                            variant=principal, sample_id=sample_id
-                        ),
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         support_vars={partner_variant.info['seqr_link']},
-                        flags=principal.get_sample_flags(sample_id)
-                        | partner_variant.get_sample_flags(sample_id),
+                        flags=principal.get_sample_flags(sample_id) | partner_variant.get_sample_flags(sample_id),
                         independent=False,
                     ),
                 )
@@ -586,11 +508,7 @@ class RecessiveAutosomalHomo(BaseMoi):
     requires single hom variant, or compound het
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'Autosomal Recessive Homozygous',
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'Autosomal Recessive Homozygous'):
         """ """
         self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
         self.freq_tests = {
@@ -621,9 +539,7 @@ class RecessiveAutosomalHomo(BaseMoi):
 
         # remove if too many homs are present in population databases
         if principal.support_only or not (
-            self.check_frequency_passes(
-                principal.info, self.freq_tests[principal.__class__.__name__]
-            )
+            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
             or principal.info.get('categoryboolean1')
         ):
             return classifications
@@ -637,9 +553,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or principal.check_read_depth(
-                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
-            ):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -657,13 +571,11 @@ class RecessiveAutosomalHomo(BaseMoi):
                     gene=principal.info.get('gene_id'),
                     var_data=principal,
                     categories=principal.category_values(sample_id),
-                    genotypes=self.get_family_genotypes(
-                        variant=principal, sample_id=sample_id
-                    ),
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons={self.applied_moi},
                     flags=principal.get_sample_flags(sample_id),
                     independent=True,
-                )
+                ),
             )
 
         return classifications
@@ -693,10 +605,7 @@ class XDominant(BaseMoi):
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
             | {key: self.hemi_threshold for key in INFO_HEMI}
-            | {
-                'gnomad_ac': self.ac_threshold,
-                'gnomad_af': self.ad_threshold,
-            },
+            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS}
             | {key: self.hemi_threshold for key in SV_HEMI},
         }
@@ -726,9 +635,7 @@ class XDominant(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if not self.check_frequency_passes(
-            principal.info, self.freq_tests[principal.__class__.__name__]
-        ):
+        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
             return classifications
 
         # all samples which have a variant call
@@ -743,9 +650,7 @@ class XDominant(BaseMoi):
                     principal.sample_category_check(sample_id, allow_support=False)
                     and self.pedigree[sample_id].affected == PEDDY_AFFECTED
                 )
-            ) or principal.check_read_depth(
-                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
-            ):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -764,12 +669,10 @@ class XDominant(BaseMoi):
                     var_data=principal,
                     categories=principal.category_values(sample_id),
                     reasons={self.applied_moi},
-                    genotypes=self.get_family_genotypes(
-                        variant=principal, sample_id=sample_id
-                    ),
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
                     independent=True,
-                )
+                ),
             )
         return classifications
 
@@ -780,11 +683,7 @@ class XRecessiveMale(BaseMoi):
     effectively the same as AutosomalDominant?
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'X_Male',
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'X_Male'):
         """
         set parameters specific to male X tests
 
@@ -821,19 +720,13 @@ class XRecessiveMale(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if not self.check_frequency_passes(
-            principal.info, self.freq_tests[principal.__class__.__name__]
-        ):
+        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
             return classifications
 
         # combine het and hom here, we don't trust the variant callers
         # if hemi count is too high, don't consider males
         # never consider support variants on X for males
-        males = {
-            sam
-            for sam in principal.het_samples.union(principal.hom_samples)
-            if self.pedigree[sam].sex == 'male'
-        }
+        males = {sam for sam in principal.het_samples.union(principal.hom_samples) if self.pedigree[sam].sex == 'male'}
 
         for sample_id in males:
             # specific affected sample category check, never consider support on X for males
@@ -842,17 +735,11 @@ class XRecessiveMale(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or principal.check_read_depth(
-                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
-            ):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
-            if not self.check_familial_inheritance(
-                sample_id=sample_id,
-                called_variants=males,
-                partial_pen=partial_pen,
-            ):
+            if not self.check_familial_inheritance(sample_id=sample_id, called_variants=males, partial_pen=partial_pen):
                 continue
 
             classifications.append(
@@ -862,13 +749,11 @@ class XRecessiveMale(BaseMoi):
                     gene=principal.info.get('gene_id'),
                     var_data=principal,
                     categories=principal.category_values(sample_id),
-                    genotypes=self.get_family_genotypes(
-                        variant=principal, sample_id=sample_id
-                    ),
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons={self.applied_moi},
                     flags=principal.get_sample_flags(sample_id),
                     independent=True,
-                )
+                ),
             )
         return classifications
 
@@ -878,11 +763,7 @@ class XRecessiveFemaleHom(BaseMoi):
     only consider HOM females
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'X_Recessive HOM Female',
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'X_Recessive HOM Female'):
         """
         set parameters specific to recessive tests
 
@@ -894,9 +775,7 @@ class XRecessiveFemaleHom(BaseMoi):
         self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
-            StructuralVariant.__name__: {
-                key: self.hom_rec_threshold for key in SV_HOMS
-            },
+            StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
@@ -918,17 +797,13 @@ class XRecessiveFemaleHom(BaseMoi):
 
         # remove from analysis if too many homs are present in population databases
         if principal.support_only or not (
-            self.check_frequency_passes(
-                principal.info, self.freq_tests[principal.__class__.__name__]
-            )
+            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
             or principal.info.get('categoryboolean1')
         ):
             return classifications
 
         # never consider support homs
-        samples_to_check = {
-            sam for sam in principal.hom_samples if self.pedigree[sam].sex == 'female'
-        }
+        samples_to_check = {sam for sam in principal.hom_samples if self.pedigree[sam].sex == 'female'}
 
         for sample_id in samples_to_check:
             # specific affected sample category check
@@ -937,9 +812,7 @@ class XRecessiveFemaleHom(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or principal.check_read_depth(
-                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
-            ):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -957,13 +830,11 @@ class XRecessiveFemaleHom(BaseMoi):
                     gene=principal.info.get('gene_id'),
                     var_data=principal,
                     categories=principal.category_values(sample_id),
-                    genotypes=self.get_family_genotypes(
-                        variant=principal, sample_id=sample_id
-                    ),
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons={self.applied_moi},
                     flags=principal.get_sample_flags(sample_id),
                     independent=True,
-                )
+                ),
             )
         return classifications
 
@@ -973,11 +844,7 @@ class XRecessiveFemaleCH(BaseMoi):
     ignore males, accept female comp-het only
     """
 
-    def __init__(
-        self,
-        pedigree: Ped,
-        applied_moi: str = 'X_RecessiveFemaleCompHet',
-    ):
+    def __init__(self, pedigree: Ped, applied_moi: str = 'X_RecessiveFemaleCompHet'):
         """
         set parameters specific to recessive tests
 
@@ -989,9 +856,7 @@ class XRecessiveFemaleCH(BaseMoi):
         self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
-            StructuralVariant.__name__: {
-                key: self.hom_rec_threshold for key in SV_HOMS
-            },
+            StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
@@ -1015,15 +880,11 @@ class XRecessiveFemaleCH(BaseMoi):
 
         # remove from analysis if too many homs are present in population databases
         if not (
-            self.check_frequency_passes(
-                principal.info, self.freq_tests[principal.__class__.__name__]
-            )
+            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
             or principal.info.get('categoryboolean1')
         ):
             return classifications
-        het_females = {
-            sam for sam in principal.het_samples if self.pedigree[sam].sex == 'female'
-        }
+        het_females = {sam for sam in principal.het_samples if self.pedigree[sam].sex == 'female'}
 
         # if het females are present, try and find support
         for sample_id in het_females:
@@ -1034,9 +895,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     self.pedigree[sample_id].affected == PEDDY_AFFECTED
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
-            ) or principal.check_read_depth(
-                sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
-            ):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
                 continue
 
             for partner in check_for_second_hit(
@@ -1046,25 +905,17 @@ class XRecessiveFemaleCH(BaseMoi):
                 require_non_support=principal.sample_support_only(sample_id),
             ):
                 # allow for de novo check - also screen out high-AF partners
-                if not partner.sample_category_check(
-                    sample_id, allow_support=True
-                ) or not (
-                    self.check_frequency_passes(
-                        partner.info, self.freq_tests[partner.__class__.__name__]
-                    )
+                if not partner.sample_category_check(sample_id, allow_support=True) or not (
+                    self.check_frequency_passes(partner.info, self.freq_tests[partner.__class__.__name__])
                     or partner.info.get('categoryboolean1')
                 ):
                     continue
 
                 # check for minimum depth in partner
-                if partner.check_read_depth(
-                    sample_id, self.minimum_depth, partner.info.get('categoryboolean1')
-                ):
+                if partner.check_read_depth(sample_id, self.minimum_depth, partner.info.get('categoryboolean1')):
                     continue
 
-                if not self.check_comp_het(
-                    sample_id=sample_id, variant_1=principal, variant_2=partner
-                ):
+                if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner):
                     continue
 
                 classifications.append(
@@ -1075,15 +926,12 @@ class XRecessiveFemaleCH(BaseMoi):
                         var_data=principal,
                         categories=principal.category_values(sample_id),
                         reasons={self.applied_moi},
-                        genotypes=self.get_family_genotypes(
-                            variant=principal, sample_id=sample_id
-                        ),
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         # needs to comply with Seqr
                         support_vars={partner.info['seqr_link']},
-                        flags=principal.get_sample_flags(sample_id)
-                        | partner.get_sample_flags(sample_id),
+                        flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
                         independent=False,
-                    )
+                    ),
                 )
 
         return classifications

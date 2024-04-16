@@ -14,9 +14,9 @@ for each variant in each participant, check MOI in affected
 participants relative to the MOI described in PanelApp
 """
 
+from argparse import ArgumentParser
 from collections import defaultdict
 
-import click
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
 
@@ -55,10 +55,7 @@ AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
 
 
-def set_up_moi_filters(
-    panelapp_data: PanelApp,
-    pedigree: Ped,
-) -> dict[str, MOIRunner]:
+def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Ped) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -158,9 +155,7 @@ def apply_moi_to_variants(
             # Flag! If this is a Category 1 (ClinVar) variant, and we are
             # interpreting under a lenient MOI, add flag for analysts
             # control this in just one place
-            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get(
-                'categoryboolean1', False
-            ):
+            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categoryboolean1', False):
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
@@ -210,17 +205,13 @@ def clean_and_filter(
     # for these categories, require a phenotype-gene match
     cats_require_pheno_match = get_config()['category_rules'].get('phenotype_match', [])
 
-    panel_meta: dict[int, str] = {
-        content.id: content.name for content in panelapp_data.metadata
-    }
+    panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
     gene_details: dict[str, set[int]] = {}
 
     for each_event in result_list:
         # shouldn't be possible, here as a precaution
-        assert (
-            each_event.categories
-        ), f'No categories for {each_event.var_data.coordinates.string_format}'
+        assert each_event.categories, f'No categories for {each_event.var_data.coordinates.string_format}'
 
         # find all panels for this gene
         if each_event.gene in gene_details:
@@ -239,9 +230,7 @@ def clean_and_filter(
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
             # intersection to find participant phenotype-matched panels
-            phenotype_intersection = participant_panels.samples[
-                each_event.sample
-            ].panels.intersection(all_panels)
+            phenotype_intersection = participant_panels.samples[each_event.sample].panels.intersection(all_panels)
 
             # is this gene relevant for this participant?
             # this test includes matched, cohort-level, and core panel
@@ -297,10 +286,7 @@ def clean_and_filter(
             # combine flags across variants, and remove Ambiguous marking
             # if it's no longer appropriate
             both_flags = {*prev_event.flags, *each_event.flags}
-            if (
-                prev_event.reasons != {'Autosomal Dominant'}
-                and AMBIGUOUS_FLAG in both_flags
-            ):
+            if prev_event.reasons != {'Autosomal Dominant'} and AMBIGUOUS_FLAG in both_flags:
                 both_flags.remove(AMBIGUOUS_FLAG)
             prev_event.flags = both_flags
 
@@ -411,9 +397,7 @@ def prepare_results_shell(
 
     # limit to affected samples present in both Pedigree and VCF
     for sample in [
-        sam
-        for sam in pedigree.samples()
-        if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
+        sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
     ]:
         sample_id = sample.sample_id
         family_id = sample.family_id
@@ -421,15 +405,11 @@ def prepare_results_shell(
         family_members = {
             member.sample_id: FamilyMembers(
                 **{
-                    'sex': str(member.sex)
-                    if str(member.sex) in {'male', 'female'}
-                    else 'unknown',
+                    'sex': str(member.sex) if str(member.sex) in {'male', 'female'} else 'unknown',
                     'affected': member.affected == PEDDY_AFFECTED,
-                    'ext_id': panel_data.samples.get(
-                        member.sample_id, ParticipantHPOPanels()
-                    ).external_id
+                    'ext_id': panel_data.samples.get(member.sample_id, ParticipantHPOPanels()).external_id
                     or member.sample_id,
-                }
+                },
             )
             for member in pedigree.families[family_id]
         }
@@ -444,39 +424,23 @@ def prepare_results_shell(
                         'members': family_members,
                         'phenotypes': sample_panel_data.hpo_terms,
                         'panel_ids': sample_panel_data.panels,
-                        'panel_names': [
-                            panel_meta[panel_id]
-                            for panel_id in sample_panel_data.panels
-                        ],
-                        'solved': bool(
-                            sample_id in solved_cases or family_id in solved_cases
-                        ),
-                    }
+                        'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
+                        'solved': bool(sample_id in solved_cases or family_id in solved_cases),
+                    },
                 ),
-            }
+            },
         )
 
     return results_shell
 
 
-@click.command
-@click.option('--labelled_vcf', help='Category-labelled VCF')
-@click.option('--labelled_sv', help='Category-labelled SV VCF', default=None)
-@click.option('--out_json', help='Prefix to write JSON results to')
-@click.option('--panelapp', help='Path to JSON file of PanelApp data')
-@click.option('--pedigree', help='Path to joint-call PED file')
-@click.option(
-    '--input_path', help='source data', default='Not supplied', show_default=True
-)
-@click.option('--participant_panels', help='panels per participant', default=None)
-@click.option('--dataset', help='optional, dataset to use', default=None)
 def main(
     labelled_vcf: str,
     out_json: str,
     panelapp: str,
     pedigree: str,
     input_path: str,
-    labelled_sv: str | None = None,
+    labelled_sv: list[str] | None = None,
     participant_panels: str | None = None,
     dataset: str | None = None,
 ):
@@ -498,6 +462,13 @@ def main(
         dataset (str): optional, dataset to use
     """
 
+    if dataset is None:
+        dataset = get_config()['workflow']['dataset']
+    assert isinstance(dataset, str)
+
+    if labelled_sv is None:
+        labelled_sv = []
+
     out_json_path = to_path(out_json)
 
     # parse the pedigree from the file
@@ -510,7 +481,9 @@ def main(
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
 
     pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
-        participant_panels, return_model=PhenotypeMatchedPanels, default=None  # type: ignore
+        participant_panels,
+        return_model=PhenotypeMatchedPanels,  # type: ignore
+        default=None,
     )
 
     # create the new gene map
@@ -518,11 +491,18 @@ def main(
 
     result_list: list[ReportVariant] = []
 
+    # collect all sample IDs from each VCF type
+    small_vcf_samples: list[str] = []
+    sv_vcf_samples: list[str] = []
+
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
+    small_vcf_samples.extend(vcf_opened.samples)
 
     # optional SV behaviour
-    sv_opened = VCFReader(labelled_sv) if labelled_sv else None
+    sv_opened = [VCFReader(sv_vcf) for sv_vcf in labelled_sv]
+    for sv_vcf in sv_opened:
+        sv_vcf_samples.extend(sv_vcf.samples)
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -530,7 +510,7 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            sv_source=sv_opened,
+            sv_sources=sv_opened,
             new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
@@ -541,7 +521,7 @@ def main(
                 moi_lookup=moi_lookup,
                 panelapp_data=panelapp_data.genes,
                 pedigree=ped,
-            )
+            ),
         )
 
     # do we have seqr projects?
@@ -556,7 +536,7 @@ def main(
             'panels': panelapp_data.metadata,
             'container': get_config()['workflow']['driver_image'],
             'projects': [seqr_project] if seqr_project else [],
-        }
+        },
     )
 
     # create a shell to store results in, adds participant metadata
@@ -579,19 +559,36 @@ def main(
     )
 
     # annotate previously seen results using cumulative data file(s)
-    filter_results(
-        results_model, singletons=bool('singleton' in pedigree), dataset=dataset
-    )
+    filter_results(results_model, singletons=bool('singleton' in pedigree), dataset=dataset)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
     with to_path(out_json_path).open('w') as out_file:
-        out_file.write(
-            ResultData.model_validate(results_model).model_dump_json(indent=4)
-        )
+        out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
 
 
 if __name__ == '__main__':
     get_logger(__file__).info('Starting MOI testing phase')
     get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
-    main()
+
+    parser = ArgumentParser(description='Startup commands for the MOI testing phase of AIP')
+    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
+    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to')
+    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
+    parser.add_argument('--pedigree', help='Path to joint-call PED file')
+    parser.add_argument('--input_path', help='source data', default='Not supplied', show_default=True)
+    parser.add_argument('--participant_panels', help='panels per participant', default=None)
+    parser.add_argument('--dataset', help='optional, dataset to use', default=None)
+    args = parser.parse_args()
+
+    main(
+        labelled_vcf=args.labelled_vcf,
+        out_json=args.out_json,
+        panelapp=args.panelapp,
+        pedigree=args.pedigree,
+        input_path=args.input_path,
+        labelled_sv=args.labelled_sv,
+        participant_panels=args.participant_panels,
+        dataset=args.dataset,
+    )

@@ -1,6 +1,7 @@
 """
 This is a placeholder, completely base class to prevent circular imports
 """
+
 import logging
 import sys
 from datetime import datetime
@@ -28,9 +29,7 @@ def get_granular_date():
     return _GRANULAR_DATE
 
 
-def get_logger(
-    logger_name: str = 'AIP-logger', log_level: int = logging.INFO
-) -> logging.Logger:
+def get_logger(logger_name: str = 'AIP-logger', log_level: int = logging.INFO) -> logging.Logger:
     """
     creates a logger instance (so as not to use the root logger)
 
@@ -55,9 +54,7 @@ def get_logger(
         stream_handler.setLevel(log_level)
 
         # create format string for messages
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s'
-        )
+        formatter = logging.Formatter('%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s')
         stream_handler.setFormatter(formatter)
 
         # set the logger to use this handler

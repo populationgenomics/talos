@@ -31,7 +31,7 @@ PROJECT_QUERY = gql(
             dataset
         }
     }
-    """
+    """,
 )
 REPORT_QUERY = gql(
     """
@@ -44,7 +44,7 @@ REPORT_QUERY = gql(
             }
         }
     }
-    """
+    """,
 )
 
 
@@ -82,9 +82,7 @@ def get_project_analyses(project: str) -> list[dict]:
         project (str): project to query for
     """
 
-    response: dict[str, Any] = wrapped_gql_query(
-        REPORT_QUERY, variables={'project': project}
-    )
+    response: dict[str, Any] = wrapped_gql_query(REPORT_QUERY, variables={'project': project})
     return response['project']['analyses']
 
 
@@ -145,9 +143,7 @@ def main(latest: bool = False):
     template_context = {'reports': list(all_cohorts.values())}
 
     # build some HTML
-    env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
-    )
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
     template = env.get_template('index.html.jinja')
     content = template.render(**template_context)
 
@@ -157,7 +153,7 @@ def main(latest: bool = False):
             get_config()['storage']['common']['test']['web'],
             'reanalysis',
             'latest_aip_index.html' if latest else 'aip_index.html',
-        )
+        ),
     ).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 

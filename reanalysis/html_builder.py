@@ -1,6 +1,7 @@
 """
 Methods for taking the final output and generating static report content
 """
+
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -32,8 +33,8 @@ from reanalysis.utils import (
 )
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
-DATASET_CONFIG = None  # type: ignore
-DATASET_SEQ_CONFIG = None  # type: ignore
+DATASET_CONFIG: dict = None  # type: ignore
+DATASET_SEQ_CONFIG: dict = None  # type: ignore
 
 
 @dataclass
@@ -61,11 +62,7 @@ def variant_in_forbidden_gene(variant_obj: ReportVariant, forbidden_genes):
         return False
 
     # Allow for exclusion by Symbol too
-    for tx_con in variant_obj.var_data.transcript_consequences:
-        if tx_con['symbol'] in forbidden_genes:
-            return True
-
-    return False
+    return any(tx_con['symbol'] in forbidden_genes for tx_con in variant_obj.var_data.transcript_consequences)
 
 
 class HTMLBuilder:
@@ -86,9 +83,10 @@ class HTMLBuilder:
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            DATASET_CONFIG.get('forbidden', 'missing'), default=set()  # type: ignore
+            DATASET_CONFIG.get('forbidden', 'missing'),
+            default=set(),  # type: ignore
         )
-
+        assert isinstance(self.forbidden_genes, set)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
@@ -102,7 +100,7 @@ class HTMLBuilder:
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
                 assert DATASET_SEQ_CONFIG.get(  # type: ignore
-                    seqr_key
+                    seqr_key,
                 ), f'Seqr-related key required but not present: {seqr_key}'
 
         # Optionally read in the labels file
@@ -115,7 +113,8 @@ class HTMLBuilder:
         #     },
         # }
         self.ext_labels: dict[str, dict] = read_json_from_path(  # type: ignore
-            DATASET_SEQ_CONFIG.get('external_labels'), {}  # type: ignore
+            DATASET_SEQ_CONFIG.get('external_labels'),
+            {},  # type: ignore
         )
 
         # Read results file, or take it directly
@@ -131,12 +130,8 @@ class HTMLBuilder:
 
         # pull out forced panel matches
         cohort_panels = DATASET_CONFIG.get('cohort_panels', [])  # type: ignore
-        self.forced_panels = [
-            panel for panel in self.metadata.panels if panel.id in cohort_panels
-        ]
-        self.forced_panel_names = {
-            panel.name for panel in self.metadata.panels if panel.id in cohort_panels
-        }
+        self.forced_panels = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
+        self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
         # Process samples and variants
         self.samples: list[Sample] = []
@@ -152,7 +147,7 @@ class HTMLBuilder:
                     variants=content.variants,
                     ext_labels=self.ext_labels.get(sample, {}),
                     html_builder=self,
-                )
+                ),
             )
         self.samples.sort(key=lambda x: x.ext_id)
 
@@ -168,9 +163,7 @@ class HTMLBuilder:
         """
         ordered_categories = ['any'] + list(get_config()['categories'].keys())
         category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
-        unique_variants: dict[str, set[str]] = {
-            key: set() for key in ordered_categories
-        }
+        unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 
         samples_with_no_variants: list[str] = []
         ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
@@ -179,9 +172,7 @@ class HTMLBuilder:
             if len(sample.variants) == 0:
                 samples_with_no_variants.append(sample.ext_id)
 
-            sample_variants: dict[str, set[str]] = {
-                key: set() for key in ordered_categories
-            }
+            sample_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 
             # iterate over the list of variants
             for variant in sample.variants:
@@ -250,8 +241,7 @@ class HTMLBuilder:
 
         tables = {
             'Panels': pd.DataFrame(
-                {'ID': panel.id, 'Version': panel.version, 'Name': panel.name}
-                for panel in self.metadata.panels
+                {'ID': panel.id, 'Version': panel.version, 'Name': panel.name} for panel in self.metadata.panels
             ),
             'Meta': pd.DataFrame(
                 {
@@ -263,10 +253,8 @@ class HTMLBuilder:
             'Families': pd.DataFrame(
                 [
                     {'family_size': fam_type, 'tally': fam_count}
-                    for fam_type, fam_count in sorted(
-                        self.metadata.family_breakdown.items()
-                    )
-                ]
+                    for fam_type, fam_count in sorted(self.metadata.family_breakdown.items())
+                ],
             ),
         }
 
@@ -288,6 +276,7 @@ class HTMLBuilder:
         (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
         report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
+        assert isinstance(self.forbidden_genes, set)
 
         template_context = {
             'metadata': self.metadata,
@@ -321,14 +310,10 @@ class HTMLBuilder:
         )
 
         # write all HTML content to the output file in one go
-        env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
-        )
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        to_path(output_filepath).write_text(
-            '\n'.join(line for line in content.split('\n') if line.strip())
-        )
+        to_path(output_filepath).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
 class Sample:
@@ -364,9 +349,7 @@ class Sample:
                 html_builder.panelapp.genes,
             )
             for report_variant in variants
-            if not variant_in_forbidden_gene(
-                report_variant, html_builder.forbidden_genes
-            )
+            if not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
         ]
 
     def __str__(self):
@@ -426,16 +409,14 @@ class Variant:
             else []
         )
 
-        self.var_data.info['alpha_missense_max'] = (
-            max(am_scores) if am_scores else 'missing'
-        )
+        self.var_data.info['alpha_missense_max'] = max(am_scores) if am_scores else 'missing'
 
         # this is the weird gnomad callset ID
         if isinstance(self.var_data, StructuralVariant):
             if 'gnomad_v2.1_sv_svid' in self.var_data.info:
-                self.var_data.info['gnomad_key'] = self.var_data.info[  # type: ignore
-                    'gnomad_v2.1_sv_svid'
-                ].split('v2.1_')[-1]
+                self.var_data.info['gnomad_key'] = self.var_data.info['gnomad_v2.1_sv_svid'].split(  # type: ignore
+                    'v2.1_',
+                )[-1]
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
@@ -468,9 +449,7 @@ class Variant:
         return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
-def check_date_filter(
-    results: str, filter_date: str | None = None
-) -> ResultData | None:
+def check_date_filter(results: str, filter_date: str | None = None) -> ResultData | None:
     """
     Check if there's a date filter in the config
     if there is, load the results JSON and filter out variants
@@ -493,20 +472,13 @@ def check_date_filter(
     # Filter out variants based on date
     for content in results_dict.results.values():
         # keep only this run's new variants, or partners thereof
-        vars_to_keep = [
-            variant for variant in content.variants if variant.first_seen == filter_date
-        ]
+        vars_to_keep = [variant for variant in content.variants if variant.first_seen == filter_date]
 
-        pairs_to_keep = set(
-            chain.from_iterable(var.support_vars for var in vars_to_keep)
-        )
+        pairs_to_keep = set(chain.from_iterable(var.support_vars for var in vars_to_keep))
         content.variants = [
             variant
             for variant in content.variants
-            if (
-                variant.first_seen == filter_date
-                or variant.var_data.coordinates.string_format in pairs_to_keep
-            )
+            if (variant.first_seen == filter_date or variant.var_data.coordinates.string_format in pairs_to_keep)
         ]
 
     # pop off all the samples with no variants
@@ -539,16 +511,12 @@ if __name__ == '__main__':
     DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
     # build the HTML using all results
-    html = HTMLBuilder(
-        results=args.results, panelapp_path=args.panelapp, pedigree=args.pedigree
-    )
+    html = HTMLBuilder(results=args.results, panelapp_path=args.panelapp, pedigree=args.pedigree)
     html.write_html(output_filepath=args.output)
 
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
-    if args.latest and (
-        date_filtered_object := check_date_filter(results=args.results)
-    ):
+    if args.latest and (date_filtered_object := check_date_filter(results=args.results)):
         # build the HTML for latest reports only
         latest_html = HTMLBuilder(
             results=date_filtered_object,

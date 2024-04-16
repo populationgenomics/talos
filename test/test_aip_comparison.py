@@ -100,13 +100,9 @@ def test_seqr_parser(seqr_csv_output):
     assert len(list(seqr_results.keys())) == 1
 
     sample_variants = seqr_results.get('PROBAND')
-    assert (
-        len(sample_variants) == 1
-    ), f'Should only be one retained variant: {sample_variants}'
+    assert len(sample_variants) == 1, f'Should only be one retained variant: {sample_variants}'
 
-    assert sample_variants == [
-        CommonFormatResult('17', 10697288, 'G', 'A', [Confidence.POSSIBLE])
-    ]
+    assert sample_variants == [CommonFormatResult('17', 10697288, 'G', 'A', [Confidence.POSSIBLE])]
 
 
 def test_find_missing_matched(caplog):
@@ -124,7 +120,7 @@ def test_find_missing_matched(caplog):
         'match': [
             CommonFormatResult('1', 1, 'A', 'C', [Confidence.POSSIBLE]),
             CommonFormatResult('2', 2, 'A', 'G', [Confidence.POSSIBLE]),
-        ]
+        ],
     }
 
     discrep = find_missing(fake_aip, fake_seqr)
@@ -148,7 +144,7 @@ def test_find_missing_fails(caplog):
     fake_aip = {
         'match': [
             CommonFormatResult('2', 2, 'A', 'G', [Confidence.POSSIBLE]),
-        ]
+        ],
     }
 
     discrep = find_missing(fake_aip, fake_seqr)
@@ -173,7 +169,7 @@ def test_find_missing_different_sample(caplog):
     fake_aip = {
         'mismatch': [
             CommonFormatResult('2', 2, 'A', 'G', [Confidence.POSSIBLE]),
-        ]
+        ],
     }
 
     discrep = find_missing(fake_aip, fake_seqr)
@@ -300,9 +296,7 @@ def test_check_gene_is_green(gene, rows, make_a_mt):
         (1, 100, 0, []),
     ],
 )
-def test_ac_threshold(
-    ac: int, an: int, clinvar: int, results: list[str], make_a_mt: hl.MatrixTable
-):
+def test_ac_threshold(ac: int, an: int, clinvar: int, results: list[str], make_a_mt: hl.MatrixTable):
     """
     required fields: alleles, AC, AN
     """
@@ -331,9 +325,7 @@ def test_run_quality_flag_check(
     """
     if filters is None:
         filters = hl.empty_set(t=hl.tstr)
-    anno_mt = make_a_mt.annotate_rows(
-        filters=filters, info=make_a_mt.info.annotate(clinvar_aip=clinvar)
-    )
+    anno_mt = make_a_mt.annotate_rows(filters=filters, info=make_a_mt.info.annotate(clinvar_aip=clinvar))
     assert run_quality_flag_check(anno_mt) == results
 
 

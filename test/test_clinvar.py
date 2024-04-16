@@ -2,9 +2,12 @@
 tests for clinvar manual summaries
 """
 
-
 from copy import deepcopy
 from datetime import datetime
+
+import zoneinfo
+
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
 from reanalysis.summarise_clinvar_entries import (
     ACMG_THRESHOLD,
@@ -17,7 +20,7 @@ from reanalysis.summarise_clinvar_entries import (
     process_line,
 )
 
-CURRENT_TIME = datetime.now()
+CURRENT_TIME = datetime.now(tz=TIMEZONE)
 BASIC_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.UNKNOWN, 'review')
 BENIGN_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.BENIGN, 'review')
 PATH_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.PATHOGENIC, 'review')
@@ -81,9 +84,9 @@ def tests_acmg_filter_neutral():
 def tests_acmg_filter_removes():
     """filter submissions against ACMG date threshold"""
     sub1 = deepcopy(BASIC_SUB)
-    sub1.date = datetime(year=1970, month=1, day=1)
+    sub1.date = datetime(year=1970, month=1, day=1, tzinfo=TIMEZONE)
     sub2 = deepcopy(BASIC_SUB)
-    sub2.date = datetime(year=2000, month=1, day=1)
+    sub2.date = datetime(year=2000, month=1, day=1, tzinfo=TIMEZONE)
     subs = [BASIC_SUB, sub1, sub2]
     assert acmg_filter_submissions(subs) == [BASIC_SUB]
 
@@ -197,7 +200,7 @@ def test_process_line():
     allele, sub = process_line(input_list)
     assert allele == 1
     assert sub.classification == Consequence.PATHOGENIC
-    assert sub.date == datetime(year=2021, month=7, day=13)
+    assert sub.date == datetime(year=2021, month=7, day=13, tzinfo=TIMEZONE)
     assert sub.submitter == 'submitter'
     assert sub.review_status == '6'
 
@@ -220,7 +223,7 @@ def test_process_line_no_date():
     allele, sub = process_line(input_list)
     assert allele == 1
     assert sub.classification == Consequence.BENIGN
-    assert sub.date == datetime(year=1970, month=1, day=1)
+    assert sub.date == datetime(year=1970, month=1, day=1, tzinfo=TIMEZONE)
     assert sub.submitter == 'submitter'
     assert sub.review_status == '6'
 
@@ -235,7 +238,7 @@ def test_get_all_decisions(sub_stub):
     allele_ids = {1, 2, 3, 4}
     results = get_all_decisions(
         sub_stub,
-        threshold_date=datetime(year=2018, day=1, month=1),
+        threshold_date=datetime(year=2018, day=1, month=1, tzinfo=TIMEZONE),
         allele_ids=allele_ids,
     )
 

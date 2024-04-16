@@ -2,7 +2,7 @@
 test file for metamist panel-participant matching
 """
 
-import networkx
+import networkx as nx
 import pytest
 from obonet import read_obo
 
@@ -45,12 +45,8 @@ def test_match_hpo_terms(fake_obo_path):
     """
     obo_parsed = read_obo(fake_obo_path)
     panel_map = {'HP:2': {1, 2}}
-    assert match_hpo_terms(
-        panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:4'
-    ) == {1, 2}
-    assert match_hpo_terms(
-        panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:2'
-    ) == {1, 2}
+    assert match_hpo_terms(panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:4') == {1, 2}
+    assert match_hpo_terms(panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:2') == {1, 2}
 
 
 def test_match_hpos_to_panels(fake_obo_path):
@@ -58,9 +54,7 @@ def test_match_hpos_to_panels(fake_obo_path):
     test the hpo-to-panel matching
     """
     panel_map = {'HP:2': {1, 2}, 'HP:5': {5}}
-    assert match_hpos_to_panels(
-        panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}
-    ) == (
+    assert match_hpos_to_panels(panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}) == (
         {
             'HP:4': {1, 2},
             'HP:7a': {5},
@@ -68,9 +62,7 @@ def test_match_hpos_to_panels(fake_obo_path):
         {'HP:4': 'Goblet of Fire', 'HP:7a': 'Deathly Hallows'},
     )
     # full depth from the terminal node should capture all panels
-    assert match_hpos_to_panels(
-        panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}
-    ) == (
+    assert match_hpos_to_panels(panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}) == (
         {
             'HP:4': {1, 2},
             'HP:7a': {5},
@@ -84,8 +76,8 @@ def test_read_hpo_tree(fake_obo_path):
     check that reading the obo tree works
     """
     obo_parsed = read_obo(fake_obo_path)
-    assert isinstance(obo_parsed, networkx.MultiDiGraph)
-    assert list(networkx.bfs_edges(obo_parsed, 'HP:1', reverse=True)) == [
+    assert isinstance(obo_parsed, nx.MultiDiGraph)
+    assert list(nx.bfs_edges(obo_parsed, 'HP:1', reverse=True)) == [
         ('HP:1', 'HP:2'),
         ('HP:2', 'HP:3'),
         ('HP:3', 'HP:4'),
@@ -123,8 +115,8 @@ def test_match_participants_to_panels():
                     'hpo_terms': {'HP:1', 'HP:6'},
                     'panels': {137},
                 },
-            }
-        }
+            },
+        },
     )
     hpo_to_panels = {
         'HP:1': {101, 102},
@@ -139,7 +131,7 @@ def test_match_participants_to_panels():
             'family_id': 'fam1',
             'hpo_terms': {'HP:1', 'HP:2'},
             'panels': {137, 101, 102, 2002},
-        }
+        },
     )
     assert party_hpo.samples['participant2'] == ParticipantHPOPanels(
         **{
@@ -147,7 +139,7 @@ def test_match_participants_to_panels():
             'family_id': 'fam2',
             'hpo_terms': {'HP:1', 'HP:6'},
             'panels': {137, 101, 102, 666},
-        }
+        },
     )
 
 
@@ -163,9 +155,9 @@ def test_update_hpo_with_description():
                     'family_id': 'fam1',
                     'hpo_terms': {'HP:1', 'HP:2'},
                     'panels': {137},
-                }
-            }
-        }
+                },
+            },
+        },
     )
     hpo_to_desc = {'HP:1': 'Philosopher\'s Stone', 'HP:2': 'Chamber of Secrets'}
     hpo_dict = update_hpo_with_description(hpo_dict, hpo_to_desc)
@@ -180,7 +172,7 @@ def test_update_hpo_with_description():
                         'HP:2 - Chamber of Secrets',
                     },
                     'panels': {137},
-                }
-            }
-        }
+                },
+            },
+        },
     )

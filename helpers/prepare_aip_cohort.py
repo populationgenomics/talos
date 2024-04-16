@@ -8,8 +8,8 @@ master script for preparing a run, can be run from local
 - generates the cohort-specific TOML file
 - tweaks for making singleton versions of the given cohort
 """
+
 import json
-import logging
 import os
 
 # mypy: ignore-errors
@@ -22,6 +22,7 @@ from cpg_utils import Path, to_path
 from metamist.graphql import gql, query
 
 from reanalysis.hpo_panel_match import main as hpo_match
+from reanalysis.static_values import get_logger
 from reanalysis.utils import get_cohort_config, read_json_from_path
 
 BUCKET_TEMPLATE = 'gs://cpg-{dataset}-test-analysis/reanalysis'
@@ -44,13 +45,11 @@ PED_QUERY = gql(
             }
         }
     }
-    """
+    """,
 )
 
 
-def get_seqr_details(
-    seqr_meta: str, local_root, remote_root, exome: bool = False
-) -> tuple[str, str]:
+def get_seqr_details(seqr_meta: str, local_root, remote_root, exome: bool = False) -> tuple[str, str]:
     """
     process the seqr data, write locally, copy remotely
     Args:
@@ -70,17 +69,14 @@ def get_seqr_details(
 
     # map CPG ID to individual GUID
     parsed = {
-        sample['sampleId']: sample['familyGuid']
-        for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
+        sample['sampleId']: sample['familyGuid'] for seqr_sample_id, sample in details_dict['samplesByGuid'].items()
     }
 
-    project_id = {
-        sample['projectGuid'] for sample in details_dict['samplesByGuid'].values()
-    }
+    project_id = {sample['projectGuid'] for sample in details_dict['samplesByGuid'].values()}
     assert len(project_id) == 1, f'Multiple projects identified: {project_id}'
     one_project_id: str = project_id.pop()
 
-    logging.info(f'{len(parsed)} families in seqr metadata')
+    get_logger().info(f'{len(parsed)} families in seqr metadata')
     filename = f'seqr_{"exome_" if exome else ""}processed.json'
 
     with (local_root / filename).open('w') as handle:
@@ -92,18 +88,13 @@ def get_seqr_details(
 
 
 # the keys provided by the SM API, in the order to write in output
-PED_KEYS = [
-    'family_id',
-    'individual_id',
-    'paternal_id',
-    'maternal_id',
-    'sex',
-    'affected',
-]
+PED_KEYS = ['family_id', 'individual_id', 'paternal_id', 'maternal_id', 'sex', 'affected']
 
 
 def get_ped_with_permutations(
-    pedigree_dicts: list[dict], ext_lookup: dict, make_singletons: bool = False
+    pedigree_dicts: list[dict],
+    ext_lookup: dict,
+    make_singletons: bool = False,
 ) -> list[dict]:
     """
     Take the pedigree entry representations from the pedigree endpoint
@@ -149,9 +140,9 @@ def get_ped_with_permutations(
         new_entries.append(ped_entry)
 
     if failures:
-        logging.error(
+        get_logger().error(
             f'Samples were available from the Pedigree endpoint, '
-            f'but no ID translation was available: {", ".join(failures)}'
+            f'but no ID translation was available: {", ".join(failures)}',
         )
     return new_entries
 
@@ -185,16 +176,9 @@ def process_pedigree(
         ):
             ped_lines.append(
                 '\t'.join(
-                    [
-                        entry['family_id'],
-                        sample,
-                        mother,
-                        father,
-                        str(entry['sex']),
-                        str(entry['affected']),
-                    ]
+                    [entry['family_id'], sample, mother, father, str(entry['sex']), str(entry['affected'])],
                 )
-                + '\n'
+                + '\n',
             )
 
     # condense all lines into one
@@ -210,16 +194,14 @@ def process_pedigree(
     if remote_dir:
         remote_path = remote_dir / ped_name
         remote_path.write_text(single_line)
-        logging.info(f'Wrote pedigree with {len(ped_lines)} lines to {remote_path}')
+        get_logger().info(f'Wrote pedigree with {len(ped_lines)} lines to {remote_path}')
 
         # pass back the remote file path
         return str(remote_path)
-    logging.info('Did not write a remote pedigree file')
+    get_logger().info('Did not write a remote pedigree file')
 
 
-def get_pedigree_for_project(
-    project: str, seq_type: str
-) -> tuple[list[dict[str, str]], dict[str, str]]:
+def get_pedigree_for_project(project: str, seq_type: str) -> tuple[list[dict[str, str]], dict[str, str]]:
     """
     fetches the project pedigree from sample-metadata
     list, one dict per participant
@@ -232,11 +214,8 @@ def get_pedigree_for_project(
         All API returned content
     """
     response = query(PED_QUERY, variables={'project': project, 'type': seq_type})
-    pedigree = response['project']['pedigree']
-    lookup = {
-        sg['sample']['participant']['externalId']: [sg['id']]
-        for sg in response['project']['sequencingGroups']
-    }
+    pedigree: list[dict] = response['project']['pedigree']
+    lookup = {sg['sample']['participant']['externalId']: [sg['id']] for sg in response['project']['sequencingGroups']}
     return pedigree, lookup
 
 
@@ -278,19 +257,17 @@ def main(
     if no_copy is False:
         with panel_remote.open('w') as handle:
             handle.write(hpo_panel_dict.model_dump_json(indent=4))
-            logging.info(f'Wrote panel file to {panel_remote}')
+            get_logger().info(f'Wrote panel file to {panel_remote}')
 
     # get the list of all pedigree members as list of dictionaries
-    logging.info('Pulling all pedigree members')
-    pedigree_dicts, ext_lookup = get_pedigree_for_project(
-        project=project, seq_type=exome_or_genome
-    )
+    get_logger().info('Pulling all pedigree members')
+    pedigree_dicts, ext_lookup = get_pedigree_for_project(project=project, seq_type=exome_or_genome)
 
     # endpoint gives list of tuples e.g. [['A1234567_proband', 'CPGABCDE']]
     # parser returns a dictionary, arbitrary # sample IDs per participant
-    logging.info('pulling internal-external sample mapping')
+    get_logger().info('pulling internal-external sample mapping')
 
-    logging.info('updating pedigree sample IDs to internal')
+    get_logger().info('updating pedigree sample IDs to internal')
     ped_with_permutations = get_ped_with_permutations(
         pedigree_dicts=pedigree_dicts,
         ext_lookup=ext_lookup,
@@ -304,12 +281,10 @@ def main(
     if singletons:
         path_prefixes.append('singleton')
 
-    logging.info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
+    get_logger().info(f'Output Prefix:\n---\nreanalysis/{"/".join(path_prefixes)}\n---')
 
     if seqr_file:
-        project_id, seqr_file = get_seqr_details(
-            seqr_file, local_root, remote_root, exome_or_genome == 'exome'
-        )
+        project_id, seqr_file = get_seqr_details(seqr_file, local_root, remote_root, exome_or_genome == 'exome')
         seqr_files = {
             'seqr_instance': 'https://seqr.populationgenomics.org.au',
             'seqr_project': project_id,
@@ -321,13 +296,9 @@ def main(
     cohort_config = {
         'cohorts': {
             project: {
-                exome_or_genome: {
-                    'historic_results': str(
-                        remote_root / '/'.join(path_prefixes + ['historic_results'])
-                    )
-                }
-                | seqr_files
-            }
+                exome_or_genome: {'historic_results': str(remote_root / '/'.join(path_prefixes + ['historic_results']))}
+                | seqr_files,
+            },
         },
         'workflow': {'sequencing_type': exome_or_genome},
     }
@@ -343,35 +314,27 @@ def main(
 
     with (local_root / '_'.join(path_prefixes)).open('w') as handle:
         toml.dump(cohort_config, handle)
-        logging.info(f'Wrote cohort config to {local_root / "_".join(path_prefixes)}')
+        get_logger().info(f'Wrote cohort config to {local_root / "_".join(path_prefixes)}')
 
     # finally, copy the pre-panelapp content if it didn't already exist
-    if 'pre_panelapp' in (
-        prior := get_cohort_config(project).get('gene_prior', 'MISSING')
-    ):
+    if 'pre_panelapp' in (prior := get_cohort_config(project).get('gene_prior', 'MISSING')):
         pre_panelapp = read_json_from_path(PRE_PANEL_PATH)
         if no_copy is False:
             with to_path(prior).open('w') as handle:
                 json.dump(pre_panelapp, handle, indent=4)
-                logging.info(f'Wrote VCGS gene prior file to {prior}')
+                get_logger().info(f'Wrote VCGS gene prior file to {prior}')
 
-    logging.info(f'--pedigree {ped_file}')
+    get_logger().info(f'--pedigree {ped_file}')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.WARN)
+    get_logger(__file__).info('Starting cohort preparation')
     parser = ArgumentParser()
-    parser.add_argument(
-        '--project', help='Project name to use in API queries', required=True
-    )
+    parser.add_argument('--project', help='Project name to use in API queries', required=True)
     parser.add_argument('--seqr', help='optional, seqr JSON file')
-    parser.add_argument(
-        '--obo', default=OBO_DEFAULT, help='path to the HPO .obo tree file'
-    )
+    parser.add_argument('--obo', default=OBO_DEFAULT, help='path to the HPO .obo tree file')
     parser.add_argument('-e', help='cohort is exomes', action='store_true')
-    parser.add_argument(
-        '--singletons', help='cohort as singletons', action='store_true'
-    )
+    parser.add_argument('--singletons', help='cohort as singletons', action='store_true')
     parser.add_argument('-nc', help='dont copy files to GCP', action='store_true')
     args = parser.parse_args()
     E_OR_G = 'exome' if args.e else 'genome'

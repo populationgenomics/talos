@@ -18,9 +18,7 @@ New behaviour - by default region filter prior to VCf export
 """
 
 import gzip
-import logging
 import os
-import sys
 from argparse import ArgumentParser
 
 import requests
@@ -29,6 +27,8 @@ import hail as hl
 
 from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
+
+from reanalysis.static_values import get_logger
 
 CANON_CHROMS = [f'chr{chrom}' for chrom in range(1, 23)] + ['X', 'Y', 'M']
 # path for downloading GenCode GTF file
@@ -71,7 +71,7 @@ def parse_gtf_from_local(bedfile: str):
         bedfile (str): where to write the BED file to
     """
 
-    logging.info(f'Loading {LOCAL_GTF}')
+    get_logger().info(f'Loading {LOCAL_GTF}')
 
     def strip_from_list(val_list: list) -> tuple[str, int, int]:
         """
@@ -79,10 +79,7 @@ def parse_gtf_from_local(bedfile: str):
         """
         chrom_string = val_list[0]
         start_int = max(int(val_list[3]) - BED_MERGE_MARGIN, 1)
-        end_int = min(
-            int(val_list[4]) + BED_MERGE_MARGIN,
-            hl.get_reference('GRCh38').lengths[chrom_string],
-        )
+        end_int = min(int(val_list[4]) + BED_MERGE_MARGIN, hl.get_reference('GRCh38').lengths[chrom_string])
         return chrom_string, start_int, end_int
 
     out_rows = []
@@ -188,35 +185,17 @@ def main(mt_path: str, write_path: str, sitesonly: str, bedfile: str, tmp: str):
     # as provided by hl.get_vcf_metadata(path_to_vcf)
     # but we don't have a VCF as a starting point
 
-    mt = mt.checkpoint(
-        os.path.join(tmp, 'mt_filtered.mt'),
-        overwrite=True,
-    )
+    mt = mt.checkpoint(os.path.join(tmp, 'mt_filtered.mt'), overwrite=True)
 
     # write the full VCF
-    hl.export_vcf(
-        mt,
-        write_path,
-        append_to_header=additional_cloud_path,
-        tabix=True,
-    )
+    hl.export_vcf(mt, write_path, append_to_header=additional_cloud_path, tabix=True)
 
     # and export the site-only VCF
-    hl.export_vcf(
-        mt.rows(),
-        sitesonly,
-        append_to_header=additional_cloud_path,
-        tabix=True,
-    )
+    hl.export_vcf(mt.rows(), sitesonly, append_to_header=additional_cloud_path, tabix=True)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        stream=sys.stderr,
-    )
+    get_logger(__file__).info('Running MT to VCF conversion')
     parser = ArgumentParser()
     parser.add_argument('--input', help='input MatrixTable path')
     parser.add_argument('--output', help='path to write VCF out to')
@@ -224,10 +203,4 @@ if __name__ == '__main__':
     parser.add_argument('--bed_file', help='path to an ROI BED file')
     parser.add_argument('--tmp', help='directory to write temp files to')
     args = parser.parse_args()
-    main(
-        mt_path=args.input,
-        write_path=args.output,
-        sitesonly=args.sites_only,
-        bedfile=args.bed_file,
-        tmp=args.tmp,
-    )
+    main(mt_path=args.input, write_path=args.output, sitesonly=args.sites_only, bedfile=args.bed_file, tmp=args.tmp)

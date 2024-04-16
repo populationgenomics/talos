@@ -30,9 +30,7 @@ def main(input_results: str):
     """
 
     input_data: ResultData = read_json_from_path(input_results, return_model=ResultData)  # type: ignore
-    generate_fresh_latest_results(
-        input_data, prefix='', dataset=get_config()['workflow']['dataset']
-    )
+    generate_fresh_latest_results(input_data, prefix='', dataset=get_config()['workflow']['dataset'])
 
 
 if __name__ == '__main__':
