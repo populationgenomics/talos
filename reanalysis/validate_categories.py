@@ -577,7 +577,7 @@ if __name__ == '__main__':
     parser.add_argument('--out_json', help='Prefix to write JSON results to')
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
-    parser.add_argument('--input_path', help='source data', default='Not supplied', show_default=True)
+    parser.add_argument('--input_path', help='source data', default='Not supplied')
     parser.add_argument('--participant_panels', help='panels per participant', default=None)
     parser.add_argument('--dataset', help='optional, dataset to use', default=None)
     args = parser.parse_args()
