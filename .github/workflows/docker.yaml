@@ -17,8 +17,10 @@ env:
   VERSION: 3.2.2
 
 jobs:
-  docker:
+  docker-prod:
+    if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         shell: bash -l {0}
@@ -27,14 +29,13 @@ jobs:
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
       IMAGE_NAME: cpg_aip
-      DOCKER_DEV: australia-southeast1-docker.pkg.dev/cpg-common/images-dev
       DOCKER_MAIN: australia-southeast1-docker.pkg.dev/cpg-common/images
     steps:
     - uses: actions/checkout@v4
 
     - id: "google-cloud-auth"
       name: "Authenticate to Google Cloud"
-      uses: google-github-actions/auth@v1
+      uses: google-github-actions/auth@v2
       with:
         workload_identity_provider: "projects/1051897107465/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
         service_account: "gh-images-deployer@cpg-common.iam.gserviceaccount.com"
@@ -52,16 +53,50 @@ jobs:
       run: |
         docker build . -f Dockerfile --tag $IMAGE_NAME:$VERSION
 
-    - name: manual build
-      if: ${{ github.event_name == 'workflow_dispatch' }}
-      run: |
-        docker tag $IMAGE_NAME:$VERSION $DOCKER_DEV/$IMAGE_NAME:${{ github.event.inputs.tag }}
-        docker push $DOCKER_DEV/$IMAGE_NAME:${{ github.event.inputs.tag }}
-
     - name: push latest
-      if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       run: |
         docker tag $IMAGE_NAME:$VERSION $DOCKER_MAIN/$IMAGE_NAME:$VERSION
         docker tag $IMAGE_NAME:$VERSION $DOCKER_MAIN/$IMAGE_NAME:latest
         docker push $DOCKER_MAIN/$IMAGE_NAME:$VERSION
         docker push $DOCKER_MAIN/$IMAGE_NAME:latest
+
+  docker-dev:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+      CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+      IMAGE_NAME: cpg_aip
+      DOCKER_DEV: australia-southeast1-docker.pkg.dev/cpg-common/images-dev
+    steps:
+    - uses: actions/checkout@v4
+
+    - id: "google-cloud-auth"
+      name: "Authenticate to Google Cloud"
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: "projects/1051897107465/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+        service_account: "gh-images-dev-deployer@cpg-common.iam.gserviceaccount.com"
+
+    - name: set up gcloud sdk
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: cpg-common
+
+    - name: gcloud docker auth
+      run: |
+        gcloud auth configure-docker australia-southeast1-docker.pkg.dev
+
+    - name: build
+      run: |
+        docker build . -f Dockerfile --tag $IMAGE_NAME:$VERSION
+
+    - name: manual build
+      run: |
+        docker tag $IMAGE_NAME:$VERSION $DOCKER_DEV/$IMAGE_NAME:${{ github.event.inputs.tag }}
+        docker push $DOCKER_DEV/$IMAGE_NAME:${{ github.event.inputs.tag }}
