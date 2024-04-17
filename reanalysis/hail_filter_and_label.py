@@ -916,13 +916,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     return mt
 
 
-def main(
-    mt_path: str,
-    panelapp_path: str,
-    pedigree: str,
-    vcf_out: str,
-    dataset: str | None = None,
-):
+def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset: str | None = None):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
@@ -968,11 +962,7 @@ def main(
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
-        fields_audit(
-            mt=mt,
-            base_fields=BASE_FIELDS_REQUIRED,  # type: ignore
-            nested_fields=FIELDS_REQUIRED,
-        )
+        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)  # type: ignore
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
         mt.describe()
@@ -1007,15 +997,22 @@ def main(
         checkpoint_num=checkpoint_number,
         extra_logging='after applying quality filters',
     )
+    checkpoint_number = checkpoint_number + 1
 
     # die if there are no variants remaining
     if mt.count_rows() == 0:
         raise ValueError('No remaining rows to process!')
 
-    checkpoint_number = checkpoint_number + 1
-
     # split genes out to separate rows
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
+
+    mt = checkpoint_and_repartition(
+        mt=mt,
+        checkpoint_root=checkpoint_root,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after applying Rare & Green-Gene filters',
+    )
+    checkpoint_number = checkpoint_number + 1
 
     # add Classes to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
@@ -1036,11 +1033,16 @@ def main(
 
     mt = filter_to_categorised(mt=mt)
 
+    mt = checkpoint_and_repartition(
+        mt=mt,
+        checkpoint_root=checkpoint_root,
+        checkpoint_num=checkpoint_number,
+        extra_logging='after filtering to categorised only',
+    )
+
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(CSQ=vep_struct_to_csq(mt.vep), gene_id=mt.geneIds),
-    )
+    mt = mt.annotate_rows(info=mt.info.annotate(CSQ=vep_struct_to_csq(mt.vep), gene_id=mt.geneIds))
 
     write_matrix_to_vcf(mt=mt, vcf_out=vcf_out, dataset=dataset)
 
