@@ -131,6 +131,10 @@ def get_allele_locus_map(summary_file: str) -> dict:
         ref = line[32]
         alt = line[33]
 
+        # skip non-standard chromosomes
+        if chromosome not in ORDERED_ALLELES:
+            continue
+
         # skip chromosomal deletions and insertions, mito, or massive indels
         if (
             ref == 'na'
