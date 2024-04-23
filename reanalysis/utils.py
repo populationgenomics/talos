@@ -15,14 +15,13 @@ import backoff
 import cyvcf2
 import peddy
 import requests
-from backoff import expo
-from gql.gql import DocumentNode
+from backoff import fibo
 from gql.transport.exceptions import TransportQueryError, TransportServerError
+from requests.exceptions import ReadTimeout, RequestException
 
 from cpg_utils import Path as CPGPathType
 from cpg_utils import to_path
 from cpg_utils.config import get_config
-from metamist.graphql import query
 
 from reanalysis.models import (
     VARIANT_MODELS,
@@ -62,22 +61,6 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 # global config holders
 COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
-
-
-@backoff.on_exception(wait_gen=expo, exception=(TransportQueryError, TransportServerError), max_time=20)
-def wrapped_gql_query(query_node: DocumentNode, variables: dict[str, Any] | None = None) -> dict[str, Any]:
-    """
-    wrapped gql query method, with retries
-    uses an exponential backoff retry timer to space out attempts
-
-    Args:
-        query_node (the result of a gql() call):
-        variables (dict of parameters, or None):
-
-    Returns:
-        the response from the query
-    """
-    return query(query_node, variables=variables)
 
 
 def chunks(iterable, chunk_size):
@@ -145,7 +128,11 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
 
 
-@backoff.on_exception(wait_gen=expo, exception=(requests.RequestException, TimeoutError), max_time=20)
+@backoff.on_exception(
+    wait_gen=fibo,
+    exception=(TransportQueryError, TransportServerError, TimeoutError, ReadTimeout, RequestException),
+    max_time=200,
+)
 def get_json_response(url):
     """
     takes a request URL, checks for healthy response, returns the JSON
