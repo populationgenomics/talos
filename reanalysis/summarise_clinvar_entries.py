@@ -48,7 +48,6 @@ PATH_SIGS = {
 UNCERTAIN_SIGS = {'Uncertain significance', 'Uncertain risk allele'}
 
 NO_STAR_RATINGS: set[str] = {'no assertion criteria provided'}
-USELESS_RATINGS: set[str] = set()
 
 MAJORITY_RATIO: float = 0.6
 MINORITY_RATIO: float = 0.2
@@ -342,7 +341,6 @@ def get_all_decisions(submission_file: str, allele_ids: set[int]) -> dict[int, l
         if (
             (a_id not in allele_ids)
             or (line_sub.submitter in blacklist)
-            or (line_sub.review_status in USELESS_RATINGS)
             or (line_sub.classification == Consequence.UNKNOWN)
         ):
             continue

@@ -70,8 +70,8 @@ def test_check_stars_none():
 
     """
     sub1 = deepcopy(BASIC_SUB)
-    sub1.review_status = 'smithsonian'
-    subs = [BASIC_SUB, sub1, BASIC_SUB]
+    sub1.review_status = 'no assertion criteria provided'
+    subs = [sub1]
     assert check_stars(subs) == 0
 
 
@@ -236,16 +236,15 @@ def test_get_all_decisions(sub_stub):
     4 has one uncertain significance
     """
     allele_ids = {1, 2, 3, 4}
-    results = get_all_decisions(
-        sub_stub,
-        threshold_date=datetime(year=2018, day=1, month=1, tzinfo=TIMEZONE),
-        allele_ids=allele_ids,
-    )
+    results = get_all_decisions(sub_stub, allele_ids=allele_ids)
 
-    assert set(results.keys()) == {2, 4}
+    assert set(results.keys()) == {2, 3, 4}
     assert len(results.get(2)) == 2
+    assert len(results.get(3)) == 1
     assert len(results.get(4)) == 1
     for each in results[2]:
+        assert each.classification == Consequence.PATHOGENIC
+    for each in results[3]:
         assert each.classification == Consequence.PATHOGENIC
     for each in results[4]:
         assert each.classification == Consequence.UNCERTAIN
