@@ -31,6 +31,7 @@ import zoneinfo
 
 import hail as hl
 
+from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch
 
 from reanalysis.static_values import get_logger
@@ -561,12 +562,12 @@ def main(subs: str, variants: str, output_root: str):
     complete_decisions_sorted = sort_decisions(complete_decisions)
 
     # write out the JSON version of these results
-    json_output = 'local.json'
+    json_output = f'{output_root}.json'
     get_logger().info(f'temp JSON location: {json_output}')
 
     # open this temp path and write the json contents, line by line
     # the HT generation will take the file path, not a list of dictionaries
-    with open(json_output, 'w', encoding='utf-8') as handle:
+    with to_path(json_output).open('w') as handle:
         for each_dict in complete_decisions_sorted:
             handle.write(f'{json.dumps(each_dict)}\n')
 
