@@ -19,6 +19,7 @@ from collections import defaultdict
 
 from cyvcf2 import VCFReader
 from peddy.peddy import Ped
+from semsimian import Semsimian
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config
@@ -53,6 +54,22 @@ from reanalysis.utils import (
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'male', 'female'}
+
+
+def parse_genes_to_phenotype(genes_to_phenotype_file: str) -> dict[str,set[str]]:
+    """
+    Parse genes to phenotype file from Jax.
+
+    Returns a dict of gene_symbol -> set of HPO ids
+    """
+    gene_to_phenotype = defaultdict(set)
+    with open(genes_to_phenotype_file) as f:
+        for line in f:
+            ncbi_gene_id, gene_symbol, hpo_id, hpo_name, frequency, disease_id = (
+                line.split("\t")
+            )
+            gene_to_phenotype[gene_symbol].add(hpo_id)
+    return gene_to_phenotype
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Ped) -> dict[str, MOIRunner]:
@@ -175,7 +192,10 @@ def clean_and_filter(
     result_list: list[ReportVariant],
     panelapp_data: PanelApp,
     dataset: str,
+    min_hpo_similarity_score: float,
     participant_panels: PhenotypeMatchedPanels | None = None,
+    phenotypes_by_gene_symbol: dict[str, set[str]] | None = None,
+    semsimian: Semsimian | None = None,
 ) -> ResultData:
     """
     It's possible 1 variant can be classified multiple ways
@@ -247,19 +267,47 @@ def clean_and_filter(
         if cohort_intersection:
             forced_panels = {panel_meta[pid] for pid in cohort_intersection}
 
+        # Find gene level phenotypes matches
+        gene_level_phenotype_matches = set()
+        if phenotypes_by_gene_symbol and semsimian:
+            gene_phenotypes = phenotypes_by_gene_symbol.get(each_event.gene)
+
+            if each_event.phenotypes and gene_phenotypes:
+                # Compare two sets of phenotypes. For each patient phenotype ("subject set"),
+                # find the closest term in the gene associated phenotypes ("subject set")
+                # and annotate with a IC similarity score.
+                termset_similarity = semsimian.termset_pairwise_similarity(
+                    each_event.phenotypes,
+                    gene_phenotypes,
+                )
+
+                # Convert object terms (gene_phenotypes) to lookup dict
+                object_termset = {
+                    term_dict["id"]: term_dict["label"]
+                    for term in termset_similarity["object_termset"]
+                    for term_dict in term.values()
+                }
+
+                # Find all phenotype matches that meet the min_score threshold
+                gene_level_phenotype_matches = {
+                    object_termset[match["object_id"]]
+                    for match in termset_similarity["subject_best_matches"]["similarity"].values()
+                    if float(match["ancestor_information_content"]) > min_hpo_similarity_score
+                }
+
         # this is a horrible operation
-        # if the variant-gene doesn't have a cohort-forced or phenotypic match panel
+        # if the variant-gene doesn't have a cohort-forced or phenotypic match panel or gene level phenotype match
         # AND there's only one category assigned
         # AND that category is in the list of categories which require a phenotype match
         # skip this variant
         if (
-            (not (forced_panels or matched_panels))
+            (not (forced_panels or matched_panels or gene_level_phenotype_matches))
             and (len(each_event.support_vars) == 0)
             and (all(cat in cats_require_pheno_match for cat in each_event.categories))
         ):
             continue
 
-        each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
+        each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels, gene_level_phenotype_matches=gene_level_phenotype_matches)
 
         # equivalence logic might need a small change here -
         # If this variant and that variant have same sample/pos, equivalent
@@ -440,9 +488,12 @@ def main(
     panelapp: str,
     pedigree: str,
     input_path: str,
+    min_hpo_similarity_score: float,
     labelled_sv: list[str] | None = None,
     participant_panels: str | None = None,
     dataset: str | None = None,
+    genes_to_phenotype_path: str | None = None,
+    phenio_db_path: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -460,6 +511,8 @@ def main(
         input_path (str): VCF/MT used as input
         participant_panels (str): json of panels per participant
         dataset (str): optional, dataset to use
+        genes_to_phenotype_path (str): optional, path to genes to phenotype file.
+        phenio_db_path (str): optional, path to the HPO database file.
     """
 
     if dataset is None:
@@ -485,6 +538,21 @@ def main(
         return_model=PhenotypeMatchedPanels,  # type: ignore
         default=None,
     )
+
+    # Load gene level to phenotype mapping resources
+    if genes_to_phenotype_path:
+        assert genes_to_phenotype_path and phenio_db_path, "Both genes_to_phenotype_path and phenio_db_path must be provided"
+        phenotypes_by_gene_symbol = parse_genes_to_phenotype(genes_to_phenotype_path)
+
+        semsimian = Semsimian(
+            spo=None,
+            predicates=["rdfs:subClassOf"],
+            resource_path=phenio_db_path,
+        )
+    else:
+        phenotypes_by_gene_symbol = None
+        semsimian = None
+
 
     # create the new gene map
     new_gene_map = get_new_gene_map(panelapp_data, pheno_panels, dataset)
@@ -555,7 +623,10 @@ def main(
         result_list=result_list,
         panelapp_data=panelapp_data,
         dataset=dataset,
+        min_hpo_similarity_score=min_hpo_similarity_score,
         participant_panels=pheno_panels,
+        phenotypes_by_gene_symbol=phenotypes_by_gene_symbol,
+        semsimian=semsimian,  # not sure if you want to pass a class instance like this 🤷‍♂️.
     )
 
     # annotate previously seen results using cumulative data file(s)
@@ -579,7 +650,12 @@ if __name__ == '__main__':
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--input_path', help='source data', default='Not supplied')
     parser.add_argument('--participant_panels', help='panels per participant', default=None)
+    parser.add_argument('--min_hpo_similarity_score', help='Minimum HPO IC similarity score for gene level match', default=14, type=float)
     parser.add_argument('--dataset', help='optional, dataset to use', default=None)
+    parser.add_argument('--genes_to_phenotype_path', help='optional, path to genes to phenotype file. '
+                        'Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"')
+    parser.add_argument('--phenio_db_path', help='optional, path to the HPO database file'
+                        'Download: https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz')
     args = parser.parse_args()
 
     main(
@@ -588,7 +664,10 @@ if __name__ == '__main__':
         panelapp=args.panelapp,
         pedigree=args.pedigree,
         input_path=args.input_path,
+        min_hpo_similarity_score=args.min_hpo_similarity_score,
         labelled_sv=args.labelled_sv,
         participant_panels=args.participant_panels,
         dataset=args.dataset,
+        genes_to_phenotype_path=args.genes_to_phenotype_path,
+        phenio_db_path=args.phenio_db_path
     )
