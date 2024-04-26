@@ -15,6 +15,7 @@ AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = AIP_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
+MODEL_VERSION = '1.0.0'
 
 
 class FileTypes(Enum):
@@ -315,7 +316,7 @@ class ReportVariant(BaseModel):
     independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
-    phenotypes: set[str] = Field(default_factory=set)
+    phenotypes: list[dict[str, str]] = Field(default_factory=list)
     reasons: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
 
@@ -358,10 +359,12 @@ class PanelShort(BaseModel):
 class PanelApp(BaseModel):
     metadata: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, PanelDetail]
+    model_version: str = MODEL_VERSION
 
 
 class HistoricPanels(BaseModel):
     genes: dict[str, set[int]] = Field(default_factory=dict)
+    model_version: str = MODEL_VERSION
 
 
 class CategoryMeta(BaseModel):
@@ -394,6 +397,7 @@ class HistoricVariants(BaseModel):
     metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     # dict - participant ID -> variant -> variant data
     results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
+    model_version: str = MODEL_VERSION
 
 
 class ResultMeta(BaseModel):
@@ -427,7 +431,7 @@ class ParticipantMeta(BaseModel):
     ext_id: str
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
-    phenotypes: list[str] = Field(default_factory=list)
+    phenotypes: list[dict[str, str]] = Field(default_factory=list)
     panel_ids: list[int] = Field(default_factory=list)
     panel_names: list[str] = Field(default_factory=list)
     solved: bool = Field(default=False)
@@ -449,6 +453,7 @@ class ResultData(BaseModel):
 
     results: dict[str, ParticipantResults] = Field(default_factory=dict)
     metadata: ResultMeta = Field(default_factory=ResultMeta)
+    model_version: str = MODEL_VERSION
 
 
 class ModelVariant(BaseModel):
@@ -460,13 +465,14 @@ class ModelVariant(BaseModel):
 class ParticipantHPOPanels(BaseModel):
     external_id: str = Field(default_factory=str)
     family_id: str = Field(default_factory=str)
-    hpo_terms: set[str] = Field(default_factory=set)
+    hpo_terms: list[dict[str, str]] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
 
 
 class PhenotypeMatchedPanels(BaseModel):
     samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     all_panels: set[int] = Field(default_factory=set)
+    model_version: str = MODEL_VERSION
 
 
 class MiniVariant(BaseModel):
