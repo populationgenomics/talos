@@ -270,11 +270,14 @@ def clean_and_filter(
         # Find gene level phenotypes matches
         gene_level_phenotype_matches = set()
         if phenotypes_by_gene_symbol and semsimian:
+
+            # TODO: This will fails phenotypes_by_gene_symbol is indexed by symbol and
+            # each_event.gene is ENSGID. Need to fix it here or when we create phenotypes_by_gene_symbol.
             gene_phenotypes = phenotypes_by_gene_symbol.get(each_event.gene)
 
             if each_event.phenotypes and gene_phenotypes:
                 # Compare two sets of phenotypes. For each patient phenotype ("subject set"),
-                # find the closest term in the gene associated phenotypes ("subject set")
+                # find the closest term in the gene associated phenotypes ("object set")
                 # and annotate with a IC similarity score.
                 termset_similarity = semsimian.termset_pairwise_similarity(
                     each_event.phenotypes,
