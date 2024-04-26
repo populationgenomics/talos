@@ -14,6 +14,7 @@ import pandas as pd
 from peddy.peddy import Ped
 
 from cpg_utils import to_path
+from cpg_utils.config import config_retrieve
 
 from reanalysis.models import (
     PanelApp,
@@ -24,13 +25,7 @@ from reanalysis.models import (
     SmallVariant,
     StructuralVariant,
 )
-from reanalysis.utils import (
-    get_cohort_config,
-    get_cohort_seq_type_conf,
-    get_config,
-    get_logger,
-    read_json_from_path,
-)
+from reanalysis.utils import get_cohort_config, get_cohort_seq_type_conf, get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG: dict = None  # type: ignore
@@ -161,7 +156,7 @@ class HTMLBuilder:
         which passed through the MOI process, not the absolute number
         of variants in the report
         """
-        ordered_categories = ['any'] + list(get_config()['categories'].keys())
+        ordered_categories = ['any'] + list(config_retrieve('categories', {}).keys())
         category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
         unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 

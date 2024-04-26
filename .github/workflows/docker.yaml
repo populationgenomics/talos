@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  VERSION: 3.2.4
+  VERSION: 3.3.0
 
 jobs:
   docker-prod:

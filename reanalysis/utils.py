@@ -21,7 +21,7 @@ from requests.exceptions import ReadTimeout, RequestException
 
 from cpg_utils import Path as CPGPathType
 from cpg_utils import to_path
-from cpg_utils.config import get_config
+from cpg_utils.config import config_retrieve
 
 from reanalysis.models import (
     VARIANT_MODELS,
@@ -161,9 +161,9 @@ def get_cohort_config(dataset: str | None = None):
 
     global COHORT_CONFIG
     if COHORT_CONFIG is None:
-        dataset = dataset or get_config()['workflow']['dataset']
-        COHORT_CONFIG = get_config().get('cohorts', {}).get(dataset)
-        if COHORT_CONFIG is None:
+        dataset = config_retrieve(['workflow', 'dataset'], dataset)
+        COHORT_CONFIG = config_retrieve(['cohorts', dataset], {})
+        if not COHORT_CONFIG:
             raise AssertionError(f'{dataset} is not represented in config')
     return COHORT_CONFIG
 
@@ -182,9 +182,9 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     """
     global COHORT_SEQ_CONFIG
     if COHORT_SEQ_CONFIG is None:
-        dataset = dataset or get_config()['workflow']['dataset']
+        dataset = config_retrieve(['workflow', 'dataset'], dataset)
         cohort_conf = get_cohort_config(dataset)
-        seq_type = get_config()['workflow']['sequencing_type']
+        seq_type = config_retrieve(['workflow', 'sequencing_type'])
         COHORT_SEQ_CONFIG = cohort_conf.get(seq_type, {})
         assert COHORT_SEQ_CONFIG, f'{dataset} - {seq_type} is not represented in config'
     return COHORT_SEQ_CONFIG
@@ -217,7 +217,7 @@ def get_new_gene_map(
     # any dataset-specific panel data, + 'core' panel
     cohort_panels = [
         *get_cohort_config(dataset).get('cohort_panels', []),
-        get_config()['panels']['default_panel'],
+        config_retrieve(['panels', 'default_panel']),
     ]
 
     # collect all genes new in at least one panel
@@ -367,7 +367,7 @@ def create_small_variant(
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
     # optionally - ignore some categories from this analysis
-    if ignore_cats := get_config()['workflow'].get('ignore_categories'):
+    if ignore_cats := config_retrieve(['workflow', 'ignore_categories'], []):
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -522,9 +522,8 @@ def gather_gene_dict_from_contig(
     """
     if sv_sources is None:
         sv_sources = []
-
-    if 'blacklist' in get_config()['filter']:
-        blacklist = read_json_from_path(get_config()['filter']['blacklist'])
+    if bl_file := config_retrieve(['filter', 'blacklist'], ''):
+        blacklist = read_json_from_path(bl_file, default=[])
     else:
         blacklist = []
 
@@ -694,7 +693,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = get_config()['csq']['csq_string']
+    csq_categories = config_retrieve(['csq', 'csq_string'])
 
     # iterate over all consequences, and make each into a dict
     txc_dict = [dict(zip(csq_categories, each_csq.split('|'))) for each_csq in csq_contents.split(',')]
@@ -768,7 +767,7 @@ def generate_fresh_latest_results(current_results: ResultData, dataset: str, pre
         prefix (str): optional prefix for the filename
     """
 
-    new_history = HistoricVariants(metadata=CategoryMeta(categories=get_config().get('categories', {})))
+    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve(['categories'], {})))
     for sample, content in current_results.results.items():
         for var in content.variants:
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
@@ -897,7 +896,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
 
     # update to latest category descriptions
-    historic.metadata.categories.update(get_config()['categories'])
+    historic.metadata.categories.update(config_retrieve(['categories']))
 
     for sample, content in current.results.items():
         sample_historic = historic.results.get(sample, {})

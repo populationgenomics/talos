@@ -17,7 +17,7 @@ from reanalysis.summarise_clinvar_entries import (
     check_stars,
     consequence_decision,
     get_all_decisions,
-    process_line,
+    process_submission_line,
 )
 
 CURRENT_TIME = datetime.now(tz=TIMEZONE)
@@ -197,7 +197,7 @@ def test_process_line():
         '8',
         'submitter',
     ]
-    allele, sub = process_line(input_list)
+    allele, sub = process_submission_line(input_list)
     assert allele == 1
     assert sub.classification == Consequence.PATHOGENIC
     assert sub.date == datetime(year=2021, month=7, day=13, tzinfo=TIMEZONE)
@@ -220,7 +220,7 @@ def test_process_line_no_date():
         '8',
         'submitter',
     ]
-    allele, sub = process_line(input_list)
+    allele, sub = process_submission_line(input_list)
     assert allele == 1
     assert sub.classification == Consequence.BENIGN
     assert sub.date == datetime(year=1970, month=1, day=1, tzinfo=TIMEZONE)
@@ -236,7 +236,7 @@ def test_get_all_decisions(sub_stub):
     4 has one uncertain significance
     """
     allele_ids = {1, 2, 3, 4}
-    results = get_all_decisions(sub_stub, allele_ids=allele_ids)
+    results = get_all_decisions(sub_stub, var_ids=allele_ids)
 
     assert set(results.keys()) == {2, 3, 4}
     assert len(results.get(2)) == 2
