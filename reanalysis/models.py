@@ -15,6 +15,7 @@ AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = AIP_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
+MODEL_VERSION = '1.0.0'
 
 
 class FileTypes(Enum):
@@ -358,10 +359,12 @@ class PanelShort(BaseModel):
 class PanelApp(BaseModel):
     metadata: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, PanelDetail]
+    model_version: str = MODEL_VERSION
 
 
 class HistoricPanels(BaseModel):
     genes: dict[str, set[int]] = Field(default_factory=dict)
+    model_version: str = MODEL_VERSION
 
 
 class CategoryMeta(BaseModel):
@@ -394,6 +397,7 @@ class HistoricVariants(BaseModel):
     metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     # dict - participant ID -> variant -> variant data
     results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
+    model_version: str = MODEL_VERSION
 
 
 class ResultMeta(BaseModel):
@@ -449,6 +453,7 @@ class ResultData(BaseModel):
 
     results: dict[str, ParticipantResults] = Field(default_factory=dict)
     metadata: ResultMeta = Field(default_factory=ResultMeta)
+    model_version: str = MODEL_VERSION
 
 
 class ModelVariant(BaseModel):
@@ -467,6 +472,7 @@ class ParticipantHPOPanels(BaseModel):
 class PhenotypeMatchedPanels(BaseModel):
     samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     all_panels: set[int] = Field(default_factory=set)
+    model_version: str = MODEL_VERSION
 
 
 class MiniVariant(BaseModel):
