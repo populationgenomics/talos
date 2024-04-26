@@ -120,7 +120,7 @@ def get_participant_hpos(dataset: str) -> tuple[PhenotypeMatchedPanels, set[str]
             **{
                 'external_id': sg['sample']['participant']['externalId'],
                 'family_id': fam_id,
-                'hpo_terms': hpos,
+                'hpo_terms': {hpo: '' for hpo in hpos},
                 'panels': {137},
             },
         )
@@ -253,11 +253,11 @@ def match_participants_to_panels(participant_hpos: PhenotypeMatchedPanels, hpo_p
 
     for party_data in participant_hpos.samples.values():
         for hpo_term in party_data.hpo_terms:
-            if hpo_term in hpo_panels:
+            if panel_list := hpo_panels.get(hpo_term['id']):
                 # add relevant panels for this participant
-                party_data.panels.update(hpo_panels[hpo_term])
+                party_data.panels.update(panel_list)
                 # and add to the collection of all panels
-                participant_hpos.all_panels.update(hpo_panels[hpo_term])
+                participant_hpos.all_panels.update(panel_list)
 
 
 def update_hpo_with_description(
@@ -265,18 +265,15 @@ def update_hpo_with_description(
     hpo_to_text: dict[str, str],
 ) -> PhenotypeMatchedPanels:
     """
-    update the HPO terms attached to the participants to be
-    human-readable: "HPO:Description"
+    Add the plaintext meaning of the HPO term to the entity
 
     Args:
         hpo_dict: all participants and their HPO terms
         hpo_to_text (dict): a lookup to find descriptions per HPO term
-
-    Returns:
-
     """
     for party_data in hpo_dict.samples.values():
-        party_data.hpo_terms = {f"{hpo} - {hpo_to_text[hpo]}" for hpo in party_data.hpo_terms}
+        for term in party_data.hpo_terms:
+            term['label'] = hpo_to_text[term['id']]
     return hpo_dict
 
 

@@ -106,13 +106,13 @@ def test_match_participants_to_panels():
                 'luke_skywalker': {
                     'external_id': 'participant1',
                     'family_id': 'fam1',
-                    'hpo_terms': {'HP:1', 'HP:2'},
+                    'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
                     'panels': {137},
                 },
                 'participant2': {
                     'external_id': 'participant2',
                     'family_id': 'fam2',
-                    'hpo_terms': {'HP:1', 'HP:6'},
+                    'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
                     'panels': {137},
                 },
             },
@@ -129,7 +129,7 @@ def test_match_participants_to_panels():
         **{
             'external_id': 'participant1',
             'family_id': 'fam1',
-            'hpo_terms': {'HP:1', 'HP:2'},
+            'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
             'panels': {137, 101, 102, 2002},
         },
     )
@@ -137,7 +137,7 @@ def test_match_participants_to_panels():
         **{
             'external_id': 'participant2',
             'family_id': 'fam2',
-            'hpo_terms': {'HP:1', 'HP:6'},
+            'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
             'panels': {137, 101, 102, 666},
         },
     )
@@ -153,7 +153,7 @@ def test_update_hpo_with_description():
                 'luke_skywalker': {
                     'external_id': 'participant1',
                     'family_id': 'fam1',
-                    'hpo_terms': {'HP:1', 'HP:2'},
+                    'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
                     'panels': {137},
                 },
             },
@@ -167,10 +167,10 @@ def test_update_hpo_with_description():
                 'luke_skywalker': {
                     'external_id': 'participant1',
                     'family_id': 'fam1',
-                    'hpo_terms': {
-                        'HP:1 - Philosopher\'s Stone',
-                        'HP:2 - Chamber of Secrets',
-                    },
+                    'hpo_terms': [
+                        {'id': 'HP:1', 'label': 'Philosopher\'s Stone'},
+                        {'id': 'HP:2', 'label': 'Chamber of Secrets'},
+                    ],
                     'panels': {137},
                 },
             },

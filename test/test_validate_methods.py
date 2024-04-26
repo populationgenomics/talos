@@ -60,12 +60,12 @@ def test_results_shell(peddy_ped):
                 'male': {
                     'panels': {1, 3},
                     'external_id': 'MALE!',
-                    'hpo_terms': {'Boneitis'},
+                    'hpo_terms': [{'id': 'HBP', 'label': 'Boneitis'}],
                 },
                 'female': {
                     'panels': {1, 2},
                     'external_id': 'FEMALE!',
-                    'hpo_terms': {'HPfemale'},
+                    'hpo_terms': [{'id': 'HBF', 'label': 'Female'}],
                 },
             },
             'all_panels': {1, 2, 3},
@@ -116,7 +116,7 @@ def test_results_shell(peddy_ped):
                                 'ext_id': 'mother_1',
                             },
                         },
-                        'phenotypes': ['Boneitis'],
+                        'phenotypes': [{'id': 'HBP', 'label': 'Boneitis'}],
                         'panel_ids': [1, 3],
                         'panel_names': ['lorem', 'etc'],
                     },
@@ -142,7 +142,7 @@ def test_results_shell(peddy_ped):
                                 'ext_id': 'mother_2',
                             },
                         },
-                        'phenotypes': ['HPfemale'],
+                        'phenotypes': [{'id': 'HBF', 'label': 'Female'}],
                         'panel_ids': [1, 2],
                         'panel_names': ['lorem', 'ipsum'],
                         'solved': True,
@@ -215,9 +215,9 @@ def test_gene_clean_results_personal():
     personal_panels = PhenotypeMatchedPanels(
         **{
             'samples': {
-                'sam1': {'panels': {1}, 'hpo_terms': {'HP1'}},
-                'sam2': {'hpo_terms': {'HP2'}},
-                'sam3': {'panels': {3, 4}, 'hpo_terms': {'HP3'}},
+                'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'hp1_description'}]},
+                'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'hp2_description'}]},
+                'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'hp3_description'}]},
             },
         },
     )
