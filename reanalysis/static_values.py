@@ -6,7 +6,7 @@ import logging
 import sys
 from datetime import datetime
 
-from cpg_utils.config import get_config
+from cpg_utils.config import config_retrieve
 
 _GRANULAR_DATE: str | None = None
 LOGGER = None
@@ -18,14 +18,7 @@ def get_granular_date():
     """
     global _GRANULAR_DATE
     if _GRANULAR_DATE is None:
-        # allow an override here - synthetic historic runs
-        try:
-            if fake_date := get_config().get('workflow', {}).get('fake_date'):
-                _GRANULAR_DATE = fake_date
-        except AssertionError:
-            get_logger().warning('No date set in config, falling back to real Date')
-        if _GRANULAR_DATE is None:
-            _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
+        _GRANULAR_DATE = config_retrieve('workflow', 'fake_date', datetime.now().strftime('%Y-%m-%d'))
     return _GRANULAR_DATE
 
 
