@@ -18,7 +18,7 @@ def get_granular_date():
     """
     global _GRANULAR_DATE
     if _GRANULAR_DATE is None:
-        _GRANULAR_DATE = config_retrieve('workflow', 'fake_date', datetime.now().strftime('%Y-%m-%d'))
+        _GRANULAR_DATE = config_retrieve(['workflow', 'fake_date'], datetime.now().strftime('%Y-%m-%d'))
     return _GRANULAR_DATE
 
 
