@@ -120,7 +120,7 @@ def get_participant_hpos(dataset: str) -> tuple[PhenotypeMatchedPanels, set[str]
             **{
                 'external_id': sg['sample']['participant']['externalId'],
                 'family_id': fam_id,
-                'hpo_terms': [{hpo: ''} for hpo in hpos],
+                'hpo_terms': [{'id': hpo, 'label': ''} for hpo in hpos],
                 'panels': {137},
             },
         )
