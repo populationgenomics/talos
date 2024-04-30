@@ -296,8 +296,7 @@ def main(dataset: str, hpo_file: str, panel_out: str | None) -> PhenotypeMatched
     )
     match_participants_to_panels(hpo_dict, hpo_to_panels)
 
-    # update the HPO terms attached to the participants to be
-    # human-readable: "HPO:Description"
+    # update the HPO terms to be {'id': 'HPO:#', 'label': 'Description'}
     hpo_dict = update_hpo_with_description(hpo_dict, hpo_to_text)
 
     # validate the object
