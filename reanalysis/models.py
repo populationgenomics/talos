@@ -16,6 +16,7 @@ CATEGORY_DICT = AIP_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 MODEL_VERSION = '1.0.0'
+MODEL_VERSIONS = [None, '1.0.0']
 
 
 class FileTypes(Enum):
