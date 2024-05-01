@@ -503,12 +503,28 @@ LIFTOVER_METHODS = {
 
 def lift_up_model_version(
     data: dict,
-    from_version: str | None,
     model: HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels,
 ) -> dict:
     """
     lift over data from one version to another
+    this takes a dictionary object, and the model it is supposed to be
+    we walk up from the version in the dict to the current models.py one,
+    and apply all required transitions. This can be type changes, removing/adding mandatory fields, etc.
+    incremental transition methods should be registered in reanalysis/liftover/old_to_new.py
+
+    We expect that the majority of transitions will be no-ops,
+    but we need to check for the existence of a method
+
+    Args:
+        data (dict): the model data prior to any transitions
+        model (class): the data model the dict needs to be parsed as
+
+    Returns:
+        the input dictionary, transitioned to current format
     """
+
+    # get current version, can be None (initial models did not specify)
+    from_version = data.get('version')
 
     if from_version == CURRENT_VERSION:
         return data
@@ -523,7 +539,9 @@ def lift_up_model_version(
     from_version_index = ALL_VERSIONS.index(from_version)
 
     # liftover pairs are (version, next_version)
+    # e.g. [(None, 1), (1,2), (2,3), (3,4), (4,5)]
     # starting at the current index, and moving up from there
+    # e.g. liftover from 2 to 5 would use [(2,3), (3,4), (4,5)]
     for previous, current in list(zip(ALL_VERSIONS, ALL_VERSIONS[1:]))[from_version_index:]:
         liftover_key = f'{previous}_{current}'
         if liftover_key in LIFTOVER_METHODS[model]:  # type: ignore

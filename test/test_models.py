@@ -20,7 +20,7 @@ def test_lift_pmp_none_to_1(hpo_panel_vnone):
     assert data.get('version') is None
 
     # lift it
-    lifted = lift_up_model_version(data, from_version=None, model=PhenotypeMatchedPanels)
+    lifted = lift_up_model_version(data, model=PhenotypeMatchedPanels)
 
     # check the version
     assert lifted['version'] == '1.0.0'

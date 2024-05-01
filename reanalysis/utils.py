@@ -607,7 +607,7 @@ def read_json_from_path(
             json_data = json.load(handle)
             if return_model:
                 # potentially walk-up model version
-                model_data = lift_up_model_version(json_data, json_data.get('version'), return_model)
+                model_data = lift_up_model_version(json_data, return_model)
                 return return_model.model_validate(model_data)
             return json_data
 
