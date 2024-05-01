@@ -1,0 +1,17 @@
+{
+    "samples": {
+        "CPG_123": {
+            "external_id": "A1234",
+            "family_id": "A1234",
+            "hpo_terms": [
+                "HP:0002104 - Apnea",
+                "HP:0025386 - Bitemporal hollowing",
+                "HP:0008872 - Feeding difficulties in infancy",
+                "HP:0030799 - Scaphocephaly",
+                "HP:0011398 - obsolete Central hypotonia"
+            ],
+            "panels": [1, 137]
+        }
+    },
+    "all_panels": [1, 137]
+}
