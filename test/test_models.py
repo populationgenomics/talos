@@ -78,5 +78,5 @@ def test_no_liftover_passes(hpo_panel_vnone, caplog):
     assert data.get('version') is None
 
     # lift it
-    lifted = lift_up_model_version(data, model=ResultData)
+    _lifted = lift_up_model_version(data, model=ResultData)
     assert 'No liftover methods for ResultData' in caplog.text
