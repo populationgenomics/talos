@@ -15,6 +15,9 @@ jobs:
   build_report_index:
     runs-on: ubuntu-latest
 
+    env:
+      VERSION: 3.3.1
+
     steps:
 
       - id: "google-cloud-auth"
@@ -34,5 +37,5 @@ jobs:
           curl --fail --silent --show-error -X POST \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type:application/json" \
-              -d '{"output": "report_index_${{ steps.date.outputs.date }}", "dataset": "talos", "image": "australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:3.3.1", "accessLevel": "full", "repo": "automated-interpretation-pipeline", "commit": "${{ github.sha }}", "cwd": "helpers", "script": ["./report_hunter.py"], "description": "Locate Latest AIP Reports", "wait": false}' \
+              -d '{"output": "report_index_${{ steps.date.outputs.date }}", "dataset": "talos", "image": "australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:$VERSION", "accessLevel": "full", "repo": "automated-interpretation-pipeline", "commit": "${{ github.sha }}", "cwd": "helpers", "script": ["./report_hunter.py"], "description": "Locate Latest AIP Reports", "wait": false}' \
               https://server-a2pko7ameq-ts.a.run.app
