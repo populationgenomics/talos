@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from cpg_utils import to_path
 
 from reanalysis.liftover.none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
-from reanalysis.static_values import get_granular_date
+from reanalysis.static_values import get_granular_date, get_logger
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = AIP_CONF['categories']
@@ -533,7 +533,7 @@ def lift_up_model_version(
         raise ValueError(f'Unknown {model.__name__} version: {from_version}')
 
     if from_version != CURRENT_VERSION and not LIFTOVER_METHODS.get(model):
-        raise ValueError(f'No liftover methods for {model.__name__}')
+        get_logger().info(f'No liftover methods for {model.__name__}')
 
     # now pairwise iterate over ALL_VERSIONS, and find liftovers between each
     from_version_index = ALL_VERSIONS.index(from_version)

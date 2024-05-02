@@ -71,8 +71,12 @@ def test_liftover_fails_potato(hpo_panel_vpotato):
     assert "Unknown PhenotypeMatchedPanels version: potato" in str(potato.value)
 
 
-def test_no_liftover_fails(hpo_panel_vnone):
+def test_no_liftover_passes(hpo_panel_vnone, caplog):
+    """test that the liftover method doesn't fail"""
 
-    with pytest.raises(ValueError) as no_liftover:
-        read_json_from_path(hpo_panel_vnone, return_model=ResultData)
-    assert "No liftover methods for ResultData" in str(no_liftover.value)
+    data = json.load(open(hpo_panel_vnone))
+    assert data.get('version') is None
+
+    # lift it
+    lifted = lift_up_model_version(data, model=ResultData)
+    assert 'No liftover methods for ResultData' in caplog.text
