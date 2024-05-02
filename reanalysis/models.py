@@ -9,13 +9,17 @@ from pydantic import BaseModel, Field
 
 from cpg_utils import to_path
 
+from reanalysis.liftover.none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
 from reanalysis.static_values import get_granular_date
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = AIP_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
-MODEL_VERSION = '1.0.0'
+
+# some kind of version tracking
+CURRENT_VERSION = '1.0.0'
+ALL_VERSIONS = [None, '1.0.0']
 
 
 class FileTypes(Enum):
@@ -359,12 +363,12 @@ class PanelShort(BaseModel):
 class PanelApp(BaseModel):
     metadata: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, PanelDetail]
-    model_version: str = MODEL_VERSION
+    version: str = CURRENT_VERSION
 
 
 class HistoricPanels(BaseModel):
     genes: dict[str, set[int]] = Field(default_factory=dict)
-    model_version: str = MODEL_VERSION
+    version: str = CURRENT_VERSION
 
 
 class CategoryMeta(BaseModel):
@@ -397,7 +401,7 @@ class HistoricVariants(BaseModel):
     metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     # dict - participant ID -> variant -> variant data
     results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
-    model_version: str = MODEL_VERSION
+    version: str = CURRENT_VERSION
 
 
 class ResultMeta(BaseModel):
@@ -453,7 +457,7 @@ class ResultData(BaseModel):
 
     results: dict[str, ParticipantResults] = Field(default_factory=dict)
     metadata: ResultMeta = Field(default_factory=ResultMeta)
-    model_version: str = MODEL_VERSION
+    version: str = CURRENT_VERSION
 
 
 class ModelVariant(BaseModel):
@@ -472,7 +476,7 @@ class ParticipantHPOPanels(BaseModel):
 class PhenotypeMatchedPanels(BaseModel):
     samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     all_panels: set[int] = Field(default_factory=set)
-    model_version: str = MODEL_VERSION
+    version: str = CURRENT_VERSION
 
 
 class MiniVariant(BaseModel):
@@ -484,3 +488,63 @@ class MiniVariant(BaseModel):
 class MiniForSeqr(BaseModel):
     metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     results: dict[str, dict[str, MiniVariant]] = Field(default_factory=dict)
+
+
+# methods defining how to transition between model versions
+# if unspecified, no transition is required
+LIFTOVER_METHODS = {
+    PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
+    PanelApp: dict(),
+    HistoricPanels: dict(),
+    HistoricVariants: dict(),
+    ResultData: dict(),
+}
+
+
+def lift_up_model_version(
+    data: dict,
+    model: HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels,
+) -> dict:
+    """
+    lift over data from one version to another
+    this takes a dictionary object, and the model it is supposed to be
+    we walk up from the version in the dict to the current models.py one,
+    and apply all required transitions. This can be type changes, removing/adding mandatory fields, etc.
+    incremental transition methods should be registered in reanalysis/liftover/old_to_new.py
+
+    We expect that the majority of transitions will be no-ops,
+    but we need to check for the existence of a method
+
+    Args:
+        data (dict): the model data prior to any transitions
+        model (class): the data model the dict needs to be parsed as
+
+    Returns:
+        the input dictionary, transitioned to current format
+    """
+
+    # get current version, can be None (initial models did not specify)
+    from_version = data.get('version')
+
+    if from_version == CURRENT_VERSION:
+        return data
+
+    if from_version not in ALL_VERSIONS:
+        raise ValueError(f'Unknown {model.__name__} version: {from_version}')
+
+    if from_version != CURRENT_VERSION and not LIFTOVER_METHODS.get(model):
+        raise ValueError(f'No liftover methods for {model.__name__}')
+
+    # now pairwise iterate over ALL_VERSIONS, and find liftovers between each
+    from_version_index = ALL_VERSIONS.index(from_version)
+
+    # liftover pairs are (version, next_version)
+    # e.g. [(None, 1), (1,2), (2,3), (3,4), (4,5)]
+    # starting at the current index, and moving up from there
+    # e.g. liftover from 2 to 5 would use [(2,3), (3,4), (4,5)]
+    for previous, current in list(zip(ALL_VERSIONS, ALL_VERSIONS[1:]))[from_version_index:]:
+        liftover_key = f'{previous}_{current}'
+        if liftover_key in LIFTOVER_METHODS[model]:  # type: ignore
+            data = LIFTOVER_METHODS[model][liftover_key](data)  # type: ignore
+        data['version'] = current
+    return data

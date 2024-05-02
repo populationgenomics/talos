@@ -33,6 +33,8 @@ LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
 DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
 FAKE_OBO = INPUT / 'hpo_test.obo'
+HPO_VERSION_NONE = INPUT / 'hpo_panel_version_none.json'
+HPO_VERSION_POTATO = INPUT / 'hpo_panel_version_potato.json'
 LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
 PHASED_TRIO = INPUT / 'newphase.vcf.bgz'
 PED_FILE = INPUT / 'pedfile.ped'
@@ -223,6 +225,20 @@ def fixture_sub_stub():
     """path to the TXT file of submissions"""
 
     return SUB_STUB
+
+
+@pytest.fixture(name='hpo_panel_vnone', scope='session')
+def fixture_hpo_panel_vnone():
+    """path to unversioned HPO panel file"""
+
+    return HPO_VERSION_NONE
+
+
+@pytest.fixture(name='hpo_panel_vpotato', scope='session')
+def fixture_hpo_panel_vpotato():
+    """path to unversioned HPO panel file"""
+
+    return HPO_VERSION_POTATO
 
 
 # @pytest.fixture(scope='session')

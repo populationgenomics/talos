@@ -36,6 +36,7 @@ from reanalysis.models import (
     ResultData,
     SmallVariant,
     StructuralVariant,
+    lift_up_model_version,
 )
 from reanalysis.static_values import get_granular_date, get_logger
 
@@ -161,7 +162,7 @@ def get_cohort_config(dataset: str | None = None):
 
     global COHORT_CONFIG
     if COHORT_CONFIG is None:
-        dataset = config_retrieve(['workflow', 'dataset'], dataset)
+        dataset = dataset or config_retrieve(['workflow', 'dataset'])
         COHORT_CONFIG = config_retrieve(['cohorts', dataset], {})
         if not COHORT_CONFIG:
             raise AssertionError(f'{dataset} is not represented in config')
@@ -182,7 +183,7 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     """
     global COHORT_SEQ_CONFIG
     if COHORT_SEQ_CONFIG is None:
-        dataset = config_retrieve(['workflow', 'dataset'], dataset)
+        dataset = dataset or config_retrieve(['workflow', 'dataset'])
         cohort_conf = get_cohort_config(dataset)
         seq_type = config_retrieve(['workflow', 'sequencing_type'])
         COHORT_SEQ_CONFIG = cohort_conf.get(seq_type, {})
@@ -605,7 +606,9 @@ def read_json_from_path(
         with bucket_path.open() as handle:
             json_data = json.load(handle)
             if return_model:
-                return return_model.model_validate(json_data)
+                # potentially walk-up model version
+                model_data = lift_up_model_version(json_data, return_model)
+                return return_model.model_validate(model_data)
             return json_data
 
     if default is not None:
