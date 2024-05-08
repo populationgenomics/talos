@@ -373,6 +373,9 @@ class Variant:
                 alt_len = len(self.alt)
                 if ref_len > alt_len:
                     return f'del {ref_len - alt_len}bp'
+                elif ref_len == alt_len:
+                    return f'complex delins {ref_len}bp'
+
                 return f'ins {alt_len - ref_len}bp'
 
             return f'{self.ref}->{self.alt}'
