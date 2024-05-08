@@ -359,6 +359,28 @@ class Variant:
     Try not to put presentation logic here - keep it in the jinja templates
     """
 
+    def get_var_change(self) -> str:
+        """
+        Find the variant change for the variant
+        - we want to truncate huge small variant InDels (ballooning column width)
+           - e.g. LOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLO->A -> del 34bp
+        - SVs always need to be presented differently
+           - e.g INS 4079bp
+        """
+        if isinstance(self.var_data, SmallVariant):
+            if len(self.ref) > 10 or len(self.alt) > 10:
+                ref_len = len(self.ref)
+                alt_len = len(self.alt)
+                if ref_len > alt_len:
+                    return f'del {ref_len - alt_len}bp'
+                return f'ins {alt_len - ref_len}bp'
+
+            return f'{self.ref}->{self.alt}'
+        elif isinstance(self.var_data, StructuralVariant):
+            return f"{self.var_data.info['svtype']} {self.var_data.info['svlen']}bp"
+
+        raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
+
     def __init__(
         self,
         report_variant: ReportVariant,
@@ -366,14 +388,15 @@ class Variant:
         ext_labels: list,
         gene_map: dict[str, PanelDetail],
     ):
+        self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
         self.chrom = report_variant.var_data.coordinates.chrom
         self.pos = report_variant.var_data.coordinates.pos
         self.ref = report_variant.var_data.coordinates.ref
         self.alt = report_variant.var_data.coordinates.alt
+        self.change = self.get_var_change()
         self.categories = report_variant.categories
         self.first_seen: str = report_variant.first_seen
-        self.var_data = report_variant.var_data
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         self.panel_flags = report_variant.panels.matched
