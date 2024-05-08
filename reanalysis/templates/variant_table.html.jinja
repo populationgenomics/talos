@@ -3,6 +3,7 @@
     <tr>
     <th class="group-separator">Individual </th>
     <th class="group-separator">Family ID </th>
+    <th class="group-separator">Source</th>
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
     <th class="group-false">Categories</th>
@@ -40,6 +41,9 @@
         {{sample.family_id}}
     </td>
     <td>
+        {{ variant.var_type }}
+    </td>
+    <td>
         {# Coordinates #}
         {% if sample.seqr_id %}
             <a href="{{seqr_url}}/variant_search/variant/{{variant.var_data.info.seqr_link}}/family/{{sample.seqr_id}}" target="_blank">
@@ -49,11 +53,7 @@
             {{variant.chrom}}:{{variant.pos}}
         {% endif %}
         <br>
-        {% if variant.var_type == 'SmallVariant' %}
-            {{ variant.ref }}&rarr;{{ variant.alt }}
-        {% else %}
-            {{ variant.var_data.info.svtype }} {{ variant.var_data.info.svlen }}bp
-        {% endif %}
+        {{ variant.change }}
     </td>
     <td>
         {# Gene symbol #}

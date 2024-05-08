@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from reanalysis.models import PhenotypeMatchedPanels, ResultData, lift_up_model_version
+from reanalysis.models import PanelApp, PhenotypeMatchedPanels, lift_up_model_version
 from reanalysis.utils import read_json_from_path
 
 
@@ -78,5 +78,5 @@ def test_no_liftover_passes(hpo_panel_vnone, caplog):
     assert data.get('version') is None
 
     # lift it
-    _lifted = lift_up_model_version(data, model=ResultData)
-    assert 'No liftover methods for ResultData' in caplog.text
+    _lifted = lift_up_model_version(data, model=PanelApp)
+    assert 'No liftover methods for PanelApp' in caplog.text

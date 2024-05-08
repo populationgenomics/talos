@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from cpg_utils import to_path
 
 from reanalysis.liftover.none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
+from reanalysis.liftover.none_to_1_0_0 import lift_resultdata as rd_none_to_1_0_0
 from reanalysis.static_values import get_granular_date, get_logger
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
@@ -497,7 +498,7 @@ LIFTOVER_METHODS = {
     PanelApp: dict(),
     HistoricPanels: dict(),
     HistoricVariants: dict(),
-    ResultData: dict(),
+    ResultData: {'None_1.0.0': rd_none_to_1_0_0},
 }
 
 
