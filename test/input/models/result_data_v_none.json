@@ -1,0 +1,65 @@
+{
+    "metadata": {
+        "categories": {
+            "1": "ClinVar Pathogenic",
+            "2": "New Gene-Disease Association",
+            "3": "High Impact Variant",
+            "4": "de Novo",
+            "5": "High SpliceAI Score",
+            "6": "AlphaMissense P/LP",
+            "pm5": "ACMG PM5 - missense in same residue as known pathogenic",
+            "sv1": "Predicted LOF SV"
+        },
+        "cohort": "",
+        "container": "",
+        "family_breakdown": {},
+        "input_file": "",
+        "panels": [],
+        "projects": [],
+        "run_datetime": "2024-05-09"
+    },
+    "results": {
+        "sam2": {
+            "metadata": {
+                "ext_id": "sam2",
+                "family_id": "2",
+                "members": {},
+                "panel_ids": [],
+                "panel_names": [],
+                "phenotypes": [],
+                "solved": false
+            },
+            "variants": [
+                {
+                    "categories": ["2", "1"],
+                    "family": "",
+                    "first_seen": "2024-05-09",
+                    "flags": [],
+                    "gene": "ENSG2",
+                    "genotypes": {},
+                    "independent": false,
+                    "labels": [],
+                    "panels": {
+                        "forced": [],
+                        "matched": []
+                    },
+                    "phenotypes": [],
+                    "reasons": [],
+                    "sample": "sam2",
+                    "support_vars": [],
+                    "var_data": {
+                        "coordinates": {
+                            "alt": "G",
+                            "chrom": "2",
+                            "pos": 2,
+                            "ref": "A"
+                        },
+                        "info": {},
+                        "phased": {},
+                        "transcript_consequences": []
+                    }
+                }
+            ]
+        }
+    }
+}
