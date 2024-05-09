@@ -19,8 +19,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.0.0'
-ALL_VERSIONS = [None, '1.0.0']
+CURRENT_VERSION = '1.0.1'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1']
 
 
 class FileTypes(Enum):
@@ -313,8 +313,14 @@ class ReportVariant(BaseModel):
     sample: str
     var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
+    # is this a thing I can do?
+    # todo implement this
+    date_of_phenotype_match: str | None = None
+    evidence_last_updated: str = Field(default=get_granular_date())
     family: str = Field(default_factory=str)
-    first_seen: str = Field(default=get_granular_date())
+    # 'tagged' is seqr-compliant language
+    # todo needs a liftover
+    first_tagged: str = Field(default=get_granular_date())
     flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
     genotypes: dict[str, str] = Field(default_factory=dict)
@@ -383,9 +389,14 @@ class CategoryMeta(BaseModel):
 class HistoricSampleVariant(BaseModel):
     """ """
 
+    # categories here will be a dict of {categories: associated date first seen}
     categories: dict[str, str]
-    support_vars: list[str] = Field(
-        default_factory=list,
+    # new variable to store the date the variant was first seen, static
+    # todo needs a liftover
+    first_seen: str
+    # todo this became a set - maybe a no-op liftover?
+    support_vars: set[str] = Field(
+        default_factory=set,
         description='supporting variants if this has been identified in a comp-het',
     )
     independent: bool = Field(default=True)

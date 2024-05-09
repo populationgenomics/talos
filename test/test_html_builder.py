@@ -52,7 +52,7 @@ def test_check_date_filter(tmp_path):
     filtered_results = check_date_filter(result_path, '2021-01-01')
     assert 'sample1' in filtered_results.results
     assert 'sample2' not in filtered_results.results
-    assert filtered_results.results['sample1'].variants[0].first_seen == '2021-01-01'
+    assert filtered_results.results['sample1'].variants[0].first_tagged == '2021-01-01'
     assert filtered_results.results['sample1'].variants[0].var_data.coordinates.string_format == '1-1-A-C'
 
 
@@ -104,7 +104,7 @@ def test_check_date_filter_pair(tmp_path):
     assert 'sample1' in filtered_results.results
     assert 'sample2' not in filtered_results.results
     assert len(filtered_results.results['sample1'].variants) == 2
-    assert sorted(var.first_seen for var in filtered_results.results['sample1'].variants) == [
+    assert sorted(var.first_tagged for var in filtered_results.results['sample1'].variants) == [
         '2021-01-01',
         '2023-03-03',
     ]
@@ -188,5 +188,5 @@ def test_check_date_filter_date_from_meta(tmp_path):
     filtered_results = check_date_filter(result_path)
     assert 'sample1' not in filtered_results.results
     assert 'sample2' in filtered_results.results
-    assert filtered_results.results['sample2'].variants[0].first_seen == '2022-02-02'
+    assert filtered_results.results['sample2'].variants[0].first_tagged == '2022-02-02'
     assert filtered_results.results['sample2'].variants[0].var_data.coordinates.string_format == '2-2-A-C'

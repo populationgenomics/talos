@@ -773,10 +773,12 @@ def generate_fresh_latest_results(current_results: ResultData, dataset: str, pre
     new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve(['categories'], {})))
     for sample, content in current_results.results.items():
         for var in content.variants:
+            # todo is this right?
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
-                categories={cat: var.first_seen for cat in var.categories},
-                support_vars=list(var.support_vars),
+                categories={cat: var.first_tagged for cat in var.categories},
+                support_vars=var.support_vars,
                 independent=var.independent,
+                first_seen=var.first_tagged,  # this could be min of available values, but this is first analysis
             )
     save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
 
@@ -884,11 +886,13 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
     takes the current data, and annotates with previous dates if found
     build/update the historic data within the same loop
-    much simpler logic overall
 
     logically we can't reach this method in production without historic
     data being present. This method no longer permits historic data to be
     missing, and edits objects in place
+
+    first_seen date is the earliest date of any category assignment
+    this date should be static
 
     Args:
         current (ResultData): results generated during this run
@@ -902,6 +906,8 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     historic.metadata.categories.update(config_retrieve(['categories']))
 
     for sample, content in current.results.items():
+
+        # get the historic record for this sample
         sample_historic = historic.results.get(sample, {})
 
         # check each variant found in this round
@@ -911,12 +917,10 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
 
             # this variant was previously seen
             if hist := sample_historic.get(var_id):
-                # bool if this was ever independent
-                # if newly independent, bump the date for current assignments
+                # bool if this was ever independent (i.e. dominant or Homozygous)
+                # changed logic - do not update dates of prior category assignments
                 if var.independent and not hist.independent:
                     hist.independent = True
-                    for cat in current_cats:
-                        hist.categories[cat] = get_granular_date()
 
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - set(hist.categories):
@@ -924,19 +928,20 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     for cat in new_cats:
                         hist.categories[cat] = get_granular_date()
 
-                # same categories, new support
-                elif new_sups := [sup for sup in var.support_vars if sup not in hist.support_vars]:
-                    hist.support_vars.extend(new_sups)
+                # update to include all support_variants
+                hist.support_vars.update(var.support_vars)
 
-                # otherwise alter the first_seen date
-                else:
-                    # choosing to take the latest _new_ category date
-                    var.first_seen = sorted(hist.categories.values(), reverse=True)[0]
+                # mark the first seen timestamp
+                var.first_tagged = hist.first_seen
+
+                # latest _new_ category date as evidence_last_changed timestamp
+                var.evidence_last_updated = sorted(hist.categories.values(), reverse=True)[0]
 
             # totally new variant
             else:
                 historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
                     categories={cat: get_granular_date() for cat in current_cats},
-                    support_vars=list(var.support_vars),
+                    support_vars=var.support_vars,
                     independent=var.independent,
+                    first_seen=get_granular_date(),
                 )
