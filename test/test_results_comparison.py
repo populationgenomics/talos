@@ -56,13 +56,14 @@ def test_date_annotate_one():
                     VAR_1.coordinates.string_format: {
                         'categories': {'1': OLD_DATE},
                         'independent': False,
+                        'first_seen': 'aardvaark',
                     },
                 },
             },
         },
     )
     date_annotate_results(results, historic)
-    assert results.results['sam1'].variants[0].first_seen == OLD_DATE
+    assert results.results['sam1'].variants[0].first_tagged == 'aardvaark'
 
 
 def test_date_annotate_two():
@@ -87,6 +88,7 @@ def test_date_annotate_two():
                     COORD_2.string_format: {
                         'categories': {'1': OLD_DATE},
                         'independent': False,
+                        'first_seen': '24-05-05',
                     },
                 },
             },
@@ -96,12 +98,13 @@ def test_date_annotate_two():
     assert len(historic.results['sam2'][COORD_2.string_format].categories) == 2
     assert historic.results['sam2'][COORD_2.string_format].categories['1'] == OLD_DATE
     assert historic.results['sam2'][COORD_2.string_format].categories['2'] == get_granular_date()
+    assert historic.results['sam2'][COORD_2.string_format].first_seen == '24-05-05'
     assert results == prior_results
 
 
 def test_date_annotate_three():
     """
-    if a variant is newly independent, update the dates?
+    if a variant is newly independent, don't update the dates
     """
     results = ResultData(
         **{
@@ -121,6 +124,7 @@ def test_date_annotate_three():
                         'categories': {'1': OLD_DATE},
                         'support_vars': ['flipflop'],
                         'independent': False,
+                        'first_seen': 'aardvaark',
                     },
                 },
             },
@@ -129,9 +133,10 @@ def test_date_annotate_three():
     date_annotate_results(results, historic)
     assert historic.results['sam1'][COORD_1.string_format] == HistoricSampleVariant(
         **{
-            'categories': {'1': get_granular_date()},
+            'categories': {'1': OLD_DATE},
             'support_vars': ['flipflop'],
             'independent': True,
+            'first_seen': 'aardvaark',
         },
     )
 
@@ -157,8 +162,7 @@ def test_date_annotate_four():
     historic = HistoricVariants(
         **{
             'results': {
-                'sam1': {COORD_1.string_format: {'categories': {'2': OLD_DATE}}},
-                'sam3': {},
+                'sam1': {COORD_1.string_format: {'categories': {'2': OLD_DATE}, 'first_seen': 'amish'}},
             },
         },
     )
@@ -166,9 +170,18 @@ def test_date_annotate_four():
     assert historic == HistoricVariants(
         **{
             'results': {
-                'sam1': {COORD_1.string_format: {'categories': {'1': get_granular_date(), '2': OLD_DATE}}},
-                'sam2': {COORD_2.string_format: {'categories': {'2': get_granular_date()}}},
-                'sam3': {},
+                'sam1': {
+                    COORD_1.string_format: {
+                        'categories': {'1': get_granular_date(), '2': OLD_DATE},
+                        'first_seen': 'amish',
+                    },
+                },
+                'sam2': {
+                    COORD_2.string_format: {
+                        'categories': {'2': get_granular_date()},
+                        'first_seen': get_granular_date(),
+                    },
+                },
             },
         },
     )

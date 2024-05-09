@@ -20,27 +20,23 @@ CONF_BASE = INPUT / 'reanalysis_global.toml'
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE)])
 
-from reanalysis.data_model import (  # noqa: E402
-    BaseFields,
-    Entry,
-    SneakyTable,
-    TXFields,
-    VepVariant,
-)
+from reanalysis.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 from reanalysis.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
 DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
 FAKE_OBO = INPUT / 'hpo_test.obo'
-HPO_VERSION_NONE = INPUT / 'hpo_panel_version_none.json'
-HPO_VERSION_POTATO = INPUT / 'hpo_panel_version_potato.json'
+HPO_VERSION_NONE = INPUT / 'models' / 'hpo_panel_version_none.json'
+HPO_VERSION_POTATO = INPUT / 'models' / 'hpo_panel_version_potato.json'
 LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
 PHASED_TRIO = INPUT / 'newphase.vcf.bgz'
 PED_FILE = INPUT / 'pedfile.ped'
 SEQR_OUTPUT = INPUT / 'seqr_tags.tsv'
 QUAD_PED = INPUT / 'trio_plus_sibling.fam'
 SUB_STUB = INPUT / 'tiny_summary.txt.gz'
+
+# todo insert a path to the new result data models
 
 # panelapp testing paths
 PANELAPP_LATEST = INPUT / 'panelapp_current_137.json'

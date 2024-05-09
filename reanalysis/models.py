@@ -9,8 +9,9 @@ from pydantic import BaseModel, Field
 
 from cpg_utils import to_path
 
-from reanalysis.liftover.none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
-from reanalysis.liftover.none_to_1_0_0 import lift_resultdata as rd_none_to_1_0_0
+from reanalysis.liftover.lift_1_0_0_to_1_0_1 import result_data as rd_100_to_101
+from reanalysis.liftover.lift_none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
+from reanalysis.liftover.lift_none_to_1_0_0 import lift_resultdata as rd_none_to_1_0_0
 from reanalysis.static_values import get_granular_date, get_logger
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
@@ -319,7 +320,6 @@ class ReportVariant(BaseModel):
     evidence_last_updated: str = Field(default=get_granular_date())
     family: str = Field(default_factory=str)
     # 'tagged' is seqr-compliant language
-    # todo needs a liftover
     first_tagged: str = Field(default=get_granular_date())
     flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
@@ -509,7 +509,7 @@ LIFTOVER_METHODS = {
     PanelApp: dict(),
     HistoricPanels: dict(),
     HistoricVariants: dict(),
-    ResultData: {'None_1.0.0': rd_none_to_1_0_0},
+    ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101},
 }
 
 

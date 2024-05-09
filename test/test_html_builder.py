@@ -185,6 +185,7 @@ def test_check_date_filter_date_from_meta(tmp_path):
     with open(result_path, 'w', encoding='utf-8') as handle:
         handle.write(ResultData.model_validate(result_dict).model_dump_json(indent=4))
 
+    # todo returning None as nothing was present??
     filtered_results = check_date_filter(result_path)
     assert 'sample1' not in filtered_results.results
     assert 'sample2' in filtered_results.results

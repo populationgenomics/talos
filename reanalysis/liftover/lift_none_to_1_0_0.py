@@ -10,6 +10,8 @@ def lift_pmp(data_dict: dict) -> dict:
     prev: ['HPO:0000001 - Definition', ]
     required: [{'id': 'HPO:0000001', 'label': 'Definition'}, ]
     """
+    # confirm that we're upgrading the right version
+    assert data_dict.get('version') is None
     for _sample, data in data_dict['samples'].items():
         assert isinstance(data['hpo_terms'], list)
         new_data: list[dict] = []
@@ -39,6 +41,8 @@ def lift_resultdata(data_dict: dict) -> dict:
     prev: ['HPO:0000001 - Definition', ]
     required: [{'id': 'HPO:0000001', 'label': 'Definition'}, ]
     """
+    # confirm that we're upgrading the right version
+    assert data_dict.get('version') is None
     for _sample, data in data_dict['results'].items():
         assert isinstance(data['metadata']['phenotypes'], list)
         new_data: list[dict] = []
