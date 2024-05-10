@@ -52,7 +52,7 @@ def lift_resultdata(data_dict: dict) -> dict:
                 hpo_id, label = term.split(' - ')
                 new_data.append({'id': hpo_id, 'label': label})
 
-            except IndexError:
+            except ValueError:
                 assert isinstance(term, str)
                 hpo_id = term
                 new_data.append({'id': hpo_id, 'label': ''})

@@ -399,7 +399,7 @@ class Variant:
         self.alt = report_variant.var_data.coordinates.alt
         self.change = self.get_var_change()
         self.categories = report_variant.categories
-        self.first_seen: str = report_variant.first_tagged
+        self.first_tagged: str = report_variant.first_tagged
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         self.panel_flags = report_variant.panels.matched

@@ -27,8 +27,14 @@
                 "panel_ids": [],
                 "panel_names": [],
                 "phenotypes": [
-                    "HP:0000001 - translation text",
-                    "HP:0000002"
+                    {
+                        "id": "HP:0000001",
+                        "label": "translation text"
+                    },
+                    {
+                        "id": "HP:0000002",
+                        "label": ""
+                    }
                 ],
                 "solved": false
             },
@@ -64,5 +70,6 @@
                 }
             ]
         }
-    }
+    },
+    "version": "1.0.0"
 }

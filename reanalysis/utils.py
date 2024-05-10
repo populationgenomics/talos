@@ -933,7 +933,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                 hist.support_vars.update(var.support_vars)
 
                 # mark the first seen timestamp
-                var.first_tagged = hist.first_seen
+                var.first_tagged = hist.first_tagged
 
                 # latest _new_ category date as evidence_last_changed timestamp
                 var.evidence_last_updated = sorted(hist.categories.values(), reverse=True)[0]
@@ -944,5 +944,5 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     categories={cat: get_granular_date() for cat in current_cats},
                     support_vars=var.support_vars,
                     independent=var.independent,
-                    first_seen=get_granular_date(),
+                    first_tagged=get_granular_date(),
                 )

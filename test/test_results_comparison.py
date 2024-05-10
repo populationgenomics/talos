@@ -56,7 +56,7 @@ def test_date_annotate_one():
                     VAR_1.coordinates.string_format: {
                         'categories': {'1': OLD_DATE},
                         'independent': False,
-                        'first_seen': 'aardvaark',
+                        'first_tagged': 'aardvaark',
                     },
                 },
             },
@@ -88,7 +88,7 @@ def test_date_annotate_two():
                     COORD_2.string_format: {
                         'categories': {'1': OLD_DATE},
                         'independent': False,
-                        'first_seen': '24-05-05',
+                        'first_tagged': '24-05-05',
                     },
                 },
             },
@@ -98,7 +98,7 @@ def test_date_annotate_two():
     assert len(historic.results['sam2'][COORD_2.string_format].categories) == 2
     assert historic.results['sam2'][COORD_2.string_format].categories['1'] == OLD_DATE
     assert historic.results['sam2'][COORD_2.string_format].categories['2'] == get_granular_date()
-    assert historic.results['sam2'][COORD_2.string_format].first_seen == '24-05-05'
+    assert historic.results['sam2'][COORD_2.string_format].first_tagged == '24-05-05'
     assert results == prior_results
 
 
@@ -124,7 +124,7 @@ def test_date_annotate_three():
                         'categories': {'1': OLD_DATE},
                         'support_vars': ['flipflop'],
                         'independent': False,
-                        'first_seen': 'aardvaark',
+                        'first_tagged': 'aardvaark',
                     },
                 },
             },
@@ -136,7 +136,7 @@ def test_date_annotate_three():
             'categories': {'1': OLD_DATE},
             'support_vars': ['flipflop'],
             'independent': True,
-            'first_seen': 'aardvaark',
+            'first_tagged': 'aardvaark',
         },
     )
 
@@ -162,7 +162,7 @@ def test_date_annotate_four():
     historic = HistoricVariants(
         **{
             'results': {
-                'sam1': {COORD_1.string_format: {'categories': {'2': OLD_DATE}, 'first_seen': 'amish'}},
+                'sam1': {COORD_1.string_format: {'categories': {'2': OLD_DATE}, 'first_tagged': 'amish'}},
             },
         },
     )
@@ -173,13 +173,13 @@ def test_date_annotate_four():
                 'sam1': {
                     COORD_1.string_format: {
                         'categories': {'1': get_granular_date(), '2': OLD_DATE},
-                        'first_seen': 'amish',
+                        'first_tagged': 'amish',
                     },
                 },
                 'sam2': {
                     COORD_2.string_format: {
                         'categories': {'2': get_granular_date()},
-                        'first_seen': get_granular_date(),
+                        'first_tagged': get_granular_date(),
                     },
                 },
             },

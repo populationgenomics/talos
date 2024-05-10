@@ -36,6 +36,15 @@ class FileTypes(Enum):
     VCF_BGZ = '.vcf.bgz'
 
 
+class PhenoPacketHpo(BaseModel):
+    """
+    A representation of a HPO term
+    """
+
+    id: str
+    label: str
+
+
 class Coordinates(BaseModel):
     """
     A representation of genomic coordinates
@@ -327,7 +336,7 @@ class ReportVariant(BaseModel):
     independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
-    phenotypes: list[dict[str, str]] = Field(default_factory=list)
+    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
     reasons: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
 
@@ -393,7 +402,7 @@ class HistoricSampleVariant(BaseModel):
     categories: dict[str, str]
     # new variable to store the date the variant was first seen, static
     # todo needs a liftover
-    first_seen: str
+    first_tagged: str
     # todo this became a set - maybe a no-op liftover?
     support_vars: set[str] = Field(
         default_factory=set,
@@ -447,7 +456,7 @@ class ParticipantMeta(BaseModel):
     ext_id: str
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
-    phenotypes: list[dict[str, str]] = Field(default_factory=list)
+    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
     panel_ids: list[int] = Field(default_factory=list)
     panel_names: list[str] = Field(default_factory=list)
     solved: bool = Field(default=False)
@@ -481,7 +490,7 @@ class ModelVariant(BaseModel):
 class ParticipantHPOPanels(BaseModel):
     external_id: str = Field(default_factory=str)
     family_id: str = Field(default_factory=str)
-    hpo_terms: list[dict[str, str]] = Field(default_factory=list)
+    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
 
 
