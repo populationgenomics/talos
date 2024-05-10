@@ -3,7 +3,7 @@ code for lifting over models from 1.0.0 to 1.0.1
 """
 
 
-def result_data(data_dict: dict) -> dict:
+def resultdata(data_dict: dict) -> dict:
     """
     Lift over ResultData from 1.0.0 to 1.0.1
     Requires the adjustment of "first_seen" to "first_tagged"
@@ -21,7 +21,7 @@ def result_data(data_dict: dict) -> dict:
     return data_dict
 
 
-def historic_variants(data_dict: dict) -> dict:
+def historicvariants(data_dict: dict) -> dict:
     """
     Lift over HistoricVariants from 1.0.0 to 1.0.1
     Requires the adjustment of "first_seen" to "first_tagged"

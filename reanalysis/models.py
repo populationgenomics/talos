@@ -9,9 +9,10 @@ from pydantic import BaseModel, Field
 
 from cpg_utils import to_path
 
-from reanalysis.liftover.lift_1_0_0_to_1_0_1 import result_data as rd_100_to_101
-from reanalysis.liftover.lift_none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
-from reanalysis.liftover.lift_none_to_1_0_0 import lift_resultdata as rd_none_to_1_0_0
+from reanalysis.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
+from reanalysis.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
+from reanalysis.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
+from reanalysis.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from reanalysis.static_values import get_granular_date, get_logger
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
@@ -517,7 +518,7 @@ LIFTOVER_METHODS = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: dict(),
     HistoricPanels: dict(),
-    HistoricVariants: dict(),
+    HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
     ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101},
 }
 

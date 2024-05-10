@@ -3,7 +3,7 @@ code for lifting over models from None/unspecified to 1.0.0
 """
 
 
-def lift_pmp(data_dict: dict) -> dict:
+def phenotypematchedpanels(data_dict: dict) -> dict:
     """
     Lift over PhenotypeMatchedPanels from None to 1.0.0
     requires the migration of HPO terms from strings to dicts
@@ -34,7 +34,7 @@ def lift_pmp(data_dict: dict) -> dict:
     return data_dict
 
 
-def lift_resultdata(data_dict: dict) -> dict:
+def resultdata(data_dict: dict) -> dict:
     """
     Lift over ResultData from None to 1.0.0
     requires the migration of HPO terms from strings to dicts
