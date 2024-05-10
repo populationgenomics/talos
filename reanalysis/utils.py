@@ -133,6 +133,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     wait_gen=fibo,
     exception=(TransportQueryError, TransportServerError, TimeoutError, ReadTimeout, RequestException),
     max_time=200,
+    logger=get_logger(),
 )
 def get_json_response(url):
     """
