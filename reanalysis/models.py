@@ -402,9 +402,7 @@ class HistoricSampleVariant(BaseModel):
     # categories here will be a dict of {categories: associated date first seen}
     categories: dict[str, str]
     # new variable to store the date the variant was first seen, static
-    # todo needs a liftover
     first_tagged: str
-    # todo this became a set - maybe a no-op liftover?
     support_vars: set[str] = Field(
         default_factory=set,
         description='supporting variants if this has been identified in a comp-het',
