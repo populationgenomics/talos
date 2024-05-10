@@ -802,6 +802,10 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
+        # todo update all the evidence_last_updated
+        for sample, content in results.results.items():
+            for var in content.variants:
+                var.evidence_last_updated = get_granular_date()
         return
 
     get_logger().info('Attempting to filter current results against historic')
