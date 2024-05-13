@@ -22,8 +22,8 @@ import hail as hl
 from hail.utils.java import FatalError
 
 from cpg_utils import to_path
-from cpg_utils.config import get_config
-from cpg_utils.hail_batch import init_batch, output_path
+from cpg_utils.config import get_config, output_path
+from cpg_utils.hail_batch import init_batch
 
 from reanalysis.hail_audit import (
     BASE_FIELDS_REQUIRED,
@@ -840,8 +840,9 @@ def checkpoint_and_repartition(
     extra_logging: str | None = '',
 ) -> hl.MatrixTable:
     """
-    uses estimated row data size to repartition MT
-    aiming for a target partition size of ~10MB
+    uses estimated row data size to repartition MT, aiming for a target partition size of ~10MB
+
+    This no longer re-uses prior checkpoints, as that has caused so many problems...
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
 
@@ -854,12 +855,8 @@ def checkpoint_and_repartition(
         the MT after checkpointing, re-reading, and repartitioning
     """
     checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
-    if (to_path(checkpoint_extended) / '_SUCCESS').exists():
-        get_logger().info(f'Found existing checkpoint at {checkpoint_extended}')
-        mt = hl.read_matrix_table(checkpoint_extended)
-    else:
-        get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
-        mt = mt.checkpoint(checkpoint_extended, overwrite=True)
+    get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
+    mt = mt.checkpoint(checkpoint_extended, overwrite=True)
 
     # estimate partitions; fall back to 1 if low row count
     current_rows = mt.count_rows()
