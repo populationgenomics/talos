@@ -15,6 +15,7 @@ import backoff
 import cyvcf2
 import peddy
 import requests
+import zoneinfo
 from backoff import fibo
 from gql.transport.exceptions import TransportQueryError, TransportServerError
 from requests.exceptions import ReadTimeout, RequestException
@@ -51,7 +52,9 @@ PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
-TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
+
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
+TODAY = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d_%H:%M')
 
 # most lenient to most conservative
 # usage = if we have two MOIs for the same gene, take the broadest
@@ -62,6 +65,7 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 # global config holders
 COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
+DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 
 def chunks(iterable, chunk_size):
@@ -192,7 +196,6 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     return COHORT_SEQ_CONFIG
 
 
-# todo rethink this whole method?
 def get_new_gene_map(
     panelapp_data: PanelApp,
     pheno_panels: PhenotypeMatchedPanels | None = None,
@@ -402,7 +405,6 @@ def create_small_variant(
     # sample categories are a set of strings or 'missing'
     # if cohort runs as singletons, remove possibility of de novo
     # if not singletons, split each into a set of sample IDs
-    # todo I have messed with this, check it works
     for sam_cat in sample_categories:
         if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
             info[sam_cat] = set()
@@ -774,12 +776,11 @@ def generate_fresh_latest_results(current_results: ResultData, dataset: str, pre
     new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve(['categories'], {})))
     for sample, content in current_results.results.items():
         for var in content.variants:
-            # todo is this right?
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
                 categories={cat: var.first_tagged for cat in var.categories},
                 support_vars=var.support_vars,
                 independent=var.independent,
-                first_seen=var.first_tagged,  # this could be min of available values, but this is first analysis
+                first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
             )
     save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
 
@@ -856,6 +857,21 @@ def save_new_historic(results: HistoricVariants | HistoricPanels, dataset: str, 
     get_logger().info(f'Wrote new data to {new_file}')
 
 
+def date_from_string(string: str) -> str:
+    """
+    takes a string, finds the date. Simples
+    Args:
+        string (a filename):
+
+    Returns:
+        the String YYYY-MM-DD
+    """
+
+    if re.search(DATE_RE, string) is not None:
+        return re.search(DATE_RE, string).group()  # type: ignore
+    raise ValueError(f'No date found in {string}')
+
+
 def find_latest_file(dataset: str, results_folder: str | None = None, start: str = '', ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
@@ -876,15 +892,13 @@ def find_latest_file(dataset: str, results_folder: str | None = None, start: str
 
     get_logger().info(f'Using results from {results_folder}')
 
-    date_sorted_files = sorted(
-        to_path(results_folder).glob(f'{start}*.{ext}'),
-        key=lambda x: x.stat().st_mtime,
-        reverse=True,
-    )
-    if not date_sorted_files:
+    date_files = {
+        date_from_string(filename.name): filename for filename in to_path(results_folder).glob(f'{start}*.{ext}')
+    }
+    if not date_files:
         return None
 
-    return str(date_sorted_files[0].absolute())
+    return str(date_files[max(date_files.keys())].absolute())
 
 
 def date_annotate_results(current: ResultData, historic: HistoricVariants):
