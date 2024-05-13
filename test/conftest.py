@@ -20,21 +20,13 @@ CONF_BASE = INPUT / 'reanalysis_global.toml'
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE)])
 
-from reanalysis.data_model import (  # noqa: E402
-    BaseFields,
-    Entry,
-    SneakyTable,
-    TXFields,
-    VepVariant,
-)
+from reanalysis.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 from reanalysis.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
 AIP_OUTPUT = INPUT / 'aip_output_example.json'
 DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
 FAKE_OBO = INPUT / 'hpo_test.obo'
-HPO_VERSION_NONE = INPUT / 'hpo_panel_version_none.json'
-HPO_VERSION_POTATO = INPUT / 'hpo_panel_version_potato.json'
 LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
 PHASED_TRIO = INPUT / 'newphase.vcf.bgz'
 PED_FILE = INPUT / 'pedfile.ped'
@@ -94,6 +86,18 @@ def fixture_make_a_vcf(make_a_mt, tmp_path_factory) -> str:
     vcf_path = str(tmp_path / 'test.vcf.bgz')
     hl.export_vcf(make_a_mt, vcf_path, tabix=True)
     return vcf_path
+
+
+@pytest.fixture(name='test_input_path', scope='session')
+def fixture_test_input_path() -> Path:
+    """path to the test input directory"""
+    return INPUT
+
+
+@pytest.fixture(name='test_input_models_path', scope='session')
+def fixture_test_input_models_path() -> Path:
+    """path to the test input directory"""
+    return INPUT / 'models'
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')
@@ -225,20 +229,6 @@ def fixture_sub_stub():
     """path to the TXT file of submissions"""
 
     return SUB_STUB
-
-
-@pytest.fixture(name='hpo_panel_vnone', scope='session')
-def fixture_hpo_panel_vnone():
-    """path to unversioned HPO panel file"""
-
-    return HPO_VERSION_NONE
-
-
-@pytest.fixture(name='hpo_panel_vpotato', scope='session')
-def fixture_hpo_panel_vpotato():
-    """path to unversioned HPO panel file"""
-
-    return HPO_VERSION_POTATO
 
 
 # @pytest.fixture(scope='session')

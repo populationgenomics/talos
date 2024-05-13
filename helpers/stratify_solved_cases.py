@@ -63,7 +63,7 @@ def get_affected_per_family(pedigree: list[dict]):
 all_projects_of_interest = {dataset['dataset'] for dataset in query(PROJECT_QUERY)['myProjects']}
 
 project_dict = dict()
-solved_fams = open(argv[1]).readlines()
+solved_fams: set[str] = {x.strip() for x in open(argv[1]).readlines()}
 
 for project in all_projects_of_interest:
     # find all the samples in each project
@@ -78,15 +78,15 @@ for project in all_projects_of_interest:
     solves_project_ids = []
 
     for solve in solved_fams:
-        if solve.strip() in aff_dict:
-            for ext_id in aff_dict[solve.strip()]:
+        if solve in aff_dict:
+            for ext_id in aff_dict[solve]:
                 if ext_id in sample_map:
                     solves_project_ids.append(sample_map[ext_id])
                 elif ext_id.replace('_proband', '') in sample_map:
                     solves_project_ids.append(sample_map[ext_id.replace('_proband', '')])
 
     # write this to a dict
-    project_dict[project] = solves_project_ids
+    project_dict[project] = sorted(solves_project_ids)
 
 with open('output_solves.toml', 'w') as handle:
     toml.dump(project_dict, handle)

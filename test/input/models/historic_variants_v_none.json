@@ -1,0 +1,21 @@
+{
+    "metadata": {
+        "categories": {
+            "1": "ClinVar Pathogenic"
+        }
+    },
+    "results": {
+        "sam1": {
+            "VAR1": {
+                "categories": {
+                    "1": "2024-05-10",
+                    "2": "2020-01-01"
+                },
+                "support_vars": [
+                    "a_support"
+                ],
+                "independent": false
+            }
+        }
+    }
+}

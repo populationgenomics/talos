@@ -27,7 +27,7 @@ def test_check_date_filter(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample1',
-                            'first_seen': '2021-01-01',
+                            'first_tagged': '2021-01-01',
                             'var_data': VAR_1,
                         },
                     ],
@@ -37,7 +37,7 @@ def test_check_date_filter(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample1',
-                            'first_seen': '2022-02-02',
+                            'first_tagged': '2022-02-02',
                             'var_data': VAR_2,
                         },
                     ],
@@ -52,7 +52,7 @@ def test_check_date_filter(tmp_path):
     filtered_results = check_date_filter(result_path, '2021-01-01')
     assert 'sample1' in filtered_results.results
     assert 'sample2' not in filtered_results.results
-    assert filtered_results.results['sample1'].variants[0].first_seen == '2021-01-01'
+    assert filtered_results.results['sample1'].variants[0].first_tagged == '2021-01-01'
     assert filtered_results.results['sample1'].variants[0].var_data.coordinates.string_format == '1-1-A-C'
 
 
@@ -71,13 +71,13 @@ def test_check_date_filter_pair(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample1',
-                            'first_seen': '2021-01-01',
+                            'first_tagged': '2021-01-01',
                             'var_data': VAR_1,
                             'support_vars': {VAR_2.coordinates.string_format},
                         },
                         {
                             'sample': 'sample1',
-                            'first_seen': '2023-03-03',
+                            'first_tagged': '2023-03-03',
                             'var_data': VAR_2,
                             'support_vars': {VAR_1.coordinates.string_format},
                         },
@@ -88,7 +88,7 @@ def test_check_date_filter_pair(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample1',
-                            'first_seen': '2022-02-02',
+                            'first_tagged': '2022-02-02',
                             'var_data': VAR_2,
                         },
                     ],
@@ -104,7 +104,7 @@ def test_check_date_filter_pair(tmp_path):
     assert 'sample1' in filtered_results.results
     assert 'sample2' not in filtered_results.results
     assert len(filtered_results.results['sample1'].variants) == 2
-    assert sorted(var.first_seen for var in filtered_results.results['sample1'].variants) == [
+    assert sorted(var.first_tagged for var in filtered_results.results['sample1'].variants) == [
         '2021-01-01',
         '2023-03-03',
     ]
@@ -126,7 +126,7 @@ def test_check_date_filter_none_pass(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample1',
-                            'first_seen': '2021-01-01',
+                            'first_tagged': '2021-01-01',
                             'var_data': VAR_1,
                         },
                     ],
@@ -136,7 +136,7 @@ def test_check_date_filter_none_pass(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample2',
-                            'first_seen': '2022-02-02',
+                            'first_tagged': '2022-02-02',
                             'var_data': VAR_2,
                         },
                     ],
@@ -163,7 +163,7 @@ def test_check_date_filter_date_from_meta(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample1',
-                            'first_seen': '2021-01-01',
+                            'first_tagged': '2021-01-01',
                             'var_data': VAR_1,
                         },
                     ],
@@ -173,7 +173,7 @@ def test_check_date_filter_date_from_meta(tmp_path):
                     'variants': [
                         {
                             'sample': 'sample2',
-                            'first_seen': '2022-02-02',
+                            'first_tagged': '2022-02-02',
                             'var_data': VAR_2,
                         },
                     ],
@@ -185,8 +185,9 @@ def test_check_date_filter_date_from_meta(tmp_path):
     with open(result_path, 'w', encoding='utf-8') as handle:
         handle.write(ResultData.model_validate(result_dict).model_dump_json(indent=4))
 
+    # todo returning None as nothing was present??
     filtered_results = check_date_filter(result_path)
     assert 'sample1' not in filtered_results.results
     assert 'sample2' in filtered_results.results
-    assert filtered_results.results['sample2'].variants[0].first_seen == '2022-02-02'
+    assert filtered_results.results['sample2'].variants[0].first_tagged == '2022-02-02'
     assert filtered_results.results['sample2'].variants[0].var_data.coordinates.string_format == '2-2-A-C'

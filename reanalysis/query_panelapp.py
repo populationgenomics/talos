@@ -14,7 +14,7 @@ import zoneinfo
 from dateutil.relativedelta import relativedelta
 
 from cpg_utils import to_path
-from cpg_utils.config import get_config
+from cpg_utils.config import config_retrieve
 
 from reanalysis.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from reanalysis.utils import (
@@ -30,8 +30,8 @@ from reanalysis.utils import (
 )
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
-PANELAPP_BASE = get_config()['panels'].get('panelapp', PANELAPP_HARD_CODED_DEFAULT)
-DEFAULT_PANEL = get_config()['panels'].get('default_panel', 137)
+PANELAPP_BASE = config_retrieve(['panels', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+DEFAULT_PANEL = config_retrieve(['panels', 'default_panel'], 137)
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
 
@@ -193,7 +193,7 @@ def find_core_panel_version() -> str | None:
         a version string from X months prior - see config
     """
 
-    date_threshold = datetime.today() - relativedelta(months=get_config()['panels']['panel_month_delta'])
+    date_threshold = datetime.today() - relativedelta(months=config_retrieve(['panels', 'panel_month_delta'], 12))
 
     # query for data from this endpoint
     activities: list[dict] = get_json_response(f'{PANELAPP_BASE}/{DEFAULT_PANEL}/activities')
@@ -271,12 +271,11 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     # make responsive to config
     twelve_months = None
 
+    dataset = dataset or config_retrieve(['workflow', 'dataset'])
+
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_path = get_cohort_config(dataset).get('forbidden')
-    forbidden_genes = set()
-    if forbidden_path:
-        forbidden_genes = read_json_from_path(forbidden_path, forbidden_genes)
+    forbidden_genes = read_json_from_path(get_cohort_config(dataset).get('forbidden'), set())
 
     old_data = HistoricPanels()
 
@@ -292,17 +291,19 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         old_data = read_json_from_path(previous, return_model=HistoricPanels)  # type: ignore
 
     else:
+        get_logger().info('No prior data found')
         twelve_months = True
 
     # are there any genes to skip from the Mendeliome? i.e. only report
     # if in a specifically phenotype-matched panel
-    remove_from_core: list[str] = get_config()['panels'].get('require_pheno_match', [])
+    remove_from_core: list[str] = config_retrieve(['panels', 'require_pheno_match'], [])
     get_logger().info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
     gene_dict = PanelApp(genes={})
 
     # first add the base content
+    get_logger().info('Getting Base Panel')
     get_panel_green(
         gene_dict,
         old_data=old_data,
@@ -315,8 +316,9 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         twelve_months = set(gene_dict.genes)
 
     # if participant panels were provided, add each of those to the gene data
-    panel_list = set()
+    panel_list: set[int] = set()
     if panels is not None:
+        get_logger().info('Reading participant panels')
         hpo_panel_object = read_json_from_path(panels, return_model=PhenotypeMatchedPanels)  # type: ignore
         panel_list = hpo_panel_object.all_panels
         get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
@@ -331,6 +333,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         if panel == DEFAULT_PANEL:
             continue
 
+        get_logger().info(f'Getting Panel {panel}')
         get_panel_green(
             gene_dict=gene_dict,
             panel_id=panel,

@@ -399,7 +399,7 @@ class Variant:
         self.alt = report_variant.var_data.coordinates.alt
         self.change = self.get_var_change()
         self.categories = report_variant.categories
-        self.first_seen: str = report_variant.first_seen
+        self.first_tagged: str = report_variant.first_tagged
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         self.panel_flags = report_variant.panels.matched
@@ -493,13 +493,13 @@ def check_date_filter(results: str, filter_date: str | None = None) -> ResultDat
     # Filter out variants based on date
     for content in results_dict.results.values():
         # keep only this run's new variants, or partners thereof
-        vars_to_keep = [variant for variant in content.variants if variant.first_seen == filter_date]
+        vars_to_keep = [variant for variant in content.variants if variant.first_tagged == filter_date]
 
         pairs_to_keep = set(chain.from_iterable(var.support_vars for var in vars_to_keep))
         content.variants = [
             variant
             for variant in content.variants
-            if (variant.first_seen == filter_date or variant.var_data.coordinates.string_format in pairs_to_keep)
+            if (variant.first_tagged == filter_date or variant.var_data.coordinates.string_format in pairs_to_keep)
         ]
 
     # pop off all the samples with no variants

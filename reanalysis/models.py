@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field
 
 from cpg_utils import to_path
 
-from reanalysis.liftover.none_to_1_0_0 import lift_pmp as pmp_none_to_1_0_0
-from reanalysis.liftover.none_to_1_0_0 import lift_resultdata as rd_none_to_1_0_0
+from reanalysis.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
+from reanalysis.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
+from reanalysis.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
+from reanalysis.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from reanalysis.static_values import get_granular_date, get_logger
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
@@ -19,8 +21,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.0.0'
-ALL_VERSIONS = [None, '1.0.0']
+CURRENT_VERSION = '1.0.1'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1']
 
 
 class FileTypes(Enum):
@@ -33,6 +35,15 @@ class FileTypes(Enum):
     VCF = '.vcf'
     VCF_GZ = '.vcf.gz'
     VCF_BGZ = '.vcf.bgz'
+
+
+class PhenoPacketHpo(BaseModel):
+    """
+    A representation of a HPO term
+    """
+
+    id: str
+    label: str
 
 
 class Coordinates(BaseModel):
@@ -313,15 +324,20 @@ class ReportVariant(BaseModel):
     sample: str
     var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
+    # is this a thing I can do?
+    # todo implement this
+    date_of_phenotype_match: str | None = None
+    evidence_last_updated: str = Field(default=get_granular_date())
     family: str = Field(default_factory=str)
-    first_seen: str = Field(default=get_granular_date())
+    # 'tagged' is seqr-compliant language
+    first_tagged: str = Field(default=get_granular_date())
     flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
     genotypes: dict[str, str] = Field(default_factory=dict)
     independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
-    phenotypes: list[dict[str, str]] = Field(default_factory=list)
+    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
     reasons: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
 
@@ -383,9 +399,12 @@ class CategoryMeta(BaseModel):
 class HistoricSampleVariant(BaseModel):
     """ """
 
+    # categories here will be a dict of {categories: associated date first seen}
     categories: dict[str, str]
-    support_vars: list[str] = Field(
-        default_factory=list,
+    # new variable to store the date the variant was first seen, static
+    first_tagged: str
+    support_vars: set[str] = Field(
+        default_factory=set,
         description='supporting variants if this has been identified in a comp-het',
     )
     independent: bool = Field(default=True)
@@ -436,7 +455,7 @@ class ParticipantMeta(BaseModel):
     ext_id: str
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
-    phenotypes: list[dict[str, str]] = Field(default_factory=list)
+    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
     panel_ids: list[int] = Field(default_factory=list)
     panel_names: list[str] = Field(default_factory=list)
     solved: bool = Field(default=False)
@@ -470,7 +489,7 @@ class ModelVariant(BaseModel):
 class ParticipantHPOPanels(BaseModel):
     external_id: str = Field(default_factory=str)
     family_id: str = Field(default_factory=str)
-    hpo_terms: list[dict[str, str]] = Field(default_factory=list)
+    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
 
 
@@ -497,8 +516,8 @@ LIFTOVER_METHODS = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: dict(),
     HistoricPanels: dict(),
-    HistoricVariants: dict(),
-    ResultData: {'None_1.0.0': rd_none_to_1_0_0},
+    HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
+    ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101},
 }
 
 

@@ -15,6 +15,7 @@ import backoff
 import cyvcf2
 import peddy
 import requests
+import zoneinfo
 from backoff import fibo
 from gql.transport.exceptions import TransportQueryError, TransportServerError
 from requests.exceptions import ReadTimeout, RequestException
@@ -51,7 +52,9 @@ PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
-TODAY = datetime.now().strftime('%Y-%m-%d_%H:%M')
+
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
+TODAY = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d_%H:%M')
 
 # most lenient to most conservative
 # usage = if we have two MOIs for the same gene, take the broadest
@@ -62,6 +65,7 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 # global config holders
 COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
+DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 
 def chunks(iterable, chunk_size):
@@ -133,6 +137,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     wait_gen=fibo,
     exception=(TransportQueryError, TransportServerError, TimeoutError, ReadTimeout, RequestException),
     max_time=200,
+    logger=get_logger(),
 )
 def get_json_response(url):
     """
@@ -191,7 +196,6 @@ def get_cohort_seq_type_conf(dataset: str | None = None):
     return COHORT_SEQ_CONFIG
 
 
-# todo rethink this whole method?
 def get_new_gene_map(
     panelapp_data: PanelApp,
     pheno_panels: PhenotypeMatchedPanels | None = None,
@@ -401,7 +405,6 @@ def create_small_variant(
     # sample categories are a set of strings or 'missing'
     # if cohort runs as singletons, remove possibility of de novo
     # if not singletons, split each into a set of sample IDs
-    # todo I have messed with this, check it works
     for sam_cat in sample_categories:
         if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
             info[sam_cat] = set()
@@ -774,9 +777,10 @@ def generate_fresh_latest_results(current_results: ResultData, dataset: str, pre
     for sample, content in current_results.results.items():
         for var in content.variants:
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
-                categories={cat: var.first_seen for cat in var.categories},
-                support_vars=list(var.support_vars),
+                categories={cat: var.first_tagged for cat in var.categories},
+                support_vars=var.support_vars,
                 independent=var.independent,
+                first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
             )
     save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
 
@@ -799,6 +803,10 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
+        # todo update all the evidence_last_updated
+        for sample, content in results.results.items():
+            for var in content.variants:
+                var.evidence_last_updated = get_granular_date()
         return
 
     get_logger().info('Attempting to filter current results against historic')
@@ -849,6 +857,21 @@ def save_new_historic(results: HistoricVariants | HistoricPanels, dataset: str, 
     get_logger().info(f'Wrote new data to {new_file}')
 
 
+def date_from_string(string: str) -> str:
+    """
+    takes a string, finds the date. Simples
+    Args:
+        string (a filename):
+
+    Returns:
+        the String YYYY-MM-DD
+    """
+
+    if re.search(DATE_RE, string) is not None:
+        return re.search(DATE_RE, string).group()  # type: ignore
+    raise ValueError(f'No date found in {string}')
+
+
 def find_latest_file(dataset: str, results_folder: str | None = None, start: str = '', ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
@@ -869,26 +892,26 @@ def find_latest_file(dataset: str, results_folder: str | None = None, start: str
 
     get_logger().info(f'Using results from {results_folder}')
 
-    date_sorted_files = sorted(
-        to_path(results_folder).glob(f'{start}*.{ext}'),
-        key=lambda x: x.stat().st_mtime,
-        reverse=True,
-    )
-    if not date_sorted_files:
+    date_files = {
+        date_from_string(filename.name): filename for filename in to_path(results_folder).glob(f'{start}*.{ext}')
+    }
+    if not date_files:
         return None
 
-    return str(date_sorted_files[0].absolute())
+    return str(date_files[max(date_files.keys())].absolute())
 
 
 def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
     takes the current data, and annotates with previous dates if found
     build/update the historic data within the same loop
-    much simpler logic overall
 
     logically we can't reach this method in production without historic
     data being present. This method no longer permits historic data to be
     missing, and edits objects in place
+
+    first_seen date is the earliest date of any category assignment
+    this date should be static
 
     Args:
         current (ResultData): results generated during this run
@@ -902,6 +925,8 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     historic.metadata.categories.update(config_retrieve(['categories']))
 
     for sample, content in current.results.items():
+
+        # get the historic record for this sample
         sample_historic = historic.results.get(sample, {})
 
         # check each variant found in this round
@@ -911,12 +936,10 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
 
             # this variant was previously seen
             if hist := sample_historic.get(var_id):
-                # bool if this was ever independent
-                # if newly independent, bump the date for current assignments
+                # bool if this was ever independent (i.e. dominant or Homozygous)
+                # changed logic - do not update dates of prior category assignments
                 if var.independent and not hist.independent:
                     hist.independent = True
-                    for cat in current_cats:
-                        hist.categories[cat] = get_granular_date()
 
                 # if we have any new categories don't alter the date
                 if new_cats := current_cats - set(hist.categories):
@@ -924,19 +947,20 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     for cat in new_cats:
                         hist.categories[cat] = get_granular_date()
 
-                # same categories, new support
-                elif new_sups := [sup for sup in var.support_vars if sup not in hist.support_vars]:
-                    hist.support_vars.extend(new_sups)
+                # update to include all support_variants
+                hist.support_vars.update(var.support_vars)
 
-                # otherwise alter the first_seen date
-                else:
-                    # choosing to take the latest _new_ category date
-                    var.first_seen = sorted(hist.categories.values(), reverse=True)[0]
+                # mark the first seen timestamp
+                var.first_tagged = hist.first_tagged
+
+                # latest _new_ category date as evidence_last_changed timestamp
+                var.evidence_last_updated = sorted(hist.categories.values(), reverse=True)[0]
 
             # totally new variant
             else:
                 historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
                     categories={cat: get_granular_date() for cat in current_cats},
-                    support_vars=list(var.support_vars),
+                    support_vars=var.support_vars,
                     independent=var.independent,
+                    first_tagged=get_granular_date(),
                 )

@@ -253,7 +253,7 @@ def match_participants_to_panels(participant_hpos: PhenotypeMatchedPanels, hpo_p
 
     for party_data in participant_hpos.samples.values():
         for hpo_term in party_data.hpo_terms:
-            if panel_list := hpo_panels.get(hpo_term['id']):
+            if panel_list := hpo_panels.get(hpo_term.id):
                 # add relevant panels for this participant
                 party_data.panels.update(panel_list)
                 # and add to the collection of all panels
@@ -273,7 +273,7 @@ def update_hpo_with_description(
     """
     for party_data in hpo_dict.samples.values():
         for term in party_data.hpo_terms:
-            term['label'] = hpo_to_text[term['id']]
+            term.label = hpo_to_text[term.id]
     return hpo_dict
 
 
