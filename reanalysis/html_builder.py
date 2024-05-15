@@ -552,7 +552,6 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
 
     prefixes = known_date_prefix_check(all_results)
     if prefixes:
-        # todo a VCGS-specific split
         for prefix in prefixes:
             this_rd = ResultData(
                 metadata=all_results.metadata,
