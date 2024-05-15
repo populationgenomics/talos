@@ -31,7 +31,9 @@ from reanalysis.utils import get_cohort_config, get_cohort_seq_type_conf, get_lo
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG: dict = None  # type: ignore
 DATASET_SEQ_CONFIG: dict = None  # type: ignore
-KNOWN_YEAR_PREFIX = re.compile(r'\d{2}W')
+
+# regex pattern - number, number, not-number
+KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 
 
 @dataclass
@@ -536,7 +538,7 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
     known_prefixes = set()
     for sample, content in all_results.results.items():
         if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
-            known_prefixes.add(match.group())
+            known_prefixes.add(match.group()[0:2])
         else:
             return []
     return sorted(known_prefixes)
