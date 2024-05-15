@@ -2,6 +2,7 @@
 Methods for taking the final output and generating static report content
 """
 
+import re
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ from reanalysis.utils import get_cohort_config, get_cohort_seq_type_conf, get_lo
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG: dict = None  # type: ignore
 DATASET_SEQ_CONFIG: dict = None  # type: ignore
+KNOWN_YEAR_PREFIX = re.compile(r'\d{2}W')
 
 
 @dataclass
@@ -470,7 +472,7 @@ class Variant:
         return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
-def check_date_filter(results: str, filter_date: str | None = None) -> ResultData | None:
+def check_date_filter(results: str | ResultData, filter_date: str | None = None) -> ResultData | None:
     """
     Check if there's a date filter in the config
     if there is, load the results JSON and filter out variants
@@ -483,8 +485,12 @@ def check_date_filter(results: str, filter_date: str | None = None) -> ResultDat
         filter_date (str | None): path to the results file
     """
 
-    # Load the results JSON
-    results_dict: ResultData = read_json_from_path(results, return_model=ResultData)  # type: ignore
+    # take both types
+    if isinstance(results, str):
+        # Load the results JSON
+        results_dict: ResultData = read_json_from_path(results, return_model=ResultData)  # type: ignore
+    else:
+        results_dict = results
 
     # pick up the current date from datetime or config
     if filter_date is None:
@@ -516,6 +522,67 @@ def check_date_filter(results: str, filter_date: str | None = None) -> ResultDat
     return None
 
 
+def known_date_prefix_check(all_results: ResultData) -> list[str]:
+    """
+    Check for known date prefixes in the results
+
+    Args:
+        all_results (): the whole summary dataset
+
+    Returns:
+        a list of all found prefixes, or empty list
+    """
+
+    known_prefixes = set()
+    for sample, content in all_results.results.items():
+        if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
+            known_prefixes.add(match.group())
+        else:
+            return []
+    return sorted(known_prefixes)
+
+
+def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tuple[ResultData, str, str]]:
+    """
+    Split the data into sub-reports
+    """
+    all_results = read_json_from_path(data_path, return_model=ResultData)  # type: ignore
+    assert isinstance(all_results, ResultData)
+    return_results: list[tuple[ResultData, str, str]] = []
+
+    prefixes = known_date_prefix_check(all_results)
+    if prefixes:
+        # todo a VCGS-specific split
+        for prefix in prefixes:
+            this_rd = ResultData(
+                metadata=all_results.metadata,
+                results={
+                    sample: content
+                    for sample, content in all_results.results.items()
+                    if content.metadata.ext_id.startswith(prefix)
+                },
+                version=all_results.version,
+            )
+            return_results.append((this_rd, f'subset_{prefix}.html', f'subset_{prefix}_latest.html'))
+        return return_results
+
+    # calculate the number of samples per sub-report
+    samples_per_report = len(all_results.results.keys()) // split_samples
+
+    # split the data into sub-reports
+    sub_reports = []
+    for i in range(split_samples):
+        start = i * samples_per_report
+        end = (i + 1) * samples_per_report
+        sub_report = ResultData(
+            metadata=all_results.metadata,
+            results=dict(list(all_results.results.items())[start:end]),
+        )
+        sub_reports.append((sub_report, f'subset_{i}.html', f'subset_{i}_latest.html'))
+
+    return sub_reports
+
+
 if __name__ == '__main__':
     get_logger(__file__).info('Running HTML builder')
 
@@ -526,12 +593,12 @@ if __name__ == '__main__':
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Optional second report, latest variants only')
     parser.add_argument('--dataset', help='Optional, dataset to use', default=None)
+    parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
     args = parser.parse_args()
 
     DATASET_CONFIG = get_cohort_config(args.dataset)
     DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
-    # build the HTML using all results
     html = HTMLBuilder(results=args.results, panelapp_path=args.panelapp, pedigree=args.pedigree)
     html.write_html(output_filepath=args.output)
 
@@ -539,9 +606,23 @@ if __name__ == '__main__':
     # write the HTML if any results remain
     if args.latest and (date_filtered_object := check_date_filter(results=args.results)):
         # build the HTML for latest reports only
-        latest_html = HTMLBuilder(
-            results=date_filtered_object,
-            panelapp_path=args.panelapp,
-            pedigree=args.pedigree,
-        )
+        latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp, pedigree=args.pedigree)
         latest_html.write_html(output_filepath=args.latest, latest=True)
+
+    # if no splitting, just exit here
+    if not args.split_samples:
+        sys.exit(0)
+
+    # do something to split the output into separate datasets
+    # either look for an ID convention, or go with a random split
+    html_base = to_path(args.output).parent
+    for data, report, latest in split_data_into_sub_reports(args.results, args.split_samples):
+        html = HTMLBuilder(results=data, panelapp_path=args.panelapp, pedigree=args.pedigree)
+        html.write_html(output_filepath=str(html_base / report))
+
+        # If the latest arg is used, filter the results
+        # write the HTML if any results remain
+        if args.latest and (date_filtered_object := check_date_filter(results=data)):
+            # build the HTML for latest reports only
+            latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp, pedigree=args.pedigree)
+            latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
