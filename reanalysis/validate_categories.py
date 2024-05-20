@@ -297,7 +297,7 @@ def clean_and_filter(
     return results_holder
 
 
-def count_families(pedigree: Ped, samples: list[str]) -> dict:
+def count_families(pedigree: Ped, samples: set[str]) -> dict:
     """
     add metadata to results
     parsed during generation of the report
@@ -308,10 +308,10 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
     Args:
         pedigree (Ped): the Peddy pedigree object for the family
-        samples (list): all the samples explicitly in this VCF
+        samples (list): all the samples across all VCFs
 
     Returns:
-        A breakdown of all the family structures within this VCF
+        A breakdown of all the family structures within this analysis
     """
 
     # contains all sample IDs for the given families
@@ -364,7 +364,7 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
 def prepare_results_shell(
     results_meta: ResultMeta,
-    vcf_samples: list[str],
+    vcf_samples: set[str],
     pedigree: Ped,
     dataset: str,
     panelapp: PanelApp,
@@ -395,7 +395,8 @@ def prepare_results_shell(
     solved_cases = get_cohort_config(dataset).get('solved_cases', [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
-    # limit to affected samples present in both Pedigree and VCF
+    # limit to affected samples in Pedigree, small variant and SV VCFs may not completely overlap
+
     for sample in [
         sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
     ]:
@@ -492,17 +493,19 @@ def main(
     result_list: list[ReportVariant] = []
 
     # collect all sample IDs from each VCF type
-    small_vcf_samples: list[str] = []
-    sv_vcf_samples: list[str] = []
+    small_vcf_samples: set[str] = set()
+    sv_vcf_samples: set[str] = set()
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
-    small_vcf_samples.extend(vcf_opened.samples)
+    small_vcf_samples.update(vcf_opened.samples)
 
     # optional SV behaviour
     sv_opened = [VCFReader(sv_vcf) for sv_vcf in labelled_sv]
     for sv_vcf in sv_opened:
-        sv_vcf_samples.extend(sv_vcf.samples)
+        sv_vcf_samples.update(sv_vcf.samples)
+
+    all_samples: set[str] = small_vcf_samples.union(sv_vcf_samples)
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -532,7 +535,7 @@ def main(
         **{
             'input_file': input_path,
             'cohort': dataset or get_config()['workflow']['dataset'] or 'unknown',
-            'family_breakdown': count_families(ped, samples=vcf_opened.samples),
+            'family_breakdown': count_families(ped, samples=all_samples),
             'panels': panelapp_data.metadata,
             'container': get_config()['workflow']['driver_image'],
             'projects': [seqr_project] if seqr_project else [],
@@ -542,7 +545,7 @@ def main(
     # create a shell to store results in, adds participant metadata
     results_model = prepare_results_shell(
         results_meta=results_meta,
-        vcf_samples=vcf_opened.samples,
+        vcf_samples=all_samples,
         pedigree=ped,
         panel_data=pheno_panels,
         dataset=dataset,
