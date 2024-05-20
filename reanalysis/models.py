@@ -459,6 +459,8 @@ class ParticipantMeta(BaseModel):
     panel_ids: list[int] = Field(default_factory=list)
     panel_names: list[str] = Field(default_factory=list)
     solved: bool = Field(default=False)
+    present_in_small: bool = Field(default=False)
+    present_in_sv: bool = Field(default=False)
 
 
 class ParticipantResults(BaseModel):

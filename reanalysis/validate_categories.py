@@ -364,7 +364,8 @@ def count_families(pedigree: Ped, samples: set[str]) -> dict:
 
 def prepare_results_shell(
     results_meta: ResultMeta,
-    vcf_samples: set[str],
+    small_samples: set[str],
+    sv_samples: set[str],
     pedigree: Ped,
     dataset: str,
     panelapp: PanelApp,
@@ -375,7 +376,8 @@ def prepare_results_shell(
 
     Args:
         results_meta (): metadata for the results
-        vcf_samples (): samples in the VCF header
+        small_samples (): samples in the Small VCF
+        sv_samples (): samples in the SV VCFs
         pedigree (): the Peddy PED object
         dataset (str): dataset to use for getting the config portion
         panel_data (): dictionary of per-participant panels, or None
@@ -395,10 +397,11 @@ def prepare_results_shell(
     solved_cases = get_cohort_config(dataset).get('solved_cases', [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
-    # limit to affected samples in Pedigree, small variant and SV VCFs may not completely overlap
+    # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
+    all_samples: set[str] = small_samples | sv_samples
 
     for sample in [
-        sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
+        sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in all_samples
     ]:
         sample_id = sample.sample_id
         family_id = sample.family_id
@@ -427,6 +430,8 @@ def prepare_results_shell(
                         'panel_ids': sample_panel_data.panels,
                         'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
                         'solved': bool(sample_id in solved_cases or family_id in solved_cases),
+                        'present_in_small': sample_id in small_samples,
+                        'present_in_sv': sample_id in sv_samples,
                     },
                 ),
             },
@@ -545,7 +550,8 @@ def main(
     # create a shell to store results in, adds participant metadata
     results_model = prepare_results_shell(
         results_meta=results_meta,
-        vcf_samples=all_samples,
+        small_samples=small_vcf_samples,
+        sv_samples=sv_vcf_samples,
         pedigree=ped,
         panel_data=pheno_panels,
         dataset=dataset,
