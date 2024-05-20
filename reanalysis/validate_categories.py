@@ -297,7 +297,7 @@ def clean_and_filter(
     return results_holder
 
 
-def count_families(pedigree: Ped, samples: list[str]) -> dict:
+def count_families(pedigree: Ped, samples: set[str]) -> dict:
     """
     add metadata to results
     parsed during generation of the report
@@ -308,10 +308,10 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
     Args:
         pedigree (Ped): the Peddy pedigree object for the family
-        samples (list): all the samples explicitly in this VCF
+        samples (list): all the samples across all VCFs
 
     Returns:
-        A breakdown of all the family structures within this VCF
+        A breakdown of all the family structures within this analysis
     """
 
     # contains all sample IDs for the given families
@@ -364,7 +364,8 @@ def count_families(pedigree: Ped, samples: list[str]) -> dict:
 
 def prepare_results_shell(
     results_meta: ResultMeta,
-    vcf_samples: list[str],
+    small_samples: set[str],
+    sv_samples: set[str],
     pedigree: Ped,
     dataset: str,
     panelapp: PanelApp,
@@ -375,7 +376,8 @@ def prepare_results_shell(
 
     Args:
         results_meta (): metadata for the results
-        vcf_samples (): samples in the VCF header
+        small_samples (): samples in the Small VCF
+        sv_samples (): samples in the SV VCFs
         pedigree (): the Peddy PED object
         dataset (str): dataset to use for getting the config portion
         panel_data (): dictionary of per-participant panels, or None
@@ -395,9 +397,11 @@ def prepare_results_shell(
     solved_cases = get_cohort_config(dataset).get('solved_cases', [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
-    # limit to affected samples present in both Pedigree and VCF
+    # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
+    all_samples: set[str] = small_samples | sv_samples
+
     for sample in [
-        sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in vcf_samples
+        sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in all_samples
     ]:
         sample_id = sample.sample_id
         family_id = sample.family_id
@@ -426,6 +430,8 @@ def prepare_results_shell(
                         'panel_ids': sample_panel_data.panels,
                         'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
                         'solved': bool(sample_id in solved_cases or family_id in solved_cases),
+                        'present_in_small': sample_id in small_samples,
+                        'present_in_sv': sample_id in sv_samples,
                     },
                 ),
             },
@@ -492,17 +498,19 @@ def main(
     result_list: list[ReportVariant] = []
 
     # collect all sample IDs from each VCF type
-    small_vcf_samples: list[str] = []
-    sv_vcf_samples: list[str] = []
+    small_vcf_samples: set[str] = set()
+    sv_vcf_samples: set[str] = set()
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
-    small_vcf_samples.extend(vcf_opened.samples)
+    small_vcf_samples.update(vcf_opened.samples)
 
     # optional SV behaviour
     sv_opened = [VCFReader(sv_vcf) for sv_vcf in labelled_sv]
     for sv_vcf in sv_opened:
-        sv_vcf_samples.extend(sv_vcf.samples)
+        sv_vcf_samples.update(sv_vcf.samples)
+
+    all_samples: set[str] = small_vcf_samples.union(sv_vcf_samples)
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -532,7 +540,7 @@ def main(
         **{
             'input_file': input_path,
             'cohort': dataset or get_config()['workflow']['dataset'] or 'unknown',
-            'family_breakdown': count_families(ped, samples=vcf_opened.samples),
+            'family_breakdown': count_families(ped, samples=all_samples),
             'panels': panelapp_data.metadata,
             'container': get_config()['workflow']['driver_image'],
             'projects': [seqr_project] if seqr_project else [],
@@ -542,7 +550,8 @@ def main(
     # create a shell to store results in, adds participant metadata
     results_model = prepare_results_shell(
         results_meta=results_meta,
-        vcf_samples=vcf_opened.samples,
+        small_samples=small_vcf_samples,
+        sv_samples=sv_vcf_samples,
         pedigree=ped,
         panel_data=pheno_panels,
         dataset=dataset,

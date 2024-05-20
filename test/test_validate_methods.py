@@ -11,11 +11,7 @@ from reanalysis.models import (  # ReportPanel,
     ResultMeta,
     SmallVariant,
 )
-from reanalysis.validate_categories import (
-    clean_and_filter,
-    count_families,
-    prepare_results_shell,
-)
+from reanalysis.validate_categories import clean_and_filter, count_families, prepare_results_shell
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
@@ -53,19 +49,18 @@ def test_results_shell(peddy_ped):
     Returns:
 
     """
-    samples = ['male', 'female', 'irrelevant']
     sample_panels = PhenotypeMatchedPanels(
         **{
             'samples': {
                 'male': {
                     'panels': {1, 3},
                     'external_id': 'MALE!',
-                    'hpo_terms': [{'id': 'HBP', 'label': 'Boneitis'}],
+                    'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}],
                 },
                 'female': {
                     'panels': {1, 2},
                     'external_id': 'FEMALE!',
-                    'hpo_terms': [{'id': 'HBF', 'label': 'Female'}],
+                    'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
                 },
             },
             'all_panels': {1, 2, 3},
@@ -84,7 +79,8 @@ def test_results_shell(peddy_ped):
     result_meta = ResultMeta(input_file='', cohort='cohort')
     shell = prepare_results_shell(
         results_meta=result_meta,
-        vcf_samples=samples,
+        small_samples={'male'},
+        sv_samples={'female'},
         pedigree=peddy_ped,
         panel_data=sample_panels,
         panelapp=panelapp,
@@ -100,25 +96,14 @@ def test_results_shell(peddy_ped):
                         'ext_id': 'MALE!',
                         'family_id': 'family_1',
                         'members': {
-                            'male': {
-                                'sex': 'male',
-                                'affected': True,
-                                'ext_id': 'MALE!',
-                            },
-                            'father_1': {
-                                'sex': 'male',
-                                'affected': False,
-                                'ext_id': 'father_1',
-                            },
-                            'mother_1': {
-                                'sex': 'female',
-                                'affected': False,
-                                'ext_id': 'mother_1',
-                            },
+                            'male': {'sex': 'male', 'affected': True, 'ext_id': 'MALE!'},
+                            'father_1': {'sex': 'male', 'affected': False, 'ext_id': 'father_1'},
+                            'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
                         },
-                        'phenotypes': [{'id': 'HBP', 'label': 'Boneitis'}],
+                        'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
                         'panel_ids': [1, 3],
                         'panel_names': ['lorem', 'etc'],
+                        'present_in_small': True,
                     },
                 },
                 'female': {
@@ -126,26 +111,15 @@ def test_results_shell(peddy_ped):
                         'ext_id': 'FEMALE!',
                         'family_id': 'family_2',
                         'members': {
-                            'female': {
-                                'sex': 'female',
-                                'affected': True,
-                                'ext_id': 'FEMALE!',
-                            },
-                            'father_2': {
-                                'sex': 'male',
-                                'affected': False,
-                                'ext_id': 'father_2',
-                            },
-                            'mother_2': {
-                                'sex': 'female',
-                                'affected': False,
-                                'ext_id': 'mother_2',
-                            },
+                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'FEMALE!'},
+                            'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
+                            'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
                         },
-                        'phenotypes': [{'id': 'HBF', 'label': 'Female'}],
+                        'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
                         'panel_ids': [1, 2],
                         'panel_names': ['lorem', 'ipsum'],
                         'solved': True,
+                        'present_in_sv': True,
                     },
                 },
             },
@@ -192,32 +166,18 @@ def test_gene_clean_results_personal():
     results_holder = ResultData(
         **{
             'results': {
-                'sam1': {
-                    'metadata': {
-                        'ext_id': 'sam1',
-                        'family_id': 'family_1',
-                        'panel_ids': {1},
-                    },
-                },
-                'sam2': {
-                    'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'},
-                },
-                'sam3': {
-                    'metadata': {
-                        'ext_id': 'sam3',
-                        'family_id': 'family_3',
-                        'panel_ids': {1},
-                    },
-                },
+                'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1', 'panel_ids': {1}}},
+                'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
+                'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3', 'panel_ids': {1}}},
             },
         },
     )
     personal_panels = PhenotypeMatchedPanels(
         **{
             'samples': {
-                'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'hp1_description'}]},
-                'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'hp2_description'}]},
-                'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'hp3_description'}]},
+                'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'HP1'}]},
+                'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'HP2'}]},
+                'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'HP3'}]},
             },
         },
     )
@@ -247,7 +207,7 @@ def test_update_results_meta(peddy_ped):
     testing the dict update
     """
 
-    ped_samples = ['male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2']
+    ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
 
     assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
         'affected': 2,
@@ -262,7 +222,7 @@ def test_count_families_missing_father(peddy_ped):
     testing the dict update
     """
 
-    ped_samples = ['male', 'female', 'mother_1', 'mother_2', 'father_2']
+    ped_samples = {'male', 'female', 'mother_1', 'mother_2', 'father_2'}
 
     assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
         'affected': 2,
@@ -278,9 +238,6 @@ def test_count_families_quad(quad_ped):
     testing the dict update
     """
 
-    ped_samples = ['PROBAND', 'SIBLING', 'FATHER', 'MOTHER']
+    ped_samples = {'PROBAND', 'SIBLING', 'FATHER', 'MOTHER'}
 
-    assert count_families(
-        pedigree=quad_ped,
-        samples=ped_samples,
-    ) == {'affected': 1, 'male': 3, 'female': 1, 'quads': 1}
+    assert count_families(pedigree=quad_ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'quads': 1}
