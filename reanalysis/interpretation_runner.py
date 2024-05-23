@@ -20,20 +20,13 @@ from datetime import datetime
 from hailtop.batch.job import BashJob, Job
 
 from cpg_utils import to_path
-from cpg_utils.config import get_config
-from cpg_utils.hail_batch import (
-    authenticate_cloud_credentials_in_job,
-    copy_common_env,
-    get_batch,
-    output_path,
-    query_command,
-)
+from cpg_utils.config import get_config, output_path
+from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, copy_common_env, get_batch, query_command
 
 from reanalysis import (
     hail_filter_and_label,
     hail_filter_sv,
     html_builder,
-    metamist_registration,
     mt_to_vcf,
     query_panelapp,
     seqr_loader,
@@ -229,7 +222,7 @@ def handle_results_job(
     return results_job
 
 
-def handle_result_presentation_job(prior_job: Job | None = None, **kwargs) -> Job | None:
+def handle_result_presentation_job(prior_job: Job | None = None, **kwargs):
     """
     run the presentation element
     allow for selection of the presentation script and its arguments
@@ -294,46 +287,6 @@ def handle_result_presentation_job(prior_job: Job | None = None, **kwargs) -> Jo
 
     get_logger().info(f'HTML generation command: {html_command}')
     display.command(html_command)
-    return display
-
-
-def handle_registration_jobs(files: list[str], registry: str, pedigree: str, prior_job: Job | None = None):
-    """
-    Take a list of files and register them using the defined method.
-    This registration is within a metadata DB, used to track analysis
-    products, and the samples they correspond to.
-
-    Note: Similar contract to the one as defined above in
-          handle_result_presentation_job - the `registrars` mapping
-          should contain all valid registration scripts, and an ID
-          for each. At runtime the user should be able to select any
-          registered scripts using a config parameter. If an invalid
-          registrar is selected, nothing will be done.
-
-    Args:
-        files (list[str]): all files to register from this analysis
-        registry (str): registration service to use
-        pedigree (str): path to a pedigree file (copied into batch)
-        prior_job (Job): set workflow dependency if required
-    """
-
-    # dictionary with all known registration services
-    registrars = {'metamist': metamist_registration.__file__}
-
-    # if we don't have a valid method, return the prior job
-    if registry not in registrars:
-        get_logger().error(f'Invalid registration mode: {registry}')
-        return
-
-    # create a new job that will run even if the rest of the workflow fails
-    registration_job = get_batch().new_job(name='register_results')
-    set_job_resources(registration_job, prior_job=prior_job)
-    registration_job.always_run(True)
-
-    metadata_command = f'python3 {registrars[registry]} --pedigree {pedigree} {" ".join(files)}'
-
-    get_logger().info(f'Metadata registration command: {metadata_command}')
-    registration_job.command(metadata_command)
 
 
 def main(
@@ -491,24 +444,13 @@ def main(
         prior_job=prior_job,
         participant_panels=participant_panels,
     )
-    prior_job = handle_result_presentation_job(
+    handle_result_presentation_job(
         prior_job=prior_job,
         pedigree=pedigree_in_batch,
         output=output_dict['web_html'],
         latest=output_dict['latest_html'],
         results=output_dict['results'],
     )
-    # endregion
-
-    # region: register outputs in metamist if required
-    if registry := runtime_conf['workflow'].get('status_reporter'):
-        get_logger().info(f'Metadata registration will be done using {registry}')
-        handle_registration_jobs(
-            files=sorted(output_dict.values()),
-            pedigree=pedigree_in_batch,
-            registry=registry,
-            prior_job=prior_job,
-        )
     # endregion
 
     # region: copy data out

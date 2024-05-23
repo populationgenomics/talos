@@ -7,9 +7,6 @@ vcf_size_in_gb = 50  # if the input is a VCF, specify enough storage to fit it
 # optionally allow for running a different HTML script
 presentation = 'cpg'
 
-# where to register outputs, if at all
-status_reporter = 'metamist'
-
 ## override clinvar results
 #clinvar_decisions = "HailTable path to private ClinVar"
 #clinvar_pm5 = "HailTable path to ClinVar PM5"

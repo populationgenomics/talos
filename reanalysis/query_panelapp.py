@@ -7,9 +7,9 @@ Complete revision
 
 # mypy: ignore-errors
 
+from argparse import ArgumentParser
 from datetime import datetime
 
-import click
 import zoneinfo
 from dateutil.relativedelta import relativedelta
 
@@ -249,10 +249,6 @@ def overwrite_new_status(gene_dict: PanelApp, new_genes: set[str]):
             gene_data.new = {panel_id}
 
 
-@click.command()
-@click.option('--panels', help='JSON of per-participant panels')
-@click.option('--out_path', required=True, help='destination for results')
-@click.option('--dataset', default=None, help='dataset to use, optional')
 def main(panels: str | None, out_path: str, dataset: str | None = None):
     """
     if present, reads in any prior reference data
@@ -334,12 +330,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
             continue
 
         get_logger().info(f'Getting Panel {panel}')
-        get_panel_green(
-            gene_dict=gene_dict,
-            panel_id=panel,
-            old_data=old_data,
-            forbidden_genes=forbidden_genes,
-        )
+        get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data, forbidden_genes=forbidden_genes)
 
     # now get the best MOI
     get_best_moi(gene_dict.genes)
@@ -363,4 +354,9 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
 
 if __name__ == '__main__':
-    main()
+    parser = ArgumentParser()
+    parser.add_argument('--panels', help='JSON of per-participant panels')
+    parser.add_argument('--out_path', required=True, help='destination for results')
+    parser.add_argument('--dataset', default=None, help='dataset to use, optional')
+    args = parser.parse_args()
+    main(panels=args.panels, out_path=args.out_path, dataset=args.dataset)
