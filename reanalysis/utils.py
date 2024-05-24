@@ -720,11 +720,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompH
     [var1, var2, ..]
 
     generate pair content in the form
-    {
-        sample: {
-            var_as_string: [partner_variant, ...]
-        }
-    }
+    {sample: {var_as_string: [partner_variant, ...]}}
 
     Args:
         var_list (list[VARIANT_MODELS]): all variants in this gene

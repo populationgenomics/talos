@@ -16,7 +16,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 
 import backoff
-from peddy import Ped
+from peds import open_ped
 
 import hail as hl
 from hail.utils.java import FatalError
@@ -887,8 +887,9 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     """
 
     # individual IDs from pedigree
-    peddy_ped = Ped(pedigree)
-    ped_samples = {individual.sample_id for individual in peddy_ped.samples()}
+    ped_samples: set[str] = set()
+    for family in open_ped(pedigree):
+        ped_samples.update({member.id for member in family})
 
     # individual IDs from matrix
     matrix_samples = set(mt.s.collect())

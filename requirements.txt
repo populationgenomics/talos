@@ -13,6 +13,7 @@ metamist>=6.5.0
 networkx>=3
 obonet>=1
 pandas>=2
+peds>=1.2.0
 peddy>=0.4.8
 pydantic>=2.5.2
 requests>=2.31.0
