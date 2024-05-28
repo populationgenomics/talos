@@ -77,15 +77,6 @@ def get_data_from_metamist(project: str) -> list[list[str]]:
     # iterate over the pedigree entities, forming a list from each. List elements:
     # Family ID, Individual ID, Paternal, Maternal, Sex, Affection status, Ext ID (or repeat), HPOs (or not if absent)
     for entry in result['project']['pedigree']:
-        # eg = {
-        #     "family_id": "19W000139",
-        #     "individual_id": "19W000139",
-        #     "paternal_id": None,
-        #     "maternal_id": None,
-        #     "sex": 1,
-        #     "affected": 2,
-        #     "notes": "",
-        # }
         ped_row: list[str] = [
             entry['family_id'],
             entry['individual_id'],
