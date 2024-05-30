@@ -11,7 +11,7 @@ from reanalysis.hpo_panel_match import (
     match_hpo_terms,
     match_hpos_to_panels,
     match_participants_to_panels,
-    update_hpo_with_description,
+    update_hpo_with_label,
 )
 from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
@@ -160,7 +160,7 @@ def test_update_hpo_with_description():
         },
     )
     hpo_to_desc = {'HP:1': 'Philosopher\'s Stone', 'HP:2': 'Chamber of Secrets'}
-    hpo_dict = update_hpo_with_description(hpo_dict, hpo_to_desc)
+    hpo_dict = update_hpo_with_label(hpo_dict, hpo_to_desc)
     assert hpo_dict == PhenotypeMatchedPanels(
         **{
             'samples': {
