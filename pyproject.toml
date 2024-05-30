@@ -182,6 +182,7 @@ ignore = [
     "E401",
     "SIM212",
     "DTZ002",
+    "TCH001" # move application import *** into a type-checking block
 ]
 
 [tool.ruff.lint.isort]

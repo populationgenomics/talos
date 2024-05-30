@@ -18,6 +18,7 @@ import requests
 import zoneinfo
 from backoff import fibo
 from gql.transport.exceptions import TransportQueryError, TransportServerError
+from peds import open_ped
 from requests.exceptions import ReadTimeout, RequestException
 
 from cpg_utils import Path as CPGPathType
@@ -33,6 +34,9 @@ from reanalysis.models import (
     HistoricSampleVariant,
     HistoricVariants,
     PanelApp,
+    Pedigree,
+    PedigreeMember,
+    PhenoPacketHpo,
     PhenotypeMatchedPanels,
     ResultData,
     SmallVariant,
@@ -66,6 +70,53 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 COHORT_CONFIG: dict | None = None
 COHORT_SEQ_CONFIG: dict | None = None
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
+
+
+def make_flexible_pedigree(pedigree: str) -> Pedigree:
+    """
+    takes the representation offered by peds and reshapes it to be searchable
+    this is really just one short step from writing my own implementation...
+
+    Args:
+        pedigree (str): path to a pedigree file
+
+    Returns:
+        a searchable representation of the ped file
+    """
+    new_ped = Pedigree()
+    ped_data = open_ped(pedigree)
+    for family in ped_data:
+        for member in family:
+
+            # any extra columns are parsed as a tuple of strings
+            member_data = member.data
+
+            # default to repeating internal ID
+            ext_id = member_data[0] if member_data else member.id
+
+            # can be an empty list
+            hpos = [PhenoPacketHpo(id=hpo, label=hpo) for hpo in member_data[1:]]
+
+            me = PedigreeMember(
+                family=member.family,
+                id=member.id,
+                mother=member.mom or None,
+                father=member.dad or None,
+                sex=member.sex,
+                affected=member.phenotype,
+                ext_id=ext_id,
+                hpo_terms=hpos,
+            )
+
+            # add as a member
+            new_ped.members.append(me)
+
+            # add to a lookup
+            new_ped.by_id[me.id] = me
+
+            # add to a list of members in this family
+            new_ped.by_family.setdefault(me.family, []).append(me)
+    return new_ped
 
 
 def chunks(iterable, chunk_size):
@@ -836,7 +887,7 @@ def save_new_historic(results: HistoricVariants | HistoricPanels, dataset: str, 
     save the new results in the historic results dir
 
     Args:
-        results (): object to save as JSON
+        results (HistoricVariants): object to save as JSON
         dataset (str): the dataset to save results for
         prefix (str): name prefix for this file (optional)
     """

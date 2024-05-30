@@ -21,8 +21,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.0.1'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1']
+CURRENT_VERSION = '1.0.2'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2']
 
 
 class FileTypes(Enum):
@@ -32,6 +32,7 @@ class FileTypes(Enum):
 
     HAIL_TABLE = '.ht'
     MATRIX_TABLE = '.mt'
+    PED = 'ped'
     VCF = '.vcf'
     VCF_GZ = '.vcf.gz'
     VCF_BGZ = '.vcf.bgz'
@@ -510,6 +511,27 @@ class MiniVariant(BaseModel):
 class MiniForSeqr(BaseModel):
     metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     results: dict[str, dict[str, MiniVariant]] = Field(default_factory=dict)
+
+
+class PedigreeMember(BaseModel):
+    """
+    This will be a more searchable implementation of the peds pedigree
+    """
+
+    family: str
+    id: str
+    mother: str | None = None
+    father: str | None = None
+    sex: str
+    affected: str
+    ext_id: str = 'Missing'
+    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+
+
+class Pedigree(BaseModel):
+    members: list[PedigreeMember] = Field(default_factory=list)
+    by_family: dict[str, list[PedigreeMember]] = Field(default_factory=dict)
+    by_id: dict[str, PedigreeMember] = Field(default_factory=dict)
 
 
 # methods defining how to transition between model versions

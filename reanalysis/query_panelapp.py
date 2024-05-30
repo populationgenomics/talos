@@ -13,7 +13,6 @@ from datetime import datetime
 import zoneinfo
 from dateutil.relativedelta import relativedelta
 
-from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
 
 from reanalysis.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
@@ -346,7 +345,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         overwrite_new_status(gene_dict, new_gene_set)
 
     # write the output to long term storage
-    with to_path(out_path).open('w') as out_file:
+    with open(out_path, 'w') as out_file:
         out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
     # Only save here if we have a historic location in config
