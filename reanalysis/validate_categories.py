@@ -18,10 +18,9 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from cyvcf2 import VCFReader
-from peddy.peddy import Ped
 
 from cpg_utils import to_path
-from cpg_utils.config import get_config
+from cpg_utils.config import config_retrieve
 
 from reanalysis.models import (
     CATEGORY_DICT,
@@ -31,13 +30,14 @@ from reanalysis.models import (
     ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
+    Pedigree,
     PhenotypeMatchedPanels,
     ReportPanel,
     ReportVariant,
     ResultData,
     ResultMeta,
 )
-from reanalysis.moi_tests import PEDDY_AFFECTED, MOIRunner
+from reanalysis.moi_tests import MOIRunner
 from reanalysis.static_values import get_logger
 from reanalysis.utils import (
     GeneDict,
@@ -48,14 +48,15 @@ from reanalysis.utils import (
     get_cohort_config,
     get_cohort_seq_type_conf,
     get_new_gene_map,
+    make_flexible_pedigree,
     read_json_from_path,
 )
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'male', 'female'}
+MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown_sex', '0': 'unknown_sex'}
 
 
-def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Ped) -> dict[str, MOIRunner]:
+def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -79,7 +80,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Ped) -> dict[str, MOIR
 
     Args:
         panelapp_data (PanelApp):
-        pedigree (Ped):
+        pedigree (Pedigree):
 
     Returns:
         a dict of all MOI classes, indexed by MOI string
@@ -104,7 +105,7 @@ def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
     panelapp_data: dict[str, PanelDetail],
-    pedigree: Ped,
+    pedigree: Pedigree,
 ) -> list[ReportVariant]:
     """
     take all variants on a given contig & MOI filters
@@ -114,7 +115,7 @@ def apply_moi_to_variants(
         variant_dict (dict): all possible variants, lists indexed by gene
         moi_lookup (dict): the MOI model runner per MOI string
         panelapp_data (dict): all genes and relevant details
-        pedigree (Ped): the pedigree for this cohort
+        pedigree (Pedigree): the pedigree for this cohort
     """
 
     results = []
@@ -203,7 +204,7 @@ def clean_and_filter(
     cohort_panels = set(get_cohort_config(dataset).get('cohort_panels', []))
 
     # for these categories, require a phenotype-gene match
-    cats_require_pheno_match = get_config()['category_rules'].get('phenotype_match', [])
+    cats_require_pheno_match = config_retrieve(['category_rules', 'phenotype_match'], [])
 
     panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
@@ -240,7 +241,7 @@ def clean_and_filter(
             matched_panels = {
                 panel_meta[pid]
                 for pid in phenotype_intersection
-                if pid != get_config()['workflow'].get('default_panel', 137)
+                if pid != config_retrieve(['workflow', 'default_panel'], 137)
             }
 
         forced_panels = set()
@@ -297,67 +298,45 @@ def clean_and_filter(
     return results_holder
 
 
-def count_families(pedigree: Ped, samples: set[str]) -> dict:
+def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
     """
     add metadata to results
     parsed during generation of the report
-    most of these inputs aren't used...
 
     affected, male, female, and family sizes all at the same level
     maybe re-think this output structure for the report
 
     Args:
-        pedigree (Ped): the Peddy pedigree object for the family
+        pedigree (Pedigree): the Pedigree object for the family
         samples (list): all the samples across all VCFs
 
     Returns:
         A breakdown of all the family structures within this analysis
     """
 
-    # contains all sample IDs for the given families
-    family_dict: dict[str, set[str]] = defaultdict(set)
-
     # the final dict of counts to return
     stat_counter: dict[str, int] = defaultdict(int)
 
-    # iterate over samples in the VCF
-    for sample_id in samples:
-        ped_sample = pedigree[sample_id]
-        family_dict[ped_sample.family_id].add(sample_id)
+    # now count family sizes, structures, sexes, and affected
+    for family_members in pedigree.by_family.values():
+        # reduce those to participants within VCFs
+        filter_members = [member for member in family_members if member.id in samples]
 
-        # direct count of # each sex and # affected
-        if ped_sample.sex in MALE_FEMALE:
-            stat_counter[ped_sample.sex] += 1
+        # find trios
+        trios = [member for member in filter_members if member.mother is not None and member.father is not None]
+
+        # this could be extended, it's naive...
+        if len(trios) == 1:
+            stat_counter['trios'] += 1
+        elif len(trios) == 2:
+            stat_counter['quads'] += 1
         else:
-            stat_counter['unknown_sex'] += 1
-        if ped_sample.affected == PEDDY_AFFECTED:
-            stat_counter['affected'] += 1
+            stat_counter[str(len(family_members))] += 1
 
-    # now count family sizes and structures
-    for family_id, family_samples in family_dict.items():
-        # bool flag - if we found a 'trio' don't also
-        # count as family size 3
-        trio_bool = False
-
-        ped_family = pedigree.families[family_id]
-
-        for trio in ped_family.trios():
-            # check for a trio with all samples present
-            if all(each.sample_id in family_samples for each in trio):
-                trio_bool = True
-                # if the proband has a sibling, call this a quad
-                if list(trio[0].full_siblings):
-                    stat_counter['quads'] += 1
-                # otherwise a trio
-                else:
-                    stat_counter['trios'] += 1
-                break
-
-        # if we counted as a trio/quad, don't re-count
-        if trio_bool:
-            continue
-
-        stat_counter[str(len(family_samples))] += 1
+        for member in filter_members:
+            stat_counter[MALE_FEMALE[member.sex]] += 1
+            if member.affected == '2':
+                stat_counter['affected'] += 1
 
     return dict(stat_counter)
 
@@ -366,7 +345,7 @@ def prepare_results_shell(
     results_meta: ResultMeta,
     small_samples: set[str],
     sv_samples: set[str],
-    pedigree: Ped,
+    pedigree: Pedigree,
     dataset: str,
     panelapp: PanelApp,
     panel_data: PhenotypeMatchedPanels | None = None,
@@ -378,7 +357,7 @@ def prepare_results_shell(
         results_meta (): metadata for the results
         small_samples (): samples in the Small VCF
         sv_samples (): samples in the SV VCFs
-        pedigree (): the Peddy PED object
+        pedigree (): the Pedigree object
         dataset (str): dataset to use for getting the config portion
         panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
@@ -400,38 +379,29 @@ def prepare_results_shell(
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
     all_samples: set[str] = small_samples | sv_samples
 
-    for sample in [
-        sam for sam in pedigree.samples() if sam.affected == PEDDY_AFFECTED and sam.sample_id in all_samples
-    ]:
-        sample_id = sample.sample_id
-        family_id = sample.family_id
+    for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
 
         family_members = {
-            member.sample_id: FamilyMembers(
-                **{
-                    'sex': str(member.sex) if str(member.sex) in {'male', 'female'} else 'unknown',
-                    'affected': member.affected == PEDDY_AFFECTED,
-                    'ext_id': panel_data.samples.get(member.sample_id, ParticipantHPOPanels()).external_id
-                    or member.sample_id,
-                },
+            member.id: FamilyMembers(
+                **{'sex': MALE_FEMALE[member.sex], 'affected': member.affected == '2', 'ext_id': member.ext_id},
             )
-            for member in pedigree.families[family_id]
+            for member in pedigree.by_family[sample.family]
         }
-        sample_panel_data = panel_data.samples.get(sample_id, ParticipantHPOPanels())
-        results_shell.results[sample_id] = ParticipantResults(
+        sample_panel_data = panel_data.samples.get(sample.id, ParticipantHPOPanels())
+        results_shell.results[sample.id] = ParticipantResults(
             **{
                 'variants': [],
                 'metadata': ParticipantMeta(
                     **{
-                        'ext_id': sample_panel_data.external_id or sample_id,
-                        'family_id': pedigree[sample_id].family_id,
+                        'ext_id': sample.ext_id,
+                        'family_id': sample.family,
                         'members': family_members,
                         'phenotypes': sample_panel_data.hpo_terms,
                         'panel_ids': sample_panel_data.panels,
                         'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
-                        'solved': bool(sample_id in solved_cases or family_id in solved_cases),
-                        'present_in_small': sample_id in small_samples,
-                        'present_in_sv': sample_id in sv_samples,
+                        'solved': bool(sample.id in solved_cases or sample.family in solved_cases),
+                        'present_in_small': sample.id in small_samples,
+                        'present_in_sv': sample.id in sv_samples,
                     },
                 ),
             },
@@ -469,7 +439,7 @@ def main(
     """
 
     if dataset is None:
-        dataset = get_config()['workflow']['dataset']
+        dataset = config_retrieve(['workflow', 'dataset'])
     assert isinstance(dataset, str)
 
     if labelled_sv is None:
@@ -478,7 +448,7 @@ def main(
     out_json_path = to_path(out_json)
 
     # parse the pedigree from the file
-    ped = Ped(pedigree)
+    ped = make_flexible_pedigree(pedigree)
 
     # parse panelapp data from dict
     panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)  # type: ignore
@@ -503,12 +473,12 @@ def main(
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
-    small_vcf_samples.update(vcf_opened.samples)
+    small_vcf_samples.update(set(vcf_opened.samples))
 
     # optional SV behaviour
     sv_opened = [VCFReader(sv_vcf) for sv_vcf in labelled_sv]
     for sv_vcf in sv_opened:
-        sv_vcf_samples.update(sv_vcf.samples)
+        sv_vcf_samples.update(set(sv_vcf.samples))
 
     all_samples: set[str] = small_vcf_samples.union(sv_vcf_samples)
 
@@ -539,10 +509,10 @@ def main(
     results_meta = ResultMeta(
         **{
             'input_file': input_path,
-            'cohort': dataset or get_config()['workflow']['dataset'] or 'unknown',
+            'cohort': dataset or config_retrieve(['workflow', 'dataset'], 'unknown'),
             'family_breakdown': count_families(ped, samples=all_samples),
             'panels': panelapp_data.metadata,
-            'container': get_config()['workflow']['driver_image'],
+            'container': config_retrieve(['workflow', 'driver_image']),
             'projects': [seqr_project] if seqr_project else [],
         },
     )

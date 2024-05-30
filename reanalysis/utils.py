@@ -13,7 +13,6 @@ from typing import Any
 
 import backoff
 import cyvcf2
-import peddy
 import requests
 import zoneinfo
 from backoff import fibo
@@ -763,7 +762,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
     return txc_dict
 
 
-def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompHetDict:
+def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHetDict:
     """
     manual implementation to find compound hets
     variants provided in the format
@@ -775,7 +774,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompH
 
     Args:
         var_list (list[VARIANT_MODELS]): all variants in this gene
-        pedigree (): Peddy.Ped
+        pedigree (): Pedigree
     """
 
     # create an empty dictionary
@@ -791,10 +790,9 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: peddy.Ped) -> CompH
         # iterate over any samples with a het overlap
         for sample in var_1.het_samples.intersection(var_2.het_samples):
             phased = False
-            ped_sample = pedigree.get(sample)
 
             # don't assess male compound hets on sex chromosomes
-            if ped_sample.sex == 'male' and var_1.coordinates.chrom in X_CHROMOSOME:
+            if pedigree.by_id[sample].sex == '1' and var_1.coordinates.chrom in X_CHROMOSOME:
                 continue
 
             # check for both variants being in the same phase set
