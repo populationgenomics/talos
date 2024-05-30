@@ -975,9 +975,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset:
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
-    get_logger().debug(
-        f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}',
-    )
+    get_logger().debug(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
 
     # filter out quality failures
     # swap out the default clinvar annotations with private clinvar

@@ -12,7 +12,6 @@ from typing import Any
 
 import jinja2
 import pandas as pd
-from peddy.peddy import Ped
 
 from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
@@ -69,16 +68,13 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str | ResultData, panelapp_path: str, pedigree: Ped):
+    def __init__(self, results: str | ResultData, panelapp_path: str):
         """
         Args:
             results (str | ResultData): path to the results JSON, or the results object
             panelapp_path (str): where to read panelapp data from
-            pedigree (str): path to the PED file
         """
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
-
-        self.pedigree = Ped(pedigree)
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
@@ -589,7 +585,6 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)
-    parser.add_argument('--pedigree', help='PED file', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Optional second report, latest variants only')
@@ -600,14 +595,14 @@ if __name__ == '__main__':
     DATASET_CONFIG = get_cohort_config(args.dataset)
     DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
-    html = HTMLBuilder(results=args.results, panelapp_path=args.panelapp, pedigree=args.pedigree)
+    html = HTMLBuilder(results=args.results, panelapp_path=args.panelapp)
     html.write_html(output_filepath=args.output)
 
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
     if args.latest and (date_filtered_object := check_date_filter(results=args.results)):
         # build the HTML for latest reports only
-        latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp, pedigree=args.pedigree)
+        latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp)
         latest_html.write_html(output_filepath=args.latest, latest=True)
 
     # if no splitting, just exit here
@@ -618,12 +613,12 @@ if __name__ == '__main__':
     # either look for an ID convention, or go with a random split
     html_base = to_path(args.output).parent
     for data, report, latest in split_data_into_sub_reports(args.results, args.split_samples):
-        html = HTMLBuilder(results=data, panelapp_path=args.panelapp, pedigree=args.pedigree)
+        html = HTMLBuilder(results=data, panelapp_path=args.panelapp)
         html.write_html(output_filepath=str(html_base / report))
 
         # If the latest arg is used, filter the results
         # write the HTML if any results remain
         if args.latest and (date_filtered_object := check_date_filter(results=data)):
             # build the HTML for latest reports only
-            latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp, pedigree=args.pedigree)
+            latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp)
             latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
