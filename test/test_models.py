@@ -8,7 +8,6 @@ from reanalysis.utils import make_flexible_pedigree
 def test_flexi_pedigree(test_input_path):
     input_ped = str(test_input_path / 'peds.ped')
     flexi_ped = make_flexible_pedigree(input_ped)
-    print(flexi_ped)
     assert len(flexi_ped.by_family) == 3
     assert len(flexi_ped.by_id) == 5
     assert len(flexi_ped.members) == 5
