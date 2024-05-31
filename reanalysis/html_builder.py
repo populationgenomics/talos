@@ -33,6 +33,7 @@ DATASET_SEQ_CONFIG: dict = None  # type: ignore
 
 # regex pattern - number, number, not-number
 KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
+CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 
 
 @dataclass
@@ -448,6 +449,9 @@ class Variant:
             - set of "consequences" from MANE transcripts
             - set of "consequences" from non-MANE transcripts
             - Set of variant effects in p. nomenclature (or c. if no p. is available)
+
+        condense massive cdna annotations, e.g.
+        c.4978-2_4978-1insAGGTAAGCTTAGAAATGAGAAAAGACATGCACTTTTCATGTTAATGAAGTGATCTGGCTTCTCTTTCTA
         """
         mane_consequences = set()
         non_mane_consequences = set()
@@ -463,7 +467,13 @@ class Variant:
                 if csq['hgvsp']:
                     mane_hgvsps.add(csq['hgvsp'].split(':')[1])
                 elif csq['hgvsc']:
-                    mane_hgvsps.add(csq['hgvsc'].split(':')[1])
+                    hgvsc = csq['hgvsc'].split(':')[1]
+
+                    # if massive indel base stretches are included, replace with a numerical length
+                    if match := CDNA_SQUASH.search(hgvsc):
+                        hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
+
+                    mane_hgvsps.add(hgvsc)
             else:
                 non_mane_consequences.add(csq['consequence'])
 
