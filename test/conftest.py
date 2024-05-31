@@ -7,7 +7,6 @@ from typing import Any
 
 import pytest
 from cyvcf2 import VCFReader
-from peddy.peddy import Ped
 
 import hail as hl
 
