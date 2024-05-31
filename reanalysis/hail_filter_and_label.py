@@ -838,10 +838,10 @@ def checkpoint_and_repartition(
     checkpoint_root: str,
     checkpoint_num: int,
     extra_logging: str | None = '',
-) -> hl.MatrixTable:
+    prev_mt: str | None = None,
+) -> tuple[hl.MatrixTable, str]:
     """
-    uses estimated row data size to repartition MT
-    aiming for a target partition size of ~10MB
+    uses estimated row data size to repartition MT, aiming for a target partition size of ~10MB
     Kat's thread:
     https://discuss.hail.is/t/best-way-to-repartition-heavily-filtered-matrix-tables/2140
 
@@ -851,7 +851,7 @@ def checkpoint_and_repartition(
         checkpoint_num (): the checkpoint increment (insert into file path)
         extra_logging (): informative statement to add to logging counts/partitions
     Returns:
-        the MT after checkpointing, re-reading, and repartitioning
+        the MT after checkpointing, re-reading, and repartitioning, and new on-disk path
     """
     checkpoint_extended = f'{checkpoint_root}_{checkpoint_num}'
     if (to_path(checkpoint_extended) / '_SUCCESS').exists() and config_retrieve(
@@ -864,13 +864,17 @@ def checkpoint_and_repartition(
         get_logger().info(f'Checkpointing MT to {checkpoint_extended}')
         mt = mt.checkpoint(checkpoint_extended, overwrite=True)
 
+        # once we write and read new data, delete previous
+        if prev_mt:
+            hl.current_backend().fs.rmtree(prev_mt)
+
     # estimate partitions; fall back to 1 if low row count
     current_rows = mt.count_rows()
     partitions = current_rows // 200000 or 1
 
     get_logger().info(f'Re-partitioning {current_rows} into {partitions} partitions {extra_logging}')
 
-    return mt.repartition(n_partitions=partitions, shuffle=True)
+    return mt.repartition(n_partitions=partitions, shuffle=True), checkpoint_extended
 
 
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
@@ -920,7 +924,14 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     return mt
 
 
-def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset: str | None = None):
+def main(
+    mt_path: str,
+    panelapp_path: str,
+    pedigree: str,
+    vcf_out: str,
+    dataset: str | None = None,
+    checkpoint: str | None = None,
+):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
@@ -931,7 +942,11 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset:
         pedigree ():
         vcf_out (str): where to write VCF out
         dataset (str): optional dataset name to write output for
+        checkpoint (str): where to write checkpoints (if at all)
     """
+
+    # never delete this initial data
+    initial_mt = mt_path
 
     dataset = dataset or get_config()['workflow']['dataset']
 
@@ -957,10 +972,6 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset:
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
 
     get_logger().info('Starting Hail with reference genome GRCh38')
-
-    # if we already generated the annotated output, load instead
-    if not to_path(mt_path.rstrip('/') + '/').exists():
-        raise FileExistsError(f'Input MatrixTable doesn\'t exist: {mt_path}')
 
     mt = hl.read_matrix_table(mt_path)
 
@@ -993,28 +1004,32 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset:
     # shrink the time taken to write checkpoints
     mt = drop_useless_fields(mt=mt)
 
-    mt = checkpoint_and_repartition(
-        mt=mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after applying quality filters',
-    )
-    checkpoint_number = checkpoint_number + 1
+    if checkpoint:
+        # don't delete the starting data
+        mt, mt_path = checkpoint_and_repartition(
+            mt,
+            checkpoint,
+            checkpoint_number,
+            'after applying quality filters',
+            None,
+        )
+        checkpoint_number += 1
 
     # die if there are no variants remaining
-    if mt.count_rows() == 0:
-        raise ValueError('No remaining rows to process!')
+    assert mt.count_rows(), 'No remaining rows to process!'
 
     # split genes out to separate rows
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
-    mt = checkpoint_and_repartition(
-        mt=mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after applying Rare & Green-Gene filters',
-    )
-    checkpoint_number = checkpoint_number + 1
+    if checkpoint:
+        mt, mt_path = checkpoint_and_repartition(
+            mt,
+            checkpoint,
+            checkpoint_number,
+            'after applying Rare & Green-Gene filters',
+            prev_mt=mt_path if mt_path != initial_mt else None,
+        )
+        checkpoint_number += 1
 
     # add Classes to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
@@ -1035,12 +1050,15 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str, dataset:
 
     mt = filter_to_categorised(mt=mt)
 
-    mt = checkpoint_and_repartition(
-        mt=mt,
-        checkpoint_root=checkpoint_root,
-        checkpoint_num=checkpoint_number,
-        extra_logging='after filtering to categorised only',
-    )
+    if checkpoint:
+        mt, mt_path = checkpoint_and_repartition(
+            mt,
+            checkpoint,
+            checkpoint_number,
+            'after filtering to categorised only',
+            prev_mt=mt_path if mt_path != initial_mt else None,
+        )
+        checkpoint_number += 1
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
@@ -1056,6 +1074,7 @@ if __name__ == '__main__':
     parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
     parser.add_argument('--dataset', help='Dataset to write output for')
+    parser.add_argument('--checkpoint', help='Path to write checkpoints to', required=False, default=None)
     args = parser.parse_args()
     main(
         mt_path=args.mt,
@@ -1063,4 +1082,5 @@ if __name__ == '__main__':
         pedigree=args.pedigree,
         vcf_out=args.vcf_out,
         dataset=args.dataset,
+        checkpoint=args.checkpoint,
     )
