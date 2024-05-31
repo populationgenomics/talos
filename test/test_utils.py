@@ -182,7 +182,7 @@ def test_gene_dict(two_trio_variants_vcf):
     assert len(var_dict['ENSG00000075043']) == 2
 
 
-def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
+def test_comp_hets(two_trio_abs_variants: list[SmallVariant], pedigree_path):
     """
     {
         'male': {
@@ -193,7 +193,7 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     :param two_trio_abs_variants:
     :return:
     """
-    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=make_flexible_pedigree(peddy_ped))
+    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=make_flexible_pedigree(pedigree_path))
     assert 'male' in ch_dict
     results = ch_dict.get('male')
     assert isinstance(results, dict)
@@ -222,14 +222,14 @@ def test_phased_dict(phased_vcf_path):
         assert variant.phased['mother_1'] == {420: '0|1'}
 
 
-def test_phased_comp_hets(phased_variants: list[SmallVariant], peddy_ped):
+def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path):
     """
     phased variants shouldn't form a comp-het
     'mother_1' is het for both variants, but phase-set is same for both
     :param phased_variants:
     :return:
     """
-    ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(peddy_ped))
+    ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(pedigree_path))
     assert len(ch_dict) == 0
 
 

@@ -132,7 +132,7 @@ def fixture_sm_api_lookup() -> Any:
     return read_json_from_path(LOOKUP_PED)
 
 
-@pytest.fixture(name='peddy_ped', scope='session')
+@pytest.fixture(name='pedigree_path', scope='session')
 def pedigree_path() -> str:
     """
     :return: Ped

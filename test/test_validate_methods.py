@@ -44,7 +44,7 @@ panel_genes = PanelApp(
 )
 
 
-def test_results_shell(peddy_ped):
+def test_results_shell(pedigree_path):
     """
 
     Returns:
@@ -74,7 +74,7 @@ def test_results_shell(peddy_ped):
         results_meta=result_meta,
         small_samples={'male'},
         sv_samples={'female'},
-        pedigree=make_flexible_pedigree(pedigree=peddy_ped),
+        pedigree=make_flexible_pedigree(pedigree=pedigree_path),
         panel_data=sample_panels,
         panelapp=panelapp,
         dataset='cohort',
@@ -195,14 +195,14 @@ def test_gene_clean_results_personal():
             assert event.panels.matched == {'4'}
 
 
-def test_update_results_meta(peddy_ped):
+def test_update_results_meta(pedigree_path):
     """
     testing the dict update
     """
 
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=make_flexible_pedigree(peddy_ped), samples=ped_samples) == {
+    assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
         'affected': 2,
         'male': 3,
         'female': 3,
@@ -210,14 +210,14 @@ def test_update_results_meta(peddy_ped):
     }
 
 
-def test_count_families_missing_father(peddy_ped):
+def test_count_families_missing_father(pedigree_path):
     """
     testing the dict update
     """
 
     ped_samples = {'male', 'female', 'father_1', 'mother_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=make_flexible_pedigree(peddy_ped), samples=ped_samples) == {
+    assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
         'affected': 2,
         'male': 3,
         'female': 3,
