@@ -9,7 +9,7 @@ We then run a permissive MOI match for the variant
 # mypy: ignore-errors
 from abc import abstractmethod
 
-from cpg_utils.config import get_config
+from cpg_utils.config import config_retrieve
 
 from reanalysis.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
 from reanalysis.utils import X_CHROMOSOME, CompHetDict
@@ -146,7 +146,7 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_depth = get_config()['filter'].get('minimum_depth', 10)
+        self.minimum_depth = config_retrieve(['filter', 'minimum_depth'], 10)
 
     @abstractmethod
     def run(
@@ -204,7 +204,6 @@ class BaseMoi:
 
         this_member = self.pedigree.by_id[sample_id]
 
-        # todo change this to just the immediate trio
         # iterate through all family members, no interested in directionality of relationships at the moment
         for member_id in [this_member.father, this_member.mother]:
             if member_id is None:
@@ -243,7 +242,7 @@ class BaseMoi:
             """
 
             if variant.coordinates.chrom in X_CHROMOSOME:
-                if sex == 'male' and (member_id in variant.het_samples or member_id in variant.hom_samples):
+                if sex == '1' and (member_id in variant.het_samples or member_id in variant.hom_samples):
                     return 'Hemi'
 
                 if member_id in variant.het_samples:
@@ -323,11 +322,10 @@ class DominantAutosomal(BaseMoi):
         Simplest: AD MOI
         """
 
-        self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
-        self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
-        self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
-        self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
-        self.sv_af_threshold = get_config()['moi_tests'][CALLSET_AF_SV_DOMINANT]
+        self.ad_threshold = config_retrieve(['moi_tests', GNOMAD_RARE_THRESHOLD])
+        self.ac_threshold = config_retrieve(['moi_tests', GNOMAD_AD_AC_THRESHOLD])
+        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_DOM_HOM_THRESHOLD])
+        self.sv_af_threshold = config_retrieve(['moi_tests', CALLSET_AF_SV_DOMINANT])
 
         # prepare the AF test dicts
         self.freq_tests = {
@@ -410,7 +408,7 @@ class RecessiveAutosomalCH(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Comp-Het'):
         """ """
-        self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
@@ -515,7 +513,7 @@ class RecessiveAutosomalHomo(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Homozygous'):
         """ """
-        self.hom_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
@@ -604,10 +602,10 @@ class XDominant(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.ad_threshold = get_config()['moi_tests'][GNOMAD_RARE_THRESHOLD]
-        self.ac_threshold = get_config()['moi_tests'][GNOMAD_AD_AC_THRESHOLD]
-        self.hom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
-        self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
+        self.ad_threshold = config_retrieve(['moi_tests', GNOMAD_RARE_THRESHOLD])
+        self.ac_threshold = config_retrieve(['moi_tests', GNOMAD_AD_AC_THRESHOLD])
+        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_DOM_HOM_THRESHOLD])
+        self.hemi_threshold = config_retrieve(['moi_tests', GNOMAD_HEMI_THRESHOLD])
 
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
@@ -699,8 +697,8 @@ class XRecessiveMale(BaseMoi):
             applied_moi ():
         """
 
-        self.hom_dom_threshold = get_config()['moi_tests'][GNOMAD_DOM_HOM_THRESHOLD]
-        self.hemi_threshold = get_config()['moi_tests'][GNOMAD_HEMI_THRESHOLD]
+        self.hom_dom_threshold = config_retrieve(['moi_tests', GNOMAD_DOM_HOM_THRESHOLD])
+        self.hemi_threshold = config_retrieve(['moi_tests', GNOMAD_HEMI_THRESHOLD])
 
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_dom_threshold for key in INFO_HOMS}
@@ -733,7 +731,9 @@ class XRecessiveMale(BaseMoi):
         # combine het and hom here, we don't trust the variant callers
         # if hemi count is too high, don't consider males
         # never consider support variants on X for males
-        males = {sam for sam in principal.het_samples.union(principal.hom_samples) if self.pedigree[sam].sex == '1'}
+        males = {
+            sam for sam in principal.het_samples.union(principal.hom_samples) if self.pedigree.by_id[sam].sex == '1'
+        }
 
         for sample_id in males:
             # specific affected sample category check, never consider support on X for males
@@ -779,7 +779,7 @@ class XRecessiveFemaleHom(BaseMoi):
             applied_moi ():
         """
 
-        self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.hom_rec_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
@@ -810,7 +810,7 @@ class XRecessiveFemaleHom(BaseMoi):
             return classifications
 
         # never consider support homs
-        samples_to_check = {sam for sam in principal.hom_samples if self.pedigree[sam].sex == '2'}
+        samples_to_check = {sam for sam in principal.hom_samples if self.pedigree.by_id[sam].sex == '2'}
 
         for sample_id in samples_to_check:
             # specific affected sample category check
@@ -860,7 +860,7 @@ class XRecessiveFemaleCH(BaseMoi):
             applied_moi ():
         """
 
-        self.hom_rec_threshold = get_config()['moi_tests'][GNOMAD_REC_HOM_THRESHOLD]
+        self.hom_rec_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
@@ -891,7 +891,7 @@ class XRecessiveFemaleCH(BaseMoi):
             or principal.info.get('categoryboolean1')
         ):
             return classifications
-        het_females = {sam for sam in principal.het_samples if self.pedigree[sam].sex == '2'}
+        het_females = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
 
         # if het females are present, try and find support
         for sample_id in het_females:

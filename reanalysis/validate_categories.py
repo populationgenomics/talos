@@ -323,9 +323,14 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
         filter_members = [member for member in family_members if member.id in samples]
 
         # find trios
-        trios = [member for member in filter_members if member.mother is not None and member.father is not None]
+        trios = [
+            member
+            for member in filter_members
+            if member.affected == '2' and member.mother is not None and member.father is not None
+        ]
 
         # this could be extended, it's naive...
+        print(f'bop bop {trios}')
         if len(trios) == 1:
             stat_counter['trios'] += 1
         elif len(trios) == 2:

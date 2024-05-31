@@ -5,6 +5,8 @@ The Seqr file is a TSV of all variants flagged as interesting
 This is designed to recognise flags in the format 'AIP training: Confidence'
 
 See relevant documentation for a description of the algorithm used
+
+todo needs a complete overhaul, maybe just deletion
 """
 
 # mypy: ignore-errors
@@ -20,7 +22,6 @@ from typing import Any
 
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
-from peddy import Ped
 
 import hail as hl
 
@@ -38,8 +39,9 @@ from reanalysis.hail_filter_and_label import (
     filter_to_well_normalised,
     green_and_new_from_panelapp,
 )
+from reanalysis.models import Pedigree
 from reanalysis.static_values import get_logger
-from reanalysis.utils import canonical_contigs_from_vcf, read_json_from_path
+from reanalysis.utils import canonical_contigs_from_vcf, make_flexible_pedigree, read_json_from_path
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
 SAMPLE_ALT_TEMPLATE = 'num_alt_alleles_{}'
@@ -300,14 +302,14 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
     return discrepancies
 
 
-def find_affected_samples(pedigree: Ped) -> list[str]:
+def find_affected_samples(pedigree: Pedigree) -> list[str]:
     """
     finds all affected members of the provided pedigree
 
     :param pedigree:
     :return:
     """
-    return [sam.sample_id for sam in pedigree.samples() if sam.affected]
+    return [sam.id for sam in pedigree.members if sam.affected == '2']
 
 
 def check_in_vcf(vcf_path: str, variants: CommonDict) -> tuple[CommonDict, CommonDict]:
@@ -695,7 +697,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     )
 
     # Search for all affected sample IDs in the Peddy Pedigree
-    affected = find_affected_samples(Ped(pedigree))
+    affected = find_affected_samples(make_flexible_pedigree(pedigree))
 
     # parse the Seqr results table, specifically targeting variants in probands
     seqr_results = common_format_seqr(seqr=seqr, affected=affected)
@@ -740,12 +742,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     # read in the MT
     matrix = hl.read_matrix_table(mt)
 
-    not_present, untiered = check_mt(
-        matrix=matrix,
-        variants=not_in_vcf,
-        green_genes=green_genes,
-        new_genes=new_genes,
-    )
+    not_present, untiered = check_mt(matrix=matrix, variants=not_in_vcf, green_genes=green_genes, new_genes=new_genes)
     if untiered:
         with AnyPath(f'{output}_untiered.json').open('w') as handle:
             json.dump(untiered, handle, default=str, indent=4)

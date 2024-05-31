@@ -23,6 +23,7 @@ from reanalysis.utils import (
     get_non_ref_samples,
     get_simple_moi,
     identify_file_type,
+    make_flexible_pedigree,
 )
 
 
@@ -192,7 +193,7 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     :param two_trio_abs_variants:
     :return:
     """
-    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=peddy_ped)
+    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=make_flexible_pedigree(peddy_ped))
     assert 'male' in ch_dict
     results = ch_dict.get('male')
     assert isinstance(results, dict)
@@ -228,7 +229,7 @@ def test_phased_comp_hets(phased_variants: list[SmallVariant], peddy_ped):
     :param phased_variants:
     :return:
     """
-    ch_dict = find_comp_hets(phased_variants, pedigree=peddy_ped)
+    ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(peddy_ped))
     assert len(ch_dict) == 0
 
 

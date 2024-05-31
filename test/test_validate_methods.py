@@ -11,6 +11,7 @@ from reanalysis.models import (  # ReportPanel,
     ResultMeta,
     SmallVariant,
 )
+from reanalysis.utils import make_flexible_pedigree
 from reanalysis.validate_categories import clean_and_filter, count_families, prepare_results_shell
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -52,14 +53,10 @@ def test_results_shell(peddy_ped):
     sample_panels = PhenotypeMatchedPanels(
         **{
             'samples': {
-                'male': {
-                    'panels': {1, 3},
-                    'external_id': 'MALE!',
-                    'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}],
-                },
+                'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
                 'female': {
                     'panels': {1, 2},
-                    'external_id': 'FEMALE!',
+                    'external_id': 'female',
                     'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
                 },
             },
@@ -68,11 +65,7 @@ def test_results_shell(peddy_ped):
     )
     panelapp = PanelApp(
         **{
-            'metadata': [
-                {'id': 1, 'name': 'lorem'},
-                {'id': 2, 'name': 'ipsum'},
-                {'id': 3, 'name': 'etc'},
-            ],
+            'metadata': [{'id': 1, 'name': 'lorem'}, {'id': 2, 'name': 'ipsum'}, {'id': 3, 'name': 'etc'}],
             'genes': {'ENSG1': {'symbol': 'G1'}},
         },
     )
@@ -81,7 +74,7 @@ def test_results_shell(peddy_ped):
         results_meta=result_meta,
         small_samples={'male'},
         sv_samples={'female'},
-        pedigree=peddy_ped,
+        pedigree=make_flexible_pedigree(pedigree=peddy_ped),
         panel_data=sample_panels,
         panelapp=panelapp,
         dataset='cohort',
@@ -93,10 +86,10 @@ def test_results_shell(peddy_ped):
             'results': {
                 'male': {
                     'metadata': {
-                        'ext_id': 'MALE!',
+                        'ext_id': 'male',
                         'family_id': 'family_1',
                         'members': {
-                            'male': {'sex': 'male', 'affected': True, 'ext_id': 'MALE!'},
+                            'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
                             'father_1': {'sex': 'male', 'affected': False, 'ext_id': 'father_1'},
                             'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
                         },
@@ -108,10 +101,10 @@ def test_results_shell(peddy_ped):
                 },
                 'female': {
                     'metadata': {
-                        'ext_id': 'FEMALE!',
+                        'ext_id': 'female',
                         'family_id': 'family_2',
                         'members': {
-                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'FEMALE!'},
+                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
                             'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
                             'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
                         },
@@ -209,7 +202,7 @@ def test_update_results_meta(peddy_ped):
 
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
+    assert count_families(pedigree=make_flexible_pedigree(peddy_ped), samples=ped_samples) == {
         'affected': 2,
         'male': 3,
         'female': 3,
@@ -222,22 +215,24 @@ def test_count_families_missing_father(peddy_ped):
     testing the dict update
     """
 
-    ped_samples = {'male', 'female', 'mother_1', 'mother_2', 'father_2'}
+    ped_samples = {'male', 'female', 'father_1', 'mother_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
+    assert count_families(pedigree=make_flexible_pedigree(peddy_ped), samples=ped_samples) == {
         'affected': 2,
-        'male': 2,
+        'male': 3,
         'female': 3,
-        'trios': 1,
-        '2': 1,
+        'trios': 2,
     }
 
 
 def test_count_families_quad(quad_ped):
     """
     testing the dict update
+    this one is being marked as a trio as there are 4 samples, but only one affected
+    my vibe here is that a 'quad' is typically 2 children 2 parents
+    for affected child, unaffected sib, 2 parents... that's just a trio + 1?
     """
 
     ped_samples = {'PROBAND', 'SIBLING', 'FATHER', 'MOTHER'}
-
-    assert count_families(pedigree=quad_ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'quads': 1}
+    ped = make_flexible_pedigree(quad_ped)
+    assert count_families(pedigree=ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}

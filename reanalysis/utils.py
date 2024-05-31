@@ -99,8 +99,8 @@ def make_flexible_pedigree(pedigree: str) -> Pedigree:
             me = PedigreeMember(
                 family=member.family,
                 id=member.id,
-                mother=member.mom or None,
-                father=member.dad or None,
+                mother=None if member.mom == '0' else member.mom,
+                father=None if member.dad == '0' else member.dad,
                 sex=member.sex,
                 affected=member.phenotype,
                 ext_id=ext_id,

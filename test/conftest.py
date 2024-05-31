@@ -133,11 +133,11 @@ def fixture_sm_api_lookup() -> Any:
 
 
 @pytest.fixture(name='peddy_ped', scope='session')
-def fixture_peddy_ped() -> Ped:
+def pedigree_path() -> str:
     """
     :return: Ped
     """
-    return Ped(str(PED_FILE))
+    return str(PED_FILE)
 
 
 @pytest.fixture(name='phased_vcf_path')
@@ -167,7 +167,7 @@ def fixture_trio_ped():
 def fixture_quad_ped():
     """location of the Quad Pedigree (PLINK)"""
 
-    return Ped(str(QUAD_PED))
+    return str(QUAD_PED)
 
 
 @pytest.fixture(name='trio_abs_variant')
