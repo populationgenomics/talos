@@ -52,8 +52,8 @@ from reanalysis.utils import (
     read_json_from_path,
 )
 
-AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown_sex', '0': 'unknown_sex'}
+AMBIGUOUS_FLAG = "Ambiguous Cat.1 MOI"
+MALE_FEMALE = {"1": "male", "2": "female", "-9": "unknown_sex", "0": "unknown_sex"}
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:
@@ -129,7 +129,7 @@ def apply_moi_to_variants(
 
         # variant appears to be in a red gene
         if panel_gene_data is None:
-            get_logger().error(f'How did this gene creep in? {gene}')
+            get_logger().error(f"How did this gene creep in? {gene}")
             continue
 
         for variant in variants:
@@ -150,20 +150,20 @@ def apply_moi_to_variants(
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
-                partial_pen=bool(variant.info.get('categoryboolean1', False)),
+                partial_pen=bool(variant.info.get("categoryboolean1", False)),
             )
 
             # Flag! If this is a Category 1 (ClinVar) variant, and we are
             # interpreting under a lenient MOI, add flag for analysts
             # control this in just one place
-            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categoryboolean1', False):
+            if panel_gene_data.moi == "Mono_And_Biallelic" and variant.info.get("categoryboolean1", False):
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
-                    if '4' in each_result.categories:
+                    if "4" in each_result.categories:
                         continue
 
-                    if each_result.reasons == {'Autosomal Dominant'}:
+                    if each_result.reasons == {"Autosomal Dominant"}:
                         each_result.flags.add(AMBIGUOUS_FLAG)
 
             results.extend(variant_results)
@@ -201,10 +201,10 @@ def clean_and_filter(
     Returns:
         cleaned data
     """
-    cohort_panels = set(get_cohort_config(dataset).get('cohort_panels', []))
+    cohort_panels = set(get_cohort_config(dataset).get("cohort_panels", []))
 
     # for these categories, require a phenotype-gene match
-    cats_require_pheno_match = config_retrieve(['category_rules', 'phenotype_match'], [])
+    cats_require_pheno_match = config_retrieve(["category_rules", "phenotype_match"], [])
 
     panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
@@ -212,7 +212,7 @@ def clean_and_filter(
 
     for each_event in result_list:
         # shouldn't be possible, here as a precaution
-        assert each_event.categories, f'No categories for {each_event.var_data.coordinates.string_format}'
+        assert each_event.categories, f"No categories for {each_event.var_data.coordinates.string_format}"
 
         # find all panels for this gene
         if each_event.gene in gene_details:
@@ -241,7 +241,7 @@ def clean_and_filter(
             matched_panels = {
                 panel_meta[pid]
                 for pid in phenotype_intersection
-                if pid != config_retrieve(['workflow', 'default_panel'], 137)
+                if pid != config_retrieve(["workflow", "default_panel"], 137)
             }
 
         forced_panels = set()
@@ -282,12 +282,12 @@ def clean_and_filter(
             prev_event.support_vars.update(each_event.support_vars)
 
             prev_event.reasons.update(each_event.reasons)
-            prev_event.gene = ','.join({*prev_event.gene.split(','), each_event.gene})
+            prev_event.gene = ",".join({*prev_event.gene.split(","), each_event.gene})
 
             # combine flags across variants, and remove Ambiguous marking
             # if it's no longer appropriate
             both_flags = {*prev_event.flags, *each_event.flags}
-            if prev_event.reasons != {'Autosomal Dominant'} and AMBIGUOUS_FLAG in both_flags:
+            if prev_event.reasons != {"Autosomal Dominant"} and AMBIGUOUS_FLAG in both_flags:
                 both_flags.remove(AMBIGUOUS_FLAG)
             prev_event.flags = both_flags
 
@@ -326,22 +326,22 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
         trios = [
             member
             for member in filter_members
-            if member.affected == '2' and member.mother is not None and member.father is not None
+            if member.affected == "2" and member.mother is not None and member.father is not None
         ]
 
         # this could be extended, it's naive...
-        print(f'bop bop {trios}')
+        print(f"bop bop {trios}")
         if len(trios) == 1:
-            stat_counter['trios'] += 1
+            stat_counter["trios"] += 1
         elif len(trios) == 2:
-            stat_counter['quads'] += 1
+            stat_counter["quads"] += 1
         else:
             stat_counter[str(len(family_members))] += 1
 
         for member in filter_members:
             stat_counter[MALE_FEMALE[member.sex]] += 1
-            if member.affected == '2':
-                stat_counter['affected'] += 1
+            if member.affected == "2":
+                stat_counter["affected"] += 1
 
     return dict(stat_counter)
 
@@ -378,35 +378,34 @@ def prepare_results_shell(
     results_shell = ResultData(metadata=results_meta)
 
     # find the solved cases in this project
-    solved_cases = get_cohort_config(dataset).get('solved_cases', [])
+    solved_cases = get_cohort_config(dataset).get("solved_cases", [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
     all_samples: set[str] = small_samples | sv_samples
 
-    for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
-
+    for sample in [sam for sam in pedigree.members if sam.affected == "2" and sam.id in all_samples]:
         family_members = {
             member.id: FamilyMembers(
-                **{'sex': MALE_FEMALE[member.sex], 'affected': member.affected == '2', 'ext_id': member.ext_id},
+                **{"sex": MALE_FEMALE[member.sex], "affected": member.affected == "2", "ext_id": member.ext_id},
             )
             for member in pedigree.by_family[sample.family]
         }
         sample_panel_data = panel_data.samples.get(sample.id, ParticipantHPOPanels())
         results_shell.results[sample.id] = ParticipantResults(
             **{
-                'variants': [],
-                'metadata': ParticipantMeta(
+                "variants": [],
+                "metadata": ParticipantMeta(
                     **{
-                        'ext_id': sample.ext_id,
-                        'family_id': sample.family,
-                        'members': family_members,
-                        'phenotypes': sample_panel_data.hpo_terms,
-                        'panel_ids': sample_panel_data.panels,
-                        'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
-                        'solved': bool(sample.id in solved_cases or sample.family in solved_cases),
-                        'present_in_small': sample.id in small_samples,
-                        'present_in_sv': sample.id in sv_samples,
+                        "ext_id": sample.ext_id,
+                        "family_id": sample.family,
+                        "members": family_members,
+                        "phenotypes": sample_panel_data.hpo_terms,
+                        "panel_ids": sample_panel_data.panels,
+                        "panel_names": [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
+                        "solved": bool(sample.id in solved_cases or sample.family in solved_cases),
+                        "present_in_small": sample.id in small_samples,
+                        "present_in_sv": sample.id in sv_samples,
                     },
                 ),
             },
@@ -444,7 +443,7 @@ def main(
     """
 
     if dataset is None:
-        dataset = config_retrieve(['workflow', 'dataset'])
+        dataset = config_retrieve(["workflow", "dataset"])
     assert isinstance(dataset, str)
 
     if labelled_sv is None:
@@ -495,7 +494,7 @@ def main(
             variant_source=vcf_opened,
             sv_sources=sv_opened,
             new_gene_map=new_gene_map,
-            singletons=bool('singleton' in pedigree),
+            singletons=bool("singleton" in pedigree),
         )
 
         result_list.extend(
@@ -508,17 +507,17 @@ def main(
         )
 
     # do we have seqr projects?
-    seqr_project = get_cohort_seq_type_conf().get('seqr_project')
+    seqr_project = get_cohort_seq_type_conf().get("seqr_project")
 
     # create the full final output file
     results_meta = ResultMeta(
         **{
-            'input_file': input_path,
-            'cohort': dataset or config_retrieve(['workflow', 'dataset'], 'unknown'),
-            'family_breakdown': count_families(ped, samples=all_samples),
-            'panels': panelapp_data.metadata,
-            'container': config_retrieve(['workflow', 'driver_image']),
-            'projects': [seqr_project] if seqr_project else [],
+            "input_file": input_path,
+            "cohort": dataset or config_retrieve(["workflow", "dataset"], "unknown"),
+            "family_breakdown": count_families(ped, samples=all_samples),
+            "panels": panelapp_data.metadata,
+            "container": config_retrieve(["workflow", "driver_image"]),
+            "projects": [seqr_project] if seqr_project else [],
         },
     )
 
@@ -543,27 +542,27 @@ def main(
     )
 
     # annotate previously seen results using cumulative data file(s)
-    filter_results(results_model, singletons=bool('singleton' in pedigree), dataset=dataset)
+    filter_results(results_model, singletons=bool("singleton" in pedigree), dataset=dataset)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
-    with to_path(out_json_path).open('w') as out_file:
+    with to_path(out_json_path).open("w") as out_file:
         out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
 
 
-if __name__ == '__main__':
-    get_logger(__file__).info('Starting MOI testing phase')
-    get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
+if __name__ == "__main__":
+    get_logger(__file__).info("Starting MOI testing phase")
+    get_logger().info(f"Operational Categories: {CATEGORY_DICT}")
 
-    parser = ArgumentParser(description='Startup commands for the MOI testing phase of AIP')
-    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
-    parser.add_argument('--out_json', help='Prefix to write JSON results to')
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--pedigree', help='Path to joint-call PED file')
-    parser.add_argument('--input_path', help='source data', default='Not supplied')
-    parser.add_argument('--participant_panels', help='panels per participant', default=None)
-    parser.add_argument('--dataset', help='optional, dataset to use', default=None)
+    parser = ArgumentParser(description="Startup commands for the MOI testing phase of AIP")
+    parser.add_argument("--labelled_vcf", help="Category-labelled VCF")
+    parser.add_argument("--labelled_sv", help="Category-labelled SV VCF", default=[], nargs="+")
+    parser.add_argument("--out_json", help="Prefix to write JSON results to")
+    parser.add_argument("--panelapp", help="Path to JSON file of PanelApp data")
+    parser.add_argument("--pedigree", help="Path to joint-call PED file")
+    parser.add_argument("--input_path", help="source data", default="Not supplied")
+    parser.add_argument("--participant_panels", help="panels per participant", default=None)
+    parser.add_argument("--dataset", help="optional, dataset to use", default=None)
     args = parser.parse_args()
 
     main(

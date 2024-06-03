@@ -5,7 +5,6 @@
 Entrypoint for the comparison process
 """
 
-
 import logging
 import os
 import sys
@@ -29,7 +28,7 @@ from cpg_utils.hail_batch import (
 )
 
 # local script references
-COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
+COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), "comparison.py")
 
 
 def main(results_folder: str, seqr: str, mt: str):
@@ -43,16 +42,16 @@ def main(results_folder: str, seqr: str, mt: str):
 
     # set up a batch
     service_backend = hb.ServiceBackend(
-        billing_project=get_config()['hail']['billing_project'],
+        billing_project=get_config()["hail"]["billing_project"],
         remote_tmpdir=remote_tmpdir(),
     )
-    batch = hb.Batch(name='run AIP comparison', backend=service_backend)
+    batch = hb.Batch(name="run AIP comparison", backend=service_backend)
 
     # create a new job
-    comp_job = batch.new_job(name='Run Comparison')
+    comp_job = batch.new_job(name="Run Comparison")
 
     # set reasonable job resources
-    comp_job.cpu(4).image(image_path('hail')).memory('standard').storage('50G')
+    comp_job.cpu(4).image(image_path("hail")).memory("standard").storage("50G")
 
     # run gcloud authentication
     authenticate_cloud_credentials_in_job(comp_job)
@@ -69,9 +68,9 @@ def main(results_folder: str, seqr: str, mt: str):
     )
 
     # need to localise the VCF + index
-    run_vcf = os.path.join(results_folder, 'hail_categorised.vcf.bgz')
-    vcf_in_batch = batch.read_input_group(**{'vcf.bgz': run_vcf, 'vcf.bgz.tbi': run_vcf + '.tbi'})
-    ped_in_batch = batch.read_input(os.path.join(results_folder, 'latest_pedigree.fam'))
+    run_vcf = os.path.join(results_folder, "hail_categorised.vcf.bgz")
+    vcf_in_batch = batch.read_input_group(**{"vcf.bgz": run_vcf, "vcf.bgz.tbi": run_vcf + ".tbi"})
+    ped_in_batch = batch.read_input(os.path.join(results_folder, "latest_pedigree.fam"))
 
     results_command = (
         'pip install . && '
@@ -83,22 +82,22 @@ def main(results_folder: str, seqr: str, mt: str):
         f'--mt {mt} '
         f'--output {output_path("comparison_result")} '
     )
-    logging.info(f'Results command: {results_command}')
+    logging.info(f"Results command: {results_command}")
     comp_job.command(results_command)
 
     batch.run(wait=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
+        format="%(asctime)s %(levelname)s %(module)s:%(lineno)d - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
         stream=sys.stderr,
     )
     parser = ArgumentParser()
-    parser.add_argument('--results', help='results folder', required=True)
-    parser.add_argument('--seqr', help='Flagged Seqr variants', required=True)
-    parser.add_argument('--mt', help='Hail MT of annotated variants', required=True)
+    parser.add_argument("--results", help="results folder", required=True)
+    parser.add_argument("--seqr", help="Flagged Seqr variants", required=True)
+    parser.add_argument("--mt", help="Hail MT of annotated variants", required=True)
     args = parser.parse_args()
     main(results_folder=args.results, seqr=args.seqr, mt=args.mt)
