@@ -64,9 +64,7 @@ ignore = [
 
     "ARG001", # Unused function argument
     "ARG002", # Unused method argument
-
     "PLR2004", # Magic value used
-
     "ANN001",
     "ANN202",
     "C408",
@@ -182,18 +180,18 @@ ignore = [
     "E401",
     "SIM212",
     "DTZ002",
-    "TCH001" # move application import *** into a type-checking block
+    "TCH001", # move application import *** into a type-checking block
 ]
 
-[tool.ruff.lint.isort]
+[tool.ruff.format]
+indent-style = 'space'
+quote-style = "single"
 
+[tool.ruff.lint.isort]
 section-order = ["future", "standard-library", "third-party", "hail", "cpg", "first-party", "local-folder"]
 
 [tool.ruff.lint.isort.sections]
-hail = [
-    "hail",
-    "hailtop",
-]
+hail = ["hail", "hailtop"]
 
 cpg = [
     "analysis_runner",
