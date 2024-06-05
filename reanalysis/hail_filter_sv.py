@@ -11,16 +11,10 @@ from argparse import ArgumentParser
 
 import hail as hl
 
-from cpg_utils import to_path
-from cpg_utils.config import get_config
-from cpg_utils.hail_batch import genome_build, init_batch
+from cpg_utils.config import config_retrieve
 
-from reanalysis.hail_filter_and_label import (
-    MISSING_INT,
-    ONE_INT,
-    green_and_new_from_panelapp,
-    subselect_mt_to_pedigree,
-)
+from reanalysis.hail_filter_and_label import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
+from reanalysis.models import PanelApp
 from reanalysis.static_values import get_logger
 from reanalysis.utils import read_json_from_path
 
@@ -131,12 +125,7 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def main(
-    mt_path: str,
-    panelapp_path: str,
-    pedigree: str,
-    vcf_out: str,
-):
+def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     """
     Read MT, filter, and apply category annotation
     Export as a VCF
@@ -150,31 +139,27 @@ def main(
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
-    panelapp = read_json_from_path(panelapp_path)['genes']  # type: ignore
+    panelapp = read_json_from_path(panelapp_path, PanelApp)
+    assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data
     # new is not currently incorporated in this analysis
     green_expression, _new_expression = green_and_new_from_panelapp(panelapp)
 
-    # initiate Hail with defined driver spec.
-    get_logger().info(f'Starting Hail with reference genome {genome_build()}')
-    # un-comment this to play locally
-    # hl.init(default_reference=genome_build())
-    init_batch(driver_cores=2, driver_memory='standard')
+    # initiate Hail in local cluster mode
+    get_logger().info('Starting Hail with reference genome GRCh38')
+    hl.init(backend='spark', master='local[2]', quiet=True)
+    hl.default_reference('GRCh38')
 
-    # if we already generated the annotated output, load instead
-    if not to_path(mt_path.rstrip('/') + '/').exists():
-        raise FileExistsError(f"Input MatrixTable doesn't exist: {mt_path}")
-
-    # read in the input data (annotated)
+    # read in the input data (annotated) Not checking for existence; if it fails, it fails
     mt = hl.read_matrix_table(mt_path)
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     # apply blanket filters
-    mt = filter_matrix_by_ac(mt, ac_threshold=get_config()['filter']['callset_af_sv_recessive'])
-    mt = filter_matrix_by_af(mt, af_threshold=get_config()['filter']['callset_af_sv_recessive'])
+    mt = filter_matrix_by_ac(mt, ac_threshold=config_retrieve(['filter', 'callset_af_sv_recessive']))
+    mt = filter_matrix_by_af(mt, af_threshold=config_retrieve(['filter', 'callset_af_sv_recessive']))
     mt = rearrange_filters(mt)
 
     # pre-filter the MT and rearrange fields for export
@@ -182,6 +167,7 @@ def main(
 
     # label some SVs
     mt = annotate_sv1(mt, green_expression)
+
     # add further category annotations here
 
     # filter to labelled entries
