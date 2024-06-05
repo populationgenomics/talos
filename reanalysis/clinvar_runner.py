@@ -11,7 +11,7 @@ from os.path import join
 from hailtop.batch.job import Job
 
 from cpg_utils import Path, to_path
-from cpg_utils.config import config_retrieve
+from cpg_utils.config import config_retrieve, image_path, reference_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch, query_command
 
 from reanalysis import clinvar_by_codon, seqr_loader, summarise_clinvar_entries
@@ -59,6 +59,91 @@ def generate_clinvar_table(cloud_folder: Path, clinvar_outputs: str):
     return summarise
 
 
+def vep_json_to_ht(json_paths: list, output_ht: str):
+    """
+    call as a python Job. Take all the JSON files and make a Hail Table?
+
+    Args:
+        json_paths ():
+        output_ht ():
+
+    Returns:
+
+    """
+    import hail as hl
+
+    hl.init()
+    hl.default_reference('GRCh38')
+
+    # this will need some tweaking
+    json_schema = hl.dtype(
+        """struct{
+        minimised:int32,
+        assembly_name:str,
+        allele_string:str,
+        ancestral:str,
+        context:str,
+        end:int32,
+        id:str,
+        input:str,
+        seq_region_name:str,
+        start:int32,
+        strand:int32,
+        transcript_consequences:array<struct{
+            allele_num:int32,
+            amino_acids:str,
+            appris:str,
+            biotype:str,
+            canonical:int32,
+            cdna_start:int32,
+            cdna_end:int32,
+            cds_end:int32,
+            cds_start:int32,
+            codons:str,
+            consequence_terms:array<str>,
+            distance:int32,
+            exon:str,
+            gene_id:str,
+            gene_pheno:int32,
+            gene_symbol:str,
+            gene_symbol_source:str,
+            hgnc_id:str,
+            hgvsc:str,
+            hgvsp:str,
+            hgvs_offset:int32,
+            impact:str,
+            intron:str,
+            minimised:int32,
+            mirna:array<str>,
+            protein_end:int32,
+            strand:int32,
+            swissprot:array<str>,
+            transcript_id:str,
+            trembl:array<str>,
+            tsl:int32,
+            uniparc:array<str>,
+            uniprot_isoform:array<str>,
+            variant_allele:str,
+            source:str,
+            flags:array<str>
+        }>,
+        variant_class:str
+    }""",
+    )
+    ht = hl.import_table(paths=json_paths, no_header=True, types={'f0': json_schema})
+    ht = ht.transmute(vep=ht.f0)
+
+    # Can't use ht.vep.start for start because it can be modified by VEP (e.g. it
+    # happens for indels). So instead parsing POS from the original VCF line stored
+    # as ht.vep.input field.
+    input_split = ht.vep.input.split('\t')
+    start = hl.parse_int(input_split[1])
+    chrom = ht.vep.seq_region_name
+    ht = ht.annotate(locus=hl.locus(chrom, start), alleles=[input_split[3], input_split[4]])
+    ht = ht.key_by(ht.locus, ht.alleles)
+    ht.write(output_ht)
+
+
 def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, dependency: Job | None = None) -> Job:
     """
     if the annotated data Table doesn't exist, generate it
@@ -66,51 +151,54 @@ def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, 
     Args:
         annotation_out (str): MT path to create
         snv_vcf (str): path to a VCF file
-        tmp_path (Path): path to a temporary folder
+        tmp_path (str): path to temp directory
         dependency (Job | None): optional job dependency
 
     Returns:
         The Job for future dependency setting
     """
 
-    vep_ht_tmp = tmp_path / 'vep_annotations.ht'
+    snv_vcf_in_batch = get_batch().read_input_group(**{'vcf.gz': snv_vcf, 'vcf.gz.tbi': f'{snv_vcf}.tbi'})['vcf.gz']
 
-    # generate the jobs which run VEP & collect the results
-    vep_jobs = add_vep_jobs(
-        b=get_batch(),
-        input_siteonly_vcf_path=snv_vcf,
-        tmp_prefix=tmp_path / 'vep_temp',
-        scatter_count=50,
-        out_path=vep_ht_tmp,
-    )
-
-    # add Clinvar job as an annotation dependency
-    # update dependency job if necessary
-    if vep_jobs:
+    # split the whole vcf into chromosomes
+    output_json_files: list = []
+    for chromosome in [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY']:
+        # subset the whole VCF to this chromosome
+        bcftools_job = get_batch().new_job(f'subset_{chromosome} with bcftools')
         if dependency:
-            for job in vep_jobs:
-                job.depends_on(dependency)
-        dependency = vep_jobs[-1]
+            bcftools_job.depends_on(dependency)
 
-    j = get_batch().new_job('annotate cohort')
-    j.image(config_retrieve(['workflow', 'driver_image']))
+        # set some resources
+        bcftools_job.image(image_path('bcftools')).cpu(1).memory('8G')
+        # create a vcf fragment
+        bcftools_job.command(f'bcftools view -Oz -o {bcftools_job.fragment} -r {chromosome} {snv_vcf_in_batch}')
+        # annotate that fragment, making a JSON output
+        vep_job = get_batch().new_job(f'annotate_{chromosome} with VEP')
+        # configure the required resources
+        vep_job.image(image_path('vep_110')).cpu(1).memory('highmem')
 
-    # run seqr_loader, only applying VEP annotations
-    j.command(
-        query_command(
-            seqr_loader,
-            seqr_loader.annotate_cohort.__name__,
-            str(snv_vcf),
-            str(annotation_out),
-            str(vep_ht_tmp),
-            str(tmp_path / 'annotation_temp'),
-            True,
-            setup_gcp=True,
-        ),
-    )
-    if dependency:
-        j.depends_on(dependency)
-    return j
+        # gcsfuse works only with the root bucket, without prefix:
+        vep_mount_path = to_path(reference_path('vep_110_mount'))
+        data_mount = to_path(f'/{vep_mount_path.drive}')
+        vep_job.cloudfuse(vep_mount_path.drive, str(data_mount), read_only=True)
+        vep_dir = data_mount / '/'.join(vep_mount_path.parts[2:])
+
+        vep_job.command(
+            f"""\
+            FASTA={vep_dir}/vep/homo_sapiens/*/Homo_sapiens.GRCh38*.fa.gz
+            vep --format vcf --json -o {vep_job.output} -i {bcftools_job.fragment} \\
+            --protein --species homo_sapiens --cache --offline --assembly GRCh38 \\
+            --dir_cache {vep_dir}/vep/ --fasta $FASTA
+            """,
+        )
+
+        get_batch().write_output(vep_job.output, str(tmp_path / f'{chromosome}.json'))
+        output_json_files.append(vep_job.output)
+
+    # call a python job to stick all those together?!
+    json_to_mt_job = get_batch().new_python_job('aggregate JSON into MT')
+    json_to_mt_job.call(vep_json_to_ht, output_json_files, str(annotation_out))
+    return json_to_mt_job
 
 
 def main():
@@ -119,7 +207,7 @@ def main():
     """
 
     cloud_folder = to_path(
-        join(config_retrieve(['storage', 'common', 'analysis']), 'aip_clinvar', datetime.now().strftime('%y-%m')),
+        join(config_retrieve(['storage', 'common', 'analysis']), 'aip_clinvar_new', datetime.now().strftime('%y-%m')),
     )
 
     # clinvar VCF, decisions, annotated VCF, and PM5
@@ -135,7 +223,7 @@ def main():
         return
 
     temp_path = to_path(
-        join(config_retrieve(['storage', 'common', 'tmp']), 'aip_clinvar', datetime.now().strftime('%y-%m')),
+        join(config_retrieve(['storage', 'common', 'tmp']), 'aip_clinvar_new', datetime.now().strftime('%y-%m')),
     )
 
     dependency = None
@@ -146,7 +234,7 @@ def main():
 
     # create the annotation job(s)
     if not annotated_clinvar.exists():
-        dependency = generate_annotated_data(annotated_clinvar, snv_vcf, temp_path, dependency)
+        dependency = generate_annotated_data(annotated_clinvar, snv_vcf, temp_path, dependency=dependency)
 
     # region: run the clinvar_by_codon script
     if not clinvar_pm5_path.exists():
