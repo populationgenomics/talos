@@ -8,6 +8,8 @@ Entrypoint for clinvar summary generation
 from datetime import datetime
 from os.path import join
 
+from cloudpathlib import AnyPath
+
 from hailtop.batch.job import Job
 
 from cpg_utils import Path, to_path
@@ -162,6 +164,14 @@ def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, 
     # split the whole vcf into chromosomes
     output_json_files: list = []
     for chromosome in [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY']:
+        # the name for this chunk of annotation
+        result_path = tmp_path / f'{chromosome}.json'
+
+        # check if it exists, if it does, read in and skip
+        if result_path.exists():
+            output_json_files.append(get_batch().read_input(str(result_path)))
+            continue
+
         # subset the whole VCF to this chromosome
         bcftools_job = get_batch().new_job(f'subset_{chromosome} with bcftools')
         if dependency:
@@ -191,7 +201,7 @@ def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, 
             """,
         )
 
-        get_batch().write_output(vep_job.output, str(tmp_path / f'{chromosome}.json'))
+        get_batch().write_output(vep_job.output, str(result_path))
         output_json_files.append(vep_job.output)
 
     # call a python job to stick all those together?!
