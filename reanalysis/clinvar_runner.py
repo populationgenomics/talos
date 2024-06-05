@@ -71,19 +71,22 @@ def vep_json_to_ht(json_paths: list, output_ht: str):
     Returns:
 
     """
+
     import hail as hl
 
-    hl.init(backend='local')
-    hl.default_reference('GRCh38')
+    # # for any sites running this locally:
+    # hl.init(backend='local')
+    # hl.default_reference('GRCh38')
+    from cpg_utils.hail_batch import init_batch
+
+    init_batch()
 
     # this will need some tweaking
     json_schema = hl.dtype(
         """struct{
-        minimised:int32,
+        most_severe_consequence:str,
         assembly_name:str,
         allele_string:str,
-        ancestral:str,
-        context:str,
         end:int32,
         id:str,
         input:str,
@@ -91,10 +94,7 @@ def vep_json_to_ht(json_paths: list, output_ht: str):
         start:int32,
         strand:int32,
         transcript_consequences:array<struct{
-            allele_num:int32,
             amino_acids:str,
-            appris:str,
-            biotype:str,
             canonical:int32,
             cdna_start:int32,
             cdna_end:int32,
@@ -103,32 +103,15 @@ def vep_json_to_ht(json_paths: list, output_ht: str):
             codons:str,
             consequence_terms:array<str>,
             distance:int32,
-            exon:str,
             gene_id:str,
-            gene_pheno:int32,
-            gene_symbol:str,
-            gene_symbol_source:str,
-            hgnc_id:str,
-            hgvsc:str,
-            hgvsp:str,
-            hgvs_offset:int32,
             impact:str,
-            intron:str,
-            minimised:int32,
-            mirna:array<str>,
             protein_end:int32,
             strand:int32,
-            swissprot:array<str>,
             transcript_id:str,
-            trembl:array<str>,
-            tsl:int32,
-            uniparc:array<str>,
-            uniprot_isoform:array<str>,
+            strand:int32,
             variant_allele:str,
-            source:str,
             flags:array<str>
-        }>,
-        variant_class:str
+        }>
     }""",
     )
     ht = hl.import_table(paths=json_paths, no_header=True, types={'f0': json_schema})
@@ -137,11 +120,12 @@ def vep_json_to_ht(json_paths: list, output_ht: str):
     # Can't use ht.vep.start for start because it can be modified by VEP (e.g. it
     # happens for indels). So instead parsing POS from the original VCF line stored
     # as ht.vep.input field.
-    input_split = ht.vep.input.split('\t')
-    start = hl.parse_int(input_split[1])
-    chrom = ht.vep.seq_region_name
-    ht = ht.annotate(locus=hl.locus(chrom, start), alleles=[input_split[3], input_split[4]])
+    alleles = ht.vep.allel_string.split('/')
+    ht = ht.annotate(locus=hl.locus(ht.vep.seq_region_name, ht.vep.start), alleles=alleles)
     ht = ht.key_by(ht.locus, ht.alleles)
+
+    # the local backend can write this to a local path (it's a directory of files)
+    # we (CPG) need to write this direct to GCP, so we need to init a proper batch
     ht.write(output_ht)
 
 
