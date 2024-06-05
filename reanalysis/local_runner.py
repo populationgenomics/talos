@@ -20,7 +20,7 @@ from reanalysis import hail_filter_and_label, hail_filter_sv
 from reanalysis.static_values import get_logger
 
 
-def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
+def get_clinvar_table(key: str = 'clinvar_decisions') -> str:
     """
     try and identify the clinvar table to use
     - try the config specified path
@@ -118,12 +118,29 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     # localise the input MT first (may take a while for chonky data)
     small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud -q storage cp -r {mt_path} . && cd -')
 
+    clinvar_decisions = get_clinvar_table()
+    clinvar_name = clinvar_decisions.split('/')[-1]
+
+    # localise the input MT first (may take a while for chonky data)
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud -q storage cp -r {clinvar_decisions} . && cd -')
+
+    # find, localise, and use the clinvar PM5 table
+    pm5 = get_clinvar_table('clinvar_pm5')
+    pm5_name = pm5.split('/')[-1]
+
+    # localise the input MT first (may take a while for chonky data)
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud -q storage cp -r {pm5} . && cd -')
+
     # not sure if the other inputs need to be localised...
     small_job.command(
-        f'python3 {hail_filter_and_label.__file__} --mt ${{BATCH_TMPDIR}}/{mt_name} '
+        f'python3 {hail_filter_and_label.__file__} '
+        f'--mt ${{BATCH_TMPDIR}}/{mt_name} '
         f'--panelapp {get_batch().read_input(panelapp)} '
         f'--pedigree {get_batch().read_input(pedigree)} '
-        f'--vcf_out {small_job.output["vcf.bgz"]} --checkpoint ${{BATCH_TMPDIR}}/checkpoint.mt',
+        f'--vcf_out {small_job.output["vcf.bgz"]} '
+        f'--checkpoint ${{BATCH_TMPDIR}}/checkpoint.mt '
+        f'--clinvar ${{BATCH_TMPDIR}}/{clinvar_name} '
+        f'--pm5 ${{BATCH_TMPDIR}}/{pm5_name} ',
     )
     get_batch().write_output(small_job.output, small_vcf_out.removesuffix('.vcf.bgz'))
 
