@@ -12,11 +12,10 @@ from hailtop.batch.job import Job
 
 from cpg_utils import Path, to_path
 from cpg_utils.config import config_retrieve, image_path, reference_path
-from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch, query_command
+from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
 
-from reanalysis import clinvar_by_codon, seqr_loader, summarise_clinvar_entries
+from reanalysis import clinvar_by_codon, summarise_clinvar_entries
 from reanalysis.static_values import get_logger
-from reanalysis.vep_jobs import add_vep_jobs
 
 
 def generate_clinvar_table(cloud_folder: Path, clinvar_outputs: str):
