@@ -15,7 +15,6 @@ from cpg_utils.config import config_retrieve
 
 from reanalysis.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from reanalysis.utils import (
-    IRRELEVANT_MOI,
     ORDERED_MOIS,
     find_latest_file,
     get_cohort_config,
@@ -73,8 +72,6 @@ def get_panel_green(
         blacklist (): list of symbols/ENSG IDs to remove from this panel
         forbidden_genes (set[str]): genes to remove for this cohort
     """
-    if old_data is None:
-        old_data = HistoricPanels()
 
     if blacklist is None:
         blacklist = []
@@ -115,9 +112,12 @@ def get_panel_green(
             continue
 
         # check if this is a new gene in this analysis
-        new_gene = panel_id not in old_data.genes.get(ensg, {})
-        if new_gene:
-            old_data.genes.setdefault(ensg, set()).add(panel_id)
+        new_gene = False
+        if old_data:
+            # new if this gene & panel wasn't in the old data
+            if new_gene := (panel_id not in old_data.genes.get(ensg, {})):
+                # add this panel to the gene, so it won't be new next time
+                old_data.genes.setdefault(ensg, set()).add(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
@@ -129,8 +129,7 @@ def get_panel_green(
             this_gene.panels.add(panel_id)
 
             # add this moi to the set
-            if exact_moi not in IRRELEVANT_MOI:
-                this_gene.all_moi.add(exact_moi)
+            this_gene.all_moi.add(exact_moi)
 
             # if this is/was new - it's new
             if new_gene:
@@ -141,7 +140,7 @@ def get_panel_green(
             gene_dict.genes[ensg] = PanelDetail(
                 **{
                     'symbol': symbol,
-                    'all_moi': {exact_moi} if exact_moi not in IRRELEVANT_MOI else set(),
+                    'all_moi': {exact_moi},
                     'new': {panel_id} if new_gene else set(),
                     'panels': {panel_id},
                     'chrom': chrom,
@@ -155,9 +154,6 @@ def get_best_moi(gene_dict: dict):
     If set was empty (i.e. no specific MOI found) find the default
 
     Default is found autosome/sex chrom aware
-
-    todo probably move this whole section into get_simple_moi
-    shouldn't really be fragmented across two files this way
 
     Args:
         gene_dict (): the 'genes' index of the collected dict
@@ -191,26 +187,21 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     get_logger().info('Starting PanelApp Query Stage')
 
-    # if we don't pick up results from a previous run, nothing is considered 'new' this time around
-    no_prior_data = False
-
     dataset = dataset or config_retrieve(['workflow', 'dataset'])
 
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
     forbidden_genes = read_json_from_path(get_cohort_config(dataset).get('forbidden'), set())
 
-    old_data = HistoricPanels()
-
-    # historic data overrides default 'previous' list for cohort
-    # open to discussing order of precedence here
+    # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
+    # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
     if old_file := find_latest_file(dataset=dataset, start='panel_'):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
 
     else:
         get_logger().info('No prior data found, not treating anything as new')
-        no_prior_data = True
+        old_data = None
 
     # are there any genes to skip from the Mendeliome? i.e. only report if in a specifically phenotype-matched panel
     remove_from_core: list[str] = config_retrieve(['panels', 'require_pheno_match'], [])
@@ -244,14 +235,8 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         get_logger().info(f'Getting Panel {panel}')
         get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data, forbidden_genes=forbidden_genes)
 
-    # now get the best MOI
+    # now get the best MOI, and update the entities in place
     get_best_moi(gene_dict.genes)
-
-    # if we didn't have prior reference data, scrub down new statuses
-    if no_prior_data:
-        get_logger().info('No prior data found, resetting new statuses')
-        for gene_data in gene_dict.genes.values():
-            gene_data.new = {}
 
     # write the output to long term storage
     with open(out_path, 'w') as out_file:

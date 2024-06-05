@@ -865,6 +865,7 @@ def main(
     panel_data: str,
     pedigree: str,
     vcf_out: str,
+    checkpoint: str | None = None,
     clinvar: str | None = None,
     pm5: str | None = None,
 ):
@@ -876,6 +877,7 @@ def main(
         panel_data ():
         pedigree (str): path to a pedigree for this cohort (used in de novo testing)
         vcf_out (str): where to write VCF out
+        checkpoint (str): location to a write checkpoint, or unspecified
         clinvar (str): location to a ClinVar HT, or unspecified
         pm5 (str): location to a pm5 HT, or unspecified
     """
@@ -928,17 +930,20 @@ def main(
     # shrink the time taken to write checkpoints
     mt = drop_useless_fields(mt=mt)
 
-    if config_retrieve(['workflow', 'write_checkpoint'], False):
-        mt = mt.checkpoint('local_checkpoint.mt')
+    if checkpoint:
         get_logger().info('Checkpointing after filtering out a ton of variants')
+        mt = mt.checkpoint(checkpoint)
 
-    # die if there are no variants remaining
-    assert mt.count_rows(), 'No remaining rows to process!'
+        # die if there are no variants remaining
+        # only run this count after a checkpoint
+        assert mt.count_rows(), 'No remaining rows to process!'
+
+        get_logger().info(f'Checkpoint written to {checkpoint}, {mt.count_rows()} rows remain')
 
     # split genes out to separate rows
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
-    # add Classes to the MT
+    # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
     get_logger().info('Applying categories')
@@ -970,6 +975,7 @@ if __name__ == '__main__':
     parser.add_argument('--panelapp', required=True, help='panelapp JSON')
     parser.add_argument('--pedigree', required=True, help='Cohort Pedigree')
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
+    parser.add_argument('--checkpoint', help='Where to write a checkpoint, optional', default=None)
     parser.add_argument('--clinvar', help='HT containing clinvar annotations, optional', default=None)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
 
@@ -979,6 +985,7 @@ if __name__ == '__main__':
         panel_data=args.panelapp,
         pedigree=args.pedigree,
         vcf_out=args.vcf_out,
+        checkpoint=args.checkpoint,
         clinvar=args.clinvar,
         pm5=args.pm5,
     )
