@@ -139,7 +139,8 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
-    panelapp = read_json_from_path(panelapp_path, PanelApp)
+    panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
+
     assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data
@@ -148,7 +149,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     # initiate Hail in local cluster mode
     get_logger().info('Starting Hail with reference genome GRCh38')
-    hl.init(backend='spark', master='local[2]', quiet=True)
+    hl.init(backend='spark', master='local[7]', quiet=True)
     hl.default_reference('GRCh38')
 
     # read in the input data (annotated) Not checking for existence; if it fails, it fails

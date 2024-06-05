@@ -883,7 +883,7 @@ def main(
     """
 
     # initiate Hail as a local cluster
-    hl.init(backend='spark', master='local[2]', quiet=True)
+    hl.init(backend='spark', master='local[7]', quiet=True)
     hl.default_reference('GRCh38')
 
     # get the run configuration JSON
@@ -891,7 +891,7 @@ def main(
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panel_data!r}')
-    panelapp = read_json_from_path(panel_data, PanelApp)
+    panelapp = read_json_from_path(panel_data, return_model=PanelApp)  # type: ignore
     assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data
