@@ -338,7 +338,7 @@ class DominantAutosomal(BaseMoi):
     def run(
         self,
         principal: VARIANT_MODELS,
-        comp_het: CompHetDict | None = None,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
         """
@@ -419,7 +419,7 @@ class RecessiveAutosomalCH(BaseMoi):
         self,
         principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
-        partial_pen: bool = False,
+        partial_pen: bool = False,  # noqa: ARG002
     ) -> list[ReportVariant]:
         """
         valid if present as compound het
@@ -523,7 +523,7 @@ class RecessiveAutosomalHomo(BaseMoi):
     def run(
         self,
         principal: VARIANT_MODELS,
-        comp_het: CompHetDict | None = None,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
         """
@@ -620,7 +620,7 @@ class XDominant(BaseMoi):
     def run(
         self,
         principal: VARIANT_MODELS,
-        comp_het: CompHetDict | None = None,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
         """
@@ -712,7 +712,7 @@ class XRecessiveMale(BaseMoi):
     def run(
         self,
         principal: VARIANT_MODELS,
-        comp_het: CompHetDict | None = None,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
         """
@@ -789,7 +789,7 @@ class XRecessiveFemaleHom(BaseMoi):
     def run(
         self,
         principal: VARIANT_MODELS,
-        comp_het: CompHetDict | None = None,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
         partial_pen: bool = False,
     ) -> list[ReportVariant]:
         """
@@ -871,7 +871,7 @@ class XRecessiveFemaleCH(BaseMoi):
         self,
         principal: VARIANT_MODELS,
         comp_het: CompHetDict | None = None,
-        partial_pen: bool = False,
+        partial_pen: bool = False,  # noqa: ARG002
     ) -> list[ReportVariant]:
         """
 

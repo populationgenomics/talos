@@ -18,12 +18,12 @@ def get_granular_date():
     """
     global _GRANULAR_DATE
     if _GRANULAR_DATE is None:
-        _GRANULAR_DATE = config_retrieve(["workflow", "fake_date"], datetime.now().strftime("%Y-%m-%d"))
+        _GRANULAR_DATE = config_retrieve(['workflow', 'fake_date'], datetime.now().strftime('%Y-%m-%d'))
     return _GRANULAR_DATE
 
 
 def get_logger(
-    logger_name: str = "AIP-logger",
+    logger_name: str = 'AIP-logger',
     log_level: int = logging.INFO,
     file_out: str | None = None,
 ) -> logging.Logger:
@@ -55,7 +55,7 @@ def get_logger(
         handler.setLevel(log_level)
 
         # create format string for messages
-        formatter = logging.Formatter("%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s")
+        formatter = logging.Formatter('%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
 
         # set the logger to use this handler

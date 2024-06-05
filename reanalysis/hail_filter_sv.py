@@ -37,7 +37,7 @@ def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.Ma
         same MT, with common variants removed
     """
 
-    return mt.filter_rows(hl.or_else(mt.info["gnomad_v2.1_sv_AF"], MISSING_INT) < af_threshold)
+    return mt.filter_rows(hl.or_else(mt.info['gnomad_v2.1_sv_AF'], MISSING_INT) < af_threshold)
 
 
 def restructure_mt_by_gene(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -73,7 +73,7 @@ def annotate_sv1(mt: hl.MatrixTable, green_expression: hl.SetExpression) -> hl.M
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorybooleansv1=hl.if_else(
-                (mt.sortedTranscriptConsequences.major_consequence == "LOF")
+                (mt.sortedTranscriptConsequences.major_consequence == 'LOF')
                 & (green_expression.contains(mt.sortedTranscriptConsequences.gene_id)),
                 ONE_INT,
                 MISSING_INT,
@@ -149,21 +149,21 @@ def main(
     """
 
     # read the parsed panelapp data
-    get_logger().info(f"Reading PanelApp data from {panelapp_path!r}")
-    panelapp = read_json_from_path(panelapp_path)["genes"]  # type: ignore
+    get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
+    panelapp = read_json_from_path(panelapp_path)['genes']  # type: ignore
 
     # pull green and new genes from the panelapp data
     # new is not currently incorporated in this analysis
     green_expression, _new_expression = green_and_new_from_panelapp(panelapp)
 
     # initiate Hail with defined driver spec.
-    get_logger().info(f"Starting Hail with reference genome {genome_build()}")
+    get_logger().info(f'Starting Hail with reference genome {genome_build()}')
     # un-comment this to play locally
     # hl.init(default_reference=genome_build())
-    init_batch(driver_cores=2, driver_memory="standard")
+    init_batch(driver_cores=2, driver_memory='standard')
 
     # if we already generated the annotated output, load instead
-    if not to_path(mt_path.rstrip("/") + "/").exists():
+    if not to_path(mt_path.rstrip('/') + '/').exists():
         raise FileExistsError(f"Input MatrixTable doesn't exist: {mt_path}")
 
     # read in the input data (annotated)
@@ -173,8 +173,8 @@ def main(
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     # apply blanket filters
-    mt = filter_matrix_by_ac(mt, ac_threshold=get_config()["filter"]["callset_af_sv_recessive"])
-    mt = filter_matrix_by_af(mt, af_threshold=get_config()["filter"]["callset_af_sv_recessive"])
+    mt = filter_matrix_by_ac(mt, ac_threshold=get_config()['filter']['callset_af_sv_recessive'])
+    mt = filter_matrix_by_af(mt, af_threshold=get_config()['filter']['callset_af_sv_recessive'])
     mt = rearrange_filters(mt)
 
     # pre-filter the MT and rearrange fields for export
@@ -194,16 +194,16 @@ def main(
     hl.export_vcf(mt, vcf_out, tabix=True)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # general CLI identical to the small variant version
     parser = ArgumentParser()
-    parser.add_argument("--mt", required=True, help="path to input MT")
-    parser.add_argument("--panelapp", type=str, required=True, help="panelapp JSON")
-    parser.add_argument("--pedigree", type=str, required=True, help="Cohort Pedigree")
-    parser.add_argument("--vcf_out", help="Where to write the VCF", required=True)
+    parser.add_argument('--mt', required=True, help='path to input MT')
+    parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
+    parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
+    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
     args = parser.parse_args()
 
     logger = get_logger(__file__)
-    logger.info("Running Hail filtering process for SVs")
+    logger.info('Running Hail filtering process for SVs')
 
     main(mt_path=args.mt, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.vcf_out)

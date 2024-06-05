@@ -4,6 +4,7 @@ tests for the HTML builder
 
 from reanalysis.html_builder import check_date_filter
 from reanalysis.models import Coordinates, ResultData, SmallVariant
+from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={}, transcript_consequences=[])
@@ -103,7 +104,7 @@ def test_check_date_filter_pair(tmp_path):
     filtered_results = check_date_filter(result_path, '2021-01-01')
     assert 'sample1' in filtered_results.results
     assert 'sample2' not in filtered_results.results
-    assert len(filtered_results.results['sample1'].variants) == 2
+    assert len(filtered_results.results['sample1'].variants) == TWO_EXPECTED
     assert sorted(var.first_tagged for var in filtered_results.results['sample1'].variants) == [
         '2021-01-01',
         '2023-03-03',
@@ -111,11 +112,7 @@ def test_check_date_filter_pair(tmp_path):
 
 
 def test_check_date_filter_none_pass(tmp_path):
-    """
-
-    Returns:
-
-    """
+    """ """
     # needs to be a valid ResultData
     result_dict = ResultData(
         **{

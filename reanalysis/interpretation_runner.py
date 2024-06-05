@@ -38,19 +38,19 @@ from reanalysis.vep_jobs import add_vep_jobs
 
 # region: CONSTANTS
 # exact time that this run occurred
-EXECUTION_TIME = f"{datetime.now():%Y-%m-%d_%H:%M}"
+EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 
 # static paths to write outputs
-ANNOTATED_MT = output_path("annotated_variants.mt")
-HAIL_VCF_OUT = output_path("hail_categorised.vcf.bgz", "analysis")
-HAIL_SV_VCF_OUT = output_path("hail_SV_categorised.vcf.bgz", "analysis")
-INPUT_AS_VCF = output_path("prior_to_annotation.vcf.bgz", "analysis")
-SITES_ONLY = output_path("sitesonly.vcf.bgz", "tmp")
-PANELAPP_JSON_OUT = output_path("panelapp_data.json", "analysis")
+ANNOTATED_MT = output_path('annotated_variants.mt')
+HAIL_VCF_OUT = output_path('hail_categorised.vcf.bgz', 'analysis')
+HAIL_SV_VCF_OUT = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
+INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz', 'analysis')
+SITES_ONLY = output_path('sitesonly.vcf.bgz', 'tmp')
+PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
 # endregion
 
 
-def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = "standard", storage: str = "20Gi"):
+def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = 'standard', storage: str = '20Gi'):
     """
     apply resources to the job
 
@@ -61,7 +61,7 @@ def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = "sta
         storage (str): storage setting to use
     """
     # apply all settings to this job
-    job.cpu(1).image(get_config()["workflow"]["driver_image"]).memory(memory).storage(storage)
+    job.cpu(1).image(get_config()['workflow']['driver_image']).memory(memory).storage(storage)
 
     # copy the env variables into the container; specifically CPG_CONFIG_PATH
     copy_common_env(job)
@@ -86,18 +86,18 @@ def setup_mt_to_vcf(input_file: str) -> Job:
         the new job, available for dependency setting
     """
 
-    job = get_batch().new_job(name="Convert MT to VCF")
+    job = get_batch().new_job(name='Convert MT to VCF')
     set_job_resources(job)
 
-    bed_file = output_path("roi.bed", "analysis")
-    tmp_root = output_path("mt_to_vcf", "tmp")
+    bed_file = output_path('roi.bed', 'analysis')
+    tmp_root = output_path('mt_to_vcf', 'tmp')
     cmd = (
-        f"python3 {mt_to_vcf.__file__} --input {input_file} "
-        f"--output {INPUT_AS_VCF} --sites_only {SITES_ONLY} "
-        f"--bed_file {bed_file} --tmp {tmp_root} "
+        f'python3 {mt_to_vcf.__file__} --input {input_file} '
+        f'--output {INPUT_AS_VCF} --sites_only {SITES_ONLY} '
+        f'--bed_file {bed_file} --tmp {tmp_root} '
     )
 
-    get_logger().info(f"Command used to convert MT: {cmd}")
+    get_logger().info(f'Command used to convert MT: {cmd}')
     job.command(cmd)
     return job
 
@@ -114,16 +114,16 @@ def handle_panelapp_job(participant_panels: str | None = None, prior_job: Job | 
         the Job, which other parts of the workflow may become dependent on
     """
 
-    panelapp_job = get_batch().new_job(name="query panelapp")
+    panelapp_job = get_batch().new_job(name='query panelapp')
     set_job_resources(panelapp_job, prior_job=prior_job)
     copy_common_env(panelapp_job)
 
-    query_cmd = f"python3 {query_panelapp.__file__} --out_path {PANELAPP_JSON_OUT} "
+    query_cmd = f'python3 {query_panelapp.__file__} --out_path {PANELAPP_JSON_OUT} '
 
     if participant_panels is not None:
-        query_cmd += f"--panels {participant_panels} "
+        query_cmd += f'--panels {participant_panels} '
 
-    get_logger().info(f"PanelApp Command: {query_cmd}")
+    get_logger().info(f'PanelApp Command: {query_cmd}')
     panelapp_job.command(query_cmd)
     return panelapp_job
 
@@ -138,15 +138,15 @@ def handle_hail_sv_filtering(sv_mt: str, pedigree: str, prior_job: Job | None = 
         prior_job (Job): required for setting dependency
     """
 
-    labelling_job = get_batch().new_job(name="Hail SV labelling")
+    labelling_job = get_batch().new_job(name='Hail SV labelling')
     set_job_resources(labelling_job, prior_job=prior_job)
     labelling_command = (
-        f"python3 {hail_filter_sv.__file__} --mt {sv_mt} "
-        f"--panelapp {PANELAPP_JSON_OUT} --pedigree {pedigree} "
-        f"--vcf_out {HAIL_SV_VCF_OUT} "
+        f'python3 {hail_filter_sv.__file__} --mt {sv_mt} '
+        f'--panelapp {PANELAPP_JSON_OUT} --pedigree {pedigree} '
+        f'--vcf_out {HAIL_SV_VCF_OUT} '
     )
 
-    get_logger().info(f"Labelling Command: {labelling_command}")
+    get_logger().info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
     return labelling_job
 
@@ -164,14 +164,14 @@ def handle_hail_filtering(pedigree: str, prior_job: Job | None = None) -> BashJo
         the Batch job running the hail filtering process
     """
 
-    labelling_job = get_batch().new_job(name="Hail small-variant labelling")
+    labelling_job = get_batch().new_job(name='Hail small-variant labelling')
     set_job_resources(labelling_job, prior_job=prior_job)
     labelling_command = (
-        f"python3 {hail_filter_and_label.__file__} --mt {ANNOTATED_MT}"
-        f"--panelapp {PANELAPP_JSON_OUT} --pedigree {pedigree} --vcf_out {HAIL_VCF_OUT}"
+        f'python3 {hail_filter_and_label.__file__} --mt {ANNOTATED_MT}'
+        f'--panelapp {PANELAPP_JSON_OUT} --pedigree {pedigree} --vcf_out {HAIL_VCF_OUT}'
     )
 
-    get_logger().info(f"Labelling Command: {labelling_command}")
+    get_logger().info(f'Labelling Command: {labelling_command}')
     labelling_job.command(labelling_command)
     return labelling_job
 
@@ -198,25 +198,25 @@ def handle_results_job(
         labelled_sv (str | None): path to labelled SV VCF, if run
     """
 
-    results_job = get_batch().new_job(name="MOI tests")
+    results_job = get_batch().new_job(name='MOI tests')
     set_job_resources(results_job, prior_job=prior_job)
 
-    gene_filter_files = f"--participant_panels {participant_panels} " if participant_panels else ""
+    gene_filter_files = f'--participant_panels {participant_panels} ' if participant_panels else ''
 
     # add the labelled SV argument if appropriate
-    labelled_sv = f"--labelled_sv {labelled_sv} " if labelled_sv else ""
+    labelled_sv = f'--labelled_sv {labelled_sv} ' if labelled_sv else ''
 
     results_command = (
-        f"python3 {validate_categories.__file__} "
-        f"--labelled_vcf {labelled_vcf} "
-        f"{labelled_sv} "
-        f"--panelapp {PANELAPP_JSON_OUT} "
-        f"--pedigree {pedigree} "
-        f"--out_json {output} "
-        f"--input_path {input_path} "
-        f"{gene_filter_files}"
+        f'python3 {validate_categories.__file__} '
+        f'--labelled_vcf {labelled_vcf} '
+        f'{labelled_sv} '
+        f'--panelapp {PANELAPP_JSON_OUT} '
+        f'--pedigree {pedigree} '
+        f'--out_json {output} '
+        f'--input_path {input_path} '
+        f'{gene_filter_files}'
     )
-    get_logger().info(f"Results command: {results_command}")
+    get_logger().info(f'Results command: {results_command}')
     results_job.command(results_command)
     return results_job
 
@@ -258,33 +258,33 @@ def handle_result_presentation_job(prior_job: Job | None = None, **kwargs):
 
     # if a new script is added, it needs to be registered here to become usable
     scripts_and_inputs = {
-        "cpg": (
+        'cpg': (
             html_builder.__file__,
-            ["results", "panelapp", "pedigree", "output", "latest"],
+            ['results', 'panelapp', 'pedigree', 'output', 'latest'],
         ),
     }
 
-    output_mode = get_config()["workflow"].get("presentation", "cpg")
+    output_mode = get_config()['workflow'].get('presentation', 'cpg')
 
     # if we don't have a valid method, return the prior job
     if output_mode not in scripts_and_inputs:
-        get_logger().warning(f"Invalid presentation mode: {output_mode}")
+        get_logger().warning(f'Invalid presentation mode: {output_mode}')
         return prior_job
 
     # extract the required inputs for the selected script
     script, required_inputs = scripts_and_inputs[output_mode]
 
     # set the panelapp global variable in kwargs
-    kwargs["panelapp"] = PANELAPP_JSON_OUT
+    kwargs['panelapp'] = PANELAPP_JSON_OUT
 
-    display = get_batch().new_job(name="Result Presentation")
+    display = get_batch().new_job(name='Result Presentation')
     set_job_resources(display, prior_job=prior_job)
 
     # assemble command from relevant variables
-    script_params = " ".join([f"--{named_input} {kwargs[named_input]} " for named_input in required_inputs])
-    html_command = f"python3 {script} {script_params}"
+    script_params = ' '.join([f'--{named_input} {kwargs[named_input]} ' for named_input in required_inputs])
+    html_command = f'python3 {script} {script_params}'
 
-    get_logger().info(f"HTML generation command: {html_command}")
+    get_logger().info(f'HTML generation command: {html_command}')
     display.command(html_command)
 
 
@@ -310,25 +310,25 @@ def main(
 
     runtime_conf = get_config(True)
 
-    assert to_path(input_path).exists(), f"The provided path {input_path!r} does not exist or is inaccessible"
+    assert to_path(input_path).exists(), f'The provided path {input_path!r} does not exist or is inaccessible'
 
-    get_logger().info("Starting the reanalysis batch")
+    get_logger().info('Starting the reanalysis batch')
 
     # region: output files lookup
     # separate paths for familial and singleton analysis
     if singletons:
         assert (
-            "singleton" in runtime_conf["workflow"]["output_prefix"]
+            'singleton' in runtime_conf['workflow']['output_prefix']
         ), 'To keep singletons separate, include "singleton" in the file path'
 
     # modify output paths depending on analysis type
     output_dict = {
-        "web_html": output_path(f'{"singleton" if singletons else "summary"}_output.html', "web"),
-        "latest_html": output_path(
+        'web_html': output_path(f'{"singleton" if singletons else "summary"}_output.html', 'web'),
+        'latest_html': output_path(
             (f'{"singleton" if singletons else "summary"}_latest_{get_granular_date()}.html'),
-            "web",
+            'web',
         ),
-        "results": output_path(f'{"singleton" if singletons else "summary"}_results.json', "analysis"),
+        'results': output_path(f'{"singleton" if singletons else "summary"}_results.json', 'analysis'),
     }
     # endregion
 
@@ -342,7 +342,7 @@ def main(
         FileTypes.VCF_GZ,
         FileTypes.VCF_BGZ,
         FileTypes.MATRIX_TABLE,
-    ], f"inappropriate input type provided: {input_file_type}; this is designed for MT or compressed VCF only"
+    ], f'inappropriate input type provided: {input_file_type}; this is designed for MT or compressed VCF only'
 
     global ANNOTATED_MT
     global SITES_ONLY
@@ -365,14 +365,14 @@ def main(
 
     # region: split & annotate VCF
     if not to_path(ANNOTATED_MT).exists():
-        vep_ht_tmp = output_path("vep_annotations.ht", "tmp")
+        vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
 
         # generate the jobs which run VEP & collect the results
         vep_jobs = add_vep_jobs(
             b=get_batch(),
             input_siteonly_vcf_path=to_path(SITES_ONLY),
-            tmp_prefix=to_path(output_path("vep_temp", "tmp")),
-            scatter_count=runtime_conf["workflow"].get("scatter_count", 50),
+            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
+            scatter_count=runtime_conf['workflow'].get('scatter_count', 50),
             out_path=to_path(vep_ht_tmp),
         )
 
@@ -383,8 +383,8 @@ def main(
                     job.depends_on(prior_job)
             prior_job = vep_jobs[-1]
 
-        j = get_batch().new_job("annotate cohort")
-        j.image(runtime_conf["workflow"]["driver_image"])
+        j = get_batch().new_job('annotate cohort')
+        j.image(runtime_conf['workflow']['driver_image'])
         j.command(
             query_command(
                 seqr_loader,
@@ -392,13 +392,13 @@ def main(
                 str(input_path),
                 str(ANNOTATED_MT),
                 str(vep_ht_tmp),
-                output_path("annotation_temp", "tmp"),
+                output_path('annotation_temp', 'tmp'),
                 setup_gcp=True,
             ),
         )
         if prior_job:
             j.depends_on(prior_job)
-        output_dict["annotated_mt"] = ANNOTATED_MT
+        output_dict['annotated_mt'] = ANNOTATED_MT
         prior_job = j
     # endregion
 
@@ -414,41 +414,41 @@ def main(
     if not to_path(HAIL_SV_VCF_OUT).exists() and sv_path and to_path(sv_path).exists():
         get_logger().info(f"The Labelled VCF {HAIL_SV_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_sv_filtering(sv_mt=sv_path, prior_job=prior_job, pedigree=pedigree_in_batch)
-        output_dict["hail_sv_vcf"] = HAIL_SV_VCF_OUT
+        output_dict['hail_sv_vcf'] = HAIL_SV_VCF_OUT
 
     if not to_path(HAIL_VCF_OUT).exists():
         get_logger().info(f"The Labelled VCF {HAIL_VCF_OUT!r} doesn't exist; regenerating")
         prior_job = handle_hail_filtering(prior_job=prior_job, pedigree=pedigree_in_batch)
-        output_dict["hail_vcf"] = HAIL_VCF_OUT
+        output_dict['hail_vcf'] = HAIL_VCF_OUT
     # endregion
 
     # read VCF into the batch as a local file
-    labelled_vcf_in_batch = get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + ".tbi").vcf
+    labelled_vcf_in_batch = get_batch().read_input_group(vcf=HAIL_VCF_OUT, tbi=HAIL_VCF_OUT + '.tbi').vcf
 
     labelled_sv_vcf_in_batch = (
-        None if sv_path is None else get_batch().read_input_group(vcf=HAIL_SV_VCF_OUT, tbi=HAIL_SV_VCF_OUT + ".tbi").vcf
+        None if sv_path is None else get_batch().read_input_group(vcf=HAIL_SV_VCF_OUT, tbi=HAIL_SV_VCF_OUT + '.tbi').vcf
     )
 
     # region: run results job
     # very iffy, I do not like it
     if sv_path:
-        input_path = f"{input_path}, {sv_path}"
+        input_path = f'{input_path}, {sv_path}'
 
     prior_job = handle_results_job(
         labelled_vcf=labelled_vcf_in_batch,
         labelled_sv=labelled_sv_vcf_in_batch,
         pedigree=pedigree_in_batch,
         input_path=input_path,
-        output=output_dict["results"],
+        output=output_dict['results'],
         prior_job=prior_job,
         participant_panels=participant_panels,
     )
     handle_result_presentation_job(
         prior_job=prior_job,
         pedigree=pedigree_in_batch,
-        output=output_dict["web_html"],
-        latest=output_dict["latest_html"],
-        results=output_dict["results"],
+        output=output_dict['web_html'],
+        latest=output_dict['latest_html'],
+        results=output_dict['results'],
     )
     # endregion
 
@@ -456,16 +456,16 @@ def main(
     # if we ran with per-participant panel data, copy to output folder
     # include datetime to differentiate output files and prevent clashes
     if participant_panels:
-        to_path(participant_panels).copy(output_path(f"pid_to_panels_{EXECUTION_TIME}.json", "analysis"))
+        to_path(participant_panels).copy(output_path(f'pid_to_panels_{EXECUTION_TIME}.json', 'analysis'))
 
     # write pedigree content to the output folder
-    to_path(pedigree).copy(output_path(f"pedigree_{EXECUTION_TIME}.fam", "analysis"))
+    to_path(pedigree).copy(output_path(f'pedigree_{EXECUTION_TIME}.fam', 'analysis'))
     # endregion
 
     get_batch().run(wait=False)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     get_logger(__name__).info(
         r"""Welcome To The
           ___  _____ ______
@@ -478,12 +478,12 @@ if __name__ == "__main__":
     )
 
     parser = ArgumentParser()
-    parser.add_argument("-i", help="variant data to analyse", required=True)
-    parser.add_argument("-sv", help="SV data to analyse", required=False)
-    parser.add_argument("--pedigree", help="in Plink format", required=True)
-    parser.add_argument("--participant_panels", help="per-participant panel details")
-    parser.add_argument("--singletons", help="boolean, set if this run is a singleton pedigree", action="store_true")
-    parser.add_argument("--skip_annotation", help="if set, annotation will not be repeated", action="store_true")
+    parser.add_argument('-i', help='variant data to analyse', required=True)
+    parser.add_argument('-sv', help='SV data to analyse', required=False)
+    parser.add_argument('--pedigree', help='in Plink format', required=True)
+    parser.add_argument('--participant_panels', help='per-participant panel details')
+    parser.add_argument('--singletons', help='boolean, set if this run is a singleton pedigree', action='store_true')
+    parser.add_argument('--skip_annotation', help='if set, annotation will not be repeated', action='store_true')
     args = parser.parse_args()
     main(
         input_path=args.i,

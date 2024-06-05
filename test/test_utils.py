@@ -26,6 +26,13 @@ from reanalysis.utils import (
     make_flexible_pedigree,
 )
 
+ZERO_EXPECTED = 0
+ONE_EXPECTED = 1
+TWO_EXPECTED = 2
+THREE_EXPECTED = 3
+FOUR_EXPECTED = 4
+FIVE_EXPECTED = 5
+
 
 def test_coord_sorting():
     """
@@ -179,7 +186,7 @@ def test_gene_dict(two_trio_variants_vcf):
     var_dict = gather_gene_dict_from_contig(contig=contig, variant_source=reader, new_gene_map={})
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
-    assert len(var_dict['ENSG00000075043']) == 2
+    assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
 
 
 def test_comp_hets(two_trio_abs_variants: list[SmallVariant], pedigree_path):
@@ -197,7 +204,7 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], pedigree_path):
     assert 'male' in ch_dict
     results = ch_dict.get('male')
     assert isinstance(results, dict)
-    assert len(results) == 2
+    assert len(results) == TWO_EXPECTED
     key_1, key_2 = list(results.keys())
     assert results[key_1][0].coordinates.string_format == key_2  # type: ignore
     assert results[key_2][0].coordinates.string_format == key_1  # type: ignore
@@ -213,9 +220,9 @@ def test_phased_dict(phased_vcf_path):
         variant_source=reader,
         new_gene_map={'ENSG00000075043': {'all'}},
     )
-    assert len(var_dict) == 1
+    assert len(var_dict) == ONE_EXPECTED
     assert 'ENSG00000075043' in var_dict
-    assert len(var_dict['ENSG00000075043']) == 2
+    assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
     var_pair = var_dict['ENSG00000075043']
     for variant in var_pair:
         assert 'mother_1' in variant.phased
@@ -230,7 +237,7 @@ def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path):
     :return:
     """
     ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(pedigree_path))
-    assert len(ch_dict) == 0
+    assert len(ch_dict) == ZERO_EXPECTED
 
 
 def test_new_gene_map_null():

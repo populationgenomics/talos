@@ -20,6 +20,7 @@ from reanalysis.models import (
 )
 from reanalysis.static_values import get_granular_date
 from reanalysis.utils import date_annotate_results, date_from_string, find_latest_file
+from test.test_utils import TWO_EXPECTED
 
 COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')
 COORD_2 = Coordinates(chrom='2', pos=2, ref='A', alt='G')
@@ -95,7 +96,7 @@ def test_date_annotate_two():
         },
     )
     date_annotate_results(results, historic)
-    assert len(historic.results['sam2'][COORD_2.string_format].categories) == 2
+    assert len(historic.results['sam2'][COORD_2.string_format].categories) == TWO_EXPECTED
     assert historic.results['sam2'][COORD_2.string_format].categories['1'] == OLD_DATE
     assert historic.results['sam2'][COORD_2.string_format].categories['2'] == get_granular_date()
     assert results == prior_results

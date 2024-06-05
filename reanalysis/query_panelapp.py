@@ -188,11 +188,15 @@ def find_core_panel_version() -> str | None:
 
     or return None, i.e. if the panel is not >= 12 months old
 
+    remove this whole thing?
+
     Returns:
         a version string from X months prior - see config
     """
 
-    date_threshold = datetime.today() - relativedelta(months=config_retrieve(['panels', 'panel_month_delta'], 12))
+    date_threshold = datetime.now(tz=TIMEZONE) - relativedelta(
+        months=config_retrieve(['panels', 'panel_month_delta'], 12)
+    )
 
     # query for data from this endpoint
     activities: list[dict] = get_json_response(f'{PANELAPP_BASE}/{DEFAULT_PANEL}/activities')

@@ -7,9 +7,11 @@ from datetime import datetime
 
 import zoneinfo
 
+from test.test_utils import FOUR_EXPECTED, ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
+
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
-from reanalysis.summarise_clinvar_entries import (
+from reanalysis.summarise_clinvar_entries import (  # noqa: E402
     ACMG_THRESHOLD,
     Consequence,
     Submission,
@@ -28,27 +30,19 @@ UNCERTAIN_SUB = Submission(CURRENT_TIME, 'submitter', Consequence.UNCERTAIN, 're
 
 
 def test_check_stars_practice():
-    """
-
-    Returns:
-
-    """
+    """ """
     sub1 = deepcopy(BASIC_SUB)
     sub1.review_status = 'practice guideline'
     subs = [BASIC_SUB, sub1]
-    assert check_stars(subs) == 4
+    assert check_stars(subs) == FOUR_EXPECTED
 
 
 def test_check_stars_expert():
-    """
-
-    Returns:
-
-    """
+    """ """
     sub1 = deepcopy(BASIC_SUB)
     sub1.review_status = 'reviewed by expert panel'
     subs = [BASIC_SUB, sub1]
-    assert check_stars(subs) == 3
+    assert check_stars(subs) == THREE_EXPECTED
 
 
 def test_check_stars_criteria_prov():
@@ -60,7 +54,7 @@ def test_check_stars_criteria_prov():
     sub1 = deepcopy(BASIC_SUB)
     sub1.review_status = 'something, something, criteria provided'
     subs = [BASIC_SUB, sub1]
-    assert check_stars(subs) == 1
+    assert check_stars(subs) == ONE_EXPECTED
 
 
 def test_check_stars_none():
@@ -72,7 +66,7 @@ def test_check_stars_none():
     sub1 = deepcopy(BASIC_SUB)
     sub1.review_status = 'no assertion criteria provided'
     subs = [sub1]
-    assert check_stars(subs) == 0
+    assert check_stars(subs) == ZERO_EXPECTED
 
 
 def tests_acmg_filter_neutral():
@@ -185,18 +179,7 @@ def test_county_take_reviewed():
 def test_process_line():
     """checks that the line-array reading works"""
 
-    input_list = [
-        1,
-        'Pathogenic/Likely pathogenic',
-        'Jul 13, 2021',
-        '3',
-        '4',
-        '5',
-        '6',
-        '7',
-        '8',
-        'submitter',
-    ]
+    input_list = [1, 'Pathogenic/Likely pathogenic', 'Jul 13, 2021', '3', '4', '5', '6', '7', '8', 'submitter']
     allele, sub = process_submission_line(input_list)
     assert allele == 1
     assert sub.classification == Consequence.PATHOGENIC
@@ -208,18 +191,7 @@ def test_process_line():
 def test_process_line_no_date():
     """checks that the line-array reading works"""
 
-    input_list = [
-        1,
-        'Likely benign',
-        '-',
-        '3',
-        '4',
-        '5',
-        '6',
-        '7',
-        '8',
-        'submitter',
-    ]
+    input_list = [1, 'Likely benign', '-', '3', '4', '5', '6', '7', '8', 'submitter']
     allele, sub = process_submission_line(input_list)
     assert allele == 1
     assert sub.classification == Consequence.BENIGN
@@ -239,9 +211,9 @@ def test_get_all_decisions(sub_stub):
     results = get_all_decisions(sub_stub, var_ids=allele_ids)
 
     assert set(results.keys()) == {2, 3, 4}
-    assert len(results.get(2)) == 2
-    assert len(results.get(3)) == 1
-    assert len(results.get(4)) == 1
+    assert len(results.get(2)) == TWO_EXPECTED
+    assert len(results.get(3)) == ONE_EXPECTED
+    assert len(results.get(4)) == ONE_EXPECTED
     for each in results[2]:
         assert each.classification == Consequence.PATHOGENIC
     for each in results[3]:

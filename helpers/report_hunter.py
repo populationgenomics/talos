@@ -21,7 +21,7 @@ from metamist.graphql import gql, query
 
 from reanalysis.static_values import get_logger
 
-JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / "templates"
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
     """
     query MyQuery {
@@ -68,7 +68,7 @@ def get_my_projects():
     returns the dataset names
     """
     response: dict[str, Any] = query(PROJECT_QUERY)
-    all_projects = {dataset["dataset"] for dataset in response["myProjects"]}
+    all_projects = {dataset['dataset'] for dataset in response['myProjects']}
     script_logger.info(f'Running for projects: {", ".join(sorted(all_projects))}')
     return all_projects
 
@@ -80,8 +80,8 @@ def get_project_analyses(project: str) -> list[dict]:
         project (str): project to query for
     """
 
-    response: dict[str, Any] = query(REPORT_QUERY, variables={"project": project})
-    return response["project"]["analyses"]
+    response: dict[str, Any] = query(REPORT_QUERY, variables={'project': project})
+    return response['project']['analyses']
 
 
 def main(latest: bool = False):
@@ -98,64 +98,64 @@ def main(latest: bool = False):
 
     for cohort in get_my_projects():
         result_found = False
-        if cohort not in get_config()["storage"].keys():
+        if cohort not in get_config()['storage'].keys():
             continue
 
         for analysis in get_project_analyses(cohort):
-            output_path = analysis["output"]
+            output_path = analysis['output']
             # mutually exclusive conditional search for 'latest'
             if latest:
-                if "latest" not in output_path:
+                if 'latest' not in output_path:
                     continue
-                date = output_path.rstrip(".html").split("_")[-1]
-                cohort_key = f"{cohort}_{date}"
+                date = output_path.rstrip('.html').split('_')[-1]
+                cohort_key = f'{cohort}_{date}'
             else:
-                if "latest" in output_path:
+                if 'latest' in output_path:
                     continue
                 cohort_key = cohort
 
             # pull the exome/singleton flags
-            exome_output = "Exome" if "exome" in output_path else "Genome"
-            singleton_output = "Singleton" if "singleton" in output_path else "Familial"
-            report_address = analysis["output"].replace(
-                get_config(False)["storage"][cohort]["web"],
-                get_config()["storage"][cohort]["web_url"],
+            exome_output = 'Exome' if 'exome' in output_path else 'Genome'
+            singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
+            report_address = analysis['output'].replace(
+                get_config(False)['storage'][cohort]['web'],
+                get_config()['storage'][cohort]['web_url'],
             )
-            all_cohorts[f"{cohort_key}_{exome_output}_{singleton_output}"] = Report(
+            all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                 dataset=cohort,
                 address=report_address,
                 genome_or_exome=exome_output,
                 subtype=singleton_output,
-                date=analysis["timestampCompleted"].split("T")[0],
+                date=analysis['timestampCompleted'].split('T')[0],
             )
             result_found = True
 
         if not result_found:
-            script_logger.info(f"No reports found for {cohort}")
+            script_logger.info(f'No reports found for {cohort}')
 
     # if there were no reports, don't bother with the HTML
     if not all_cohorts:
         return
 
     # smoosh into a list for the report context - all reports sortable by date
-    template_context = {"reports": list(all_cohorts.values())}
+    template_context = {'reports': list(all_cohorts.values())}
 
     # build some HTML
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
-    template = env.get_template("index.html.jinja")
+    template = env.get_template('index.html.jinja')
     content = template.render(**template_context)
 
     # write to common web bucket - either attached to a single dataset, or communal
     to_path(
         join(
-            get_config()["storage"]["common"]["test"]["web"],
-            "reanalysis",
-            "latest_aip_index.html" if latest else "aip_index.html",
+            get_config()['storage']['common']['test']['web'],
+            'reanalysis',
+            'latest_aip_index.html' if latest else 'aip_index.html',
         ),
-    ).write_text("\n".join(line for line in content.split("\n") if line.strip()))
+    ).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # run once for all main reports, then again for the latest-only reports
     main()
     main(latest=True)

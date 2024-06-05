@@ -180,21 +180,26 @@ class TXFields:
 
     gene_symbol: str
     gene_id: str
+    # todo marked for deletion
     variant_allele: str = field(default_factory=str)
     consequence_terms: list = field(default_factory=list)
     transcript_id: str = field(default_factory=str)
     protein_id: str = field(default_factory=str)
+    # todo marked for deletion
     gene_symbol_source: str = field(default_factory=str)
+    # todo marked for deletion
     canonical: int = field(default=1)
     cdna_start: int = field(default=1)
     cds_end: int = field(default=1)
     biotype: str = field(default_factory=str)
     protein_start: int = field(default=1)
     protein_end: int = field(default=1)
+    # todo marked for deletion
     sift_score: float = field(default=1.0)  # lowest possible score
+    # todo marked for deletion
+    polyphen_score: float = field(default=0.01)
     sift_prediction: str = field(default_factory=str)
     polyphen_prediction: str = field(default='neutral')
-    polyphen_score: float = field(default=0.01)
     mane_select: str = field(default_factory=str)
     lof: str = field(default_factory=str)
 

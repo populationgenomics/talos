@@ -31,6 +31,9 @@ JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG: dict = None  # type: ignore
 DATASET_SEQ_CONFIG: dict = None  # type: ignore
 
+# above this length we trim the actual bases to just an int
+MAX_INDEL_LEN: int = 10
+
 # regex pattern - number, number, not-number
 KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
@@ -369,7 +372,7 @@ class Variant:
            - e.g INS 4079bp
         """
         if isinstance(self.var_data, SmallVariant):
-            if len(self.ref) > 10 or len(self.alt) > 10:
+            if len(self.ref) > MAX_INDEL_LEN or len(self.alt) > MAX_INDEL_LEN:
                 ref_len = len(self.ref)
                 alt_len = len(self.alt)
                 if ref_len > alt_len:

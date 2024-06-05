@@ -20,6 +20,7 @@ from reanalysis.moi_tests import (
     check_for_second_hit,
 )
 from reanalysis.utils import make_flexible_pedigree
+from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
@@ -368,7 +369,7 @@ def test_x_dominant_female_and_male_het_passes(pedigree_path):
     x_dom = XDominant(pedigree=make_flexible_pedigree(pedigree_path))
     results = x_dom.run(passing_variant)
 
-    assert len(results) == 2
+    assert len(results) == TWO_EXPECTED
     reasons = {result.reasons.pop() for result in results}
     assert reasons == {'X_Dominant'}
 

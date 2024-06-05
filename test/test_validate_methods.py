@@ -13,6 +13,7 @@ from reanalysis.models import (  # ReportPanel,
 )
 from reanalysis.utils import make_flexible_pedigree
 from reanalysis.validate_categories import clean_and_filter, count_families, prepare_results_shell
+from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
@@ -21,7 +22,6 @@ VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={}, transcript_consequences
 REP_SAM1_1 = ReportVariant(sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1')
 REP_SAM3_1 = ReportVariant(sample='sam3', var_data=VAR_1, categories={'1'}, gene='ENSG4')
 REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2'}, gene='ENSG5')
-
 
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
 panel_genes = PanelApp(
@@ -143,11 +143,11 @@ def test_gene_clean_results_no_personal():
         panelapp_data=panel_genes,
         dataset='cohort',
     )
-    assert len(clean.results['sam1'].variants) == 1
+    assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert clean.results['sam1'].variants[0].flags == set()
-    assert len(clean.results['sam2'].variants) == 0
-    assert len(clean.results['sam3'].variants) == 2
+    assert len(clean.results['sam2'].variants) == ZERO_EXPECTED
+    assert len(clean.results['sam3'].variants) == TWO_EXPECTED
     assert {x.gene for x in clean.results['sam3'].variants} == {'ENSG4', 'ENSG5'}
 
 
@@ -182,12 +182,12 @@ def test_gene_clean_results_personal():
         participant_panels=personal_panels,
         dataset='cohort',
     )
-    assert len(clean.results['sam1'].variants) == 1
+    assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert not clean.results['sam1'].variants[0].flags
     assert clean.results['sam1'].variants[0].panels.matched == {'1'}
     assert not clean.results['sam2'].variants
-    assert len(clean.results['sam3'].variants) == 2
+    assert len(clean.results['sam3'].variants) == TWO_EXPECTED
     for event in clean.results['sam3'].variants:
         if event.gene == 'ENSG4':
             assert event.panels.matched == {'3'}
@@ -203,10 +203,10 @@ def test_update_results_meta(pedigree_path):
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
 
     assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
-        'affected': 2,
-        'male': 3,
-        'female': 3,
-        'trios': 2,
+        'affected': TWO_EXPECTED,
+        'male': THREE_EXPECTED,
+        'female': THREE_EXPECTED,
+        'trios': TWO_EXPECTED,
     }
 
 
@@ -218,10 +218,10 @@ def test_count_families_missing_father(pedigree_path):
     ped_samples = {'male', 'female', 'father_1', 'mother_1', 'mother_2', 'father_2'}
 
     assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
-        'affected': 2,
-        'male': 3,
-        'female': 3,
-        'trios': 2,
+        'affected': TWO_EXPECTED,
+        'male': THREE_EXPECTED,
+        'female': THREE_EXPECTED,
+        'trios': TWO_EXPECTED,
     }
 
 

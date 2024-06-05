@@ -24,6 +24,12 @@ CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 CURRENT_VERSION = '1.0.2'
 ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2']
 
+# ratios for use in AB testing
+MAX_WT = 0.15
+MIN_HET = 0.25
+MAX_HET = 0.75
+MIN_HOM = 0.85
+
 
 class FileTypes(Enum):
     """
@@ -225,19 +231,19 @@ class VariantCommon(BaseModel):
             return big_cat or self.has_support
         return big_cat
 
-    def check_ab_ratio(self, *args, **kwargs) -> set[str]:
+    def check_ab_ratio(self, *args, **kwargs) -> set[str]:  # noqa: ARG002
         """
         dummy method for AB ratio checking - not implemented for SVs
         """
         return set()
 
-    def get_sample_flags(self, *args, **kwargs) -> set[str]:
+    def get_sample_flags(self, *args, **kwargs) -> set[str]:  # noqa: ARG002
         """
         dummy method for flag checking - not implemented for SVs (yet)
         """
         return set()
 
-    def check_read_depth(self, *args, **kwargs) -> set[str]:
+    def check_read_depth(self, *args, **kwargs) -> set[str]:  # noqa: ARG002
         """
         dummy method for read depth checking - not implemented for SVs
         """
@@ -293,7 +299,8 @@ class SmallVariant(VariantCommon):
         het = sample in self.het_samples
         hom = sample in self.hom_samples
         variant_ab = self.ab_ratios.get(sample, 0.0)
-        if (variant_ab <= 0.15) or (het and not 0.25 <= variant_ab <= 0.75) or (hom and variant_ab <= 0.85):
+
+        if (variant_ab <= MAX_WT) or (het and not MIN_HET <= variant_ab <= MAX_HET) or (hom and variant_ab <= MIN_HOM):
             return {'AB Ratio'}
         return set()
 

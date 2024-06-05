@@ -51,10 +51,10 @@ def get_affected_per_family(pedigree: list[dict]):
     Returns:
         a dict of family ID to affected individuals (ext IDs)
     """
-
+    affected_value_in_ped = 2
     affected: dict[str, list[str]] = dict()
     for member in pedigree:
-        if member['affected'] == 2:
+        if member['affected'] == affected_value_in_ped:
             affected.setdefault(member['family_id'], []).append(member['individual_id'])
     return affected
 
