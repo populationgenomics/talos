@@ -15,12 +15,9 @@ import requests
 from obonet import read_obo
 from peds import open_ped
 
-from cpg_utils import to_path
-
 from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 from reanalysis.static_values import get_logger
 
-HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')
 MAX_DEPTH = 3
 PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'

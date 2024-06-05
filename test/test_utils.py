@@ -21,7 +21,7 @@ from reanalysis.utils import (
     gather_gene_dict_from_contig,
     get_new_gene_map,
     get_non_ref_samples,
-    get_simple_moi,
+    get_simple_moi,  # todo test this
     identify_file_type,
     make_flexible_pedigree,
 )
@@ -135,11 +135,8 @@ def test_file_types_exception():
 def test_get_simple_moi(string: str, expected: str, chrom: str):
     """
     Tests the string parsing down to simple representation
-    :param string:
-    :param expected:
-    :param chrom:
     """
-    assert get_simple_moi(string, chrom) == expected
+    assert get_simple_moi({string}, chrom) == {expected}
 
 
 def test_get_non_ref_samples(cyvcf_example_variant):

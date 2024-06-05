@@ -669,43 +669,51 @@ def read_json_from_path(
     raise ValueError(f'No data found at {bucket_path}')
 
 
-def get_simple_moi(input_moi: str | None, chrom: str) -> str:
+def get_simple_moi(input_mois: set[str], chrom: str) -> set[str]:
     """
     takes the vast range of PanelApp MOIs, and reduces to a
     range of cases which can be easily implemented in RD analysis
 
     Args:
-        input_moi ():
+        input_mois (set[str]): all the MOIs for this gene
         chrom ():
     """
-    if input_moi in IRRELEVANT_MOI:
-        raise ValueError("unknown and other shouldn't reach this method")
 
     default = 'Hemi_Bi_In_Female' if chrom in X_CHROMOSOME else 'Biallelic'
 
-    if input_moi is None:
-        input_moi = default
+    return_mois: set[str] = set()
 
-    input_list = input_moi.translate(str.maketrans('', '', punctuation)).split()
+    for input_moi in input_mois:
+        # skip over ignore-able MOIs
+        if input_moi in IRRELEVANT_MOI:
+            continue
 
-    match input_list:
-        case ['biallelic', *_additional]:
-            return 'Biallelic'
-        case ['both', *_additional]:
-            return 'Mono_And_Biallelic'
-        case ['monoallelic', *_additional]:
-            if chrom in X_CHROMOSOME:
-                return 'Hemi_Mono_In_Female'
-            return 'Monoallelic'
-        case [
-            'xlinked',
-            *additional,
-        ] if 'biallelic' in additional:
-            return 'Hemi_Bi_In_Female'
-        case ['xlinked', *_additional]:
-            return 'Hemi_Mono_In_Female'
-        case _:
-            return default
+        # split each PanelApp MOI into a list of strings
+        input_list = input_moi.translate(str.maketrans('', '', punctuation)).split()
+
+        # run a match: case to classify it
+        match input_list:
+            case ['biallelic', *_additional]:
+                return_mois.add('Biallelic')
+            case ['both', *_additional]:
+                return_mois.add('Mono_And_Biallelic')
+            case ['monoallelic', *_additional]:
+                if chrom in X_CHROMOSOME:
+                    return_mois.add('Hemi_Mono_In_Female')
+                else:
+                    return_mois.add('Monoallelic')
+            case ['xlinked', *additional] if 'biallelic' in additional:
+                return_mois.add('Hemi_Bi_In_Female')
+            case ['xlinked', *_additional]:
+                return_mois.add('Hemi_Mono_In_Female')
+            case _:
+                continue
+
+    # adda default - solves the all-irrelevant or empty-input cases
+    if not return_mois:
+        return_mois.add(default)
+
+    return return_mois
 
 
 def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:

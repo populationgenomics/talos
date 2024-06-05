@@ -8,10 +8,8 @@ Complete revision
 # mypy: ignore-errors
 
 from argparse import ArgumentParser
-from datetime import datetime
 
 import zoneinfo
-from dateutil.relativedelta import relativedelta
 
 from cpg_utils.config import config_retrieve
 
@@ -158,98 +156,24 @@ def get_best_moi(gene_dict: dict):
 
     Default is found autosome/sex chrom aware
 
+    todo probably move this whole section into get_simple_moi
+    shouldn't really be fragmented across two files this way
+
     Args:
         gene_dict (): the 'genes' index of the collected dict
     """
 
     for content in gene_dict.values():
-        # accept the simplest MOI if no exact moi found
-        if not content.all_moi:
-            content.moi = get_simple_moi(None, chrom=content.chrom)
-            continue
-
-        # otherwise accept the most lenient valid MOI
-        moi_set = {get_simple_moi(moi, chrom=content.chrom) for moi in content.all_moi}
+        # accept the simplest MOI
+        simplified_mois = get_simple_moi(content.all_moi, chrom=content.chrom)
 
         # force a combined MOI here
-        if 'Biallelic' in moi_set and 'Monoallelic' in moi_set:
+        if 'Biallelic' in simplified_mois and 'Monoallelic' in simplified_mois:
             content.moi = 'Mono_And_Biallelic'
 
         else:
             # take the more lenient of the gene MOI options
-            content.moi = sorted(moi_set, key=lambda x: ORDERED_MOIS.index(x))[0]
-
-
-def find_core_panel_version() -> str | None:
-    """
-    take the default panel ID from config
-    iterate through its associated activities
-    return the panel version which was closest to 12 months ago
-
-    or return None, i.e. if the panel is not >= 12 months old
-
-    remove this whole thing?
-
-    Returns:
-        a version string from X months prior - see config
-    """
-
-    date_threshold = datetime.now(tz=TIMEZONE) - relativedelta(
-        months=config_retrieve(['panels', 'panel_month_delta'], 12)
-    )
-
-    # query for data from this endpoint
-    activities: list[dict] = get_json_response(f'{PANELAPP_BASE}/{DEFAULT_PANEL}/activities')
-
-    # iterate through all activities on this panel
-    for activity in activities:
-        # cast the activity datetime to day-resolution
-        activity_date = datetime.strptime(activity['created'].split('T')[0], '%Y-%m-%d').replace(tzinfo=TIMEZONE)
-
-        # keep going until we land on the day, or skip past it
-        if activity_date > date_threshold:
-            continue
-
-        return activity['panel_version']
-
-    # it's possible we won't find one for some panels
-    return None
-
-
-def get_new_genes(current_genes: set[str], old_version: str, forbidden: set[str] | None = None) -> set[str]:
-    """
-    query for two versions of the same panel
-    find all genes new on that panel between versions
-    Args:
-        current_genes (): current Mendeliome genes
-        old_version ():
-        forbidden ():
-
-    Returns:
-        a set of all genes now in the Mendeliome (and green)
-        which were absent in the given panel version
-    """
-
-    old: PanelApp = PanelApp(**{'metadata': [], 'genes': {}})
-    get_panel_green(old, old_data=HistoricPanels(), version=old_version, forbidden_genes=forbidden)
-
-    return current_genes.difference(set(old.genes))
-
-
-def overwrite_new_status(gene_dict: PanelApp, new_genes: set[str]):
-    """
-    ignores any previous notion of new, replaces it with a manually assigned one
-
-    Args:
-        gene_dict ():
-        new_genes (): set these genes as new
-    """
-
-    panel_id = DEFAULT_PANEL
-
-    for gene, gene_data in gene_dict.genes.items():
-        if gene in new_genes:
-            gene_data.new = {panel_id}
+            content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
 def main(panels: str | None, out_path: str, dataset: str | None = None):
@@ -267,8 +191,8 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     get_logger().info('Starting PanelApp Query Stage')
 
-    # make responsive to config
-    twelve_months = None
+    # if we don't pick up results from a previous run, nothing is considered 'new' this time around
+    no_prior_data = False
 
     dataset = dataset or config_retrieve(['workflow', 'dataset'])
 
@@ -284,17 +208,11 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
 
-    # todo this will fail at the moment
-    elif previous := get_cohort_config(dataset).get('gene_prior'):
-        get_logger().info(f'Reading legacy data from {previous}')
-        old_data = read_json_from_path(previous, return_model=HistoricPanels)  # type: ignore
-
     else:
-        get_logger().info('No prior data found')
-        twelve_months = True
+        get_logger().info('No prior data found, not treating anything as new')
+        no_prior_data = True
 
-    # are there any genes to skip from the Mendeliome? i.e. only report
-    # if in a specifically phenotype-matched panel
+    # are there any genes to skip from the Mendeliome? i.e. only report if in a specifically phenotype-matched panel
     remove_from_core: list[str] = config_retrieve(['panels', 'require_pheno_match'], [])
     get_logger().info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
@@ -303,16 +221,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
     # first add the base content
     get_logger().info('Getting Base Panel')
-    get_panel_green(
-        gene_dict,
-        old_data=old_data,
-        blacklist=remove_from_core,
-        forbidden_genes=forbidden_genes,
-    )
-
-    # store the list of genes currently on the core panel
-    if twelve_months:
-        twelve_months = set(gene_dict.genes)
+    get_panel_green(gene_dict, old_data=old_data, blacklist=remove_from_core, forbidden_genes=forbidden_genes)
 
     # if participant panels were provided, add each of those to the gene data
     panel_list: set[int] = set()
@@ -339,14 +248,10 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     get_best_moi(gene_dict.genes)
 
     # if we didn't have prior reference data, scrub down new statuses
-    # new_genes can be empty as a result of a successful query
-    if twelve_months:
-        old_version = find_core_panel_version()
-        if old_version is None:
-            raise ValueError('Could not find a version from 12 months ago')
-        get_logger().info(f'No prior data found, running panel diff vs. panel version {old_version}')
-        new_gene_set = get_new_genes(twelve_months, old_version)
-        overwrite_new_status(gene_dict, new_gene_set)
+    if no_prior_data:
+        get_logger().info('No prior data found, resetting new statuses')
+        for gene_data in gene_dict.genes.values():
+            gene_data.new = {}
 
     # write the output to long term storage
     with open(out_path, 'w') as out_file:
