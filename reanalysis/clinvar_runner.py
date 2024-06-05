@@ -71,7 +71,7 @@ def vep_json_to_ht(json_paths: list, output_ht: str):
     """
     import hail as hl
 
-    hl.init()
+    hl.init(backend='local')
     hl.default_reference('GRCh38')
 
     # this will need some tweaking
