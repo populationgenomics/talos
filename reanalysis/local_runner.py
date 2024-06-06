@@ -70,7 +70,7 @@ def sort_out_sv(sv_path: str, panelapp: str, pedigree: str):
     sv_vcf_out = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
 
     sv_job = get_batch().new_job('Local SV Filtering')
-    set_job_resources(sv_job, cpu=8, memory='highmem')
+    set_job_resources(sv_job, cpu=2, memory='highmem')
 
     sv_job.declare_resource_group(output={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'})
 
