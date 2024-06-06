@@ -50,7 +50,7 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str:
     return clinvar_table
 
 
-def set_job_resources(job: BashJob, cpu: int = 4, memory: str = 'highmem', storage: str = '60Gi'):
+def set_job_resources(job: BashJob, cpu: int = 4, memory: str = 'highmem', storage: str = '10Gi'):
     """
     apply resources to the job
 
@@ -116,20 +116,20 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     clinvar_decisions = get_clinvar_table()
     clinvar_name = clinvar_decisions.split('/')[-1]
 
-    # localise the input MT first (may take a while for chonky data)
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud --verbosity=none storage cp -r {clinvar_decisions} . && cd -')
+    # localise the clinvar decisions table
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud storage cp -r {clinvar_decisions} . && cd -')
 
     # find, localise, and use the clinvar PM5 table
     pm5 = get_clinvar_table('clinvar_pm5')
     pm5_name = pm5.split('/')[-1]
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud storage cp -r {pm5} . && cd -')
+    small_job.command('ls ${{BATCH_TMPDIR}}')
+    small_job.command('ls')
 
     mt_name = mt_path.split('/')[-1]
 
-    # localise the input MT first (may take a while for chonky data)
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud --verbosity=none storage cp -r {mt_path} . && cd -')
-
-    # localise the input MT first (may take a while for chonky data)
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud --verbosity=none storage cp -r {pm5} . && cd -')
+    # now localise the input MT (may take a while for chonky data)
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud storage cp -r {mt_path} . && cd -')
 
     # not sure if the other inputs need to be localised...
     small_job.command(
