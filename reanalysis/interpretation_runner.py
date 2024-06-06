@@ -2,6 +2,9 @@
 
 
 """
+TODO This whole file needs to be cut out and replaced
+It's just not fit for purpose
+
 Entrypoint for the interpretation pipeline process, runs the end-to-end
 pipeline stages either directly or via Hail Batch(es)
  - Data extraction from PanelApp
@@ -20,7 +23,7 @@ from hailtop.batch.job import BashJob, Job
 
 from cpg_utils import to_path
 from cpg_utils.config import get_config, output_path
-from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, copy_common_env, get_batch, query_command
+from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, copy_common_env, get_batch
 
 from reanalysis import (
     hail_filter_and_label,
@@ -28,13 +31,11 @@ from reanalysis import (
     html_builder,
     mt_to_vcf,
     query_panelapp,
-    seqr_loader,
     validate_categories,
 )
 from reanalysis.models import FileTypes
 from reanalysis.static_values import get_granular_date, get_logger
 from reanalysis.utils import identify_file_type
-from reanalysis.vep_jobs import add_vep_jobs
 
 # region: CONSTANTS
 # exact time that this run occurred
@@ -365,41 +366,7 @@ def main(
 
     # region: split & annotate VCF
     if not to_path(ANNOTATED_MT).exists():
-        vep_ht_tmp = output_path('vep_annotations.ht', 'tmp')
-
-        # generate the jobs which run VEP & collect the results
-        vep_jobs = add_vep_jobs(
-            b=get_batch(),
-            input_siteonly_vcf_path=to_path(SITES_ONLY),
-            tmp_prefix=to_path(output_path('vep_temp', 'tmp')),
-            scatter_count=runtime_conf['workflow'].get('scatter_count', 50),
-            out_path=to_path(vep_ht_tmp),
-        )
-
-        # assign sites-only job as an annotation dependency
-        if vep_jobs:
-            if prior_job:
-                for job in vep_jobs:
-                    job.depends_on(prior_job)
-            prior_job = vep_jobs[-1]
-
-        j = get_batch().new_job('annotate cohort')
-        j.image(runtime_conf['workflow']['driver_image'])
-        j.command(
-            query_command(
-                seqr_loader,
-                seqr_loader.annotate_cohort.__name__,
-                str(input_path),
-                str(ANNOTATED_MT),
-                str(vep_ht_tmp),
-                output_path('annotation_temp', 'tmp'),
-                setup_gcp=True,
-            ),
-        )
-        if prior_job:
-            j.depends_on(prior_job)
-        output_dict['annotated_mt'] = ANNOTATED_MT
-        prior_job = j
+        raise ValueError('go away and annotate some data, ya fool')
     # endregion
 
     #  region: query panelapp

@@ -201,11 +201,7 @@ def consequence_decision(subs: list[Submission]) -> Consequence:
             return each_sub.classification
 
         counts['total'] += 1
-        if each_sub.classification in [
-            Consequence.PATHOGENIC,
-            Consequence.BENIGN,
-            Consequence.UNCERTAIN,
-        ]:
+        if each_sub.classification in [Consequence.PATHOGENIC, Consequence.BENIGN, Consequence.UNCERTAIN]:
             counts[each_sub.classification] += 1
 
     if counts[Consequence.PATHOGENIC] and counts[Consequence.BENIGN]:
