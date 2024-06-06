@@ -12,7 +12,6 @@ from datetime import datetime
 
 from hailtop.batch.job import BashJob, Job
 
-from cpg_utils import to_path
 from cpg_utils.config import config_retrieve, output_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
 
@@ -45,7 +44,7 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str:
         'aip_clinvar',
         datetime.now().strftime('%y-%m'),
         f'{key}.ht',
-    )
+    ).replace('-main-', '-test-')  # temporary measure
 
     get_logger().info(f'Using clinvar table {clinvar_table}')
     return clinvar_table
