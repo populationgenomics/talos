@@ -32,7 +32,8 @@ def protein_indexed_clinvar(mt_path: str, write_path: str):
 
     init_batch()
 
-    vep_clinvar = hl.read_table(mt_path)
+    vep_clinvar = hl.read_matrix_table(mt_path)
+    vep_clinvar = vep_clinvar.rows()
 
     # 1. retain only relevant annotations
     vep_clinvar = vep_clinvar.select(tx_csq=vep_clinvar.vep.transcript_consequences, info=vep_clinvar.info)
