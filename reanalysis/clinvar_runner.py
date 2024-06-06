@@ -55,13 +55,15 @@ def generate_clinvar_table(cloud_folder: str, clinvar_outputs: str):
     return summarise
 
 
-def vep_json_to_ht(json_paths: list[str], output_ht: str):
+def vep_json_to_ht(json_paths: list[str], snv_vcf: str, output_ht: str, output_mt: str):
     """
     call as a python Job. Take all the JSON files and make a Hail Table?
 
     Args:
         json_paths ():
+        snv_vcf (str): pass
         output_ht (str): where to write the resulting Hail Table
+        output_mt (str): where to write the resulting Hail MatrixTable (annotated VCF)
     """
 
     import hail as hl
@@ -118,15 +120,27 @@ def vep_json_to_ht(json_paths: list[str], output_ht: str):
 
     # the local backend can write this to a local path (it's a directory of files)
     # we (CPG) need to write this direct to GCP, so we need to init a proper batch
-    ht.write(output_ht)
+    ht = ht.checkpoint(output_ht, overwrite=True)
+
+    # now read in the VCF, annotate, and write out
+    mt = hl.import_vcf(snv_vcf, reference_genome='GRCh38', skip_invalid_loci=True, force_bgz=True)
+    mt = mt.annotate_rows(vep=ht[mt.locus, mt.alleles].vep)
+    mt.write(output_mt)
 
 
-def generate_annotated_data(annotation_out: str, snv_vcf: str, tmp_path: Path, dependency: Job | None = None) -> Job:
+def generate_annotated_data(
+    annotation_out: str,
+    mt_out: str,
+    snv_vcf: str,
+    tmp_path: Path,
+    dependency: Job | None = None,
+) -> Job:
     """
     if the annotated data Table doesn't exist, generate it
 
     Args:
-        annotation_out (str): MT path to create
+        annotation_out (str): HT path to create
+        mt_out (str): MT path to create
         snv_vcf (str): path to a VCF file
         tmp_path (str): path to temp directory
         dependency (Job | None): optional job dependency
@@ -184,7 +198,7 @@ def generate_annotated_data(annotation_out: str, snv_vcf: str, tmp_path: Path, d
 
     # call a python job to stick all those together?!
     json_to_mt_job = get_batch().new_python_job('aggregate JSON into MT')
-    json_to_mt_job.call(vep_json_to_ht, output_json_files, annotation_out)
+    json_to_mt_job.call(vep_json_to_ht, output_json_files, snv_vcf_in_batch, annotation_out, mt_out)
     return json_to_mt_job
 
 
@@ -204,9 +218,18 @@ def main():
     snv_vcf = f'{clinvar_output_path}.vcf.bgz'
     clinvar_pm5_path = join(cloud_folder_string, 'clinvar_pm5.ht')
     annotated_clinvar = join(cloud_folder_string, 'annotated_clinvar.ht')
+    annotated_clinvar_mt = join(cloud_folder_string, 'annotated_clinvar.mt')
 
     # check if we can just quit already
-    if all(to_path(this_path).exists() for this_path in [annotated_clinvar, clinvar_ht, clinvar_pm5_path]):
+    if all(
+        to_path(this_path).exists()
+        for this_path in [
+            annotated_clinvar,
+            annotated_clinvar_mt,
+            clinvar_ht,
+            clinvar_pm5_path,
+        ]
+    ):
         get_logger().info('Clinvar data already exists, exiting')
         return
 
@@ -221,8 +244,14 @@ def main():
         dependency = generate_clinvar_table(cloud_folder_string, clinvar_output_path)
 
     # create the annotation job(s)
-    if not to_path(annotated_clinvar).exists():
-        dependency = generate_annotated_data(annotated_clinvar, snv_vcf, temp_path, dependency=dependency)
+    if not to_path(annotated_clinvar_mt).exists():
+        dependency = generate_annotated_data(
+            annotated_clinvar,
+            annotated_clinvar_mt,
+            snv_vcf,
+            temp_path,
+            dependency=dependency,
+        )
 
     # region: run the clinvar_by_codon script
     if not to_path(clinvar_pm5_path).exists():
@@ -230,7 +259,7 @@ def main():
         clinvar_by_codon_job.image(config_retrieve(['workflow', 'driver_image'])).cpu(2).storage('20G')
         authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
         clinvar_by_codon_job.command(
-            f'python3 {clinvar_by_codon.__file__} --mt_path {annotated_clinvar} --write_path {clinvar_pm5_path}',
+            f'python3 {clinvar_by_codon.__file__} --mt_path {annotated_clinvar_mt} --write_path {clinvar_pm5_path}',
         )
         if dependency:
             clinvar_by_codon_job.depends_on(dependency)

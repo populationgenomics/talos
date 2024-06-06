@@ -44,7 +44,7 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str:
         'aip_clinvar',
         datetime.now().strftime('%y-%m'),
         f'{key}.ht',
-    ).replace('-test-', '-main-')  # temporary measure
+    )
 
     get_logger().info(f'Using clinvar table {clinvar_table}')
     return clinvar_table
@@ -117,13 +117,13 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     clinvar_name = clinvar_decisions.split('/')[-1]
 
     # localise the clinvar decisions table
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud storage cp -r {clinvar_decisions} . && cd -')
+    small_job.command(f'cd $BATCH_TMPDIR && gcloud storage cp -r {clinvar_decisions} . && cd -')
 
     # find, localise, and use the clinvar PM5 table
     pm5 = get_clinvar_table('clinvar_pm5')
     pm5_name = pm5.split('/')[-1]
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud storage cp -r {pm5} . && cd -')
-    small_job.command('ls ${{BATCH_TMPDIR}}')
+    small_job.command(f'cd $BATCH_TMPDIR && gcloud storage cp -r {pm5} . && cd -')
+    small_job.command('ls $BATCH_TMPDIR')
     small_job.command('ls')
 
     mt_name = mt_path.split('/')[-1]
