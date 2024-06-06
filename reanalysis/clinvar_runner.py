@@ -200,7 +200,7 @@ def generate_annotated_data(
 
     # call a python job to stick all those together?!
     json_to_mt_job = get_batch().new_python_job('aggregate JSON into MT')
-    json_to_mt_job.call(vep_json_to_ht, output_json_files, snv_vcf_in_batch, annotation_out, mt_out)
+    json_to_mt_job.call(vep_json_to_ht, output_json_files, snv_vcf, annotation_out, mt_out)
     return json_to_mt_job
 
 
