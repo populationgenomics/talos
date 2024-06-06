@@ -66,10 +66,7 @@ def vep_json_to_ht(json_paths: list, output_ht: str):
 
     Args:
         json_paths ():
-        output_ht ():
-
-    Returns:
-
+        output_ht (str): where to write the resulting Hail Table
     """
 
     import hail as hl
