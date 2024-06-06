@@ -98,9 +98,6 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
         mt_path ():
         panelapp ():
         pedigree ():
-
-    Returns:
-
     """
     small_vcf_out = output_path('hail_small_categorised.vcf.bgz', 'analysis')
 

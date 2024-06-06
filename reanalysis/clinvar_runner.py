@@ -51,16 +51,13 @@ def generate_clinvar_table(cloud_folder: Path, clinvar_outputs: str):
     summarise.cpu(2).image(config_retrieve(['workflow', 'driver_image'])).storage('20G')
     authenticate_cloud_credentials_in_job(summarise)
     summarise.command(
-        f'python3 {summarise_clinvar_entries.__file__} '
-        f'-s {bash_job.subs} '
-        f'-v {bash_job.vars} '
-        f'-o {clinvar_outputs}',
+        f'python3 {summarise_clinvar_entries.__file__} -s {bash_job.subs} -v {bash_job.vars} -o {clinvar_outputs}',
     )
 
     return summarise
 
 
-def vep_json_to_ht(json_paths: list, output_ht: str):
+def vep_json_to_ht(json_paths: list[str], output_ht: str):
     """
     call as a python Job. Take all the JSON files and make a Hail Table?
 
@@ -183,7 +180,9 @@ def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, 
         )
 
         get_batch().write_output(vep_job.output, str(result_path))
-        output_json_files.append(vep_job.output)
+        # output_json_files.append(vep_job.output)
+        # # for reasons we need to send the remote paths
+        output_json_files.append(str(result_path))
 
     # call a python job to stick all those together?!
     json_to_mt_job = get_batch().new_python_job('aggregate JSON into MT')
