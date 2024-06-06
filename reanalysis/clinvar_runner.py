@@ -155,6 +155,7 @@ def generate_annotated_data(
 
     # split the whole vcf into chromosomes
     output_json_files: list = []
+    lovely_jobblies = []
     for chromosome in [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY']:
         # the name for this chunk of annotation
         result_path = tmp_path / f'{chromosome}.json'
@@ -192,6 +193,7 @@ def generate_annotated_data(
             --dir_cache {vep_dir}/vep/ --fasta $FASTA
             """,
         )
+        lovely_jobblies.append(vep_job)
 
         get_batch().write_output(vep_job.output, str(result_path))
         # output_json_files.append(vep_job.output)
@@ -201,6 +203,7 @@ def generate_annotated_data(
     # call a python job to stick all those together?!
     json_to_mt_job = get_batch().new_python_job('aggregate JSON into MT')
     json_to_mt_job.call(vep_json_to_ht, output_json_files, snv_vcf, annotation_out, mt_out)
+    json_to_mt_job.depends_on(*lovely_jobblies)
     return json_to_mt_job
 
 
