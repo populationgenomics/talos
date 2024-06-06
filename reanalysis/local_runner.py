@@ -77,7 +77,7 @@ def sort_out_sv(sv_path: str, panelapp: str, pedigree: str):
     mt_name = sv_path.split('/')[-1]
 
     # localise the input MT first (may take a while for chonky data)
-    sv_job.command(f'gcloud -q storage cp -r {sv_path} .')
+    sv_job.command(f'gcloud --verbosity=none storage cp -r {sv_path} .')
     # not sure if the other inputs need to be localised...
     sv_job.command(
         f'python3 {hail_filter_sv.__file__} --mt {mt_name} '
@@ -116,20 +116,20 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     mt_name = mt_path.split('/')[-1]
 
     # localise the input MT first (may take a while for chonky data)
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud -q storage cp -r {mt_path} . && cd -')
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud --verbosity=none storage cp -r {mt_path} . && cd -')
 
     clinvar_decisions = get_clinvar_table()
     clinvar_name = clinvar_decisions.split('/')[-1]
 
     # localise the input MT first (may take a while for chonky data)
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud -q storage cp -r {clinvar_decisions} . && cd -')
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud --verbosity=none storage cp -r {clinvar_decisions} . && cd -')
 
     # find, localise, and use the clinvar PM5 table
     pm5 = get_clinvar_table('clinvar_pm5')
     pm5_name = pm5.split('/')[-1]
 
     # localise the input MT first (may take a while for chonky data)
-    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud -q storage cp -r {pm5} . && cd -')
+    small_job.command(f'cd ${{BATCH_TMPDIR}} && gcloud --verbosity=none storage cp -r {pm5} . && cd -')
 
     # not sure if the other inputs need to be localised...
     small_job.command(
