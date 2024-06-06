@@ -147,7 +147,7 @@ def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, 
 
         # check if it exists, if it does, read in and skip
         if result_path.exists():
-            output_json_files.append(get_batch().read_input(str(result_path)))
+            output_json_files.append(str(result_path))
             continue
 
         # subset the whole VCF to this chromosome
