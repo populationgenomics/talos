@@ -100,11 +100,13 @@ def vep_json_to_ht(json_paths: list[str], snv_vcf: str, output_ht: str, output_m
             gene_id:str,
             impact:str,
             protein_end:int32,
+            protein_start:int32,
             strand:int32,
             transcript_id:str,
             strand:int32,
             variant_allele:str,
-            flags:array<str>
+            flags:array<str>,
+            protein_id:str
         }>
     }""",
     )
