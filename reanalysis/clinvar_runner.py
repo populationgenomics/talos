@@ -8,8 +8,6 @@ Entrypoint for clinvar summary generation
 from datetime import datetime
 from os.path import join
 
-from cloudpathlib import AnyPath
-
 from hailtop.batch.job import Job
 
 from cpg_utils import Path, to_path
@@ -20,12 +18,12 @@ from reanalysis import clinvar_by_codon, summarise_clinvar_entries
 from reanalysis.static_values import get_logger
 
 
-def generate_clinvar_table(cloud_folder: Path, clinvar_outputs: str):
+def generate_clinvar_table(cloud_folder: str, clinvar_outputs: str):
     """
     set up the job that does de novo clinvar summary
 
     Args:
-        cloud_folder (Path): folder for this analysis
+        cloud_folder (str): folder for this analysis
         clinvar_outputs (str): prefix for writing new files/dirs
     """
 
@@ -41,8 +39,8 @@ def generate_clinvar_table(cloud_folder: Path, clinvar_outputs: str):
     )
 
     # write output files date-specific
-    get_batch().write_output(bash_job.subs, str(cloud_folder / sub_file))
-    get_batch().write_output(bash_job.vars, str(cloud_folder / var_file))
+    get_batch().write_output(bash_job.subs, join(cloud_folder, sub_file))
+    get_batch().write_output(bash_job.vars, join(cloud_folder, var_file))
 
     # region: run the summarise_clinvar_entries script
     summarise = get_batch().new_job(name='summarise clinvar')
@@ -123,7 +121,7 @@ def vep_json_to_ht(json_paths: list[str], output_ht: str):
     ht.write(output_ht)
 
 
-def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, dependency: Job | None = None) -> Job:
+def generate_annotated_data(annotation_out: str, snv_vcf: str, tmp_path: Path, dependency: Job | None = None) -> Job:
     """
     if the annotated data Table doesn't exist, generate it
 
@@ -186,7 +184,7 @@ def generate_annotated_data(annotation_out: Path, snv_vcf: str, tmp_path: Path, 
 
     # call a python job to stick all those together?!
     json_to_mt_job = get_batch().new_python_job('aggregate JSON into MT')
-    json_to_mt_job.call(vep_json_to_ht, output_json_files, str(annotation_out))
+    json_to_mt_job.call(vep_json_to_ht, output_json_files, annotation_out)
     return json_to_mt_job
 
 
@@ -198,16 +196,17 @@ def main():
     cloud_folder = to_path(
         join(config_retrieve(['storage', 'common', 'analysis']), 'aip_clinvar_new', datetime.now().strftime('%y-%m')),
     )
+    cloud_folder_string = str(cloud_folder)
 
     # clinvar VCF, decisions, annotated VCF, and PM5
-    clinvar_output_path = join(str(cloud_folder), 'clinvar_decisions')
+    clinvar_output_path = join(cloud_folder_string, 'clinvar_decisions')
     clinvar_ht = f'{clinvar_output_path}.ht'
     snv_vcf = f'{clinvar_output_path}.vcf.bgz'
-    clinvar_pm5_path = cloud_folder / 'clinvar_pm5.ht'
-    annotated_clinvar = cloud_folder / 'annotated_clinvar.mt'
+    clinvar_pm5_path = join(cloud_folder_string, 'clinvar_pm5.ht')
+    annotated_clinvar = join(cloud_folder_string, 'annotated_clinvar.mt')
 
     # check if we can just quit already
-    if all(this_path.exists() for this_path in [annotated_clinvar, clinvar_ht, clinvar_pm5_path]):
+    if all(to_path(this_path).exists() for this_path in [annotated_clinvar, clinvar_ht, clinvar_pm5_path]):
         get_logger().info('Clinvar data already exists, exiting')
         return
 
@@ -219,14 +218,14 @@ def main():
 
     # generate a new round of clinvar decisions
     if not all(to_path(output).exists() for output in [clinvar_ht, snv_vcf]):
-        dependency = generate_clinvar_table(cloud_folder, clinvar_output_path)
+        dependency = generate_clinvar_table(cloud_folder_string, clinvar_output_path)
 
     # create the annotation job(s)
-    if not annotated_clinvar.exists():
+    if not to_path(annotated_clinvar).exists():
         dependency = generate_annotated_data(annotated_clinvar, snv_vcf, temp_path, dependency=dependency)
 
     # region: run the clinvar_by_codon script
-    if not clinvar_pm5_path.exists():
+    if not to_path(clinvar_pm5_path).exists():
         clinvar_by_codon_job = get_batch().new_job(name='clinvar_by_codon')
         clinvar_by_codon_job.image(config_retrieve(['workflow', 'driver_image'])).cpu(2).storage('20G')
         authenticate_cloud_credentials_in_job(clinvar_by_codon_job)
