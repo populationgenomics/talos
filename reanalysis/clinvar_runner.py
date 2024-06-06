@@ -203,7 +203,7 @@ def main():
     clinvar_ht = f'{clinvar_output_path}.ht'
     snv_vcf = f'{clinvar_output_path}.vcf.bgz'
     clinvar_pm5_path = join(cloud_folder_string, 'clinvar_pm5.ht')
-    annotated_clinvar = join(cloud_folder_string, 'annotated_clinvar.mt')
+    annotated_clinvar = join(cloud_folder_string, 'annotated_clinvar.ht')
 
     # check if we can just quit already
     if all(to_path(this_path).exists() for this_path in [annotated_clinvar, clinvar_ht, clinvar_pm5_path]):
