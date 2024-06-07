@@ -883,7 +883,7 @@ def main(
     """
 
     # initiate Hail as a local cluster
-    hl.init(backend='spark', master='local[7]', quiet=True)
+    hl.init(backend='spark', master='local[16]', quiet=True)
     hl.default_reference('GRCh38')
 
     # get the run configuration JSON

@@ -104,8 +104,8 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     small_job = get_batch().new_job('Local Small Variant Filtering')
     set_job_resources(
         small_job,
-        cpu=8,
-        memory='highmem',
+        cpu=16,
+        memory='standard',
         storage=config_retrieve(['workflow', 'small_storage'], '500Gi'),
     )
 
