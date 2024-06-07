@@ -912,11 +912,15 @@ def main(
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
-    get_logger().debug(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
+    get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
 
     # filter out quality failures
     # swap out the default clinvar annotations with private clinvar
     mt = annotate_aip_clinvar(mt=mt, clinvar=clinvar)
+
+    # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
+    mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
+
     mt = filter_on_quality_flags(mt=mt)
 
     # running global quality filter steps
@@ -936,12 +940,16 @@ def main(
 
         # die if there are no variants remaining
         # only run this count after a checkpoint
-        assert mt.count_rows(), 'No remaining rows to process!'
+        if not (current_rows := mt.count_rows()):
+            raise ValueError('No remaining rows to process!')
 
-        get_logger().info(f'Checkpoint written to {checkpoint}, {mt.count_rows()} rows remain')
+        get_logger().info(f'Checkpoint written to {checkpoint}, {current_rows} rows remain')
 
-    # split genes out to separate rows
-    mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
+        # estimate partitions; fall back to 1 if low row count
+        partitions = current_rows // 200000 or 1
+
+        # repartition the data for efficacy reasons (reduce and re-balance partitions)
+        return mt.repartition(n_partitions=partitions, shuffle=True)
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)

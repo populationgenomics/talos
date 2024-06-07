@@ -123,8 +123,6 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     pm5 = get_clinvar_table('clinvar_pm5')
     pm5_name = pm5.split('/')[-1]
     small_job.command(f'cd $BATCH_TMPDIR && gcloud storage cp -r {pm5} . && cd -')
-    small_job.command('ls $BATCH_TMPDIR')
-    small_job.command('ls')
 
     mt_name = mt_path.split('/')[-1]
 
