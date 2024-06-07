@@ -945,12 +945,6 @@ def main(
 
         get_logger().info(f'Checkpoint written to {checkpoint}, {current_rows} rows remain')
 
-        # estimate partitions; fall back to 1 if low row count
-        partitions = current_rows // 200000 or 1
-
-        # repartition the data for efficacy reasons (reduce and re-balance partitions)
-        return mt.repartition(n_partitions=partitions, shuffle=True)
-
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
