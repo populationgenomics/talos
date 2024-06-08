@@ -634,7 +634,16 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     de_novo_matrix = filter_by_consequence(mt)
 
-    pedigree = hl.Pedigree.read(ped_file_path)
+    # create ped with only 6 columns
+    with open('local_skinny.ped', 'w', encoding='utf-8') as write_handle:
+        with open(ped_file_path, encoding='utf-8') as read_handle:
+            for line in read_handle:
+                trimmed_line = line.rstrip()
+                line_list = trimmed_line.split('\t')
+                new_line = '\t'.join(line_list[:6]) + '\n'
+                write_handle.write(new_line)
+
+    pedigree = hl.Pedigree.read('local_skinny.ped')
 
     get_logger().info('Updating synthetic PL values for WT calls where missing')
 
