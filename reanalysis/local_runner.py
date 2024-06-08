@@ -124,7 +124,7 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
     # find, localise, and use the clinvar PM5 table
     pm5 = get_clinvar_table('clinvar_pm5')
     pm5_name = pm5.split('/')[-1]
-    small_job.command(f'cd $BATCH_TMPDIR && gcloud--no-user-output-enabled storage cp -r {pm5} . && cd -')
+    small_job.command(f'cd $BATCH_TMPDIR && gcloud --no-user-output-enabled storage cp -r {pm5} . && cd -')
 
     mt_name = mt_path.split('/')[-1]
 
