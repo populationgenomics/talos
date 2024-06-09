@@ -570,7 +570,7 @@ def test_x_recessive_female_het_fails(pedigree_path):
     assert not x_rec.run(passing_variant, comp_het=comp_hets)
 
 
-@mock.patch('reanalysis.moi_tests.check_for_second_hit')
+@mock.patch('talos.moi_tests.check_for_second_hit')
 def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, pedigree_path):
     """ """
 

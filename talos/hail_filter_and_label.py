@@ -88,7 +88,7 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
     return None
 
 
-def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str | None) -> hl.MatrixTable:
+def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str | None = None) -> hl.MatrixTable:
     """
     instead of making a separate decision about whether the clinvar
     annotation(s) are meaningful during each test, add a single value

@@ -41,6 +41,7 @@ MOI testing
 - Everything to do with VEP... This does not contain a vep installation, and no longer determines how/if VEP is to be
   run. Except for ClinVar reanalysis - still in the process of dog-fooding that from ClinvArbitration instead of
   reimplementing here
+- Removes even an example of analysis outcome registration from this repository, not even we use that functionality...
 
 [3.2.2] - 2024-04-12
 

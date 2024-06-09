@@ -4,11 +4,8 @@ unit testing collection for the hail MT methods
 
 import pandas as pd
 import pytest
-import toml
 
 import hail as hl
-
-from cpg_utils.config import _config_paths, get_config, set_config_paths
 
 from talos.hail_filter_and_label import (
     annotate_category_1,
@@ -22,6 +19,7 @@ from talos.hail_filter_and_label import (
     green_and_new_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
+from talos.models import PanelApp
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 category_1_keys = ['locus', 'clinvar_talos_strong']
@@ -175,12 +173,17 @@ def annotate_c6_missing(make_a_mt, caplog):
 
 def test_green_and_new_from_panelapp():
     """
+    TODO make a proper object
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
     2 set expressions, one for all genes, one for new genes only
     """
-
-    mendeliome = {'ENSG00ABCD': {'new': [1]}, 'ENSG00EFGH': {'new': []}, 'ENSG00IJKL': {'new': [2]}}
+    mendeliome_data = {
+        'ENSG00ABCD': {'new': [1], 'symbol': 'ABCD'},
+        'ENSG00EFGH': {'new': [], 'symbol': 'EFHG'},
+        'ENSG00IJKL': {'new': [2], 'symbol': 'IJKL'},
+    }
+    mendeliome = PanelApp.model_validate({'genes': mendeliome_data})
     green_expression, new_expression = green_and_new_from_panelapp(mendeliome)
 
     # check types
@@ -306,7 +309,7 @@ def test_filter_to_classified(one, two, three, four, five, six, pm5, length, mak
     assert matrix.count_rows() == length
 
 
-def test_aip_clinvar_default(make_a_mt):
+def test_talos_clinvar_default(make_a_mt):
     """
     no private annotations applied
     Args:
@@ -329,7 +332,7 @@ def test_aip_clinvar_default(make_a_mt):
         ('pathogenic', 1, 1, 1, 1),
     ],
 )
-def test_annotate_aip_clinvar(rating, stars, rows, regular, strong, tmp_path, make_a_mt):
+def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, make_a_mt):
     """
     Test intention
     - take a VCF of two variants w/default clinvar annotations
@@ -355,15 +358,8 @@ def test_annotate_aip_clinvar(rating, stars, rows, regular, strong, tmp_path, ma
 
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
-    toml_dict = {'workflow': {'clinvar_decisions': table_path}}
-    toml_path = str(tmp_path / 'clinvar.toml')
-    with open(toml_path, 'w', encoding='utf-8') as f:
-        toml.dump(toml_dict, f)
 
-    set_config_paths(_config_paths + [toml_path])
-    get_config()
-
-    returned_table = annotate_talos_clinvar(make_a_mt)
+    returned_table = annotate_talos_clinvar(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
     assert len([x for x in returned_table.info.clinvar_talos_strong.collect() if x == 1]) == strong
