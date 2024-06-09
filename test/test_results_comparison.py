@@ -10,7 +10,7 @@ from time import sleep
 import pytest
 import zoneinfo
 
-from reanalysis.models import (
+from talos.models import (
     Coordinates,
     HistoricSampleVariant,
     HistoricVariants,
@@ -18,8 +18,8 @@ from reanalysis.models import (
     ResultData,
     SmallVariant,
 )
-from reanalysis.static_values import get_granular_date
-from reanalysis.utils import date_annotate_results, date_from_string, find_latest_file
+from talos.static_values import get_granular_date
+from talos.utils import date_annotate_results, date_from_string, find_latest_file
 from test.test_utils import TWO_EXPECTED
 
 COORD_1 = Coordinates(chrom='1', pos=1, ref='A', alt='G')

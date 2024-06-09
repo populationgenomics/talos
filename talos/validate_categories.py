@@ -22,7 +22,7 @@ from cyvcf2 import VCFReader
 from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
 
-from reanalysis.models import (
+from talos.models import (
     CATEGORY_DICT,
     FamilyMembers,
     PanelApp,
@@ -37,9 +37,9 @@ from reanalysis.models import (
     ResultData,
     ResultMeta,
 )
-from reanalysis.moi_tests import MOIRunner
-from reanalysis.static_values import get_logger
-from reanalysis.utils import (
+from talos.moi_tests import MOIRunner
+from talos.static_values import get_logger
+from talos.utils import (
     GeneDict,
     canonical_contigs_from_vcf,
     filter_results,

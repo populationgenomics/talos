@@ -11,7 +11,7 @@ from test.test_utils import FOUR_EXPECTED, ONE_EXPECTED, THREE_EXPECTED, TWO_EXP
 
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
-from reanalysis.summarise_clinvar_entries import (  # noqa: E402
+from talos.summarise_clinvar_entries import (  # noqa: E402
     ACMG_THRESHOLD,
     Consequence,
     Submission,

@@ -2,8 +2,8 @@
 tests for the HTML builder
 """
 
-from reanalysis.html_builder import check_date_filter
-from reanalysis.models import Coordinates, ResultData, SmallVariant
+from talos.html_builder import check_date_filter
+from talos.models import Coordinates, ResultData, SmallVariant
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

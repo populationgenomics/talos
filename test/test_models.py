@@ -2,7 +2,7 @@
 any methods for testing model functionality
 """
 
-from reanalysis.utils import make_flexible_pedigree
+from talos.utils import make_flexible_pedigree
 from test.test_utils import FIVE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED
 
 

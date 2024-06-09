@@ -2,7 +2,7 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-from reanalysis.models import (  # ReportPanel,
+from talos.models import (  # ReportPanel,
     Coordinates,
     PanelApp,
     PhenotypeMatchedPanels,
@@ -11,8 +11,8 @@ from reanalysis.models import (  # ReportPanel,
     ResultMeta,
     SmallVariant,
 )
-from reanalysis.utils import make_flexible_pedigree
-from reanalysis.validate_categories import clean_and_filter, count_families, prepare_results_shell
+from talos.utils import make_flexible_pedigree
+from talos.validate_categories import clean_and_filter, count_families, prepare_results_shell
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

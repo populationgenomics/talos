@@ -6,8 +6,8 @@ from copy import deepcopy
 
 import pytest
 
-from reanalysis.models import HistoricPanels, PanelApp, PanelDetail
-from reanalysis.query_panelapp import get_best_moi, get_panel_green
+from talos.models import HistoricPanels, PanelApp, PanelDetail
+from talos.query_panelapp import get_best_moi, get_panel_green
 
 empty_gene_dict = PanelApp(genes={})
 

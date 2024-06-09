@@ -7,7 +7,7 @@ from copy import deepcopy
 import pytest
 from cyvcf2 import VCFReader
 
-from reanalysis.models import (
+from talos.models import (
     VARIANT_MODELS,
     Coordinates,
     FileTypes,
@@ -16,7 +16,7 @@ from reanalysis.models import (
     ReportVariant,
     SmallVariant,
 )
-from reanalysis.utils import (
+from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_new_gene_map,

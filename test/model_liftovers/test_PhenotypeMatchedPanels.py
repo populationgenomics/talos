@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from reanalysis.models import CURRENT_VERSION, PanelApp, PhenoPacketHpo, PhenotypeMatchedPanels, lift_up_model_version
-from reanalysis.utils import read_json_from_path
+from talos.models import CURRENT_VERSION, PanelApp, PhenoPacketHpo, PhenotypeMatchedPanels, lift_up_model_version
+from talos.utils import read_json_from_path
 
 
 def test_lift_pmp_from_none(test_input_models_path):

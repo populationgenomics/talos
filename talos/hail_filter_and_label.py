@@ -22,7 +22,7 @@ import hail as hl
 from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
 
-from reanalysis.hail_audit import (
+from talos.hail_audit import (
     BASE_FIELDS_REQUIRED,
     FIELDS_REQUIRED,
     USELESS_FIELDS,
@@ -30,9 +30,9 @@ from reanalysis.hail_audit import (
     fields_audit,
     vep_audit,
 )
-from reanalysis.models import PanelApp
-from reanalysis.static_values import get_logger
-from reanalysis.utils import read_json_from_path
+from talos.models import PanelApp
+from talos.static_values import get_logger
+from talos.utils import read_json_from_path
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)

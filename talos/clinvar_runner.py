@@ -14,8 +14,8 @@ from cpg_utils import Path, to_path
 from cpg_utils.config import config_retrieve, image_path, reference_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
 
-from reanalysis import clinvar_by_codon, summarise_clinvar_entries
-from reanalysis.static_values import get_logger
+from talos import clinvar_by_codon, summarise_clinvar_entries
+from talos.static_values import get_logger
 
 
 def generate_clinvar_table(cloud_folder: str, clinvar_outputs: str):

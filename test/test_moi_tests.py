@@ -6,8 +6,8 @@ from unittest import mock
 
 import pytest
 
-from reanalysis.models import Coordinates, SmallVariant
-from reanalysis.moi_tests import (
+from talos.models import Coordinates, SmallVariant
+from talos.moi_tests import (
     BaseMoi,
     DominantAutosomal,
     MOIRunner,
@@ -19,7 +19,7 @@ from reanalysis.moi_tests import (
     XRecessiveMale,
     check_for_second_hit,
 )
-from reanalysis.utils import make_flexible_pedigree
+from talos.utils import make_flexible_pedigree
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

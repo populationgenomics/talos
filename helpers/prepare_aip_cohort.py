@@ -21,9 +21,9 @@ import toml
 from cpg_utils import Path, to_path
 from metamist.graphql import gql, query
 
-from reanalysis.hpo_panel_match import main as hpo_match
-from reanalysis.static_values import get_logger
-from reanalysis.utils import get_cohort_config, read_json_from_path
+from talos.hpo_panel_match import main as hpo_match
+from talos.static_values import get_logger
+from talos.utils import get_cohort_config, read_json_from_path
 
 BUCKET_TEMPLATE = 'gs://cpg-{dataset}-test-analysis/reanalysis'
 LOCAL_TEMPLATE = 'inputs/{dataset}'

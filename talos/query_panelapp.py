@@ -13,8 +13,8 @@ import zoneinfo
 
 from cpg_utils.config import config_retrieve
 
-from reanalysis.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
-from reanalysis.utils import (
+from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
+from talos.utils import (
     ORDERED_MOIS,
     find_latest_file,
     get_cohort_config,

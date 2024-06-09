@@ -16,7 +16,7 @@ import pandas as pd
 from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
 
-from reanalysis.models import (
+from talos.models import (
     PanelApp,
     PanelDetail,
     ParticipantMeta,
@@ -25,7 +25,7 @@ from reanalysis.models import (
     SmallVariant,
     StructuralVariant,
 )
-from reanalysis.utils import get_cohort_config, get_cohort_seq_type_conf, get_logger, read_json_from_path
+from talos.utils import get_cohort_config, get_cohort_seq_type_conf, get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 DATASET_CONFIG: dict = None  # type: ignore

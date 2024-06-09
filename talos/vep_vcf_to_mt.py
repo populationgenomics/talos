@@ -18,7 +18,7 @@ import hail as hl
 
 from cpg_utils.config import config_retrieve, set_config_paths
 
-from reanalysis.static_values import get_logger
+from talos.static_values import get_logger
 
 MISSING_INT = hl.int32(0)
 

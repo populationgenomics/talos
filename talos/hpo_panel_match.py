@@ -15,8 +15,8 @@ import requests
 from obonet import read_obo
 from peds import open_ped
 
-from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
-from reanalysis.static_values import get_logger
+from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
+from talos.static_values import get_logger
 
 HPO_RE = re.compile(r'HP:[0-9]+')
 MAX_DEPTH = 3

@@ -15,8 +15,8 @@ from hailtop.batch.job import BashJob, Job
 from cpg_utils.config import config_retrieve, output_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
 
-from reanalysis import hail_filter_and_label, hail_filter_sv
-from reanalysis.static_values import get_logger
+from talos import hail_filter_and_label, hail_filter_sv
+from talos.static_values import get_logger
 
 
 def get_clinvar_table(key: str = 'clinvar_decisions') -> str:

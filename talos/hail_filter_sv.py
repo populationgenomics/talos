@@ -13,10 +13,10 @@ import hail as hl
 
 from cpg_utils.config import config_retrieve
 
-from reanalysis.hail_filter_and_label import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
-from reanalysis.models import PanelApp
-from reanalysis.static_values import get_logger
-from reanalysis.utils import read_json_from_path
+from talos.hail_filter_and_label import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
+from talos.models import PanelApp
+from talos.static_values import get_logger
+from talos.utils import read_json_from_path
 
 
 def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.MatrixTable:

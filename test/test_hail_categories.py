@@ -10,7 +10,7 @@ import hail as hl
 
 from cpg_utils.config import _config_paths, get_config, set_config_paths
 
-from reanalysis.hail_filter_and_label import (
+from talos.hail_filter_and_label import (
     annotate_aip_clinvar,
     annotate_category_1,
     annotate_category_2,

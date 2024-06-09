@@ -14,7 +14,7 @@ transcript consequence, and a trio of samples.
 
 import hail as hl
 
-from reanalysis.data_model import (
+from talos.data_model import (
     BaseFields,
     Clinvar,
     Entry,

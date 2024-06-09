@@ -11,8 +11,8 @@ from abc import abstractmethod
 
 from cpg_utils.config import config_retrieve
 
-from reanalysis.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
-from reanalysis.utils import X_CHROMOSOME, CompHetDict
+from talos.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
+from talos.utils import X_CHROMOSOME, CompHetDict
 
 # config keys to use for dominant MOI tests
 CALLSET_AF_SV_DOMINANT = 'callset_af_sv_dominant'

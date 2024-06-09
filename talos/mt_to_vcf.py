@@ -28,7 +28,7 @@ import hail as hl
 from cpg_utils import to_path
 from cpg_utils.hail_batch import init_batch, output_path
 
-from reanalysis.static_values import get_logger
+from talos.static_values import get_logger
 
 CANON_CHROMS = [f'chr{chrom}' for chrom in range(1, 23)] + ['X', 'Y', 'M']
 # path for downloading GenCode GTF file

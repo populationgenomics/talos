@@ -24,7 +24,7 @@ from cpg_utils import Path as CPGPathType
 from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
 
-from reanalysis.models import (
+from talos.models import (
     VARIANT_MODELS,
     CategoryMeta,
     Coordinates,
@@ -42,7 +42,7 @@ from reanalysis.models import (
     StructuralVariant,
     lift_up_model_version,
 )
-from reanalysis.static_values import get_granular_date, get_logger
+from talos.static_values import get_granular_date, get_logger
 
 HOMREF: int = 0
 HETALT: int = 1

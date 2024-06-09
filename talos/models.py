@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 
 from cpg_utils import to_path
 
-from reanalysis.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
-from reanalysis.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
-from reanalysis.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
-from reanalysis.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
-from reanalysis.static_values import get_granular_date, get_logger
+from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
+from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
+from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
+from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
+from talos.static_values import get_granular_date, get_logger
 
 AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = AIP_CONF['categories']

@@ -19,8 +19,8 @@ CONF_BASE = INPUT / 'reanalysis_global.toml'
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE)])
 
-from reanalysis.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
-from reanalysis.utils import create_small_variant, read_json_from_path  # noqa: E402
+from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
+from talos.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
 AIP_OUTPUT = INPUT / 'aip_output_example.json'

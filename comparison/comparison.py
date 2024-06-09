@@ -28,7 +28,7 @@ import hail as hl
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch
 
-from reanalysis.hail_filter_and_label import (
+from talos.hail_filter_and_label import (
     CONFLICTING,
     LOFTEE_HC,
     PATHOGENIC,
@@ -39,9 +39,9 @@ from reanalysis.hail_filter_and_label import (
     filter_to_well_normalised,
     green_and_new_from_panelapp,
 )
-from reanalysis.models import Pedigree
-from reanalysis.static_values import get_logger
-from reanalysis.utils import canonical_contigs_from_vcf, make_flexible_pedigree, read_json_from_path
+from talos.models import Pedigree
+from talos.static_values import get_logger
+from talos.utils import canonical_contigs_from_vcf, make_flexible_pedigree, read_json_from_path
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
 SAMPLE_ALT_TEMPLATE = 'num_alt_alleles_{}'

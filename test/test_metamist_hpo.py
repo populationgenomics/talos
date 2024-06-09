@@ -6,14 +6,14 @@ import networkx as nx
 import pytest
 from obonet import read_obo
 
-from reanalysis.hpo_panel_match import (
+from talos.hpo_panel_match import (
     get_panels,
     match_hpo_terms,
     match_hpos_to_panels,
     match_participants_to_panels,
     update_hpo_with_label,
 )
-from reanalysis.models import ParticipantHPOPanels, PhenotypeMatchedPanels
+from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
 PANELAPP = 'https://fake_panelapp.agha.umccr.org/api/v1/panels/'
 
@@ -23,11 +23,7 @@ def fixture_fake_panelapp_overview(requests_mock, fake_panelapp_overview):
     """
     a new fixture to contain the panel data
     """
-    requests_mock.register_uri(
-        'GET',
-        PANELAPP,
-        json=fake_panelapp_overview,
-    )
+    requests_mock.register_uri('GET', PANELAPP, json=fake_panelapp_overview)
 
 
 def test_get_panels(fake_panelapp_overview):  # noqa: ARG001
@@ -55,18 +51,12 @@ def test_match_hpos_to_panels(fake_obo_path):
     """
     panel_map = {'HP:2': {1, 2}, 'HP:5': {5}}
     assert match_hpos_to_panels(panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}) == (
-        {
-            'HP:4': {1, 2},
-            'HP:7a': {5},
-        },
+        {'HP:4': {1, 2}, 'HP:7a': {5}},
         {'HP:4': 'Goblet of Fire', 'HP:7a': 'Deathly Hallows'},
     )
     # full depth from the terminal node should capture all panels
     assert match_hpos_to_panels(panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}) == (
-        {
-            'HP:4': {1, 2},
-            'HP:7a': {5},
-        },
+        {'HP:4': {1, 2}, 'HP:7a': {5}},
         {'HP:4': 'Goblet of Fire', 'HP:7a': 'Deathly Hallows'},
     )
 
@@ -94,12 +84,7 @@ def test_read_hpo_tree(fake_obo_path):
 
 
 def test_match_participants_to_panels():
-    """
-
-    Returns
-    -------
-
-    """
+    """ """
     party_hpo = PhenotypeMatchedPanels(
         **{
             'samples': {
@@ -118,12 +103,7 @@ def test_match_participants_to_panels():
             },
         },
     )
-    hpo_to_panels = {
-        'HP:1': {101, 102},
-        'HP:2': {2002},
-        'HP:3': {00, 1, 2},
-        'HP:6': {666},
-    }
+    hpo_to_panels = {'HP:1': {101, 102}, 'HP:2': {2002}, 'HP:3': {00, 1, 2}, 'HP:6': {666}}
     match_participants_to_panels(participant_hpos=party_hpo, hpo_panels=hpo_to_panels)
     assert party_hpo.samples['luke_skywalker'] == ParticipantHPOPanels(
         **{

@@ -31,7 +31,7 @@ from cloudpathlib import AnyPath
 
 import hail as hl
 
-from reanalysis.static_values import get_logger
+from talos.static_values import get_logger
 
 
 class CustomEncoder(json.JSONEncoder):

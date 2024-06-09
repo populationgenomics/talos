@@ -107,7 +107,7 @@ for this sample. These objects can be retrieved directly from this dictionary, a
 inheritance checks.
 
 ```python
-from reanalysis.models import SmallVariant, StructuralVariant
+from talos.models import SmallVariant, StructuralVariant
 
 _comp_het = {
     "sample": {

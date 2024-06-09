@@ -23,8 +23,8 @@
 #     run_quality_flag_check,
 # )
 #
-# from reanalysis.models import Pedigree
-# from reanalysis.utils import make_flexible_pedigree
+# from talos.models import Pedigree
+# from talos.utils import make_flexible_pedigree
 #
 #
 # def test_parse_aip(output_json):

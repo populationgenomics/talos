@@ -17,8 +17,8 @@ Also produce a second version of the same, limited to phenotype-matches
 import json
 from argparse import ArgumentParser
 
-from reanalysis.models import MiniForSeqr, MiniVariant, ResultData
-from reanalysis.static_values import get_logger
+from talos.models import MiniForSeqr, MiniVariant, ResultData
+from talos.static_values import get_logger
 
 
 def coord_to_string(coord: dict) -> str:
