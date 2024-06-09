@@ -4,8 +4,6 @@
 hail*.log
 inputs
 
-# local run files
-reanalysis/input
 
 # scratch files
 /scratch/
