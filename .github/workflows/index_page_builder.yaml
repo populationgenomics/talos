@@ -37,5 +37,5 @@ jobs:
           curl --fail --silent --show-error -X POST \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type:application/json" \
-              -d '{"output": "report_index_${{ steps.date.outputs.date }}", "dataset": "talos", "image": "australia-southeast1-docker.pkg.dev/cpg-common/images/talos:${{ VERSION }}", "accessLevel": "full", "repo": "automated-interpretation-pipeline", "commit": "${{ github.sha }}", "cwd": "helpers", "script": ["./report_hunter.py"], "description": "Locate Latest Talos Reports", "wait": false}' \
+              -d '{"output": "report_index_${{ steps.date.outputs.date }}", "dataset": "talos", "image": "australia-southeast1-docker.pkg.dev/cpg-common/images/talos:$VERSION", "accessLevel": "full", "repo": "automated-interpretation-pipeline", "commit": "${{ github.sha }}", "cwd": "helpers", "script": ["./report_hunter.py"], "description": "Locate Latest Talos Reports", "wait": false}' \
               https://server-a2pko7ameq-ts.a.run.app
