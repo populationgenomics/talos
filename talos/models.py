@@ -1,5 +1,5 @@
 """
-A home for all data models used in AIP
+A home for all data models used in Talos
 """
 
 from enum import Enum
@@ -15,8 +15,8 @@ from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date, get_logger
 
-AIP_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
-CATEGORY_DICT = AIP_CONF['categories']
+Talos_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
+CATEGORY_DICT = Talos_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 

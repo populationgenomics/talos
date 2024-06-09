@@ -1,6 +1,6 @@
 [workflow]
 dataset = "cohort"
-name = 'AIP'
+name = 'Talos'
 scatter_count = 50
 vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
 sequencing_type = 'genome'
@@ -54,7 +54,7 @@ cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workf
 picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
 samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
 hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:latest'
+aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:latest'
 
 [categories]
 1 = 'ClinVar Pathogenic'

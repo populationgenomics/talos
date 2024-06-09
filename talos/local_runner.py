@@ -2,7 +2,7 @@
 
 
 """
-Simulated local run of AIP - Hail Query using a local runtime
+Simulated local run of Talos - Hail Query using a local runtime
 Currently applies only to SV data as a minimal test case
 """
 

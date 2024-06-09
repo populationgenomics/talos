@@ -556,7 +556,7 @@ if __name__ == '__main__':
     get_logger(__file__).info('Starting MOI testing phase')
     get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
 
-    parser = ArgumentParser(description='Startup commands for the MOI testing phase of AIP')
+    parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
     parser.add_argument('--out_json', help='Prefix to write JSON results to')

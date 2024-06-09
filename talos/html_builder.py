@@ -274,7 +274,7 @@ class HTMLBuilder:
 
         (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
-        report_title = 'AIP Report (Latest Variants Only)' if latest else 'AIP Report'
+        report_title = 'Talos Report (Latest Variants Only)' if latest else 'Talos Report'
         assert isinstance(self.forbidden_genes, set)
 
         template_context = {

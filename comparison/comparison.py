@@ -1,8 +1,8 @@
 """
-compares a Seqr file against results of a previous AIP run
+compares a Seqr file against results of a previous Talos run
 
 The Seqr file is a TSV of all variants flagged as interesting
-This is designed to recognise flags in the format 'AIP training: Confidence'
+This is designed to recognise flags in the format 'Talos training: Confidence'
 
 See relevant documentation for a description of the algorithm used
 
@@ -46,24 +46,24 @@ from talos.utils import canonical_contigs_from_vcf, make_flexible_pedigree, read
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
 SAMPLE_ALT_TEMPLATE = 'num_alt_alleles_{}'
 VALID_VALUES = [
-    'AIP training: Expected',
-    'AIP training: Possible',
-    'AIP training: Unlikely',
+    'Talos training: Expected',
+    'Talos training: Possible',
+    'Talos training: Unlikely',
 ]
 
 
 class Confidence(Enum):
     """
     enumeration for possible confidence values
-    from AIP we get CERTAIN, as these are found
+    from Talos we get CERTAIN, as these are found
     from seqr dump, we use tags to determine confidence
         - where confidence means 'how confident are we that
-            AIP should be capturing this result'
+            Talos should be capturing this result'
     """
 
-    EXPECTED = 'AIP training: Expected'
-    POSSIBLE = 'AIP training: Possible'
-    UNLIKELY = 'AIP training: Unlikely'
+    EXPECTED = 'Talos training: Expected'
+    POSSIBLE = 'Talos training: Possible'
+    UNLIKELY = 'Talos training: Unlikely'
 
     def __lt__(self, other):
         return self.value < other.value
@@ -262,7 +262,7 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict) -> dict:
 
 def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDict:
     """
-    1 way comparison - find all results present in Seqr, and missing from AIP
+    1 way comparison - find all results present in Seqr, and missing from Talos
     This is a check for False Negatives
     :param aip_results:
     :param seqr_results:
@@ -278,7 +278,7 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
 
     missing_samples = seqr_samples - common_samples
     if len(missing_samples) > 0:
-        get_logger().error(f'Samples completely missing from AIP results: {", ".join(missing_samples)}')
+        get_logger().error(f'Samples completely missing from Talos results: {", ".join(missing_samples)}')
 
         # for each of those missing samples, add all variants
         for miss_sample in missing_samples:
@@ -679,7 +679,7 @@ def check_mt(
 
 def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, output: str):
     """
-    runs a full match-seeking analysis of this AIP run against the
+    runs a full match-seeking analysis of this Talos run against the
     expected variants (based on seqr training flags)
 
     :param results_folder:
@@ -691,7 +691,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     :return:
     """
 
-    # normalise data formats from AIP result file
+    # normalise data formats from Talos result file
     aip_results = common_format_aip(
         results_dict=read_json_from_path(os.path.join(results_folder, 'summary_results.json')),
     )

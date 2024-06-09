@@ -65,8 +65,8 @@
 
 - Simulated data, representing the Seqr export format
 - Contains 2 tagged variants
-  - one has multiple tags, one is AIP-relevant
-  - one has a single tag, not relevant
+    - one has multiple tags, one is Talos-relevant
+    - one has a single tag, not relevant
 
 #### single_hail.vcf.bgz
 

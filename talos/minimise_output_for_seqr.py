@@ -1,5 +1,5 @@
 """
-a script to post-process the AIP output data
+a script to post-process the Talos output data
 
 produces a minimised representation of the output data,
 containing only the data required for the SEQR app.

@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 """
-This script generates a loaded PED file for use in AIP
+This script generates a loaded PED file for use in Talos
 This headerless output file is a TSV in the format:
     Family ID
     Individual ID
@@ -97,7 +97,7 @@ def get_data_from_metamist(project: str) -> list[list[str]]:
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='Generate a PED file for AIP')
+    parser = ArgumentParser(description='Generate a PED file for Talos')
     parser.add_argument('dataset', help='The dataset to query for')
     parser.add_argument('output', help='The output file')
     args = parser.parse_args()

@@ -9,18 +9,21 @@ parts of the algorithm.
 For context there are some key data sources relevant to this comparison:
 
 1. The MatrixTable (MT) containing annotated variants:
-   - This includes all variants from a joint-call, annotated with VEP and other sources. All annotations used in
-   determining whether a variant is categorised initially will be present in this data source..
+    - This includes all variants from a joint-call, annotated with VEP and other sources. All annotations used in
+      determining whether a variant is categorised initially will be present in this data source..
 2. The Labelled Variant Call Format File (VCF):
-   - A key step of AIP is analysing the variants present in the MT, and labelling those which meet specific criteria
-   (see [relevant documentation](../design_docs/Hail_Filter_and_Label.md)). All variants selected into at least one relevant category
-   are retained, and the process outputs a VCF file. For comparison purposes, we understand that when the process works
-   correctly, all variants present in the MT and missing from the VCF were not selected as important.
+    - A key step of Talos is analysing the variants present in the MT, and labelling those which meet specific criteria
+      (see [relevant documentation](../design_docs/Hail_Filter_and_Label.md)). All variants selected into at least one
+      relevant category
+      are retained, and the process outputs a VCF file. For comparison purposes, we understand that when the process
+      works
+      correctly, all variants present in the MT and missing from the VCF were not selected as important.
 3. The final results JSON:
-   - After variants are selected and labelled, the next stage is Mode of Inheritance (MOI) testing. This takes external
-   sources of gene-specific information, and tests if the labelled variants segregate appropriately within families.
-   Variants present in the Labelled VCF and not in the final results are explained if the MOI for that specific gene did
-   not conform to the expected MOI.
+    - After variants are selected and labelled, the next stage is Mode of Inheritance (MOI) testing. This takes external
+      sources of gene-specific information, and tests if the labelled variants segregate appropriately within families.
+      Variants present in the Labelled VCF and not in the final results are explained if the MOI for that specific gene
+      did
+      not conform to the expected MOI.
 
 There are 3 key phases of this analysis where variants can 'drop-out', and identification of these will help undestand,
 and potentially resolve any discrepancies against the Truth dataset:
@@ -28,20 +31,22 @@ and potentially resolve any discrepancies against the Truth dataset:
 1. During Variant calling: it's possible that true variants were never present in the joint call
     - resolution here would be through returning to the calling pipeline, or raw data
 2. During category assignment: variants can drop out due to QC issues, or lack of relevant annotations
-   - expected variants may not be present on the panel of interest
-   - variants could fail one of the quality filters (AB ratio, Variant Caller assigned `Filters`, too common within the
-   joint-callset)
-   - annotations may not pass one of the defined categories (e.g. no VEP `HIGH` consequence anno., AF too high in
-   Gnomad/ExAC, ClinVar results are conflicting)
+    - expected variants may not be present on the panel of interest
+    - variants could fail one of the quality filters (AB ratio, Variant Caller assigned `Filters`, too common within the
+      joint-callset)
+    - annotations may not pass one of the defined categories (e.g. no VEP `HIGH` consequence anno., AF too high in
+      Gnomad/ExAC, ClinVar results are conflicting)
 3. During MOI checking: variants may be categorised, but may not fit within the PanelApp-sourced MOI
-   - e.g. a strong Het. will be excluded if the PanelApp MOI is Biallelic only
-   - variant may not segregate appropriately within the family
+    - e.g. a strong Het. will be excluded if the PanelApp MOI is Biallelic only
+    - variant may not segregate appropriately within the family
 
 ## Inputs
 
-1. Input representing the AIP results will be provided using the summary JSON format
-2. 'Truth' data will be provided using the Seqr tagged variant export table, but could be generalised (e.g. for acute-care,
-download the table from [e.g. saved variants](https://seqr.populationgenomics.org.au/project/R0011_acute_care/saved_variants))
+1. Input representing the Talos results will be provided using the summary JSON format
+2. 'Truth' data will be provided using the Seqr tagged variant export table, but could be generalised (e.g. for
+   acute-care,
+   download the table
+   from [e.g. saved variants](https://seqr.populationgenomics.org.au/project/R0011_acute_care/saved_variants))
 
 Input data from both sources will be translated into a common format:
 
@@ -60,12 +65,12 @@ results = {
 }
 ```
 
-The majority of the input files (AIP outputs, AIP labelled VCF, PanelApp data, config file, pedigree) are located
+The majority of the input files (Talos outputs, Talos labelled VCF, PanelApp data, config file, pedigree) are located
 relative to the root run folder, so running via the wrapper is simple. The 3 arguments when using the wrapper are:
 
 - Seqr Tags CSV
-- MT used as input for AIP run
-- AIP analysis folder
+- MT used as input for Talos run
+- Talos analysis folder
 
 ---
 
@@ -76,9 +81,9 @@ variant matched successfully, or not`, `is this variant in the labelled VCF, or 
 explained the searches become progressively more specific: `which element of the quality filter failed`, `which element
 of the Category 1 filter criteria was failed`.
 
-1. Parse both AIP and external results into a common format
-2. Compare AIP + Ext. data, find `True Positives` and discrepancies
-   - At this point the top-line results are logged to GCP in JSON format
+1. Parse both Talos and external results into a common format
+2. Compare Talos + Ext. data, find `True Positives` and discrepancies
+    - At this point the top-line results are logged to GCP in JSON format
 3. For each Discrepancy:
 
 ![ComparisonTree](../design_docs/images/comparison_decision_tree.png)
@@ -106,7 +111,7 @@ this will be flagged for manual review.
 
 ## Identifying Correct Participant(s)
 
-When parsing input data from both sources (Seqr, AIP JSON) there are two key elements:
+When parsing input data from both sources (Seqr, Talos JSON) there are two key elements:
 
 1. definition of the variant(s) identified
 2. sample(s) for whom each variant is thought to be causative
@@ -117,21 +122,23 @@ Part 1) is simple - a variant can be completely defined in terms of chr-pos-ref-
 to match between different datasets. We normalise the chromosome name in all cases (removing any `chr` prefix, and
 making contig names UPPERcase).
 
-Part 2) is trickier; AIP results are heirarchically organised by sample, with variants which could be causing their
+Part 2) is trickier; Talos results are heirarchically organised by sample, with variants which could be causing their
 phenotype nested under sample ID. Seqr results don't have this heirarchical logic, with each row in the TSV containing
 all samples and corresponding genotypes.
 
 To handle this situation appropriately, we use the following approach:
 
-- Parse AIP data, creating a sample ID-indexed list of all variants
+- Parse Talos data, creating a sample ID-indexed list of all variants
 - Parse Pedigree, finding all affected individuals across all families
 - Parse Seqr table:
-  - Create an object representation of each variant
-  - Find all affected samples on the row with a non-WT genotype
-  - Append the variant to each affected sample's list
+    - Create an object representation of each variant
+    - Find all affected samples on the row with a non-WT genotype
+    - Append the variant to each affected sample's list
 
-During an AIP run, for each categorised variant, we assess whether the MOI fits for each affected person with a variant
-at that site. This means the AIP output can contain each passing variant for each affected participant separately. As an
+During an Talos run, for each categorised variant, we assess whether the MOI fits for each affected person with a
+variant
+at that site. This means the Talos output can contain each passing variant for each affected participant separately. As
+an
 equivalent, we apply each variant from a seqr row to every affected sample.
 
 The worst case scenario is that this approach adds a few extra discrepancies, but this output is for manual review, and

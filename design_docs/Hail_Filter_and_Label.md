@@ -133,7 +133,7 @@ To make downstream operations easier, the different categories are grouped into 
 
 ### USP - ACMG PM5
 
-The latest Category included into AIP is _CategoryDetailsPM5_, which is used to determine whether the ACMG/AMP 2015
+The latest Category included into Talos is _CategoryDetailsPM5_, which is used to determine whether the ACMG/AMP 2015
 variant interpretation framework evidence type is suitable. This evidence is applied when a novel missense change
 creates a residue substitution at the same codon as a previously seen missense classified as Pathogenic in ClinVar.
 

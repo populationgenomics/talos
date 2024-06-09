@@ -527,7 +527,7 @@ def main(subs: str, variants: str, output_root: str):
         # assess stars in remaining entries
         stars = check_stars(filtered_submissions)
 
-        # for now, skip over variants which are not relevant to AIP
+        # for now, skip over variants which are not relevant to Talos
         if rating in [Consequence.UNCERTAIN, Consequence.UNKNOWN]:
             continue
 

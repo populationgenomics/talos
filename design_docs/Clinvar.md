@@ -21,7 +21,8 @@ Whilst this is accurate, it obfuscates the bias towards pathogenicity present in
 annotate a dataset with ClinVar consequences, all we have is this top-line decision, meaning that we are unable to flag
 such variants for more manual scrutiny.
 
-The role of AIP is not to make clinical decisions, but to identify variants of interest for further review by analysts.
+The role of Talos is not to make clinical decisions, but to identify variants of interest for further review by
+analysts.
 In this setting we want to flag variants where manual review of the submissions could signal a variant is worth
 consideration, even if it doesn't appear pathogenic within the strict aggregation logic of ClinVar. To this end we
 created a manual re-curation of ClinVar which:
@@ -72,7 +73,7 @@ Table, indexed on Locus and Alleles, ready to be used in annotation within Hail.
 
 The script [clinvar_runner.py](../reanalysis/clinvar_runner.py) automates the regeneration of the re-summarised ClinVar
 data table, as well as the PM5 annotations as described in[Hail_Filter_and_Label.md](Hail_Filter_and_Label.md#usp). This
-sets up a workflow which is designed to run independently of an AIP run, generating and saving all the annotation
+sets up a workflow which is designed to run independently of an Talos run, generating and saving all the annotation
 sources:
 
 ```commandline
@@ -104,9 +105,11 @@ The second is the PM5 data in the following format:
 | ENSP12345::123   | AlleleID::#Stars                  |
 | ENSP12345::678   | AlleleID::#Stars+AlleleID::#Stars |
 
-The outputs of this process are all written into `cpg-common-<main/test>-analysis/clinvar_aip/YY-MM`, and a new round of
-creation is triggered on the first day of each month. When AIP runs, the annotation Tables are collected from the latest
-communal directory, and incorporated into the AIP results.
+The outputs of this process are all written into `cpg-common-<main/test>-analysis/clinvar_talos/YY-MM`, and a new round
+of
+creation is triggered on the first day of each month. When Talos runs, the annotation Tables are collected from the
+latest
+communal directory, and incorporated into the Talos results.
 
 ## Automation
 

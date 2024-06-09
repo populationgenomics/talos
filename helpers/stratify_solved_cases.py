@@ -2,7 +2,7 @@
 
 """
 this will take a file containing family IDs where we know the case
-is solved, so it should be removed from future AIP consideration
+is solved, so it should be removed from future Talos consideration
 
 This is provided as an aggregate across a number of projects, and needs
 to be digested down to a per-project object

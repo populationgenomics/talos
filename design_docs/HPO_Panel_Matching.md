@@ -7,7 +7,7 @@ analysed cohorts. The steps of this process are:
 2. Querying PanelApp for all panels which have associated HPO terms
 3. Digest HPO tree file [current source is hp.obo](https://hpo.jax.org/app/download/ontology) into a query-able format
 4. Match between cohort HPO terms and HPO terms in PanelApp to find a group of panels relevant to each individual
-5. Exporting this data in a format which can be used in AIP
+5. Exporting this data in a format which can be used in Talos
 
 ## PanelApp Querying
 

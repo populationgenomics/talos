@@ -88,7 +88,7 @@ def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
     return None
 
 
-def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str | None) -> hl.MatrixTable:
+def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str | None) -> hl.MatrixTable:
     """
     instead of making a separate decision about whether the clinvar
     annotation(s) are meaningful during each test, add a single value
@@ -143,7 +143,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str | None) -> hl.MatrixTa
     # annotate as either strong or regular
     return mt.annotate_rows(
         info=mt.info.annotate(
-            clinvar_aip=hl.if_else(
+            clinvar_talos=hl.if_else(
                 (
                     (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
                     & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
@@ -151,7 +151,7 @@ def annotate_aip_clinvar(mt: hl.MatrixTable, clinvar: str | None) -> hl.MatrixTa
                 ONE_INT,
                 MISSING_INT,
             ),
-            clinvar_aip_strong=hl.if_else(
+            clinvar_talos_strong=hl.if_else(
                 (
                     (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
                     & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
@@ -287,7 +287,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
         MT with all filtered variants removed
     """
 
-    return mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0) | (mt.info.clinvar_aip == ONE_INT))
+    return mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0) | (mt.info.clinvar_talos == ONE_INT))
 
 
 def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -358,7 +358,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     min_callset_ac = 5
     return mt.filter_rows(
-        ((mt.AC <= min_callset_ac) | (mt.AC / mt.AN < ac_threshold)) | (mt.info.clinvar_aip == ONE_INT)
+        ((mt.AC <= min_callset_ac) | (mt.AC / mt.AN < ac_threshold)) | (mt.info.clinvar_talos == ONE_INT)
     )
 
 
@@ -373,7 +373,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     rare_af_threshold = config_retrieve(['filter', 'af_semi_rare'])
     return mt.filter_rows(
         ((mt.info.gnomad_ex_af < rare_af_threshold) & (mt.info.gnomad_af < rare_af_threshold))
-        | (mt.info.clinvar_aip == ONE_INT),
+        | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -439,7 +439,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
 def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Applies the boolean Category1 annotation
-     - clinvar_aip_strong flag, as set in annotate_aip_clinvar
+     - clinvar_talos_strong flag, as set in annotate_aip_clinvar
      - represents non-conflicting clinvar pathogenic/likely path
 
     Args:
@@ -450,7 +450,7 @@ def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolean1=hl.if_else(mt.info.clinvar_aip_strong == ONE_INT, ONE_INT, MISSING_INT),
+            categoryboolean1=hl.if_else(mt.info.clinvar_talos_strong == ONE_INT, ONE_INT, MISSING_INT),
         ),
     )
 
@@ -525,7 +525,7 @@ def annotate_category_2(mt: hl.MatrixTable, new_genes: hl.SetExpression | None) 
                         )
                         > 0
                     )
-                    | (mt.info.clinvar_aip == ONE_INT)
+                    | (mt.info.clinvar_talos == ONE_INT)
                     | (mt.info.categoryboolean6 == ONE_INT)
                 ),
                 ONE_INT,
@@ -574,7 +574,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
                         )
                         > 0
                     )
-                    | (mt.info.clinvar_aip == ONE_INT)
+                    | (mt.info.clinvar_talos == ONE_INT)
                 ),
                 ONE_INT,
                 MISSING_INT,
@@ -925,7 +925,7 @@ def main(
 
     # filter out quality failures
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_aip_clinvar(mt=mt, clinvar=clinvar)
+    mt = annotate_talos_clinvar(mt=mt, clinvar=clinvar)
 
     # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)

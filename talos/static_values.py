@@ -23,7 +23,7 @@ def get_granular_date():
 
 
 def get_logger(
-    logger_name: str = 'AIP-logger',
+    logger_name: str = 'Talos-logger',
     log_level: int = logging.INFO,
     file_out: str | None = None,
 ) -> logging.Logger:

@@ -100,7 +100,7 @@ def extract_and_split_csq_string(vcf_path: str) -> list[str]:
 
 def implant_detailed_af(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    VEP by default doesn't provide the AF granularity AIP is built on
+    VEP by default doesn't provide the AF granularity Talos is built on
     so substitute the general gnomad exome/genome AF as all separate categories
     and something similar for SpliceAI, which we are getting from a separate source
 

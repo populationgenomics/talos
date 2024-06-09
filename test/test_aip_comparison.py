@@ -1,5 +1,5 @@
 # """
-# test class for AIP comparisons
+# test class for Talos comparisons
 # """
 #
 # import logging
@@ -29,7 +29,7 @@
 #
 # def test_parse_aip(output_json):
 #     """
-#     tests that the AIP output JSON is parsed correctly
+#     tests that the Talos output JSON is parsed correctly
 #     """
 #
 #     parsed_result = common_format_aip(output_json)
@@ -89,7 +89,7 @@
 # def test_seqr_parser(seqr_csv_output):
 #     """
 #     First variant is 17:10697288 G>A & tagged as Possible
-#     Second variant does not have an AIP training tag, so should be ignored
+#     Second variant does not have an Talos training tag, so should be ignored
 #     :param seqr_csv_output:
 #     :return:
 #     """
@@ -108,7 +108,7 @@
 # def test_find_missing_matched(caplog):
 #     """
 #     trial the comparison process, check logged results
-#     one matching variant, and one bonus AIP result
+#     one matching variant, and one bonus Talos result
 #     :param caplog:
 #     :return:
 #     """
@@ -176,7 +176,7 @@
 #     assert len(discrep) == 1
 #     assert len(discrep['match']) == 1
 #     log_records = [rec.message for rec in caplog.records]
-#     assert 'Samples completely missing from AIP results: match' in log_records
+#     assert 'Samples completely missing from Talos results: match' in log_records
 #     assert 'Sample match: 1 missing variant(s)' in log_records
 #
 #
@@ -301,7 +301,7 @@
 #     required fields: alleles, AC, AN
 #     """
 #     anno_mt = make_a_mt.annotate_rows(AC=ac, AN=an)
-#     anno_mt = anno_mt.annotate_rows(info=anno_mt.info.annotate(clinvar_aip=clinvar))
+#     anno_mt = anno_mt.annotate_rows(info=anno_mt.info.annotate(clinvar_talos=clinvar))
 #     assert run_ac_check(anno_mt) == results
 #
 #
@@ -325,7 +325,7 @@
 #     """
 #     if filters is None:
 #         filters = hl.empty_set(t=hl.tstr)
-#     anno_mt = make_a_mt.annotate_rows(filters=filters, info=make_a_mt.info.annotate(clinvar_aip=clinvar))
+#     anno_mt = make_a_mt.annotate_rows(filters=filters, info=make_a_mt.info.annotate(clinvar_talos=clinvar))
 #     assert run_quality_flag_check(anno_mt) == results
 #
 #
