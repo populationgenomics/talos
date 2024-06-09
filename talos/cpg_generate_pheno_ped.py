@@ -40,8 +40,6 @@ query MyQuery($project: String!) {
 }""",
 )
 
-# result = query(PARTICIPANT_QUERY, variables={'project': dataset})
-
 
 def get_data_from_metamist(project: str) -> list[list[str]]:
     """

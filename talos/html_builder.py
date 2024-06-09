@@ -19,6 +19,7 @@ from cpg_utils.config import config_retrieve
 from talos.models import (
     PanelApp,
     PanelDetail,
+    PanelShort,
     ParticipantMeta,
     ReportVariant,
     ResultData,
@@ -129,7 +130,7 @@ class HTMLBuilder:
 
         # pull out forced panel matches
         cohort_panels = DATASET_CONFIG.get('cohort_panels', [])  # type: ignore
-        self.forced_panels = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
+        self.forced_panels: list[PanelShort] = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
         self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
         # Process samples and variants
