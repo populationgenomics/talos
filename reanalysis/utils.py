@@ -759,7 +759,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
     csq_categories = config_retrieve(['csq', 'csq_string'])
 
     # iterate over all consequences, and make each into a dict
-    txc_dict = [dict(zip(csq_categories, each_csq.split('|'))) for each_csq in csq_contents.split(',')]
+    txc_dict = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
 
     # update this String to be either a float, or missing
     for each_dict in txc_dict:
