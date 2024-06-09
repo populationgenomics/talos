@@ -30,7 +30,6 @@ from talos.models import FileTypes
 from talos.static_values import get_granular_date, get_logger
 from talos.utils import identify_file_type
 
-# region: CONSTANTS
 # exact time that this run occurred
 EXECUTION_TIME = f'{datetime.now():%Y-%m-%d_%H:%M}'
 
@@ -41,7 +40,6 @@ HAIL_SV_VCF_OUT = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
 INPUT_AS_VCF = output_path('prior_to_annotation.vcf.bgz', 'analysis')
 SITES_ONLY = output_path('sitesonly.vcf.bgz', 'tmp')
 PANELAPP_JSON_OUT = output_path('panelapp_data.json', 'analysis')
-# endregion
 
 
 def set_job_resources(job: Job, prior_job: Job | None = None, memory: str = 'standard', storage: str = '20Gi'):
