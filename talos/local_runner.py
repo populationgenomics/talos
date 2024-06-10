@@ -10,6 +10,8 @@ import os
 from argparse import ArgumentParser
 from datetime import datetime
 
+from cloudpathlib.anypath import to_anypath
+
 from hailtop.batch.job import BashJob, Job
 
 from cpg_utils.config import config_retrieve, output_path
@@ -80,6 +82,10 @@ def pedigree_job(pedigree_in_gcp: str):
     Returns:
         the pedigree file in the batch
     """
+    if to_anypath(pedigree_in_gcp).exists():
+        get_logger().info(f'Pedigree already exists at {pedigree_in_gcp}, skipping')
+        return get_batch().read_input(pedigree_in_gcp)
+
     new_job = get_batch().new_bash_job('Pedigree Generation')
     new_job.image(config_retrieve(['workflow', 'driver_image']))
     authenticate_cloud_credentials_in_job(new_job)
@@ -100,6 +106,10 @@ def hpo_panel_job(ped_in_gcp: str, panel_file: str):
     Returns:
 
     """
+    if to_anypath(panel_file).exists():
+        get_logger().info(f'Panel file already exists at {panel_file}, skipping')
+        return get_batch().read_input(panel_file)
+
     hpo_file = get_batch().read_input(config_retrieve(['workflow', 'obo_file']))
     hpo_job = get_batch().new_bash_job('Panel Matching')
     hpo_job.image(config_retrieve(['workflow', 'driver_image']))
@@ -119,6 +129,11 @@ def panelapp_query_job(panel_file: str, panelapp_out: str):
     Returns:
 
     """
+
+    if to_anypath(panelapp_out).exists():
+        get_logger().info(f'PanelApp data already exists at {panelapp_out}, skipping')
+        return get_batch().read_input(panelapp_out)
+
     panelapp_job = get_batch().new_bash_job('Panel Matching')
     panelapp_job.image(config_retrieve(['workflow', 'driver_image']))
     authenticate_cloud_credentials_in_job(panelapp_job)
@@ -132,8 +147,22 @@ def panelapp_query_job(panel_file: str, panelapp_out: str):
     return panelapp_job.output
 
 
-def sort_out_sv(sv_path: str, panelapp: str, pedigree: str):
-    sv_vcf_out = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
+def sort_out_sv(sv_path: str, panelapp: str, pedigree: str, sv_vcf_out: str):
+    """
+    generate a VCF from the SV data
+
+    Args:
+        sv_path ():
+        panelapp ():
+        pedigree ():
+        sv_vcf_out ():
+
+    Returns:
+
+    """
+    if to_anypath(sv_vcf_out).exists():
+        get_logger().info(f'SV VCF already exists at {sv_vcf_out}, skipping')
+        return get_batch().read_input_group(**{'vcf.bgz': sv_vcf_out, 'vcf.bgz.tbi': sv_vcf_out + '.tbi'})
 
     sv_job = get_batch().new_job('Local SV Filtering')
     set_job_resources(sv_job, cpu=2, memory='highmem')
@@ -157,7 +186,7 @@ def sort_out_sv(sv_path: str, panelapp: str, pedigree: str):
     return sv_job.output
 
 
-def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
+def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str, small_vcf_out):
     """
     run the small variant classification and filtering on a local MT
     this needs the relevant ClinVar tables to be copied in
@@ -166,8 +195,12 @@ def sort_out_smalls(mt_path: str, panelapp: str, pedigree: str):
         mt_path ():
         panelapp ():
         pedigree ():
+        small_vcf_out ():
     """
-    small_vcf_out = output_path('hail_small_categorised.vcf.bgz', 'analysis')
+
+    if to_anypath(small_vcf_out).exists():
+        get_logger().info(f'Small VCF already exists at {small_vcf_out}, skipping')
+        return get_batch().read_input_group(**{'vcf.bgz': small_vcf_out, 'vcf.bgz.tbi': small_vcf_out + '.tbi'})
 
     small_job = get_batch().new_job('Local Small Variant Filtering')
     set_job_resources(
@@ -226,13 +259,17 @@ def run_moi_tests(small_vcf, sv_vcf, json_results, panels, pedigree, party_panel
         pedigree ():
         party_panels ():
     """
+    if to_anypath(json_results).exists():
+        get_logger().info(f'Results already exists at {json_results}, skipping')
+        return get_batch().read_input(json_results)
+
     moi_job = get_batch().new_job('MOI Tests')
     set_job_resources(moi_job, memory='standard')
 
     moi_job.command(
         f'python3 {validate_categories.__file__} '
-        f'--labelled_vcf {small_vcf} '
-        f'--labelled_sv {sv_vcf} '
+        f'--labelled_vcf {small_vcf["vcf.bgz"]} '
+        f'--labelled_sv {sv_vcf["vcf.bgz"]} '
         f'--out_json {moi_job.output} '
         f'--panelapp {panels} '
         f'--pedigree {pedigree} '
@@ -295,10 +332,12 @@ if __name__ == '__main__':
     panelapp_json = panelapp_query_job(panel_file, panelapp_data)
 
     # SVs in Hail
-    sv_vcf = sort_out_sv(args.sv, panelapp_json, ped_in_batch)
+    sv_vcf_out = output_path('hail_SV_categorised.vcf.bgz', 'analysis')
+    sv_vcf = sort_out_sv(args.sv, panelapp_json, ped_in_batch, sv_vcf_out)
 
     # small variants in Hail
-    small_vcf = sort_out_smalls(args.i, panelapp_json, ped_in_batch)
+    small_vcf_out = output_path('hail_small_categorised.vcf.bgz', 'analysis')
+    small_vcf = sort_out_smalls(args.i, panelapp_json, ped_in_batch, small_vcf_out)
 
     # results
     results_json = output_path('results.json', 'analysis')
