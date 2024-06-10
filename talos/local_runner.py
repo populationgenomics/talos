@@ -102,7 +102,7 @@ def hpo_panel_job(ped_in_gcp: str, panel_file: str):
     hpo_job = get_batch().new_bash_job('Panel Matching')
     hpo_job.image(config_retrieve(['workflow', 'driver_image']))
     authenticate_cloud_credentials_in_job(hpo_job)
-    hpo_job.command(f'{hpo_panel_match.__file__} -i {ped_in_gcp} --hpo {hpo_file} --out {hpo_job.output}')
+    hpo_job.command(f'python3 {hpo_panel_match.__file__} -i {ped_in_gcp} --hpo {hpo_file} --out {hpo_job.output}')
     get_batch().write_output(hpo_job.output, panel_file)
     return hpo_job.output
 
@@ -121,7 +121,7 @@ def panelapp_query_job(panel_file: str, panelapp_out: str):
     panelapp_job.image(config_retrieve(['workflow', 'driver_image']))
     authenticate_cloud_credentials_in_job(panelapp_job)
     panelapp_job.command(
-        f'{query_panelapp.__file__} '
+        f'python3 {query_panelapp.__file__} '
         f'--panels {panel_file} '
         f'--out_path {panelapp_job.output} '
         f'--dataset {config_retrieve(["workflow", "dataset"])}'
@@ -278,7 +278,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-i', help='Small variant data to analyse', required=True)
     parser.add_argument('-sv', help='SV data to analyse', required=False)
-    parser.add_argument('--panels', help='PanelApp Results!')
     args = parser.parse_args()
 
     # get pedigree
