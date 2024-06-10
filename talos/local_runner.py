@@ -83,7 +83,9 @@ def pedigree_job(pedigree_in_gcp: str):
     new_job = get_batch().new_bash_job('Pedigree Generation')
     new_job.image(config_retrieve(['workflow', 'driver_image']))
     authenticate_cloud_credentials_in_job(new_job)
-    new_job.command(f'{cpg_generate_pheno_ped.__file__} {config_retrieve(["workflow", "dataset"])} {new_job.output}')
+    new_job.command(
+        f'python3 {cpg_generate_pheno_ped.__file__} {config_retrieve(["workflow", "dataset"])} {new_job.output}'
+    )
     get_batch().write_output(new_job.output, pedigree_in_gcp)
     return new_job.output
 
