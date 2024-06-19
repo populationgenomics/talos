@@ -14,15 +14,7 @@ transcript consequence, and a trio of samples.
 
 import hail as hl
 
-from talos.data_model import (
-    BaseFields,
-    Clinvar,
-    Entry,
-    SneakyTable,
-    Splice,
-    TXFields,
-    VepVariant,
-)
+from talos.data_model import BaseFields, Clinvar, Entry, SneakyTable, Splice, TXFields, VepVariant
 
 # region: 2 vars, no tx, phased trio, boring
 # dull example, single tx consequence, all default values, i.e. only gene symbol & ID
