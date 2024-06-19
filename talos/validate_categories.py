@@ -554,6 +554,17 @@ def main(
 
 if __name__ == '__main__':
     get_logger(__file__).info('Starting MOI testing phase')
+    get_logger(__file__).info(
+        r"""Welcome To
+ ███████████   █████████   █████          ███████     █████████
+ █   ███   █  ███     ███   ███         ███     ███  ███     ███
+     ███      ███     ███   ███        ███       ███ ███
+     ███      ███████████   ███        ███       ███  █████████
+     ███      ███     ███   ███        ███       ███         ███
+     ███      ███     ███   ███      █  ███     ███  ███     ███
+    █████    █████   █████ ███████████    ███████     █████████
+        """,
+    )
     get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
 
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')

@@ -191,6 +191,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logger = get_logger(__file__)
-    logger.info('Running Hail filtering process for SVs')
+    logger.info(
+        r"""Welcome To
+ ███████████   █████████   █████          ███████     █████████
+ █   ███   █  ███     ███   ███         ███     ███  ███     ███
+     ███      ███     ███   ███        ███       ███ ███
+     ███      ███████████   ███        ███       ███  █████████
+     ███      ███     ███   ███        ███       ███         ███
+     ███      ███     ███   ███      █  ███     ███  ███     ███
+    █████    █████   █████ ███████████    ███████     █████████
+        (SV style)
+        """,
+    )
 
     main(mt_path=args.mt, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.vcf_out)

@@ -991,6 +991,17 @@ if __name__ == '__main__':
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
 
     args = parser.parse_args()
+    get_logger(__file__).info(
+        r"""Welcome To
+ ███████████   █████████   █████          ███████     █████████
+ █   ███   █  ███     ███   ███         ███     ███  ███     ███
+     ███      ███     ███   ███        ███       ███ ███
+     ███      ███████████   ███        ███       ███  █████████
+     ███      ███     ███   ███        ███       ███         ███
+     ███      ███     ███   ███      █  ███     ███  ███     ███
+    █████    █████   █████ ███████████    ███████     █████████
+        """,
+    )
     main(
         mt_path=args.mt,
         panel_data=args.panelapp,
