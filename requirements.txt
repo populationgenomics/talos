@@ -4,18 +4,13 @@ cloudpathlib[all]>=0.16.0
 cpg-utils>=5.0.5
 cyvcf2>=0.30.18
 dill>=0.3.7
-gql
-# hail version can't exceed the CPG version
-# or QoB will fail to find JAR files
 hail>=0.2.126
 Jinja2>=3.1.3
-metamist>=6.5.0
 networkx>=3
 obonet>=1
 pandas>=2
 peds>=1.2.0
 pydantic>=2.5.2
 requests>=2.31.0
-seqr-loader>=1.2.5
 tabulate>=0.8.9
 toml==0.10.2

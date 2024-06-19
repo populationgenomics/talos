@@ -1,5 +1,5 @@
 """
-automated installation instructions
+setup.py for the talos package
 """
 
 from setuptools import find_packages, setup
@@ -12,6 +12,7 @@ def read_reqs(filename: str) -> list[str]:
     """
     Read requirements from a file, return as a list
 
+
     Args:
         filename (str): the requirements file to parse
 
@@ -23,8 +24,8 @@ def read_reqs(filename: str) -> list[str]:
 
 
 setup(
-    name='Talos',
-    description='CPG Variant Prioritisation',
+    name='talos',
+    description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
     version='4.0.0',
     author='Matthew Welland, CPG',
@@ -49,5 +50,6 @@ setup(
     install_requires=read_reqs('requirements.txt'),
     extras_require={
         'test': read_reqs('requirements-dev.txt'),
+        'cpg': read_reqs('requirements-cpg.txt'),
     },
 )

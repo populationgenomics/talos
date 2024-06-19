@@ -1,0 +1,3 @@
+gql
+metamist>=6.5.0
+seqr-loader>=1.2.5
