@@ -1,7 +1,5 @@
 [workflow]
 name = 'Talos'
-scatter_count = 50
-vcf_size_in_gb = 50  # if the input is a VCF, specify enough storage to fit it
 # sequencing_type = 'genome' or 'exome'
 
 # optionally allow for running a different HTML script
