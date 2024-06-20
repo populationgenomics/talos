@@ -4,9 +4,11 @@
 relevant_fields = ["am_class", "am_pathogenicity", "biotype", "cdna_position", "cds_position", "consequence", "ensp", "exon", "feature", "feature_type", "gene", "gnomade_af", "gnomadg_af", "hgvsc", "hgvsp", "lof", "mane_select", "mane_plus_clinical", "polyphen", "protein_position", "sift", "symbol", "variant_class", ]
 
 [vcf2mt.type_updates.am_pathogenicity]
+insert = false
 type = "float"
 
 [vcf2mt.type_updates.am_class]
+insert = false
 type = "string"
 
 [vcf2mt.type_updates.biotype]

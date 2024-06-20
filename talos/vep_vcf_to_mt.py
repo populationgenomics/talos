@@ -30,6 +30,38 @@ HAIL_TYPES = {
 }
 
 
+def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Take the list of CSQ strings, split the CSQ annotation and re-organise as a hl struct
+
+    Args:
+        csq_strings (list[str]): a list of strings, each representing a CSQ entry
+        mt (hl.MatrixTable): the MatrixTable to annotate
+
+    Returns:
+        a MatrixTable with the VEP annotations re-arranged
+    """
+
+    # get the CSQ contents as a list of lists of strings, per variant
+    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))
+
+    # generate a struct limited to the fields of interest
+    # use a couple of accessory methods to re-map the names and types for compatibility
+    return mt.annotate_rows(
+        vep=hl.struct(
+            transcript_consequences=split_csqs.map(
+                lambda x: hl.struct(
+                    **{
+                        remap_name(csq_strings[n]): remap_type(csq_strings[n], x[n])
+                        for n in range(len(csq_strings))
+                        if csq_strings[n] in config_retrieve(['vcf2mt', 'relevant_fields'])
+                    },
+                ),
+            ),
+        ),
+    )
+
+
 def remap_name(input_name: str) -> str:
     """
     take the current variable name, consider re-coding it
@@ -142,36 +174,50 @@ def insert_spliceai_annotation(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(splice_ai=hl.struct(delta_score=hl.float64(0), splice_consequence=hl.str('')))
 
 
-def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) -> hl.MatrixTable:
+def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = None) -> hl.MatrixTable:
     """
-    Take the list of CSQ strings, split the CSQ annotation and re-organise as a hl struct
 
     Args:
-        csq_strings (list[str]): a list of strings, each representing a CSQ entry
-        mt (hl.MatrixTable): the MatrixTable to annotate
-
-    Returns:
-        a MatrixTable with the VEP annotations re-arranged
+        mt ():
+        am_table (str | None):
     """
 
-    # get the CSQ contents as a list of lists of strings, per variant
-    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))
+    # check if am is missing
+    fields_and_types = dict(mt.vep.transcript_consequences[0].items())
+    if 'am_class' in fields_and_types:
+        get_logger().info('am_class already present, skipping')
+        return mt
 
-    # generate a struct limited to the fields of interest
-    # use a couple of accessory methods to re-map the names and types for compatibility
-    return mt.annotate_rows(
-        vep=hl.struct(
-            transcript_consequences=split_csqs.map(
-                lambda x: hl.struct(
-                    **{
-                        remap_name(csq_strings[n]): remap_type(csq_strings[n], x[n])
-                        for n in range(len(csq_strings))
-                        if csq_strings[n] in config_retrieve(['vcf2mt', 'relevant_fields'])
-                    },
+    get_logger().info(f'Reading AM annotations from {am_table} and applying to MT')
+
+    if am_table is None:
+        get_logger().error('AM annotations table is not present, and AM annotations are not in the VCF. Please create')
+
+    # read in the hail table containing alpha missense annotations
+    am_ht = hl.read_table(am_table)
+
+    # gross - this needs a conditional application based on the specific transcript
+    mt = mt.annotate_rows(
+        vep=mt.vep.annotate(
+            transcript_consequences=hl.map(
+                lambda x: x.annotate(
+                    am_class=hl.if_else(
+                        x.feature == am_ht[mt.row_key].transcript,
+                        am_ht[mt.row_key].am_class,
+                        hl.str(''),
+                    ),
+                    am_pathogenicity=hl.if_else(
+                        x.feature == am_ht[mt.row_key].transcript,
+                        am_ht[mt.row_key].am_pathogenicity,
+                        hl.float64(0),
+                    ),
                 ),
-            ),
-        ),
+                mt.vep.transcript_consequences,
+            )
+        )
     )
+
+    return mt
 
 
 def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -191,6 +237,7 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
             # a couple of special cases - don't insert if the field is marked as 'insert: False'
             # these are where we renamed the native VEP fields to the Broad schema, we don't want to also
             # insert the old one with a naff default value
+            # alpha missense scores are too core to the category reasoning - we annotate instead of using blank values
             if not fieldtype.get('insert', True):
                 continue
 
@@ -212,12 +259,16 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(input_vcf: str, output_mt: str):
+def main(input_vcf: str, output_mt: str, alpha_missense: str | None = None):
     """
+    take an input VCF and an output MT path
+    optionally, also supply the alpha_missense table created by helpers/parse_amissense_int_ht.py
+    if AlphaMissense annotations aren't already present in the VCF, this will annotate them in
 
     Args:
         input_vcf ():
         output_mt ():
+        alpha_missense (str | None): either a path to a Hail Table of AlphaMissense annotations
     """
 
     # pull and split the CSQ header line
@@ -232,8 +283,11 @@ def main(input_vcf: str, output_mt: str):
     # re-shuffle the CSQ elements
     mt = csq_strings_into_hail_structs(vep_header_elements, mt)
 
-    # insert super detailed AF structure
+    # insert super detailed AF structure - no reannotation, just re-organisation
     mt = implant_detailed_af(mt)
+
+    # if we need alphamissense scores to be added, add them
+    mt = insert_am_annotations_if_missing(mt, am_table=alpha_missense)
 
     # check if all required annotations are present - insert if absent
     mt = insert_missing_annotations(mt)
@@ -243,6 +297,7 @@ def main(input_vcf: str, output_mt: str):
         mt = insert_spliceai_annotation(mt)
 
     # audit all required annotations?
+    mt.describe()
 
     mt.write(output_mt)
 
@@ -251,6 +306,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='Takes a VEP annotated VCF and makes it a MT')
     parser.add_argument('vcf', help='Path to the annotated VCF')
     parser.add_argument('output', help='output MatrixTable path')
+    parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', default=None)
     args, unknown = parser.parse_known_args()
     if unknown:
         raise ValueError(f'Whats the deal with {unknown}?')
@@ -261,4 +317,4 @@ if __name__ == '__main__':
     hl.init()
     hl.default_reference('GRCh38')
 
-    main(args.vcf, args.output)
+    main(args.vcf, args.output, alpha_missense=args.am)

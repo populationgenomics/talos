@@ -41,11 +41,9 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
     Args:
         input_file ():
         intermediate_file ():
-
-    Returns:
-
     """
-    headers = ['chrom', 'pos', 'reference', 'alternate', 'score', 'prediction']
+
+    headers = ['chrom', 'pos', 'ref', 'alt', 'transcript', 'am_pathogenicity', 'am_class']
     with gzip.open(input_file, 'rt') as read_handle:
         with gzip.open(intermediate_file, 'wt') as write_handle:
             write_handle.write('\t'.join(headers) + '\n')
@@ -64,8 +62,9 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
                     content[1],  # position
                     content[2],  # ref
                     content[3],  # alt
-                    content[8],  # score
-                    content[9],  # prediction
+                    content[6].split('.')[0],  # transcript, with version decimal removed
+                    content[8],  # am_pathogenicity
+                    content[9],  # am_class
                 ]
 
                 write_handle.write('\t'.join(new_content) + '\n')
@@ -83,10 +82,10 @@ def hail_table_from_tsv(tsv_file: str, new_ht: str):
     # import as a hail table, force=True as this isn't Block-Zipped so all read on one core
     # not too bad, it's a small table.
     # We also provide some data types for non-string columns
-    ht = hl.import_table(tsv_file, types={'score': hl.tfloat64, 'pos': hl.tint32}, force=True)
+    ht = hl.import_table(tsv_file, types={'am_pathogenicity': hl.tfloat64, 'pos': hl.tint32}, force=True)
 
     # combine the two alleles into a single list
-    ht = ht.transmute(locus=hl.locus(contig=ht.chrom, pos=ht.pos), alleles=[ht.reference, ht.alternate])
+    ht = ht.transmute(locus=hl.locus(contig=ht.chrom, pos=ht.pos), alleles=[ht.ref, ht.alt])
     ht = ht.key_by('locus', 'alleles')
     ht.write(new_ht)
 
