@@ -41,6 +41,12 @@ KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 
 
+class NoVariantsFoundException(Exception):
+    """raise if a report subset contains no data"""
+
+    pass
+
+
 @dataclass
 class DataTable:
     """
@@ -113,10 +119,9 @@ class HTMLBuilder:
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        self.ext_labels: dict[str, dict] = read_json_from_path(  # type: ignore
-            DATASET_SEQ_CONFIG.get('external_labels'),
-            {},  # type: ignore
-        )
+        ext_labels = read_json_from_path(DATASET_SEQ_CONFIG.get('external_labels'), {})
+        assert isinstance(ext_labels, dict)
+        self.ext_labels: dict[str, dict] = ext_labels
 
         # Read results file, or take it directly
         if isinstance(results, str):
@@ -152,9 +157,7 @@ class HTMLBuilder:
             )
         self.samples.sort(key=lambda x: x.ext_id)
 
-    def get_summary_stats(
-        self,
-    ) -> tuple[pd.DataFrame, list[str], list[dict]]:
+    def get_summary_stats(self) -> tuple[pd.DataFrame, list[str], list[dict]]:
         """
         Run the numbers across all variant categories
         Treat each primary-secondary comp-het pairing as one event
@@ -220,9 +223,8 @@ class HTMLBuilder:
         ]
 
         # this can fail if there are no categorised variants... at all
-        if summary_dicts == []:
-            get_logger().info('No categorised variants found')
-            sys.exit(0)
+        if not summary_dicts:
+            raise NoVariantsFoundException('No categorised variants found')
 
         df: pd.DataFrame = pd.DataFrame(summary_dicts)
         df['Mean/sample'] = df['Mean/sample'].round(3)
@@ -274,6 +276,8 @@ class HTMLBuilder:
             latest (bool):
         """
 
+        # if no variants were found, this can fail with a NoVariantsFoundException error
+        # we ignore that here, and catch it in the outer scope
         (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
         report_title = 'Talos Report (Latest Variants Only)' if latest else 'Talos Report'
@@ -568,7 +572,6 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
 
     if prefixes := known_date_prefix_check(all_results):
         for prefix in prefixes:
-            get_logger().info(f'Splitting for prefix {prefix}')
             this_rd = ResultData(
                 metadata=all_results.metadata,
                 results={
@@ -578,7 +581,7 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
                 },
                 version=all_results.version,
             )
-            get_logger().info(f'Found {len(this_rd.results)} with this prefix')
+            get_logger().info(f'Found {len(this_rd.results)} with prefix {prefix}')
             return_results.append((this_rd, f'subset_{prefix}.html', f'subset_{prefix}_latest.html'))
         return return_results
 
@@ -615,17 +618,29 @@ if __name__ == '__main__':
     DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
     html = HTMLBuilder(results=args.results, panelapp_path=args.panelapp)
-    html.write_html(output_filepath=args.output)
+    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
+    # catch this, but fail gracefully so that the process overall is a success
+    try:
+        get_logger().info('Finding whole-cohort categorised variants')
+        html.write_html(output_filepath=args.output)
+    except NoVariantsFoundException:
+        get_logger().warning('No Categorised variants found in this whole cohort')
+        sys.exit(0)
 
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
     if args.latest and (date_filtered_object := check_date_filter(results=args.results)):
         # build the HTML for latest reports only
         latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp)
-        latest_html.write_html(output_filepath=args.latest, latest=True)
+        # this can fail if there are no latest-in-this-run variants, but we continue to splitting
+        try:
+            latest_html.write_html(output_filepath=args.latest, latest=True)
+        except NoVariantsFoundException:
+            get_logger().info('No latest-only variants found, but continuing on to subset splitting')
 
     # if no splitting, just exit here
     if not args.split_samples:
+        get_logger().info('No splitting required in this run, exiting')
         sys.exit(0)
 
     # do something to split the output into separate datasets
@@ -633,11 +648,19 @@ if __name__ == '__main__':
     html_base = to_path(args.output).parent
     for data, report, latest in split_data_into_sub_reports(args.results, args.split_samples):
         html = HTMLBuilder(results=data, panelapp_path=args.panelapp)
-        html.write_html(output_filepath=str(html_base / report))
+        try:
+            get_logger().info(f'Attempting to create {report}')
+            html.write_html(output_filepath=str(html_base / report))
+        except NoVariantsFoundException:
+            get_logger().info('No variants in that report, skipping')
 
         # If the latest arg is used, filter the results
         # write the HTML if any results remain
         if args.latest and (date_filtered_object := check_date_filter(results=data)):
             # build the HTML for latest reports only
             latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp)
-            latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
+            try:
+                get_logger().info(f'Attempting to create {latest_html}')
+                latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
+            except NoVariantsFoundException:
+                get_logger().info('No variants in that latest report, skipping')
