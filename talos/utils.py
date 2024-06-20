@@ -342,6 +342,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID')):
                 if phase_gt != '.' and phase_id != '.':
                     phased_dict[sample][phase_id] = phase_gt
+
         except KeyError:
             get_logger().info('also failed using PID and PGT')
             raise ke
@@ -395,6 +396,7 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
         # set boolean category and specific data
         info_dict['categorybooleanpm5'] = 1
         info_dict['pm5_data'] = pm5_data
+
     else:
         info_dict['categorybooleanpm5'] = 0
 
@@ -416,6 +418,7 @@ def create_small_variant(
         as_singletons ():
         new_genes ():
     """
+
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
     depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
@@ -624,17 +627,12 @@ def gather_gene_dict_from_contig(
 
         get_logger().info(f'Contig {contig} contained {structural_variants} SVs')
 
-    get_logger().info(f'Contig {contig} contained {contig_variants} variants')
-    get_logger().info(f'Contig {contig} contained {len(contig_dict)} genes')
+    get_logger().info(f'Contig {contig} contained {contig_variants} variants, in {len(contig_dict)} genes')
 
     return contig_dict
 
 
-def read_json_from_path(
-    bucket_path: str | CPGPathType | None,
-    default: Any = None,
-    return_model: HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels | None = None,
-) -> list | None | HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels:
+def read_json_from_path(bucket_path: str | CPGPathType | None, default: Any = None, return_model: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
