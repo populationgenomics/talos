@@ -1,5 +1,5 @@
 [workflow]
-dataset = "cohort_name"
+dataset = "cohort"
 name = 'Talos'
 sequencing_type = 'genome'
 
