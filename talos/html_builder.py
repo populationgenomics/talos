@@ -5,6 +5,7 @@ Methods for taking the final output and generating static report content
 import re
 import sys
 from argparse import ArgumentParser
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
@@ -545,13 +546,16 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
         a list of all found prefixes, or empty list
     """
 
-    known_prefixes = set()
+    known_prefixes: dict[str, int] = defaultdict(int)
     for sample, content in all_results.results.items():
         if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
-            known_prefixes.add(match.group()[0:2])
+            known_prefixes[match.group()[0:2]] += 1
         else:
+            get_logger().info(f'At least one sample lacks a consistent prefix: {content.metadata.ext_id}')
             return []
-    return sorted(known_prefixes)
+
+    get_logger().info(f'Sample distribution by prefix: {dict(known_prefixes)}')
+    return sorted(known_prefixes.keys())
 
 
 def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tuple[ResultData, str, str]]:
@@ -562,9 +566,9 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
     assert isinstance(all_results, ResultData)
     return_results: list[tuple[ResultData, str, str]] = []
 
-    prefixes = known_date_prefix_check(all_results)
-    if prefixes:
+    if prefixes := known_date_prefix_check(all_results):
         for prefix in prefixes:
+            get_logger().info(f'Splitting for prefix {prefix}')
             this_rd = ResultData(
                 metadata=all_results.metadata,
                 results={
@@ -574,6 +578,7 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
                 },
                 version=all_results.version,
             )
+            get_logger().info(f'Found {len(this_rd.results)} with this prefix')
             return_results.append((this_rd, f'subset_{prefix}.html', f'subset_{prefix}_latest.html'))
         return return_results
 
