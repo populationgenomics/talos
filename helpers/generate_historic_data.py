@@ -15,8 +15,8 @@ from argparse import ArgumentParser
 
 from cpg_utils.config import get_config
 
-from reanalysis.models import ResultData
-from reanalysis.utils import generate_fresh_latest_results, read_json_from_path
+from talos.models import ResultData
+from talos.utils import generate_fresh_latest_results, read_json_from_path
 
 
 def main(input_results: str):

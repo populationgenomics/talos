@@ -17,8 +17,8 @@ import zoneinfo
 
 from cpg_utils import to_path
 
-from reanalysis.models import PhenotypeMatchedPanels
-from reanalysis.static_values import get_logger
+from talos.models import PhenotypeMatchedPanels
+from talos.static_values import get_logger
 
 PANELAPP_BASE = 'https://panelapp.agha.umccr.org/api/v1/panels'
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')

@@ -1,0 +1,83 @@
+[workflow]
+name = 'Talos'
+# sequencing_type = 'genome' or 'exome'
+
+# optionally allow for running a different HTML script
+presentation = 'cpg'
+
+## override clinvar results
+#clinvar_decisions = "HailTable path to private ClinVar"
+#clinvar_pm5 = "HailTable path to ClinVar PM5"
+
+## optionally, ignore some categories
+#ignore_categories = ['categoryboolean6']
+
+[panels]
+default_panel = 137
+panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
+panel_month_delta = 12
+require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
+
+[clinvar]
+filter_benign = ['illumina laboratory services; illumina']
+
+[moi_tests]
+# thresholds for different filters during the MOI checks
+gnomad_dominant = 0.001
+gnomad_max_homs_dominant = 0
+gnomad_max_homs_recessive = 1
+gnomad_max_ac_dominant = 10
+gnomad_max_hemi = 1
+callset_af_sv_dominant = 0.01
+
+[csq]
+# variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
+csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
+
+[filter]
+# variables for the hail operations, including CSQ sets and filter thresholds
+ac_threshold = 0.01
+additional_csq = ['missense_variant']
+af_semi_rare = 0.01
+callset_af_sv_recessive = 0.03
+critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
+max_parent_ab = 0.05
+minimum_depth = 10
+spliceai = 0.5
+
+[categories]
+1 = 'ClinVar Pathogenic'
+2 = 'New Gene-Disease Association'
+3 = 'High Impact Variant'
+4 = 'de Novo'
+5 = 'High SpliceAI Score'
+6 = 'AlphaMissense P/LP'
+pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
+sv1 = 'Predicted LOF SV'
+
+[category_rules]
+# for these categories, require a phenotype-gene match
+phenotype_match = ['6']
+
+[hail]
+cancel_after_n_failures = 1
+default_timeout = 6000
+default_memory = 'highmem'
+
+[hail.cores]
+sv = 2
+small_variants = 8
+
+[images]
+talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:4.0.0'
+vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
+
+[references]
+vep_110_mount = "gs://cpg-common-main/references/vep/110/mount"
+genome_build = 'GRCh38'
+
+# per-cohort section
+#clinvar_filter = when running a clinvar re-summary, remove submissions by these sites. Default = no removal
+#cohort_panels = any panel IDs to be applied to this cohort, even if not otherwise phenotype-matched
+#cohort_percentage = when generating an analysis pedigree, reduce the cohort to this percentage of the total. Default = 100
+#gene_prior = if a specific gene list is to be used to determine Cat 2 (new gene-disease associations), provide the filepath here

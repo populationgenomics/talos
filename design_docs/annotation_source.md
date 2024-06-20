@@ -1,6 +1,6 @@
 # Annotation Fields
 
-AIP uses VEP annotations when filtering and classifying variants. Much of this is done during the Hail runtime, with
+Talos uses VEP annotations when filtering and classifying variants. Much of this is done during the Hail runtime, with
 some values used downstream when finalising inheritance pattern checks. This document breaks down the annotations used
 at each point.
 
@@ -42,20 +42,21 @@ runtime these values may be overwritten using the same datatype from a private s
 | clinvar.gold_stars            | Int    |
 
 1. Variants are removed where the Significance contains Benign and Stars > 0
-2. Variants are assigned the `clinvar_aip` flag where Significance contains `Pathogenic` and not `Conflicting`
-3. Variants are assigned the `clinvar_aip_strong` flag where `clinvar_aip` is assigned and Stars > 0
+2. Variants are assigned the `clinvar_talos` flag where Significance contains `Pathogenic` and not `Conflicting`
+3. Variants are assigned the `clinvar_talos_strong` flag where `clinvar_talos` is assigned and Stars > 0
 
-Note: assignment of `clinvar_aip` is used to override some quality filters (e.g. these variants will be retained even if
+Note: assignment of `clinvar_talos` is used to override some quality filters (e.g. these variants will be retained even
+if
 they are common within the callset, common within gnomAD, FILTER'd by the variant caller or VQSR)
 
 ## Category 1 - ClinVar Pathogenic
 
 Assignment of this Category indicates that a variant is seen in ClinVar with a pathogenic rating. The previously
-computed field `clinvar_aip_strong` is used.
+computed field `clinvar_talos_strong` is used.
 
-| Variable           | Type |
-|--------------------|------|
-| clinvar_aip_strong | Int  |
+| Variable             | Type |
+|----------------------|------|
+| clinvar_talos_strong | Int  |
 
 ## Category 2 - New Disease Gene Association
 
@@ -68,7 +69,7 @@ number of possible annotations are used to affirm relevance.
 |-----------------------------------------------|-------------|
 | new_genes                                     | Set[String] |
 | vep.transcript_consequences.consequence_terms | Set[String] |
-| clinvar_aip                                   | Int         |
+| clinvar_talos                                 | Int         |
 | CADD.PHRED                                    | Float       |
 | dbnsfp.REVEL_score                            | Float       |
 
@@ -80,7 +81,7 @@ as unlikely to go through NMD this can be rescued using a ClinVar Pathogenic rat
 | Variable                                      | Type        |
 |-----------------------------------------------|-------------|
 | vep.transcript_consequences.consequence_terms | Set[String] |
-| clinvar_aip                                   | Int         |
+| clinvar_talos                                 | Int         |
 | lof                                           | String      |
 
 ## Category 4 - De Novo Variants

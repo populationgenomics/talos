@@ -1,4 +1,4 @@
-# Automated Interpretation Pipeline (AIP)
+# Automated Interpretation Pipeline (Talos)
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) ![test](https://github.com/populationgenomics/automated-interpretation-pipeline/actions/workflows/test.yaml/badge.svg) ![black](https://img.shields.io/badge/code%20style-black-000000.svg)
 
@@ -12,14 +12,14 @@ associations, population frequencies, and variant calling pipeline improvements 
 time. As and when new variants of interest arise, curators can be alerted without having to manually repeat the cohort
 analysis in full.
 
-AIP aims to fast-track interpretation for the growing number of sequenced cohorts where curators lack time to complete
+Talos aims to fast-track interpretation for the growing number of sequenced cohorts where curators lack time to complete
 reanalysis work alongside the primary analysis for new clinical data. In light of numerous publications showing the
 clinical utility of periodic reanalysis, this tool aims to lighten the workload on clinical analysts, while acting with
 very high specificity to maximise the time efficiency of results interpretation.
 
 ## Strategy
 
-AIP runs an analysis in two separate phases
+Talos runs an analysis in two separate phases
 
 1. Filter and categorise variants, identifying which deserve further processing based on consequence annotations.
 2. Check each of those variants against the family structure of the participants in which it was found.
@@ -29,7 +29,7 @@ associated with the gene it is found in.
 
 ## Categories
 
-AIP uses the concept of a 'Category' to label variants which are anticipated to cause disease. These categories are
+Talos uses the concept of a 'Category' to label variants which are anticipated to cause disease. These categories are
 assigned on the basis of consequence annotations, and each has been defined in collaboration with Clinical Curators to
 codify a mental model for when a variant is likely to be relevant to a diagnosis.
 
@@ -97,13 +97,15 @@ of any other category)
 
 ## Reanalysis
 
-The heart of AIP's utility is in enabling explicit re-analysis, which is done in two key ways. Each of these is enabled
+The heart of Talos's utility is in enabling explicit re-analysis, which is done in two key ways. Each of these is
+enabled
 through accumulating data over a number of runs, then leveraging cumulative data to remove redundant results. This helps
-ensure a curator's time is used as effectively as possible, by not presenting the same variants each time AIP runs.
+ensure a curator's time is used as effectively as possible, by not presenting the same variants each time Talos runs.
 
 ### Gene Panel/ROI
 
-[PanelApp](https://panelapp.agha.umccr.org/) is the primary source of Gene information used in AIP. For each analysis we
+[PanelApp](https://panelapp.agha.umccr.org/) is the primary source of Gene information used in Talos. For each analysis
+we
 query for the current content of the [Mendeliome Panel](https://panelapp.agha.umccr.org/panels/137/), containing all
 genes associated with Mendelian disease, other than those associated with unintended diagnoses (see [the
 complementary Incidentalome](https://panelapp.agha.umccr.org/panels/126/)). From this Panel, we obtain all 'Green' genes
@@ -121,7 +123,7 @@ before, or features in a phenotype-matched panel on which it has not been seen b
 
 ### Variant Results
 
-Once the core process of AIP has completed, and the reportable results are assembled, the final (optional) stage is to
+Once the core process of Talos has completed, and the reportable results are assembled, the final (optional) stage is to
 back-filter against previously seen results. This prior data is assembled on a per-cohort basis, and contains results
 previously seen, indexed by Sample ID.
 

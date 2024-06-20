@@ -1,0 +1,49 @@
+# this is used to map field names and data-types from the annotated VCF form of VEP to something compatible with the
+# JSON output version of VEP
+[vcf2mt]
+relevant_fields = ["am_class", "am_pathogenicity", "biotype", "cdna_position", "cds_position", "consequence", "ensp", "exon", "feature", "feature_type", "gene", "gnomade_af", "gnomadg_af", "hgvsc", "hgvsp", "lof", "mane_select", "mane_plus_clinical", "polyphen", "protein_position", "sift", "symbol", "variant_class", ]
+
+[vcf2mt.type_updates.am_pathogenicity]
+insert = false
+type = "float"
+
+[vcf2mt.type_updates.am_class]
+insert = false
+type = "string"
+
+[vcf2mt.type_updates.biotype]
+type = "string"
+
+[vcf2mt.type_updates.cdna_position]
+type = "int"
+
+[vcf2mt.type_updates.cds_position]
+type = "int"
+
+[vcf2mt.type_updates.consequence]
+insert = false
+name = "consequence_terms"
+
+[vcf2mt.type_updates.gnomade_af]
+type = "float"
+
+[vcf2mt.type_updates.gnomadg_af]
+type = "float"
+
+[vcf2mt.type_updates.sift]
+insert = false
+type = 'string'
+name = "sift_prediction"
+
+[vcf2mt.type_updates.sift_prediction]
+type = 'string'
+
+[vcf2mt.type_updates.polyphen]
+insert = false
+name = "polyphen_prediction"
+
+[vcf2mt.type_updates.polyphen_prediction]
+type = 'string'
+
+[vcf2mt.type_updates.protein_position]
+type = "int"

@@ -8,7 +8,6 @@ generate an index HTML page with links to all reports
 Generate a second report for the latest variant only report
 """
 
-
 from dataclasses import dataclass
 from os.path import join
 from pathlib import Path
@@ -20,7 +19,7 @@ from cpg_utils import to_path
 from cpg_utils.config import get_config
 from metamist.graphql import gql, query
 
-from reanalysis.static_values import get_logger
+from talos.static_values import get_logger
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(

@@ -2,7 +2,7 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-from reanalysis.models import (  # ReportPanel,
+from talos.models import (  # ReportPanel,
     Coordinates,
     PanelApp,
     PhenotypeMatchedPanels,
@@ -11,7 +11,9 @@ from reanalysis.models import (  # ReportPanel,
     ResultMeta,
     SmallVariant,
 )
-from reanalysis.validate_categories import clean_and_filter, count_families, prepare_results_shell
+from talos.utils import make_flexible_pedigree
+from talos.validate_categories import clean_and_filter, count_families, prepare_results_shell
+from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
@@ -20,7 +22,6 @@ VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={}, transcript_consequences
 REP_SAM1_1 = ReportVariant(sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1')
 REP_SAM3_1 = ReportVariant(sample='sam3', var_data=VAR_1, categories={'1'}, gene='ENSG4')
 REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2'}, gene='ENSG5')
-
 
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
 panel_genes = PanelApp(
@@ -43,7 +44,7 @@ panel_genes = PanelApp(
 )
 
 
-def test_results_shell(peddy_ped):
+def test_results_shell(pedigree_path):
     """
 
     Returns:
@@ -52,14 +53,10 @@ def test_results_shell(peddy_ped):
     sample_panels = PhenotypeMatchedPanels(
         **{
             'samples': {
-                'male': {
-                    'panels': {1, 3},
-                    'external_id': 'MALE!',
-                    'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}],
-                },
+                'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
                 'female': {
                     'panels': {1, 2},
-                    'external_id': 'FEMALE!',
+                    'external_id': 'female',
                     'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
                 },
             },
@@ -68,11 +65,7 @@ def test_results_shell(peddy_ped):
     )
     panelapp = PanelApp(
         **{
-            'metadata': [
-                {'id': 1, 'name': 'lorem'},
-                {'id': 2, 'name': 'ipsum'},
-                {'id': 3, 'name': 'etc'},
-            ],
+            'metadata': [{'id': 1, 'name': 'lorem'}, {'id': 2, 'name': 'ipsum'}, {'id': 3, 'name': 'etc'}],
             'genes': {'ENSG1': {'symbol': 'G1'}},
         },
     )
@@ -81,7 +74,7 @@ def test_results_shell(peddy_ped):
         results_meta=result_meta,
         small_samples={'male'},
         sv_samples={'female'},
-        pedigree=peddy_ped,
+        pedigree=make_flexible_pedigree(pedigree=pedigree_path),
         panel_data=sample_panels,
         panelapp=panelapp,
         dataset='cohort',
@@ -93,10 +86,10 @@ def test_results_shell(peddy_ped):
             'results': {
                 'male': {
                     'metadata': {
-                        'ext_id': 'MALE!',
+                        'ext_id': 'male',
                         'family_id': 'family_1',
                         'members': {
-                            'male': {'sex': 'male', 'affected': True, 'ext_id': 'MALE!'},
+                            'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
                             'father_1': {'sex': 'male', 'affected': False, 'ext_id': 'father_1'},
                             'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
                         },
@@ -108,10 +101,10 @@ def test_results_shell(peddy_ped):
                 },
                 'female': {
                     'metadata': {
-                        'ext_id': 'FEMALE!',
+                        'ext_id': 'female',
                         'family_id': 'family_2',
                         'members': {
-                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'FEMALE!'},
+                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
                             'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
                             'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
                         },
@@ -150,11 +143,11 @@ def test_gene_clean_results_no_personal():
         panelapp_data=panel_genes,
         dataset='cohort',
     )
-    assert len(clean.results['sam1'].variants) == 1
+    assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert clean.results['sam1'].variants[0].flags == set()
-    assert len(clean.results['sam2'].variants) == 0
-    assert len(clean.results['sam3'].variants) == 2
+    assert len(clean.results['sam2'].variants) == ZERO_EXPECTED
+    assert len(clean.results['sam3'].variants) == TWO_EXPECTED
     assert {x.gene for x in clean.results['sam3'].variants} == {'ENSG4', 'ENSG5'}
 
 
@@ -189,12 +182,12 @@ def test_gene_clean_results_personal():
         participant_panels=personal_panels,
         dataset='cohort',
     )
-    assert len(clean.results['sam1'].variants) == 1
+    assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert not clean.results['sam1'].variants[0].flags
     assert clean.results['sam1'].variants[0].panels.matched == {'1'}
     assert not clean.results['sam2'].variants
-    assert len(clean.results['sam3'].variants) == 2
+    assert len(clean.results['sam3'].variants) == TWO_EXPECTED
     for event in clean.results['sam3'].variants:
         if event.gene == 'ENSG4':
             assert event.panels.matched == {'3'}
@@ -202,42 +195,44 @@ def test_gene_clean_results_personal():
             assert event.panels.matched == {'4'}
 
 
-def test_update_results_meta(peddy_ped):
+def test_update_results_meta(pedigree_path):
     """
     testing the dict update
     """
 
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
-        'affected': 2,
-        'male': 3,
-        'female': 3,
-        'trios': 2,
+    assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
+        'affected': TWO_EXPECTED,
+        'male': THREE_EXPECTED,
+        'female': THREE_EXPECTED,
+        'trios': TWO_EXPECTED,
     }
 
 
-def test_count_families_missing_father(peddy_ped):
+def test_count_families_missing_father(pedigree_path):
     """
     testing the dict update
     """
 
-    ped_samples = {'male', 'female', 'mother_1', 'mother_2', 'father_2'}
+    ped_samples = {'male', 'female', 'father_1', 'mother_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=peddy_ped, samples=ped_samples) == {
-        'affected': 2,
-        'male': 2,
-        'female': 3,
-        'trios': 1,
-        '2': 1,
+    assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
+        'affected': TWO_EXPECTED,
+        'male': THREE_EXPECTED,
+        'female': THREE_EXPECTED,
+        'trios': TWO_EXPECTED,
     }
 
 
 def test_count_families_quad(quad_ped):
     """
     testing the dict update
+    this one is being marked as a trio as there are 4 samples, but only one affected
+    my vibe here is that a 'quad' is typically 2 children 2 parents
+    for affected child, unaffected sib, 2 parents... that's just a trio + 1?
     """
 
     ped_samples = {'PROBAND', 'SIBLING', 'FATHER', 'MOTHER'}
-
-    assert count_families(pedigree=quad_ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'quads': 1}
+    ped = make_flexible_pedigree(quad_ped)
+    assert count_families(pedigree=ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}

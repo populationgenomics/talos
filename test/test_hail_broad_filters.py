@@ -6,7 +6,7 @@ import pytest
 
 import hail as hl
 
-from reanalysis.hail_filter_and_label import (
+from talos.hail_filter_and_label import (
     filter_matrix_by_ac,
     filter_on_quality_flags,
     filter_to_well_normalised,
@@ -31,7 +31,7 @@ def test_ac_filter_no_filt(ac: int, an: int, clinvar: int, threshold: float, row
     check that a clinvar pathogenic overrides the AC test
     """
     matrix = make_a_mt.annotate_rows(AC=ac, AN=an)
-    matrix = matrix.annotate_rows(info=matrix.info.annotate(clinvar_aip=clinvar))
+    matrix = matrix.annotate_rows(info=matrix.info.annotate(clinvar_talos=clinvar))
 
     assert filter_matrix_by_ac(matrix, threshold).count_rows() == rows
 
@@ -52,7 +52,7 @@ def test_filter_on_quality_flags(filters, clinvar, length, make_a_mt):
     """
     # to add new alleles, we need to scrub alleles from the key fields
     anno_matrix = make_a_mt.key_rows_by('locus')
-    anno_matrix = anno_matrix.annotate_rows(filters=filters, info=anno_matrix.info.annotate(clinvar_aip=clinvar))
+    anno_matrix = anno_matrix.annotate_rows(filters=filters, info=anno_matrix.info.annotate(clinvar_talos=clinvar))
 
     assert filter_on_quality_flags(anno_matrix).count_rows() == length
 

@@ -7,7 +7,6 @@ from typing import Any
 
 import pytest
 from cyvcf2 import VCFReader
-from peddy.peddy import Ped
 
 import hail as hl
 
@@ -20,11 +19,11 @@ CONF_BASE = INPUT / 'reanalysis_global.toml'
 hl.init(default_reference='GRCh38')
 set_config_paths([str(CONF_BASE)])
 
-from reanalysis.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
-from reanalysis.utils import create_small_variant, read_json_from_path  # noqa: E402
+from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
+from talos.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
-AIP_OUTPUT = INPUT / 'aip_output_example.json'
+Talos_OUTPUT = INPUT / 'aip_output_example.json'
 DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
 FAKE_OBO = INPUT / 'hpo_test.obo'
 LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
@@ -132,12 +131,12 @@ def fixture_sm_api_lookup() -> Any:
     return read_json_from_path(LOOKUP_PED)
 
 
-@pytest.fixture(name='peddy_ped', scope='session')
-def fixture_peddy_ped() -> Ped:
+@pytest.fixture(name='pedigree_path', scope='session')
+def pedigree_path() -> str:
     """
     :return: Ped
     """
-    return Ped(str(PED_FILE))
+    return str(PED_FILE)
 
 
 @pytest.fixture(name='phased_vcf_path')
@@ -167,7 +166,7 @@ def fixture_trio_ped():
 def fixture_quad_ped():
     """location of the Quad Pedigree (PLINK)"""
 
-    return Ped(str(QUAD_PED))
+    return str(QUAD_PED)
 
 
 @pytest.fixture(name='trio_abs_variant')
@@ -214,7 +213,7 @@ def fixture_path_to_two_trio_abs_variants():
 def fixture_output_json():
     """returns dict of the JSON output"""
 
-    return read_json_from_path(AIP_OUTPUT)
+    return read_json_from_path(Talos_OUTPUT)
 
 
 @pytest.fixture(name='seqr_csv_output', scope='session')

@@ -6,7 +6,7 @@ CPG-specific guidance on how to generate input files for a new run
 
 1. Check that
    the [token map](https://github.com/populationgenomics/cpg-infrastructure-private/blob/main/tokens/repository-map.json)
-   allows AIP to run against the relevant project's bucket & contents
+   allows Talos to run against the relevant project's bucket & contents
 2. Check that you have permission to query Metamist for the relevant project (e.g. you can run queries for the project
    on the [Swagger page](https://sample-metadata.populationgenomics.org.au/swagger))
 3. Check that you have permission to upload relevant files to the project bucket (current process involves uploading

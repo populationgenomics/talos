@@ -1,10 +1,12 @@
 """
-compares a Seqr file against results of a previous AIP run
+compares a Seqr file against results of a previous Talos run
 
 The Seqr file is a TSV of all variants flagged as interesting
-This is designed to recognise flags in the format 'AIP training: Confidence'
+This is designed to recognise flags in the format 'Talos training: Confidence'
 
 See relevant documentation for a description of the algorithm used
+
+todo needs a complete overhaul, maybe just deletion
 """
 
 # mypy: ignore-errors
@@ -20,14 +22,13 @@ from typing import Any
 
 from cloudpathlib import AnyPath
 from cyvcf2 import VCFReader
-from peddy import Ped
 
 import hail as hl
 
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import init_batch
 
-from reanalysis.hail_filter_and_label import (
+from talos.hail_filter_and_label import (
     CONFLICTING,
     LOFTEE_HC,
     PATHOGENIC,
@@ -38,30 +39,31 @@ from reanalysis.hail_filter_and_label import (
     filter_to_well_normalised,
     green_and_new_from_panelapp,
 )
-from reanalysis.static_values import get_logger
-from reanalysis.utils import canonical_contigs_from_vcf, read_json_from_path
+from talos.models import Pedigree
+from talos.static_values import get_logger
+from talos.utils import canonical_contigs_from_vcf, make_flexible_pedigree, read_json_from_path
 
 SAMPLE_NUM_RE = re.compile(r'sample_[0-9]+')
 SAMPLE_ALT_TEMPLATE = 'num_alt_alleles_{}'
 VALID_VALUES = [
-    'AIP training: Expected',
-    'AIP training: Possible',
-    'AIP training: Unlikely',
+    'Talos training: Expected',
+    'Talos training: Possible',
+    'Talos training: Unlikely',
 ]
 
 
 class Confidence(Enum):
     """
     enumeration for possible confidence values
-    from AIP we get CERTAIN, as these are found
+    from Talos we get CERTAIN, as these are found
     from seqr dump, we use tags to determine confidence
         - where confidence means 'how confident are we that
-            AIP should be capturing this result'
+            Talos should be capturing this result'
     """
 
-    EXPECTED = 'AIP training: Expected'
-    POSSIBLE = 'AIP training: Possible'
-    UNLIKELY = 'AIP training: Unlikely'
+    EXPECTED = 'Talos training: Expected'
+    POSSIBLE = 'Talos training: Possible'
+    UNLIKELY = 'Talos training: Unlikely'
 
     def __lt__(self, other):
         return self.value < other.value
@@ -260,7 +262,7 @@ def find_seqr_flags(aip_results: CommonDict, seqr_results: CommonDict) -> dict:
 
 def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDict:
     """
-    1 way comparison - find all results present in Seqr, and missing from AIP
+    1 way comparison - find all results present in Seqr, and missing from Talos
     This is a check for False Negatives
     :param aip_results:
     :param seqr_results:
@@ -276,7 +278,7 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
 
     missing_samples = seqr_samples - common_samples
     if len(missing_samples) > 0:
-        get_logger().error(f'Samples completely missing from AIP results: {", ".join(missing_samples)}')
+        get_logger().error(f'Samples completely missing from Talos results: {", ".join(missing_samples)}')
 
         # for each of those missing samples, add all variants
         for miss_sample in missing_samples:
@@ -300,14 +302,14 @@ def find_missing(aip_results: CommonDict, seqr_results: CommonDict) -> CommonDic
     return discrepancies
 
 
-def find_affected_samples(pedigree: Ped) -> list[str]:
+def find_affected_samples(pedigree: Pedigree) -> list[str]:
     """
     finds all affected members of the provided pedigree
 
     :param pedigree:
     :return:
     """
-    return [sam.sample_id for sam in pedigree.samples() if sam.affected]
+    return [sam.id for sam in pedigree.members if sam.affected == '2']
 
 
 def check_in_vcf(vcf_path: str, variants: CommonDict) -> tuple[CommonDict, CommonDict]:
@@ -677,7 +679,7 @@ def check_mt(
 
 def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, output: str):
     """
-    runs a full match-seeking analysis of this AIP run against the
+    runs a full match-seeking analysis of this Talos run against the
     expected variants (based on seqr training flags)
 
     :param results_folder:
@@ -689,13 +691,13 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     :return:
     """
 
-    # normalise data formats from AIP result file
+    # normalise data formats from Talos result file
     aip_results = common_format_aip(
         results_dict=read_json_from_path(os.path.join(results_folder, 'summary_results.json')),
     )
 
     # Search for all affected sample IDs in the Peddy Pedigree
-    affected = find_affected_samples(Ped(pedigree))
+    affected = find_affected_samples(make_flexible_pedigree(pedigree))
 
     # parse the Seqr results table, specifically targeting variants in probands
     seqr_results = common_format_seqr(seqr=seqr, affected=affected)
@@ -740,12 +742,7 @@ def main(results_folder: str, pedigree: str, seqr: str, vcf: str, mt: str, outpu
     # read in the MT
     matrix = hl.read_matrix_table(mt)
 
-    not_present, untiered = check_mt(
-        matrix=matrix,
-        variants=not_in_vcf,
-        green_genes=green_genes,
-        new_genes=new_genes,
-    )
+    not_present, untiered = check_mt(matrix=matrix, variants=not_in_vcf, green_genes=green_genes, new_genes=new_genes)
     if untiered:
         with AnyPath(f'{output}_untiered.json').open('w') as handle:
             json.dump(untiered, handle, default=str, indent=4)

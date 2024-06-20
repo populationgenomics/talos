@@ -5,7 +5,6 @@
 Entrypoint for the comparison process
 """
 
-
 import logging
 import os
 import sys
@@ -34,7 +33,7 @@ COMPARISON_SCRIPT = os.path.join(os.path.dirname(__file__), 'comparison.py')
 
 def main(results_folder: str, seqr: str, mt: str):
     """
-    main method, which runs the AIP comparison
+    main method, which runs the Talos comparison
     :param results_folder:
     :param seqr:
     :param mt:
@@ -46,7 +45,7 @@ def main(results_folder: str, seqr: str, mt: str):
         billing_project=get_config()['hail']['billing_project'],
         remote_tmpdir=remote_tmpdir(),
     )
-    batch = hb.Batch(name='run AIP comparison', backend=service_backend)
+    batch = hb.Batch(name='run Talos comparison', backend=service_backend)
 
     # create a new job
     comp_job = batch.new_job(name='Run Comparison')

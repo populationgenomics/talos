@@ -5,7 +5,8 @@ up or configuring the analysis, but not a direct part of the end-to-end workflow
 
 ## Run Setup with [prepare_aip_cohort.py](../helpers/prepare_aip_cohort.py)
 
-To simplify setup and running of AIP for CPG cohorts the script has been included. This is a multifunctional script, and
+To simplify setup and running of Talos for CPG cohorts the script has been included. This is a multifunctional script,
+and
 collects a number of behaviours into a single script, at the expense of being specific to CPG usage.
 
 This script requires usage of a config file, containing a subsection for the relevant cohort.

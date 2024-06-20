@@ -16,7 +16,7 @@ import json
 import os
 from argparse import ArgumentParser
 
-from reanalysis.utils import read_json_from_path
+from talos.utils import read_json_from_path
 
 # mypy: ignore-errors
 

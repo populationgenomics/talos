@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from reanalysis.models import CURRENT_VERSION, PanelApp, PhenoPacketHpo, PhenotypeMatchedPanels, lift_up_model_version
-from reanalysis.utils import read_json_from_path
+from talos.models import CURRENT_VERSION, PanelApp, PhenoPacketHpo, PhenotypeMatchedPanels, lift_up_model_version
+from talos.utils import read_json_from_path
 
 
 def test_lift_pmp_from_none(test_input_models_path):
@@ -60,11 +60,10 @@ def test_lift_pmp_from_none_json(test_input_models_path):
 
 
 def test_liftover_fails_potato(test_input_models_path):
-
     file_path = test_input_models_path / 'hpo_panel_version_potato.json'
     with pytest.raises(ValueError) as potato:
         read_json_from_path(file_path, return_model=PhenotypeMatchedPanels)  # type: ignore
-    assert "Unknown PhenotypeMatchedPanels version: potato" in str(potato.value)
+    assert 'Unknown PhenotypeMatchedPanels version: potato' in str(potato.value)
 
 
 def test_no_liftover_passes(test_input_models_path, caplog):

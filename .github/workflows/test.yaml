@@ -18,7 +18,7 @@ jobs:
 
     - name: Install packages
       run: |
-        pip install .[full,test]
+        pip install .[test,cpg]
 
     - name: test
       run: pytest -n auto .

@@ -6,8 +6,8 @@ from copy import deepcopy
 
 import pytest
 
-from reanalysis.models import HistoricPanels, PanelApp, PanelDetail
-from reanalysis.query_panelapp import get_best_moi, get_panel_green
+from talos.models import HistoricPanels, PanelApp, PanelDetail
+from talos.query_panelapp import get_best_moi, get_panel_green
 
 empty_gene_dict = PanelApp(genes={})
 
@@ -34,7 +34,7 @@ def fixture_fake_panelapp(requests_mock, latest_mendeliome, latest_incidentalome
     )
 
 
-def test_panel_query(fake_panelapp):
+def test_panel_query(fake_panelapp):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
@@ -49,7 +49,7 @@ def test_panel_query(fake_panelapp):
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_removal(fake_panelapp):
+def test_panel_query_removal(fake_panelapp):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
@@ -64,7 +64,7 @@ def test_panel_query_removal(fake_panelapp):
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_forbidden(fake_panelapp):
+def test_panel_query_forbidden(fake_panelapp):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     :param fake_panelapp: fake web hook mock
@@ -79,7 +79,7 @@ def test_panel_query_forbidden(fake_panelapp):
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_removal_2(fake_panelapp):
+def test_panel_query_removal_2(fake_panelapp):  # noqa: ARG001
     """
     check skipping by symbol works as well
     :param fake_panelapp: fake web hook mock
@@ -94,7 +94,7 @@ def test_panel_query_removal_2(fake_panelapp):
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_forbidden_2(fake_panelapp):
+def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
     """
     check skipping by symbol works as well
     :param fake_panelapp: fake web hook mock
@@ -109,7 +109,7 @@ def test_panel_query_forbidden_2(fake_panelapp):
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_addition(fake_panelapp):
+def test_panel_query_addition(fake_panelapp):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     oof, this was a tricky one

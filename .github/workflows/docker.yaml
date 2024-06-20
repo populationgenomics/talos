@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  VERSION: 3.3.6
+  VERSION: 4.0.0
 
 jobs:
   docker-prod:
@@ -28,7 +28,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-      IMAGE_NAME: cpg_aip
+      IMAGE_NAME: talos
       DOCKER_MAIN: australia-southeast1-docker.pkg.dev/cpg-common/images
     steps:
     - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-      IMAGE_NAME: cpg_aip
+      IMAGE_NAME: talos
       DOCKER_DEV: australia-southeast1-docker.pkg.dev/cpg-common/images-dev
     steps:
     - uses: actions/checkout@v4

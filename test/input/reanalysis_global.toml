@@ -1,8 +1,6 @@
 [workflow]
 dataset = "cohort"
-name = 'AIP'
-scatter_count = 50
-vcf_size_in_gb = 300  # if the input is a VCF, specify enough storage to fit it
+name = 'Talos'
 sequencing_type = 'genome'
 
 ### optionally, ignore some categories
@@ -49,12 +47,7 @@ default_memory = 'highmem'
 
 [images]
 vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
-gatk = 'australia-southeast1-docker.pkg.dev/cpg-common/images/gatk:4.2.6.1'
-cpg_workflows = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
-picard = 'australia-southeast1-docker.pkg.dev/cpg-common/images/picard:2.27.4'
-samtools = 'australia-southeast1-docker.pkg.dev/cpg-common/images/samtools:1.16.1'
-hail = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_workflows:latest'
-aip = 'australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_aip:latest'
+talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:latest'
 
 [categories]
 1 = 'ClinVar Pathogenic'
@@ -69,19 +62,8 @@ pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 # for these categories, require a phenotype-gene match
 phenotype_match = ['6']
 
-[references]
-vep_mount = 'gs://cpg-common-main/references/vep/105.0/mount'
-genome_build = 'GRCh38'
-seqr_combined_reference_data = 'gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht'
-seqr_clinvar = 'gs://cpg-common-main/references/seqr/v0/clinvar.GRCh38.ht'
-
-[references.broad]
-ref_fasta = 'gs://cpg-common-main/references/hg38/v0/dragen_reference/Homo_sapiens_assembly38_masked.fasta'
-genome_calling_interval_lists = 'gs://cpg-common-main/references/hg38/v0/wgs_calling_regions.hg38.interval_list'
-
 [test]
 clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
-gene_prior = ''
 
 [cohorts.cohort]
 # cohort-specific variables affecting how the final HTML report appears

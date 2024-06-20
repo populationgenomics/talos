@@ -14,6 +14,35 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[4.0.0] - 2024-06-09
+
+### Changed
+
+- Name AIP -> Talos
+- Pre-commit tooling changed again (linting with Ruff instead of Black)
+- Removes use of QoB, and relies on 'local' Hail Query operations
+- Drops Peddy in favour of Peds for a more minimal install
+- Splits metamist querying into a separate script, with all other downstream operations using an extended PED format (6
+  cols + ext IDs + HPO IDs)
+
+MOI testing
+
+- Uses the altered pedigree representation for MOI
+- Each variant is interpreted relative to the immediate Trio (i.e. a quad is interpreted as 2 separate trios, not as a
+  single variant/variants solving all presentations in a family)
+
+### Added
+
+- An adapter to take a VEP-annotated VCF and restructure in Hail to match the VEP-from-JSON annotated version we
+  natively expect from the seqr loader pipeline
+
+### Removed
+
+- Everything to do with VEP... This does not contain a vep installation, and no longer determines how/if VEP is to be
+  run. Except for ClinVar reanalysis - still in the process of dog-fooding that from ClinvArbitration instead of
+  reimplementing here
+- Removes even an example of analysis outcome registration from this repository, not even we use that functionality...
+
 [3.2.2] - 2024-04-12
 
 ### Changed
@@ -94,7 +123,7 @@ version should probably have been a major bump due to wholesale changes in how i
   we have some sensitivities around the open publication of the cohorts and details of the analysis carried out. As a
   precaution (although this config does not contain sample-level data) we have removed the cohort-specific content from
   this repository and moved it to a private repository.
-* Structurally the cohort-specific region of the config file has changed. This is to better facilitate running of AIP
+* Structurally the cohort-specific region of the config file has changed. This is to better facilitate running of Talos
   through our main analysis pipeline, requiring less manual intervention to run exomes and genomes separately. The
   utils methods `get_cohort_config` and `get_cohort_seq_type_conf` have been updated to reflect this.
     1. `config.cohorts.COHORT` contains details general to a whole cohort - blacklisted genes, additional panels, solved

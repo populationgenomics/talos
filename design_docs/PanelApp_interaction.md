@@ -47,7 +47,7 @@ Algorithmically, the following process occurs:
 
 ## Notion of `New`
 
-As mentioned in the [README](../README.md#gene-panelroi), we can supply prior data to AIP to ensure reanalysis is as
+As mentioned in the [README](../README.md#gene-panelroi), we can supply prior data to Talos to ensure reanalysis is as
 specific as possible. This data consists of all previously seen genes, and all panels on which each gene has been seen.
 A gene is considered to be 'new', when either:
 

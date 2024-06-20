@@ -7,7 +7,7 @@ from copy import deepcopy
 import pytest
 from cyvcf2 import VCFReader
 
-from reanalysis.models import (
+from talos.models import (
     VARIANT_MODELS,
     Coordinates,
     FileTypes,
@@ -16,14 +16,22 @@ from reanalysis.models import (
     ReportVariant,
     SmallVariant,
 )
-from reanalysis.utils import (
+from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_new_gene_map,
     get_non_ref_samples,
-    get_simple_moi,
+    get_simple_moi,  # todo test this
     identify_file_type,
+    make_flexible_pedigree,
 )
+
+ZERO_EXPECTED = 0
+ONE_EXPECTED = 1
+TWO_EXPECTED = 2
+THREE_EXPECTED = 3
+FOUR_EXPECTED = 4
+FIVE_EXPECTED = 5
 
 
 def test_coord_sorting():
@@ -117,21 +125,17 @@ def test_file_types_exception():
         ('blag', 'Hemi_Bi_In_Female', 'X'),
         ('biallelic ANY', 'Biallelic', '1'),
         ('both something,something', 'Mono_And_Biallelic', '1'),
-        (None, 'Biallelic', '1'),
         ('monoallelic, something', 'Monoallelic', '1'),
         ('x-linked', 'Hemi_Mono_In_Female', 'X'),
-        (None, 'Hemi_Bi_In_Female', 'X'),
         ('x-linked biallelic', 'Hemi_Bi_In_Female', 'X'),
     ],
 )
 def test_get_simple_moi(string: str, expected: str, chrom: str):
     """
+    TODO improve this test case
     Tests the string parsing down to simple representation
-    :param string:
-    :param expected:
-    :param chrom:
     """
-    assert get_simple_moi(string, chrom) == expected
+    assert get_simple_moi({string}, chrom) == {expected}
 
 
 def test_get_non_ref_samples(cyvcf_example_variant):
@@ -178,10 +182,10 @@ def test_gene_dict(two_trio_variants_vcf):
     var_dict = gather_gene_dict_from_contig(contig=contig, variant_source=reader, new_gene_map={})
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
-    assert len(var_dict['ENSG00000075043']) == 2
+    assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
 
 
-def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
+def test_comp_hets(two_trio_abs_variants: list[SmallVariant], pedigree_path):
     """
     {
         'male': {
@@ -192,11 +196,11 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], peddy_ped):
     :param two_trio_abs_variants:
     :return:
     """
-    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=peddy_ped)
+    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=make_flexible_pedigree(pedigree_path))
     assert 'male' in ch_dict
     results = ch_dict.get('male')
     assert isinstance(results, dict)
-    assert len(results) == 2
+    assert len(results) == TWO_EXPECTED
     key_1, key_2 = list(results.keys())
     assert results[key_1][0].coordinates.string_format == key_2  # type: ignore
     assert results[key_2][0].coordinates.string_format == key_1  # type: ignore
@@ -212,24 +216,24 @@ def test_phased_dict(phased_vcf_path):
         variant_source=reader,
         new_gene_map={'ENSG00000075043': {'all'}},
     )
-    assert len(var_dict) == 1
+    assert len(var_dict) == ONE_EXPECTED
     assert 'ENSG00000075043' in var_dict
-    assert len(var_dict['ENSG00000075043']) == 2
+    assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
     var_pair = var_dict['ENSG00000075043']
     for variant in var_pair:
         assert 'mother_1' in variant.phased
         assert variant.phased['mother_1'] == {420: '0|1'}
 
 
-def test_phased_comp_hets(phased_variants: list[SmallVariant], peddy_ped):
+def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path):
     """
     phased variants shouldn't form a comp-het
     'mother_1' is het for both variants, but phase-set is same for both
     :param phased_variants:
     :return:
     """
-    ch_dict = find_comp_hets(phased_variants, pedigree=peddy_ped)
-    assert len(ch_dict) == 0
+    ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(pedigree_path))
+    assert len(ch_dict) == ZERO_EXPECTED
 
 
 def test_new_gene_map_null():

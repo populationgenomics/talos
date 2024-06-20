@@ -4,46 +4,31 @@ unit testing collection for the hail MT methods
 
 import pandas as pd
 import pytest
-import toml
 
 import hail as hl
 
-from cpg_utils.config import _config_paths, get_config, set_config_paths
-
-from reanalysis.hail_filter_and_label import (
-    annotate_aip_clinvar,
+from talos.hail_filter_and_label import (
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,
     annotate_category_5,
     annotate_category_6,
+    annotate_talos_clinvar,
     filter_to_categorised,
     filter_to_population_rare,
     green_and_new_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
+from talos.models import PanelApp
+from test.test_utils import ONE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
-category_1_keys = ['locus', 'clinvar_aip_strong']
-category_2_keys = [
-    'locus',
-    'clinvar_aip',
-    'cadd',
-    'revel',
-    'geneIds',
-    'consequence_terms',
-]
-category_3_keys = ['locus', 'clinvar_aip', 'lof', 'consequence_terms']
+category_1_keys = ['locus', 'clinvar_talos_strong']
+category_2_keys = ['locus', 'clinvar_talos', 'cadd', 'revel', 'geneIds', 'consequence_terms']
+category_3_keys = ['locus', 'clinvar_talos', 'lof', 'consequence_terms']
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
-@pytest.mark.parametrize(
-    'value,classified',
-    [
-        (0, 0),
-        (1, 1),
-        (2, 0),
-    ],
-)
+@pytest.mark.parametrize('value,classified', [(0, 0), (1, 1), (2, 0)])
 def test_class_1_assignment(value, classified, make_a_mt):
     """
     use some fake annotations, apply to the single fake variant
@@ -52,7 +37,7 @@ def test_class_1_assignment(value, classified, make_a_mt):
     """
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
-            clinvar_aip_strong=value,
+            clinvar_talos_strong=value,
         ),
     )
 
@@ -61,21 +46,21 @@ def test_class_1_assignment(value, classified, make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'clinvar_aip,c6,gene_id,consequence_terms,classified',
+    'clinvar_talos,c6,gene_id,consequence_terms,classified',
     [
-        (0, 0, 'GREEN', 'missense', 0),
-        (1, 1, 'RED', 'frameshift_variant', 0),
-        (1, 0, 'GREEN', 'missense', 1),
-        (1, 1, 'GREEN', 'frameshift_variant', 1),
-        (0, 1, 'GREEN', 'synonymous', 1),
-        (0, 1, 'GREEN', 'synonymous', 1),
+        (0, 0, 'GREEN', 'missense', ZERO_EXPECTED),
+        (1, 1, 'RED', 'frameshift_variant', ZERO_EXPECTED),
+        (1, 0, 'GREEN', 'missense', ONE_EXPECTED),
+        (1, 1, 'GREEN', 'frameshift_variant', ONE_EXPECTED),
+        (0, 1, 'GREEN', 'synonymous', ONE_EXPECTED),
+        (0, 1, 'GREEN', 'synonymous', ONE_EXPECTED),
     ],
 )
-def test_cat_2_assignment(clinvar_aip, c6, gene_id, consequence_terms, classified, make_a_mt):
+def test_cat_2_assignment(clinvar_talos, c6, gene_id, consequence_terms, classified, make_a_mt):
     """
     use some fake annotations, apply to the single fake variant
     Args:
-        clinvar_aip ():
+        clinvar_talos ():
         c6 ():
         gene_id ():
         consequence_terms ():
@@ -85,7 +70,7 @@ def test_cat_2_assignment(clinvar_aip, c6, gene_id, consequence_terms, classifie
 
     anno_matrix = make_a_mt.annotate_rows(
         geneIds=gene_id,
-        info=make_a_mt.info.annotate(clinvar_aip=clinvar_aip, categoryboolean6=c6),
+        info=make_a_mt.info.annotate(clinvar_talos=clinvar_talos, categoryboolean6=c6),
         vep=hl.Struct(
             transcript_consequences=hl.array([hl.Struct(consequence_terms=hl.set([consequence_terms]))]),
         ),
@@ -96,19 +81,19 @@ def test_cat_2_assignment(clinvar_aip, c6, gene_id, consequence_terms, classifie
 
 
 @pytest.mark.parametrize(
-    'clinvar_aip,loftee,consequence_terms,classified',
+    'clinvar_talos,loftee,consequence_terms,classified',
     [
-        (0, 'hc', 'frameshift_variant', 0),
-        (0, 'HC', 'frameshift_variant', 1),
-        (1, 'lc', 'frameshift_variant', 1),
-        (1, hl.missing(hl.tstr), 'frameshift_variant', 1),
+        (0, 'hc', 'frameshift_variant', ZERO_EXPECTED),
+        (0, 'HC', 'frameshift_variant', ONE_EXPECTED),
+        (1, 'lc', 'frameshift_variant', ONE_EXPECTED),
+        (1, hl.missing(hl.tstr), 'frameshift_variant', ONE_EXPECTED),
     ],
 )
-def test_class_3_assignment(clinvar_aip, loftee, consequence_terms, classified, make_a_mt):
+def test_class_3_assignment(clinvar_talos, loftee, consequence_terms, classified, make_a_mt):
     """
 
     Args:
-        clinvar_aip ():
+        clinvar_talos ():
         loftee ():
         consequence_terms ():
         classified ():
@@ -116,16 +101,11 @@ def test_class_3_assignment(clinvar_aip, loftee, consequence_terms, classified, 
     """
 
     anno_matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(
-            clinvar_aip=clinvar_aip,
-        ),
+        info=make_a_mt.info.annotate(clinvar_talos=clinvar_talos),
         vep=hl.Struct(
             transcript_consequences=hl.array(
                 [
-                    hl.Struct(
-                        consequence_terms=hl.set([consequence_terms]),
-                        lof=loftee,
-                    ),
+                    hl.Struct(consequence_terms=hl.set([consequence_terms]), lof=loftee),
                 ],
             ),
         ),
@@ -155,12 +135,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
 
 @pytest.mark.parametrize(
     'am_class,classified',
-    [
-        ('likely_pathogenic', 1),
-        ('not_pathogenic', 0),
-        ('', 0),
-        (hl.missing('tstr'), 0),
-    ],
+    [('likely_pathogenic', 1), ('not_pathogenic', 0), ('', 0), (hl.missing('tstr'), 0)],
 )
 def test_class_6_assignment(am_class, classified, make_a_mt):
     """
@@ -172,9 +147,7 @@ def test_class_6_assignment(am_class, classified, make_a_mt):
     """
 
     anno_matrix = make_a_mt.annotate_rows(
-        vep=hl.Struct(
-            transcript_consequences=hl.array([hl.Struct(am_class=am_class)]),
-        ),
+        vep=hl.Struct(transcript_consequences=hl.array([hl.Struct(am_class=am_class)])),
     )
 
     anno_matrix = annotate_category_6(anno_matrix)
@@ -190,9 +163,7 @@ def annotate_c6_missing(make_a_mt, caplog):
         make_a_mt ():
     """
     anno_matrix = make_a_mt.annotate_rows(
-        vep=hl.Struct(
-            transcript_consequences=hl.array([hl.Struct(not_am='a value')]),
-        ),
+        vep=hl.Struct(transcript_consequences=hl.array([hl.Struct(not_am='a value')])),
     )
 
     anno_matrix = annotate_category_6(anno_matrix)
@@ -202,16 +173,17 @@ def annotate_c6_missing(make_a_mt, caplog):
 
 def test_green_and_new_from_panelapp():
     """
+    TODO make a proper object
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
     2 set expressions, one for all genes, one for new genes only
     """
-
-    mendeliome = {
-        'ENSG00ABCD': {'new': [1]},
-        'ENSG00EFGH': {'new': []},
-        'ENSG00IJKL': {'new': [2]},
+    mendeliome_data = {
+        'ENSG00ABCD': {'new': [1], 'symbol': 'ABCD'},
+        'ENSG00EFGH': {'new': [], 'symbol': 'EFHG'},
+        'ENSG00IJKL': {'new': [2], 'symbol': 'IJKL'},
     }
+    mendeliome = PanelApp.model_validate({'genes': mendeliome_data})
     green_expression, new_expression = green_and_new_from_panelapp(mendeliome)
 
     # check types
@@ -219,23 +191,13 @@ def test_green_and_new_from_panelapp():
     assert isinstance(new_expression, hl.SetExpression)
 
     # check content by collecting
-    assert sorted(green_expression.collect()[0]) == [
-        'ENSG00ABCD',
-        'ENSG00EFGH',
-        'ENSG00IJKL',
-    ]
+    assert sorted(green_expression.collect()[0]) == ['ENSG00ABCD', 'ENSG00EFGH', 'ENSG00IJKL']
     assert new_expression.collect()[0] == {'ENSG00ABCD', 'ENSG00IJKL'}
 
 
 @pytest.mark.parametrize(
     'exomes,genomes,clinvar,length',
-    [
-        (0, 0, 0, 1),
-        (1.0, 0, 0, 0),
-        (1.0, 0, 1, 1),
-        (0.0001, 0.0001, 0, 1),
-        (0.0001, 0.0001, 1, 1),
-    ],
+    [(0, 0, 0, 1), (1.0, 0, 0, 0), (1.0, 0, 1, 1), (0.0001, 0.0001, 0, 1), (0.0001, 0.0001, 1, 1)],
 )
 def test_filter_rows_for_rare(exomes, genomes, clinvar, length, make_a_mt):
     """
@@ -246,12 +208,9 @@ def test_filter_rows_for_rare(exomes, genomes, clinvar, length, make_a_mt):
         clinvar ():
         length ():
         make_a_mt ():
-
-    Returns:
-
     """
     anno_matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_aip=clinvar),
+        info=make_a_mt.info.annotate(gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_talos=clinvar),
     )
     matrix = filter_to_population_rare(anno_matrix)
     assert matrix.count_rows() == length
@@ -310,7 +269,7 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
     )
     matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
     assert matrix.count_rows() == 1
-    matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) == 2)
+    matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) == TWO_EXPECTED)
     assert matrix.count_rows() == 1
 
 
@@ -350,17 +309,17 @@ def test_filter_to_classified(one, two, three, four, five, six, pm5, length, mak
     assert matrix.count_rows() == length
 
 
-def test_aip_clinvar_default(make_a_mt):
+def test_talos_clinvar_default(make_a_mt):
     """
     no private annotations applied
     Args:
         make_a_mt (hl.MatrixTable):
     """
 
-    mt = annotate_aip_clinvar(make_a_mt)
-    assert mt.count_rows() == 1
-    assert not [x for x in mt.info.clinvar_aip.collect() if x == 1]
-    assert not [x for x in mt.info.clinvar_aip_strong.collect() if x == 1]
+    mt = annotate_talos_clinvar(make_a_mt)
+    assert mt.count_rows() == ONE_EXPECTED
+    assert not [x for x in mt.info.clinvar_talos.collect() if x == 1]
+    assert not [x for x in mt.info.clinvar_talos_strong.collect() if x == 1]
 
 
 @pytest.mark.parametrize(
@@ -373,7 +332,7 @@ def test_aip_clinvar_default(make_a_mt):
         ('pathogenic', 1, 1, 1, 1),
     ],
 )
-def test_annotate_aip_clinvar(rating, stars, rows, regular, strong, tmp_path, make_a_mt):
+def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, make_a_mt):
     """
     Test intention
     - take a VCF of two variants w/default clinvar annotations
@@ -399,15 +358,8 @@ def test_annotate_aip_clinvar(rating, stars, rows, regular, strong, tmp_path, ma
 
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
-    toml_dict = {'workflow': {'clinvar_decisions': table_path}}
-    toml_path = str(tmp_path / 'clinvar.toml')
-    with open(toml_path, 'w', encoding='utf-8') as f:
-        toml.dump(toml_dict, f)
 
-    set_config_paths(_config_paths + [toml_path])
-    get_config()
-
-    returned_table = annotate_aip_clinvar(make_a_mt)
+    returned_table = annotate_talos_clinvar(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
-    assert len([x for x in returned_table.info.clinvar_aip.collect() if x == 1]) == regular
-    assert len([x for x in returned_table.info.clinvar_aip_strong.collect() if x == 1]) == strong
+    assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
+    assert len([x for x in returned_table.info.clinvar_talos_strong.collect() if x == 1]) == strong
