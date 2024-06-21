@@ -893,7 +893,7 @@ def main(
 
     # initiate Hail as a local cluster
     number_of_cores = config_retrieve(['hail', 'cores', 'small_variants'], 8)
-    hl.init(backend='spark', master=f'local[{number_of_cores}]', quiet=True)
+    hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')
 
     # get the run configuration JSON

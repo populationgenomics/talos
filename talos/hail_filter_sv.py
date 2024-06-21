@@ -150,7 +150,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # initiate Hail in local cluster mode
     get_logger().info('Starting Hail with reference genome GRCh38')
     number_of_cores = config_retrieve(['hail', 'cores', 'sv'], 2)
-    hl.init(backend='spark', master=f'local[{number_of_cores}]', quiet=True)
+    hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')
 
     # read in the input data (annotated) Not checking for existence; if it fails, it fails

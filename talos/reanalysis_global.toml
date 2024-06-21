@@ -69,7 +69,7 @@ sv = 2
 small_variants = 8
 
 [images]
-talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:4.0.0'
+talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:4.0.1'
 vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
 
 [references]
