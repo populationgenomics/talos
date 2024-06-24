@@ -196,18 +196,18 @@ def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = 
     # read in the hail table containing alpha missense annotations
     am_ht = hl.read_table(am_table)
 
-    # gross - this needs a conditional application based on the specific transcript
+    # gross - this needs a conditional application based on the specific transcript_id
     mt = mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
                     am_class=hl.if_else(
-                        x.feature == am_ht[mt.row_key].transcript,
+                        x.feature == am_ht[mt.row_key].transcript_id,
                         am_ht[mt.row_key].am_class,
                         hl.str(''),
                     ),
                     am_pathogenicity=hl.if_else(
-                        x.feature == am_ht[mt.row_key].transcript,
+                        x.feature == am_ht[mt.row_key].transcript_id,
                         am_ht[mt.row_key].am_pathogenicity,
                         hl.float64(0),
                     ),

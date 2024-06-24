@@ -34,6 +34,32 @@ from random import choices
 import hail as hl
 
 
+def process_header(final_header_line: str) -> dict[str, int]:
+    """
+    the TSV format is a little different in the all-isoforms vs. main transcript only
+    this method determines the column indexes to use based on the header content
+    we could determine preset columns by filename/flag, but... that's more burden on operator
+
+    Args:
+        final_header_line ():
+
+    Returns:
+
+    """
+    # remove newline and hash, lowercase, split into a list
+    broken_line = final_header_line.rstrip().replace('#', '').lower().split()
+
+    return {
+        'chrom': broken_line.index('chrom'),
+        'pos': broken_line.index('pos'),
+        'ref': broken_line.index('ref'),
+        'alt': broken_line.index('alt'),
+        'transcript_id': broken_line.index('transcript_id'),
+        'am_pathogenicity': broken_line.index('am_pathogenicity'),
+        'am_class': broken_line.index('am_class'),
+    }
+
+
 def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
     """
     read the tsv file, skim for pathogenic entries, then write out to a new file
@@ -43,14 +69,23 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
         intermediate_file ():
     """
 
-    headers = ['chrom', 'pos', 'ref', 'alt', 'transcript', 'am_pathogenicity', 'am_class']
+    headers = ['chrom', 'pos', 'ref', 'alt', 'transcript_id', 'am_pathogenicity', 'am_class']
+
+    # empty dictionary to contain the target indexes
+    header_indexes: dict[str, int] = {}
     with gzip.open(input_file, 'rt') as read_handle:
         with gzip.open(intermediate_file, 'wt') as write_handle:
             write_handle.write('\t'.join(headers) + '\n')
             for line in read_handle:
                 # skip over the headers
                 if line.startswith('#'):
+                    if line.startswith('#CHROM'):
+                        # set the indexes (isoform and main-only have different columns)
+                        header_indexes = process_header(line)
                     continue
+
+                if not header_indexes:
+                    raise ValueError('No header line was identified, columns are a mystery')
 
                 # skip over everything except pathogenic
                 if 'pathogenic' not in line:
@@ -58,13 +93,13 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
 
                 content = line.rstrip().split()
                 new_content = [
-                    content[0],  # chrom
-                    content[1],  # position
-                    content[2],  # ref
-                    content[3],  # alt
-                    content[6].split('.')[0],  # transcript, with version decimal removed
-                    content[8],  # am_pathogenicity
-                    content[9],  # am_class
+                    content[header_indexes['chrom']],  # chrom
+                    content[header_indexes['pos']],  # pos
+                    content[header_indexes['ref']],  # ref
+                    content[header_indexes['alt']],  # alt
+                    content[header_indexes['transcript_id']].split('.')[0],  # transcript, with version decimal removed
+                    content[header_indexes['am_pathogenicity']],  # float, score
+                    content[header_indexes['am_class']],  # string, classification
                 ]
 
                 write_handle.write('\t'.join(new_content) + '\n')
