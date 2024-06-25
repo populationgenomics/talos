@@ -863,10 +863,32 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
 
     # reduce to those common samples
     mt = mt.filter_cols(hl.literal(common_samples).contains(mt.s))
-
     get_logger().info(f'Remaining MatrixTable columns: {mt.count_cols()}')
 
     return mt
+
+
+def cli_main():
+    """
+    Read MT, filter, and apply category annotation, export as a VCF
+    """
+
+    parser = ArgumentParser()
+    parser.add_argument('--mt', required=True, help='path to input MT')
+    parser.add_argument('--panelapp', required=True, help='panelapp JSON')
+    parser.add_argument('--pedigree', required=True, help='Cohort Pedigree')
+    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
+    parser.add_argument('--clinvar', help='HT containing clinvar annotations, optional', default=None)
+    parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
+    args = parser.parse_args()
+    main(
+        mt_path=args.mt,
+        panel_data=args.panelapp,
+        pedigree=args.pedigree,
+        vcf_out=args.vcf_out,
+        clinvar=args.clinvar,
+        pm5=args.pm5,
+    )
 
 
 def main(
@@ -874,7 +896,6 @@ def main(
     panel_data: str,
     pedigree: str,
     vcf_out: str,
-    checkpoint: str | None = None,
     clinvar: str | None = None,
     pm5: str | None = None,
 ):
@@ -882,17 +903,27 @@ def main(
     Read MT, filter, and apply category annotation, export as a VCF
 
     Args:
-        mt_path (str): where to find vcf output
+        mt_path (str): Location of the input MT
         panel_data ():
         pedigree (str): path to a pedigree for this cohort (used in de novo testing)
         vcf_out (str): where to write VCF out
-        checkpoint (str): location to a write checkpoint, or unspecified
         clinvar (str): location to a ClinVar HT, or unspecified
         pm5 (str): location to a pm5 HT, or unspecified
     """
+    get_logger(__file__).info(
+        r"""Welcome To
+███████████   █████████   █████          ███████     █████████
+█   ███   █  ███     ███   ███         ███     ███  ███     ███
+    ███      ███     ███   ███        ███       ███ ███
+    ███      ███████████   ███        ███       ███  █████████
+    ███      ███     ███   ███        ███       ███         ███
+    ███      ███     ███   ███      █  ███     ███  ███     ███
+   █████    █████   █████ ███████████    ███████     █████████""",
+    )
 
     # initiate Hail as a local cluster
     number_of_cores = config_retrieve(['hail', 'cores', 'small_variants'], 8)
+    get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
     hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')
 
@@ -907,9 +938,9 @@ def main(
     # pull green and new genes from the panelapp data
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
 
-    get_logger().info('Starting Hail with reference genome GRCh38')
-
+    # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
+    get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
@@ -922,15 +953,13 @@ def main(
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
-    get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
-
-    # filter out quality failures
     # swap out the default clinvar annotations with private clinvar
     mt = annotate_talos_clinvar(mt=mt, clinvar=clinvar)
 
     # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
+    # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
 
     # running global quality filter steps
@@ -944,16 +973,15 @@ def main(
     # shrink the time taken to write checkpoints
     mt = drop_useless_fields(mt=mt)
 
-    if checkpoint:
-        get_logger().info('Checkpointing after filtering out a ton of variants')
-        mt = mt.checkpoint(checkpoint)
+    get_logger().info('Checkpointing after filtering out a ton of variants')
+    mt = mt.checkpoint('checkpoint.mt')
 
-        # die if there are no variants remaining
-        # only run this count after a checkpoint
-        if not (current_rows := mt.count_rows()):
-            raise ValueError('No remaining rows to process!')
+    # die if there are no variants remaining
+    # only run this count after a checkpoint
+    if not (current_rows := mt.count_rows()):
+        raise ValueError('No remaining rows to process!')
 
-        get_logger().info(f'Checkpoint written to {checkpoint}, {current_rows} rows remain')
+    get_logger().info(f'Local checkpoint written, {current_rows} rows remain')
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
@@ -972,6 +1000,7 @@ def main(
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
 
+    # remove all variants without positively assigned labels
     mt = filter_to_categorised(mt=mt)
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
@@ -982,33 +1011,4 @@ def main(
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--mt', required=True, help='path to input MT')
-    parser.add_argument('--panelapp', required=True, help='panelapp JSON')
-    parser.add_argument('--pedigree', required=True, help='Cohort Pedigree')
-    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
-    parser.add_argument('--checkpoint', help='Where to write a checkpoint, optional', default=None)
-    parser.add_argument('--clinvar', help='HT containing clinvar annotations, optional', default=None)
-    parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
-
-    args = parser.parse_args()
-    get_logger(__file__).info(
-        r"""Welcome To
- ███████████   █████████   █████          ███████     █████████
- █   ███   █  ███     ███   ███         ███     ███  ███     ███
-     ███      ███     ███   ███        ███       ███ ███
-     ███      ███████████   ███        ███       ███  █████████
-     ███      ███     ███   ███        ███       ███         ███
-     ███      ███     ███   ███      █  ███     ███  ███     ███
-    █████    █████   █████ ███████████    ███████     █████████
-        """,
-    )
-    main(
-        mt_path=args.mt,
-        panel_data=args.panelapp,
-        pedigree=args.pedigree,
-        vcf_out=args.vcf_out,
-        checkpoint=args.checkpoint,
-        clinvar=args.clinvar,
-        pm5=args.pm5,
-    )
+    cli_main()

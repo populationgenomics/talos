@@ -176,6 +176,7 @@ def insert_spliceai_annotation(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = None) -> hl.MatrixTable:
     """
+    Load up a Hail Table of AlphaMissense annotations, and annotate this data unless the AM annotations already exist
 
     Args:
         mt ():
@@ -259,23 +260,34 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main(input_vcf: str, output_mt: str, alpha_missense: str | None = None):
+def main():
     """
     take an input VCF and an output MT path
-    optionally, also supply the alpha_missense table created by helpers/parse_amissense_int_ht.py
+    optionally, also supply the alpha_missense table created by helpers/parse_amissense_into_ht.py
     if AlphaMissense annotations aren't already present in the VCF, this will annotate them in
-
-    Args:
-        input_vcf ():
-        output_mt ():
-        alpha_missense (str | None): either a path to a Hail Table of AlphaMissense annotations
     """
 
+    parser = ArgumentParser(description='Takes a VEP annotated VCF and makes it a MT')
+    parser.add_argument('vcf', help='Path to the annotated VCF')
+    parser.add_argument('output', help='output MatrixTable path')
+    parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', default=None)
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        raise ValueError(f'Whats the deal with {unknown}?')
+
+    # pick up the local config file, and use it as the global config
+    set_config_paths([str(Path(__file__).parent / 'vcf_to_mt.toml')])
+
+    # maybe this should be a larger local cluster
+    # and maybe partitions should be managed/enforced
+    hl.init()
+    hl.default_reference('GRCh38')
+
     # pull and split the CSQ header line
-    vep_header_elements = extract_and_split_csq_string(input_vcf)
+    vep_header_elements = extract_and_split_csq_string(args.vcf)
 
     # read the VCF into a MatrixTable
-    mt = hl.import_vcf(input_vcf, array_elements_required=False, force_bgz=True)
+    mt = hl.import_vcf(args.vcf, array_elements_required=False, force_bgz=True)
 
     # checkpoint it locally to make everything faster
     mt = mt.checkpoint('checkpoint.mt', overwrite=True, _read_if_exists=True)
@@ -286,8 +298,8 @@ def main(input_vcf: str, output_mt: str, alpha_missense: str | None = None):
     # insert super detailed AF structure - no reannotation, just re-organisation
     mt = implant_detailed_af(mt)
 
-    # if we need alphamissense scores to be added, add them
-    mt = insert_am_annotations_if_missing(mt, am_table=alpha_missense)
+    # if we need AlphaMissense scores to be added, add them
+    mt = insert_am_annotations_if_missing(mt, am_table=args.am)
 
     # check if all required annotations are present - insert if absent
     mt = insert_missing_annotations(mt)
@@ -299,22 +311,8 @@ def main(input_vcf: str, output_mt: str, alpha_missense: str | None = None):
     # audit all required annotations?
     mt.describe()
 
-    mt.write(output_mt)
+    mt.write(args.output)
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='Takes a VEP annotated VCF and makes it a MT')
-    parser.add_argument('vcf', help='Path to the annotated VCF')
-    parser.add_argument('output', help='output MatrixTable path')
-    parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', default=None)
-    args, unknown = parser.parse_known_args()
-    if unknown:
-        raise ValueError(f'Whats the deal with {unknown}?')
-
-    # pick up the local config file
-    set_config_paths([str(Path(__file__).parent / 'vcf_to_mt.toml')])
-
-    hl.init()
-    hl.default_reference('GRCh38')
-
-    main(args.vcf, args.output, alpha_missense=args.am)
+    main()

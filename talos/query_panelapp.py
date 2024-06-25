@@ -172,12 +172,19 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
+def cli_main():
+    parser = ArgumentParser()
+    parser.add_argument('--panels', help='JSON of per-participant panels')
+    parser.add_argument('--out_path', required=True, help='destination for results')
+    parser.add_argument('--dataset', default=None, help='dataset to use, optional')
+    args = parser.parse_args()
+    main(panels=args.panels, out_path=args.out_path, dataset=args.dataset)
+
+
 def main(panels: str | None, out_path: str, dataset: str | None = None):
     """
-    if present, reads in any prior reference data
-    if present, reads additional panels to use
+    Queries PanelApp for all the gene panels to use in the current analysis
     queries panelapp for each panel in turn, aggregating results
-    optional attribute dataset used for running in a pipeline context
 
     Args:
         panels (): file containing per-participant panels
@@ -247,9 +254,4 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--panels', help='JSON of per-participant panels')
-    parser.add_argument('--out_path', required=True, help='destination for results')
-    parser.add_argument('--dataset', default=None, help='dataset to use, optional')
-    args = parser.parse_args()
-    main(panels=args.panels, out_path=args.out_path, dataset=args.dataset)
+    cli_main()
