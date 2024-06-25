@@ -54,6 +54,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'generate_pedigree = talos.cpg_generate_pheno_ped:main',
             'vcf_to_mt = talos.vep_vcf_to_mt:main',
             'report_hunter = helpers.report_hunter:run_both',
             'clinvar_runner = talos.clinvar_runner:main',

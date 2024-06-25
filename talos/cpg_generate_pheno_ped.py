@@ -94,7 +94,7 @@ def get_data_from_metamist(project: str) -> list[list[str]]:
     return ped_entries
 
 
-if __name__ == '__main__':
+def main():
     parser = ArgumentParser(description='Generate a PED file for Talos')
     parser.add_argument('dataset', help='The dataset to query for')
     parser.add_argument('output', help='The output file')
@@ -106,3 +106,7 @@ if __name__ == '__main__':
     with open(args.output, 'w', encoding='utf-8') as handle:
         for line in new_ped_rows:
             handle.write('\t'.join(line) + '\n')
+
+
+if __name__ == '__main__':
+    main()
