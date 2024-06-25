@@ -152,7 +152,7 @@ def main(latest: bool = False):
 
     # build some HTML
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
-    template = env.get_template('index.html.jinja')
+    template = env.get_template('report_index.html.jinja')
     content = template.render(**template_context)
 
     # write to common web bucket - either attached to a single dataset, or communal

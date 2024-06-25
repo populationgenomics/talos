@@ -42,7 +42,7 @@ KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 
 
-def main():
+def cli_main():
     get_logger(__file__).info('Running HTML builder')
 
     parser = ArgumentParser()
@@ -53,44 +53,55 @@ def main():
     parser.add_argument('--dataset', help='Optional, dataset to use', default=None)
     parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
     args = parser.parse_args()
-
     global DATASET_CONFIG
     DATASET_CONFIG = get_cohort_config(args.dataset)
 
     global DATASET_SEQ_CONFIG
     DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
 
-    html = HTMLBuilder(results=args.results, panelapp_path=args.panelapp)
+
+def main(results: str, panelapp: str, output: str, latest: str | None = None, split_samples: int | None = None):
+    """
+
+    Args:
+        results (str): path to the MOI-tested results file
+        panelapp (str): path to the panelapp data
+        output (str): where to write the HTML file
+        latest (str, optional): where to write a latest-results only file
+        split_samples (int, optional): if this cohort should be subdivided into multiple reports
+    """
+
+    html = HTMLBuilder(results=results, panelapp_path=panelapp)
     # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
     # catch this, but fail gracefully so that the process overall is a success
     try:
         get_logger().info('Finding whole-cohort categorised variants')
-        html.write_html(output_filepath=args.output)
+        html.write_html(output_filepath=output)
     except NoVariantsFoundException:
         get_logger().warning('No Categorised variants found in this whole cohort')
         sys.exit(0)
 
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
-    if args.latest and (date_filtered_object := check_date_filter(results=args.results)):
+    if latest and (date_filtered_object := check_date_filter(results=results)):
         # build the HTML for latest reports only
-        latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp)
+        latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
         # this can fail if there are no latest-in-this-run variants, but we continue to splitting
         try:
-            latest_html.write_html(output_filepath=args.latest, latest=True)
+            latest_html.write_html(output_filepath=latest, latest=True)
         except NoVariantsFoundException:
             get_logger().info('No latest-only variants found, but continuing on to subset splitting')
 
     # if no splitting, just exit here
-    if not args.split_samples:
+    if not split_samples:
         get_logger().info('No splitting required in this run, exiting')
         sys.exit(0)
 
     # do something to split the output into separate datasets
     # either look for an ID convention, or go with a random split
-    html_base = to_path(args.output).parent
-    for data, report, latest in split_data_into_sub_reports(args.results, args.split_samples):
-        html = HTMLBuilder(results=data, panelapp_path=args.panelapp)
+    html_base = to_path(output).parent
+    for data, report, latest in split_data_into_sub_reports(results, split_samples):
+        html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
             get_logger().info(f'Attempting to create {report}')
             html.write_html(output_filepath=str(html_base / report))
@@ -99,9 +110,9 @@ def main():
 
         # If the latest arg is used, filter the results
         # write the HTML if any results remain
-        if args.latest and (date_filtered_object := check_date_filter(results=data)):
+        if latest and (date_filtered_object := check_date_filter(results=data)):
             # build the HTML for latest reports only
-            latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=args.panelapp)
+            latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
             try:
                 get_logger().info(f'Attempting to create {latest_html}')
                 latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
@@ -671,4 +682,4 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
 
 
 if __name__ == '__main__':
-    main()
+    cli_main()

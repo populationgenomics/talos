@@ -31,7 +31,7 @@ The output of this script creates a number of outputs:
 7. The pedigree, lookup, seqr mapping, and panel data all copied to the relevant GCP bucket
 8. [optional] If the exome flag is used, this will use `_exomes` in file paths to prevent clashes with the genome data
 
-## Central Index Generator [report_hunter.py](../helpers/report_hunter.py)
+## Central Index Generator [report_hunter.py](../talos/report_hunter.py)
 
 This script crawls all project GCP buckets it has access to and identifies the latest HTML reports for each cohort.
 These collected reports are assembled into an index HTML page, which is posted to the `common` bucket.

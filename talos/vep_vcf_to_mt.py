@@ -296,7 +296,7 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt
 
 
-def main():
+def cli_main():
     """
     take an input VCF and an output MT path
     optionally, also supply the alpha_missense table created by helpers/parse_amissense_into_ht.py
@@ -311,16 +311,31 @@ def main():
     if unknown:
         raise ValueError(f'Whats the deal with {unknown}?')
 
+    main(vcf_path=args.vcf, output_path=args.output, alpha_m=args.am)
+
+
+def main(vcf_path: str, output_path: str, alpha_m: str | None = None):
+    """
+    Takes a VEP-annotated VCF, reorganises into a Talos-compatible MatrixTable
+    If supplied, will annotate at runtime with AlphaMissense annotations
+    Args:
+        vcf_path ():
+        output_path ():
+        alpha_m ():
+
+    Returns:
+
+    """
     # maybe this should be a larger local cluster
     # and maybe partitions should be managed/enforced
     hl.init()
     hl.default_reference('GRCh38')
 
     # pull and split the CSQ header line
-    vep_header_elements = extract_and_split_csq_string(args.vcf)
+    vep_header_elements = extract_and_split_csq_string(vcf_path=vcf_path)
 
     # read the VCF into a MatrixTable
-    mt = hl.import_vcf(args.vcf, array_elements_required=False, force_bgz=True)
+    mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
 
     # checkpoint it locally to make everything faster
     mt = mt.checkpoint('checkpoint.mt', overwrite=True, _read_if_exists=True)
@@ -332,7 +347,7 @@ def main():
     mt = implant_detailed_af(mt)
 
     # if we need AlphaMissense scores to be added, add them
-    mt = insert_am_annotations_if_missing(mt, am_table=args.am)
+    mt = insert_am_annotations_if_missing(mt, am_table=alpha_m)
 
     # check if all required annotations are present - insert if absent
     mt = insert_missing_annotations(mt)
@@ -344,8 +359,8 @@ def main():
     # audit all required annotations?
     mt.describe()
 
-    mt.write(args.output)
+    mt.write(output_path)
 
 
 if __name__ == '__main__':
-    main()
+    cli_main()

@@ -57,7 +57,6 @@ setup(
             'generate_pedigree = talos.cpg_generate_pheno_ped:main',
             'vcf_to_mt = talos.vep_vcf_to_mt:main',
             'report_hunter = helpers.report_hunter:run_both',
-            'clinvar_runner = talos.clinvar_runner:main',
             'hail_label = talos.hail_filter_and_label:cli_main',
             'hail_label_sv = talos.hail_filter_sv:cli_main',
             'hpo_panel_match = talos.hpo_panel_match:cli_main',
