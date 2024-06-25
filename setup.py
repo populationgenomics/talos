@@ -62,7 +62,7 @@ setup(
             'hpo_panel_match = talos.hpo_panel_match:cli_main',
             'query_panelapp = talos.query_panelapp:cli_main',
             'validate_categories = talos.validate_categories:cli_main',
-            'build_html = talos.build_html:main',
+            'build_html = talos.html_builder:main',
         ]
     },
 )

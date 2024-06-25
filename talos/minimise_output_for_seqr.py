@@ -21,23 +21,22 @@ from talos.models import MiniForSeqr, MiniVariant, ResultData
 from talos.static_values import get_logger
 
 
-def coord_to_string(coord: dict) -> str:
-    """
-    converts a coordinate dict to a string
+def cli_main():
+    parser = ArgumentParser()
+    parser.add_argument('input_file', help='the input file to process')
+    parser.add_argument('output_file', help='the output file to write to')
+    parser.add_argument('pheno_file', help='the output file for phenotype-matched data', default=None)
+    parser.add_argument('--external_map', help='mapping of internal to external IDs for seqr', default=None)
+    args = parser.parse_args()
 
-    Args:
-        coord (dict): a coordinate dict
-
-    Returns:
-        str: a string representation of the coordinate dict
-    """
-    return f"{coord['chrom']}-{coord['pos']}-{coord['ref']}-{coord['alt']}"
+    main(input_file=args.input_file, output=args.output_file, ext_map=args.external_map)
+    if args.pheno_file:
+        main(input_file=args.input_file, output=args.pheno_file, ext_map=args.external_map, pheno_match=True)
 
 
 def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: bool = False):
     """
     reads in the input file, shrinks it, and writes the output file
-
 
     Args:
         input_file (str):
@@ -84,13 +83,4 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('input_file', help='the input file to process')
-    parser.add_argument('output_file', help='the output file to write to')
-    parser.add_argument('pheno_file', help='the output file for phenotype-matched data', default=None)
-    parser.add_argument('--external_map', help='mapping of internal to external IDs for seqr', default=None)
-    args = parser.parse_args()
-
-    main(input_file=args.input_file, output=args.output_file, ext_map=args.external_map)
-    if args.pheno_file:
-        main(input_file=args.input_file, output=args.pheno_file, ext_map=args.external_map, pheno_match=True)
+    cli_main()

@@ -228,12 +228,7 @@ def main():
     # check if we can just quit already
     if all(
         to_path(this_path).exists()
-        for this_path in [
-            annotated_clinvar,
-            annotated_clinvar_mt,
-            clinvar_ht,
-            clinvar_pm5_path,
-        ]
+        for this_path in [annotated_clinvar, annotated_clinvar_mt, clinvar_ht, clinvar_pm5_path]
     ):
         get_logger().info('Clinvar data already exists, exiting')
         return
