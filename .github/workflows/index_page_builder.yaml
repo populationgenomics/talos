@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VERSION: 4.0.1
+      VERSION: 4.1.0
 
     steps:
 
