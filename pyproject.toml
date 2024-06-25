@@ -3,8 +3,7 @@ line-length = 120
 skip-string-normalization = true
 exclude = '''
 /(
-  gnomad_methods
-  | venv
+  venv
   | \.mypy_cache
   | \.tox
   | \.venv
@@ -17,7 +16,6 @@ exclude = '''
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-pythonpath = ['gnomad_methods', 'seqr-loading-pipelines']
 testpaths = ['test']
 
 [tool.ruff]
@@ -175,4 +173,4 @@ section-order = ["future", "standard-library", "third-party", "hail", "cpg", "fi
 [tool.ruff.lint.isort.sections]
 hail = ["hail", "hailtop"]
 
-cpg = ["analysis_runner", "cpg_infra", "cpg_utils", "cpg_workflows", "metamist"]
+cpg = ["cpg_utils", "metamist"]

@@ -24,7 +24,6 @@ The `panels` section relates to the gene panel querying phase
 * default_panel - the base panel for this analysis (defaults to the Mendeliome, 137)
 * require_pheno_match - genes to remove from the base panel (for noise reasons), but to permit if they are present on a
   phenotype-matched panel
-* panel_month_delta - the number of months to look back for prior panel data, if no other source is provided
 
 ## clinvar
 

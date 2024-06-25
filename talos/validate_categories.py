@@ -416,12 +416,33 @@ def prepare_results_shell(
     return results_shell
 
 
+def cli_main():
+    parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
+    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
+    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to')
+    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
+    parser.add_argument('--pedigree', help='Path to joint-call PED file')
+    parser.add_argument('--participant_panels', help='panels per participant', default=None)
+    parser.add_argument('--dataset', help='optional, dataset to use', default=None)
+    args = parser.parse_args()
+
+    main(
+        labelled_vcf=args.labelled_vcf,
+        out_json=args.out_json,
+        panelapp=args.panelapp,
+        pedigree=args.pedigree,
+        labelled_sv=args.labelled_sv,
+        participant_panels=args.participant_panels,
+        dataset=args.dataset,
+    )
+
+
 def main(
     labelled_vcf: str,
     out_json: str,
     panelapp: str,
     pedigree: str,
-    input_path: str,
     labelled_sv: list[str] | None = None,
     participant_panels: str | None = None,
     dataset: str | None = None,
@@ -439,10 +460,21 @@ def main(
         out_json (str): location to write output file
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
-        input_path (str): VCF/MT used as input
         participant_panels (str): json of panels per participant
         dataset (str): optional, dataset to use
     """
+    get_logger(__file__).info(
+        r"""Welcome To
+███████████   █████████   █████          ███████     █████████
+█   ███   █  ███     ███   ███         ███     ███  ███     ███
+    ███      ███     ███   ███        ███       ███ ███
+    ███      ███████████   ███        ███       ███  █████████
+    ███      ███     ███   ███        ███       ███         ███
+    ███      ███     ███   ███      █  ███     ███  ███     ███
+   █████    █████   █████ ███████████    ███████     █████████
+        """,
+    )
+    get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
 
     if dataset is None:
         dataset = config_retrieve(['workflow', 'dataset'])
@@ -514,7 +546,6 @@ def main(
     # create the full final output file
     results_meta = ResultMeta(
         **{
-            'input_file': input_path,
             'cohort': dataset or config_retrieve(['workflow', 'dataset'], 'unknown'),
             'family_breakdown': count_families(ped, samples=all_samples),
             'panels': panelapp_data.metadata,
@@ -553,38 +584,4 @@ def main(
 
 
 if __name__ == '__main__':
-    get_logger(__file__).info('Starting MOI testing phase')
-    get_logger(__file__).info(
-        r"""Welcome To
- ███████████   █████████   █████          ███████     █████████
- █   ███   █  ███     ███   ███         ███     ███  ███     ███
-     ███      ███     ███   ███        ███       ███ ███
-     ███      ███████████   ███        ███       ███  █████████
-     ███      ███     ███   ███        ███       ███         ███
-     ███      ███     ███   ███      █  ███     ███  ███     ███
-    █████    █████   █████ ███████████    ███████     █████████
-        """,
-    )
-    get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
-
-    parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
-    parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
-    parser.add_argument('--out_json', help='Prefix to write JSON results to')
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--pedigree', help='Path to joint-call PED file')
-    parser.add_argument('--input_path', help='source data', default='Not supplied')
-    parser.add_argument('--participant_panels', help='panels per participant', default=None)
-    parser.add_argument('--dataset', help='optional, dataset to use', default=None)
-    args = parser.parse_args()
-
-    main(
-        labelled_vcf=args.labelled_vcf,
-        out_json=args.out_json,
-        panelapp=args.panelapp,
-        pedigree=args.pedigree,
-        input_path=args.input_path,
-        labelled_sv=args.labelled_sv,
-        participant_panels=args.participant_panels,
-        dataset=args.dataset,
-    )
+    cli_main()

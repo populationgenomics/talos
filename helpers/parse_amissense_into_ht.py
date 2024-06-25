@@ -6,7 +6,7 @@ This Hail Table can be used for annotation of an old VEP'd VCF
 
 This is being included as annotation using AlphaMissense is important for Talos
 We've removed attempts to find consensus using polyphen, SIFT, Revel, CADD, etc.
-finding instead that there was near-perfect overlap between the results when using
+finding instead that there was strong overlap between the results when using
 multiple in Silico tools vs. just AlphaMissense
 
 The AlphaMissense data is publicly available, and this is just a parser for that TSV
@@ -125,7 +125,7 @@ def hail_table_from_tsv(tsv_file: str, new_ht: str):
     ht.write(new_ht)
 
 
-if __name__ == '__main__':
+def cli_main():
     # two positional
     parser = ArgumentParser()
     parser.add_argument('am_tsv', help='path to the AM tsv.gz file')
@@ -134,15 +134,30 @@ if __name__ == '__main__':
 
     if unknown:
         raise ValueError(unknown)
+    main(alpha_m_file=args.am_tsv, ht_path=args.ht_out)
+
+
+def main(alpha_m_file: str, ht_path: str):
+    """
+    takes the path to an AlphaMissense TSV, reorganises it into a Hail Table
+
+    Args:
+        alpha_m_file ():
+        ht_path ():
+    """
 
     # generate a random file name so that we don't overwrite anything consistently
     random_intermediate_file: str = ''.join(choices(string.ascii_uppercase + string.digits, k=6)) + '.tsv.gz'
 
     # generate a new tsv of just pathogenic entries
-    filter_for_pathogenic_am(args.am_tsv, random_intermediate_file)
+    filter_for_pathogenic_am(alpha_m_file, random_intermediate_file)
 
     # now ingest as HT and re-jig some fields
-    hail_table_from_tsv(random_intermediate_file, args.ht_out)
+    hail_table_from_tsv(random_intermediate_file, ht_path)
 
     # if that succeeded, delete the intermediate file
     os.remove(random_intermediate_file)
+
+
+if __name__ == '__main__':
+    cli_main()

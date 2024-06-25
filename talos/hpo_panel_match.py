@@ -231,6 +231,16 @@ def update_hpo_with_label(hpo_dict: PhenotypeMatchedPanels, hpo_to_text: dict[st
     return hpo_dict
 
 
+def cli_main():
+    get_logger(__file__).info('Starting HPO~Panel matching')
+    parser = ArgumentParser()
+    parser.add_argument('-i', help='extended PED input file', required=True)
+    parser.add_argument('--hpo', help='local copy of HPO obo file', required=True)
+    parser.add_argument('--out', help='panel file to write', required=True)
+    args = parser.parse_args()
+    main(ped_file=args.i, hpo_file=args.hpo, panel_out=args.out)
+
+
 def main(ped_file: str, hpo_file: str, panel_out: str | None):
     """
     read the pedigree - get relevant participant IDs & HPO
@@ -266,10 +276,4 @@ def main(ped_file: str, hpo_file: str, panel_out: str | None):
 
 
 if __name__ == '__main__':
-    get_logger(__file__).info('Starting HPO~Panel matching')
-    parser = ArgumentParser()
-    parser.add_argument('-i', help='extended PED input file', required=True)
-    parser.add_argument('--hpo', help='local copy of HPO obo file', required=True)
-    parser.add_argument('--out', help='panel file to write', required=True)
-    args = parser.parse_args()
-    main(ped_file=args.i, hpo_file=args.hpo, panel_out=args.out)
+    cli_main()

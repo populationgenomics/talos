@@ -125,6 +125,19 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def cli_main():
+    """
+    main method wrapper for console script execution
+    """
+    parser = ArgumentParser()
+    parser.add_argument('--mt', required=True, help='path to input MT')
+    parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
+    parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
+    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
+    args = parser.parse_args()
+    main(mt_path=args.mt, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.vcf_out)
+
+
 def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     """
     Read MT, filter, and apply category annotation
@@ -136,11 +149,21 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
         pedigree ():
         vcf_out (str): where to write VCF out
     """
+    get_logger(__file__).info(
+        r"""Welcome To
+███████████   █████████   █████          ███████     █████████
+█   ███   █  ███     ███   ███         ███     ███  ███     ███
+    ███      ███     ███   ███        ███       ███ ███
+    ███      ███████████   ███        ███       ███  █████████
+    ███      ███     ███   ███        ███       ███         ███
+    ███      ███     ███   ███      █  ███     ███  ███     ███
+   █████    █████   █████ ███████████    ███████     █████████
+        (SV style)""",
+    )
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
     panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
-
     assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data
@@ -148,8 +171,8 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     green_expression, _new_expression = green_and_new_from_panelapp(panelapp)
 
     # initiate Hail in local cluster mode
-    get_logger().info('Starting Hail with reference genome GRCh38')
     number_of_cores = config_retrieve(['hail', 'cores', 'sv'], 2)
+    get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
     hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')
 
@@ -183,26 +206,4 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
 
 if __name__ == '__main__':
-    # general CLI identical to the small variant version
-    parser = ArgumentParser()
-    parser.add_argument('--mt', required=True, help='path to input MT')
-    parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
-    parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
-    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
-    args = parser.parse_args()
-
-    logger = get_logger(__file__)
-    logger.info(
-        r"""Welcome To
- ███████████   █████████   █████          ███████     █████████
- █   ███   █  ███     ███   ███         ███     ███  ███     ███
-     ███      ███     ███   ███        ███       ███ ███
-     ███      ███████████   ███        ███       ███  █████████
-     ███      ███     ███   ███        ███       ███         ███
-     ███      ███     ███   ███      █  ███     ███  ███     ███
-    █████    █████   █████ ███████████    ███████     █████████
-        (SV style)
-        """,
-    )
-
-    main(mt_path=args.mt, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.vcf_out)
+    cli_main()

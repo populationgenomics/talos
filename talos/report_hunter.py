@@ -84,6 +84,16 @@ def get_project_analyses(project: str) -> list[dict]:
     return response['project']['analyses']
 
 
+def run_both():
+    """
+    run once for all main reports, then again for the latest-only reports
+    """
+    get_logger(__file__).info('Fetching main reports')
+    main()
+    get_logger().info('Fetching latest-only reports')
+    main(latest=True)
+
+
 def main(latest: bool = False):
     """
     finds all existing reports, generates an HTML file
@@ -142,7 +152,7 @@ def main(latest: bool = False):
 
     # build some HTML
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
-    template = env.get_template('index.html.jinja')
+    template = env.get_template('report_index.html.jinja')
     content = template.render(**template_context)
 
     # write to common web bucket - either attached to a single dataset, or communal
@@ -156,6 +166,4 @@ def main(latest: bool = False):
 
 
 if __name__ == '__main__':
-    # run once for all main reports, then again for the latest-only reports
-    main()
-    main(latest=True)
+    run_both()

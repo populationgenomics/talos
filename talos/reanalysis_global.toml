@@ -2,9 +2,6 @@
 name = 'Talos'
 # sequencing_type = 'genome' or 'exome'
 
-# optionally allow for running a different HTML script
-presentation = 'cpg'
-
 ## override clinvar results
 #clinvar_decisions = "HailTable path to private ClinVar"
 #clinvar_pm5 = "HailTable path to ClinVar PM5"
@@ -15,7 +12,6 @@ presentation = 'cpg'
 [panels]
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
-panel_month_delta = 12
 require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
 
 [clinvar]
@@ -58,18 +54,15 @@ sv1 = 'Predicted LOF SV'
 [category_rules]
 # for these categories, require a phenotype-gene match
 phenotype_match = ['6']
-
-[hail]
-cancel_after_n_failures = 1
-default_timeout = 6000
-default_memory = 'highmem'
+# remove these categories from analysis - useful if a category is producing too much noise
+#ignore_categories = ['categoryboolean2']
 
 [hail.cores]
 sv = 2
 small_variants = 8
 
 [images]
-talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:4.0.1'
+talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:4.1.0'
 vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
 
 [references]
@@ -79,5 +72,4 @@ genome_build = 'GRCh38'
 # per-cohort section
 #clinvar_filter = when running a clinvar re-summary, remove submissions by these sites. Default = no removal
 #cohort_panels = any panel IDs to be applied to this cohort, even if not otherwise phenotype-matched
-#cohort_percentage = when generating an analysis pedigree, reduce the cohort to this percentage of the total. Default = 100
 #gene_prior = if a specific gene list is to be used to determine Cat 2 (new gene-disease associations), provide the filepath here
