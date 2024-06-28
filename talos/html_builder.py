@@ -27,12 +27,10 @@ from talos.models import (
     SmallVariant,
     StructuralVariant,
 )
-from talos.utils import get_cohort_config, get_cohort_seq_type_conf, get_logger, read_json_from_path
+from talos.utils import get_logger, read_json_from_path
 
 # todo is this still valid?
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
-DATASET_CONFIG: dict = None  # type: ignore
-DATASET_SEQ_CONFIG: dict = None  # type: ignore
 
 # above this length we trim the actual bases to just an int
 MAX_INDEL_LEN: int = 10
@@ -44,20 +42,14 @@ CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 
 def cli_main():
     get_logger(__file__).info('Running HTML builder')
-
     parser = ArgumentParser()
     parser.add_argument('--results', help='Path to analysis results', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Optional second report, latest variants only')
-    parser.add_argument('--dataset', help='Optional, dataset to use', default=None)
     parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
     args = parser.parse_args()
-    global DATASET_CONFIG
-    DATASET_CONFIG = get_cohort_config(args.dataset)
-
-    global DATASET_SEQ_CONFIG
-    DATASET_SEQ_CONFIG = get_cohort_seq_type_conf(args.dataset)
+    main(args.results, args.panelapp, args.output, args.latest, args.split_samples)
 
 
 def main(results: str, panelapp: str, output: str, latest: str | None = None, split_samples: int | None = None):
@@ -168,26 +160,23 @@ class HTMLBuilder:
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
 
         # If it exists, read the forbidden genes as a set
-        self.forbidden_genes = read_json_from_path(
-            DATASET_CONFIG.get('forbidden', 'missing'),
-            default=set(),  # type: ignore
-        )
+        # todo
+        self.forbidden_genes = read_json_from_path(config_retrieve(['workflow', 'missing']), default=set())
         assert isinstance(self.forbidden_genes, set)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
-        seqr_path = DATASET_SEQ_CONFIG.get('seqr_lookup')  # type: ignore
         self.seqr: dict[str, str] = {}
 
-        if seqr_path:
+        # todo
+        if seqr_path := config_retrieve(['workflow', 'seqr_lookup'], ''):
             self.seqr = read_json_from_path(seqr_path, default=self.seqr)  # type: ignore
             assert isinstance(self.seqr, dict)
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert DATASET_SEQ_CONFIG.get(  # type: ignore
-                    seqr_key,
-                ), f'Seqr-related key required but not present: {seqr_key}'
+                # todo
+                assert config_retrieve(['workflow', seqr_key], False), f'Seqr key absent: {seqr_key}'
 
         # Optionally read in the labels file
         # This file should be a nested dictionary of sample IDs and variant identifiers
@@ -198,7 +187,8 @@ class HTMLBuilder:
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        ext_labels = read_json_from_path(DATASET_SEQ_CONFIG.get('external_labels'), {})
+        # todo
+        ext_labels = config_retrieve(['workflow', 'external_labels'], {})
         assert isinstance(ext_labels, dict)
         self.ext_labels: dict[str, dict] = ext_labels
 
@@ -214,7 +204,8 @@ class HTMLBuilder:
         self.panel_names = {panel.name for panel in self.metadata.panels}
 
         # pull out forced panel matches
-        cohort_panels = DATASET_CONFIG.get('cohort_panels', [])  # type: ignore
+        # todo
+        cohort_panels = config_retrieve(['workflow', 'cohort_panels'], [])  # type: ignore
         self.forced_panels: list[PanelShort] = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
         self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
@@ -365,8 +356,9 @@ class HTMLBuilder:
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            'seqr_url': DATASET_SEQ_CONFIG.get('seqr_instance', ''),  # type: ignore
-            'seqr_project': DATASET_SEQ_CONFIG.get('seqr_project', ''),  # type: ignore
+            # todo change
+            'seqr_url': config_retrieve(['workflow', 'seqr_instance'], ''),  # type: ignore
+            'seqr_project': config_retrieve(['workflow', 'seqr_project'], ''),  # type: ignore
             'meta_tables': {},
             'forbidden_genes': sorted(self.forbidden_genes),
             'zero_categorised_samples': zero_cat_samples,

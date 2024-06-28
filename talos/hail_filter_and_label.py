@@ -6,7 +6,7 @@ Read, filter, annotate, classify, and write Genetic data
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 2, 3, 4, 5, and Support
+- annotate with categories 1, 2, 3, 4, 5, 6, and Support
 - remove un-categorised variants
 - write as VCF
 """

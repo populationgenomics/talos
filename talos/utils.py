@@ -52,7 +52,6 @@ HOMALT: int = 3
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
-CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
 
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
@@ -205,49 +204,9 @@ def get_json_response(url):
     return response.json()
 
 
-def get_cohort_config(dataset: str | None = None):
-    """
-    return the cohort-specific portion of the config file, or fail
-
-    Returns:
-        the dict of cohort and genome/exome specific content
-    """
-
-    global COHORT_CONFIG
-    if COHORT_CONFIG is None:
-        dataset = dataset or config_retrieve(['workflow', 'dataset'])
-        COHORT_CONFIG = config_retrieve(['cohorts', dataset], {})
-        if not COHORT_CONFIG:
-            raise AssertionError(f'{dataset} is not represented in config')
-    return COHORT_CONFIG
-
-
-def get_cohort_seq_type_conf(dataset: str | None = None):
-    """
-    return the cohort-specific portion of the config file,
-    chased down to the exome/genome specific portion
-
-    Args:
-        dataset (str): the dataset to retrieve config for
-                       defaults to config/workflow/dataset
-
-    Returns:
-        the dict of cohort and genome/exome specific content
-    """
-    global COHORT_SEQ_CONFIG
-    if COHORT_SEQ_CONFIG is None:
-        dataset = dataset or config_retrieve(['workflow', 'dataset'])
-        cohort_conf = get_cohort_config(dataset)
-        seq_type = config_retrieve(['workflow', 'sequencing_type'])
-        COHORT_SEQ_CONFIG = cohort_conf.get(seq_type, {})
-        assert COHORT_SEQ_CONFIG, f'{dataset} - {seq_type} is not represented in config'
-    return COHORT_SEQ_CONFIG
-
-
 def get_new_gene_map(
     panelapp_data: PanelApp,
     pheno_panels: PhenotypeMatchedPanels | None = None,
-    dataset: str | None = None,
 ) -> dict[str, set[str]]:
     """
     The aim here is to generate a list of all the samples for whom
@@ -261,15 +220,11 @@ def get_new_gene_map(
     Args:
         panelapp_data ():
         pheno_panels (PhenotypeMatchedPanels):
-        dataset ():
-
-    Returns:
-
     """
 
     # any dataset-specific panel data, + 'core' panel
     cohort_panels = [
-        *get_cohort_config(dataset).get('cohort_panels', []),
+        *config_retrieve(['workflow', 'cohort_panels'], []),
         config_retrieve(['panels', 'default_panel']),
     ]
 
@@ -812,13 +767,12 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
     return comp_het_results
 
 
-def generate_fresh_latest_results(current_results: ResultData, dataset: str, prefix: str = ''):
+def generate_fresh_latest_results(current_results: ResultData, prefix: str = ''):
     """
     This will be called if a cohort has no latest results, but has
     indicated a place to save them.
     Args:
         current_results (ResultData): results from this current run
-        dataset (str): dataset name for sourcing config section
         prefix (str): optional prefix for the filename
     """
 
@@ -831,10 +785,10 @@ def generate_fresh_latest_results(current_results: ResultData, dataset: str, pre
                 independent=var.independent,
                 first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
             )
-    save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
+    save_new_historic(results=new_history, prefix=prefix)
 
 
-def filter_results(results: ResultData, singletons: bool, dataset: str):
+def filter_results(results: ResultData, singletons: bool):
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -843,12 +797,11 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
     Args:
         results (ResultData): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
-        dataset (str): dataset name for sourcing config section
 
     Returns: same results annotated with date-first-seen
     """
 
-    historic_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
+    historic_folder = config_retrieve(['workflow', 'historic_results'])
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
@@ -866,7 +819,10 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
     # in 1000 years this might cause a problem :/ \s
-    latest_results_path = find_latest_file(dataset=dataset, start=prefix or '2')
+    # TODO WAT
+    latest_results_path = find_latest_file(
+        results_folder=config_retrieve(['workflow', 'historic_results'], None), start=prefix or '2'
+    )
 
     get_logger().info(f'latest results: {latest_results_path}')
 
@@ -875,27 +831,25 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
         latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)  # type: ignore
     ) is None:
         # generate and write some new latest data
-        generate_fresh_latest_results(current_results=results, prefix=prefix, dataset=dataset)
+        generate_fresh_latest_results(current_results=results, prefix=prefix)
         return
 
     assert isinstance(latest_results, HistoricVariants)
 
     date_annotate_results(results, latest_results)
-    save_new_historic(results=latest_results, prefix=prefix, dataset=dataset)
+    save_new_historic(results=latest_results, prefix=prefix)
 
 
-def save_new_historic(results: HistoricVariants | HistoricPanels, dataset: str, prefix: str = ''):
+def save_new_historic(results: HistoricVariants | HistoricPanels, prefix: str = ''):
     """
     save the new results in the historic results dir
 
     Args:
         results (HistoricVariants): object to save as JSON
-        dataset (str): the dataset to save results for
         prefix (str): name prefix for this file (optional)
     """
 
-    directory = get_cohort_seq_type_conf(dataset).get('historic_results')
-    if directory is None:
+    if (directory := config_retrieve(['workflow', 'historic_results'], None)) is None:
         get_logger().info('No historic data folder, no saving')
         return
 
@@ -921,23 +875,16 @@ def date_from_string(string: str) -> str:
     raise ValueError(f'No date found in {string}')
 
 
-def find_latest_file(dataset: str, results_folder: str | None = None, start: str = '', ext: str = 'json') -> str | None:
+def find_latest_file(results_folder: str, start: str = '', ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
-        dataset (): the dataset to fetch results for
-        results_folder (): local or remote folder
+        results_folder (): local or remote folder, or don't call this method
         start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
 
     Returns: most recent file path, or None
     """
-
-    if results_folder is None:
-        results_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
-        if results_folder is None:
-            get_logger().info('`historic_results` not present in config')
-            return None
 
     get_logger().info(f'Using results from {results_folder}')
 

@@ -44,8 +44,6 @@ from talos.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    get_cohort_config,
-    get_cohort_seq_type_conf,
     get_new_gene_map,
     make_flexible_pedigree,
     read_json_from_path,
@@ -174,7 +172,6 @@ def clean_and_filter(
     results_holder: ResultData,
     result_list: list[ReportVariant],
     panelapp_data: PanelApp,
-    dataset: str,
     participant_panels: PhenotypeMatchedPanels | None = None,
 ) -> ResultData:
     """
@@ -194,13 +191,14 @@ def clean_and_filter(
         results_holder (): container for all results data
         result_list (): list of all ReportVariant events
         panelapp_data ():
-        dataset (str): dataset to use for getting the config portion
         participant_panels ():
 
     Returns:
         cleaned data
     """
-    cohort_panels = set(get_cohort_config(dataset).get('cohort_panels', []))
+
+    # TODO INTO CONF
+    cohort_panels = set(config_retrieve(['workflow', 'cohort_panels'], []))
 
     # for these categories, require a phenotype-gene match
     cats_require_pheno_match = config_retrieve(['category_rules', 'phenotype_match'], [])
@@ -352,7 +350,6 @@ def prepare_results_shell(
     small_samples: set[str],
     sv_samples: set[str],
     pedigree: Pedigree,
-    dataset: str,
     panelapp: PanelApp,
     panel_data: PhenotypeMatchedPanels | None = None,
 ) -> ResultData:
@@ -364,7 +361,6 @@ def prepare_results_shell(
         small_samples (): samples in the Small VCF
         sv_samples (): samples in the SV VCFs
         pedigree (): the Pedigree object
-        dataset (str): dataset to use for getting the config portion
         panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
 
@@ -379,7 +375,8 @@ def prepare_results_shell(
     results_shell = ResultData(metadata=results_meta)
 
     # find the solved cases in this project
-    solved_cases = get_cohort_config(dataset).get('solved_cases', [])
+    # TODO
+    solved_cases = config_retrieve(['workflow', 'solved_cases'], [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
@@ -423,7 +420,6 @@ def cli_main():
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
     parser.add_argument('--pedigree', help='Path to joint-call PED file')
     parser.add_argument('--participant_panels', help='panels per participant', default=None)
-    parser.add_argument('--dataset', help='optional, dataset to use', default=None)
     args = parser.parse_args()
 
     main(
@@ -433,7 +429,6 @@ def cli_main():
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
         participant_panels=args.participant_panels,
-        dataset=args.dataset,
     )
 
 
@@ -444,7 +439,6 @@ def main(
     pedigree: str,
     labelled_sv: list[str] | None = None,
     participant_panels: str | None = None,
-    dataset: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -460,7 +454,6 @@ def main(
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
         participant_panels (str): json of panels per participant
-        dataset (str): optional, dataset to use
     """
     get_logger(__file__).info(
         r"""Welcome To
@@ -473,10 +466,6 @@ def main(
    █████    █████   █████ ███████████    ███████     █████████
         """,
     )
-
-    if dataset is None:
-        dataset = config_retrieve(['workflow', 'dataset'])
-    assert isinstance(dataset, str)
 
     if labelled_sv is None:
         labelled_sv = []
@@ -499,7 +488,7 @@ def main(
     )
 
     # create the new gene map
-    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels, dataset)
+    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels)
 
     result_list: list[ReportVariant] = []
 
@@ -539,12 +528,12 @@ def main(
         )
 
     # do we have seqr projects?
-    seqr_project = get_cohort_seq_type_conf().get('seqr_project')
+    # TODO INTO CONF
+    seqr_project = config_retrieve(['workflow', 'seqr_project'], None)
 
     # create the full final output file
     results_meta = ResultMeta(
         **{
-            'cohort': dataset or config_retrieve(['workflow', 'dataset'], 'unknown'),
             'family_breakdown': count_families(ped, samples=all_samples),
             'panels': panelapp_data.metadata,
             'container': config_retrieve(['workflow', 'driver_image']),
@@ -559,21 +548,14 @@ def main(
         sv_samples=sv_vcf_samples,
         pedigree=ped,
         panel_data=pheno_panels,
-        dataset=dataset,
         panelapp=panelapp_data,
     )
 
     # remove duplicate and invalid variants
-    results_model = clean_and_filter(
-        results_holder=results_model,
-        result_list=result_list,
-        panelapp_data=panelapp_data,
-        dataset=dataset,
-        participant_panels=pheno_panels,
-    )
+    results_model = clean_and_filter(results_model, result_list, panelapp_data, pheno_panels)
 
     # annotate previously seen results using cumulative data file(s)
-    filter_results(results_model, singletons=bool('singleton' in pedigree), dataset=dataset)
+    filter_results(results_model, singletons=bool('singleton' in pedigree))
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful

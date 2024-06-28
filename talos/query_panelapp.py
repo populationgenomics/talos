@@ -2,7 +2,7 @@
 
 
 """
-Complete revision
+Complete revision...
 """
 
 # mypy: ignore-errors
@@ -17,7 +17,6 @@ from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, Phen
 from talos.utils import (
     ORDERED_MOIS,
     find_latest_file,
-    get_cohort_config,
     get_json_response,
     get_logger,
     get_simple_moi,
@@ -176,12 +175,11 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--panels', help='JSON of per-participant panels')
     parser.add_argument('--out_path', required=True, help='destination for results')
-    parser.add_argument('--dataset', default=None, help='dataset to use, optional')
     args = parser.parse_args()
-    main(panels=args.panels, out_path=args.out_path, dataset=args.dataset)
+    main(panels=args.panels, out_path=args.out_path)
 
 
-def main(panels: str | None, out_path: str, dataset: str | None = None):
+def main(panels: str | None, out_path: str):
     """
     Queries PanelApp for all the gene panels to use in the current analysis
     queries panelapp for each panel in turn, aggregating results
@@ -189,20 +187,19 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
     Args:
         panels (): file containing per-participant panels
         out_path (): where to write the results out to
-        dataset (): optional dataset to use
     """
 
     get_logger().info('Starting PanelApp Query Stage')
 
-    dataset = dataset or config_retrieve(['workflow', 'dataset'])
-
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_genes = read_json_from_path(get_cohort_config(dataset).get('forbidden'), set())
+    forbidden_genes = read_json_from_path(config_retrieve(['workflow', 'cohort_panels'], None), set())
 
     # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
     # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
-    if old_file := find_latest_file(dataset=dataset, start='panel_'):
+    if old_file := find_latest_file(
+        results_folder=config_retrieve(['workflow', 'historic_results'], None), start='panel_'
+    ):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
 
@@ -230,7 +227,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
-    if extra_panels := get_cohort_config(dataset).get('cohort_panels'):
+    if extra_panels := config_retrieve(['workflow', 'cohort_panels'], False):
         get_logger().info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 
@@ -250,7 +247,7 @@ def main(panels: str | None, out_path: str, dataset: str | None = None):
         out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
     # Only save here if we have a historic location in config
-    save_new_historic(old_data, dataset=dataset, prefix='panel_')
+    save_new_historic(old_data, prefix='panel_')
 
 
 if __name__ == '__main__':

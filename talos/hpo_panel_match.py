@@ -74,7 +74,7 @@ def get_participant_hpos(pedigree: str) -> tuple[PhenotypeMatchedPanels, set[str
     read the extended pedigree file, pull out family details and HPO terms
 
     Args:
-        pedigree (str): dataset name
+        pedigree (str): path to ped file
 
     Returns:
         dict of per-participant details, and set of all HPO terms
