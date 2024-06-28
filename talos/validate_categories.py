@@ -23,7 +23,6 @@ from cpg_utils import to_path
 from cpg_utils.config import config_retrieve
 
 from talos.models import (
-    CATEGORY_DICT,
     FamilyMembers,
     PanelApp,
     PanelDetail,
@@ -474,7 +473,6 @@ def main(
    █████    █████   █████ ███████████    ███████     █████████
         """,
     )
-    get_logger().info(f'Operational Categories: {CATEGORY_DICT}')
 
     if dataset is None:
         dataset = config_retrieve(['workflow', 'dataset'])

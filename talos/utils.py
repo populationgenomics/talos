@@ -16,7 +16,6 @@ import cyvcf2
 import requests
 import zoneinfo
 from backoff import fibo
-from gql.transport.exceptions import TransportQueryError, TransportServerError
 from peds import open_ped
 from requests.exceptions import ReadTimeout, RequestException
 
@@ -184,7 +183,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
 
 @backoff.on_exception(
     wait_gen=fibo,
-    exception=(TransportQueryError, TransportServerError, TimeoutError, ReadTimeout, RequestException),
+    exception=(TimeoutError, ReadTimeout, RequestException),
     max_time=200,
     logger=get_logger(),
 )

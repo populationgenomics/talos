@@ -15,6 +15,7 @@ from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date, get_logger
 
+# todo this needs to go
 Talos_CONF = toml.load(str(to_path(__file__).parent / 'reanalysis_global.toml'))
 CATEGORY_DICT = Talos_CONF['categories']
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
