@@ -439,7 +439,6 @@ class ResultMeta(BaseModel):
     """
 
     categories: dict[str, str] = Field(default=CATEGORY_DICT)
-    cohort: str = Field(default_factory=str)
     container: str = Field(default_factory=str)
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     input_file: str = Field(default_factory=str)
