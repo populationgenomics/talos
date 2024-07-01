@@ -1,4 +1,4 @@
-# Automated Interpretation Pipeline (Talos)
+# Talos
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) ![test](https://github.com/populationgenomics/automated-interpretation-pipeline/actions/workflows/test.yaml/badge.svg) ![black](https://img.shields.io/badge/code%20style-black-000000.svg)
 
@@ -98,19 +98,21 @@ of any other category)
 ## Reanalysis
 
 The heart of Talos's utility is in enabling explicit re-analysis, which is done in two key ways. Each of these is
-enabled
-through accumulating data over a number of runs, then leveraging cumulative data to remove redundant results. This helps
-ensure a curator's time is used as effectively as possible, by not presenting the same variants each time Talos runs.
+enabled through accumulating data over a number of runs, then leveraging cumulative data to remove redundant results.
+This helps ensure a curator's time is used as effectively as possible, by not presenting the same variants each time
+Talos
+runs.
 
 ### Gene Panel/ROI
 
 [PanelApp](https://panelapp.agha.umccr.org/) is the primary source of Gene information used in Talos. For each analysis
-we
-query for the current content of the [Mendeliome Panel](https://panelapp.agha.umccr.org/panels/137/), containing all
-genes associated with Mendelian disease, other than those associated with unintended diagnoses (see [the
-complementary Incidentalome](https://panelapp.agha.umccr.org/panels/126/)). From this Panel, we obtain all 'Green' genes
-and their associated Modes Of Inheritance (MOI). Optionally we can add additional panels which will be integrated
-alongside the Mendeliome content.
+we query for the current
+content of the [Mendeliome Panel](https://panelapp.agha.umccr.org/panels/137/), containing all genes associated with
+Mendelian disease, other than those
+associated with unintended diagnoses (
+see [the complementary Incidentalome](https://panelapp.agha.umccr.org/panels/126/)). From this Panel, we obtain all '
+Green' genes and their associated Modes Of Inheritance (MOI). Optionally we can add additional panels which will be
+integrated alongside the Mendeliome content.
 
 Prior data can be provided in JSON format, containing all genes which have previously formed part of the ROI, and a list
 of all panels on which they have previously been seen. A gene will be treated as `New` if either it has never been seen

@@ -22,16 +22,8 @@ def fixture_fake_panelapp(requests_mock, latest_mendeliome, latest_incidentalome
         latest_incidentalome ():
     """
 
-    requests_mock.register_uri(
-        'GET',
-        'https://panelapp.agha.umccr.org/api/v1/panels/137',
-        json=latest_mendeliome,
-    )
-    requests_mock.register_uri(
-        'GET',
-        'https://panelapp.agha.umccr.org/api/v1/panels/126',
-        json=latest_incidentalome,
-    )
+    requests_mock.register_uri('GET', 'https://panelapp.agha.umccr.org/api/v1/panels/137', json=latest_mendeliome)
+    requests_mock.register_uri('GET', 'https://panelapp.agha.umccr.org/api/v1/panels/126', json=latest_incidentalome)
 
 
 def test_panel_query(fake_panelapp):  # noqa: ARG001

@@ -16,12 +16,11 @@ participants relative to the MOI described in PanelApp
 
 from argparse import ArgumentParser
 from collections import defaultdict
+from pathlib import Path
 
 from cyvcf2 import VCFReader
 
-from cpg_utils import to_path
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.models import (
     FamilyMembers,
     PanelApp,
@@ -48,6 +47,7 @@ from talos.utils import (
     make_flexible_pedigree,
     read_json_from_path,
 )
+from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown_sex', '0': 'unknown_sex'}
@@ -197,11 +197,10 @@ def clean_and_filter(
         cleaned data
     """
 
-    # TODO INTO CONF
-    cohort_panels = set(config_retrieve(['workflow', 'cohort_panels'], []))
+    cohort_panels = set(config_retrieve(['panels', 'forced_panels'], []))
 
     # for these categories, require a phenotype-gene match
-    cats_require_pheno_match = config_retrieve(['category_rules', 'phenotype_match'], [])
+    cats_require_pheno_match = config_retrieve(['moi_tests', 'phenotype_match'], [])
 
     panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
@@ -238,7 +237,7 @@ def clean_and_filter(
             matched_panels = {
                 panel_meta[pid]
                 for pid in phenotype_intersection
-                if pid != config_retrieve(['workflow', 'default_panel'], 137)
+                if pid != config_retrieve(['panels', 'default_panel'], 137)
             }
 
         forced_panels = set()
@@ -375,8 +374,7 @@ def prepare_results_shell(
     results_shell = ResultData(metadata=results_meta)
 
     # find the solved cases in this project
-    # TODO
-    solved_cases = config_retrieve(['workflow', 'solved_cases'], [])
+    solved_cases = config_retrieve(['moi_tests', 'solved_cases'], [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
@@ -470,8 +468,6 @@ def main(
     if labelled_sv is None:
         labelled_sv = []
 
-    out_json_path = to_path(out_json)
-
     # parse the pedigree from the file
     ped = make_flexible_pedigree(pedigree)
 
@@ -528,15 +524,14 @@ def main(
         )
 
     # do we have seqr projects?
-    # TODO INTO CONF
-    seqr_project = config_retrieve(['workflow', 'seqr_project'], None)
+    seqr_project = config_retrieve(['report', 'seqr_project'], None)
 
     # create the full final output file
     results_meta = ResultMeta(
         **{
             'family_breakdown': count_families(ped, samples=all_samples),
             'panels': panelapp_data.metadata,
-            'container': config_retrieve(['workflow', 'driver_image']),
+            'version': __version__,
             'projects': [seqr_project] if seqr_project else [],
         },
     )
@@ -559,7 +554,7 @@ def main(
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
-    with to_path(out_json_path).open('w') as out_file:
+    with open(out_json, 'w') as out_file:
         out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
 
 

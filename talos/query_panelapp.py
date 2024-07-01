@@ -11,8 +11,7 @@ from argparse import ArgumentParser
 
 import zoneinfo
 
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from talos.utils import (
     ORDERED_MOIS,
@@ -193,13 +192,11 @@ def main(panels: str | None, out_path: str):
 
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_genes = read_json_from_path(config_retrieve(['workflow', 'cohort_panels'], None), set())
+    forbidden_genes = read_json_from_path(config_retrieve(['panels', 'forced_panels'], None), set())
 
     # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
     # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
-    if old_file := find_latest_file(
-        results_folder=config_retrieve(['workflow', 'historic_results'], None), start='panel_'
-    ):
+    if old_file := find_latest_file(results_folder=config_retrieve('result_history', None), start='panel_'):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
 
@@ -227,7 +224,7 @@ def main(panels: str | None, out_path: str):
         get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
-    if extra_panels := config_retrieve(['workflow', 'cohort_panels'], False):
+    if extra_panels := config_retrieve(['panels', 'forced_panels'], False):
         get_logger().info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 

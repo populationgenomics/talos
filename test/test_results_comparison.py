@@ -206,7 +206,7 @@ def test_find_latest(tmp_path):
     touch(join(tmp_str, '2026-10-10.json'))
     sleep(0.2)
     touch(join(tmp_str, '2024-10-10.json'))
-    assert '2026-10-10.json' in find_latest_file(results_folder=tmp_str, dataset='cohort')
+    assert '2026-10-10.json' in find_latest_file(results_folder=tmp_str)
 
 
 def test_find_latest_singletons(tmp_path):
@@ -219,11 +219,7 @@ def test_find_latest_singletons(tmp_path):
     touch(join(tmp_str, '2025-10-10.json'))
     sleep(0.2)
     touch(join(tmp_str, '2025-11-10.json'))
-    assert 'singletons_2020-10-10.json' in find_latest_file(
-        results_folder=tmp_str,
-        start='singletons',
-        dataset='cohort',
-    )
+    assert 'singletons_2020-10-10.json' in find_latest_file(results_folder=tmp_str, start='singletons')
 
 
 def test_find_latest_with_ext(tmp_path):
@@ -236,7 +232,7 @@ def test_find_latest_with_ext(tmp_path):
     touch(join(tmp_str, '2026-10-10.txt'))
     sleep(0.2)
     touch(join(tmp_str, '2027-10-10.json'))
-    assert '2026-10-10.txt' in find_latest_file(results_folder=tmp_str, ext='txt', dataset='cohort')
+    assert '2026-10-10.txt' in find_latest_file(results_folder=tmp_str, ext='txt')
 
 
 def test_date_recovery():

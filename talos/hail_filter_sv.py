@@ -11,8 +11,7 @@ from argparse import ArgumentParser
 
 import hail as hl
 
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.hail_filter_and_label import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
 from talos.models import PanelApp
 from talos.static_values import get_logger

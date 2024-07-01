@@ -5,12 +5,10 @@
 
 [panels]
 default_panel = 137
+forced_panels = [99]
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
 require_pheno_match = ['FLG', 'GJB2']
-
-[clinvar]
-filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute', 'laboratory for molecular medicine; mass general brigham personalized medicine']
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
@@ -20,13 +18,13 @@ gnomad_max_homs_recessive = 1
 gnomad_max_ac_dominant = 10
 gnomad_max_hemi = 1
 callset_af_sv_dominant = 0.01
+# for these categories, require a phenotype-gene match
+phenotype_match = ['6']
+solved_cases = ['female']
 
-[csq]
-description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
-csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
-
-[filter]
+[hail_labelling]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
+csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
 ac_threshold = 0.01
 additional_csq = ['missense_variant']
 af_semi_rare = 0.01
@@ -43,17 +41,8 @@ spliceai = 0.5
 6 = 'AlphaMissense P/LP'
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 
-[category_rules]
-# for these categories, require a phenotype-gene match
-phenotype_match = ['6']
-
-[test]
-clinvar_filter = ['victorian clinical genetics services,murdoch childrens research institute']
-
-[cohorts.cohort]
-# cohort-specific variables affecting how the final HTML report appears
-# seqr_lookup: mapping of IDs in PED/VCF -> Seqr family ID
-seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
-seqr_project = "DATASET_SEQR"
-cohort_panels = [99]
-solved_cases = ['female']
+#[cohorts.cohort]
+## cohort-specific variables affecting how the final HTML report appears
+## seqr_lookup: mapping of IDs in PED/VCF -> Seqr family ID
+#seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
+#seqr_project = "DATASET_SEQR"

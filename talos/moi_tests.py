@@ -9,8 +9,7 @@ We then run a permissive MOI match for the variant
 # mypy: ignore-errors
 from abc import abstractmethod
 
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
 from talos.utils import X_CHROMOSOME, CompHetDict
 
@@ -146,7 +145,7 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_depth = config_retrieve(['filter', 'minimum_depth'], 10)
+        self.minimum_depth = config_retrieve(['hail_labelling', 'minimum_depth'], 10)
 
     @abstractmethod
     def run(

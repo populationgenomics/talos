@@ -14,11 +14,11 @@ from pathlib import Path
 from typing import Any
 
 import jinja2
+from cloudpathlib.anypath import to_anypath
 
-from cpg_utils import to_path
-from cpg_utils.config import get_config
 from metamist.graphql import gql, query
 
+from talos.config import config_retrieve
 from talos.static_values import get_logger
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -108,7 +108,7 @@ def main(latest: bool = False):
 
     for cohort in get_my_projects():
         result_found = False
-        if cohort not in get_config()['storage'].keys():
+        if cohort not in config_retrieve('storage').keys():
             continue
 
         for analysis in get_project_analyses(cohort):
@@ -128,8 +128,8 @@ def main(latest: bool = False):
             exome_output = 'Exome' if 'exome' in output_path else 'Genome'
             singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
             report_address = analysis['output'].replace(
-                get_config(False)['storage'][cohort]['web'],
-                get_config()['storage'][cohort]['web_url'],
+                config_retrieve(['storage', cohort, 'web']),
+                config_retrieve(['storage', cohort, 'web_url']),
             )
             all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
                 dataset=cohort,
@@ -156,9 +156,9 @@ def main(latest: bool = False):
     content = template.render(**template_context)
 
     # write to common web bucket - either attached to a single dataset, or communal
-    to_path(
+    to_anypath(
         join(
-            get_config()['storage']['common']['test']['web'],
+            config_retrieve(['storage', 'common', 'test', 'web']),
             'reanalysis',
             'latest_aip_index.html' if latest else 'aip_index.html',
         ),

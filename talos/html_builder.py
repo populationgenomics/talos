@@ -14,9 +14,7 @@ from typing import Any
 import jinja2
 import pandas as pd
 
-from cpg_utils import to_path
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.models import (
     PanelApp,
     PanelDetail,
@@ -29,7 +27,6 @@ from talos.models import (
 )
 from talos.utils import get_logger, read_json_from_path
 
-# todo is this still valid?
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 # above this length we trim the actual bases to just an int
@@ -91,7 +88,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
 
     # do something to split the output into separate datasets
     # either look for an ID convention, or go with a random split
-    html_base = to_path(output).parent
+    html_base = Path(output).parent
     for data, report, latest in split_data_into_sub_reports(results, split_samples):
         html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
@@ -160,23 +157,20 @@ class HTMLBuilder:
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
 
         # If it exists, read the forbidden genes as a set
-        # todo
-        self.forbidden_genes = read_json_from_path(config_retrieve(['workflow', 'missing']), default=set())
+        self.forbidden_genes = read_json_from_path(config_retrieve(['panels', 'forbidden_genes']), default=set())
         assert isinstance(self.forbidden_genes, set)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
         self.seqr: dict[str, str] = {}
 
-        # todo
-        if seqr_path := config_retrieve(['workflow', 'seqr_lookup'], ''):
+        if seqr_path := config_retrieve(['report', 'seqr_lookup'], ''):
             self.seqr = read_json_from_path(seqr_path, default=self.seqr)  # type: ignore
             assert isinstance(self.seqr, dict)
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                # todo
-                assert config_retrieve(['workflow', seqr_key], False), f'Seqr key absent: {seqr_key}'
+                assert config_retrieve(['report', seqr_key], False), f'Seqr key absent: {seqr_key}'
 
         # Optionally read in the labels file
         # This file should be a nested dictionary of sample IDs and variant identifiers
@@ -342,7 +336,7 @@ class HTMLBuilder:
         writes all content to the output path
 
         Args:
-            output_filepath ():
+            output_filepath (str): where to write the results to
             latest (bool):
         """
 
@@ -389,7 +383,7 @@ class HTMLBuilder:
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        to_path(output_filepath).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
+        open(output_filepath, 'w').writelines('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
 class Sample:

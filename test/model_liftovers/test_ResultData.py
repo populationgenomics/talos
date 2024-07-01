@@ -4,11 +4,9 @@ test that model liftover works
 """
 
 import json
-
-import pytest
+from os.path import join
 
 from talos.models import CURRENT_VERSION, PhenoPacketHpo, ResultData, lift_up_model_version
-from talos.utils import read_json_from_path
 
 
 def test_rd_from_none(test_input_models_path):
@@ -16,7 +14,7 @@ def test_rd_from_none(test_input_models_path):
     test that the lift over from None to 1.0.0 works
     """
     # load the data
-    file_path = test_input_models_path / 'result_data_v_none.json'
+    file_path = join(test_input_models_path, 'result_data_v_none.json')
     data = json.load(open(file_path))
     assert data.get('version') is None
 
@@ -47,7 +45,7 @@ def test_rd_from_1_0_0(test_input_models_path):
     test that the lift over from 1.0.0 works
     """
     # load the data
-    file_path = test_input_models_path / 'result_data_v_1_0_0.json'
+    file_path = join(test_input_models_path, 'result_data_v_1_0_0.json')
     data = json.load(open(file_path))
     assert data.get('version') == '1.0.0'
     var_first_seen = data['results']['sam2']['variants'][0]['first_seen']

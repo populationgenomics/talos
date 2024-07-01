@@ -16,13 +16,11 @@ import cyvcf2
 import requests
 import zoneinfo
 from backoff import fibo
+from cloudpathlib.anypath import to_anypath
 from peds import open_ped
 from requests.exceptions import ReadTimeout, RequestException
 
-from cpg_utils import Path as CPGPathType
-from cpg_utils import to_path
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
     CategoryMeta,
@@ -63,9 +61,6 @@ ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hem
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
 
-# global config holders
-COHORT_CONFIG: dict | None = None
-COHORT_SEQ_CONFIG: dict | None = None
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 
@@ -224,7 +219,7 @@ def get_new_gene_map(
 
     # any dataset-specific panel data, + 'core' panel
     cohort_panels = [
-        *config_retrieve(['workflow', 'cohort_panels'], []),
+        *config_retrieve(['panels', 'forced_panels'], []),
         config_retrieve(['panels', 'default_panel']),
     ]
 
@@ -378,7 +373,7 @@ def create_small_variant(
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
     # optionally - ignore some categories from this analysis
-    if ignore_cats := config_retrieve(['workflow', 'ignore_categories'], []):
+    if ignore_cats := config_retrieve(['moi_tests', 'ignore_categories'], []):
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -532,7 +527,7 @@ def gather_gene_dict_from_contig(
     """
     if sv_sources is None:
         sv_sources = []
-    if bl_file := config_retrieve(['filter', 'blacklist'], ''):
+    if bl_file := config_retrieve(['panels', 'blacklist'], ''):
         blacklist = read_json_from_path(bl_file, default=[])
     else:
         blacklist = []
@@ -586,13 +581,13 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str | CPGPathType | None, default: Any = None, return_model: Any = None) -> Any:
+def read_json_from_path(read_path: str | None = None, default: Any = None, return_model: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
 
     Args:
-        bucket_path (str):
+        read_path (str): where to read from - if None... will return default
         default (Any):
         return_model (pydantic Models): any Model to read/validate as
 
@@ -600,25 +595,21 @@ def read_json_from_path(bucket_path: str | CPGPathType | None, default: Any = No
         either the object from the JSON file, or None
     """
 
-    if bucket_path is None:
+    if read_path is None:
+        get_logger().error('read_json_from_path was passed the path "None"')
         return default
 
-    if isinstance(bucket_path, str):
-        bucket_path = to_path(bucket_path)
-
-    if isinstance(bucket_path, CPGPathType) and bucket_path.exists():
-        with bucket_path.open() as handle:
-            json_data = json.load(handle)
-            if return_model:
-                # potentially walk-up model version
-                model_data = lift_up_model_version(json_data, return_model)
-                return return_model.model_validate(model_data)
-            return json_data
-
-    if default is not None:
+    if not Path(read_path).exists():
+        get_logger().error(f'{read_path} did not exist')
         return default
 
-    raise ValueError(f'No data found at {bucket_path}')
+    with open(read_path) as handle:
+        json_data = json.load(handle)
+        if return_model:
+            # potentially walk-up model version
+            model_data = lift_up_model_version(json_data, return_model)
+            return return_model.model_validate(model_data)
+        return json_data
 
 
 def get_simple_moi(input_mois: set[str], chrom: str) -> set[str]:
@@ -708,7 +699,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = config_retrieve(['csq', 'csq_string'])
+    csq_categories = config_retrieve(['hail_labelling', 'csq_string'])
 
     # iterate over all consequences, and make each into a dict
     txc_dict = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
@@ -776,7 +767,7 @@ def generate_fresh_latest_results(current_results: ResultData, prefix: str = '')
         prefix (str): optional prefix for the filename
     """
 
-    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve(['categories'], {})))
+    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
     for sample, content in current_results.results.items():
         for var in content.variants:
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
@@ -801,7 +792,7 @@ def filter_results(results: ResultData, singletons: bool):
     Returns: same results annotated with date-first-seen
     """
 
-    historic_folder = config_retrieve(['workflow', 'historic_results'])
+    historic_folder = config_retrieve('result_history')
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
@@ -818,11 +809,7 @@ def filter_results(results: ResultData, singletons: bool):
     prefix = 'singletons_' if singletons else ''
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
-    # in 1000 years this might cause a problem :/ \s
-    # TODO WAT
-    latest_results_path = find_latest_file(
-        results_folder=config_retrieve(['workflow', 'historic_results'], None), start=prefix or '2'
-    )
+    latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None), start=prefix or '2')
 
     get_logger().info(f'latest results: {latest_results_path}')
 
@@ -849,11 +836,11 @@ def save_new_historic(results: HistoricVariants | HistoricPanels, prefix: str = 
         prefix (str): name prefix for this file (optional)
     """
 
-    if (directory := config_retrieve(['workflow', 'historic_results'], None)) is None:
+    if (directory := config_retrieve('result_history', None)) is None:
         get_logger().info('No historic data folder, no saving')
         return
 
-    new_file = to_path(directory) / f'{prefix}{TODAY}.json'
+    new_file = Path(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
@@ -888,8 +875,9 @@ def find_latest_file(results_folder: str, start: str = '', ext: str = 'json') ->
 
     get_logger().info(f'Using results from {results_folder}')
 
+    # this is currently a CloudPath to access globbing for files in cloud or local settings
     date_files = {
-        date_from_string(filename.name): filename for filename in to_path(results_folder).glob(f'{start}*.{ext}')
+        date_from_string(filename.name): filename for filename in to_anypath(results_folder).glob(f'{start}*.{ext}')
     }
     if not date_files:
         return None
@@ -918,7 +906,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
 
     # update to latest category descriptions
-    historic.metadata.categories.update(config_retrieve(['categories']))
+    historic.metadata.categories.update(config_retrieve('categories'))
 
     for sample, content in current.results.items():
         # get the historic record for this sample
