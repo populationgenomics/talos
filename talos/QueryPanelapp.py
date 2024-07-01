@@ -24,8 +24,8 @@ from talos.utils import (
 )
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
-PANELAPP_BASE = config_retrieve(['panels', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
-DEFAULT_PANEL = config_retrieve(['panels', 'default_panel'], 137)
+PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
 
@@ -192,7 +192,7 @@ def main(panels: str | None, out_path: str):
 
     # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_genes = read_json_from_path(config_retrieve(['panels', 'forced_panels'], None), set())
+    forbidden_genes = read_json_from_path(config_retrieve(['GeneratePanelData', 'forced_panels'], None), set())
 
     # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
     # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
@@ -205,7 +205,7 @@ def main(panels: str | None, out_path: str):
         old_data = None
 
     # are there any genes to skip from the Mendeliome? i.e. only report if in a specifically phenotype-matched panel
-    remove_from_core: list[str] = config_retrieve(['panels', 'require_pheno_match'], [])
+    remove_from_core: list[str] = config_retrieve(['GeneratePanelData', 'require_pheno_match'], [])
     get_logger().info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
@@ -224,7 +224,7 @@ def main(panels: str | None, out_path: str):
         get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
-    if extra_panels := config_retrieve(['panels', 'forced_panels'], False):
+    if extra_panels := config_retrieve(['GeneratePanelData', 'forced_panels'], False):
         get_logger().info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 

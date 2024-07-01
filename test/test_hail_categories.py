@@ -7,7 +7,8 @@ import pytest
 
 import hail as hl
 
-from talos.hail_filter_and_label import (
+from talos.models import PanelApp
+from talos.RunHailFiltering import (
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,
@@ -19,7 +20,6 @@ from talos.hail_filter_and_label import (
     green_and_new_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
-from talos.models import PanelApp
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 category_1_keys = ['locus', 'clinvar_talos_strong']

@@ -12,8 +12,8 @@ from argparse import ArgumentParser
 import hail as hl
 
 from talos.config import config_retrieve
-from talos.hail_filter_and_label import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
 from talos.models import PanelApp
+from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
 
@@ -170,7 +170,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     green_expression, _new_expression = green_and_new_from_panelapp(panelapp)
 
     # initiate Hail in local cluster mode
-    number_of_cores = config_retrieve(['hail', 'cores', 'sv'], 2)
+    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
     get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
     hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')
@@ -182,8 +182,8 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
     # apply blanket filters
-    mt = filter_matrix_by_ac(mt, ac_threshold=config_retrieve(['filter', 'callset_af_sv_recessive']))
-    mt = filter_matrix_by_af(mt, af_threshold=config_retrieve(['filter', 'callset_af_sv_recessive']))
+    mt = filter_matrix_by_ac(mt, ac_threshold=config_retrieve(['RunHailFiltering', 'callset_af_sv_recessive']))
+    mt = filter_matrix_by_af(mt, af_threshold=config_retrieve(['RunHailFiltering', 'callset_af_sv_recessive']))
     mt = rearrange_filters(mt)
 
     # pre-filter the MT and rearrange fields for export

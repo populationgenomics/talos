@@ -197,10 +197,10 @@ def clean_and_filter(
         cleaned data
     """
 
-    cohort_panels = set(config_retrieve(['panels', 'forced_panels'], []))
+    cohort_panels = set(config_retrieve(['GeneratePanelData', 'forced_panels'], []))
 
     # for these categories, require a phenotype-gene match
-    cats_require_pheno_match = config_retrieve(['moi_tests', 'phenotype_match'], [])
+    cats_require_pheno_match = config_retrieve(['ValidateMOI', 'phenotype_match'], [])
 
     panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
@@ -237,7 +237,7 @@ def clean_and_filter(
             matched_panels = {
                 panel_meta[pid]
                 for pid in phenotype_intersection
-                if pid != config_retrieve(['panels', 'default_panel'], 137)
+                if pid != config_retrieve(['GeneratePanelData', 'default_panel'], 137)
             }
 
         forced_panels = set()
@@ -374,7 +374,7 @@ def prepare_results_shell(
     results_shell = ResultData(metadata=results_meta)
 
     # find the solved cases in this project
-    solved_cases = config_retrieve(['moi_tests', 'solved_cases'], [])
+    solved_cases = config_retrieve(['ValidateMOI', 'solved_cases'], [])
     panel_meta = {content.id: content.name for content in panelapp.metadata}
 
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
@@ -524,7 +524,7 @@ def main(
         )
 
     # do we have seqr projects?
-    seqr_project = config_retrieve(['report', 'seqr_project'], None)
+    seqr_project = config_retrieve(['CreateTalosHTML', 'seqr_project'], None)
 
     # create the full final output file
     results_meta = ResultMeta(

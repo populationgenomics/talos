@@ -7,7 +7,7 @@ from copy import deepcopy
 import pytest
 
 from talos.models import HistoricPanels, PanelApp, PanelDetail
-from talos.query_panelapp import get_best_moi, get_panel_green
+from talos.QueryPanelapp import get_best_moi, get_panel_green
 
 empty_gene_dict = PanelApp(genes={})
 

@@ -219,8 +219,8 @@ def get_new_gene_map(
 
     # any dataset-specific panel data, + 'core' panel
     cohort_panels = [
-        *config_retrieve(['panels', 'forced_panels'], []),
-        config_retrieve(['panels', 'default_panel']),
+        *config_retrieve(['GeneratePanelData', 'forced_panels'], []),
+        config_retrieve(['GeneratePanelData', 'default_panel']),
     ]
 
     # collect all genes new in at least one panel
@@ -373,7 +373,7 @@ def create_small_variant(
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
     # optionally - ignore some categories from this analysis
-    if ignore_cats := config_retrieve(['moi_tests', 'ignore_categories'], []):
+    if ignore_cats := config_retrieve(['ValidateMOI', 'ignore_categories'], []):
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -527,7 +527,7 @@ def gather_gene_dict_from_contig(
     """
     if sv_sources is None:
         sv_sources = []
-    if bl_file := config_retrieve(['panels', 'blacklist'], ''):
+    if bl_file := config_retrieve(['GeneratePanelData', 'blacklist'], ''):
         blacklist = read_json_from_path(bl_file, default=[])
     else:
         blacklist = []
@@ -699,7 +699,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = config_retrieve(['hail_labelling', 'csq_string'])
+    csq_categories = config_retrieve(['RunHailFiltering', 'csq_string'])
 
     # iterate over all consequences, and make each into a dict
     txc_dict = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]

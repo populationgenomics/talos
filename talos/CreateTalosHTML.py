@@ -157,20 +157,22 @@ class HTMLBuilder:
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
 
         # If it exists, read the forbidden genes as a set
-        self.forbidden_genes = read_json_from_path(config_retrieve(['panels', 'forbidden_genes']), default=set())
+        self.forbidden_genes = read_json_from_path(
+            config_retrieve(['GeneratePanelData', 'forbidden_genes']), default=set()
+        )
         assert isinstance(self.forbidden_genes, set)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
         self.seqr: dict[str, str] = {}
 
-        if seqr_path := config_retrieve(['report', 'seqr_lookup'], ''):
+        if seqr_path := config_retrieve(['CreateTalosHTML', 'seqr_lookup'], ''):
             self.seqr = read_json_from_path(seqr_path, default=self.seqr)  # type: ignore
             assert isinstance(self.seqr, dict)
 
             # Force user to correct config file if seqr URL/project are missing
             for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert config_retrieve(['report', seqr_key], False), f'Seqr key absent: {seqr_key}'
+                assert config_retrieve(['CreateTalosHTML', seqr_key], False), f'Seqr key absent: {seqr_key}'
 
         # Optionally read in the labels file
         # This file should be a nested dictionary of sample IDs and variant identifiers
@@ -181,8 +183,7 @@ class HTMLBuilder:
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        # todo
-        ext_labels = config_retrieve(['workflow', 'external_labels'], {})
+        ext_labels = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
         assert isinstance(ext_labels, dict)
         self.ext_labels: dict[str, dict] = ext_labels
 
@@ -198,8 +199,7 @@ class HTMLBuilder:
         self.panel_names = {panel.name for panel in self.metadata.panels}
 
         # pull out forced panel matches
-        # todo
-        cohort_panels = config_retrieve(['workflow', 'cohort_panels'], [])  # type: ignore
+        cohort_panels = config_retrieve(['GeneratePanelData', 'forced_panels'], [])  # type: ignore
         self.forced_panels: list[PanelShort] = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
         self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
@@ -350,9 +350,8 @@ class HTMLBuilder:
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            # todo change
-            'seqr_url': config_retrieve(['workflow', 'seqr_instance'], ''),  # type: ignore
-            'seqr_project': config_retrieve(['workflow', 'seqr_project'], ''),  # type: ignore
+            'seqr_url': config_retrieve(['CreateTalosHTML', 'seqr_instance'], ''),  # type: ignore
+            'seqr_project': config_retrieve(['CreateTalosHTML', 'seqr_project'], ''),  # type: ignore
             'meta_tables': {},
             'forbidden_genes': sorted(self.forbidden_genes),
             'zero_categorised_samples': zero_cat_samples,

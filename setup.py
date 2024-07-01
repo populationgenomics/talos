@@ -59,19 +59,19 @@ setup(
             # CPG internal, scans database for published reports, collects into an index page
             'report_hunter = helpers.report_hunter:run_both',
             # CPG implementation, builds an extended Pedigree format
-            'generate_pedigree = talos.cpg_generate_pheno_ped:main',
+            'generate_pedigree = talos.GeneratePED:main',
             # use the HPO terms to select panels for this analysis
-            'hpo_panel_match = talos.hpo_panel_match:cli_main',
+            'hpo_panel_match = talos.GeneratePanelData:cli_main',
             # query PanelApp for those selected panels
-            'query_panelapp = talos.query_panelapp:cli_main',
+            'query_panelapp = talos.QueryPanelapp:cli_main',
             # Filter and label a small-variant MatrixTable
-            'hail_label = talos.hail_filter_and_label:cli_main',
+            'hail_label = talos.RunHailFiltering:cli_main',
             # Filter and label a SV MatrixTable
-            'hail_label_sv = talos.hail_filter_sv:cli_main',
+            'hail_label_sv = talos.RunHailFilteringSV:cli_main',
             # Run each of the category-labelled variants through MOI filters
-            'validate_categories = talos.validate_categories:cli_main',
+            'validate_categories = talos.ValidateMOI:cli_main',
             # CPG internal (?), publish those results as an HTML report
-            'build_html = talos.html_builder:main',
+            'build_html = talos.CreateTalosHTML:main',
         ]
     },
 )

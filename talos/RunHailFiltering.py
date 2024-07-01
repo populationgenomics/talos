@@ -306,7 +306,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
     # 'semi-rare' as dominant filters will be more strictly filtered later
-    rare_af_threshold = config_retrieve(['hail_labelling', 'af_semi_rare'])
+    rare_af_threshold = config_retrieve(['RunHailFiltering', 'af_semi_rare'])
     return mt.filter_rows(
         ((mt.info.gnomad_ex_af < rare_af_threshold) & (mt.info.gnomad_af < rare_af_threshold))
         | (mt.info.clinvar_talos == ONE_INT),
@@ -441,7 +441,7 @@ def annotate_category_2(mt: hl.MatrixTable, new_genes: hl.SetExpression | None) 
         same variants, categoryboolean2 set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['hail_labelling', 'critical_csq']))
+    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
 
     # permit scenario with no new genes
     if new_genes is None:
@@ -484,7 +484,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categoryboolean3 set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['hail_labelling', 'critical_csq']))
+    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -531,8 +531,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['hail_labelling', 'critical_csq'], []))
-    additional_consequences = set(config_retrieve(['hail_labelling', 'additional_csq'], []))
+    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], []))
+    additional_consequences = set(config_retrieve(['RunHailFiltering', 'additional_csq'], []))
     critical_consequences.update(additional_consequences)
 
     # overwrite the consequences with an intersection against a limited list
@@ -595,7 +595,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         pedigree,
         pop_frequency_prior=de_novo_matrix.info.gnomad_af,
         ignore_in_sample_allele_frequency=True,
-        max_parent_ab=config_retrieve(['hail_labelling', 'max_parent_ab'], 0.05),
+        max_parent_ab=config_retrieve(['RunHailFiltering', 'max_parent_ab'], 0.05),
     )
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
@@ -631,7 +631,7 @@ def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean5=hl.if_else(
-                mt.info.splice_ai_delta >= config_retrieve(['hail_labelling', 'spliceai']),
+                mt.info.splice_ai_delta >= config_retrieve(['RunHailFiltering', 'spliceai']),
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -673,7 +673,7 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
         )
 
         # pull the required fields and ordering from config
-        csq_fields = config_retrieve(['hail_labelling', 'csq_string'])
+        csq_fields = config_retrieve(['RunHailFiltering', 'csq_string'])
 
         return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|')
 
@@ -723,7 +723,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
     header_path = 'additional_header.txt'
 
     # generate a CSQ string specific to the config file for decoding later
-    csq_contents = '|'.join(config_retrieve(['hail_labelling', 'csq_string']))
+    csq_contents = '|'.join(config_retrieve(['RunHailFiltering', 'csq_string']))
 
     # write this custom header locally
     with open(header_path, 'w') as handle:
@@ -858,7 +858,7 @@ def main(
     )
 
     # initiate Hail as a local cluster
-    number_of_cores = config_retrieve(['hail_labelling', 'cores', 'small_variants'], 8)
+    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
     get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
     hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')

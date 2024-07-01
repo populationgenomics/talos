@@ -145,7 +145,7 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_depth = config_retrieve(['hail_labelling', 'minimum_depth'], 10)
+        self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
 
     @abstractmethod
     def run(
@@ -321,10 +321,10 @@ class DominantAutosomal(BaseMoi):
         Simplest: AD MOI
         """
 
-        self.ad_threshold = config_retrieve(['moi_tests', GNOMAD_RARE_THRESHOLD])
-        self.ac_threshold = config_retrieve(['moi_tests', GNOMAD_AD_AC_THRESHOLD])
-        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_DOM_HOM_THRESHOLD])
-        self.sv_af_threshold = config_retrieve(['moi_tests', CALLSET_AF_SV_DOMINANT])
+        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
+        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
+        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
+        self.sv_af_threshold = config_retrieve(['ValidateMOI', CALLSET_AF_SV_DOMINANT])
 
         # prepare the AF test dicts
         self.freq_tests = {
@@ -407,7 +407,7 @@ class RecessiveAutosomalCH(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Comp-Het'):
         """ """
-        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
+        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
@@ -512,7 +512,7 @@ class RecessiveAutosomalHomo(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Homozygous'):
         """ """
-        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
+        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
@@ -601,10 +601,10 @@ class XDominant(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.ad_threshold = config_retrieve(['moi_tests', GNOMAD_RARE_THRESHOLD])
-        self.ac_threshold = config_retrieve(['moi_tests', GNOMAD_AD_AC_THRESHOLD])
-        self.hom_threshold = config_retrieve(['moi_tests', GNOMAD_DOM_HOM_THRESHOLD])
-        self.hemi_threshold = config_retrieve(['moi_tests', GNOMAD_HEMI_THRESHOLD])
+        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
+        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
+        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
+        self.hemi_threshold = config_retrieve(['ValidateMOI', GNOMAD_HEMI_THRESHOLD])
 
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
@@ -696,8 +696,8 @@ class XRecessiveMale(BaseMoi):
             applied_moi ():
         """
 
-        self.hom_dom_threshold = config_retrieve(['moi_tests', GNOMAD_DOM_HOM_THRESHOLD])
-        self.hemi_threshold = config_retrieve(['moi_tests', GNOMAD_HEMI_THRESHOLD])
+        self.hom_dom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
+        self.hemi_threshold = config_retrieve(['ValidateMOI', GNOMAD_HEMI_THRESHOLD])
 
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_dom_threshold for key in INFO_HOMS}
@@ -778,7 +778,7 @@ class XRecessiveFemaleHom(BaseMoi):
             applied_moi ():
         """
 
-        self.hom_rec_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
+        self.hom_rec_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
@@ -859,7 +859,7 @@ class XRecessiveFemaleCH(BaseMoi):
             applied_moi ():
         """
 
-        self.hom_rec_threshold = config_retrieve(['moi_tests', GNOMAD_REC_HOM_THRESHOLD])
+        self.hom_rec_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
             StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},

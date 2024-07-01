@@ -6,7 +6,7 @@ import pytest
 
 import hail as hl
 
-from talos.hail_filter_and_label import (
+from talos.RunHailFiltering import (
     filter_matrix_by_ac,
     filter_on_quality_flags,
     filter_to_well_normalised,
