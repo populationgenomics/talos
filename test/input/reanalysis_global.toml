@@ -1,12 +1,7 @@
 [workflow]
-dataset = "cohort"
-name = 'Talos'
-sequencing_type = 'genome'
 
 ### optionally, ignore some categories
-#ignore_categories = [
-#    'categoryboolean3'
-#]
+#ignore_categories = ['categoryboolean3']
 
 [panels]
 default_panel = 137
@@ -16,7 +11,6 @@ require_pheno_match = ['FLG', 'GJB2']
 
 [clinvar]
 filter_all = ['victorian clinical genetics services,murdoch childrens research institute', 'broad institute rare disease group; broad institute', 'laboratory for molecular medicine; mass general brigham personalized medicine']
-filter_benign = ['illumina laboratory services; illumina']
 
 [moi_tests]
 description = 'thresholds for different filters during the MOI checks'
@@ -29,7 +23,7 @@ callset_af_sv_dominant = 0.01
 
 [csq]
 description = 'variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated'
-csq_string = ['allele', 'consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'amino_acids', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
+csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
 
 [filter]
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
@@ -39,15 +33,6 @@ af_semi_rare = 0.01
 critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
 minimum_depth = 10
 spliceai = 0.5
-
-[hail]
-cancel_after_n_failures = 1
-default_timeout = 6000
-default_memory = 'highmem'
-
-[images]
-vep = 'australia-southeast1-docker.pkg.dev/cpg-common/images/vep:105.0'
-talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:latest'
 
 [categories]
 1 = 'ClinVar Pathogenic'

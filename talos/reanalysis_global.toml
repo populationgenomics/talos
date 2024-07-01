@@ -1,10 +1,5 @@
 [workflow]
 name = 'Talos'
-# sequencing_type = 'genome' or 'exome'
-
-## override clinvar results
-#clinvar_decisions = "HailTable path to private ClinVar"
-#clinvar_pm5 = "HailTable path to ClinVar PM5"
 
 ## optionally, ignore some categories
 #ignore_categories = ['categoryboolean6']
@@ -13,9 +8,6 @@ name = 'Talos'
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
-
-[clinvar]
-filter_benign = ['illumina laboratory services; illumina']
 
 [moi_tests]
 # thresholds for different filters during the MOI checks
@@ -60,14 +52,6 @@ phenotype_match = ['6']
 [hail.cores]
 sv = 2
 small_variants = 8
-
-[images]
-talos = 'australia-southeast1-docker.pkg.dev/cpg-common/images/talos:4.1.0'
-vep_110 = "australia-southeast1-docker.pkg.dev/cpg-common/images/vep_110:release_110.1"
-
-[references]
-vep_110_mount = "gs://cpg-common-main/references/vep/110/mount"
-genome_build = 'GRCh38'
 
 # per-cohort section
 #clinvar_filter = when running a clinvar re-summary, remove submissions by these sites. Default = no removal
