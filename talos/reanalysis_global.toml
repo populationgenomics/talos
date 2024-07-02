@@ -2,6 +2,8 @@
 default_panel = 137
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
+forbidden_genes = ['a', 'list', 'of', 'forbidden', 'genes']  # symbols, ENSG, or a mix
+forced_panels = [1, 2, 3]
 
 [ValidateMOI]
 # thresholds for different filters during the MOI checks
@@ -43,8 +45,7 @@ pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 sv1 = 'Predicted LOF SV'
 
 [CreateTalosHTML]
-
-
-# per-cohort section
-#forced_panels = any panel IDs to be applied to this cohort, even if not otherwise phenotype-matched
-#gene_prior = if a specific gene list is to be used to determine Cat 2 (new gene-disease associations), provide the filepath here
+external_labels = "path to labels file"
+seqr_lookup = "e.g. gs://cpg-COHORT-test/reanalysis/parsed_seqr.json"
+seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
+seqr_project = "e.g. COHORT_project_id"
