@@ -840,7 +840,8 @@ def save_new_historic(results: HistoricVariants | HistoricPanels, prefix: str = 
         get_logger().info('No historic data folder, no saving')
         return
 
-    new_file = Path(directory) / f'{prefix}{TODAY}.json'
+    # we're using cloud paths here
+    new_file = to_anypath(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
