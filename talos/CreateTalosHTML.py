@@ -13,18 +13,10 @@ from typing import Any
 
 import jinja2
 import pandas as pd
+from cloudpathlib.anypath import to_anypath
 
 from talos.config import config_retrieve
-from talos.models import (
-    PanelApp,
-    PanelDetail,
-    PanelShort,
-    ParticipantMeta,
-    ReportVariant,
-    ResultData,
-    SmallVariant,
-    StructuralVariant,
-)
+from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -198,7 +190,7 @@ class HTMLBuilder:
 
         # pull out forced panel matches
         cohort_panels = config_retrieve(['GeneratePanelData', 'forced_panels'], [])  # type: ignore
-        self.forced_panels: list[PanelShort] = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
+        self.forced_panels: list = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
         self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
         # Process samples and variants
@@ -379,7 +371,9 @@ class HTMLBuilder:
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        open(output_filepath, 'w').writelines('\n'.join(line for line in content.split('\n') if line.strip()))
+        to_anypath(output_filepath).open('w').writelines(
+            '\n'.join(line for line in content.split('\n') if line.strip())
+        )
 
 
 class Sample:
@@ -390,7 +384,7 @@ class Sample:
     def __init__(
         self,
         name: str,
-        metadata: ParticipantMeta,
+        metadata,
         variants: list[ReportVariant],
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
