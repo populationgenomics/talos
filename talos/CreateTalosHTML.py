@@ -156,12 +156,9 @@ class HTMLBuilder:
         """
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
 
-        # If it exists, read the forbidden genes as a set
-        self.forbidden_genes = read_json_from_path(
-            config_retrieve(['GeneratePanelData', 'forbidden_genes'], None),
-            default=set(),
-        )
-        assert isinstance(self.forbidden_genes, set)
+        # If it exists, read the forbidden genes as a list
+        self.forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], [])
+        assert isinstance(self.forbidden_genes, list)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # Use config to find CPG-to-Seqr ID JSON; allow to fail
@@ -316,7 +313,7 @@ class HTMLBuilder:
                     'Data': key.capitalize(),
                     'Value': self.metadata.__getattribute__(key),
                 }
-                for key in ['cohort', 'run_datetime', 'container']
+                for key in ['run_datetime', 'version']
             ),
             'Families': pd.DataFrame(
                 [
@@ -346,7 +343,6 @@ class HTMLBuilder:
         (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
         report_title = 'Talos Report (Latest Variants Only)' if latest else 'Talos Report'
-        assert isinstance(self.forbidden_genes, set)
 
         template_context = {
             'metadata': self.metadata,
