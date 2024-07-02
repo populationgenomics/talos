@@ -1,17 +1,3 @@
-[tool.black]
-line-length = 120
-skip-string-normalization = true
-exclude = '''
-/(
-  venv
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
 [tool.mypy]
 ignore_missing_imports = true
 
