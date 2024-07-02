@@ -6,10 +6,35 @@ from copy import deepcopy
 
 import pytest
 
-from talos.models import HistoricPanels, PanelApp, PanelDetail
-from talos.QueryPanelapp import get_best_moi, get_panel_green
+from talos.models import CURRENT_VERSION, HistoricPanels, PanelApp, PanelDetail
+from talos.QueryPanelapp import create_new_history_from_current, get_best_moi, get_panel_green
 
 empty_gene_dict = PanelApp(genes={})
+
+
+def test_new_history_creation():
+    """
+    create some current data, render it as historic & check the contents
+    """
+    panels: PanelApp = PanelApp(
+        **{
+            'genes': {
+                'ENSG1': {'panels': {1, 2}, 'symbol': 'ensg1'},
+                'ENSG2': {'panels': {2, 3}, 'symbol': 'ensg2'},
+            }
+        }
+    )
+
+    new_history = create_new_history_from_current(panels)
+
+    new_dict = new_history.model_dump()
+    assert new_dict == {
+        'version': CURRENT_VERSION,
+        'genes': {
+            'ENSG1': {1, 2},
+            'ENSG2': {2, 3},
+        },
+    }
 
 
 @pytest.fixture(name='fake_panelapp')
