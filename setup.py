@@ -72,6 +72,8 @@ setup(
             'ValidateMOI = talos.ValidateMOI:cli_main',
             # CPG internal (?), publish those results as an HTML report
             'CreateTalosHTML = talos.CreateTalosHTML:main',
+            # CPG internal (?), generate a file for ingestion by Seqr
+            'GenerateSeqrFile = talos.minimise_output_for_seqr:cli_main',
         ]
     },
 )
