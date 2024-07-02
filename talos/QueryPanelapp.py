@@ -168,6 +168,22 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
+def create_new_history_from_current(current: PanelApp) -> HistoricPanels:
+    """
+    situation: we haven't generated a history file before, but we want to save this round's results
+
+    Args:
+        current (PanelApp): the genes and panels gathered in this round
+
+    Returns:
+        A validly formatted HistoricPanels object containing the current data
+    """
+    new_history: HistoricPanels = HistoricPanels()
+    for gene, gene_details in current.genes.items():
+        new_history[gene] = gene_details.panels
+    return new_history
+
+
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--panels', help='JSON of per-participant panels')
@@ -190,12 +206,14 @@ def main(panels: str | None, out_path: str):
 
     # set the Forbidden genes (defaulting to an empty set)
     forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], set())
+    results_folder: str | None = config_retrieve('result_history', None)
 
     # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
     # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
-    if old_file := find_latest_file(results_folder=config_retrieve('result_history', None), start='panel_'):
+    if old_file := find_latest_file(results_folder=results_folder, start='panel_'):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
         old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
+        assert old_data, f'{old_file} did not contain data in a valid format'
 
     else:
         get_logger().info('No prior data found, not treating anything as new')
@@ -240,8 +258,14 @@ def main(panels: str | None, out_path: str):
     with open(out_path, 'w') as out_file:
         out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
 
-    # Only save here if we have a historic location in config
-    save_new_historic(old_data, prefix='panel_')
+    if results_folder:
+        # identify situations where we should generate new historic results
+        if old_data is None:
+            # create new history from current data
+            old_data = create_new_history_from_current(gene_dict)
+
+        # Only save here if we have a historic location in config
+        save_new_historic(old_data, prefix='panel_')
 
 
 if __name__ == '__main__':
