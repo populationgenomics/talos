@@ -158,7 +158,8 @@ class HTMLBuilder:
 
         # If it exists, read the forbidden genes as a set
         self.forbidden_genes = read_json_from_path(
-            config_retrieve(['GeneratePanelData', 'forbidden_genes']), default=set()
+            config_retrieve(['GeneratePanelData', 'forbidden_genes'], None),
+            default=set(),
         )
         assert isinstance(self.forbidden_genes, set)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
