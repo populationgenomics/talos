@@ -585,6 +585,7 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
+    uses cloudpath to be deployment agnostic
 
     Args:
         read_path (str): where to read from - if None... will return default
@@ -599,11 +600,14 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
         get_logger().error('read_json_from_path was passed the path "None"')
         return default
 
-    if not Path(read_path).exists():
+    assert isinstance(read_path, str)
+    read_anypath = to_anypath(read_path)
+
+    if not read_anypath.exists():
         get_logger().error(f'{read_path} did not exist')
         return default
 
-    with open(read_path) as handle:
+    with read_anypath.open() as handle:
         json_data = json.load(handle)
         if return_model:
             # potentially walk-up model version
@@ -801,8 +805,6 @@ def filter_results(results: ResultData, singletons: bool):
             for var in content.variants:
                 var.evidence_last_updated = get_granular_date()
         return
-
-    get_logger().info('Attempting to filter current results against historic')
 
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty

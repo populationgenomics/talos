@@ -533,6 +533,7 @@ def main(
             'panels': panelapp_data.metadata,
             'version': __version__,
             'projects': [seqr_project] if seqr_project else [],
+            'categories': config_retrieve('categories'),
         },
     )
 
@@ -551,6 +552,8 @@ def main(
 
     # annotate previously seen results using cumulative data file(s)
     filter_results(results_model, singletons=bool('singleton' in pedigree))
+
+    print(results_model.model_dump())
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
