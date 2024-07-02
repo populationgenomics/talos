@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
+from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
 from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date, get_logger
@@ -539,12 +540,12 @@ class Pedigree(BaseModel):
 
 # methods defining how to transition between model versions
 # if unspecified, no transition is required
-LIFTOVER_METHODS = {
+LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: dict(),
     HistoricPanels: dict(),
     HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
-    ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101},
+    ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101, '1.0.2_1.0.3': rd_102_to_103},
 }
 
 

@@ -188,9 +188,8 @@ def main(panels: str | None, out_path: str):
 
     get_logger().info('Starting PanelApp Query Stage')
 
-    # find and extract this dataset's portion of the config file
     # set the Forbidden genes (defaulting to an empty set)
-    forbidden_genes = read_json_from_path(config_retrieve(['GeneratePanelData', 'forced_panels'], None), set())
+    forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], set())
 
     # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
     # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
