@@ -553,8 +553,6 @@ def main(
     # annotate previously seen results using cumulative data file(s)
     filter_results(results_model, singletons=bool('singleton' in pedigree))
 
-    print(results_model.model_dump())
-
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
     with open(out_json, 'w') as out_file:
