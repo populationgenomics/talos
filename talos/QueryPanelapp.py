@@ -180,7 +180,7 @@ def create_new_history_from_current(current: PanelApp) -> HistoricPanels:
     """
     new_history: HistoricPanels = HistoricPanels()
     for gene, gene_details in current.genes.items():
-        new_history[gene] = gene_details.panels
+        new_history.genes[gene] = gene_details.panels
     return new_history
 
 
