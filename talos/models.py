@@ -20,8 +20,6 @@ CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 CURRENT_VERSION = '1.0.3'
 ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3']
 
-# todo container -> version
-
 # ratios for use in AB testing
 MAX_WT = 0.15
 MIN_HET = 0.25
@@ -330,7 +328,6 @@ class ReportVariant(BaseModel):
     sample: str
     var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
-    # is this a thing I can do?
     # todo implement this
     date_of_phenotype_match: str | None = None
     evidence_last_updated: str = Field(default=get_granular_date())
