@@ -2,14 +2,12 @@
 
 
 """
-Complete revision...
+Complete revision... again
 """
 
 # mypy: ignore-errors
 
 from argparse import ArgumentParser
-
-import zoneinfo
 
 from talos.config import config_retrieve
 from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
@@ -25,8 +23,8 @@ from talos.utils import (
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+# numerical ID of the Mendeliome in PanelApp Australia
 DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
-TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
