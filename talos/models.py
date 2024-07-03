@@ -343,6 +343,8 @@ class ReportVariant(BaseModel):
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
     reasons: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
+    # log whether there was an increase in ClinVar star rating since the last run
+    clinvar_increase: bool = Field(default=False)
 
     def __eq__(self, other):
         """
@@ -411,6 +413,7 @@ class HistoricSampleVariant(BaseModel):
         description='supporting variants if this has been identified in a comp-het',
     )
     independent: bool = Field(default=True)
+    clinvar_stars: int | None = None
 
 
 class HistoricVariants(BaseModel):

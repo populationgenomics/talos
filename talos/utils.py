@@ -774,11 +774,19 @@ def generate_fresh_latest_results(current_results: ResultData, prefix: str = '')
     new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
     for sample, content in current_results.results.items():
         for var in content.variants:
+            # bank the number of clinvar stars, if any
+            if '1' in var.categories:
+                clinvar_stars = var.var_data.info.get('clinvar_stars')
+                assert isinstance(clinvar_stars, int)
+            else:
+                clinvar_stars = None
+
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
                 categories={cat: var.first_tagged for cat in var.categories},
                 support_vars=var.support_vars,
                 independent=var.independent,
                 first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
+                clinvar_stars=clinvar_stars,
             )
     save_new_historic(results=new_history, prefix=prefix)
 
@@ -912,11 +920,18 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     historic.metadata.categories.update(config_retrieve('categories'))
 
     for sample, content in current.results.items():
-        # get the historic record for this sample
+        # get the historical record for this sample
         sample_historic = historic.results.get(sample, {})
 
         # check each variant found in this round
         for var in content.variants:
+            # get the number of clinvar stars, if appropriate
+            if '1' in var.categories:
+                clinvar_stars = var.var_data.info.get('clinvar_stars')
+                assert isinstance(clinvar_stars, int)
+            else:
+                clinvar_stars = None
+
             var_id = var.var_data.coordinates.string_format
             current_cats = var.categories
 
@@ -939,6 +954,16 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                 # mark the first seen timestamp
                 var.first_tagged = hist.first_tagged
 
+                # log an increase in ClinVar star rating
+                if clinvar_stars:
+                    historic_stars = hist.clinvar_stars
+
+                    # if clinvar_stars was previously None, or was previously lower, store and keep a boolean
+                    # then update the history for this variant to flag that the star rating has increased
+                    if (historic_stars is None) or clinvar_stars > historic_stars:
+                        var.clinvar_increase = True
+                        hist.clinvar_stars = clinvar_stars
+
                 # latest _new_ category date as evidence_last_changed timestamp
                 var.evidence_last_updated = sorted(hist.categories.values(), reverse=True)[0]
 
@@ -949,4 +974,5 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     support_vars=var.support_vars,
                     independent=var.independent,
                     first_tagged=get_granular_date(),
+                    clinvar_stars=clinvar_stars,
                 )
