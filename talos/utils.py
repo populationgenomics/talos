@@ -16,14 +16,11 @@ import cyvcf2
 import requests
 import zoneinfo
 from backoff import fibo
-from gql.transport.exceptions import TransportQueryError, TransportServerError
+from cloudpathlib.anypath import to_anypath
 from peds import open_ped
 from requests.exceptions import ReadTimeout, RequestException
 
-from cpg_utils import Path as CPGPathType
-from cpg_utils import to_path
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
     CategoryMeta,
@@ -53,7 +50,6 @@ HOMALT: int = 3
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 PHASE_SET_DEFAULT = -2147483648
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
-CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 X_CHROMOSOME = {'X'}
 
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
@@ -65,9 +61,6 @@ ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hem
 IRRELEVANT_MOI = {'unknown', 'other'}
 REMOVE_IN_SINGLETONS = {'categorysample4'}
 
-# global config holders
-COHORT_CONFIG: dict | None = None
-COHORT_SEQ_CONFIG: dict | None = None
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 
@@ -184,7 +177,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
 
 @backoff.on_exception(
     wait_gen=fibo,
-    exception=(TransportQueryError, TransportServerError, TimeoutError, ReadTimeout, RequestException),
+    exception=(TimeoutError, ReadTimeout, RequestException),
     max_time=200,
     logger=get_logger(),
 )
@@ -206,49 +199,9 @@ def get_json_response(url):
     return response.json()
 
 
-def get_cohort_config(dataset: str | None = None):
-    """
-    return the cohort-specific portion of the config file, or fail
-
-    Returns:
-        the dict of cohort and genome/exome specific content
-    """
-
-    global COHORT_CONFIG
-    if COHORT_CONFIG is None:
-        dataset = dataset or config_retrieve(['workflow', 'dataset'])
-        COHORT_CONFIG = config_retrieve(['cohorts', dataset], {})
-        if not COHORT_CONFIG:
-            raise AssertionError(f'{dataset} is not represented in config')
-    return COHORT_CONFIG
-
-
-def get_cohort_seq_type_conf(dataset: str | None = None):
-    """
-    return the cohort-specific portion of the config file,
-    chased down to the exome/genome specific portion
-
-    Args:
-        dataset (str): the dataset to retrieve config for
-                       defaults to config/workflow/dataset
-
-    Returns:
-        the dict of cohort and genome/exome specific content
-    """
-    global COHORT_SEQ_CONFIG
-    if COHORT_SEQ_CONFIG is None:
-        dataset = dataset or config_retrieve(['workflow', 'dataset'])
-        cohort_conf = get_cohort_config(dataset)
-        seq_type = config_retrieve(['workflow', 'sequencing_type'])
-        COHORT_SEQ_CONFIG = cohort_conf.get(seq_type, {})
-        assert COHORT_SEQ_CONFIG, f'{dataset} - {seq_type} is not represented in config'
-    return COHORT_SEQ_CONFIG
-
-
 def get_new_gene_map(
     panelapp_data: PanelApp,
     pheno_panels: PhenotypeMatchedPanels | None = None,
-    dataset: str | None = None,
 ) -> dict[str, set[str]]:
     """
     The aim here is to generate a list of all the samples for whom
@@ -262,16 +215,12 @@ def get_new_gene_map(
     Args:
         panelapp_data ():
         pheno_panels (PhenotypeMatchedPanels):
-        dataset ():
-
-    Returns:
-
     """
 
     # any dataset-specific panel data, + 'core' panel
     cohort_panels = [
-        *get_cohort_config(dataset).get('cohort_panels', []),
-        config_retrieve(['panels', 'default_panel']),
+        *config_retrieve(['GeneratePanelData', 'forced_panels'], []),
+        config_retrieve(['GeneratePanelData', 'default_panel']),
     ]
 
     # collect all genes new in at least one panel
@@ -424,7 +373,7 @@ def create_small_variant(
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
     # optionally - ignore some categories from this analysis
-    if ignore_cats := config_retrieve(['workflow', 'ignore_categories'], []):
+    if ignore_cats := config_retrieve(['ValidateMOI', 'ignore_categories'], []):
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -578,7 +527,7 @@ def gather_gene_dict_from_contig(
     """
     if sv_sources is None:
         sv_sources = []
-    if bl_file := config_retrieve(['filter', 'blacklist'], ''):
+    if bl_file := config_retrieve(['GeneratePanelData', 'blacklist'], ''):
         blacklist = read_json_from_path(bl_file, default=[])
     else:
         blacklist = []
@@ -632,13 +581,14 @@ def gather_gene_dict_from_contig(
     return contig_dict
 
 
-def read_json_from_path(bucket_path: str | CPGPathType | None, default: Any = None, return_model: Any = None) -> Any:
+def read_json_from_path(read_path: str | None = None, default: Any = None, return_model: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
     if the path doesn't exist - return the default object
+    uses cloudpath to be deployment agnostic
 
     Args:
-        bucket_path (str):
+        read_path (str): where to read from - if None... will return default
         default (Any):
         return_model (pydantic Models): any Model to read/validate as
 
@@ -646,25 +596,24 @@ def read_json_from_path(bucket_path: str | CPGPathType | None, default: Any = No
         either the object from the JSON file, or None
     """
 
-    if bucket_path is None:
+    if read_path is None:
+        get_logger().error('read_json_from_path was passed the path "None"')
         return default
 
-    if isinstance(bucket_path, str):
-        bucket_path = to_path(bucket_path)
+    assert isinstance(read_path, str)
+    read_anypath = to_anypath(read_path)
 
-    if isinstance(bucket_path, CPGPathType) and bucket_path.exists():
-        with bucket_path.open() as handle:
-            json_data = json.load(handle)
-            if return_model:
-                # potentially walk-up model version
-                model_data = lift_up_model_version(json_data, return_model)
-                return return_model.model_validate(model_data)
-            return json_data
-
-    if default is not None:
+    if not read_anypath.exists():
+        get_logger().error(f'{read_path} did not exist')
         return default
 
-    raise ValueError(f'No data found at {bucket_path}')
+    with read_anypath.open() as handle:
+        json_data = json.load(handle)
+        if return_model:
+            # potentially walk-up model version
+            model_data = lift_up_model_version(json_data, return_model)
+            return return_model.model_validate(model_data)
+        return json_data
 
 
 def get_simple_moi(input_mois: set[str], chrom: str) -> set[str]:
@@ -754,7 +703,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
         return []
 
     # break mono-CSQ-string into components
-    csq_categories = config_retrieve(['csq', 'csq_string'])
+    csq_categories = config_retrieve(['RunHailFiltering', 'csq_string'])
 
     # iterate over all consequences, and make each into a dict
     txc_dict = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
@@ -813,29 +762,36 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
     return comp_het_results
 
 
-def generate_fresh_latest_results(current_results: ResultData, dataset: str, prefix: str = ''):
+def generate_fresh_latest_results(current_results: ResultData, prefix: str = ''):
     """
     This will be called if a cohort has no latest results, but has
     indicated a place to save them.
     Args:
         current_results (ResultData): results from this current run
-        dataset (str): dataset name for sourcing config section
         prefix (str): optional prefix for the filename
     """
 
-    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve(['categories'], {})))
+    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
     for sample, content in current_results.results.items():
         for var in content.variants:
+            # bank the number of clinvar stars, if any
+            if '1' in var.categories:
+                clinvar_stars = var.var_data.info.get('clinvar_stars')
+                assert isinstance(clinvar_stars, int)
+            else:
+                clinvar_stars = None
+
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
                 categories={cat: var.first_tagged for cat in var.categories},
                 support_vars=var.support_vars,
                 independent=var.independent,
                 first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
+                clinvar_stars=clinvar_stars,
             )
-    save_new_historic(results=new_history, prefix=prefix, dataset=dataset)
+    save_new_historic(results=new_history, prefix=prefix)
 
 
-def filter_results(results: ResultData, singletons: bool, dataset: str):
+def filter_results(results: ResultData, singletons: bool):
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -844,12 +800,11 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
     Args:
         results (ResultData): the results produced during this run
         singletons (bool): whether to read/write a singleton specific file
-        dataset (str): dataset name for sourcing config section
 
     Returns: same results annotated with date-first-seen
     """
 
-    historic_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
+    historic_folder = config_retrieve('result_history')
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
@@ -859,15 +814,12 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
                 var.evidence_last_updated = get_granular_date()
         return
 
-    get_logger().info('Attempting to filter current results against historic')
-
     # get the latest result file from the folder
     # this will be none if the folder doesn't exist or is empty
     prefix = 'singletons_' if singletons else ''
 
     # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
-    # in 1000 years this might cause a problem :/ \s
-    latest_results_path = find_latest_file(dataset=dataset, start=prefix or '2')
+    latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None), start=prefix or '2')
 
     get_logger().info(f'latest results: {latest_results_path}')
 
@@ -876,31 +828,30 @@ def filter_results(results: ResultData, singletons: bool, dataset: str):
         latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)  # type: ignore
     ) is None:
         # generate and write some new latest data
-        generate_fresh_latest_results(current_results=results, prefix=prefix, dataset=dataset)
+        generate_fresh_latest_results(current_results=results, prefix=prefix)
         return
 
     assert isinstance(latest_results, HistoricVariants)
 
     date_annotate_results(results, latest_results)
-    save_new_historic(results=latest_results, prefix=prefix, dataset=dataset)
+    save_new_historic(results=latest_results, prefix=prefix)
 
 
-def save_new_historic(results: HistoricVariants | HistoricPanels, dataset: str, prefix: str = ''):
+def save_new_historic(results: HistoricVariants | HistoricPanels, prefix: str = ''):
     """
     save the new results in the historic results dir
 
     Args:
         results (HistoricVariants): object to save as JSON
-        dataset (str): the dataset to save results for
         prefix (str): name prefix for this file (optional)
     """
 
-    directory = get_cohort_seq_type_conf(dataset).get('historic_results')
-    if directory is None:
+    if (directory := config_retrieve('result_history', None)) is None:
         get_logger().info('No historic data folder, no saving')
         return
 
-    new_file = to_path(directory) / f'{prefix}{TODAY}.json'
+    # we're using cloud paths here
+    new_file = to_anypath(directory) / f'{prefix}{TODAY}.json'
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
@@ -922,28 +873,22 @@ def date_from_string(string: str) -> str:
     raise ValueError(f'No date found in {string}')
 
 
-def find_latest_file(dataset: str, results_folder: str | None = None, start: str = '', ext: str = 'json') -> str | None:
+def find_latest_file(results_folder: str, start: str = '', ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
-        dataset (): the dataset to fetch results for
-        results_folder (): local or remote folder
+        results_folder (): local or remote folder, or don't call this method
         start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
 
     Returns: most recent file path, or None
     """
 
-    if results_folder is None:
-        results_folder = get_cohort_seq_type_conf(dataset).get('historic_results')
-        if results_folder is None:
-            get_logger().info('`historic_results` not present in config')
-            return None
-
     get_logger().info(f'Using results from {results_folder}')
 
+    # this is currently a CloudPath to access globbing for files in cloud or local settings
     date_files = {
-        date_from_string(filename.name): filename for filename in to_path(results_folder).glob(f'{start}*.{ext}')
+        date_from_string(filename.name): filename for filename in to_anypath(results_folder).glob(f'{start}*.{ext}')
     }
     if not date_files:
         return None
@@ -972,14 +917,21 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
     """
 
     # update to latest category descriptions
-    historic.metadata.categories.update(config_retrieve(['categories']))
+    historic.metadata.categories.update(config_retrieve('categories'))
 
     for sample, content in current.results.items():
-        # get the historic record for this sample
+        # get the historical record for this sample
         sample_historic = historic.results.get(sample, {})
 
         # check each variant found in this round
         for var in content.variants:
+            # get the number of clinvar stars, if appropriate
+            if '1' in var.categories:
+                clinvar_stars = var.var_data.info.get('clinvar_stars')
+                assert isinstance(clinvar_stars, int)
+            else:
+                clinvar_stars = None
+
             var_id = var.var_data.coordinates.string_format
             current_cats = var.categories
 
@@ -1002,6 +954,16 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                 # mark the first seen timestamp
                 var.first_tagged = hist.first_tagged
 
+                # log an increase in ClinVar star rating
+                if clinvar_stars:
+                    historic_stars = hist.clinvar_stars
+
+                    # if clinvar_stars was previously None, or was previously lower, store and keep a boolean
+                    # then update the history for this variant to flag that the star rating has increased
+                    if (historic_stars is None) or clinvar_stars > historic_stars:
+                        var.clinvar_increase = True
+                        hist.clinvar_stars = clinvar_stars
+
                 # latest _new_ category date as evidence_last_changed timestamp
                 var.evidence_last_updated = sorted(hist.categories.values(), reverse=True)[0]
 
@@ -1012,4 +974,5 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     support_vars=var.support_vars,
                     independent=var.independent,
                     first_tagged=get_granular_date(),
+                    clinvar_stars=clinvar_stars,
                 )

@@ -12,7 +12,7 @@ from talos.models import (  # ReportPanel,
     SmallVariant,
 )
 from talos.utils import make_flexible_pedigree
-from talos.validate_categories import clean_and_filter, count_families, prepare_results_shell
+from talos.ValidateMOI import clean_and_filter, count_families, prepare_results_shell
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -69,15 +69,13 @@ def test_results_shell(pedigree_path):
             'genes': {'ENSG1': {'symbol': 'G1'}},
         },
     )
-    result_meta = ResultMeta(input_file='', cohort='cohort')
     shell = prepare_results_shell(
-        results_meta=result_meta,
+        results_meta=ResultMeta(),
         small_samples={'male'},
         sv_samples={'female'},
         pedigree=make_flexible_pedigree(pedigree=pedigree_path),
         panel_data=sample_panels,
         panelapp=panelapp,
-        dataset='cohort',
     )
 
     # top level only has the two affected participants
@@ -137,12 +135,7 @@ def test_gene_clean_results_no_personal():
         },
     )
 
-    clean = clean_and_filter(
-        results_holder=results_holder,
-        result_list=dirty_data,
-        panelapp_data=panel_genes,
-        dataset='cohort',
-    )
+    clean = clean_and_filter(results_holder=results_holder, result_list=dirty_data, panelapp_data=panel_genes)
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert clean.results['sam1'].variants[0].flags == set()
@@ -180,7 +173,6 @@ def test_gene_clean_results_personal():
         result_list=dirty_data,
         panelapp_data=panel_genes,
         participant_panels=personal_panels,
-        dataset='cohort',
     )
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'

@@ -7,7 +7,8 @@ import pytest
 
 import hail as hl
 
-from talos.hail_filter_and_label import (
+from talos.models import PanelApp
+from talos.RunHailFiltering import (
     annotate_category_1,
     annotate_category_2,
     annotate_category_3,
@@ -19,7 +20,6 @@ from talos.hail_filter_and_label import (
     green_and_new_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
-from talos.models import PanelApp
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 category_1_keys = ['locus', 'clinvar_talos_strong']
@@ -161,6 +161,7 @@ def annotate_c6_missing(make_a_mt, caplog):
 
     Args:
         make_a_mt ():
+        caplog (fixture): pytest fixture, captures all logged text
     """
     anno_matrix = make_a_mt.annotate_rows(
         vep=hl.Struct(transcript_consequences=hl.array([hl.Struct(not_am='a value')])),
@@ -307,19 +308,6 @@ def test_filter_to_classified(one, two, three, four, five, six, pm5, length, mak
     )
     matrix = filter_to_categorised(anno_matrix)
     assert matrix.count_rows() == length
-
-
-def test_talos_clinvar_default(make_a_mt):
-    """
-    no private annotations applied
-    Args:
-        make_a_mt (hl.MatrixTable):
-    """
-
-    mt = annotate_talos_clinvar(make_a_mt)
-    assert mt.count_rows() == ONE_EXPECTED
-    assert not [x for x in mt.info.clinvar_talos.collect() if x == 1]
-    assert not [x for x in mt.info.clinvar_talos_strong.collect() if x == 1]
 
 
 @pytest.mark.parametrize(

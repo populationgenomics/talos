@@ -27,7 +27,7 @@ from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
 from os.path import join
 
-from cloudpathlib import AnyPath
+from cloudpathlib.anypath import to_anypath
 
 import hail as hl
 
@@ -345,7 +345,7 @@ class SneakyTable:
 
         # write all variants in this object
         json_temp = join(self.tmp_path, 'vep.json')
-        with AnyPath(json_temp).open('w') as f:
+        with open(json_temp, 'w') as f:
             for variant in self.variants:
                 f.write(variant.to_string())
         return json_temp

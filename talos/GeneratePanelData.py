@@ -15,12 +15,15 @@ import requests
 from obonet import read_obo
 from peds import open_ped
 
+from talos.config import config_retrieve
 from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 from talos.static_values import get_logger
 
 HPO_RE = re.compile(r'HP:[0-9]+')
 MAX_DEPTH = 3
-PANELS_ENDPOINT = 'https://panelapp.agha.umccr.org/api/v1/panels/'
+
+PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
+PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
 
 
 def get_json_response(url: str) -> dict:
@@ -74,7 +77,7 @@ def get_participant_hpos(pedigree: str) -> tuple[PhenotypeMatchedPanels, set[str
     read the extended pedigree file, pull out family details and HPO terms
 
     Args:
-        pedigree (str): dataset name
+        pedigree (str): path to ped file
 
     Returns:
         dict of per-participant details, and set of all HPO terms

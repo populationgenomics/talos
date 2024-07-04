@@ -2,12 +2,14 @@
 any methods for testing model functionality
 """
 
+from os.path import join
+
 from talos.utils import make_flexible_pedigree
 from test.test_utils import FIVE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED
 
 
 def test_flexi_pedigree(test_input_path):
-    input_ped = str(test_input_path / 'peds.ped')
+    input_ped = join(test_input_path, 'peds.ped')
     flexi_ped = make_flexible_pedigree(input_ped)
     assert len(flexi_ped.by_family) == THREE_EXPECTED
     assert len(flexi_ped.by_id) == FIVE_EXPECTED

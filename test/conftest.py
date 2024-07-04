@@ -2,6 +2,8 @@
 A home for common test fixtures
 """
 
+from os import environ
+from os.path import join
 from pathlib import Path
 from typing import Any
 
@@ -10,33 +12,31 @@ from cyvcf2 import VCFReader
 
 import hail as hl
 
-from cpg_utils.config import set_config_paths
-
-# force this to come first
-PWD = Path(__file__).parent
-INPUT = PWD / 'input'
-CONF_BASE = INPUT / 'reanalysis_global.toml'
-hl.init(default_reference='GRCh38')
-set_config_paths([str(CONF_BASE)])
-
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 from talos.utils import create_small_variant, read_json_from_path  # noqa: E402
 
-LABELLED = str(INPUT / '1_labelled_variant.vcf.bgz')
-Talos_OUTPUT = INPUT / 'aip_output_example.json'
-DE_NOVO_PED = INPUT / 'de_novo_ped.fam'
-FAKE_OBO = INPUT / 'hpo_test.obo'
-LOOKUP_PED = INPUT / 'mock_sm_lookup.json'
-PHASED_TRIO = INPUT / 'newphase.vcf.bgz'
-PED_FILE = INPUT / 'pedfile.ped'
-SEQR_OUTPUT = INPUT / 'seqr_tags.tsv'
-QUAD_PED = INPUT / 'trio_plus_sibling.fam'
-SUB_STUB = INPUT / 'tiny_summary.txt.gz'
+# force this to come first
+PWD = Path(__file__).parent
+INPUT: str = str(PWD / 'input')
+hl.init(default_reference='GRCh38')
+environ['TALOS_CONFIG'] = join(INPUT, 'reanalysis_global.toml')
+print(environ)
+
+LABELLED = join(INPUT, '1_labelled_variant.vcf.bgz')
+Talos_OUTPUT = join(INPUT, 'aip_output_example.json')
+DE_NOVO_PED = join(INPUT, 'de_novo_ped.fam')
+FAKE_OBO = join(INPUT, 'hpo_test.obo')
+LOOKUP_PED = join(INPUT, 'mock_sm_lookup.json')
+PHASED_TRIO = join(INPUT, 'newphase.vcf.bgz')
+PED_FILE = join(INPUT, 'pedfile.ped')
+SEQR_OUTPUT = join(INPUT, 'seqr_tags.tsv')
+QUAD_PED = join(INPUT, 'trio_plus_sibling.fam')
+SUB_STUB = join(INPUT, 'tiny_summary.txt.gz')
 
 # panelapp testing paths
-PANELAPP_LATEST = INPUT / 'panelapp_current_137.json'
-PANELAPP_INCIDENTALOME = INPUT / 'incidentalome.json'
-FAKE_PANELAPP_OVERVIEW = INPUT / 'panel_overview.json'
+PANELAPP_LATEST = join(INPUT, 'panelapp_current_137.json')
+PANELAPP_INCIDENTALOME = join(INPUT, 'incidentalome.json')
+FAKE_PANELAPP_OVERVIEW = join(INPUT, 'panel_overview.json')
 
 
 @pytest.fixture(name='cleanup', scope='session', autouse=True)
@@ -88,19 +88,19 @@ def fixture_make_a_vcf(make_a_mt, tmp_path_factory) -> str:
 
 
 @pytest.fixture(name='test_input_path', scope='session')
-def fixture_test_input_path() -> Path:
+def fixture_test_input_path() -> str:
     """path to the test input directory"""
     return INPUT
 
 
 @pytest.fixture(name='test_input_models_path', scope='session')
-def fixture_test_input_models_path() -> Path:
+def fixture_test_input_models_path() -> str:
     """path to the test input directory"""
-    return INPUT / 'models'
+    return join(INPUT, 'models')
 
 
 @pytest.fixture(name='fake_obo_path', scope='session')
-def fixture_fake_obo() -> Path:
+def fixture_fake_obo() -> str:
     """path to fake obo"""
     return FAKE_OBO
 
@@ -136,7 +136,7 @@ def pedigree_path() -> str:
     """
     :return: Ped
     """
-    return str(PED_FILE)
+    return PED_FILE
 
 
 @pytest.fixture(name='phased_vcf_path')
@@ -150,7 +150,7 @@ def fixture_phased_trio_vcf_path():
 def fixture_phased_trio_variants():
     """path to the phased trio VCF"""
 
-    vcf_reader = VCFReader(str(PHASED_TRIO))
+    vcf_reader = VCFReader(PHASED_TRIO)
     two_variants = [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
     return two_variants
 
@@ -166,7 +166,7 @@ def fixture_trio_ped():
 def fixture_quad_ped():
     """location of the Quad Pedigree (PLINK)"""
 
-    return str(QUAD_PED)
+    return QUAD_PED
 
 
 @pytest.fixture(name='trio_abs_variant')

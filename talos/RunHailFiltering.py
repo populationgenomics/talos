@@ -6,22 +6,18 @@ Read, filter, annotate, classify, and write Genetic data
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 2, 3, 4, 5, and Support
+- annotate with categories 1, 2, 3, 4, 5, 6, and Support
 - remove un-categorised variants
 - write as VCF
 """
 
-import os
 from argparse import ArgumentParser
-from datetime import datetime
 
 from peds import open_ped
 
 import hail as hl
 
-from cpg_utils import to_path
-from cpg_utils.config import config_retrieve
-
+from talos.config import config_retrieve
 from talos.hail_audit import (
     BASE_FIELDS_REQUIRED,
     FIELDS_REQUIRED,
@@ -46,93 +42,33 @@ LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
 
-def get_clinvar_table(key: str = 'clinvar_decisions') -> str | None:
+def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
-    try and identify the clinvar table to use
-    - try the config specified path
-    - fall back to storage:common default path
-    - failing that, stick to standard annotations
+    Changed logic: don't allow these annotations to be missing
+    - Talos has been co-developed with ClinvArbitration, a ClinVar re-summary effort
+    - We no longer permit this to be missing (this has slipped in the past, causing odd results)
 
-    Args
-        key (str): the key to look for in the config
+    See: https://github.com/populationgenomics/ClinvArbitration
 
-    Returns:
-        a path to a clinvar table, or None
-    """
-
-    if clinvar_table := config_retrieve(['workflow', key], None):
-        if to_path(clinvar_table).exists():
-            get_logger().info(f'Using clinvar table {clinvar_table}')
-            return clinvar_table
-
-    get_logger().info(f'No forced {key} table available, trying default')
-
-    try:
-        clinvar_table = to_path(
-            os.path.join(
-                config_retrieve(['storage', 'common', 'analysis']),
-                'aip_clinvar',
-                datetime.now().strftime('%y-%m'),
-                f'{key}.ht',
-            ),
-        )
-        # happy path
-        if clinvar_table.exists():
-            get_logger().info(f'Using clinvar table {clinvar_table}')
-            return str(clinvar_table)
-
-        get_logger().info(f'No Clinvar table exists@{clinvar_table}, run the clinvar_runner script')
-    except KeyError:
-        get_logger().warning('No storage::common::analysis key present')
-
-    return None
-
-
-def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str | None = None) -> hl.MatrixTable:
-    """
-    instead of making a separate decision about whether the clinvar
-    annotation(s) are meaningful during each test, add a single value
-    early on. This accomplishes two things:
-    1. reduces the logic of each individual test
-    2. allows us to use other clinvar consequences for this codon
-        (see issue #140)
-    3. allows us to replace the clinvar annotation with our private
-        annotations (see issue #147)
+    We replace any existing ClinVar annotations with our own version, then identify Path/Benign variants
 
     Args:
         mt (): the MatrixTable of all variants
-        clinvar (): the table of private ClinVar annotations to use, or None
+        clinvar (): the table of private ClinVar annotations to use
+
     Returns:
         The same MatrixTable but with additional annotations
     """
 
-    # if there's private clinvar annotations - use them
-    if clinvar:
-        # would this replace the standard annotations with missing if there
-        # is no private annotation to replace it?
-        get_logger().info(f'loading private clinvar annotations from {clinvar}')
-        ht = hl.read_table(clinvar)
-        mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                clinvar_significance=hl.or_else(ht[mt.row_key].clinical_significance, MISSING_STRING),
-                clinvar_stars=hl.or_else(ht[mt.row_key].gold_stars, MISSING_INT),
-                clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_INT),
-            ),
-        )
-
-    # use default annotations
-    else:
-        get_logger().info('no private annotations, using default contents')
-
-        # do this annotation first, as hail can't string filter against
-        # missing contents
-        mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                clinvar_significance=hl.or_else(mt.clinvar.clinical_significance, MISSING_STRING),
-                clinvar_stars=hl.or_else(mt.clinvar.gold_stars, MISSING_INT),
-                clinvar_allele=hl.or_else(mt.clinvar.allele_id, MISSING_INT),
-            ),
-        )
+    get_logger().info(f'loading private clinvar annotations from {clinvar}')
+    ht = hl.read_table(clinvar)
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            clinvar_significance=hl.or_else(ht[mt.row_key].clinical_significance, MISSING_STRING),
+            clinvar_stars=hl.or_else(ht[mt.row_key].gold_stars, MISSING_INT),
+            clinvar_allele=hl.or_else(ht[mt.row_key].allele_id, MISSING_INT),
+        ),
+    )
 
     # remove all confidently benign
     mt = mt.filter_rows(
@@ -140,7 +76,7 @@ def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str | None = None) -> hl
         keep=False,
     )
 
-    # annotate as either strong or regular
+    # annotate as either strong or regular, return the result
     return mt.annotate_rows(
         info=mt.info.annotate(
             clinvar_talos=hl.if_else(
@@ -370,7 +306,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
     # 'semi-rare' as dominant filters will be more strictly filtered later
-    rare_af_threshold = config_retrieve(['filter', 'af_semi_rare'])
+    rare_af_threshold = config_retrieve(['RunHailFiltering', 'af_semi_rare'])
     return mt.filter_rows(
         ((mt.info.gnomad_ex_af < rare_af_threshold) & (mt.info.gnomad_af < rare_af_threshold))
         | (mt.info.clinvar_talos == ONE_INT),
@@ -505,7 +441,7 @@ def annotate_category_2(mt: hl.MatrixTable, new_genes: hl.SetExpression | None) 
         same variants, categoryboolean2 set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['filter', 'critical_csq']))
+    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
 
     # permit scenario with no new genes
     if new_genes is None:
@@ -548,7 +484,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categoryboolean3 set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['filter', 'critical_csq']))
+    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -595,8 +531,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['filter', 'critical_csq'], []))
-    additional_consequences = set(config_retrieve(['filter', 'additional_csq'], []))
+    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], []))
+    additional_consequences = set(config_retrieve(['RunHailFiltering', 'additional_csq'], []))
     critical_consequences.update(additional_consequences)
 
     # overwrite the consequences with an intersection against a limited list
@@ -659,7 +595,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         pedigree,
         pop_frequency_prior=de_novo_matrix.info.gnomad_af,
         ignore_in_sample_allele_frequency=True,
-        max_parent_ab=config_retrieve(['filter', 'max_parent_ab'], 0.05),
+        max_parent_ab=config_retrieve(['RunHailFiltering', 'max_parent_ab'], 0.05),
     )
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
@@ -695,7 +631,7 @@ def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean5=hl.if_else(
-                mt.info.splice_ai_delta >= config_retrieve(['filter', 'spliceai']),
+                mt.info.splice_ai_delta >= config_retrieve(['RunHailFiltering', 'spliceai']),
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -737,7 +673,7 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
         )
 
         # pull the required fields and ordering from config
-        csq_fields = config_retrieve(['csq', 'csq_string'])
+        csq_fields = config_retrieve(['RunHailFiltering', 'csq_string'])
 
         return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|')
 
@@ -787,7 +723,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
     header_path = 'additional_header.txt'
 
     # generate a CSQ string specific to the config file for decoding later
-    csq_contents = '|'.join(config_retrieve(['csq', 'csq_string']))
+    csq_contents = '|'.join(config_retrieve(['RunHailFiltering', 'csq_string']))
 
     # write this custom header locally
     with open(header_path, 'w') as handle:
@@ -878,7 +814,7 @@ def cli_main():
     parser.add_argument('--panelapp', required=True, help='panelapp JSON')
     parser.add_argument('--pedigree', required=True, help='Cohort Pedigree')
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
-    parser.add_argument('--clinvar', help='HT containing clinvar annotations, optional', default=None)
+    parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
     args = parser.parse_args()
     main(
@@ -896,7 +832,7 @@ def main(
     panel_data: str,
     pedigree: str,
     vcf_out: str,
-    clinvar: str | None = None,
+    clinvar: str,
     pm5: str | None = None,
 ):
     """
@@ -922,13 +858,10 @@ def main(
     )
 
     # initiate Hail as a local cluster
-    number_of_cores = config_retrieve(['hail', 'cores', 'small_variants'], 8)
+    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
     get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
     hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
     hl.default_reference('GRCh38')
-
-    # get the run configuration JSON
-    get_logger().info(f'Reading config dict from {os.getenv("CPG_CONFIG_PATH")}')
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panel_data!r}')

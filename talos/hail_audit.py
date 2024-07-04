@@ -6,7 +6,7 @@ partially to make this available in other places
 
 import logging
 
-import hail as hl  # type: ignore
+import hail as hl
 
 BASE_FIELDS_REQUIRED = [
     ('locus', hl.LocusExpression),

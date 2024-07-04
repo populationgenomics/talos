@@ -2,7 +2,7 @@
 tests for the HTML builder
 """
 
-from talos.html_builder import check_date_filter
+from talos.CreateTalosHTML import check_date_filter
 from talos.models import Coordinates, ResultData, SmallVariant
 from test.test_utils import TWO_EXPECTED
 
