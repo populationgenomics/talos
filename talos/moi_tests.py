@@ -274,7 +274,7 @@ class BaseMoi:
         Returns:
             True if any of the info attributes is above the threshold
         """
-        return all(info.get(key, 0) < test for key, test in thresholds.items())
+        return all(info.get(key, 0) <= test for key, test in thresholds.items())
 
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """

@@ -53,9 +53,6 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
         with open(config_path) as f:
             _config = toml.loads(f.read())
 
-        print(f'Config file: {config_path}')
-        print(_config)
-
     if isinstance(key, str):
         key = [key]
 

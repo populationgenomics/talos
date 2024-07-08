@@ -94,11 +94,13 @@ def get_panel_green(
         for build, content in gene['gene_data']['ensembl_genes'].items():
             if build.lower() == 'grch38':
                 # the ensembl version may alter over time, but will be singular
-                ensembl_data = next(iter(content.keys()))
+                ensembl_data = content[next(iter(content.keys()))]
                 ensg = ensembl_data['ensembl_id']
                 chrom = ensembl_data['location'].split(':')[0]
 
-        assert chrom
+        if chrom is None:
+            get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name} for lack of chrom annotation')
+            continue
 
         if ensg is None or ensg in blacklist or symbol in blacklist or ensg in forbidden_genes:
             get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
