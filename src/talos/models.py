@@ -461,8 +461,8 @@ class ParticipantMeta(BaseModel):
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
-    panel_ids: list[int] = Field(default_factory=list)
-    panel_names: list[str] = Field(default_factory=list)
+    panel_ids: set[int] = Field(default_factory=set)
+    panel_names: set[str] = Field(default_factory=set)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
     present_in_sv: bool = Field(default=False)
