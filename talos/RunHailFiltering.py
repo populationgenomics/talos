@@ -294,7 +294,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     min_callset_ac = 5
     return mt.filter_rows(
-        ((mt.AC <= min_callset_ac) | (mt.AC / mt.AN < ac_threshold)) | (mt.info.clinvar_talos == ONE_INT)
+        ((min_callset_ac >= mt.AC) | (ac_threshold > mt.AC / mt.AN)) | (mt.info.clinvar_talos == ONE_INT)
     )
 
 
@@ -571,15 +571,15 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     de_novo_matrix = filter_by_consequence(mt)
 
     # create ped with only 6 columns
-    with open('local_skinny.ped', 'w', encoding='utf-8') as write_handle:
-        with open(ped_file_path, encoding='utf-8') as read_handle:
-            for line in read_handle:
-                trimmed_line = line.rstrip()
-                line_list = trimmed_line.split('\t')
-                new_line = '\t'.join(line_list[:6]) + '\n'
-                write_handle.write(new_line)
+    l_ped = 'local_skinny.ped'
+    with open(l_ped, 'w', encoding='utf-8') as write_handle, open(ped_file_path, encoding='utf-8') as read_handle:
+        for line in read_handle:
+            trimmed_line = line.rstrip()
+            line_list = trimmed_line.split('\t')
+            new_line = '\t'.join(line_list[:6]) + '\n'
+            write_handle.write(new_line)
 
-    pedigree = hl.Pedigree.read('local_skinny.ped')
+    pedigree = hl.Pedigree.read(l_ped)
 
     get_logger().info('Updating synthetic PL values for WT calls where missing')
 
@@ -865,7 +865,7 @@ def main(
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panel_data!r}')
-    panelapp = read_json_from_path(panel_data, return_model=PanelApp)  # type: ignore
+    panelapp = read_json_from_path(panel_data, return_model=PanelApp)
     assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data
@@ -877,7 +877,7 @@ def main(
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
-        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)  # type: ignore
+        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
         mt.describe()

@@ -202,8 +202,8 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], pedigree_path):
     assert isinstance(results, dict)
     assert len(results) == TWO_EXPECTED
     key_1, key_2 = list(results.keys())
-    assert results[key_1][0].coordinates.string_format == key_2  # type: ignore
-    assert results[key_2][0].coordinates.string_format == key_1  # type: ignore
+    assert results[key_1][0].coordinates.string_format == key_2
+    assert results[key_2][0].coordinates.string_format == key_1
 
 
 def test_phased_dict(phased_vcf_path):

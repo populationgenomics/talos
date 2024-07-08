@@ -5,7 +5,11 @@ This is a placeholder, completely base class to prevent circular imports
 import logging
 import sys
 from datetime import datetime
+from logging import FileHandler, StreamHandler
 
+import zoneinfo
+
+TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 _GRANULAR_DATE: str | None = None
 LOGGER = None
 
@@ -16,7 +20,7 @@ def get_granular_date():
     """
     global _GRANULAR_DATE
     if _GRANULAR_DATE is None:
-        _GRANULAR_DATE = datetime.now().strftime('%Y-%m-%d')
+        _GRANULAR_DATE = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d')
     return _GRANULAR_DATE
 
 
@@ -45,10 +49,9 @@ def get_logger(
         LOGGER.setLevel(log_level)
 
         # create a stream handler to write output
-        if file_out:
-            handler = logging.FileHandler(file_out)
-        else:
-            handler = logging.StreamHandler(sys.stdout)  # type: ignore
+        handler: FileHandler | StreamHandler = (
+            logging.FileHandler(file_out) if file_out else logging.StreamHandler(sys.stdout)
+        )
 
         handler.setLevel(log_level)
 

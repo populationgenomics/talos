@@ -26,9 +26,9 @@ def phenotypematchedpanels(data_dict: dict) -> dict:
                 hpo_id = term
                 new_data.append({'id': hpo_id, 'label': ''})
 
-            except AttributeError:
+            except AttributeError as ae:
                 # wasn't a string?
-                raise ValueError(f'Unexpected HPO term format: {term}')
+                raise ValueError(f'Unexpected HPO term format: {term}') from ae
 
         data['hpo_terms'] = new_data
     return data_dict
@@ -57,9 +57,9 @@ def resultdata(data_dict: dict) -> dict:
                 hpo_id = term
                 new_data.append({'id': hpo_id, 'label': ''})
 
-            except AttributeError:
+            except AttributeError as ae:
                 # wasn't a string?
-                raise ValueError(f'Unexpected HPO term format: {term}')
+                raise ValueError(f'Unexpected HPO term format: {term}') from ae
 
         data['metadata']['phenotypes'] = new_data
     return data_dict

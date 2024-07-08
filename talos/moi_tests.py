@@ -212,7 +212,7 @@ class BaseMoi:
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
             if (iter_member.affected == '2' and member_id not in called_variants) or (
-                member_id in called_variants and not partial_pen and not iter_member.affected == '2'
+                member_id in called_variants and not partial_pen and iter_member.affected != '2'
             ):
                 return False
 
@@ -275,7 +275,7 @@ class BaseMoi:
         Returns:
             True if any of the info attributes is above the threshold
         """
-        return all({info.get(key, 0) <= test for key, test in thresholds.items()})
+        return all(info.get(key, 0) < test for key, test in thresholds.items())
 
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """

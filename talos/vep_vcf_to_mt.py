@@ -78,7 +78,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
     """
 
     # get the CSQ contents as a list of lists of strings, per variant
-    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))  # type: ignore
+    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))
 
     # generate a struct limited to the fields of interest
     # use a couple of accessory methods to re-map the names and types for compatibility
@@ -283,8 +283,8 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
                     transcript_consequences=hl.map(
                         lambda x: x.annotate(
                             **{
-                                fieldname: HAIL_TYPES[fieldtype['type']]['type'](
-                                    HAIL_TYPES[fieldtype['type']]['default']
+                                fieldname: HAIL_TYPES[fieldtype['type']]['type'](  # noqa: B023
+                                    HAIL_TYPES[fieldtype['type']]['default']  # noqa: B023
                                 )
                             }
                         ),

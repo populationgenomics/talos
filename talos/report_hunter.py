@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-
 """
 track down the latest version of all reports
 generate an index HTML page with links to all reports
@@ -62,7 +59,7 @@ class Report:
     date: str
 
 
-def get_my_projects():
+def get_my_projects() -> set[str]:
     """
     queries metamist for projects I have access to,
     returns the dataset names
@@ -108,7 +105,7 @@ def main(latest: bool = False):
 
     for cohort in get_my_projects():
         result_found = False
-        if cohort not in config_retrieve('storage').keys():
+        if cohort not in config_retrieve('storage'):
             continue
 
         for analysis in get_project_analyses(cohort):

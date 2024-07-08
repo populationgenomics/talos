@@ -178,11 +178,13 @@ class VariantCommon(BaseModel):
         """
 
         # step down all category flags to boolean flags
-        categories = {
-            category.replace('categorysample', '')
-            for category in self.sample_categories
-            if sample in self.info[category]  # type: ignore
-        }
+        categories: set[str] = set()
+        for category in self.sample_categories:
+            cat_samples = self.info[category]
+            assert isinstance(cat_samples, list)
+            if sample in cat_samples:
+                categories.add(category.removeprefix('categorysample'))
+
         categories.update(
             {bool_cat.replace('categoryboolean', '') for bool_cat in self.boolean_categories if self.info[bool_cat]},
         )
@@ -203,12 +205,13 @@ class VariantCommon(BaseModel):
             bool: True if this sample features in any
                   named-sample category, includes 'all'
         """
+        for category in self.sample_categories:
+            cat_samples = self.info[category]
+            assert isinstance(cat_samples, list)
+            if any(sam in cat_samples for sam in [sample_id, 'all']):
+                return True
 
-        return any(
-            sam in self.info[sam_cat]  # type: ignore
-            for sam_cat in self.sample_categories
-            for sam in [sample_id, 'all']
-        )
+        return False
 
     def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
@@ -592,7 +595,7 @@ def lift_up_model_version(
     # e.g. liftover from 2 to 5 would use [(2,3), (3,4), (4,5)]
     for previous, current in list(zip(ALL_VERSIONS, ALL_VERSIONS[1:]))[from_version_index:]:
         liftover_key = f'{previous}_{current}'
-        if liftover_key in LIFTOVER_METHODS[model]:  # type: ignore
-            data = LIFTOVER_METHODS[model][liftover_key](data)  # type: ignore
+        if liftover_key in LIFTOVER_METHODS[model]:
+            data = LIFTOVER_METHODS[model][liftover_key](data)
         data['version'] = current
     return data

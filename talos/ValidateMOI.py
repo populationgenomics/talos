@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-
 """
 runs between classification and publishing results
 takes a number of inputs:
@@ -16,7 +13,6 @@ participants relative to the MOI described in PanelApp
 
 from argparse import ArgumentParser
 from collections import defaultdict
-from pathlib import Path
 
 from cyvcf2 import VCFReader
 
@@ -472,14 +468,14 @@ def main(
     ped = make_flexible_pedigree(pedigree)
 
     # parse panelapp data from dict
-    panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)  # type: ignore
+    panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
 
     pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
         participant_panels,
-        return_model=PhenotypeMatchedPanels,  # type: ignore
+        return_model=PhenotypeMatchedPanels,
         default=None,
     )
 

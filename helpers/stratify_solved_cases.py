@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 this will take a file containing family IDs where we know the case
 is solved, so it should be removed from future Talos consideration
@@ -63,7 +61,8 @@ def get_affected_per_family(pedigree: list[dict]):
 all_projects_of_interest = {dataset['dataset'] for dataset in query(PROJECT_QUERY)['myProjects']}
 
 project_dict = dict()
-solved_fams: set[str] = {x.strip() for x in open(argv[1]).readlines()}
+with open(argv[1], encoding='utf-8') as handle:
+    solved_fams: set[str] = {x.strip() for x in handle.readlines()}
 
 for project in all_projects_of_interest:
     # find all the samples in each project

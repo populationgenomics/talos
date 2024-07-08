@@ -162,7 +162,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
-    panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
+    panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)
     assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data

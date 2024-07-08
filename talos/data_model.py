@@ -27,9 +27,8 @@ from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
 from os.path import join
 
-from cloudpathlib.anypath import to_anypath
-
 import hail as hl
+from hail.utils.java import FatalError
 
 from talos.static_values import get_logger
 
@@ -236,7 +235,7 @@ class Entry:
         self.PS = ps
 
     @staticmethod
-    def get_schema_entry():
+    def get_schema_entry() -> str:
         """how to represent this data type"""
         return 'struct{GT:str,AD:array<int32>,DP:int32,GQ:int32,PL:array<int32>,PS:int32}'
 
@@ -316,8 +315,8 @@ class SneakyTable:
         self.tmp_path = tmp_path
         try:
             hl.init(default_reference='GRCh38')
-        except BaseException as be:
-            get_logger().info(f'Hail already initialised: {be}')
+        except FatalError as fe:
+            get_logger().info(f'Hail already initialised: {fe}')
 
     def modify_schema(self) -> str:
         """

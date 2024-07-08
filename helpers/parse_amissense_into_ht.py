@@ -73,36 +73,35 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
 
     # empty dictionary to contain the target indexes
     header_indexes: dict[str, int] = {}
-    with gzip.open(input_file, 'rt') as read_handle:
-        with gzip.open(intermediate_file, 'wt') as write_handle:
-            write_handle.write('\t'.join(headers) + '\n')
-            for line in read_handle:
-                # skip over the headers
-                if line.startswith('#'):
-                    if line.startswith('#CHROM'):
-                        # set the indexes (isoform and main-only have different columns)
-                        header_indexes = process_header(line)
-                    continue
+    with gzip.open(input_file, 'rt') as read_handle, gzip.open(intermediate_file, 'wt') as write_handle:
+        write_handle.write('\t'.join(headers) + '\n')
+        for line in read_handle:
+            # skip over the headers
+            if line.startswith('#'):
+                if line.startswith('#CHROM'):
+                    # set the indexes (isoform and main-only have different columns)
+                    header_indexes = process_header(line)
+                continue
 
-                if not header_indexes:
-                    raise ValueError('No header line was identified, columns are a mystery')
+            if not header_indexes:
+                raise ValueError('No header line was identified, columns are a mystery')
 
-                # skip over everything except pathogenic
-                if 'pathogenic' not in line:
-                    continue
+            # skip over everything except pathogenic
+            if 'pathogenic' not in line:
+                continue
 
-                content = line.rstrip().split()
-                new_content = [
-                    content[header_indexes['chrom']],  # chrom
-                    content[header_indexes['pos']],  # pos
-                    content[header_indexes['ref']],  # ref
-                    content[header_indexes['alt']],  # alt
-                    content[header_indexes['transcript_id']].split('.')[0],  # transcript, with version decimal removed
-                    content[header_indexes['am_pathogenicity']],  # float, score
-                    content[header_indexes['am_class']],  # string, classification
-                ]
+            content = line.rstrip().split()
+            new_content = [
+                content[header_indexes['chrom']],  # chrom
+                content[header_indexes['pos']],  # pos
+                content[header_indexes['ref']],  # ref
+                content[header_indexes['alt']],  # alt
+                content[header_indexes['transcript_id']].split('.')[0],  # transcript, with version decimal removed
+                content[header_indexes['am_pathogenicity']],  # float, score
+                content[header_indexes['am_class']],  # string, classification
+            ]
 
-                write_handle.write('\t'.join(new_content) + '\n')
+            write_handle.write('\t'.join(new_content) + '\n')
 
 
 def hail_table_from_tsv(tsv_file: str, new_ht: str):
@@ -147,7 +146,9 @@ def main(alpha_m_file: str, ht_path: str):
     """
 
     # generate a random file name so that we don't overwrite anything consistently
-    random_intermediate_file: str = ''.join(choices(string.ascii_uppercase + string.digits, k=6)) + '.tsv.gz'
+    random_intermediate_file: str = (
+        ''.join(choices(string.ascii_uppercase + string.digits, k=6)) + '.tsv.gz'  # noqa: S311
+    )
 
     # generate a new tsv of just pathogenic entries
     filter_for_pathogenic_am(alpha_m_file, random_intermediate_file)

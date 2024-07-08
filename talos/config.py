@@ -3,7 +3,6 @@ Provides access to config variables. Complete theft of the CPG config module, mi
 https://github.com/populationgenomics/cpg-utils/blob/main/cpg_utils/config.py
 """
 
-import os
 from os import environ
 from typing import Any
 

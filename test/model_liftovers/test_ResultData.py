@@ -14,12 +14,12 @@ def test_rd_from_none(test_input_models_path):
     test that the lift over from None to 1.0.0 works
     """
     # load the data
-    file_path = join(test_input_models_path, 'result_data_v_none.json')
-    data = json.load(open(file_path))
+    with open(join(test_input_models_path, 'result_data_v_none.json'), encoding='utf-8') as handle:
+        data = json.load(handle)
     assert data.get('version') is None
 
     # lift it
-    lifted = lift_up_model_version(data, model=ResultData)  # type: ignore
+    lifted = lift_up_model_version(data, model=ResultData)
 
     # check the version
     assert lifted['version'] == CURRENT_VERSION
@@ -45,13 +45,13 @@ def test_rd_from_1_0_0(test_input_models_path):
     test that the lift over from 1.0.0 works
     """
     # load the data
-    file_path = join(test_input_models_path, 'result_data_v_1_0_0.json')
-    data = json.load(open(file_path))
+    with open(join(test_input_models_path, 'result_data_v_1_0_0.json'), encoding='utf-8') as handle:
+        data = json.load(handle)
     assert data.get('version') == '1.0.0'
     var_first_seen = data['results']['sam2']['variants'][0]['first_seen']
 
     # lift it
-    lifted = lift_up_model_version(data, model=ResultData)  # type: ignore
+    lifted = lift_up_model_version(data, model=ResultData)
 
     # check the version
     assert lifted['version'] == CURRENT_VERSION
