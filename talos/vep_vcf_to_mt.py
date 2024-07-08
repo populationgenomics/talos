@@ -78,7 +78,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
     """
 
     # get the CSQ contents as a list of lists of strings, per variant
-    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))
+    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
 
     # generate a struct limited to the fields of interest
     # use a couple of accessory methods to re-map the names and types for compatibility
@@ -129,7 +129,7 @@ def remap_type(input_name, input_value) -> Any:
         return input_value.split('&')
 
     # check if we need to re-map it
-    elif input_name not in TYPE_UPDATES:
+    if input_name not in TYPE_UPDATES:
         return input_value
 
     # if the value needs to be re-typed, cast it

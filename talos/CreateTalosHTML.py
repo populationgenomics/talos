@@ -433,13 +433,12 @@ class Variant:
                 alt_len = len(self.alt)
                 if ref_len > alt_len:
                     return f'del {ref_len - alt_len}bp'
-                elif ref_len == alt_len:
+                if ref_len == alt_len:
                     return f'complex delins {ref_len}bp'
-
                 return f'ins {alt_len - ref_len}bp'
 
             return f'{self.ref}->{self.alt}'
-        elif isinstance(self.var_data, StructuralVariant):
+        if isinstance(self.var_data, StructuralVariant):
             return f"{self.var_data.info['svtype']} {self.var_data.info['svlen']}bp"
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')

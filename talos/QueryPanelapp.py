@@ -76,7 +76,7 @@ def get_panel_green(
     panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
     # add metadata for this panel & version
-    gene_dict.metadata.append(PanelShort(**{'name': panel_name, 'version': panel_version, 'id': panel_id}))
+    gene_dict.metadata.append(PanelShort(name=panel_name, version=panel_version, id=panel_id))
 
     # iterate over the genes in this panel result
     for gene in panel_genes:
@@ -97,6 +97,8 @@ def get_panel_green(
                 ensembl_data = next(iter(content.keys()))
                 ensg = ensembl_data['ensembl_id']
                 chrom = ensembl_data['location'].split(':')[0]
+
+        assert chrom
 
         if ensg is None or ensg in blacklist or symbol in blacklist or ensg in forbidden_genes:
             get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
@@ -127,13 +129,11 @@ def get_panel_green(
         else:
             # save the entity into the final dictionary
             gene_dict.genes[ensg] = PanelDetail(
-                **{
-                    'symbol': symbol,
-                    'all_moi': {exact_moi},
-                    'new': {panel_id} if new_gene else set(),
-                    'panels': {panel_id},
-                    'chrom': chrom,
-                },
+                symbol=symbol,
+                all_moi={exact_moi},
+                new={panel_id} if new_gene else set(),
+                panels={panel_id},
+                chrom=chrom,
             )
 
 

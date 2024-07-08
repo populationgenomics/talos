@@ -86,40 +86,34 @@ def test_read_hpo_tree(fake_obo_path):
 def test_match_participants_to_panels():
     """ """
     party_hpo = PhenotypeMatchedPanels(
-        **{
-            'samples': {
-                'luke_skywalker': {
-                    'external_id': 'participant1',
-                    'family_id': 'fam1',
-                    'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
-                    'panels': {137},
-                },
-                'participant2': {
-                    'external_id': 'participant2',
-                    'family_id': 'fam2',
-                    'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
-                    'panels': {137},
-                },
+        samples={
+            'luke_skywalker': {
+                'external_id': 'participant1',
+                'family_id': 'fam1',
+                'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
+                'panels': {137},
+            },
+            'participant2': {
+                'external_id': 'participant2',
+                'family_id': 'fam2',
+                'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
+                'panels': {137},
             },
         },
     )
     hpo_to_panels = {'HP:1': {101, 102}, 'HP:2': {2002}, 'HP:3': {00, 1, 2}, 'HP:6': {666}}
     match_participants_to_panels(participant_hpos=party_hpo, hpo_panels=hpo_to_panels)
     assert party_hpo.samples['luke_skywalker'] == ParticipantHPOPanels(
-        **{
-            'external_id': 'participant1',
-            'family_id': 'fam1',
-            'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
-            'panels': {137, 101, 102, 2002},
-        },
+        external_id='participant1',
+        family_id='fam1',
+        hpo_terms=[{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
+        panels={137, 101, 102, 2002},
     )
     assert party_hpo.samples['participant2'] == ParticipantHPOPanels(
-        **{
-            'external_id': 'participant2',
-            'family_id': 'fam2',
-            'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
-            'panels': {137, 101, 102, 666},
-        },
+        external_id='participant2',
+        family_id='fam2',
+        hpo_terms=[{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
+        panels={137, 101, 102, 666},
     )
 
 
@@ -128,31 +122,27 @@ def test_update_hpo_with_description():
     test that the description is added to the hpo
     """
     hpo_dict = PhenotypeMatchedPanels(
-        **{
-            'samples': {
-                'luke_skywalker': {
-                    'external_id': 'participant1',
-                    'family_id': 'fam1',
-                    'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
-                    'panels': {137},
-                },
+        samples={
+            'luke_skywalker': {
+                'external_id': 'participant1',
+                'family_id': 'fam1',
+                'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
+                'panels': {137},
             },
         },
     )
     hpo_to_desc = {'HP:1': "Philosopher's Stone", 'HP:2': 'Chamber of Secrets'}
     hpo_dict = update_hpo_with_label(hpo_dict, hpo_to_desc)
     assert hpo_dict == PhenotypeMatchedPanels(
-        **{
-            'samples': {
-                'luke_skywalker': {
-                    'external_id': 'participant1',
-                    'family_id': 'fam1',
-                    'hpo_terms': [
-                        {'id': 'HP:1', 'label': "Philosopher's Stone"},
-                        {'id': 'HP:2', 'label': 'Chamber of Secrets'},
-                    ],
-                    'panels': {137},
-                },
+        samples={
+            'luke_skywalker': {
+                'external_id': 'participant1',
+                'family_id': 'fam1',
+                'hpo_terms': [
+                    {'id': 'HP:1', 'label': "Philosopher's Stone"},
+                    {'id': 'HP:2', 'label': 'Chamber of Secrets'},
+                ],
+                'panels': {137},
             },
         },
     )

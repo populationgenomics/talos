@@ -172,7 +172,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
         return FileTypes.VCF_GZ
     if extensions == ['.vcf', '.bgz']:
         return FileTypes.VCF_BGZ
-    raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
+    raise TypeError(f'File cannot be definitively typed: {extensions}')
 
 
 @backoff.on_exception(

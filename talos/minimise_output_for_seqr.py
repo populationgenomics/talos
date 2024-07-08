@@ -51,7 +51,7 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
     with open(input_file, encoding='utf-8') as f:
         data = ResultData.model_validate(json.load(f))
 
-    lil_data = MiniForSeqr(**{'metadata': {'categories': data.metadata.categories}})
+    lil_data = MiniForSeqr(metadata={'categories': data.metadata.categories})
     ext_map_dict = None
     if ext_map:
         with open(ext_map, encoding='utf-8') as f:

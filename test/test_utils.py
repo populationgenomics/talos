@@ -241,7 +241,7 @@ def test_new_gene_map_null():
     with no specific pheno data, new at all is new for all
     """
 
-    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {1, 2}, 'symbol': 'ensg1'}}})
+    panel_data = PanelApp(genes={'ENSG1': {'new': {1, 2}, 'symbol': 'ensg1'}})
     result = get_new_gene_map(panel_data)
     assert result == {'ENSG1': {'all'}}
 
@@ -252,7 +252,7 @@ def test_new_gene_map_core():
     even if the core panel isn't assigned to individuals
     """
 
-    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {137}, 'symbol': 'ensg1'}}})
+    panel_data = PanelApp(genes={'ENSG1': {'new': {137}, 'symbol': 'ensg1'}})
     personal_panels = PhenotypeMatchedPanels()
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {'ENSG1': {'all'}}
@@ -263,7 +263,7 @@ def test_new_gene_map_cohort_level():
     check that new for the cohort-matched panel is new for all
     """
 
-    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {99}, 'symbol': 'ensg1'}}})
+    panel_data = PanelApp(genes={'ENSG1': {'new': {99}, 'symbol': 'ensg1'}})
     personal_panels = PhenotypeMatchedPanels()
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {'ENSG1': {'all'}}
@@ -273,8 +273,8 @@ def test_new_gene_map_mix_n_match():
     """
     now test the pheno-matched new
     """
-    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {1}, 'symbol': 'ensg1'}}})
-    personal_panels = PhenotypeMatchedPanels(**{'samples': {'sam': {'panels': {1, 2}}}})
+    panel_data = PanelApp(genes={'ENSG1': {'new': {1}, 'symbol': 'ensg1'}})
+    personal_panels = PhenotypeMatchedPanels(samples={'sam': {'panels': {1, 2}}})
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {'ENSG1': {'sam'}}
 
@@ -283,8 +283,8 @@ def test_new_gene_map_fail_handled():
     """
     What if we find a panel that wasn't assigned to anyone
     """
-    panel_data = PanelApp(**{'genes': {'ENSG1': {'new': {2}, 'symbol': 'ensg1'}}})
-    personal_panels = PhenotypeMatchedPanels(**{'samples': {'sam': {'panels': {1}}}})
+    panel_data = PanelApp(genes={'ENSG1': {'new': {2}, 'symbol': 'ensg1'}})
+    personal_panels = PhenotypeMatchedPanels(samples={'sam': {'panels': {1}}})
     with pytest.raises(AssertionError):
         get_new_gene_map(panel_data, personal_panels)
 
@@ -294,16 +294,14 @@ def test_new_gene_map_complex():
     ENSG2 is new for everyone
     """
     panel_data = PanelApp(
-        **{
-            'genes': {
-                'ENSG1': {'new': {1}, 'symbol': 'ensg1'},
-                'ENSG2': {'new': {137}, 'symbol': 'ensg2'},
-                'ENSG3': {'new': {4}, 'symbol': 'ensg3'},
-                'ENSG4': {'new': {2}, 'symbol': 'ensg4'},
-            },
+        genes={
+            'ENSG1': {'new': {1}, 'symbol': 'ensg1'},
+            'ENSG2': {'new': {137}, 'symbol': 'ensg2'},
+            'ENSG3': {'new': {4}, 'symbol': 'ensg3'},
+            'ENSG4': {'new': {2}, 'symbol': 'ensg4'},
         },
     )
-    personal_panels = PhenotypeMatchedPanels(**{'samples': {'sam': {'panels': {1, 2}}, 'sam2': {'panels': {4, 2}}}})
+    personal_panels = PhenotypeMatchedPanels(samples={'sam': {'panels': {1, 2}}, 'sam2': {'panels': {4, 2}}})
     result = get_new_gene_map(panel_data, personal_panels)
     assert result == {
         'ENSG1': {'sam'},

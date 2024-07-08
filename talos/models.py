@@ -230,19 +230,19 @@ class VariantCommon(BaseModel):
             return big_cat or self.has_support
         return big_cat
 
-    def check_ab_ratio(self, *args, **kwargs) -> set[str]:  # noqa: ARG002
+    def check_ab_ratio(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """
         dummy method for AB ratio checking - not implemented for SVs
         """
         return set()
 
-    def get_sample_flags(self, *args, **kwargs) -> set[str]:  # noqa: ARG002
+    def get_sample_flags(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """
         dummy method for flag checking - not implemented for SVs (yet)
         """
         return set()
 
-    def check_read_depth(self, *args, **kwargs) -> set[str]:  # noqa: ARG002
+    def check_read_depth(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """
         dummy method for read depth checking - not implemented for SVs
         """

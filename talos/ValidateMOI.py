@@ -379,28 +379,26 @@ def prepare_results_shell(
     for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
         family_members = {
             member.id: FamilyMembers(
-                **{'sex': MALE_FEMALE[member.sex], 'affected': member.affected == '2', 'ext_id': member.ext_id},
+                sex=MALE_FEMALE[member.sex],
+                affected=member.affected == '2',
+                ext_id=member.ext_id,
             )
             for member in pedigree.by_family[sample.family]
         }
         sample_panel_data = panel_data.samples.get(sample.id, ParticipantHPOPanels())
         results_shell.results[sample.id] = ParticipantResults(
-            **{
-                'variants': [],
-                'metadata': ParticipantMeta(
-                    **{
-                        'ext_id': sample.ext_id,
-                        'family_id': sample.family,
-                        'members': family_members,
-                        'phenotypes': sample_panel_data.hpo_terms,
-                        'panel_ids': sample_panel_data.panels,
-                        'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
-                        'solved': bool(sample.id in solved_cases or sample.family in solved_cases),
-                        'present_in_small': sample.id in small_samples,
-                        'present_in_sv': sample.id in sv_samples,
-                    },
-                ),
-            },
+            variants=[],
+            metadata=ParticipantMeta(
+                ext_id=sample.ext_id,
+                family_id=sample.family,
+                members=family_members,
+                phenotypes=sample_panel_data.hpo_terms,
+                panel_ids=sample_panel_data.panels,
+                panel_names=[panel_meta[panel_id] for panel_id in sample_panel_data.panels],
+                solved=bool(sample.id in solved_cases or sample.family in solved_cases),
+                present_in_small=sample.id in small_samples,
+                present_in_sv=sample.id in sv_samples,
+            ),
         )
 
     return results_shell
@@ -524,13 +522,11 @@ def main(
 
     # create the full final output file
     results_meta = ResultMeta(
-        **{
-            'family_breakdown': count_families(ped, samples=all_samples),
-            'panels': panelapp_data.metadata,
-            'version': __version__,
-            'projects': [seqr_project] if seqr_project else [],
-            'categories': config_retrieve('categories'),
-        },
+        family_breakdown=count_families(ped, samples=all_samples),
+        panels=panelapp_data.metadata,
+        version=__version__,
+        projects=[seqr_project] if seqr_project else [],
+        categories=config_retrieve('categories'),
     )
 
     # create a shell to store results in, adds participant metadata

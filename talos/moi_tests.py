@@ -65,8 +65,7 @@ def check_for_second_hit(
     partners = comp_hets[sample].get(first_variant, [])
     if require_non_support:
         return [partner for partner in partners if not partner.sample_support_only(sample)]
-    else:
-        return partners
+    return partners
 
 
 class MOIRunner:

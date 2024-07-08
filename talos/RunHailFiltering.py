@@ -614,7 +614,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     # annotate those values as a flag if relevant, else 'missing'
     return mt.annotate_rows(
-        info=mt.info.annotate(**{'categorysample4': hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)}),
+        info=mt.info.annotate(categorysample4=hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)),
     )
 
 

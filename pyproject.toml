@@ -55,16 +55,7 @@ ignore = [
     "UP032",
     "RUF100",
     "ISC001",
-    "PIE804",
-    "C901",
-    "W605",
-    "RET505",
-    "ANN003",
-    "RUF013",
-    "UP031",
-    "RUF010",
-    "B006",
-    "ANN002",
+    "C901", # method is too complex (> 10 conditions)
     "N999", # invalid module name (not lower-case and potholes)
     "TCH001", # move application import *** into a type-checking block
 ]

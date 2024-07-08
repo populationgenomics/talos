@@ -2,7 +2,7 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
-from talos.models import (  # ReportPanel,
+from talos.models import (
     Coordinates,
     PanelApp,
     PhenotypeMatchedPanels,
@@ -25,21 +25,19 @@ REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2'}, gene
 
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
 panel_genes = PanelApp(
-    **{
-        'metadata': [
-            {'id': 137, 'version': '137'},
-            {'id': 1, 'version': '1', 'name': '1'},
-            {'id': 2, 'version': '2', 'name': '2'},
-            {'id': 3, 'version': '3', 'name': '3'},
-            {'id': 4, 'version': '4', 'name': '4'},
-        ],
-        'genes': {
-            'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
-            'ENSG2': {'symbol': 'G2'},
-            'ENSG3': {'panels': {2}, 'symbol': 'G3'},
-            'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
-            'ENSG5': {'panels': {4}, 'symbol': 'G5'},
-        },
+    metadata=[
+        {'id': 137, 'version': '137'},
+        {'id': 1, 'version': '1', 'name': '1'},
+        {'id': 2, 'version': '2', 'name': '2'},
+        {'id': 3, 'version': '3', 'name': '3'},
+        {'id': 4, 'version': '4', 'name': '4'},
+    ],
+    genes={
+        'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
+        'ENSG2': {'symbol': 'G2'},
+        'ENSG3': {'panels': {2}, 'symbol': 'G3'},
+        'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
+        'ENSG5': {'panels': {4}, 'symbol': 'G5'},
     },
 )
 
@@ -51,23 +49,19 @@ def test_results_shell(pedigree_path):
 
     """
     sample_panels = PhenotypeMatchedPanels(
-        **{
-            'samples': {
-                'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
-                'female': {
-                    'panels': {1, 2},
-                    'external_id': 'female',
-                    'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
-                },
+        samples={
+            'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
+            'female': {
+                'panels': {1, 2},
+                'external_id': 'female',
+                'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
             },
-            'all_panels': {1, 2, 3},
         },
+        all_panels={1, 2, 3},
     )
     panelapp = PanelApp(
-        **{
-            'metadata': [{'id': 1, 'name': 'lorem'}, {'id': 2, 'name': 'ipsum'}, {'id': 3, 'name': 'etc'}],
-            'genes': {'ENSG1': {'symbol': 'G1'}},
-        },
+        metadata=[{'id': 1, 'name': 'lorem'}, {'id': 2, 'name': 'ipsum'}, {'id': 3, 'name': 'etc'}],
+        genes={'ENSG1': {'symbol': 'G1'}},
     )
     shell = prepare_results_shell(
         results_meta=ResultMeta(),
@@ -80,38 +74,36 @@ def test_results_shell(pedigree_path):
 
     # top level only has the two affected participants
     expected = ResultData(
-        **{
-            'results': {
-                'male': {
-                    'metadata': {
-                        'ext_id': 'male',
-                        'family_id': 'family_1',
-                        'members': {
-                            'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
-                            'father_1': {'sex': 'male', 'affected': False, 'ext_id': 'father_1'},
-                            'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
-                        },
-                        'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
-                        'panel_ids': [1, 3],
-                        'panel_names': ['lorem', 'etc'],
-                        'present_in_small': True,
+        results={
+            'male': {
+                'metadata': {
+                    'ext_id': 'male',
+                    'family_id': 'family_1',
+                    'members': {
+                        'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
+                        'father_1': {'sex': 'male', 'affected': False, 'ext_id': 'father_1'},
+                        'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
                     },
+                    'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
+                    'panel_ids': [1, 3],
+                    'panel_names': ['lorem', 'etc'],
+                    'present_in_small': True,
                 },
-                'female': {
-                    'metadata': {
-                        'ext_id': 'female',
-                        'family_id': 'family_2',
-                        'members': {
-                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
-                            'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
-                            'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
-                        },
-                        'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
-                        'panel_ids': [1, 2],
-                        'panel_names': ['lorem', 'ipsum'],
-                        'solved': True,
-                        'present_in_sv': True,
+            },
+            'female': {
+                'metadata': {
+                    'ext_id': 'female',
+                    'family_id': 'family_2',
+                    'members': {
+                        'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
+                        'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
+                        'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
                     },
+                    'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
+                    'panel_ids': [1, 2],
+                    'panel_names': ['lorem', 'ipsum'],
+                    'solved': True,
+                    'present_in_sv': True,
                 },
             },
         },
@@ -126,12 +118,10 @@ def test_gene_clean_results_no_personal():
     messy test, write and pass file paths
     """
     results_holder = ResultData(
-        **{
-            'results': {
-                'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1'}},
-                'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
-                'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3'}},
-            },
+        results={
+            'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1'}},
+            'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
+            'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3'}},
         },
     )
 
@@ -150,21 +140,17 @@ def test_gene_clean_results_personal():
     messy test, write and pass file paths
     """
     results_holder = ResultData(
-        **{
-            'results': {
-                'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1', 'panel_ids': {1}}},
-                'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
-                'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3', 'panel_ids': {1}}},
-            },
+        results={
+            'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1', 'panel_ids': {1}}},
+            'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
+            'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3', 'panel_ids': {1}}},
         },
     )
     personal_panels = PhenotypeMatchedPanels(
-        **{
-            'samples': {
-                'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'HP1'}]},
-                'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'HP2'}]},
-                'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'HP3'}]},
-            },
+        samples={
+            'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'HP1'}]},
+            'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'HP2'}]},
+            'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'HP3'}]},
         },
     )
 
