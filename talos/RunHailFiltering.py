@@ -270,11 +270,6 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
             gnomad_hemi=hl.or_else(mt.gnomad_genomes.Hemi, MISSING_INT),
             splice_ai_delta=hl.or_else(mt.splice_ai.delta_score, MISSING_FLOAT_LO),
             splice_ai_csq=hl.or_else(mt.splice_ai.splice_consequence, MISSING_STRING).replace(' ', '_'),
-            # we can retain these, but removing completely will lessen the
-            # dependence on multiple annotation sources when standing up a
-            # new installation
-            # cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            # revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
         ),
     )
 
@@ -294,7 +289,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     min_callset_ac = 5
     return mt.filter_rows(
-        ((min_callset_ac >= mt.AC) | (ac_threshold > mt.AC / mt.AN)) | (mt.info.clinvar_talos == ONE_INT)
+        ((min_callset_ac >= mt.AC) | (ac_threshold > mt.AC / mt.AN)) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 

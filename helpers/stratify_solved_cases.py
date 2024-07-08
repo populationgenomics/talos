@@ -50,7 +50,7 @@ def get_affected_per_family(pedigree: list[dict]):
         a dict of family ID to affected individuals (ext IDs)
     """
     affected_value_in_ped = 2
-    affected: dict[str, list[str]] = dict()
+    affected: dict[str, list[str]] = {}
     for member in pedigree:
         if member['affected'] == affected_value_in_ped:
             affected.setdefault(member['family_id'], []).append(member['individual_id'])
@@ -60,7 +60,7 @@ def get_affected_per_family(pedigree: list[dict]):
 # find all my projects
 all_projects_of_interest = {dataset['dataset'] for dataset in query(PROJECT_QUERY)['myProjects']}
 
-project_dict = dict()
+project_dict = {}
 with open(argv[1], encoding='utf-8') as handle:
     solved_fams: set[str] = {x.strip() for x in handle.readlines()}
 

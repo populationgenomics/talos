@@ -20,7 +20,7 @@ def test_new_history_creation():
         genes={
             'ENSG1': {'panels': {1, 2}, 'symbol': 'ensg1'},
             'ENSG2': {'panels': {2, 3}, 'symbol': 'ensg2'},
-        }
+        },
     )
 
     new_history = create_new_history_from_current(panels)
@@ -124,7 +124,7 @@ def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_addition(fake_panelapp):  # noqa: ARG001
+def test_panel_query_addition(fake_panelapp: pytest.fixture):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     oof, this was a tricky one

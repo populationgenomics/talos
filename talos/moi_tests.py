@@ -474,13 +474,6 @@ class RecessiveAutosomalCH(BaseMoi):
                 ):
                     continue
 
-                # # categorised for this specific sample, allow support in partner
-                # # - also screen out high-AF partners
-                # if not partner_variant.sample_category_check(
-                #     sample_id, allow_support=True
-                # ):
-                #     continue
-
                 # check if this is a candidate for comp-het inheritance
                 if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner_variant):
                     continue

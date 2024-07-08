@@ -29,35 +29,25 @@ select = ["A", "B", "C", "E", "F", "G", "I", "N", "Q", "S", "W", "ANN", "ARG", "
 fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "FBT", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
 
 ignore = [
+    "ANN001", # Missing type annotation for function argument
     "ANN101", # Missing type annotation for self in method
     "ANN102", # Missing type annotation for `cls` in classmethod
     "ANN201", # Missing return type annotation for public function
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "ANN204", # Missing type annotation for special method `__init__`
-    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`
     "E731", # Do not assign a lambda expression, use a def
     "G004", # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
     "PT018", # Assertion should be broken down into multiple parts
     "Q000", # Single quotes found but double quotes preferred
     "S101", # Use of assert detected
-    "SLF001", # Private member accessed: `_preemptible`
     "PLR0911", # Too many return statements (> 6)
     "PLR0912", # Too many branches (> 12)
     "PLR0913", # Too many arguments in function (> 5)
-    "PLR0915", # Too many statements (> 50)
-    "COM812",
-    "ANN001",
-    "ANN202",
-    "C408",
-    "TID252",
-    "RET504",
-    "ERA001",
-    "UP032",
-    "RUF100",
-    "ISC001",
     "C901", # method is too complex (> 10 conditions)
     "N999", # invalid module name (not lower-case and potholes)
     "TCH001", # move application import *** into a type-checking block
+    "ERA001", # found commented out code
 ]
 
 [tool.ruff.format]

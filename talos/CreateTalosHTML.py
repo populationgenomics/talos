@@ -367,7 +367,7 @@ class HTMLBuilder:
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
         to_anypath(output_filepath).open('w').writelines(
-            '\n'.join(line for line in content.split('\n') if line.strip())
+            '\n'.join(line for line in content.split('\n') if line.strip()),
         )
 
 

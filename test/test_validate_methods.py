@@ -42,7 +42,7 @@ panel_genes = PanelApp(
 )
 
 
-def test_results_shell(pedigree_path):
+def test_results_shell(pedigree_path: str):
     """
 
     Returns:
@@ -173,7 +173,7 @@ def test_gene_clean_results_personal():
             assert event.panels.matched == {'4'}
 
 
-def test_update_results_meta(pedigree_path):
+def test_update_results_meta(pedigree_path: str):
     """
     testing the dict update
     """
@@ -188,7 +188,7 @@ def test_update_results_meta(pedigree_path):
     }
 
 
-def test_count_families_missing_father(pedigree_path):
+def test_count_families_missing_father(pedigree_path: str):
     """
     testing the dict update
     """
@@ -203,7 +203,7 @@ def test_count_families_missing_father(pedigree_path):
     }
 
 
-def test_count_families_quad(quad_ped):
+def test_count_families_quad(quad_ped: str):
     """
     testing the dict update
     this one is being marked as a trio as there are 4 samples, but only one affected

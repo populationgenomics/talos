@@ -225,7 +225,7 @@ def test_phased_dict(phased_vcf_path):
         assert variant.phased['mother_1'] == {420: '0|1'}
 
 
-def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path):
+def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path: str):
     """
     phased variants shouldn't form a comp-het
     'mother_1' is het for both variants, but phase-set is same for both

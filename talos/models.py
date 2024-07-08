@@ -353,8 +353,6 @@ class ReportVariant(BaseModel):
         """
         makes reported variants comparable
         """
-        # self_supvar = set(self.support_vars)
-        # other_supvar = set(other.support_vars)
         return self.sample == other.sample and self.var_data.coordinates == other.var_data.coordinates
 
     def __lt__(self, other):
@@ -545,8 +543,8 @@ class Pedigree(BaseModel):
 # if unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
-    PanelApp: dict(),
-    HistoricPanels: dict(),
+    PanelApp: {},
+    HistoricPanels: {},
     HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
     ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101, '1.0.2_1.0.3': rd_102_to_103},
 }

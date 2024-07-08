@@ -233,7 +233,7 @@ def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = 
     am_ht = hl.read_table(am_table)
 
     # gross - this needs a conditional application based on the specific transcript_id
-    mt = mt.annotate_rows(
+    return mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
@@ -249,11 +249,9 @@ def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = 
                     ),
                 ),
                 mt.vep.transcript_consequences,
-            )
-        )
+            ),
+        ),
     )
-
-    return mt
 
 
 def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -284,13 +282,13 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
                         lambda x: x.annotate(
                             **{
                                 fieldname: HAIL_TYPES[fieldtype['type']]['type'](  # noqa: B023
-                                    HAIL_TYPES[fieldtype['type']]['default']  # noqa: B023
-                                )
-                            }
+                                    HAIL_TYPES[fieldtype['type']]['default'],  # noqa: B023
+                                ),
+                            },
                         ),
                         mt.vep.transcript_consequences,
-                    )
-                )
+                    ),
+                ),
             )
     return mt
 
