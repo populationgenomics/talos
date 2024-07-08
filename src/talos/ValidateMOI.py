@@ -15,7 +15,6 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from cyvcf2 import VCFReader
-
 from talos.config import config_retrieve
 from talos.models import (
     FamilyMembers,
