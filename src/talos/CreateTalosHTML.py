@@ -14,7 +14,6 @@ from typing import Any
 import jinja2
 import pandas as pd
 from cloudpathlib.anypath import to_anypath
-
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import get_logger, read_json_from_path

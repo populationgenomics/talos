@@ -12,11 +12,10 @@ from typing import Any
 
 import jinja2
 from cloudpathlib.anypath import to_anypath
-
-from metamist.graphql import gql, query
-
 from talos.config import config_retrieve
 from talos.static_values import get_logger
+
+from metamist.graphql import gql, query
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(

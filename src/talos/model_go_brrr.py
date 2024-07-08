@@ -12,9 +12,9 @@ This example script shows how to create a single variant, with a single
 transcript consequence, and a trio of samples.
 """
 
-import hail as hl
-
 from talos.data_model import BaseFields, Clinvar, Entry, SneakyTable, Splice, TXFields, VepVariant
+
+import hail as hl
 
 # region: 2 vars, no tx, phased trio, boring
 # dull example, single tx consequence, all default values, i.e. only gene symbol & ID

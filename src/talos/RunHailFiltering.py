@@ -14,9 +14,6 @@ Read, filter, annotate, classify, and write Genetic data
 from argparse import ArgumentParser
 
 from peds import open_ped
-
-import hail as hl
-
 from talos.config import config_retrieve
 from talos.hail_audit import (
     BASE_FIELDS_REQUIRED,
@@ -29,6 +26,8 @@ from talos.hail_audit import (
 from talos.models import PanelApp
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
+
+import hail as hl
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)

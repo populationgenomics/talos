@@ -13,12 +13,12 @@ option to supplement this gene list with any number of additional PanelApp entri
 core of the analysis deafults to the [Mendeliome](https://panelapp.agha.umccr.org/panels/137/), though this can be
 altered through the configuration file.
 
-During an analysis run, the [Query Script](../talos/QueryPanelapp.py) is used to pull down the latest core panel
+During an analysis run, the [Query Script](../src/talos/QueryPanelapp.py) is used to pull down the latest core panel
 data (gene ENSG, symbol, and Mode of Inheritance), saved as a dictionary indexed on GRCh38/Ensembl 90 ENSG.
 
 ## Per-participant Panels
 
-This codebase contains a [HPO-Panel Helper](../talos/GeneratePanelData.py), integrating participant phenotypic data,
+This codebase contains a [HPO-Panel Helper](../src/talos/GeneratePanelData.py), integrating participant phenotypic data,
 PanelApp per-panel relevant phenotypes, and the HPO heirarchy to find relevant panels to apply to each individual
 participant. This will be difficult to replicate outside of CPG infrastructure, so this describes the output generated,
 which can be produced by other means:
