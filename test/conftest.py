@@ -9,11 +9,10 @@ from typing import Any
 
 import pytest
 from cyvcf2 import VCFReader
-
-import hail as hl
-
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 from talos.utils import create_small_variant, read_json_from_path
+
+import hail as hl
 
 # force this to come first
 PWD = Path(__file__).parent

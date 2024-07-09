@@ -7,7 +7,6 @@ import json
 from os.path import join
 
 import pytest
-
 from talos.models import CURRENT_VERSION, PanelApp, PhenoPacketHpo, PhenotypeMatchedPanels, lift_up_model_version
 from talos.utils import read_json_from_path
 
