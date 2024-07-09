@@ -4,9 +4,6 @@ unit testing collection for the hail MT methods
 
 import pandas as pd
 import pytest
-
-import hail as hl
-
 from talos.models import PanelApp
 from talos.RunHailFiltering import (
     annotate_category_1,
@@ -20,6 +17,9 @@ from talos.RunHailFiltering import (
     green_and_new_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
+
+import hail as hl
+
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 category_1_keys = ['locus', 'clinvar_talos_strong']
