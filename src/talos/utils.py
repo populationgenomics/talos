@@ -587,7 +587,7 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
     uses cloudpath to be deployment agnostic
 
     Args:
-        read_path (str): where to read from - if None... will return default
+        read_path (str): where to read from - if None... will return the value "default"
         default (Any):
         return_model (pydantic Models): any Model to read/validate as
 
