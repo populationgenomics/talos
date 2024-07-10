@@ -10,20 +10,30 @@ later we can use this in two ways
 
 from argparse import ArgumentParser
 
-# from talos.models import PanelApp
-
 
 def cli_main():
     parser = ArgumentParser()
-    parser.add_argument('--panelapp', help='Path to the PanelApp results file')
-    parser.add_argument('--phenio', help='path to the phenio db file')
-    parser.add_argument('--output', help='where to write the output (.json)')
+    parser.add_argument('--panelapp', help='Path to the PanelApp results file', required=True)
+    parser.add_argument('--phenio', help='path to the phenio db file', required=True)
+    parser.add_argument('--output', help='where to write the output (.json)', required=True)
     args = parser.parse_args()
     print(args.phenio)
-    main()
 
 
-def main(): ...
+#     main(args.panelapp, phenio_path=args.phenio, output_path=args.output)
+#
+#
+# def main(panelapp_path: str, phenio_path: str, output_path: str):
+#     """
+#
+#     Args:
+#         panelapp_path (str): path to the PanelApp model JSON
+#         phenio_path ():
+#         output_path ():
+#
+#     Returns:
+#
+#     """
 
 
 if __name__ == '__main__':

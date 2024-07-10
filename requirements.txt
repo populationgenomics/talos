@@ -12,5 +12,6 @@ peds>=1.2.0
 pydantic>=2.5.2
 pyspark>=3.5.1
 requests>=2.31.0
+semsimian>=0.2.15
 tabulate>=0.8.9
 toml==0.10.2
