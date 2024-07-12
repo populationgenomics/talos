@@ -5,6 +5,7 @@ tests relating to the MOI filters
 from unittest import mock
 
 import pytest
+
 from talos.models import Coordinates, SmallVariant
 from talos.moi_tests import (
     BaseMoi,
@@ -19,7 +20,6 @@ from talos.moi_tests import (
     check_for_second_hit,
 )
 from talos.utils import make_flexible_pedigree
-
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

@@ -15,6 +15,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from cyvcf2 import VCFReader
+
 from talos.config import config_retrieve
 from talos.models import (
     FamilyMembers,
@@ -45,7 +46,7 @@ from talos.utils import (
 from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown_sex', '0': 'unknown_sex'}
+MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown', '0': 'unknown'}
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:

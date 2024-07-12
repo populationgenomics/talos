@@ -6,6 +6,7 @@ from copy import deepcopy
 
 import pytest
 from cyvcf2 import VCFReader
+
 from talos.models import (
     VARIANT_MODELS,
     Coordinates,

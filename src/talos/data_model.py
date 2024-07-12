@@ -27,10 +27,10 @@ from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
 from os.path import join
 
-from talos.static_values import get_logger
-
 import hail as hl
 from hail.utils.java import FatalError
+
+from talos.static_values import get_logger
 
 
 class CustomEncoder(json.JSONEncoder):

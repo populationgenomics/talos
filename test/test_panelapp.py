@@ -5,6 +5,7 @@ tests for the PanelApp parser
 from copy import deepcopy
 
 import pytest
+
 from talos.models import CURRENT_VERSION, HistoricPanels, PanelApp, PanelDetail
 from talos.QueryPanelapp import create_new_history_from_current, get_best_moi, get_panel_green
 

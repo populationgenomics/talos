@@ -19,6 +19,7 @@ from backoff import fibo
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
 from requests.exceptions import ReadTimeout, RequestException
+
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,

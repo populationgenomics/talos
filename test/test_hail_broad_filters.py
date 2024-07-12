@@ -3,9 +3,10 @@ unit testing collection for the hail MT methods
 """
 
 import pytest
-from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, filter_to_well_normalised
 
 import hail as hl
+
+from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, filter_to_well_normalised
 
 
 @pytest.mark.parametrize(  # needs clinvar

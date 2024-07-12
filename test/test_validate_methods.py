@@ -13,7 +13,6 @@ from talos.models import (
 )
 from talos.utils import make_flexible_pedigree
 from talos.ValidateMOI import clean_and_filter, count_families, prepare_results_shell
-
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

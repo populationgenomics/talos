@@ -14,6 +14,9 @@ Read, filter, annotate, classify, and write Genetic data
 from argparse import ArgumentParser
 
 from peds import open_ped
+
+import hail as hl
+
 from talos.config import config_retrieve
 from talos.hail_audit import (
     BASE_FIELDS_REQUIRED,
@@ -26,8 +29,6 @@ from talos.hail_audit import (
 from talos.models import PanelApp
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
-
-import hail as hl
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)
@@ -333,12 +334,13 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
-    splits each GeneId onto a new row, then filters any
-    rows not annotating a Green PanelApp gene
+    splits each GeneId onto a new row, then filters any rows not annotating a Green PanelApp gene
 
     - first explode the matrix, separate gene per row
     - throw away all rows without a green gene
     - on all remaining rows, filter transcript consequences to match _this_ gene
+
+    this is the single most powerful filtering row, effectively leaving just the genes we're interested in
 
     Args:
         mt ():
@@ -347,8 +349,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
         exploded MatrixTable
     """
 
-    # split each gene onto a separate row
-    # transforms 'geneIds' field from set to string
+    # split each gene onto a separate row, transforms 'geneIds' field from set to string
     mt = mt.explode_rows(mt.geneIds)
 
     # filter rows without a green gene (removes empty geneIds)

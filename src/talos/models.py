@@ -5,6 +5,7 @@ A home for all data models used in Talos
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
 from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103

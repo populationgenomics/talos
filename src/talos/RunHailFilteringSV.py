@@ -9,13 +9,13 @@ CategoryBooleanSV1:
 
 from argparse import ArgumentParser
 
+import hail as hl
+
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
-
-import hail as hl
 
 
 def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.MatrixTable:
