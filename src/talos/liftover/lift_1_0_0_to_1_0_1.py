@@ -11,7 +11,7 @@ def resultdata(data_dict: dict) -> dict:
     # check we're upgrading the right version
     # this could be from any prior version
     assert data_dict['version'] < '1.0.1'
-    for sample, results in data_dict['results'].items():
+    for results in data_dict['results'].values():
         for rv in results['variants']:
             rv['date_of_phenotype_match'] = None
             first = rv.pop('first_seen')
@@ -28,8 +28,8 @@ def historicvariants(data_dict: dict) -> dict:
     in results.sample.variant.first_seen
     """
     assert data_dict['version'] < '1.0.1'
-    for sample, results in data_dict['results'].items():
-        for variant, details in results.items():
+    for results in data_dict['results'].values():
+        for details in results.values():
             earliest = min(details['categories'].values())
             details['first_tagged'] = earliest
             # this doesn't matter, pydantic can handle it

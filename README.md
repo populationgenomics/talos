@@ -29,9 +29,10 @@ associated with the gene it is found in.
 
 ## Categories
 
-Talos uses the concept of a 'Category' to label variants which are anticipated to cause disease. These categories are
-assigned on the basis of consequence annotations, and each has been defined in collaboration with Clinical Curators to
-codify a mental model for when a variant is likely to be relevant to a diagnosis.
+The variant labelling stage of Talos implements a number of independent categories. Each category represents a decision
+tree, using variant annotations to decide if a category label should be assigned. Each of these categories has been
+designed to represent a block of curation logic - "if these criteria are all fulfilled, this could be relevant to
+diagnosis"
 
 These categories are each independent, providing a framework for adjustment, configuration, or extension to include more
 variations in the future.
@@ -43,18 +44,19 @@ variations in the future.
 If variant is rated as Pathogenic/Likely Pathogenic in ClinVar, minimum 1 'gold star' of associated evidence, we want to
 flag that variant for review.
 
-This category is exceptional in the sense that `Cat.1` variants are exempt from MOI tests - we want to report these
-variants even if the inheritance pattern doesn't fully fit within the family.
+This category is exceptional in the sense that `Cat.1` variants are always processed under a partial-penetrance model -
+even if the variant isn't a strict fit with the family or phenotype, we would want to be alerted (e.g. to look for a
+second-hit by another method)
 
 ### Category 2
 
 ![CategoryBoolean2](design_docs/images/Category2.png)
 
 A key reason for recovered diagnoses during reanalysis is the evolution of gene-disease understanding over time. This
-Category aims to identify these variants, by carrying state from the previous analysis (see below) and flagging where a
+Category aims to identify these variants by carrying state from the previous analysis (see below) and flagging where a
 variant of at least moderate impact is newly associated with a disease. [`High Impact` consequence](
 http://asia.ensembl.org/info/genome/variation/prediction/predicted_data.html) here is based on the VEP definition of
-`HIGH` consequence
+`HIGH` consequence.
 
 ### Category 3
 
@@ -62,81 +64,103 @@ http://asia.ensembl.org/info/genome/variation/prediction/predicted_data.html) he
 
 This Category leverages the work of [LOFTEE](https://github.com/konradjk/loftee), a tool for identifying variants likely
 to create loss of function with high confidence. When reviewing variants we require a `High Impact` consequence is
-present, combined with either LOFTEE or a Clinvar P/LP rating.
+present, combined with either LOFTEE or a Clinvar P/LP rating (any number of stars).
 
 ### Category 4
 
 ![CategoryBoolean4](design_docs/images/Category4.png)
 
-This Category is the only definition that includes an MOI requirement - here we accept a milder consequence (any [`HIGH`
-consequence](http://asia.ensembl.org/info/genome/variation/prediction/predicted_data.html) + `Missense`), but only when
-present in the family with evidence of being _de novo_. This leverages the built-in [_de novo_ method in Hail](
-https://hail.is/docs/0.2/methods/genetics.html#hail.methods.de_novo), which is itself an implementation of [Kaitlin
-Samocha's _de novo_ caller](https://github.com/ksamocha/de_novo_scripts). This implementation doesn't naively accept the
-trio genotypes, but also applies some probability modelling to the genotype likelihoods, and searches for alt-supporting
-reads at low levels in parents, before treating a _de novo_ variant call as validated.
+Here we accept a milder consequence (
+any [`HIGH`consequence](http://asia.ensembl.org/info/genome/variation/prediction/predicted_data.html) + `Missense`), but
+only when present in the family with evidence of being _de novo_. This leverages the built-in [_de
+novo_ method in Hail](
+https://hail.is/docs/0.2/methods/genetics.html#hail.methods.de_novo), which is itself an implementation
+of [Kaitlin Samocha's _de novo_ caller](https://github.com/ksamocha/de_novo_scripts). This implementation doesn't
+naively accept the trio genotypes, but also applies some probability modelling to the genotype likelihoods, and searches
+for alt-supporting reads at low levels in parents, before treating a _de novo_ variant call as validated.
 
 ### Category 5
 
 ![CategoryBoolean5](design_docs/images/Category5.png)
 
-Another simple cateogry, here we use [SpliceAI](https://www.cell.com/cell/pdf/S0092-8674(18)31629-5.pdf) to identify
+A simple category, here we use [SpliceAI](https://www.cell.com/cell/pdf/S0092-8674(18)31629-5.pdf) to identify
 variants with a strong possibility of disrupting/adding splice junctions. This category will come under fire if the
 underlying SpliceAI tool becomes monetised.
 
-### Category Support
+### Category 6
 
-![CategoryBooleanSupport](design_docs/images/CategorySupport.png)
+![CategoryBoolean6](design_docs/images/Category6.png)
 
-A purely _in silico_ category, here we accept 'consensus' across a number of informative prediction tools, with the
-exact thresholds influenced by published work by [Pejaver, _et al_](
-https://www.biorxiv.org/content/10.1101/2022.03.17.484479v1). Unlike the other categories, this is not enough to mark
-variants as worth investigation on its own - due to high False Positive rate, this category is only relevant as a
-second-hit level of confidence (i.e. a biallelic MOI can be satisfied by a Cat.Support variant combined with a variant
-of any other category)
+A simple cateogry, here we use [AlphaMissense](https://www.science.org/doi/10.1126/science.adg7492) to identify
+missense variants predicted to have a strong effect on the folded protein. A variant passes this test if the AM-assigned
+'class' is `likely_pathogenic`. We have ambitions to make a second category here with a higher threshold applied to the
+AM continuous score, instead of taking the ~0.56 threshold AlphaMissense natively uses to determine likely pathogenic.
+
+### Category PM5
+
+A little bit of secret sauce here - a piece of work twinned with Talos involved developing
+[ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) - a re-summary of ClinVar data using altered
+heuristics to aggregate multiple submissions for a variant. After creating new ClinVar results, we annotated the
+pathogenic SNVs with VEP, and then re-index the results on `Protein & Codon`. In line with the ACMG evidence criteria
+PM5 (this variant is a missense, and another missense at this same codon has a Pathogenic rating in ClinVar), we use
+these
+re-indexed results at runtime to apply the PM5 category.
+
+This category is applied in the form `categorydetailsPM5=27037::1+27048::1`
+
+- this is a `+` delimited list of entries (can be null)
+- each entry is `ClinVar allele ID` :: `ClinVar Star rating`
+
+This is processed upon variant ingestion, and back filtered to remove any associated ClinVar IDs which are this exact
+variant.
 
 ## Reanalysis
 
-The heart of Talos's utility is in enabling explicit re-analysis, which is done in two key ways. Each of these is
-enabled through accumulating data over a number of runs, then leveraging cumulative data to remove redundant results.
-This helps ensure a curator's time is used as effectively as possible, by not presenting the same variants each time
-Talos
-runs.
+The heart of Talos's utility is in enabling explicit re-analysis, which is done in two key ways:
 
-### Gene Panel/ROI
+### Gene Panel
 
-[PanelApp](https://panelapp.agha.umccr.org/) is the primary source of Gene information used in Talos. For each analysis
-we query for the current
-content of the [Mendeliome Panel](https://panelapp.agha.umccr.org/panels/137/), containing all genes associated with
-Mendelian disease, other than those
-associated with unintended diagnoses (
-see [the complementary Incidentalome](https://panelapp.agha.umccr.org/panels/126/)). From this Panel, we obtain all '
-Green' genes and their associated Modes Of Inheritance (MOI). Optionally we can add additional panels which will be
-integrated alongside the Mendeliome content.
+* each time we query for gene panel/ROI data from [PanelApp](https://panelapp.agha.umccr.org/), we record the results
+* if a gene features on a panel where it was previously absent, all variants in the gene will be eligible
+  for `Category2` for the current run (if the participant in question has the panel applied)
+* if a panel is applied in this analysis when it was previously not used, all variants in all genes on that panel are
+  eligible for `Category2` for the current run (if the participant in question has the panel applied)
 
-Prior data can be provided in JSON format, containing all genes which have previously formed part of the ROI, and a list
-of all panels on which they have previously been seen. A gene will be treated as `New` if either it has never been seen
-before, or features in a phenotype-matched panel on which it has not been seen before. i.e.
+As we only search for 'Green' genes in PanelApp (those with sufficient evidence of disease association), a gene being
+upgraded from Red or Amber-rated to Green will be picked up as a new gene.
 
-- if a Gene is promoted to `Green` on the Mendeliome, it will be recorded as `New`, and the prior data will be extended
-  to show that the gene was seen on the Mendeliome.
-- if a Gene has previously appeared on the Mendeliome, and during current run it now appears on a new panel, the gene
-  will be recorded as `New`, and the new panel will be added to the prior data list.
+Example:
+
+* In the previous analysis, panel number 42 (phenotype: Boneitis) was applied, containing geneX and geneY
+* In the current analysis, panel 42 newly features geneZ
+* PatientA was phenotype-matched to panel 42, and has a geneZ variant marked as Category2, so this can reach the report
+* PatientB was not phenotype-matched to panel 42, but has a geneZ variant marked as Category2. This category is stripped
+  off, as panel 42 was not applied to this participant.
 
 ### Variant Results
 
-Once the core process of Talos has completed, and the reportable results are assembled, the final (optional) stage is to
-back-filter against previously seen results. This prior data is assembled on a per-cohort basis, and contains results
-previously seen, indexed by Sample ID.
+* each time Talos runs, a minimised representation of the results is made; for each participant:
+    - list the variants that were reported
+    - the categories those variants were annotated with
+    - and the date the category was first applied
+    - the most recent date that the evidence changed (new category labels were applied)
+* before the current report is written to file, the latest history file (if one exists) is checked:
+    - if this variant & category was seen before, the `first_tagged` date is taken from the history file
+    - if the variant was Pathogenic in ClinVar, the number of evidence stars is recorded. In future we may want to
+      highlight improved evidence in the report as a review priority
+    - if a category is assigned for the first time, the `evidence_last_updated` date is set to `today`
 
-This data consists of the variant IDs, Categories they've previously been assigned, and any supporting variants they
-have formed a compound-het with. When reviewing the variants of a current run, we check for previously seen variants on
-a per-sample basis, e.g.:
+Together, these allow us to create reports which are easily filtered for events which occurred for the first time in
+this latest run, removing all variants which were previously flagegd.
 
-- If a variant has been seen as a `Cat.1` before, and appears again as a `Cat.1`, it will be removed
-- If a variant has been seen as a `Cat.1` before, and now is both `Cat.1` & `Cat.2`, the `Cat.1` assignment will be
-  removed, and will be reported only as a `Cat.2`. The prior data will be extended to show that it has been
-  a `Cat.1 & 2`
-- If a variant was never seen before, it will appear on the report with no removed Categories
-- If a variant was seen in a compound-het now, and was previously partnered with a different variant, all `Categories`
-  will be retained, and the new partner ID will be added to the list of `support_vars` in the prior data
+n.b. we do not currently hard-filter these results to remove previously-seen, we just enable that action by others
+
+Example:
+
+- If a variant appears as only `Cat.1`, and was previously a `Cat.1`, it will have `first_tagged`
+  and `evidence_last_updated` set to the date of first appearance
+- If a variant has been seen as a `Cat.1` before, and now is both `Cat.1` & `Cat.2`, `first_tagged` will be set to the
+  date of first appearance, but `evidence_last_updated` will be set to `today`. The history file will be updated to show
+  that `Cat.2` was applied `today`
+- If a variant was never seen before and is now a `Cat.1`, `first_tagged` and `evidence_last_updated` will be set to
+  today, and the history file will be updated to show that this variant was seen as a `Cat.1`, `today`

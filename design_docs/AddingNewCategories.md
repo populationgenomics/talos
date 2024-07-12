@@ -15,7 +15,7 @@ new category are:
    encapsulation should also include the decision about whether a classification is Boolean (once per variant), Sample (
    only relevant to a subset of Samples), or Support (a lesser level of significance)
 4. Add a new diagram describing the decision tree to the [images folder](images), and reference it in
-   the [README](Hail_Filter_and_Label.md)
+   the [README](RunHailFiltering)
 5. If you require new fields to be displayed in the HTML report, make the appropriate changes to the templates
 6. If you need additional logic (e.g. when this category is assigned we should interpret the variant under a partial
    penetrance model), that's... more complicated. Get in touch with the team to discuss.

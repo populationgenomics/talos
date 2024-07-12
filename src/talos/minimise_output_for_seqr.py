@@ -51,7 +51,7 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
     with open(input_file, encoding='utf-8') as f:
         data = ResultData.model_validate(json.load(f))
 
-    lil_data = MiniForSeqr(**{'metadata': {'categories': data.metadata.categories}})
+    lil_data = MiniForSeqr(metadata={'categories': data.metadata.categories})
     ext_map_dict = None
     if ext_map:
         with open(ext_map, encoding='utf-8') as f:
@@ -59,15 +59,14 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
 
     for individual, details in data.results.items():
         # optionally update to point to Seqr identities
-        if ext_map_dict:
-            individual = ext_map_dict.get(individual, individual)
+        indi_id = ext_map_dict.get(individual, individual) if ext_map_dict else individual
 
-        lil_data.results[individual] = {}
+        lil_data.results[indi_id] = {}
         for variant in details.variants:
             var_data = variant.var_data
             if pheno_match and not variant.panels.matched:
                 continue
-            lil_data.results[individual][var_data.info['seqr_link']] = MiniVariant(
+            lil_data.results[indi_id][var_data.info['seqr_link']] = MiniVariant(
                 categories=variant.categories,
                 support_vars=variant.support_vars,
             )

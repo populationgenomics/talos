@@ -270,11 +270,6 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
             gnomad_hemi=hl.or_else(mt.gnomad_genomes.Hemi, MISSING_INT),
             splice_ai_delta=hl.or_else(mt.splice_ai.delta_score, MISSING_FLOAT_LO),
             splice_ai_csq=hl.or_else(mt.splice_ai.splice_consequence, MISSING_STRING).replace(' ', '_'),
-            # we can retain these, but removing completely will lessen the
-            # dependence on multiple annotation sources when standing up a
-            # new installation
-            # cadd=hl.or_else(mt.cadd.PHRED, MISSING_FLOAT_LO),
-            # revel=hl.float64(hl.or_else(mt.dbnsfp.REVEL_score, '0.0')),
         ),
     )
 
@@ -294,7 +289,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     min_callset_ac = 5
     return mt.filter_rows(
-        ((mt.AC <= min_callset_ac) | (mt.AC / mt.AN < ac_threshold)) | (mt.info.clinvar_talos == ONE_INT)
+        ((min_callset_ac >= mt.AC) | (ac_threshold > mt.AC / mt.AN)) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -339,12 +334,13 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
-    splits each GeneId onto a new row, then filters any
-    rows not annotating a Green PanelApp gene
+    splits each GeneId onto a new row, then filters any rows not annotating a Green PanelApp gene
 
     - first explode the matrix, separate gene per row
     - throw away all rows without a green gene
     - on all remaining rows, filter transcript consequences to match _this_ gene
+
+    this is the single most powerful filtering row, effectively leaving just the genes we're interested in
 
     Args:
         mt ():
@@ -353,8 +349,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
         exploded MatrixTable
     """
 
-    # split each gene onto a separate row
-    # transforms 'geneIds' field from set to string
+    # split each gene onto a separate row, transforms 'geneIds' field from set to string
     mt = mt.explode_rows(mt.geneIds)
 
     # filter rows without a green gene (removes empty geneIds)
@@ -571,15 +566,15 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     de_novo_matrix = filter_by_consequence(mt)
 
     # create ped with only 6 columns
-    with open('local_skinny.ped', 'w', encoding='utf-8') as write_handle:
-        with open(ped_file_path, encoding='utf-8') as read_handle:
-            for line in read_handle:
-                trimmed_line = line.rstrip()
-                line_list = trimmed_line.split('\t')
-                new_line = '\t'.join(line_list[:6]) + '\n'
-                write_handle.write(new_line)
+    l_ped = 'local_skinny.ped'
+    with open(l_ped, 'w', encoding='utf-8') as write_handle, open(ped_file_path, encoding='utf-8') as read_handle:
+        for line in read_handle:
+            trimmed_line = line.rstrip()
+            line_list = trimmed_line.split('\t')
+            new_line = '\t'.join(line_list[:6]) + '\n'
+            write_handle.write(new_line)
 
-    pedigree = hl.Pedigree.read('local_skinny.ped')
+    pedigree = hl.Pedigree.read(l_ped)
 
     get_logger().info('Updating synthetic PL values for WT calls where missing')
 
@@ -614,7 +609,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     # annotate those values as a flag if relevant, else 'missing'
     return mt.annotate_rows(
-        info=mt.info.annotate(**{'categorysample4': hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)}),
+        info=mt.info.annotate(categorysample4=hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)),
     )
 
 
@@ -865,7 +860,7 @@ def main(
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panel_data!r}')
-    panelapp = read_json_from_path(panel_data, return_model=PanelApp)  # type: ignore
+    panelapp = read_json_from_path(panel_data, return_model=PanelApp)
     assert isinstance(panelapp, PanelApp)
 
     # pull green and new genes from the panelapp data
@@ -877,7 +872,7 @@ def main(
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
-        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)  # type: ignore
+        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
         mt.describe()

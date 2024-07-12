@@ -3,9 +3,8 @@ Provides access to config variables. Complete theft of the CPG config module, mi
 https://github.com/populationgenomics/cpg-utils/blob/main/cpg_utils/config.py
 """
 
-import os
 from os import environ
-from typing import Any
+from typing import Any, Type
 
 import toml
 
@@ -54,9 +53,6 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
         with open(config_path) as f:
             _config = toml.loads(f.read())
 
-        print(f'Config file: {config_path}')
-        print(_config)
-
     if isinstance(key, str):
         key = [key]
 
@@ -78,3 +74,29 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
         d = d[k]
 
     return d
+
+
+def config_check(key: list[str], expected_type: Type | tuple[Type]) -> list[str]:
+    """
+    take a path to a config entry, and one or more expected types
+    return a list of Strings:
+        - if the value is present in the config dict, but the wrong type, explain
+        - if the keys are not present in the config, explain where the key was absent
+        - if the key(s) lead to a value, and the type is correct, return an empty list
+    Args:
+        key (list[str]): the keys for each layer in the config dict, leading to a value to test
+        expected_type (Type | tuple[Type]): Type(s) we accept for this config value
+    Returns:
+        a list of the faults in the config search & type check, can be empty
+    """
+
+    try:
+        value = config_retrieve(key)
+        if isinstance(value, expected_type):
+            return []
+        config_keys = ' -> '.join(key)
+        actual_type = type(value)
+        return [f'config path {config_keys} was {actual_type}, expected {expected_type}']
+
+    except ConfigError as ce:
+        return [str(ce)]

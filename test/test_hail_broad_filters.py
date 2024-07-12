@@ -6,11 +6,7 @@ import pytest
 
 import hail as hl
 
-from talos.RunHailFiltering import (
-    filter_matrix_by_ac,
-    filter_on_quality_flags,
-    filter_to_well_normalised,
-)
+from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, filter_to_well_normalised
 
 
 @pytest.mark.parametrize(  # needs clinvar
@@ -25,7 +21,7 @@ from talos.RunHailFiltering import (
         (50, 50, 1, 0.01, 1),
     ],
 )
-def test_ac_filter_no_filt(ac: int, an: int, clinvar: int, threshold: float, rows: int, make_a_mt):
+def test_ac_filter_no_filt(ac: int, an: int, clinvar: int, threshold: float, rows: int, make_a_mt: hl.MatrixTable):
     """
     run tests on the ac filtering method
     check that a clinvar pathogenic overrides the AC test
@@ -46,7 +42,7 @@ def test_ac_filter_no_filt(ac: int, an: int, clinvar: int, threshold: float, row
         (hl.literal({'VQSR'}), 1, 1),
     ],
 )
-def test_filter_on_quality_flags(filters, clinvar, length, make_a_mt):
+def test_filter_on_quality_flags(filters: hl.set, clinvar: int, length: int, make_a_mt: hl.MatrixTable):
     """
     annotate filters and run tests
     """

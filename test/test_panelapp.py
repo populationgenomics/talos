@@ -17,12 +17,10 @@ def test_new_history_creation():
     create some current data, render it as historic & check the contents
     """
     panels: PanelApp = PanelApp(
-        **{
-            'genes': {
-                'ENSG1': {'panels': {1, 2}, 'symbol': 'ensg1'},
-                'ENSG2': {'panels': {2, 3}, 'symbol': 'ensg2'},
-            }
-        }
+        genes={
+            'ENSG1': {'panels': {1, 2}, 'symbol': 'ensg1'},
+            'ENSG2': {'panels': {2, 3}, 'symbol': 'ensg2'},
+        },
     )
 
     new_history = create_new_history_from_current(panels)
@@ -126,7 +124,7 @@ def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
     assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
-def test_panel_query_addition(fake_panelapp):  # noqa: ARG001
+def test_panel_query_addition(fake_panelapp: pytest.fixture):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     oof, this was a tricky one
@@ -134,21 +132,19 @@ def test_panel_query_addition(fake_panelapp):  # noqa: ARG001
     """
     # assumed data we already gathered
     gd = PanelApp(
-        **{
-            'metadata': [{'version': '0.11088', 'name': 'Mendeliome', 'id': 137}],
-            'genes': {
-                'ENSG00ABCD': {
-                    'symbol': 'ABCD',
-                    'all_moi': {'monoallelic'},
-                    'new': [],
-                    'panels': [137],
-                },
-                'ENSG00IJKL': {
-                    'symbol': 'IJKL',
-                    'all_moi': {'both'},
-                    'new': [137],
-                    'panels': [123, 137],
-                },
+        metadata=[{'version': '0.11088', 'name': 'Mendeliome', 'id': 137}],
+        genes={
+            'ENSG00ABCD': {
+                'symbol': 'ABCD',
+                'all_moi': {'monoallelic'},
+                'new': [],
+                'panels': [137],
+            },
+            'ENSG00IJKL': {
+                'symbol': 'IJKL',
+                'all_moi': {'both'},
+                'new': [137],
+                'panels': [123, 137],
             },
         },
     )
@@ -171,11 +167,11 @@ def test_get_best_moi_empty():
     check that the MOI summary works
     """
 
-    d = {'ensg1': PanelDetail(**{'all_moi': set(), 'chrom': '1', 'symbol': 'ensg1'})}
+    d = {'ensg1': PanelDetail(all_moi=set(), chrom='1', symbol='ensg1')}
     get_best_moi(d)
     assert d['ensg1'].moi == 'Biallelic'
 
-    d = {'ensg1': PanelDetail(**{'all_moi': set(), 'chrom': 'X', 'symbol': 'ensgX'})}
+    d = {'ensg1': PanelDetail(all_moi=set(), chrom='X', symbol='ensgX')}
     get_best_moi(d)
     assert d['ensg1'].moi == 'Hemi_Bi_In_Female'
 
@@ -185,7 +181,7 @@ def test_get_best_moi_mono():
     check that the MOI summary works
     """
 
-    d = {'ensg1': PanelDetail(**{'all_moi': {'monoallelic'}, 'chrom': '1', 'symbol': 'ensg1'})}
+    d = {'ensg1': PanelDetail(all_moi={'monoallelic'}, chrom='1', symbol='ensg1')}
     get_best_moi(d)
     assert d['ensg1'].moi == 'Monoallelic'
 
@@ -195,7 +191,7 @@ def test_get_best_moi_mono_and_biallelic():
     check that the MOI summary works
     """
 
-    d = {'ensg1': PanelDetail(**{'all_moi': {'monoallelic', 'biallelic'}, 'chrom': '1', 'symbol': 'ensg1'})}
+    d = {'ensg1': PanelDetail(all_moi={'monoallelic', 'biallelic'}, chrom='1', symbol='ensg1')}
     get_best_moi(d)
     assert d['ensg1'].moi == 'Mono_And_Biallelic'
 
@@ -207,11 +203,9 @@ def test_get_best_moi_1():
 
     d = {
         'ensg1': PanelDetail(
-            **{
-                'all_moi': {'Monoallelic', 'Biallelic', 'both'},
-                'chrom': '1',
-                'symbol': 'ensg1',
-            },
+            all_moi={'Monoallelic', 'Biallelic', 'both'},
+            chrom='1',
+            symbol='ensg1',
         ),
     }
     get_best_moi(d)
@@ -225,11 +219,9 @@ def test_get_best_moi_x():
 
     d = {
         'ensg1': PanelDetail(
-            **{
-                'all_moi': {'x-linked biallelic', 'x-linked'},
-                'chrom': 'X',
-                'symbol': 'ensgX',
-            },
+            all_moi={'x-linked biallelic', 'x-linked'},
+            chrom='X',
+            symbol='ensgX',
         ),
     }
     get_best_moi(d)

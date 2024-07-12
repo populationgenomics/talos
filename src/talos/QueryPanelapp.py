@@ -1,11 +1,6 @@
-#!/usr/bin/env python3
-
-
 """
 Complete revision... again
 """
-
-# mypy: ignore-errors
 
 from argparse import ArgumentParser
 
@@ -81,7 +76,7 @@ def get_panel_green(
     panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
     # add metadata for this panel & version
-    gene_dict.metadata.append(PanelShort(**{'name': panel_name, 'version': panel_version, 'id': panel_id}))
+    gene_dict.metadata.append(PanelShort(name=panel_name, version=panel_version, id=panel_id))
 
     # iterate over the genes in this panel result
     for gene in panel_genes:
@@ -99,9 +94,13 @@ def get_panel_green(
         for build, content in gene['gene_data']['ensembl_genes'].items():
             if build.lower() == 'grch38':
                 # the ensembl version may alter over time, but will be singular
-                ensembl_data = content[list(content.keys())[0]]
+                ensembl_data = content[next(iter(content.keys()))]
                 ensg = ensembl_data['ensembl_id']
                 chrom = ensembl_data['location'].split(':')[0]
+
+        if chrom is None:
+            get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name} for lack of chrom annotation')
+            continue
 
         if ensg is None or ensg in blacklist or symbol in blacklist or ensg in forbidden_genes:
             get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
@@ -109,11 +108,9 @@ def get_panel_green(
 
         # check if this is a new gene in this analysis
         new_gene = False
-        if old_data:
-            # new if this gene & panel wasn't in the old data
-            if new_gene := (panel_id not in old_data.genes.get(ensg, {})):
-                # add this panel to the gene, so it won't be new next time
-                old_data.genes.setdefault(ensg, set()).add(panel_id)
+        if old_data and (new_gene := (panel_id not in old_data.genes.get(ensg, {}))):
+            # add this panel to the gene, so it won't be new next time
+            old_data.genes.setdefault(ensg, set()).add(panel_id)
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
@@ -134,13 +131,11 @@ def get_panel_green(
         else:
             # save the entity into the final dictionary
             gene_dict.genes[ensg] = PanelDetail(
-                **{
-                    'symbol': symbol,
-                    'all_moi': {exact_moi},
-                    'new': {panel_id} if new_gene else set(),
-                    'panels': {panel_id},
-                    'chrom': chrom,
-                },
+                symbol=symbol,
+                all_moi={exact_moi},
+                new={panel_id} if new_gene else set(),
+                panels={panel_id},
+                chrom=chrom,
             )
 
 
@@ -210,9 +205,9 @@ def main(panels: str | None, out_path: str):
 
     # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
     # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
-    if old_file := find_latest_file(results_folder=results_folder, start='panel_'):
+    if results_folder and (old_file := find_latest_file(results_folder=results_folder, start='panel_')):
         get_logger().info(f'Grabbing legacy panel data from {old_file}')
-        old_data = read_json_from_path(old_file, return_model=HistoricPanels)  # type: ignore
+        old_data = read_json_from_path(old_file, return_model=HistoricPanels)
         assert old_data, f'{old_file} did not contain data in a valid format'
 
     else:
@@ -234,7 +229,7 @@ def main(panels: str | None, out_path: str):
     panel_list: set[int] = set()
     if panels is not None:
         get_logger().info('Reading participant panels')
-        hpo_panel_object = read_json_from_path(panels, return_model=PhenotypeMatchedPanels)  # type: ignore
+        hpo_panel_object = read_json_from_path(panels, return_model=PhenotypeMatchedPanels)
         panel_list = hpo_panel_object.all_panels
         get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 

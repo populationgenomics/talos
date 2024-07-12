@@ -27,7 +27,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='5.0.0',
+    version='5.1.0',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'reanalysis_global.toml']},
@@ -45,7 +45,8 @@ setup(
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
-    packages=find_packages(),
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     include_package_data=True,
     install_requires=read_reqs('requirements.txt'),
     extras_require={
@@ -74,6 +75,6 @@ setup(
             'CreateTalosHTML = talos.CreateTalosHTML:cli_main',
             # CPG internal (?), generate a file for ingestion by Seqr
             'GenerateSeqrFile = talos.minimise_output_for_seqr:cli_main',
-        ]
+        ],
     },
 )

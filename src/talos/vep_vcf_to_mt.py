@@ -78,7 +78,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
     """
 
     # get the CSQ contents as a list of lists of strings, per variant
-    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))  # type: ignore
+    split_csqs = mt.info.CSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
 
     # generate a struct limited to the fields of interest
     # use a couple of accessory methods to re-map the names and types for compatibility
@@ -129,7 +129,7 @@ def remap_type(input_name, input_value) -> Any:
         return input_value.split('&')
 
     # check if we need to re-map it
-    elif input_name not in TYPE_UPDATES:
+    if input_name not in TYPE_UPDATES:
         return input_value
 
     # if the value needs to be re-typed, cast it
@@ -233,7 +233,7 @@ def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = 
     am_ht = hl.read_table(am_table)
 
     # gross - this needs a conditional application based on the specific transcript_id
-    mt = mt.annotate_rows(
+    return mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
@@ -249,11 +249,9 @@ def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = 
                     ),
                 ),
                 mt.vep.transcript_consequences,
-            )
-        )
+            ),
+        ),
     )
-
-    return mt
 
 
 def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -283,14 +281,14 @@ def insert_missing_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
                     transcript_consequences=hl.map(
                         lambda x: x.annotate(
                             **{
-                                fieldname: HAIL_TYPES[fieldtype['type']]['type'](
-                                    HAIL_TYPES[fieldtype['type']]['default']
-                                )
-                            }
+                                fieldname: HAIL_TYPES[fieldtype['type']]['type'](  # noqa: B023
+                                    HAIL_TYPES[fieldtype['type']]['default'],  # noqa: B023
+                                ),
+                            },
                         ),
                         mt.vep.transcript_consequences,
-                    )
-                )
+                    ),
+                ),
             )
     return mt
 

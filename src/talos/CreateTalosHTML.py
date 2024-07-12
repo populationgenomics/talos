@@ -58,7 +58,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
     try:
         get_logger().info('Finding whole-cohort categorised variants')
         html.write_html(output_filepath=output)
-    except NoVariantsFoundException:
+    except NoVariantsFoundError:
         get_logger().warning('No Categorised variants found in this whole cohort')
         sys.exit(0)
 
@@ -70,7 +70,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
         # this can fail if there are no latest-in-this-run variants, but we continue to splitting
         try:
             latest_html.write_html(output_filepath=latest, latest=True)
-        except NoVariantsFoundException:
+        except NoVariantsFoundError:
             get_logger().info('No latest-only variants found, but continuing on to subset splitting')
 
     # if no splitting, just exit here
@@ -86,7 +86,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
         try:
             get_logger().info(f'Attempting to create {report}')
             html.write_html(output_filepath=str(html_base / report))
-        except NoVariantsFoundException:
+        except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
 
         # If the latest arg is used, filter the results
@@ -97,14 +97,12 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
             try:
                 get_logger().info(f'Attempting to create {latest_html}')
                 latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
-            except NoVariantsFoundException:
+            except NoVariantsFoundError:
                 get_logger().info('No variants in that latest report, skipping')
 
 
-class NoVariantsFoundException(Exception):
+class NoVariantsFoundError(Exception):
     """raise if a report subset contains no data"""
-
-    pass
 
 
 @dataclass
@@ -146,7 +144,7 @@ class HTMLBuilder:
             results (str | ResultData): path to the results JSON, or the results object
             panelapp_path (str): where to read panelapp data from
         """
-        self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)  # type: ignore
+        self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
         # If it exists, read the forbidden genes as a list
         self.forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], [])
@@ -157,7 +155,7 @@ class HTMLBuilder:
         self.seqr: dict[str, str] = {}
 
         if seqr_path := config_retrieve(['CreateTalosHTML', 'seqr_lookup'], ''):
-            self.seqr = read_json_from_path(seqr_path, default=self.seqr)  # type: ignore
+            self.seqr = read_json_from_path(seqr_path, default=self.seqr)
             assert isinstance(self.seqr, dict)
 
             # Force user to correct config file if seqr URL/project are missing
@@ -178,10 +176,7 @@ class HTMLBuilder:
         self.ext_labels: dict[str, dict] = ext_labels
 
         # Read results file, or take it directly
-        if isinstance(results, str):
-            results_dict = read_json_from_path(results, return_model=ResultData)  # type: ignore
-        else:
-            results_dict = results
+        results_dict = read_json_from_path(results, return_model=ResultData) if isinstance(results, str) else results
 
         assert isinstance(results_dict, ResultData)
 
@@ -189,7 +184,7 @@ class HTMLBuilder:
         self.panel_names = {panel.name for panel in self.metadata.panels}
 
         # pull out forced panel matches
-        cohort_panels = config_retrieve(['GeneratePanelData', 'forced_panels'], [])  # type: ignore
+        cohort_panels = config_retrieve(['GeneratePanelData', 'forced_panels'], [])
         self.forced_panels: list = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
         self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
@@ -219,7 +214,7 @@ class HTMLBuilder:
         which passed through the MOI process, not the absolute number
         of variants in the report
         """
-        ordered_categories = ['any'] + list(config_retrieve('categories', {}).keys())
+        ordered_categories = ['any', *list(config_retrieve('categories', {}).keys())]
         category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
         unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 
@@ -278,18 +273,18 @@ class HTMLBuilder:
 
         # this can fail if there are no categorised variants... at all
         if not summary_dicts:
-            raise NoVariantsFoundException('No categorised variants found')
+            raise NoVariantsFoundError('No categorised variants found')
 
-        df: pd.DataFrame = pd.DataFrame(summary_dicts)
-        df['Mean/sample'] = df['Mean/sample'].round(3)
+        my_df: pd.DataFrame = pd.DataFrame(summary_dicts)
+        my_df['Mean/sample'] = my_df['Mean/sample'].round(3)
 
         # the table re-sorts when parsed into the DataTable
         # so this forced ordering doesn't work
-        df.Category = df.Category.astype('category')
-        df.Category = df.Category.cat.set_categories(ordered_categories)
-        df = df.sort_values(by='Category')
+        my_df.Category = my_df.Category.astype('category')
+        my_df.Category = my_df.Category.cat.set_categories(ordered_categories)
+        my_df = my_df.sort_values(by='Category')
 
-        return df, samples_with_no_variants, unused_ext_labels
+        return my_df, samples_with_no_variants, unused_ext_labels
 
     def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
@@ -339,8 +334,8 @@ class HTMLBuilder:
         template_context = {
             'metadata': self.metadata,
             'samples': self.samples,
-            'seqr_url': config_retrieve(['CreateTalosHTML', 'seqr_instance'], ''),  # type: ignore
-            'seqr_project': config_retrieve(['CreateTalosHTML', 'seqr_project'], ''),  # type: ignore
+            'seqr_url': config_retrieve(['CreateTalosHTML', 'seqr_instance'], ''),
+            'seqr_project': config_retrieve(['CreateTalosHTML', 'seqr_project'], ''),
             'meta_tables': {},
             'forbidden_genes': sorted(self.forbidden_genes),
             'zero_categorised_samples': zero_cat_samples,
@@ -372,7 +367,7 @@ class HTMLBuilder:
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
         to_anypath(output_filepath).open('w').writelines(
-            '\n'.join(line for line in content.split('\n') if line.strip())
+            '\n'.join(line for line in content.split('\n') if line.strip()),
         )
 
 
@@ -438,13 +433,12 @@ class Variant:
                 alt_len = len(self.alt)
                 if ref_len > alt_len:
                     return f'del {ref_len - alt_len}bp'
-                elif ref_len == alt_len:
+                if ref_len == alt_len:
                     return f'complex delins {ref_len}bp'
-
                 return f'ins {alt_len - ref_len}bp'
 
             return f'{self.ref}->{self.alt}'
-        elif isinstance(self.var_data, StructuralVariant):
+        if isinstance(self.var_data, StructuralVariant):
             return f"{self.var_data.info['svtype']} {self.var_data.info['svlen']}bp"
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
@@ -498,11 +492,12 @@ class Variant:
         self.var_data.info['alpha_missense_max'] = max(am_scores) if am_scores else 'missing'
 
         # this is the weird gnomad callset ID
-        if isinstance(self.var_data, StructuralVariant):
-            if 'gnomad_v2.1_sv_svid' in self.var_data.info:
-                self.var_data.info['gnomad_key'] = self.var_data.info['gnomad_v2.1_sv_svid'].split(  # type: ignore
-                    'v2.1_',
-                )[-1]
+        if (
+            isinstance(self.var_data, StructuralVariant)
+            and 'gnomad_v2.1_sv_svid' in self.var_data.info
+            and isinstance(self.var_data.info['gnomad_v2.1_sv_svid'], str)
+        ):
+            self.var_data.info['gnomad_key'] = self.var_data.info['gnomad_v2.1_sv_svid'].split('v2.1_')[-1]
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
@@ -560,7 +555,7 @@ def check_date_filter(results: str | ResultData, filter_date: str | None = None)
     # take both types
     if isinstance(results, str):
         # Load the results JSON
-        results_dict: ResultData = read_json_from_path(results, return_model=ResultData)  # type: ignore
+        results_dict: ResultData = read_json_from_path(results, return_model=ResultData)
     else:
         results_dict = results
 
@@ -606,7 +601,7 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
     """
 
     known_prefixes: dict[str, int] = defaultdict(int)
-    for sample, content in all_results.results.items():
+    for content in all_results.results.values():
         if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
             known_prefixes[match.group()[0:2]] += 1
         else:
@@ -621,7 +616,7 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
     """
     Split the data into sub-reports
     """
-    all_results = read_json_from_path(data_path, return_model=ResultData)  # type: ignore
+    all_results = read_json_from_path(data_path, return_model=ResultData)
     assert isinstance(all_results, ResultData)
     return_results: list[tuple[ResultData, str, str]] = []
 

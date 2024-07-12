@@ -14,6 +14,24 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[5.0.0] - 2024-07-08
+
+### Changed
+
+* Throwing all the source code in a `/src` folder
+* Principal scripts are renamed, and accessible as command-line entrypoints
+
+1. GeneratePED
+2. GeneratePanelData
+3. QueryPanelapp
+4. RunHailFiltering
+5. RunHailFilteringSV
+6. ValidateMOI
+7. CreateTalosHTML
+
+* extensive removing of the pre-commit exclusions, and consequent reformatting to pass new tests
+* documentation updated
+
 [4.0.0] - 2024-06-09
 
 ### Changed

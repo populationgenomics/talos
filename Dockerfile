@@ -24,5 +24,5 @@ RUN python3 -m pip install -r requirements.txt
 COPY README.md .
 COPY setup.py .
 COPY helpers helpers/
-COPY talos talos/
+COPY src src/
 RUN pip install .[cpg]

@@ -65,8 +65,7 @@ def check_for_second_hit(
     partners = comp_hets[sample].get(first_variant, [])
     if require_non_support:
         return [partner for partner in partners if not partner.sample_support_only(sample)]
-    else:
-        return partners
+    return partners
 
 
 class MOIRunner:
@@ -212,7 +211,7 @@ class BaseMoi:
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
             if (iter_member.affected == '2' and member_id not in called_variants) or (
-                member_id in called_variants and not partial_pen and not iter_member.affected == '2'
+                member_id in called_variants and not partial_pen and iter_member.affected != '2'
             ):
                 return False
 
@@ -275,7 +274,7 @@ class BaseMoi:
         Returns:
             True if any of the info attributes is above the threshold
         """
-        return all({info.get(key, 0) <= test for key, test in thresholds.items()})
+        return all(info.get(key, 0) <= test for key, test in thresholds.items())
 
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """
@@ -474,13 +473,6 @@ class RecessiveAutosomalCH(BaseMoi):
                     )
                 ):
                     continue
-
-                # # categorised for this specific sample, allow support in partner
-                # # - also screen out high-AF partners
-                # if not partner_variant.sample_category_check(
-                #     sample_id, allow_support=True
-                # ):
-                #     continue
 
                 # check if this is a candidate for comp-het inheritance
                 if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner_variant):

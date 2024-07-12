@@ -172,7 +172,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
         return FileTypes.VCF_GZ
     if extensions == ['.vcf', '.bgz']:
         return FileTypes.VCF_BGZ
-    raise TypeError(f'File cannot be definitively typed: {str(extensions)}')
+    raise TypeError(f'File cannot be definitively typed: {extensions}')
 
 
 @backoff.on_exception(
@@ -292,9 +292,9 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
                 if phase_gt != '.' and phase_id != '.':
                     phased_dict[sample][phase_id] = phase_gt
 
-        except KeyError:
+        except KeyError as ke2:
             get_logger().info('also failed using PID and PGT')
-            raise ke
+            raise ke from ke2
 
     return dict(phased_dict)
 
@@ -380,7 +380,7 @@ def create_small_variant(
 
     # hot-swap cat 2 from a boolean to a sample list - if appropriate
     if info.get('categoryboolean2', 0) and new_genes:
-        new_gene_samples: set[str] = new_genes.get(info.get('gene_id'), set())  # type: ignore
+        new_gene_samples: set[str] = new_genes.get(info.get('gene_id', 'MISSING'), set())
 
         # if 'all', keep cohort-wide boolean flag
         if new_gene_samples == {'all'}:
@@ -395,9 +395,9 @@ def create_small_variant(
     info = organise_pm5(info)
 
     # set the class attributes
-    boolean_categories = [key for key in info.keys() if key.startswith('categoryboolean')]
-    sample_categories = [key for key in info.keys() if key.startswith('categorysample')]
-    support_categories = [key for key in info.keys() if key.startswith('categorysupport')]
+    boolean_categories = [key for key in info if key.startswith('categoryboolean')]
+    sample_categories = [key for key in info if key.startswith('categorysample')]
+    support_categories = [key for key in info if key.startswith('categorysupport')]
 
     # overwrite with true booleans
     for cat in support_categories + boolean_categories:
@@ -457,7 +457,7 @@ def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
     # set the class attributes
-    boolean_categories = [key for key in info.keys() if key.startswith('categoryboolean')]
+    boolean_categories = [key for key in info if key.startswith('categoryboolean')]
 
     # overwrite with true booleans
     for cat in boolean_categories:
@@ -732,7 +732,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
     """
 
     # create an empty dictionary
-    comp_het_results: CompHetDict = defaultdict(dict)  # type: ignore
+    comp_het_results: CompHetDict = defaultdict(dict)
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
@@ -752,7 +752,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
             # check for both variants being in the same phase set
             if sample in var_1.phased and sample in var_2.phased:
                 # check for presence of the same phase set
-                for phase_set in [ps for ps in var_1.phased[sample].keys() if ps in var_2.phased[sample].keys()]:
+                for phase_set in [ps for ps in var_1.phased[sample] if ps in var_2.phased[sample]]:
                     if var_1.phased[sample][phase_set] == var_2.phased[sample][phase_set]:
                         phased = True
             if not phased:
@@ -808,8 +808,8 @@ def filter_results(results: ResultData, singletons: bool):
 
     if historic_folder is None:
         get_logger().info('No historic data folder, no filtering')
-        # todo update all the evidence_last_updated
-        for sample, content in results.results.items():
+        # update all the evidence_last_updated
+        for content in results.results.values():
             for var in content.variants:
                 var.evidence_last_updated = get_granular_date()
         return
@@ -824,9 +824,7 @@ def filter_results(results: ResultData, singletons: bool):
     get_logger().info(f'latest results: {latest_results_path}')
 
     # get latest results as a HistoricVariants object, or fail - on fail, return
-    if (
-        latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)  # type: ignore
-    ) is None:
+    if (latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)) is None:
         # generate and write some new latest data
         generate_fresh_latest_results(current_results=results, prefix=prefix)
         return
@@ -867,9 +865,9 @@ def date_from_string(string: str) -> str:
     Returns:
         the String YYYY-MM-DD
     """
-
-    if re.search(DATE_RE, string) is not None:
-        return re.search(DATE_RE, string).group()  # type: ignore
+    date_search = re.search(DATE_RE, string)
+    if date_search:
+        return date_search.group()
     raise ValueError(f'No date found in {string}')
 
 

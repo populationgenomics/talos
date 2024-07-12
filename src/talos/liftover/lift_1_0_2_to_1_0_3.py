@@ -26,5 +26,4 @@ def historicvariants(data_dict: dict) -> dict:
     without subdividing the Category 1 into multiple categories per star rating
     """
     assert data_dict['version'] < '1.0.3'
-    ...
     return data_dict

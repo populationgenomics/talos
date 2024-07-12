@@ -1,5 +1,3 @@
-#! /usr/bin/env python3
-
 """
 This script generates a loaded PED file for use in Talos
 This headerless output file is a TSV in the format:

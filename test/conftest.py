@@ -13,7 +13,7 @@ from cyvcf2 import VCFReader
 import hail as hl
 
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
-from talos.utils import create_small_variant, read_json_from_path  # noqa: E402
+from talos.utils import create_small_variant, read_json_from_path
 
 # force this to come first
 PWD = Path(__file__).parent
@@ -151,8 +151,7 @@ def fixture_phased_trio_variants():
     """path to the phased trio VCF"""
 
     vcf_reader = VCFReader(PHASED_TRIO)
-    two_variants = [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
-    return two_variants
+    return [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
 
 
 @pytest.fixture(name='trio_ped')
@@ -199,8 +198,7 @@ def fixture_two_trio_abs_variants():
     2) Cat. 1 + 3, and Cat. 4 for PROBAND only
     """
     vcf_reader = VCFReader(LABELLED)
-    two_variants = [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
-    return two_variants
+    return [create_small_variant(var, vcf_reader.samples) for var in vcf_reader]
 
 
 @pytest.fixture(name='two_trio_variants_vcf')
@@ -228,14 +226,3 @@ def fixture_sub_stub():
     """path to the TXT file of submissions"""
 
     return SUB_STUB
-
-
-# @pytest.fixture(scope='session')
-# def session_temp_dir(tmp_path_factory):
-#     """
-#     session-scoped template path
-#     return a tempdir base
-#     disparate tests can share a tempdir
-#     """
-#
-#     return tmp_path_factory.mktemp('TEMP')

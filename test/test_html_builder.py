@@ -20,29 +20,27 @@ def test_check_date_filter(tmp_path):
     """
     # needs to be a valid ResultData
     result_dict = ResultData(
-        **{
-            'metadata': {'categories': {'1': '1'}, 'run_datetime': '2021-01-01'},
-            'results': {
-                'sample1': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2021-01-01',
-                            'var_data': VAR_1,
-                        },
-                    ],
-                },
-                'sample2': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2022-02-02',
-                            'var_data': VAR_2,
-                        },
-                    ],
-                },
+        metadata={'categories': {'1': '1'}, 'run_datetime': '2021-01-01'},
+        results={
+            'sample1': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2021-01-01',
+                        'var_data': VAR_1,
+                    },
+                ],
+            },
+            'sample2': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2022-02-02',
+                        'var_data': VAR_2,
+                    },
+                ],
             },
         },
     )
@@ -64,36 +62,34 @@ def test_check_date_filter_pair(tmp_path):
     """
     # needs to be a valid ResultData
     result_dict = ResultData(
-        **{
-            'metadata': {'categories': {'1': '1'}, 'run_datetime': '2021-01-01'},
-            'results': {
-                'sample1': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2021-01-01',
-                            'var_data': VAR_1,
-                            'support_vars': {VAR_2.coordinates.string_format},
-                        },
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2023-03-03',
-                            'var_data': VAR_2,
-                            'support_vars': {VAR_1.coordinates.string_format},
-                        },
-                    ],
-                },
-                'sample2': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2022-02-02',
-                            'var_data': VAR_2,
-                        },
-                    ],
-                },
+        metadata={'categories': {'1': '1'}, 'run_datetime': '2021-01-01'},
+        results={
+            'sample1': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2021-01-01',
+                        'var_data': VAR_1,
+                        'support_vars': {VAR_2.coordinates.string_format},
+                    },
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2023-03-03',
+                        'var_data': VAR_2,
+                        'support_vars': {VAR_1.coordinates.string_format},
+                    },
+                ],
+            },
+            'sample2': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2022-02-02',
+                        'var_data': VAR_2,
+                    },
+                ],
             },
         },
     )
@@ -115,29 +111,27 @@ def test_check_date_filter_none_pass(tmp_path):
     """ """
     # needs to be a valid ResultData
     result_dict = ResultData(
-        **{
-            'metadata': {'categories': {'1': '1'}, 'run_datetime': '2023-01-01'},
-            'results': {
-                'sample1': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2021-01-01',
-                            'var_data': VAR_1,
-                        },
-                    ],
-                },
-                'sample2': {
-                    'metadata': {'ext_id': 'sample2', 'family_id': 'sample2'},
-                    'variants': [
-                        {
-                            'sample': 'sample2',
-                            'first_tagged': '2022-02-02',
-                            'var_data': VAR_2,
-                        },
-                    ],
-                },
+        metadata={'categories': {'1': '1'}, 'run_datetime': '2023-01-01'},
+        results={
+            'sample1': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2021-01-01',
+                        'var_data': VAR_1,
+                    },
+                ],
+            },
+            'sample2': {
+                'metadata': {'ext_id': 'sample2', 'family_id': 'sample2'},
+                'variants': [
+                    {
+                        'sample': 'sample2',
+                        'first_tagged': '2022-02-02',
+                        'var_data': VAR_2,
+                    },
+                ],
             },
         },
     )
@@ -152,29 +146,27 @@ def test_check_date_filter_date_from_meta(tmp_path):
     """ """
     # needs to be a valid ResultData
     result_dict = ResultData(
-        **{
-            'metadata': {'categories': {'1': '1'}, 'run_datetime': '2022-02-02'},
-            'results': {
-                'sample1': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample1',
-                            'first_tagged': '2021-01-01',
-                            'var_data': VAR_1,
-                        },
-                    ],
-                },
-                'sample2': {
-                    'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
-                    'variants': [
-                        {
-                            'sample': 'sample2',
-                            'first_tagged': '2022-02-02',
-                            'var_data': VAR_2,
-                        },
-                    ],
-                },
+        metadata={'categories': {'1': '1'}, 'run_datetime': '2022-02-02'},
+        results={
+            'sample1': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample1',
+                        'first_tagged': '2021-01-01',
+                        'var_data': VAR_1,
+                    },
+                ],
+            },
+            'sample2': {
+                'metadata': {'ext_id': 'sample1', 'family_id': 'sample1'},
+                'variants': [
+                    {
+                        'sample': 'sample2',
+                        'first_tagged': '2022-02-02',
+                        'var_data': VAR_2,
+                    },
+                ],
             },
         },
     )

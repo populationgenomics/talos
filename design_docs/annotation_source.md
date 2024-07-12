@@ -87,7 +87,7 @@ as unlikely to go through NMD this can be rescued using a ClinVar Pathogenic rat
 ## Category 4 - De Novo Variants
 
 Combines moderate variant impact with de novo inheritance checks, with numerous associated quality checks built in to
-the hail de novo method (see [this](Hail_Filter_and_Label.md#category-4--de-novo-)). Note - prior to running the de novo
+the hail de novo method (see [this](RunHailFiltering#category-4--de-novo-)). Note - prior to running the de novo
 search the variant table is filtered down to at least moderate consequence (Missense or worse) OR High SpliceAI score.
 The latter score is assigned in the next category (Category5); 5 is assigned before 4 is tested.
 

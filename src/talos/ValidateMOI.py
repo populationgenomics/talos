@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-
 """
 runs between classification and publishing results
 takes a number of inputs:
@@ -16,7 +13,6 @@ participants relative to the MOI described in PanelApp
 
 from argparse import ArgumentParser
 from collections import defaultdict
-from pathlib import Path
 
 from cyvcf2 import VCFReader
 
@@ -50,7 +46,7 @@ from talos.utils import (
 from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown_sex', '0': 'unknown_sex'}
+MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown', '0': 'unknown'}
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:
@@ -383,28 +379,26 @@ def prepare_results_shell(
     for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
         family_members = {
             member.id: FamilyMembers(
-                **{'sex': MALE_FEMALE[member.sex], 'affected': member.affected == '2', 'ext_id': member.ext_id},
+                sex=MALE_FEMALE[member.sex],
+                affected=member.affected == '2',
+                ext_id=member.ext_id,
             )
             for member in pedigree.by_family[sample.family]
         }
         sample_panel_data = panel_data.samples.get(sample.id, ParticipantHPOPanels())
         results_shell.results[sample.id] = ParticipantResults(
-            **{
-                'variants': [],
-                'metadata': ParticipantMeta(
-                    **{
-                        'ext_id': sample.ext_id,
-                        'family_id': sample.family,
-                        'members': family_members,
-                        'phenotypes': sample_panel_data.hpo_terms,
-                        'panel_ids': sample_panel_data.panels,
-                        'panel_names': [panel_meta[panel_id] for panel_id in sample_panel_data.panels],
-                        'solved': bool(sample.id in solved_cases or sample.family in solved_cases),
-                        'present_in_small': sample.id in small_samples,
-                        'present_in_sv': sample.id in sv_samples,
-                    },
-                ),
-            },
+            variants=[],
+            metadata=ParticipantMeta(
+                ext_id=sample.ext_id,
+                family_id=sample.family,
+                members=family_members,
+                phenotypes=sample_panel_data.hpo_terms,
+                panel_ids=sample_panel_data.panels,
+                panel_names=[panel_meta[panel_id] for panel_id in sample_panel_data.panels],
+                solved=bool(sample.id in solved_cases or sample.family in solved_cases),
+                present_in_small=sample.id in small_samples,
+                present_in_sv=sample.id in sv_samples,
+            ),
         )
 
     return results_shell
@@ -414,9 +408,9 @@ def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
-    parser.add_argument('--out_json', help='Prefix to write JSON results to')
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data')
-    parser.add_argument('--pedigree', help='Path to joint-call PED file')
+    parser.add_argument('--out_json', help='Prefix to write JSON results to', required=True)
+    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data', required=True)
+    parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
     parser.add_argument('--participant_panels', help='panels per participant', default=None)
     args = parser.parse_args()
 
@@ -472,14 +466,14 @@ def main(
     ped = make_flexible_pedigree(pedigree)
 
     # parse panelapp data from dict
-    panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)  # type: ignore
+    panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
 
     pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
         participant_panels,
-        return_model=PhenotypeMatchedPanels,  # type: ignore
+        return_model=PhenotypeMatchedPanels,
         default=None,
     )
 
@@ -528,13 +522,11 @@ def main(
 
     # create the full final output file
     results_meta = ResultMeta(
-        **{
-            'family_breakdown': count_families(ped, samples=all_samples),
-            'panels': panelapp_data.metadata,
-            'version': __version__,
-            'projects': [seqr_project] if seqr_project else [],
-            'categories': config_retrieve('categories'),
-        },
+        family_breakdown=count_families(ped, samples=all_samples),
+        panels=panelapp_data.metadata,
+        version=__version__,
+        projects=[seqr_project] if seqr_project else [],
+        categories=config_retrieve('categories'),
     )
 
     # create a shell to store results in, adds participant metadata

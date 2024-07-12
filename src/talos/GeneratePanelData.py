@@ -100,12 +100,10 @@ def get_participant_hpos(pedigree: str) -> tuple[PhenotypeMatchedPanels, set[str
 
             # generate the entity
             hpo_dict.samples[internal_id] = ParticipantHPOPanels(
-                **{
-                    'external_id': external_id,
-                    'family_id': family_id,
-                    'hpo_terms': [{'id': hpo, 'label': ''} for hpo in member_data[1:]],
-                    'panels': {137},
-                },
+                external_id=external_id,
+                family_id=family_id,
+                hpo_terms=[{'id': hpo, 'label': ''} for hpo in member_data[1:]],
+                panels={137},
             )
 
     return hpo_dict, all_hpo
