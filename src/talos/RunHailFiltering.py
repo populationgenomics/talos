@@ -811,6 +811,7 @@ def cli_main():
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
+    parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
         mt_path=args.mt,
@@ -819,6 +820,7 @@ def cli_main():
         vcf_out=args.vcf_out,
         clinvar=args.clinvar,
         pm5=args.pm5,
+        checkpoint=args.checkpoint,
     )
 
 
