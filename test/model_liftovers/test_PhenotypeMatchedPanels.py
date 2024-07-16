@@ -54,7 +54,6 @@ def test_lift_pmp_from_none_json(test_input_models_path):
     # check the HPO terms
     for sample in lifted.samples.values():
         for term in sample.hpo_terms:
-            print(type(term))
             assert isinstance(term, PhenoPacketHpo)
             assert isinstance(term.id, str)
             assert isinstance(term.label, str)
