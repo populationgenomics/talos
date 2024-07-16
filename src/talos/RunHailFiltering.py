@@ -811,6 +811,7 @@ def cli_main():
     parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
+    parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
         mt_path=args.mt,
@@ -819,6 +820,7 @@ def cli_main():
         vcf_out=args.vcf_out,
         clinvar=args.clinvar,
         pm5=args.pm5,
+        checkpoint=args.checkpoint,
     )
 
 
@@ -829,6 +831,7 @@ def main(
     vcf_out: str,
     clinvar: str,
     pm5: str | None = None,
+    checkpoint: str | None = None,
 ):
     """
     Read MT, filter, and apply category annotation, export as a VCF
@@ -840,6 +843,7 @@ def main(
         vcf_out (str): where to write VCF out
         clinvar (str): location to a ClinVar HT, or unspecified
         pm5 (str): location to a pm5 HT, or unspecified
+        checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
     get_logger(__file__).info(
         r"""Welcome To
@@ -901,11 +905,11 @@ def main(
     # shrink the time taken to write checkpoints
     mt = drop_useless_fields(mt=mt)
 
-    get_logger().info('Checkpointing after filtering out a ton of variants')
-    mt = mt.checkpoint('checkpoint.mt')
+    if checkpoint:
+        get_logger().info(f'Checkpointing to {checkpoint} after filtering out a ton of variants')
+        mt = mt.checkpoint(checkpoint)
 
-    # die if there are no variants remaining
-    # only run this count after a checkpoint
+    # die if there are no variants remaining. Only ever count rows after a checkpoint
     if not (current_rows := mt.count_rows()):
         raise ValueError('No remaining rows to process!')
 

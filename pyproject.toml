@@ -48,6 +48,7 @@ ignore = [
     "N999", # invalid module name (not lower-case and potholes)
     "TCH001", # move application import *** into a type-checking block
     "ERA001", # found commented out code
+    "I001", # Import block is un-sorted or un-formatted (to remove soon)
 ]
 
 [tool.ruff.format]
