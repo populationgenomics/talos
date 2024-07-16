@@ -80,12 +80,17 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
 
     # do something to split the output into separate datasets
     # either look for an ID convention, or go with a random split
-    html_base = Path(output).parent
+    # originally this used Path(X).parent, but that translates gs:// to gs:/
+    # gs:/ as a schema is not recognised as a GCP path, leading to write errors
+    default_report_name = Path(output).name
+    html_base = output.rstrip(default_report_name)
+
     for data, report, latest in split_data_into_sub_reports(results, split_samples):
         html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
             get_logger().info(f'Attempting to create {report}')
-            html.write_html(output_filepath=str(html_base / report))
+            html.write_html(output_filepath=f'{html_base}{report}')
+
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
 
@@ -96,7 +101,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
             latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
             try:
                 get_logger().info(f'Attempting to create {latest_html}')
-                latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
+                latest_html.write_html(output_filepath=f'{html_base}{latest}', latest=True)
             except NoVariantsFoundError:
                 get_logger().info('No variants in that latest report, skipping')
 
