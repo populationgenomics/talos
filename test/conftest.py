@@ -20,7 +20,6 @@ PWD = Path(__file__).parent
 INPUT: str = str(PWD / 'input')
 hl.init(default_reference='GRCh38')
 environ['TALOS_CONFIG'] = join(INPUT, 'reanalysis_global.toml')
-print(environ)
 
 LABELLED = join(INPUT, '1_labelled_variant.vcf.bgz')
 Talos_OUTPUT = join(INPUT, 'aip_output_example.json')

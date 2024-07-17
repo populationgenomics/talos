@@ -80,12 +80,17 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
 
     # do something to split the output into separate datasets
     # either look for an ID convention, or go with a random split
-    html_base = Path(output).parent
+    # originally this used Path(X).parent, but that translates gs:// to gs:/
+    # gs:/ as a schema is not recognised as a GCP path, leading to write errors
+    default_report_name = Path(output).name
+    html_base = output.rstrip(default_report_name)
+
     for data, report, latest in split_data_into_sub_reports(results, split_samples):
         html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
             get_logger().info(f'Attempting to create {report}')
-            html.write_html(output_filepath=str(html_base / report))
+            html.write_html(output_filepath=f'{html_base}{report}')
+
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
 
@@ -96,7 +101,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
             latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
             try:
                 get_logger().info(f'Attempting to create {latest_html}')
-                latest_html.write_html(output_filepath=str(html_base / latest), latest=True)
+                latest_html.write_html(output_filepath=f'{html_base}{latest}', latest=True)
             except NoVariantsFoundError:
                 get_logger().info('No variants in that latest report, skipping')
 
@@ -165,19 +170,18 @@ class HTMLBuilder:
         # Optionally read in the labels file
         # This file should be a nested dictionary of sample IDs and variant identifiers
         # with a list of corresponding label values, e.g.:
+        # ruff: noqa: ERA001
         # {
         #     "sample1": {
         #         "1-123456-A-T": ["label1", "label2"],
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        ext_labels = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
-        assert isinstance(ext_labels, dict)
-        self.ext_labels: dict[str, dict] = ext_labels
+        self.ext_labels: dict[str, dict] = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
+        assert isinstance(self.ext_labels, dict)
 
         # Read results file, or take it directly
         results_dict = read_json_from_path(results, return_model=ResultData) if isinstance(results, str) else results
-
         assert isinstance(results_dict, ResultData)
 
         self.metadata = results_dict.metadata
@@ -392,8 +396,6 @@ class Sample:
         self.panel_ids = metadata.panel_ids
         self.panel_names = metadata.panel_names
         self.seqr_id = html_builder.seqr.get(name, None)
-        self.ext_labels = ext_labels
-        self.html_builder = html_builder
 
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [

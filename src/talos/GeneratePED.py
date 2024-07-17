@@ -22,10 +22,10 @@ HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:[0-9]+')
 PARTICIPANT_QUERY = gql(
     """
-query MyQuery($project: String!) {
+query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {
   project(name: $project) {
     pedigree
-    sequencingGroups {
+    sequencingGroups(technology: {eq: $technology}, type:  {eq: $sequencing_type}) {
       id
       sample {
         participant {
@@ -39,11 +39,13 @@ query MyQuery($project: String!) {
 )
 
 
-def get_data_from_metamist(project: str) -> list[list[str]]:
+def get_data_from_metamist(project: str, seq_type: str, tech: str) -> list[list[str]]:
     """
     Query metamist for the required data
     Args:
         project ():
+        seq_type (str): exome/genome
+        tech (str): type of sequence data to query for
 
     Returns:
         returns the new Ped contents, ready to be written to a file
@@ -56,7 +58,7 @@ def get_data_from_metamist(project: str) -> list[list[str]]:
     ped_entries: list[list[str]] = []
 
     # first get a lookup of Int IDs to Ext IDs
-    result = query(PARTICIPANT_QUERY, variables={'project': project})
+    result = query(PARTICIPANT_QUERY, variables={'project': project, 'sequencing_type': seq_type, 'technology': tech})
 
     # maps External IDs from the Pedigree endpoint to Internal CPG IDs
     ext_to_int: dict[str, str] = {}
@@ -82,8 +84,13 @@ def get_data_from_metamist(project: str) -> list[list[str]]:
             entry['individual_id'],
         ]
 
-        # if there are recorded HPOs, extend the row with them
+        # skip over the rows where we didn't find a linked internal ID
+        # this will prune the pedigree to remove all the data-only entries in the cohort
         assert isinstance(entry['individual_id'], str)
+        if not ped_row[1].startswith('CPG'):
+            continue
+
+        # if there are recorded HPOs, extend the row with them
         if hpos := cpg_to_hpos.get(ext_to_int.get(entry['individual_id'], 'missing')):
             ped_row.extend(sorted(hpos))
 
@@ -96,9 +103,11 @@ def main():
     parser = ArgumentParser(description='Generate a PED file for Talos')
     parser.add_argument('dataset', help='The dataset to query for')
     parser.add_argument('output', help='The output file')
+    parser.add_argument('type', help='Sequencing type (exome or genome)')
+    parser.add_argument('--tech', help='Sequencing technology', default='short-read')
     args = parser.parse_args()
 
-    new_ped_rows = get_data_from_metamist(args.dataset)
+    new_ped_rows = get_data_from_metamist(args.dataset, seq_type=args.type, tech=args.tech)
 
     # write a headless TSV file, as an extended PED format
     with open(args.output, 'w', encoding='utf-8') as handle:
