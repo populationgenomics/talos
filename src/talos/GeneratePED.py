@@ -104,7 +104,7 @@ def main():
     parser.add_argument('dataset', help='The dataset to query for')
     parser.add_argument('output', help='The output file')
     parser.add_argument('type', help='Sequencing type (exome or genome)')
-    parser.add_argument('tech', help='Sequencing technology', default='short-read')
+    parser.add_argument('--tech', help='Sequencing technology', default='short-read')
     args = parser.parse_args()
 
     new_ped_rows = get_data_from_metamist(args.dataset, seq_type=args.type, tech=args.tech)
