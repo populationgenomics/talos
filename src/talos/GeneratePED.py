@@ -74,21 +74,17 @@ def get_data_from_metamist(project: str, seq_type: str, tech: str) -> list[list[
     # iterate over the pedigree entities, forming a list from each. List elements:
     # Family ID, Individual ID, Paternal, Maternal, Sex, Affection status, Ext ID (or repeat), HPOs (or not if absent)
     for entry in result['project']['pedigree']:
+        if not (int_id := ext_to_int.get(entry['individual_id'], entry['individual_id'])).startswith('CPG'):
+            continue
         ped_row: list[str] = [
             entry['family_id'],
-            ext_to_int.get(entry['individual_id'], entry['individual_id']),  # defaults to internal ID
-            ext_to_int.get(entry['paternal_id'], entry['paternal_id']) or '0',
-            ext_to_int.get(entry['maternal_id'], entry['maternal_id']) or '0',
+            int_id,
+            ext_to_int.get(entry['paternal_id'], '0') or '0',
+            ext_to_int.get(entry['maternal_id'], '0') or '0',
             str(entry['sex']),
             str(entry['affected']),
             entry['individual_id'],
         ]
-
-        # skip over the rows where we didn't find a linked internal ID
-        # this will prune the pedigree to remove all the data-only entries in the cohort
-        assert isinstance(entry['individual_id'], str)
-        if not ped_row[1].startswith('CPG'):
-            continue
 
         # if there are recorded HPOs, extend the row with them
         if hpos := cpg_to_hpos.get(ext_to_int.get(entry['individual_id'], 'missing')):
