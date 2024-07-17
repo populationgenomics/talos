@@ -170,19 +170,18 @@ class HTMLBuilder:
         # Optionally read in the labels file
         # This file should be a nested dictionary of sample IDs and variant identifiers
         # with a list of corresponding label values, e.g.:
+        # ruff: noqa: ERA001
         # {
         #     "sample1": {
         #         "1-123456-A-T": ["label1", "label2"],
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        ext_labels = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
-        assert isinstance(ext_labels, dict)
-        self.ext_labels: dict[str, dict] = ext_labels
+        self.ext_labels: dict[str, dict] = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
+        assert isinstance(self.ext_labels, dict)
 
         # Read results file, or take it directly
         results_dict = read_json_from_path(results, return_model=ResultData) if isinstance(results, str) else results
-
         assert isinstance(results_dict, ResultData)
 
         self.metadata = results_dict.metadata
@@ -397,8 +396,6 @@ class Sample:
         self.panel_ids = metadata.panel_ids
         self.panel_names = metadata.panel_names
         self.seqr_id = html_builder.seqr.get(name, None)
-        self.ext_labels = ext_labels
-        self.html_builder = html_builder
 
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [
