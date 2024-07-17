@@ -27,7 +27,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='5.1.1',
+    version='5.1.2',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'reanalysis_global.toml']},
