@@ -100,7 +100,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
             # build the HTML for latest reports only
             latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
             try:
-                get_logger().info(f'Attempting to create {latest_html}')
+                get_logger().info(f'Attempting to create {html_base}{latest}')
                 latest_html.write_html(output_filepath=f'{html_base}{latest}', latest=True)
             except NoVariantsFoundError:
                 get_logger().info('No variants in that latest report, skipping')
