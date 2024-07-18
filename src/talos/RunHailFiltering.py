@@ -12,6 +12,7 @@ Read, filter, annotate, classify, and write Genetic data
 """
 
 from argparse import ArgumentParser
+from pathlib import Path
 
 from peds import open_ped
 
@@ -899,8 +900,9 @@ def main(
     # initiate Hail as a local cluster
     number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
     get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
-    hl.context.init_spark(master=f'local[{number_of_cores}]', quiet=True)
-    hl.default_reference('GRCh38')
+
+    local_tmpdir: str | None = str(Path(checkpoint).parent) if checkpoint else None
+    hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', local_tmpdir=local_tmpdir)
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panel_data!r}')
