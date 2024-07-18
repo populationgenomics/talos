@@ -913,7 +913,8 @@ def main(
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
 
     # read the matrix table from a localised directory
-    mt = hl.read_matrix_table(mt_path)
+    # setting this to a specific number of partitions
+    mt = hl.read_matrix_table(mt_path, _n_partitions=config_retrieve(['RunHailFiltering', 'mt_partitions'], 4000))
     get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
 
     # lookups for required fields all delegated to the hail_audit file
