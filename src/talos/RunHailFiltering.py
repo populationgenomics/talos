@@ -303,7 +303,10 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     # 'semi-rare' as dominant filters will be more strictly filtered later
     rare_af_threshold = config_retrieve(['RunHailFiltering', 'af_semi_rare'])
     return mt.filter_rows(
-        ((mt.info.gnomad_ex_af < rare_af_threshold) & (mt.info.gnomad_af < rare_af_threshold))
+        (
+            (hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
+            & (hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
+        )
         | (mt.info.clinvar_talos == ONE_INT),
     )
 
@@ -330,6 +333,22 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         vep=hl.Struct(transcript_consequences=mt.vep.transcript_consequences, variant_class=mt.vep.variant_class),
     )
+
+
+def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
+    """
+    chunky filtering method - get rid of every variant without at least one green-gene annotation
+    does not edit the field itself, that will come later (split_rows_by_gene_and_filter_to_green)
+    Args:
+        mt ():
+        green_genes ():
+
+    Returns:
+        the same MT, just reduced
+    """
+
+    # filter rows without a green gene (removes empty geneIds)
+    return mt.filter_rows(hl.len(green_genes.intersection(mt.geneIds)) > 0)
 
 
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
@@ -799,6 +818,27 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     return mt
 
 
+def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.MatrixTable:
+    """
+    wrapper around a few repeated lines which write a checkpoint
+    Args:
+        mt ():
+        checkpoint_path (str): where to write the checkpoint
+
+    Returns:
+
+    """
+    get_logger().info(f'Checkpointing to {checkpoint_path} after filtering out a ton of variants')
+    mt = mt.checkpoint(checkpoint_path)
+
+    # die if there are no variants remaining. Only ever count rows after a checkpoint
+    if not (current_rows := mt.count_rows()):
+        raise ValueError('No remaining rows to process!')
+
+    get_logger().info(f'Local checkpoint written, {current_rows} rows remain')
+    return mt
+
+
 def cli_main():
     """
     Read MT, filter, and apply category annotation, export as a VCF
@@ -885,11 +925,20 @@ def main(
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
+    # shrink the time taken to write checkpoints
+    mt = drop_useless_fields(mt=mt)
+
+    # remove any rows which have no genes of interest
+    mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
+
     # swap out the default clinvar annotations with private clinvar
     mt = annotate_talos_clinvar(mt=mt, clinvar=clinvar)
 
-    # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
-    mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
+    # remove common-in-gnomad variants (also includes ClinVar annotation)
+    mt = filter_to_population_rare(mt=mt)
+
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, checkpoint)
 
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
@@ -898,22 +947,17 @@ def main(
     mt = filter_to_well_normalised(mt=mt)
 
     # filter variants by frequency
-    mt = extract_annotations(mt=mt)
     mt = filter_matrix_by_ac(mt=mt)
-    mt = filter_to_population_rare(mt=mt)
 
-    # shrink the time taken to write checkpoints
-    mt = drop_useless_fields(mt=mt)
+    # rearrange the row annotation to make syntax nicer downstream
+    mt = extract_annotations(mt=mt)
 
+    # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
+    mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
+
+    # a second chcekpoint following more filtering and annotation rearrangements
     if checkpoint:
-        get_logger().info(f'Checkpointing to {checkpoint} after filtering out a ton of variants')
-        mt = mt.checkpoint(checkpoint)
-
-    # die if there are no variants remaining. Only ever count rows after a checkpoint
-    if not (current_rows := mt.count_rows()):
-        raise ValueError('No remaining rows to process!')
-
-    get_logger().info(f'Local checkpoint written, {current_rows} rows remain')
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_2')
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)

@@ -211,7 +211,9 @@ def test_filter_rows_for_rare(exomes, genomes, clinvar, length, make_a_mt):
         make_a_mt ():
     """
     anno_matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(gnomad_ex_af=exomes, gnomad_af=genomes, clinvar_talos=clinvar),
+        gnomad_genomes=hl.Struct(AF=genomes),
+        gnomad_exomes=hl.Struct(AF=exomes),
+        info=make_a_mt.info.annotate(clinvar_talos=clinvar),
     )
     matrix = filter_to_population_rare(anno_matrix)
     assert matrix.count_rows() == length
