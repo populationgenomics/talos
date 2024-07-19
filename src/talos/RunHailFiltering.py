@@ -917,7 +917,8 @@ def main(
     mt = hl.read_matrix_table(mt_path)
     get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
-    # repartition if required
+    # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
+    # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
         get_logger().info('Shrinking partitions way down with a unshuffled repartition')
         mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
