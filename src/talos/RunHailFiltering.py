@@ -41,6 +41,9 @@ CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
+# decide whether to repartition the data before processing starts
+MAX_PARTITIONS = 10000
+
 
 def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
@@ -912,7 +915,15 @@ def main(
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
-    get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
+    get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
+
+    # repartition if required
+    if mt.n_partitions() > MAX_PARTITIONS:
+        get_logger().info('Shrinking partitions way down with a unshuffled repartition')
+        mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
+        if checkpoint:
+            get_logger().info('Trying to write the result locally, might need more space on disk...')
+            mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
@@ -938,7 +949,7 @@ def main(
     mt = filter_to_population_rare(mt=mt)
 
     if checkpoint:
-        mt = generate_a_checkpoint(mt, checkpoint)
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_data')
 
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
