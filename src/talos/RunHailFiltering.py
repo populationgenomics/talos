@@ -12,7 +12,6 @@ Read, filter, annotate, classify, and write Genetic data
 """
 
 from argparse import ArgumentParser
-from pathlib import Path
 
 from peds import open_ped
 
@@ -901,8 +900,7 @@ def main(
     number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
     get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
 
-    local_tmpdir: str | None = str(Path(checkpoint).parent) if checkpoint else None
-    hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', local_tmpdir=local_tmpdir)
+    hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', quiet=True)
 
     # read the parsed panelapp data
     get_logger().info(f'Reading PanelApp data from {panel_data!r}')
@@ -913,8 +911,7 @@ def main(
     green_expression, new_expression = green_and_new_from_panelapp(panelapp)
 
     # read the matrix table from a localised directory
-    # setting this to a specific number of partitions
-    mt = hl.read_matrix_table(mt_path, _n_partitions=config_retrieve(['RunHailFiltering', 'mt_partitions'], 4000))
+    mt = hl.read_matrix_table(mt_path)
     get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}')
 
     # lookups for required fields all delegated to the hail_audit file
@@ -957,10 +954,6 @@ def main(
 
     # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
-
-    # a second chcekpoint following more filtering and annotation rearrangements
-    if checkpoint:
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_2')
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
