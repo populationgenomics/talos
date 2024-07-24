@@ -5,18 +5,20 @@ generate an index HTML page with links to all reports
 Generate a second report for the latest variant only report
 """
 
+import re
 from dataclasses import dataclass
-from os.path import join
 from pathlib import Path
 from typing import Any
+from functools import lru_cache
 
 import jinja2
 from cloudpathlib.anypath import to_anypath
 
 from metamist.graphql import gql, query
 
-from talos.config import config_retrieve
 from talos.static_values import get_logger
+
+DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 PROJECT_QUERY = gql(
@@ -42,6 +44,10 @@ REPORT_QUERY = gql(
     """,
 )
 
+WEB_BASE = 'gs://cpg-{}-main-web'
+WEB_URL_BASE = 'https://main-web.populationgenomics.org.au/{}'
+INDEX_HOME = 'gs://cpg-common-test-web/reanalysis/{}'
+
 
 script_logger = get_logger(logger_name=__file__)
 
@@ -55,8 +61,8 @@ class Report:
     dataset: str
     address: str
     genome_or_exome: str
-    subtype: str
     date: str
+    title: str
 
 
 def get_my_projects() -> set[str]:
@@ -81,6 +87,26 @@ def get_project_analyses(project: str) -> list[dict]:
     return response['project']['analyses']
 
 
+@lru_cache(1)
+def get_latest_analyses() -> dict[str, dict[str, str]]:
+    """
+    find the latest analysis entries for all projects
+
+    Returns:
+        dict[str, dict[str, str]]: key is project name, value is dict of sequencing type to output path
+    """
+
+    all_cohorts: dict[str, dict[str, str]] = {}
+
+    for cohort in get_my_projects():
+        for analysis in get_project_analyses(cohort):
+            output_path = analysis['output']
+            if 'sequencing_type' not in analysis['meta']:
+                continue
+            all_cohorts.setdefault(cohort, {})[analysis['meta']['sequencing_type']] = output_path
+    return all_cohorts
+
+
 def run_both():
     """
     run once for all main reports, then again for the latest-only reports
@@ -100,52 +126,32 @@ def main(latest: bool = False):
     Args:
         latest (bool): whether to create the latest-only report
     """
+    all_cohorts = get_latest_analyses()
+    report_list: list[Report] = []
 
-    all_cohorts = {}
+    for cohort, cohort_results in all_cohorts.items():
+        for sequencing_type, output_path in cohort_results.items():
+            this_file_name = Path(output_path).name
+            trimmed_path = output_path.rstrip(this_file_name).rstrip('/')
 
-    for cohort in get_my_projects():
-        result_found = False
-        if cohort not in config_retrieve('storage'):
-            continue
+            dir_contents = list(map(str, to_anypath(trimmed_path).glob('*.html')))
 
-        for analysis in get_project_analyses(cohort):
-            output_path = analysis['output']
-            # mutually exclusive conditional search for 'latest'
-            if latest:
-                if 'latest' not in output_path:
-                    continue
-                date = output_path.rstrip('.html').split('_')[-1]
-                cohort_key = f'{cohort}_{date}'
-            else:
-                if 'latest' in output_path:
-                    continue
-                cohort_key = cohort
-
-            # pull the exome/singleton flags
-            exome_output = 'Exome' if 'exome' in output_path else 'Genome'
-            singleton_output = 'Singleton' if 'singleton' in output_path else 'Familial'
-            report_address = analysis['output'].replace(
-                config_retrieve(['storage', cohort, 'web']),
-                config_retrieve(['storage', cohort, 'web_url']),
-            )
-            all_cohorts[f'{cohort_key}_{exome_output}_{singleton_output}'] = Report(
-                dataset=cohort,
-                address=report_address,
-                genome_or_exome=exome_output,
-                subtype=singleton_output,
-                date=analysis['timestampCompleted'].split('T')[0],
-            )
-            result_found = True
-
-        if not result_found:
-            script_logger.info(f'No reports found for {cohort}')
-
-    # if there were no reports, don't bother with the HTML
-    if not all_cohorts:
-        return
+            for entry in filter(lambda x: (bool('latest' in x) == latest), dir_contents):
+                report_address = entry.replace(WEB_BASE.format(cohort), WEB_URL_BASE.format(cohort))
+                report_name = entry.split('/')[-1]
+                if report_date := DATE_REGEX.search(report_address):
+                    report_list.append(
+                        Report(
+                            dataset=cohort,
+                            address=report_address,
+                            genome_or_exome=sequencing_type,
+                            date=report_date.group(1),
+                            title=report_name,
+                        ),
+                    )
 
     # smoosh into a list for the report context - all reports sortable by date
-    template_context = {'reports': list(all_cohorts.values())}
+    template_context = {'reports': report_list}
 
     # build some HTML
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
@@ -153,13 +159,8 @@ def main(latest: bool = False):
     content = template.render(**template_context)
 
     # write to common web bucket - either attached to a single dataset, or communal
-    to_anypath(
-        join(
-            config_retrieve(['storage', 'common', 'test', 'web']),
-            'reanalysis',
-            'latest_aip_index.html' if latest else 'aip_index.html',
-        ),
-    ).write_text('\n'.join(line for line in content.split('\n') if line.strip()))
+    write_index_to = to_anypath(INDEX_HOME.format('latest_aip_index.html' if latest else 'aip_index.html'))
+    write_index_to.write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
 if __name__ == '__main__':
