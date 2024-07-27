@@ -45,6 +45,10 @@ QueryPanelapp \
   --out "$PANELAPP_RESULTS"
 
 # run Hail filtering on the small variant MatrixTable
+# this step is the most resource-intensive, so I'd recommend running it on a VM with more resources
+# aim for a machine with at least 8-cores, 16GB RAM
+# the config entry 'RunHailFiltering.cores.small_variants' is consulted when setting up the PySpark cluster
+# with a default of 8, but you can override this if you have more cores available.
 SMALL_VARIANT_VCF="${OUTPUT_DIR}/small_variants.vcf.bgz"
 RunHailFiltering \
   --mt "$VARIANT_MT" \

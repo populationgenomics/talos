@@ -46,6 +46,9 @@ max_parent_ab = 0.05
 minimum_depth = 10
 spliceai = 0.5
 
+[RunHailFiltering.cores]
+small_variants = 8
+
 [categories]
 1 = 'ClinVar Pathogenic'
 2 = 'New Gene-Disease Association'

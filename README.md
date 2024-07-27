@@ -59,7 +59,9 @@ Talos consists of the following components:
 - `QueryPanelapp` - Takes the output of `GeneratePanelData`, Queries PanelApp for the panels selected for the cohort,
   and writes the result as a JSON
 - `RunHailFiltering` - Takes the MatrixTable of Variants, the Pedigree file, the panel data from `QueryPanelapp`, and
-  both ClinVar tables, filters the variants in the MatrixTable, and labels them with categories of interest.
+  both ClinVar tables, filters the variants in the MatrixTable, and labels them with categories of interest. This is the
+  most resource-intensive step of the pipeline, but even on 400+GB datasets it has been run successfully on a 8-core,
+  16GB RAM VM.
 - `RunHailFilteringSV` - Takes a MatrixTable of Structural Variants, the Pedigree file, the panel data
   from `QueryPanelapp`, filters the variants in the MatrixTable, and labels them with categories of interest.
 - `ValidateMOI` - Takes the result of `RunHailFiltering`, optionally one or more SV result from `RunHailFilteringSV`,
