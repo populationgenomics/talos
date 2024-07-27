@@ -30,7 +30,7 @@ setup(
     version='5.1.3',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
-    package_data={'talos': ['templates/*.jinja', 'reanalysis_global.toml']},
+    package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
     url='https://github.com/populationgenomics/automated-interpretation-pipeline',
     license='MIT',
     classifiers=[
