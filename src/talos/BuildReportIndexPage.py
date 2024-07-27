@@ -65,6 +65,7 @@ class Report:
     title: str
 
 
+@lru_cache(1)
 def get_my_projects() -> set[str]:
     """
     queries metamist for projects I have access to,
@@ -87,7 +88,6 @@ def get_project_analyses(project: str) -> list[dict]:
     return response['project']['analyses']
 
 
-@lru_cache(1)
 def get_latest_analyses() -> dict[str, dict[str, str]]:
     """
     find the latest analysis entries for all projects
@@ -107,36 +107,79 @@ def get_latest_analyses() -> dict[str, dict[str, str]]:
     return all_cohorts
 
 
-def run_both():
+def get_all_analyses() -> dict[str, dict[str, set[str]]]:
     """
-    run once for all main reports, then again for the latest-only reports
+    find the latest analysis entries for all projects
+
+    Returns:
+        dict[str, dict[str, str]]: key is project name, value is dict of sequencing type to output path
     """
-    get_logger(__file__).info('Fetching main reports')
-    main()
-    get_logger().info('Fetching latest-only reports')
-    main(latest=True)
+
+    all_cohorts: dict[str, dict[str, set]] = {}
+
+    for cohort in get_my_projects():
+        for analysis in get_project_analyses(cohort):
+            output_path = analysis['output']
+            if 'sequencing_type' not in analysis['meta']:
+                continue
+            all_cohorts.setdefault(cohort, {}).setdefault(analysis['meta']['sequencing_type'], set()).add(output_path)
+    return all_cohorts
 
 
-def main(latest: bool = False):
+def make_latest_only():
+    """
+    make a report page containing all latest-only reports
+    Returns:
+
+    """
+
+    all_cohorts = get_all_analyses()
+    report_dict: dict[str, Report] = {}
+    for cohort, cohort_results in all_cohorts.items():
+        for sequencing_type, output_paths in cohort_results.items():
+            for this_path in output_paths:
+                if 'latest' not in this_path:
+                    continue
+                date = this_path.rstrip('.html').split('_')[-1]
+
+                this_file_name = Path(this_path).name
+                trimmed_path = this_path.rstrip(this_file_name).rstrip('/')
+
+                dir_contents = list(map(str, to_anypath(trimmed_path).glob('*.html')))
+                for entry in filter(lambda x: 'latest' in x, dir_contents):
+                    this_file_name = Path(this_path).name
+                    cohort_key = f'{cohort}_{date}_{this_file_name}'
+                    report_address = entry.replace(WEB_BASE.format(cohort), WEB_URL_BASE.format(cohort))
+                    if report_date := DATE_REGEX.search(report_address):
+                        report_dict[cohort_key] = Report(
+                            dataset=cohort,
+                            address=report_address,
+                            genome_or_exome=sequencing_type,
+                            date=report_date.group(1),
+                            title=this_file_name,
+                        )
+    html_from_reports(report_dict.values(), 'latest_aip_index.html')
+
+
+def main():
     """
     finds all existing reports, generates an HTML file
-    eventually we can latch onto the meta key `type:aip_output_html`
-    but that won't be populated until we run more through the pipeline
-
-    Args:
-        latest (bool): whether to create the latest-only report
     """
+
     all_cohorts = get_latest_analyses()
     report_list: list[Report] = []
 
     for cohort, cohort_results in all_cohorts.items():
         for sequencing_type, output_path in cohort_results.items():
+            if 'latest' in output_path:
+                continue
+
             this_file_name = Path(output_path).name
             trimmed_path = output_path.rstrip(this_file_name).rstrip('/')
 
             dir_contents = list(map(str, to_anypath(trimmed_path).glob('*.html')))
 
-            for entry in filter(lambda x: (bool('latest' in x) == latest), dir_contents):
+            for entry in filter(lambda x: 'latest' not in x, dir_contents):
                 report_address = entry.replace(WEB_BASE.format(cohort), WEB_URL_BASE.format(cohort))
                 report_name = entry.split('/')[-1]
                 if report_date := DATE_REGEX.search(report_address):
@@ -149,9 +192,19 @@ def main(latest: bool = False):
                             title=report_name,
                         ),
                     )
+    html_from_reports(report_list, 'aip_index.html')
+
+
+def html_from_reports(reports: list[Report], title: str):
+    """
+    build some HTML
+    Args:
+        reports (list[Report]): list of reports to build HTML for
+        title (str): title of the page
+    """
 
     # smoosh into a list for the report context - all reports sortable by date
-    template_context = {'reports': report_list}
+    template_context = {'reports': reports}
 
     # build some HTML
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
@@ -159,8 +212,19 @@ def main(latest: bool = False):
     content = template.render(**template_context)
 
     # write to common web bucket - either attached to a single dataset, or communal
-    write_index_to = to_anypath(INDEX_HOME.format('latest_aip_index.html' if latest else 'aip_index.html'))
+    write_index_to = to_anypath(INDEX_HOME.format(title))
+    get_logger().info(f'Writing {title} to {write_index_to}')
     write_index_to.write_text('\n'.join(line for line in content.split('\n') if line.strip()))
+
+
+def run_both():
+    """
+    run once for all main reports, then again for the latest-only reports
+    """
+    get_logger(__file__).info('Fetching main reports')
+    main()
+    get_logger().info('Fetching latest-only reports')
+    make_latest_only()
 
 
 if __name__ == '__main__':

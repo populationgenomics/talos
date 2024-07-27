@@ -19,7 +19,7 @@ very high specificity to maximise the time efficiency of results interpretation.
 
 ## Strategy
 
-Talos runs an analysis in two separate phases
+Talos analyses consist of two separate phases
 
 1. Filter and categorise variants, identifying which deserve further processing based on consequence annotations.
 2. Check each of those variants against the family structure of the participants in which it was found.
