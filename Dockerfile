@@ -1,6 +1,6 @@
 FROM python:3.10-bullseye
 
-RUN apt update && apt install -y \
+RUN apt update && apt install -y --no-install-recommends \
         apt-transport-https \
         bzip2 \
         ca-certificates \
@@ -10,19 +10,15 @@ RUN apt update && apt install -y \
         wget \
         zip && \
     rm -r /var/lib/apt/lists/* && \
-    rm -r /var/cache/apt/* && \
-    # Google Cloud SDK: use the script-based installation, as the Debian package is outdated.
-    curl https://sdk.cloud.google.com > install.sh && \
+    rm -r /var/cache/apt/*
+
+# Google Cloud SDK: use the script-based installation, as the Debian package is outdated.
+RUN curl https://sdk.cloud.google.com > install.sh && \
     bash install.sh --disable-prompts --install-dir=/opt && \
     rm install.sh
 
 ENV PATH=$PATH:/opt/google-cloud-sdk/bin
 
-COPY requirements*.txt .
-
-RUN python3 -m pip install -r requirements.txt
-COPY README.md .
-COPY setup.py .
-COPY helpers helpers/
+COPY requirements*.txt README.md setup.py .
 COPY src src/
 RUN pip install .[cpg]
