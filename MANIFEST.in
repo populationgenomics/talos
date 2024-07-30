@@ -1,3 +1,0 @@
-include reanalysis/*.json
-include reanalysis/templates/*.jinja
-include reanalysis/reanalysis_global.toml

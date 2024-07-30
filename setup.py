@@ -27,7 +27,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='5.1.3',
+    version='5.1.4',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
@@ -58,7 +58,7 @@ setup(
             # for use in translating a VEP annotated VCF to a MatrixTable
             'vcf_to_mt = talos.vep_vcf_to_mt:main',
             # CPG internal, scans database for published reports, collects into an index page
-            'report_hunter = helpers.report_hunter:run_both',
+            'BuildReportIndexPage = talos.BuildReportIndexPage:run_both',
             # CPG implementation, builds an extended Pedigree format
             'GeneratePED = talos.GeneratePED:main',
             # use the HPO terms to select panels for this analysis
