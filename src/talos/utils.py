@@ -159,7 +159,8 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
     extensions = pl_filepath.suffixes
 
-    assert len(extensions) > 0, 'cannot identify input type from extensions'
+    if not len(extensions) > 0:
+        raise ValueError('cannot identify input type from extensions')
 
     if extensions[-1] == '.ht':
         return FileTypes.HAIL_TABLE
@@ -531,7 +532,8 @@ def gather_gene_dict_from_contig(
     else:
         blacklist = []
 
-    assert isinstance(blacklist, list)
+    if not isinstance(blacklist, list):
+        raise TypeError(f'Blacklist should be a list: {blacklist}')
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0

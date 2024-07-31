@@ -11,10 +11,11 @@ def resultdata(data_dict: dict) -> dict:
     """
     # check we're upgrading the right version
     # this could be from any prior version
-    assert data_dict['version'] < '1.0.3'
+    if not data_dict['version'] < '1.0.3':
+        raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
     metadata = data_dict['metadata']
-    assert 'version' not in metadata, metadata
-    assert 'container' in metadata, metadata
+    if ('version' not in metadata) or ('container' in metadata):
+        raise AssertionError(f'Metadata should have container, not version: {metadata}')
     metadata['version'] = metadata.pop('container')
     return data_dict
 
@@ -25,5 +26,6 @@ def historicvariants(data_dict: dict) -> dict:
     Logs the number of ClinVar stars, so that we can identify upgraded stars in future
     without subdividing the Category 1 into multiple categories per star rating
     """
-    assert data_dict['version'] < '1.0.3'
+    if not data_dict['version'] < '1.0.3':
+        raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
     return data_dict

@@ -138,7 +138,8 @@ def apply_moi_to_variants(
             # - discarded if two support-only form a comp-het
             panel_moi = panel_gene_data.moi
             runner = moi_lookup[panel_moi]
-            assert isinstance(runner, MOIRunner)
+            if not isinstance(runner, MOIRunner):
+                raise TypeError(f'MOIRunner was not a MOIRunner object: {runner}')
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
@@ -203,7 +204,8 @@ def clean_and_filter(
 
     for each_event in result_list:
         # shouldn't be possible, here as a precaution
-        assert each_event.categories, f'No categories for {each_event.var_data.coordinates.string_format}'
+        if not each_event.categories:
+            raise AssertionError(f'No categories for {each_event.var_data.coordinates.string_format}')
 
         # find all panels for this gene
         if each_event.gene in gene_details:

@@ -180,7 +180,8 @@ class VariantCommon(BaseModel):
         categories: set[str] = set()
         for category in self.sample_categories:
             cat_samples = self.info[category]
-            assert isinstance(cat_samples, list)
+            if not isinstance(cat_samples, list):
+                raise TypeError(f'Sample categories should be a list: {cat_samples}')
             if sample in cat_samples:
                 categories.add(category.removeprefix('categorysample'))
 
