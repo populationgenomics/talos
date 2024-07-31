@@ -67,6 +67,8 @@ setup(
             'QueryPanelapp = talos.QueryPanelapp:cli_main',
             # use API queries to find the gene symbol for each gene ID
             'FindGeneSymbolMap = talos.FindGeneSymbolMap:cli_main',
+            # match participant HPOs to gene HPOs for prioritisation
+            'MatchGenesToPhenotypes = talos.MatchGenesToPhenotypes:cli_main',
             # Filter and label a small-variant MatrixTable
             'RunHailFiltering = talos.RunHailFiltering:cli_main',
             # Filter and label a SV MatrixTable
