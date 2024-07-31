@@ -498,6 +498,8 @@ class ParticipantHPOPanels(BaseModel):
     family_id: str = Field(default_factory=str)
     hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
+    matched_genes: set[str] = Field(default_factory=set)
+    matched_phenotypes: set[str] = Field(default_factory=set)
 
 
 class PhenotypeMatchedPanels(BaseModel):

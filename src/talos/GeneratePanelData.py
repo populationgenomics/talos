@@ -14,7 +14,6 @@ import networkx as nx
 import requests
 from obonet import read_obo
 from peds import open_ped
-
 from talos.config import config_retrieve
 from talos.models import ParticipantHPOPanels, PhenoPacketHpo, PhenotypeMatchedPanels
 from talos.static_values import get_logger
