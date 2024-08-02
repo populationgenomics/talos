@@ -1,6 +1,6 @@
 """
 Takes the PanelApp data (the full region of interest)
-produce an output of the gene symbol: gene ID for all included genes
+produce an output of the {gene ID: gene symbol} for all included genes
 write this to a file
 
 This has been extracted to a separate script to allow for parallelisation
@@ -32,8 +32,8 @@ async def match_ensgs_to_symbols(genes: list[str], session: ClientSession) -> di
     )
     r.raise_for_status()
     json_reponse = await r.json()
-    # match the ENSG to the symbol (or Unknown if the key is missing, or has a None value)
-    return {key: value.get('display_name') for key, value in json_reponse.items() if value}
+    # match symbol to the ENSG (or Unknown if the key is missing, or has a None value)
+    return {value.get('display_name'): key for key, value in json_reponse.items() if value}
 
 
 async def match_symbol_to_ensg(gene_symbol: str, session: ClientSession) -> tuple[str, str]:
