@@ -67,14 +67,17 @@ setup(
             'QueryPanelapp = talos.QueryPanelapp:cli_main',
             # use API queries to find the gene symbol for each gene ID
             'FindGeneSymbolMap = talos.FindGeneSymbolMap:cli_main',
-            # match participant HPOs to gene HPOs for prioritisation
-            'MatchGenesToPhenotypes = talos.MatchGenesToPhenotypes:cli_main',
+            # # TODO - this thing just doesn't work in its current form. Does not scale.
+            # # match participant HPOs to gene HPOs for prioritisation
+            # # 'MatchGenesToPhenotypes = talos.MatchGenesToPhenotypes:cli_main',  # noqa: ERA001
             # Filter and label a small-variant MatrixTable
             'RunHailFiltering = talos.RunHailFiltering:cli_main',
             # Filter and label a SV MatrixTable
             'RunHailFilteringSV = talos.RunHailFilteringSV:cli_main',
             # Run each of the category-labelled variants through MOI filters
             'ValidateMOI = talos.ValidateMOI:cli_main',
+            # catch variants which have strong phenotypic matches
+            'HPOFlagging = talos.HPOFlagging:cli_main'
             # CPG internal (?), publish those results as an HTML report
             'CreateTalosHTML = talos.CreateTalosHTML:cli_main',
             # CPG internal (?), generate a file for ingestion by Seqr

@@ -50,18 +50,18 @@ async def match_symbol_to_ensg(gene_symbol: str, session: ClientSession) -> tupl
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--panelapp', help='Path to the PanelApp results file', required=True)
-    parser.add_argument('--output', help='where to write the output (.json)', required=True)
+    parser.add_argument('--out_path', help='where to write the output (.json)', required=True)
     args = parser.parse_args()
 
-    main(args.panelapp, output_path=args.output)
+    main(args.panelapp, out_path=args.out_path)
 
 
-def main(panelapp_path: str, output_path: str):
+def main(panelapp_path: str, out_path: str):
     """
 
     Args:
         panelapp_path (str): path to the PanelApp model JSON
-        output_path ():
+        out_path ():
     """
     panelapp_object = read_json_from_path(read_path=panelapp_path, return_model=PanelApp)
     # confirm for mypy
@@ -69,12 +69,12 @@ def main(panelapp_path: str, output_path: str):
     genes = list(panelapp_object.genes.keys())
     ensg_to_symbol_mapping = asyncio.run(get_symbols_for_ensgs(genes))
 
-    with open(output_path, 'w') as f:
+    with open(out_path, 'w') as f:
         json.dump(ensg_to_symbol_mapping, f, indent=4)
 
 
 async def get_symbols_for_ensgs(genes: list[str]) -> dict[str, str]:
-    chunksize = config_retrieve(['PhenotypeMatching', 'chunk_size'], 800)
+    chunksize = config_retrieve(['FindGeneSymbolMap', 'chunk_size'], 800)
     all_results: dict[str, str] = {}
     async with ClientSession() as session:
         for chunk in chunks(genes, chunksize):

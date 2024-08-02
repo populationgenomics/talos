@@ -331,8 +331,10 @@ class ReportVariant(BaseModel):
     sample: str
     var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
-    # todo implement this
+    # TODO (mwelland) implement this
     date_of_phenotype_match: str | None = None
+    phenotype_labels: set[str] = Field(default_factory=set)
+
     evidence_last_updated: str = Field(default=get_granular_date())
     family: str = Field(default_factory=str)
     # 'tagged' is seqr-compliant language
