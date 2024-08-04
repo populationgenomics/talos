@@ -36,4 +36,5 @@ def historicvariants(data_dict: dict) -> dict:
             details['first_tagged'] = earliest
             # this doesn't matter, pydantic can handle it
             details['support_vars'] = set(details.get('support_vars', []))
+    data_dict['version'] = '1.0.1'
     return data_dict

@@ -65,4 +65,5 @@ def resultdata(data_dict: dict) -> dict:
                 raise ValueError(f'Unexpected HPO term format: {term}') from ae
 
         data['metadata']['phenotypes'] = new_data
+    data_dict['version'] = '1.0.0'
     return data_dict
