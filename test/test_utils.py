@@ -104,7 +104,7 @@ def test_file_types_assert_error():
     """
     check 'em
     """
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         identify_file_type('no/extensions')
 
 
