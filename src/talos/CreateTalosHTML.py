@@ -470,6 +470,7 @@ class Variant:
         self.genotypes = report_variant.genotypes
         self.sample = sample
         self.ext_labels = ext_labels
+        # add the phenotype match date and HPO term id/labels
         self.phenotype_match_date = report_variant.date_of_phenotype_match
         self.phenotype_matches = report_variant.phenotype_labels
 
