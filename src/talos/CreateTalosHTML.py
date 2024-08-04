@@ -1,7 +1,5 @@
 """
 Methods for taking the final output and generating static report content
-
-TODO use phenotype match content/date
 """
 
 import re
