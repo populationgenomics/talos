@@ -77,7 +77,7 @@ setup(
             # Run each of the category-labelled variants through MOI filters
             'ValidateMOI = talos.ValidateMOI:cli_main',
             # catch variants which have strong phenotypic matches
-            'HPOFlagging = talos.HPOFlagging:cli_main'
+            'HPOFlagging = talos.HPOFlagging:cli_main',
             # CPG internal (?), publish those results as an HTML report
             'CreateTalosHTML = talos.CreateTalosHTML:cli_main',
             # CPG internal (?), generate a file for ingestion by Seqr
