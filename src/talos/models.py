@@ -332,7 +332,6 @@ class ReportVariant(BaseModel):
     sample: str
     var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
-    # TODO (mwelland) implement this
     date_of_phenotype_match: str | None = None
     phenotype_labels: set[str] = Field(default_factory=set)
 
