@@ -205,16 +205,23 @@ def cli_main():
     )
 
 
-def main(results: str, gene_map: str, gen2phen: str, phenio: str, out_path: str, phenout: str):
+def main(
+    results: str,
+    gene_map: str,
+    gen2phen: str,
+    phenio: str,
+    out_path: str,
+    phenout: str | None = None,
+):
     """
 
     Args:
-        results ():
-        gene_map ():
-        gen2phen ():
-        phenio ():
-        out_path ():
-        phenout ():
+        results (str): path to the ValidateMOI output JSON
+        gene_map (str): output of FindGeneSymbolMap, JSON
+        gen2phen (str): path to a test file of known Phenotypes per gene
+        phenio (str): path to a PhenoIO DB file
+        out_path (str): path to write the annotated results
+        phenout (str): optional, path to phenotype filtered outputs
     """
 
     # read the results JSON into an object
@@ -235,7 +242,8 @@ def main(results: str, gene_map: str, gen2phen: str, phenio: str, out_path: str,
     annotate_phenotype_matches(results, gen_phen_dict, out_path=out_path)
 
     # reduce the JSON down to just phenotype matched variants, and the samples they occur in
-    filter_and_write_out(results, out_path=phenout)
+    if phenout:
+        filter_and_write_out(results, out_path=phenout)
 
 
 if __name__ == '__main__':
