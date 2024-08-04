@@ -18,7 +18,7 @@ from semsimian import Semsimian
 from talos.config import config_retrieve
 from talos.models import ParticipantResults, ResultData
 from talos.static_values import get_granular_date
-from talos.utils import read_json_from_path
+from talos.utils import read_json_from_path, phenotype_label_history
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
@@ -119,9 +119,6 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                 hpo_intersection = participant_hpos & gene_hpos
                 if not hpo_intersection:
                     continue
-
-                if variant.date_of_phenotype_match is None:
-                    variant.date_of_phenotype_match = get_granular_date()
                 for hpo_id in hpo_intersection:
                     variant.phenotype_labels.add(f'{hpo_id}: {participant_hpos_dict[hpo_id]}')
 
@@ -146,6 +143,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
                 variant.phenotype_labels = pheno_matches
 
+    phenotype_label_history(result_object)
     # validate the object
     validated_results = ResultData.model_validate(result_object)
 

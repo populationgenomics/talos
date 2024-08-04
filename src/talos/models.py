@@ -417,6 +417,8 @@ class HistoricSampleVariant(BaseModel):
     )
     independent: bool = Field(default=True)
     clinvar_stars: int | None = None
+    first_phenotype_tagged: str | None = None
+    phenotype_labels: set[str] = Field(default_factory=set)
 
 
 class HistoricVariants(BaseModel):

@@ -792,6 +792,47 @@ def generate_fresh_latest_results(current_results: ResultData, prefix: str = '')
     save_new_historic(results=new_history, prefix=prefix)
 
 
+def phenotype_label_history(results: ResultData):
+    """
+    Annotation in-place of the results object
+    Either pull the 'date of phenotype match' from the historic data, or add 'today' to the historic data
+
+    Args:
+        results (ResultData):
+    """
+    # are there any history results?
+    if (historic_folder := config_retrieve('result_history')) is None:
+        get_logger().info('No historic data folder, no labelling')
+        return
+
+    latest_results_path = find_latest_file(results_folder=historic_folder, start='2')
+    get_logger().info(f'latest results: {latest_results_path}')
+
+    # get latest results as a HistoricVariants object, or fail - on fail, return
+    if (latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)) is None:
+        # this HPO-flagging stage shouldn't make its own historic data
+        get_logger().info(f"Historic data {latest_results_path} doesn't really exist, quitting")
+        return
+
+    for sample, content in results.results.items():
+        # get the historical record for this sample
+        sample_historic = latest_results.results.get(sample, {})
+        # check each variant found in this round
+        for var in content.variants:
+            var_id = var.var_data.coordinates.string_format
+            if hist := sample_historic.get(var_id):
+                # update the date of the first phenotype match, or add it into the history
+                if hist.first_phenotype_tagged:
+                    var.phenotype_match_date = hist.first_phenotype_tagged
+                else:
+                    hist.first_phenotype_tagged = get_granular_date()
+
+                # update all the phenotype labels - we might indentify incremental phenotype matches in future
+                hist.phenotype_labels.update(var.phenotype_labels)
+
+    save_new_historic(results=latest_results)
+
+
 def filter_results(results: ResultData, singletons: bool):
     """
     loads the most recent prior result set (if it exists)
