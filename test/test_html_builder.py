@@ -2,10 +2,10 @@
 tests for the HTML builder
 """
 
+from test.test_utils import TWO_EXPECTED
+
 from talos.CreateTalosHTML import check_date_filter
 from talos.models import Coordinates, ResultData, SmallVariant
-
-from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={}, transcript_consequences=[])

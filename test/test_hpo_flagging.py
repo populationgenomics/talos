@@ -1,5 +1,5 @@
 from talos.HPOFlagging import find_genes_in_these_results
-from talos.models import Coordinates, ResultData, SmallVariant, ReportVariant, ParticipantResults, ParticipantMeta
+from talos.models import Coordinates, ParticipantMeta, ParticipantResults, ReportVariant, ResultData, SmallVariant
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 SMALL_1 = SmallVariant(

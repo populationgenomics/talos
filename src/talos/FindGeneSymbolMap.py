@@ -15,6 +15,7 @@ import json
 from argparse import ArgumentParser
 
 from aiohttp import ClientSession
+
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import chunks, read_json_from_path

@@ -5,6 +5,7 @@ test file for metamist panel-participant matching
 import networkx as nx
 import pytest
 from obonet import read_obo
+
 from talos.GeneratePanelData import (
     get_panels,
     match_hpo_terms,

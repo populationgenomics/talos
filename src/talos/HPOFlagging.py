@@ -15,10 +15,11 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from semsimian import Semsimian
+
 from talos.config import config_retrieve
 from talos.models import ParticipantResults, ResultData
 from talos.static_values import get_granular_date
-from talos.utils import read_json_from_path, phenotype_label_history
+from talos.utils import phenotype_label_history, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 

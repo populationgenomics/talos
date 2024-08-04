@@ -2,6 +2,8 @@
 script testing methods within reanalysis/validate_categories.py
 """
 
+from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
+
 from talos.models import (
     Coordinates,
     PanelApp,
@@ -13,8 +15,6 @@ from talos.models import (
 )
 from talos.utils import make_flexible_pedigree
 from talos.ValidateMOI import clean_and_filter, count_families, prepare_results_shell
-
-from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')

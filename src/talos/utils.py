@@ -4,6 +4,7 @@ classes and methods shared across reanalysis components
 
 import json
 import re
+import zoneinfo
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
@@ -14,11 +15,11 @@ from typing import Any
 import backoff
 import cyvcf2
 import requests
-import zoneinfo
 from backoff import fibo
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
 from requests.exceptions import ReadTimeout, RequestException
+
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,

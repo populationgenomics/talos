@@ -12,6 +12,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from semsimian import Semsimian
+
 from talos.models import PhenotypeMatchedPanels
 from talos.utils import read_json_from_path
 
