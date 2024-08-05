@@ -16,14 +16,18 @@ from obonet import read_obo
 from peds import open_ped
 
 from talos.config import config_retrieve
-from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
+from talos.models import ParticipantHPOPanels, PhenoPacketHpo, PhenotypeMatchedPanels
 from talos.static_values import get_logger
 
 HPO_RE = re.compile(r'HP:[0-9]+')
 MAX_DEPTH = 3
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
-PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+try:
+    PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+except KeyError:
+    get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
+    PANELS_ENDPOINT = PANELAPP_HARD_CODED_DEFAULT
 
 
 def get_json_response(url: str) -> dict:
@@ -102,7 +106,7 @@ def get_participant_hpos(pedigree: str) -> tuple[PhenotypeMatchedPanels, set[str
             hpo_dict.samples[internal_id] = ParticipantHPOPanels(
                 external_id=external_id,
                 family_id=family_id,
-                hpo_terms=[{'id': hpo, 'label': ''} for hpo in member_data[1:]],
+                hpo_terms=[PhenoPacketHpo(id=hpo, label='') for hpo in member_data[1:]],
                 panels={137},
             )
 

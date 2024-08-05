@@ -4,6 +4,7 @@ classes and methods shared across reanalysis components
 
 import json
 import re
+import zoneinfo
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
@@ -14,7 +15,6 @@ from typing import Any
 import backoff
 import cyvcf2
 import requests
-import zoneinfo
 from backoff import fibo
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
@@ -160,7 +160,8 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
     extensions = pl_filepath.suffixes
 
-    assert len(extensions) > 0, 'cannot identify input type from extensions'
+    if not len(extensions) > 0:
+        raise ValueError('cannot identify input type from extensions')
 
     if extensions[-1] == '.ht':
         return FileTypes.HAIL_TABLE
@@ -532,7 +533,8 @@ def gather_gene_dict_from_contig(
     else:
         blacklist = []
 
-    assert isinstance(blacklist, list)
+    if not isinstance(blacklist, list):
+        raise TypeError(f'Blacklist should be a list: {blacklist}')
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
@@ -588,7 +590,7 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
     uses cloudpath to be deployment agnostic
 
     Args:
-        read_path (str): where to read from - if None... will return default
+        read_path (str): where to read from - if None... will return the value "default"
         default (Any):
         return_model (pydantic Models): any Model to read/validate as
 
@@ -789,6 +791,60 @@ def generate_fresh_latest_results(current_results: ResultData, prefix: str = '')
                 clinvar_stars=clinvar_stars,
             )
     save_new_historic(results=new_history, prefix=prefix)
+
+
+def phenotype_label_history(results: ResultData):
+    """
+    Annotation in-place of the results object
+    Either pull the 'date of phenotype match' from the historic data, or add 'today' to the historic data
+
+    Args:
+        results (ResultData):
+    """
+    # are there any history results?
+    if (historic_folder := config_retrieve('result_history')) is None:
+        get_logger().info('No historic data folder, no labelling')
+        return
+
+    latest_results_path = find_latest_file(results_folder=historic_folder, start='2')
+    get_logger().info(f'latest results: {latest_results_path}')
+
+    # get latest results as a HistoricVariants object, or fail - on fail, return
+    if (latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)) is None:
+        # this HPO-flagging stage shouldn't make its own historic data
+        get_logger().info(f"Historic data {latest_results_path} doesn't really exist, quitting")
+        return
+
+    for sample, content in results.results.items():
+        # get the historical record for this sample
+        sample_historic = latest_results.results.get(sample, {})
+        # check each variant found in this round
+        for var in content.variants:
+            var_id = var.var_data.coordinates.string_format
+            if hist := sample_historic.get(var_id):
+                # update the date of the first phenotype match, or add it into the history
+                if hist.first_phenotype_tagged:
+                    var.phenotype_match_date = hist.first_phenotype_tagged
+                else:
+                    hist.first_phenotype_tagged = get_granular_date()
+
+                # update all the phenotype labels - we might identify incremental phenotype matches in future
+                hist.phenotype_labels.update(var.phenotype_labels)
+            else:
+                # totally new variant, probably not possible, but tolerate here anyway
+                # reasoning: we're always running this after MOI checking, so we shouldn't
+                # have completely new variants between there and here
+                sample_historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
+                    categories={cat: get_granular_date() for cat in var.categories},
+                    support_vars=var.support_vars,
+                    independent=var.independent,
+                    first_tagged=get_granular_date(),
+                    clinvar_stars=var.var_data.info.get('clinvar_stars'),
+                    phenotype_labels=var.phenotype_labels,
+                    first_phenotype_tagged=get_granular_date(),
+                )
+
+    save_new_historic(results=latest_results)
 
 
 def filter_results(results: ResultData, singletons: bool):

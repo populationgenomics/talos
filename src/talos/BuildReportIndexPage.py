@@ -7,13 +7,12 @@ Generate a second report for the latest variant only report
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from functools import lru_cache
 
 import jinja2
 from cloudpathlib.anypath import to_anypath
-
 from metamist.graphql import gql, query
 
 from talos.static_values import get_logger

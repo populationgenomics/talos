@@ -3,9 +3,9 @@ any methods for testing model functionality
 """
 
 from os.path import join
+from test.test_utils import FIVE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED
 
 from talos.utils import make_flexible_pedigree
-from test.test_utils import FIVE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED
 
 
 def test_flexi_pedigree(test_input_path):

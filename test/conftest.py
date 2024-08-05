@@ -7,10 +7,9 @@ from os.path import join
 from pathlib import Path
 from typing import Any
 
+import hail as hl
 import pytest
 from cyvcf2 import VCFReader
-
-import hail as hl
 
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 from talos.utils import create_small_variant, read_json_from_path

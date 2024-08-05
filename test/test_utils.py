@@ -16,12 +16,12 @@ from talos.models import (
     ReportVariant,
     SmallVariant,
 )
+from talos.utils import get_simple_moi  # todo test this
 from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_new_gene_map,
     get_non_ref_samples,
-    get_simple_moi,  # todo test this
     identify_file_type,
     make_flexible_pedigree,
 )
@@ -105,7 +105,7 @@ def test_file_types_assert_error():
     """
     check 'em
     """
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         identify_file_type('no/extensions')
 
 

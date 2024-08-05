@@ -10,6 +10,7 @@
     <th class="group-false sorter-shortDate" data-date-format="yyyymmdd">First Tagged</th>
     <th class="group-false">MANE CSQ</th>
     <th class="group-false">ClinVar</th>
+    <th class="group-false">Phenotype Match</th>
     <th class="group-false">PM5 ClinVar</th>
     <th class="group-false">Ext. Label</th>
     <th class="group-false">Flags</th>
@@ -109,10 +110,19 @@
         {% endif %}
     </td>
     <td>
+        {# Phenotype Match #}
+        {% if variant.phenotype_match_date %}
+        Phenotype match!
+        <i class="bi bi-file-earmark-medical-fill" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
+        {% else %}
+            No Match
+        {% endif %}
+    </td>
+    <td>
         {# PM5 ClinVar #}
         {% if 'pm5' in variant.categories %}
             {% for allele, stars in variant.var_data.info.pm5_data.items() %}
-
                 <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[alleleid]"
                     target="_blank">
                     {{allele}}

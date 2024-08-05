@@ -9,7 +9,6 @@ to be digested down to a per-project object
 from sys import argv
 
 import toml
-
 from metamist.graphql import gql, query
 
 PROJECT_QUERY = gql(

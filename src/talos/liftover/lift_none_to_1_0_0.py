@@ -11,9 +11,12 @@ def phenotypematchedpanels(data_dict: dict) -> dict:
     required: [{'id': 'HPO:0000001', 'label': 'Definition'}, ]
     """
     # confirm that we're upgrading the right version
-    assert data_dict.get('version') is None
+    if data_dict.get('version') is not None:
+        raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
+
     for _sample, data in data_dict['samples'].items():
-        assert isinstance(data['hpo_terms'], list)
+        if not isinstance(data['hpo_terms'], list):
+            raise TypeError(f'HPO terms should be a list: {data["hpo_terms"]}')
         new_data: list[dict] = []
         for term in data['hpo_terms']:
             try:
@@ -62,4 +65,5 @@ def resultdata(data_dict: dict) -> dict:
                 raise ValueError(f'Unexpected HPO term format: {term}') from ae
 
         data['metadata']['phenotypes'] = new_data
+    data_dict['version'] = '1.0.0'
     return data_dict

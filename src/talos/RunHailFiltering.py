@@ -13,9 +13,8 @@ Read, filter, annotate, classify, and write Genetic data
 
 from argparse import ArgumentParser
 
-from peds import open_ped
-
 import hail as hl
+from peds import open_ped
 
 from talos.config import config_retrieve
 from talos.hail_audit import (

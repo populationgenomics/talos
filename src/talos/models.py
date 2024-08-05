@@ -181,7 +181,8 @@ class VariantCommon(BaseModel):
         categories: set[str] = set()
         for category in self.sample_categories:
             cat_samples = self.info[category]
-            assert isinstance(cat_samples, list)
+            if not isinstance(cat_samples, list):
+                raise TypeError(f'Sample categories should be a list: {cat_samples}')
             if sample in cat_samples:
                 categories.add(category.removeprefix('categorysample'))
 
@@ -331,8 +332,9 @@ class ReportVariant(BaseModel):
     sample: str
     var_data: VARIANT_MODELS
     categories: set[str] = Field(default_factory=set)
-    # todo implement this
     date_of_phenotype_match: str | None = None
+    phenotype_labels: set[str] = Field(default_factory=set)
+
     evidence_last_updated: str = Field(default=get_granular_date())
     family: str = Field(default_factory=str)
     # 'tagged' is seqr-compliant language
@@ -415,6 +417,8 @@ class HistoricSampleVariant(BaseModel):
     )
     independent: bool = Field(default=True)
     clinvar_stars: int | None = None
+    first_phenotype_tagged: str | None = None
+    phenotype_labels: set[str] = Field(default_factory=set)
 
 
 class HistoricVariants(BaseModel):
@@ -499,6 +503,8 @@ class ParticipantHPOPanels(BaseModel):
     family_id: str = Field(default_factory=str)
     hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
+    matched_genes: set[str] = Field(default_factory=set)
+    matched_phenotypes: set[str] = Field(default_factory=set)
 
 
 class PhenotypeMatchedPanels(BaseModel):
