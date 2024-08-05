@@ -83,6 +83,7 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
             ensgs.add(variant.var_data.info['gene_id'])
 
             # for structural variants, add all the LOF'd genes
+            # TODO (mwelland): if/when we create other SV categories, we may need to catch those here too
             if lof := variant.var_data.info.get('predicted_lof'):
                 ensgs.update(set(lof.split(',')))
 
