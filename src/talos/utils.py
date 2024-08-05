@@ -828,8 +828,21 @@ def phenotype_label_history(results: ResultData):
                 else:
                     hist.first_phenotype_tagged = get_granular_date()
 
-                # update all the phenotype labels - we might indentify incremental phenotype matches in future
+                # update all the phenotype labels - we might identify incremental phenotype matches in future
                 hist.phenotype_labels.update(var.phenotype_labels)
+            else:
+                # totally new variant, probably not possible, but tolerate here anyway
+                # reasoning: we're always running this after MOI checking, so we shouldn't
+                # have completely new variants between there and here
+                sample_historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
+                    categories={cat: get_granular_date() for cat in var.categories},
+                    support_vars=var.support_vars,
+                    independent=var.independent,
+                    first_tagged=get_granular_date(),
+                    clinvar_stars=var.var_data.info.get('clinvar_stars'),
+                    phenotype_labels=var.phenotype_labels,
+                    first_phenotype_tagged=get_granular_date(),
+                )
 
     save_new_historic(results=latest_results)
 

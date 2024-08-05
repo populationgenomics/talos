@@ -72,9 +72,10 @@ seqr_project = "e.g. COHORT_project_id"
 [HPOFlagging]
 # this section relates to phenotype-matching the final variant set
 
-# set this to True to do strict phenotype matching (participant must have an HPO term associated with the Gene)
-# set this to True to do a wiggly semantic similarity test between participant and gene HPOs
-strict = false
+# set this to True to do a semantic term comparison when phenotype matching
+# this does a wiggly semantic similarity test between participant and gene HPOs, through SemSimian
+# if False, we will always do a set intersection on HPO terms
+semantic_match = true
 
 # min similarity score when doing a semsimian termset similarity test
 min_similarity = 14.0

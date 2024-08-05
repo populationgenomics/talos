@@ -103,7 +103,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
         out_path (str): path to write results to
     """
 
-    use_strict = config_retrieve(['HPOFlagging', 'strict'], False)
+    semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
 
     min_similarity: float = config_retrieve(['HPOFlagging', 'min_similarity'])
 
@@ -116,15 +116,12 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
             gene_hpos = gen_phen.get(var_gene, set())
 
             # under strict matching we require exact overlapping terms
-            if use_strict:
-                hpo_intersection = participant_hpos & gene_hpos
-                if not hpo_intersection:
-                    continue
-                for hpo_id in hpo_intersection:
-                    variant.phenotype_labels.add(f'{hpo_id}: {participant_hpos_dict[hpo_id]}')
+            # we always run a strict match
+            for hpo_id in participant_hpos & gene_hpos:
+                variant.phenotype_labels.add(f'{hpo_id}: {participant_hpos_dict[hpo_id]}')
 
-            # under standard matching we check for phenotypic similarity
-            elif participant_hpos and gene_hpos:
+            # optionally also use semantic matching for phenotypic similarity
+            if participant_hpos and gene_hpos and semantic_match:
                 termset_similarity = get_sem_client().termset_pairwise_similarity(participant_hpos, gene_hpos)
                 # Convert object terms (gene_phenotypes) to lookup dict
                 object_termset = {
