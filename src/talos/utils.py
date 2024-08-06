@@ -824,7 +824,7 @@ def phenotype_label_history(results: ResultData):
             if hist := sample_historic.get(var_id):
                 # update the date of the first phenotype match, or add it into the history
                 if hist.first_phenotype_tagged:
-                    var.phenotype_match_date = hist.first_phenotype_tagged
+                    var.date_of_phenotype_match = hist.first_phenotype_tagged
                 else:
                     hist.first_phenotype_tagged = get_granular_date()
 
