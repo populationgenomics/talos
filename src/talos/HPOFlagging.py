@@ -138,7 +138,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                     if float(match['ancestor_information_content']) > min_similarity
                 }
 
-                # skip if no matches
+                # skip if no matches - don't assign a date if there are no matches
                 if not pheno_matches:
                     continue
 
