@@ -137,6 +137,11 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                     for match in termset_similarity['subject_best_matches']['similarity'].values()
                     if float(match['ancestor_information_content']) > min_similarity
                 }
+
+                # skip if no matches
+                if not pheno_matches:
+                    continue
+
                 if variant.date_of_phenotype_match is None:
                     variant.date_of_phenotype_match = get_granular_date()
 
