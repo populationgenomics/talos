@@ -917,10 +917,15 @@ def main(
     get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
-    # this re-reads the input data with far smaller partition counts, for less processing overhead
+    # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
-        get_logger().info('Re-reading with reduced partitions')
-        mt = hl.read_matrix_table(mt_path, _n_partitions=number_of_cores * 10)
+        get_logger().info('Shrinking partitions way down with a unshuffled repartition')
+        mt = mt.naive_coalesce(number_of_cores * 10)
+        # # for now, don't write the repartitioned data
+        # ruff: noqa: ERA001
+        # if checkpoint:
+        #     get_logger().info('Trying to write the result locally')
+        #     mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
