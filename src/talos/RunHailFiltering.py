@@ -920,12 +920,10 @@ def main(
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
         get_logger().info('Shrinking partitions way down with a unshuffled repartition')
-        mt = mt.naive_coalesce(number_of_cores * 10)
-        # # for now, don't write the repartitioned data
-        # ruff: noqa: ERA001
-        # if checkpoint:
-        #     get_logger().info('Trying to write the result locally')
-        #     mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
+        mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
+        if checkpoint:
+            get_logger().info('Trying to write the result locally')
+            mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
 
     # lookups for required fields all delegated to the hail_audit file
     if not (
