@@ -52,8 +52,8 @@ TYPE_UPDATES: dict[str, dict] = {
     'am_pathogenicity': {'insert': False, 'type': 'float'},
     'am_class': {'insert': False, 'type': 'string'},
     'biotype': {'type': 'string'},
-    'cdna_position': {'type': 'int'},
-    'cds_position': {'type': 'int'},
+    'cdna_position': {'type': 'string'},  # this can be a range (538-539)
+    'cds_position': {'type': 'string'},  # as above
     'consequence': {'insert': False, 'name': 'consequence_terms'},
     'gnomade_af': {'type': 'float'},
     'gnomadg_af': {'type': 'float'},
@@ -61,7 +61,7 @@ TYPE_UPDATES: dict[str, dict] = {
     'sift_prediction': {'type': 'string'},
     'polyphen': {'insert': False, 'name': 'polyphen_prediction'},
     'polyphen_prediction': {'type': 'string'},
-    'protein_position': {'type': 'int'},
+    'protein_position': {'type': 'string'},  # here too?
 }
 
 
@@ -124,6 +124,8 @@ def remap_type(input_name, input_value) -> Any:
     Returns:
         the same value, with an appropriate Type
     """
+    print(input_name)
+    print(input_value)
     # special case for consequence_terms - take the `&` delimited String and make it a list/ArrayExpression
     if input_name == 'consequence':
         return input_value.split('&')
@@ -134,6 +136,7 @@ def remap_type(input_name, input_value) -> Any:
 
     # if the value needs to be re-typed, cast it
     if re_type := TYPE_UPDATES[input_name].get('type', False):
+        print(re_type)
         # when the current contents are a missing String, run a type cast on 0 instead
         # this is on the basis that the values default to String, so the only translations are to numeric
         return hl.if_else(
@@ -356,7 +359,7 @@ def main(vcf_path: str, output_path: str, alpha_m: str | None = None):
     # audit all required annotations?
     mt.describe()
 
-    mt.write(output_path)
+    mt.write(output_path, overwrite=True)
 
 
 if __name__ == '__main__':
