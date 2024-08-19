@@ -169,6 +169,7 @@ def remove_phenotype_required_variants(result_object: ResultData):
             matched_variant = bool(variant.phenotype_labels or variant.panels.matched or variant.panels.forced)
 
             # if the variant-gene doesn't have a cohort-forced or phenotypic match panel
+            # and isn't a specific match between participant and gene symbol
             # AND all categories assigned required a phenotype match
             # AND the variant isn't a compound het
             # skip this variant
