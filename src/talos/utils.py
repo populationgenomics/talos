@@ -802,7 +802,7 @@ def phenotype_label_history(results: ResultData):
         results (ResultData):
     """
     # are there any history results?
-    if (historic_folder := config_retrieve('result_history'), None) is None:
+    if (historic_folder := config_retrieve('result_history', None)) is None:
         get_logger().info('No historic data folder, no labelling')
         return
 
