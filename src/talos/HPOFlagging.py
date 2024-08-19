@@ -9,6 +9,13 @@ Include something here about where to find the inputs ...
 
 gene_to_phtnotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
 phenio.db: Download: https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
+
+The removal of variants where a phenotype match is required but not found it now done here
+A list of categories in config is used to determine which variants are required to have a phenotype match
+Variants where all categories are on that list will be removed unless any of these are satisfied:
+- variant gene is on a forced panel
+- variant gene is on a phenotype match panel
+- variant gene is phenotype matched to the family
 """
 
 from argparse import ArgumentParser
@@ -90,7 +97,7 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
     return ensgs
 
 
-def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, set[str]], out_path: str):
+def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, set[str]]):
     """
     for each variant, find any phenotype matches between the participant and gene HPO sets
 
@@ -101,7 +108,6 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
     Args:
         results (ResultData):
         gen_phen (dict): mapping of ENSGs to relevant HPO terms
-        out_path (str): path to write results to
     """
 
     semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
@@ -143,12 +149,38 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                 variant.phenotype_labels = pheno_matches
 
     phenotype_label_history(result_object)
-    # validate the object
-    validated_results = ResultData.model_validate(result_object)
 
-    # validate and write using pydantic
-    with open(out_path, 'w', encoding='utf-8') as handle:
-        handle.write(validated_results.model_dump_json(indent=4))
+
+def remove_phenotype_required_variants(result_object: ResultData):
+    """
+    remove any variants where a phenotype match is required but not found
+
+    Args:
+        result_object ():
+    """
+
+    # for these categories, require a phenotype-gene match
+    cats_require_pheno_match = config_retrieve(['ValidateMOI', 'phenotype_match'], [])
+
+    for participant in result_object.results.values():
+        kept_variants = []
+        for variant in participant.variants:
+            # boolean for whether this variant was phenotype matched
+            matched_variant = bool(variant.phenotype_labels or variant.panels.matched or variant.panels.forced)
+
+            # if the variant-gene doesn't have a cohort-forced or phenotypic match panel
+            # AND all categories assigned required a phenotype match
+            # AND the variant isn't a compound het
+            # skip this variant
+            if (
+                (not matched_variant)
+                and (len(variant.support_vars) == 0)
+                and (all(cat in cats_require_pheno_match for cat in variant.categories))
+            ):
+                continue
+            kept_variants.append(variant)
+
+        participant.variants = kept_variants
 
 
 def filter_and_write_out(annotated_results: ResultData, out_path: str):
@@ -236,11 +268,21 @@ def main(
         _semsim = get_sem_client(phenio_db=phenio)
 
     # label phenotype matches, and write the results to a JSON file
-    annotate_phenotype_matches(results, gen_phen_dict, out_path=out_path)
+    annotate_phenotype_matches(results, gen_phen_dict)
+
+    # remove any variants where a phenotype match is required but not found
+    remove_phenotype_required_variants(results)
+
+    # validate the object
+    validated_results = ResultData.model_validate(results)
+
+    # validate and write using pydantic
+    with open(out_path, 'w', encoding='utf-8') as handle:
+        handle.write(validated_results.model_dump_json(indent=4))
 
     # reduce the JSON down to just phenotype matched variants, and the samples they occur in
     if phenout:
-        filter_and_write_out(results, out_path=phenout)
+        filter_and_write_out(validated_results, out_path=phenout)
 
 
 if __name__ == '__main__':
