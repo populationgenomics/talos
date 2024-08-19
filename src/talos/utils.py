@@ -802,7 +802,7 @@ def phenotype_label_history(results: ResultData):
         results (ResultData):
     """
     # are there any history results?
-    if (historic_folder := config_retrieve('result_history')) is None:
+    if (historic_folder := config_retrieve('result_history'), None) is None:
         get_logger().info('No historic data folder, no labelling')
         return
 
@@ -860,9 +860,7 @@ def filter_results(results: ResultData, singletons: bool):
     Returns: same results annotated with date-first-seen
     """
 
-    historic_folder = config_retrieve('result_history')
-
-    if historic_folder is None:
+    if (_historic_folder := config_retrieve('result_history', None)) is None:
         get_logger().info('No historic data folder, no filtering')
         # update all the evidence_last_updated
         for content in results.results.values():
