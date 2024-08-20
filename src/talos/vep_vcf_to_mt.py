@@ -16,6 +16,7 @@ import hail as hl
 from talos.static_values import get_logger
 
 MISSING_INT = hl.int32(0)
+MISSING_STRING = hl.str('')
 
 # get the hail types - this will be used in re-coding the attributes
 HAIL_TYPES = {
@@ -82,7 +83,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
 
     # generate a struct limited to the fields of interest
     # use a couple of accessory methods to re-map the names and types for compatibility
-    return mt.annotate_rows(
+    mt = mt.annotate_rows(
         vep=hl.struct(
             transcript_consequences=split_csqs.map(
                 lambda x: hl.struct(
@@ -92,6 +93,48 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
                         if csq_strings[n] in RELEVANT_FIELDS
                     },
                 ),
+            ),
+        ),
+    )
+
+    # cdna, protein, and cds positions are all strings, potentially with ranges, so we need to convert them to ints
+    # in some cases, the values can be "?-X" or "X-?", which are replaced with missing values
+    return mt.annotate_rows(
+        vep=mt.vep.annotate(
+            transcript_consequences=hl.map(
+                lambda x: x.annotate(
+                    cdna_start=hl.if_else(
+                        (x.cdna_position == MISSING_STRING) | (x.cdna_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cdna_position.split('-')[0]),
+                    ),
+                    cdna_end=hl.if_else(
+                        (x.cdna_position == MISSING_STRING) | (x.cdna_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cdna_position.split('-')[-1]),
+                    ),
+                    protein_start=hl.if_else(
+                        (x.protein_position == MISSING_STRING) | (x.protein_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.protein_position.split('-')[0]),
+                    ),
+                    protein_end=hl.if_else(
+                        (x.protein_position == MISSING_STRING) | (x.protein_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.protein_position.split('-')[-1]),
+                    ),
+                    cds_start=hl.if_else(
+                        (x.cds_position == MISSING_STRING) | (x.cds_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cds_position.split('-')[0]),
+                    ),
+                    cds_end=hl.if_else(
+                        (x.cds_position == MISSING_STRING) | (x.cds_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cds_position.split('-')[-1]),
+                    ),
+                ),
+                mt.vep.transcript_consequences,
             ),
         ),
     )
@@ -124,8 +167,6 @@ def remap_type(input_name, input_value) -> Any:
     Returns:
         the same value, with an appropriate Type
     """
-    print(input_name)
-    print(input_value)
     # special case for consequence_terms - take the `&` delimited String and make it a list/ArrayExpression
     if input_name == 'consequence':
         return input_value.split('&')
@@ -136,7 +177,6 @@ def remap_type(input_name, input_value) -> Any:
 
     # if the value needs to be re-typed, cast it
     if re_type := TYPE_UPDATES[input_name].get('type', False):
-        print(re_type)
         # when the current contents are a missing String, run a type cast on 0 instead
         # this is on the basis that the values default to String, so the only translations are to numeric
         return hl.if_else(
