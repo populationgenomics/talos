@@ -44,6 +44,12 @@ QueryPanelapp \
   --panels "$MATCHED_PANELS" \
   --out "$PANELAPP_RESULTS"
 
+# find the symbol~ENSG map for all genes in the panelapp results
+GENE_LOOKUP="${OUTPUT_DIR}/gene_lookup.json"
+FindGeneSymbolMap \
+  --panelapp "$PANELAPP_RESULTS" \
+  --out_path "$GENE_LOOKUP"
+
 # run Hail filtering on the small variant MatrixTable
 # this step is the most resource-intensive, so I'd recommend running it on a VM with more resources
 # aim for a machine with at least 8-cores, 16GB RAM
@@ -89,10 +95,27 @@ else
       --participant_panels "$MATCHED_PANELS"
 fi
 
+# run the Phenotype-based flagging
+# TODO this needs a phenio.db file
+# downloaded from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz and unzipped
+PHENIO_DB=PLACEHOLDER
+# TODO needs a gene-to-phenotype map
+# download Genes to Phenotypes from https://hpo.jax.org/app/data/annotations
+GENE_TO_PHENOTYPE=PLACEHOLDER
+PHENO_ANNOTATED_RESULTS="${OUTPUT_DIR}/phenotype_annotated_results.json"
+PHENO_FILTERED_RESULTS="${OUTPUT_DIR}/phenotype_filtered_results.json"
+HPOFlagging \
+  --results "$MOI_RESULTS" \
+  --gene_map "$GENE_LOOKUP" \
+  --gen2phen "$GENE_TO_PHENOTYPE" \
+  --phenio "$PHENIO_DB" \
+  --out "$PHENO_ANNOTATED_RESULTS" \
+  --phenout "$PHENO_FILTERED_RESULTS"
+
 # generate the HTML report
 HTML_REPORT="${OUTPUT_DIR}/talos_results.html"
 CreateTalosHTML \
-  --results "$MOI_RESULTS" \
+  --results "$PHENO_ANNOTATED_RESULTS" \
   --panelapp "$PANELAPP_RESULTS" \
   --output "$HTML_REPORT" \
   --latest
