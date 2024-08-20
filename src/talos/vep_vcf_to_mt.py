@@ -56,10 +56,14 @@ TYPE_UPDATES: dict[str, dict] = {
     'cdna_position': {'type': 'string'},  # this can be a range (538-539)
     'cds_position': {'type': 'string'},  # as above
     'consequence': {'insert': False, 'name': 'consequence_terms'},
+    'feature': {'insert': False, 'name': 'transcript_id'},
+    'gene': {'insert': False, 'name': 'gene_id', 'type': 'string'},
     'gnomade_af': {'type': 'float'},
     'gnomadg_af': {'type': 'float'},
+    'ensp': {'insert': False, 'name': 'protein_id'},
     'sift': {'insert': False, 'type': 'string', 'name': 'sift_prediction'},
     'sift_prediction': {'type': 'string'},
+    'symbol': {'insert': False, 'name': 'gene_symbol'},
     'polyphen': {'insert': False, 'name': 'polyphen_prediction'},
     'polyphen_prediction': {'type': 'string'},
     'protein_position': {'type': 'string'},  # here too?
@@ -97,10 +101,12 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
         ),
     )
 
+    # add variant_class at the mt.vep level?
     # cdna, protein, and cds positions are all strings, potentially with ranges, so we need to convert them to ints
     # in some cases, the values can be "?-X" or "X-?", which are replaced with missing values
     return mt.annotate_rows(
         vep=mt.vep.annotate(
+            variant_class=mt.vep.transcript_consequences[0].variant_class,
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
                     cdna_start=hl.if_else(
@@ -249,7 +255,7 @@ def insert_spliceai_annotation(mt: hl.MatrixTable) -> hl.MatrixTable:
         the same MT, but STRONGER
     """
 
-    return mt.annotate_rows(splice_ai=hl.struct(delta_score=hl.float64(0), splice_consequence=hl.str('')))
+    return mt.annotate_rows(splice_ai=hl.struct(delta_score=hl.float32(0), splice_consequence=hl.str('')))
 
 
 def insert_am_annotations_if_missing(mt: hl.MatrixTable, am_table: str | None = None) -> hl.MatrixTable:
@@ -380,8 +386,14 @@ def main(vcf_path: str, output_path: str, alpha_m: str | None = None):
     # checkpoint it locally to make everything faster
     mt = mt.checkpoint('checkpoint.mt', overwrite=True, _read_if_exists=True)
 
+    # take out some base fields - not sure why these should be at the top level. Expecting normalised
+    mt = mt.annotate_rows(AC=mt.info.AC[0], AF=mt.info.AF[0], AN=mt.info.AN)
+
     # re-shuffle the CSQ elements
     mt = csq_strings_into_hail_structs(vep_header_elements, mt)
+
+    # get a hold of the geneIds - use some aggregation
+    mt = mt.annotate_rows(geneIds=hl.set(mt.vep.transcript_consequences.map(lambda c: c.gene_id)))
 
     # insert super detailed AF structure - no reannotation, just re-organisation
     mt = implant_detailed_af(mt)

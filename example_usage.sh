@@ -10,6 +10,7 @@ set -e
 
 # set the path to use for an output directory
 OUTPUT_DIR=${1:-$(date +%F)}
+mkdir -p "$OUTPUT_DIR"
 
 # pass the populated Config TOML file, and export as an environment variable
 CONFIG_FILE=${2:-config.toml}
@@ -114,11 +115,12 @@ HPOFlagging \
 
 # generate the HTML report
 HTML_REPORT="${OUTPUT_DIR}/talos_results.html"
+LATEST_HTML_REPORT="${OUTPUT_DIR}/latest_talos_results.html"
 CreateTalosHTML \
   --results "$PHENO_ANNOTATED_RESULTS" \
   --panelapp "$PANELAPP_RESULTS" \
   --output "$HTML_REPORT" \
-  --latest
+  --latest "$LATEST_HTML_REPORT"
 
 # generate the Seqr file
 SEQR_LABELS="${OUTPUT_DIR}/seqr_labels.json"

@@ -34,22 +34,15 @@ FIELDS_REQUIRED = {
         ('Hom', hl.Int32Expression),
         ('Hemi', hl.Int32Expression),
     ],
-    'clinvar': [
-        ('clinical_significance', hl.StringExpression),
-        ('gold_stars', hl.Int32Expression),
-    ],
     'geneIds': [],
 }
 
 VEP_TX_FIELDS_REQUIRED = [
-    ('variant_allele', hl.StringExpression),
     ('consequence_terms', hl.ArrayExpression),
     ('transcript_id', hl.StringExpression),
     ('protein_id', hl.StringExpression),
     ('gene_id', hl.StringExpression),
     ('gene_symbol', hl.StringExpression),
-    ('gene_symbol_source', hl.StringExpression),
-    ('canonical', hl.Int32Expression),
     ('cdna_start', hl.Int32Expression),
     ('cds_start', hl.Int32Expression),
     ('cds_end', hl.Int32Expression),
