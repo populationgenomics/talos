@@ -182,8 +182,6 @@ def clean_and_filter(
     as forced (cohort-wide applied panel)
     or neither
 
-    - addition! New concept - pheno-match category. We only retain variants which are
-
     Args:
         results_holder (): container for all results data
         result_list (): list of all ReportVariant events
@@ -191,13 +189,10 @@ def clean_and_filter(
         participant_panels ():
 
     Returns:
-        cleaned data
+        results with the phenotype/forced panel matches annotated
     """
 
     cohort_panels = set(config_retrieve(['GeneratePanelData', 'forced_panels'], []))
-
-    # for these categories, require a phenotype-gene match
-    cats_require_pheno_match = config_retrieve(['ValidateMOI', 'phenotype_match'], [])
 
     panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
@@ -242,18 +237,7 @@ def clean_and_filter(
         if cohort_intersection:
             forced_panels = {panel_meta[pid] for pid in cohort_intersection}
 
-        # this is a horrible operation
-        # if the variant-gene doesn't have a cohort-forced or phenotypic match panel
-        # AND there's only one category assigned
-        # AND that category is in the list of categories which require a phenotype match
-        # skip this variant
-        if (
-            (not (forced_panels or matched_panels))
-            and (len(each_event.support_vars) == 0)
-            and (all(cat in cats_require_pheno_match for cat in each_event.categories))
-        ):
-            continue
-
+        # don't remove variants here, we do that in the pheno-matching stage
         each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
 
         # equivalence logic might need a small change here -

@@ -16,6 +16,7 @@ import hail as hl
 from talos.static_values import get_logger
 
 MISSING_INT = hl.int32(0)
+MISSING_STRING = hl.str('')
 
 # get the hail types - this will be used in re-coding the attributes
 HAIL_TYPES = {
@@ -52,8 +53,8 @@ TYPE_UPDATES: dict[str, dict] = {
     'am_pathogenicity': {'insert': False, 'type': 'float'},
     'am_class': {'insert': False, 'type': 'string'},
     'biotype': {'type': 'string'},
-    'cdna_position': {'type': 'int'},
-    'cds_position': {'type': 'int'},
+    'cdna_position': {'type': 'string'},  # this can be a range (538-539)
+    'cds_position': {'type': 'string'},  # as above
     'consequence': {'insert': False, 'name': 'consequence_terms'},
     'gnomade_af': {'type': 'float'},
     'gnomadg_af': {'type': 'float'},
@@ -61,7 +62,7 @@ TYPE_UPDATES: dict[str, dict] = {
     'sift_prediction': {'type': 'string'},
     'polyphen': {'insert': False, 'name': 'polyphen_prediction'},
     'polyphen_prediction': {'type': 'string'},
-    'protein_position': {'type': 'int'},
+    'protein_position': {'type': 'string'},  # here too?
 }
 
 
@@ -82,7 +83,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
 
     # generate a struct limited to the fields of interest
     # use a couple of accessory methods to re-map the names and types for compatibility
-    return mt.annotate_rows(
+    mt = mt.annotate_rows(
         vep=hl.struct(
             transcript_consequences=split_csqs.map(
                 lambda x: hl.struct(
@@ -92,6 +93,48 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
                         if csq_strings[n] in RELEVANT_FIELDS
                     },
                 ),
+            ),
+        ),
+    )
+
+    # cdna, protein, and cds positions are all strings, potentially with ranges, so we need to convert them to ints
+    # in some cases, the values can be "?-X" or "X-?", which are replaced with missing values
+    return mt.annotate_rows(
+        vep=mt.vep.annotate(
+            transcript_consequences=hl.map(
+                lambda x: x.annotate(
+                    cdna_start=hl.if_else(
+                        (x.cdna_position == MISSING_STRING) | (x.cdna_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cdna_position.split('-')[0]),
+                    ),
+                    cdna_end=hl.if_else(
+                        (x.cdna_position == MISSING_STRING) | (x.cdna_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cdna_position.split('-')[-1]),
+                    ),
+                    protein_start=hl.if_else(
+                        (x.protein_position == MISSING_STRING) | (x.protein_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.protein_position.split('-')[0]),
+                    ),
+                    protein_end=hl.if_else(
+                        (x.protein_position == MISSING_STRING) | (x.protein_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.protein_position.split('-')[-1]),
+                    ),
+                    cds_start=hl.if_else(
+                        (x.cds_position == MISSING_STRING) | (x.cds_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cds_position.split('-')[0]),
+                    ),
+                    cds_end=hl.if_else(
+                        (x.cds_position == MISSING_STRING) | (x.cds_position.contains('?')),
+                        hl.missing(hl.tint32),
+                        hl.int32(x.cds_position.split('-')[-1]),
+                    ),
+                ),
+                mt.vep.transcript_consequences,
             ),
         ),
     )
@@ -356,7 +399,7 @@ def main(vcf_path: str, output_path: str, alpha_m: str | None = None):
     # audit all required annotations?
     mt.describe()
 
-    mt.write(output_path)
+    mt.write(output_path, overwrite=True)
 
 
 if __name__ == '__main__':

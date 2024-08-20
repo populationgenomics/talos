@@ -111,7 +111,7 @@
     </td>
     <td>
         {# Phenotype Match #}
-        {% if variant.phenotype_match_date %}
+        {% if variant.phenotype_matches %}
         Phenotype match!
         <i class="bi bi-file-earmark-medical-fill" data-bs-toggle="tooltip" data-bs-placement="top"
             data-bs-title="Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
