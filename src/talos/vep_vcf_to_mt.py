@@ -349,9 +349,7 @@ def cli_main():
     if AlphaMissense annotations aren't already present in the VCF, this will annotate them in
     """
 
-    parser = ArgumentParser(
-        description='Takes a VEP annotated VCF and makes it a MT',
-    )
+    parser = ArgumentParser(description='Takes a VEP annotated VCF and makes it a MT')
     parser.add_argument('vcf', help='Path to the annotated VCF')
     parser.add_argument('output', help='output MatrixTable path')
     parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', default=None)
