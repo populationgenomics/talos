@@ -56,7 +56,7 @@ setup(
     entry_points={
         'console_scripts': [
             # for use in translating a VEP annotated VCF to a MatrixTable
-            'vcf_to_mt = talos.vep_vcf_to_mt:main',
+            'vcf_to_mt = talos.vep_vcf_to_mt:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
             'BuildReportIndexPage = talos.BuildReportIndexPage:run_both',
             # CPG implementation, builds an extended Pedigree format
