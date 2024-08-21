@@ -562,7 +562,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return filtered_mt.filter_rows(
-        (hl.len(filtered_mt.vep.transcript_consequences) == 0) | (filtered_mt.info.categoryboolean5 == 0),
+        (hl.len(filtered_mt.vep.transcript_consequences) == 0) & (filtered_mt.info.categoryboolean5 == 0),
         keep=False,
     )
 
