@@ -113,7 +113,7 @@ class MOIRunner:
                 XRecessiveMale(pedigree=pedigree),
                 XRecessiveFemaleHom(pedigree=pedigree),
                 XRecessiveFemaleCH(pedigree=pedigree),
-                XDominantFemaleImprinted(pedigree=pedigree),
+                XDominantFemaleInactivation(pedigree=pedigree),
             ]
 
         else:
@@ -680,11 +680,11 @@ class XDominant(BaseMoi):
         return classifications
 
 
-class XDominantFemaleImprinted(BaseMoi):
+class XDominantFemaleInactivation(BaseMoi):
     """
-    X-dominant method which only evaluates females
-    This is a special case of X-dominant, where we consider Het. variants, and will be used to assess
-    genes which are on X and in genes associated with a Biallelic MOI
+    X-Dominant method which only evaluates females, on the basis that a healthy allele could be inactivated
+    A special case of X-Dominant, where we consider Het. variants, used to assess genes which are on X and in genes
+    associated with a Biallelic MOI
 
     Basically a Dominant MOI to be applied to Recessive genes, and results will be labelled as cautionary
     """
