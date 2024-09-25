@@ -97,16 +97,23 @@ class MOIRunner:
                 RecessiveAutosomalCH(pedigree=pedigree),
             ]
         elif target_moi == 'Biallelic':
-            self.filter_list = [RecessiveAutosomalHomo(pedigree=pedigree), RecessiveAutosomalCH(pedigree=pedigree)]
+            self.filter_list = [
+                RecessiveAutosomalHomo(pedigree=pedigree),
+                RecessiveAutosomalCH(pedigree=pedigree),
+            ]
 
         elif target_moi == 'Hemi_Mono_In_Female':
-            self.filter_list = [XRecessiveMale(pedigree=pedigree), XDominant(pedigree=pedigree)]
+            self.filter_list = [
+                XRecessiveMale(pedigree=pedigree),
+                XDominant(pedigree=pedigree),
+            ]
 
         elif target_moi == 'Hemi_Bi_In_Female':
             self.filter_list = [
                 XRecessiveMale(pedigree=pedigree),
                 XRecessiveFemaleHom(pedigree=pedigree),
                 XRecessiveFemaleCH(pedigree=pedigree),
+                XDominantFemaleImprinted(pedigree=pedigree),
             ]
 
         else:
@@ -667,6 +674,102 @@ class XDominant(BaseMoi):
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
+                    independent=True,
+                ),
+            )
+        return classifications
+
+
+class XDominantFemaleImprinted(BaseMoi):
+    """
+    X-dominant method which only evaluates females
+    This is a special case of X-dominant, where we consider Het. variants, and will be used to assess
+    genes which are on X and in genes associated with a Biallelic MOI
+
+    Basically a Dominant MOI to be applied to Recessive genes, and results will be labelled as cautionary
+    """
+
+    def __init__(self, pedigree: Pedigree, applied_moi: str = 'X_Dominant'):
+        """
+        accept male hets and homs, and female hets without support
+
+        Args:
+            pedigree ():
+            applied_moi ():
+        """
+        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
+        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
+        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
+
+        self.freq_tests = {
+            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
+            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
+        }
+
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+
+    def run(
+        self,
+        principal: VARIANT_MODELS,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
+        partial_pen: bool = False,
+    ) -> list[ReportVariant]:
+        """
+        if variant is present and sufficiently rare, we take it
+        discarded if support
+
+        Args:
+            principal ():
+            comp_het ():
+            partial_pen ():
+        """
+
+        classifications = []
+
+        if principal.support_only:
+            return classifications
+
+        # never apply dominant MOI to support variants
+        # more stringent Pop.Freq checks for dominant - hemi restriction
+        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
+            return classifications
+
+        # all females which have a variant call
+        samples_with_this_variant = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
+        for sample_id in samples_with_this_variant:
+            # skip primary analysis for unaffected members
+            # we require this specific sample to be categorised
+            # force minimum depth
+            if (
+                not (
+                    principal.sample_category_check(sample_id, allow_support=False)
+                    and self.pedigree.by_id[sample_id].affected == '2'
+                )
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                continue
+
+            # TODO: not entirely clear if we want to do family checks - I guess we want to rule out presence in
+            # TODO: unaffected males, but females are a little more complicated
+            # check if this is a candidate for dominant inheritance
+            if not self.check_familial_inheritance(
+                sample_id=sample_id,
+                called_variants=samples_with_this_variant,
+                partial_pen=partial_pen,
+            ):
+                continue
+
+            classifications.append(
+                ReportVariant(
+                    sample=sample_id,
+                    family=self.pedigree.by_id[sample_id].family,
+                    gene=principal.info.get('gene_id'),
+                    var_data=principal,
+                    categories=principal.category_values(sample_id),
+                    reasons={self.applied_moi},
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                    flags=principal.get_sample_flags(sample_id),
+                    labels={'Lenient imprinted consideration - may show dominant effect'},
                     independent=True,
                 ),
             )
