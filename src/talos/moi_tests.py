@@ -107,6 +107,7 @@ class MOIRunner:
                 XRecessiveMale(pedigree=pedigree),
                 XRecessiveFemaleHom(pedigree=pedigree),
                 XRecessiveFemaleCH(pedigree=pedigree),
+                XPseudoDominantFemale(pedigree=pedigree),
             ]
 
         else:
@@ -202,7 +203,7 @@ class BaseMoi:
 
         this_member = self.pedigree.by_id[sample_id]
 
-        # iterate through all family members, no interested in directionality of relationships at the moment
+        # check for valid inheritance within the immediate trio, if possible
         for member_id in [this_member.father, this_member.mother]:
             if member_id is None:
                 continue
@@ -667,6 +668,110 @@ class XDominant(BaseMoi):
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
+                    independent=True,
+                ),
+            )
+        return classifications
+
+
+class XPseudoDominantFemale(BaseMoi):
+    """
+    X-Dominant method which only evaluates females, on the basis that a healthy allele could be inactivated
+    A special case of X-Dominant, where we consider Het. variants, used to assess genes which are on X and in genes
+    associated with a Biallelic MOI
+
+    Basically a Dominant MOI to be applied to Recessive genes, and results will be labelled as cautionary
+    """
+
+    def __init__(self, pedigree: Pedigree, applied_moi: str = 'X_Dominant'):
+        """
+        accept male hets and homs, and female hets without support
+
+        Args:
+            pedigree ():
+            applied_moi ():
+        """
+        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
+        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
+        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
+
+        self.freq_tests = {
+            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
+            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
+        }
+
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+
+    def run(
+        self,
+        principal: VARIANT_MODELS,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
+        partial_pen: bool = False,
+    ) -> list[ReportVariant]:
+        """
+        if variant is present and sufficiently rare, we take it
+        discarded if support
+
+        Args:
+            principal ():
+            comp_het ():
+            partial_pen ():
+        """
+
+        _unused = partial_pen
+
+        classifications = []
+
+        if principal.support_only:
+            return classifications
+
+        # never apply dominant MOI to support variants
+        # more stringent Pop.Freq checks for dominant - hemi restriction
+        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
+            return classifications
+
+        # all females which have a variant call
+        females_under_consideration = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
+        all_with_variant = principal.het_samples.union(principal.hom_samples)
+        for sample_id in females_under_consideration:
+            # skip primary analysis for unaffected members
+            # we require this specific sample to be categorised
+            # force minimum depth
+            if (
+                not (
+                    principal.sample_category_check(sample_id, allow_support=False)
+                    and self.pedigree.by_id[sample_id].affected == '2'
+                )
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                continue
+
+            # check if this is a candidate for dominant inheritance
+            # as we're allowing for flexible 'penetrance' in females, we send all het and hom variants, but allow for a
+            # partial penetrance check - the participants can have the variant, but not be affected. They may not be
+            # affected without the variant call.
+            # There's a slight breakdown here as the males should be interpreted under a full penetrance model, and
+            # females under partial penetrance, but that's not trivial without creating a second familial check method.
+            # Leaving that aside now as the current implementation is pretty central to the algorithm. Will revisit if
+            # this is noisy.
+            if not self.check_familial_inheritance(
+                sample_id=sample_id,
+                called_variants=all_with_variant,
+                partial_pen=True,
+            ):
+                continue
+
+            classifications.append(
+                ReportVariant(
+                    sample=sample_id,
+                    family=self.pedigree.by_id[sample_id].family,
+                    gene=principal.info.get('gene_id'),
+                    var_data=principal,
+                    categories=principal.category_values(sample_id),
+                    reasons={self.applied_moi},
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                    flags=principal.get_sample_flags(sample_id)
+                    | {'Affected female with heterozygous variant in XLR gene'},
                     independent=True,
                 ),
             )
