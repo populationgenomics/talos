@@ -203,7 +203,7 @@ class BaseMoi:
 
         this_member = self.pedigree.by_id[sample_id]
 
-        # iterate through all family members, no interested in directionality of relationships at the moment
+        # check for valid inheritance within the immediate trio, if possible
         for member_id in [this_member.father, this_member.mother]:
             if member_id is None:
                 continue
@@ -733,7 +733,7 @@ class XPseudoDominantFemale(BaseMoi):
 
         # all females which have a variant call
         females_under_consideration = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
-        all_with_variant = principal.het_samples | principal.hom_samples
+        all_with_variant = principal.het_samples.union(principal.hom_samples)
         for sample_id in females_under_consideration:
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
