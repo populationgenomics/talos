@@ -15,6 +15,7 @@ from talos.moi_tests import (
     RecessiveAutosomalCH,
     RecessiveAutosomalHomo,
     XDominant,
+    XDominantFemaleInactivation,
     XRecessiveFemaleCH,
     XRecessiveFemaleHom,
     XRecessiveMale,
@@ -432,6 +433,34 @@ def test_x_dominant_info_fails(info, pedigree_path):
     )
     x_dom = XDominant(pedigree=make_flexible_pedigree(pedigree_path))
     assert len(x_dom.run(passing_variant)) == 0
+
+
+def test_x_dominant_female_inactivation_passes(pedigree_path):
+    """
+    check that a het female, but not a het male, is accepted as dominant
+    current test implementation doesn't include family consideration
+    """
+    info_dict = {
+        'gnomad_af': 0.0001,
+        'gnomad_ac': 0,
+        'gnomad_hom': 0,
+        'gene_id': 'TEST1',
+        'categoryboolean1': True,
+    }
+    passing_variant = SmallVariant(
+        depths={'female': 100, 'male': 100},
+        info=info_dict,
+        het_samples={'female', 'male'},
+        hom_samples={'male'},
+        boolean_categories=['categoryboolean1'],
+        coordinates=TEST_COORDS_X_1,
+        transcript_consequences=[],
+    )
+    x_dom = XDominantFemaleInactivation(pedigree=make_flexible_pedigree(pedigree_path))
+    results = x_dom.run(passing_variant)
+    assert len(results) == 1
+    assert results[0].reasons == {'X_Dominant'}
+    assert results[0].labels == {'Lenient inactivated consideration - may show dominant effect'}
 
 
 def test_x_recessive_male_hom_passes(pedigree_path):

@@ -736,8 +736,9 @@ class XDominantFemaleInactivation(BaseMoi):
             return classifications
 
         # all females which have a variant call
-        samples_with_this_variant = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
-        for sample_id in samples_with_this_variant:
+        females_under_consideration = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
+        all_samples_with_variant = set(principal.het_samples)
+        for sample_id in females_under_consideration:
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
             # force minimum depth
@@ -752,9 +753,10 @@ class XDominantFemaleInactivation(BaseMoi):
             # TODO: not entirely clear if we want to do family checks - I guess we want to rule out presence in
             # TODO: unaffected males, but females are a little more complicated
             # check if this is a candidate for dominant inheritance
+            # here we pass both the female and male het calls
             if not self.check_familial_inheritance(
                 sample_id=sample_id,
-                called_variants=samples_with_this_variant,
+                called_variants=all_samples_with_variant,
                 partial_pen=partial_pen,
             ):
                 continue
@@ -769,7 +771,7 @@ class XDominantFemaleInactivation(BaseMoi):
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
-                    labels={'Lenient imprinted consideration - may show dominant effect'},
+                    labels={'Lenient inactivated consideration - may show dominant effect'},
                     independent=True,
                 ),
             )
