@@ -107,7 +107,7 @@ class MOIRunner:
                 XRecessiveMale(pedigree=pedigree),
                 XRecessiveFemaleHom(pedigree=pedigree),
                 XRecessiveFemaleCH(pedigree=pedigree),
-                XDominantFemaleInactivation(pedigree=pedigree),
+                XPseudoDominantFemale(pedigree=pedigree),
             ]
 
         else:
@@ -674,7 +674,7 @@ class XDominant(BaseMoi):
         return classifications
 
 
-class XDominantFemaleInactivation(BaseMoi):
+class XPseudoDominantFemale(BaseMoi):
     """
     X-Dominant method which only evaluates females, on the basis that a healthy allele could be inactivated
     A special case of X-Dominant, where we consider Het. variants, used to assess genes which are on X and in genes
@@ -719,6 +719,8 @@ class XDominantFemaleInactivation(BaseMoi):
             partial_pen ():
         """
 
+        _unused = partial_pen
+
         classifications = []
 
         if principal.support_only:
@@ -731,7 +733,7 @@ class XDominantFemaleInactivation(BaseMoi):
 
         # all females which have a variant call
         females_under_consideration = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
-        all_samples_with_variant = set(principal.het_samples)
+        all_with_variant = principal.het_samples | principal.hom_samples
         for sample_id in females_under_consideration:
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
@@ -744,14 +746,18 @@ class XDominantFemaleInactivation(BaseMoi):
             ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
                 continue
 
-            # TODO: not entirely clear if we want to do family checks - I guess we want to rule out presence in
-            # TODO: unaffected males, but females are a little more complicated
             # check if this is a candidate for dominant inheritance
-            # here we pass both the female and male het calls
+            # as we're allowing for flexible 'penetrance' in females, we send all het and hom variants, but allow for a
+            # partial penetrance check - the participants can have the variant, but not be affected. They may not be
+            # affected without the variant call.
+            # There's a slight breakdown here as the males should be interpreted under a full penetrance model, and
+            # females under partial penetrance, but that's not trivial without creating a second familial check method.
+            # Leaving that aside now as the current implementation is pretty central to the algorithm. Will revisit if
+            # this is noisy.
             if not self.check_familial_inheritance(
                 sample_id=sample_id,
-                called_variants=all_samples_with_variant,
-                partial_pen=partial_pen,
+                called_variants=all_with_variant,
+                partial_pen=True,
             ):
                 continue
 
@@ -765,7 +771,7 @@ class XDominantFemaleInactivation(BaseMoi):
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id)
-                    | {'Lenient inactivated consideration - may show dominant effect'},
+                    | {'Affected female with heterozygous variant in XLR gene'},
                     independent=True,
                 ),
             )

@@ -15,7 +15,7 @@ from talos.moi_tests import (
     RecessiveAutosomalCH,
     RecessiveAutosomalHomo,
     XDominant,
-    XDominantFemaleInactivation,
+    XPseudoDominantFemale,
     XRecessiveFemaleCH,
     XRecessiveFemaleHom,
     XRecessiveMale,
@@ -456,11 +456,11 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
     )
-    x_dom = XDominantFemaleInactivation(pedigree=make_flexible_pedigree(pedigree_path))
+    x_dom = XPseudoDominantFemale(pedigree=make_flexible_pedigree(pedigree_path))
     results = x_dom.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'X_Dominant'}
-    assert 'Lenient inactivated consideration - may show dominant effect' in results[0].flags
+    assert 'Affected female with heterozygous variant in XLR gene' in results[0].flags
 
 
 def test_x_recessive_male_hom_passes(pedigree_path):
