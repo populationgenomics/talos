@@ -460,7 +460,7 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
     results = x_dom.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'X_Dominant'}
-    assert results[0].labels == {'Lenient inactivated consideration - may show dominant effect'}
+    assert 'Lenient inactivated consideration - may show dominant effect' in results[0].flags
 
 
 def test_x_recessive_male_hom_passes(pedigree_path):

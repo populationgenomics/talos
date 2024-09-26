@@ -770,8 +770,8 @@ class XDominantFemaleInactivation(BaseMoi):
                     categories=principal.category_values(sample_id),
                     reasons={self.applied_moi},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    flags=principal.get_sample_flags(sample_id),
-                    labels={'Lenient inactivated consideration - may show dominant effect'},
+                    flags=principal.get_sample_flags(sample_id)
+                    | {'Lenient inactivated consideration - may show dominant effect'},
                     independent=True,
                 ),
             )
