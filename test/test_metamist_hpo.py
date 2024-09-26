@@ -48,15 +48,16 @@ def test_match_hpo_terms(fake_obo_path):
 def test_match_hpos_to_panels(fake_obo_path):
     """
     test the hpo-to-panel matching
+    this has now been adjusted to account for the full leaf-to-root traversal, instead of stopping at 3 layers
     """
     panel_map = {'HP:2': {1, 2}, 'HP:5': {5}}
     assert match_hpos_to_panels(panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}) == (
-        {'HP:4': {1, 2}, 'HP:7a': {5}},
+        {'HP:4': {1, 2}, 'HP:7a': {1, 2, 5}},
         {'HP:4': 'Goblet of Fire', 'HP:7a': 'Deathly Hallows'},
     )
     # full depth from the terminal node should capture all panels
     assert match_hpos_to_panels(panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'}) == (
-        {'HP:4': {1, 2}, 'HP:7a': {5}},
+        {'HP:4': {1, 2}, 'HP:7a': {1, 2, 5}},
         {'HP:4': 'Goblet of Fire', 'HP:7a': 'Deathly Hallows'},
     )
 
