@@ -159,11 +159,11 @@ def match_hpo_terms(
     return selections
 
 
-def match_hpos_to_panels(hpo_to_panel_map: dict, hpo_file: str, all_hpos: set[str]) -> tuple[dict, dict[str, str]]:
+def match_hpos_to_panels(hpo_panel_map: dict, hpo_file: str, all_hpos: set[str]) -> tuple[dict, dict[str, str]]:
     """
     take the HPO terms from the participant metadata, and match to panels
     Args:
-        hpo_to_panel_map (dict): panel IDs to all related panels
+        hpo_panel_map (dict): panel IDs to all related panels
         hpo_file (str): path to an obo file containing HPO tree
         all_hpos (set[str]): collection of all unique HPO terms
 
@@ -185,7 +185,7 @@ def match_hpos_to_panels(hpo_to_panel_map: dict, hpo_file: str, all_hpos: set[st
 
     hpo_to_panels = {}
     for hpo in all_hpos:
-        panel_ids = match_hpo_terms(panel_map=hpo_to_panel_map, hpo_tree=hpo_graph, hpo_str=hpo)
+        panel_ids = match_hpo_terms(panel_map=hpo_panel_map, hpo_tree=hpo_graph, hpo_str=hpo)
         hpo_to_panels[hpo] = panel_ids
 
     return hpo_to_panels, hpo_to_text
@@ -252,11 +252,7 @@ def main(ped_file: str, hpo_file: str, panel_out: str | None):
     """
     panels_by_hpo = get_panels()
     hpo_dict, all_hpo = get_participant_hpos(pedigree=ped_file)
-    hpo_to_panels, hpo_to_text = match_hpos_to_panels(
-        hpo_to_panel_map=panels_by_hpo,
-        hpo_file=hpo_file,
-        all_hpos=all_hpo,
-    )
+    hpo_to_panels, hpo_to_text = match_hpos_to_panels(hpo_panel_map=panels_by_hpo, hpo_file=hpo_file, all_hpos=all_hpo)
     match_participants_to_panels(hpo_dict, hpo_to_panels)
 
     # update the HPO terms to be {'id': 'HPO:#', 'label': 'Description'}
