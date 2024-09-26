@@ -20,7 +20,6 @@ from talos.models import ParticipantHPOPanels, PhenoPacketHpo, PhenotypeMatchedP
 from talos.static_values import get_logger
 
 HPO_RE = re.compile(r'HP:[0-9]+')
-MAX_DEPTH = 3
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 try:
@@ -117,7 +116,6 @@ def match_hpo_terms(
     panel_map: dict[str, set[int]],
     hpo_tree: nx.MultiDiGraph,
     hpo_str: str,
-    layers_scanned: int = 0,
     selections: set[int] | None = None,
 ) -> set[int]:
     """
@@ -132,7 +130,6 @@ def match_hpo_terms(
         panel_map (dict):
         hpo_tree (): a graph object representing the HPO tree
         hpo_str (str): the query HPO term
-        layers_scanned (int): number of layers traversed so far
         selections (set[int]): collected panel IDs so far
 
     Returns:
@@ -146,12 +143,6 @@ def match_hpo_terms(
     if hpo_str in panel_map:
         selections.update(panel_map[hpo_str])
 
-    # at time of writing the constant MAX_DEPTH is 3
-    # i.e. once the HPO tree traversal has reached 3 layers up, stop
-    # layers in this context represents a reduction in term specificity
-    if layers_scanned >= MAX_DEPTH:
-        return selections
-
     # if a node is invalid, recursively call this method for each replacement D:
     # there are simpler ways, just none that are as fun to write
     if not hpo_tree.has_node(hpo_str):
@@ -161,10 +152,10 @@ def match_hpo_terms(
     hpo_node = hpo_tree.nodes[hpo_str]
     if hpo_node.get('is_obsolete', 'false') == 'true':
         for hpo_term in hpo_node.get('replaced_by', []):
-            selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, layers_scanned + 1, selections))
+            selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, selections))
     # search for parent(s), even if the term is obsolete
     for hpo_term in hpo_node.get('is_a', []):
-        selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, layers_scanned + 1, selections))
+        selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, selections))
     return selections
 
 
