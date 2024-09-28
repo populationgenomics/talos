@@ -3,6 +3,7 @@ Complete revision... again
 """
 
 from argparse import ArgumentParser
+from datetime import datetime
 
 from talos.config import config_retrieve
 from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
@@ -20,6 +21,10 @@ PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
 # numerical ID of the Mendeliome in PanelApp Australia
 DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+ENTITY_TYPE_CONSTANT = 'entity_type'
+GENE_CONSTANT = 'gene'
+
+ACTIVITY_ENDING = 'has been classified as Green List (High Evidence).'
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -43,7 +48,46 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     return panel_name, panel_version, panel_genes
 
 
-def get_panel_green(
+def parse_panel_activity(panel_activity: list[dict]) -> dict[str, datetime]:
+    """
+    reads in the panel activity dictionary, and for each green entity, finds the date at
+    which the entity obtained a Green rating
+
+    Args:
+        panel_activity (list[dict]):
+
+    Returns:
+        dict
+    """
+
+    return_dict: dict[str, datetime] = {}
+
+    # do some stuff
+    for activity_entry in panel_activity:
+        # only interested in genes at the moment
+        if activity_entry.get(ENTITY_TYPE_CONSTANT) != GENE_CONSTANT:
+            continue
+
+        # get the name of the gene
+        gene_name = activity_entry['entity_name']
+
+        # we already found a date for this one
+        if gene_name in return_dict:
+            continue
+
+        # check for relevant text
+        if not activity_entry['text'].endswith(ACTIVITY_ENDING):
+            continue
+
+        # find the event date for this activity entry
+        creation = datetime.strptime(activity_entry['created'], '%Y-%m-%dT%H:%M:%S%z')
+
+        # store it
+        return_dict[gene_name] = creation
+    return return_dict
+
+
+def get_panel(
     gene_dict: PanelApp,
     old_data: HistoricPanels | None = None,
     panel_id: int = DEFAULT_PANEL,
@@ -68,10 +112,11 @@ def get_panel_green(
     if forbidden_genes is None:
         forbidden_genes = set()
 
-    # include the version if required
-    panel_url = f'{PANELAPP_BASE}/{panel_id}'
+    panel_name, panel_version, panel_genes = request_panel_data(f'{PANELAPP_BASE}/{panel_id}')
 
-    panel_name, panel_version, panel_genes = request_panel_data(panel_url)
+    # get the activity log for this panel
+    panel_activity = get_json_response(f'{PANELAPP_BASE}/{panel_id}/activities')
+    _green_dates = parse_panel_activity(panel_activity)
 
     # add metadata for this panel & version
     gene_dict.metadata.append(PanelShort(name=panel_name, version=panel_version, id=panel_id))
@@ -221,7 +266,7 @@ def main(panels: str | None, out_path: str):
 
     # first add the base content
     get_logger().info('Getting Base Panel')
-    get_panel_green(gene_dict, old_data=old_data, blacklist=remove_from_core, forbidden_genes=forbidden_genes)
+    get_panel(gene_dict, old_data=old_data, blacklist=remove_from_core, forbidden_genes=forbidden_genes)
 
     # if participant panels were provided, add each of those to the gene data
     panel_list: set[int] = set()
@@ -242,7 +287,7 @@ def main(panels: str | None, out_path: str):
             continue
 
         get_logger().info(f'Getting Panel {panel}')
-        get_panel_green(gene_dict=gene_dict, panel_id=panel, old_data=old_data, forbidden_genes=forbidden_genes)
+        get_panel(gene_dict=gene_dict, panel_id=panel, old_data=old_data, forbidden_genes=forbidden_genes)
 
     # now get the best MOI, and update the entities in place
     get_best_moi(gene_dict.genes)
