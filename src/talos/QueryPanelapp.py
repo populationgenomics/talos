@@ -47,7 +47,6 @@ def get_panel_green(
     gene_dict: PanelApp,
     old_data: HistoricPanels | None = None,
     panel_id: int = DEFAULT_PANEL,
-    version: str | None = None,
     blacklist: list[str] | None = None,
     forbidden_genes: set[str] | None = None,
 ):
@@ -59,7 +58,6 @@ def get_panel_green(
         gene_dict (): PanelApp obj to continue populating
         old_data (HistoricPanels): dict of sets - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
-        version (): version, optional. Latest panel unless stated
         blacklist (): list of symbols/ENSG IDs to remove from this panel
         forbidden_genes (set[str]): genes to remove for this cohort
     """
@@ -71,7 +69,7 @@ def get_panel_green(
         forbidden_genes = set()
 
     # include the version if required
-    panel_url = f'{PANELAPP_BASE}/{panel_id}' + (f'?version={version}' if version else '')
+    panel_url = f'{PANELAPP_BASE}/{panel_id}'
 
     panel_name, panel_version, panel_genes = request_panel_data(panel_url)
 
