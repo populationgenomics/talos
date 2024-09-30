@@ -11,14 +11,13 @@ import pytest
 from talos.models import PanelApp
 from talos.RunHailFiltering import (
     annotate_category_1,
-    annotate_category_2,
     annotate_category_3,
     annotate_category_5,
     annotate_category_6,
     annotate_talos_clinvar,
     filter_to_categorised,
     filter_to_population_rare,
-    green_and_new_from_panelapp,
+    green_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
 
@@ -43,41 +42,6 @@ def test_class_1_assignment(value, classified, make_a_mt):
 
     anno_matrix = annotate_category_1(anno_matrix)
     assert anno_matrix.info.categoryboolean1.collect() == [classified]
-
-
-@pytest.mark.parametrize(
-    'clinvar_talos,c6,gene_id,consequence_terms,classified',
-    [
-        (0, 0, 'GREEN', 'missense', ZERO_EXPECTED),
-        (1, 1, 'RED', 'frameshift_variant', ZERO_EXPECTED),
-        (1, 0, 'GREEN', 'missense', ONE_EXPECTED),
-        (1, 1, 'GREEN', 'frameshift_variant', ONE_EXPECTED),
-        (0, 1, 'GREEN', 'synonymous', ONE_EXPECTED),
-        (0, 1, 'GREEN', 'synonymous', ONE_EXPECTED),
-    ],
-)
-def test_cat_2_assignment(clinvar_talos, c6, gene_id, consequence_terms, classified, make_a_mt):
-    """
-    use some fake annotations, apply to the single fake variant
-    Args:
-        clinvar_talos ():
-        c6 ():
-        gene_id ():
-        consequence_terms ():
-        classified ():
-        make_a_mt ():
-    """
-
-    anno_matrix = make_a_mt.annotate_rows(
-        geneIds=gene_id,
-        info=make_a_mt.info.annotate(clinvar_talos=clinvar_talos, categoryboolean6=c6),
-        vep=hl.Struct(
-            transcript_consequences=hl.array([hl.Struct(consequence_terms=hl.set([consequence_terms]))]),
-        ),
-    )
-
-    anno_matrix = annotate_category_2(anno_matrix, new_genes=hl.set(['GREEN']))
-    assert anno_matrix.info.categoryboolean2.collect() == [classified]
 
 
 @pytest.mark.parametrize(
@@ -172,12 +136,11 @@ def annotate_c6_missing(make_a_mt, caplog):
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
 
-def test_green_and_new_from_panelapp():
+def test_green_from_panelapp():
     """
     TODO make a proper object
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
-    2 set expressions, one for all genes, one for new genes only
     """
     mendeliome_data = {
         'ENSG00ABCD': {'new': [1], 'symbol': 'ABCD'},
@@ -185,15 +148,13 @@ def test_green_and_new_from_panelapp():
         'ENSG00IJKL': {'new': [2], 'symbol': 'IJKL'},
     }
     mendeliome = PanelApp.model_validate({'genes': mendeliome_data})
-    green_expression, new_expression = green_and_new_from_panelapp(mendeliome)
+    green_expression = green_from_panelapp(mendeliome)
 
     # check types
     assert isinstance(green_expression, hl.SetExpression)
-    assert isinstance(new_expression, hl.SetExpression)
 
     # check content by collecting
     assert sorted(green_expression.collect()[0]) == ['ENSG00ABCD', 'ENSG00EFGH', 'ENSG00IJKL']
-    assert new_expression.collect()[0] == {'ENSG00ABCD', 'ENSG00IJKL'}
 
 
 @pytest.mark.parametrize(

@@ -443,50 +443,6 @@ def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_2(mt: hl.MatrixTable, new_genes: hl.SetExpression | None) -> hl.MatrixTable:
-    """
-    - Gene is new in PanelApp
-    - Clinvar contains pathogenic, or
-    - Critical protein consequence on at least one transcript
-    - High AlphaMissense score
-
-    Args:
-        mt ():
-        new_genes (): the new genes in this panelapp content
-    Returns:
-        same variants, categoryboolean2 set to 1 or 0
-    """
-
-    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
-
-    # permit scenario with no new genes
-    if new_genes is None:
-        return mt.annotate_rows(info=mt.info.annotate(categoryboolean2=MISSING_INT))
-
-    # check for new - if new, allow for in silico, CSQ, or clinvar to confirm
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categoryboolean2=hl.if_else(
-                (new_genes.contains(mt.geneIds))
-                & (
-                    (
-                        hl.len(
-                            mt.vep.transcript_consequences.filter(
-                                lambda x: hl.len(critical_consequences.intersection(hl.set(x.consequence_terms))) > 0,
-                            ),
-                        )
-                        > 0
-                    )
-                    | (mt.info.clinvar_talos == ONE_INT)
-                    | (mt.info.categoryboolean6 == ONE_INT)
-                ),
-                ONE_INT,
-                MISSING_INT,
-            ),
-        ),
-    )
-
-
 def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category3 flag
@@ -715,7 +671,6 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.filter_rows(
         (mt.info.categoryboolean1 == 1)
         | (mt.info.categoryboolean6 == 1)
-        | (mt.info.categoryboolean2 == 1)
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
@@ -748,30 +703,21 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
     hl.export_vcf(mt, vcf_out, append_to_header=header_path, tabix=True)
 
 
-def green_and_new_from_panelapp(panel_data: PanelApp) -> tuple[hl.SetExpression, hl.SetExpression | None]:
+def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
     """
     Pull all ENSGs from PanelApp data relating to Green Genes
-    Also identify the subset of those genes which relate to NEW in panel
 
     Args:
         panel_data (PanelApp): the PanelApp object
 
     Returns:
-        two set expressions - Green, and (Green and New) genes
-        can return None if no genes are currently new
+        a set expression - all Green genes in the analysis
     """
 
     # take all the green genes, remove the metadata
     green_genes = set(panel_data.genes.keys())
     get_logger().info(f'Extracted {len(green_genes)} green genes')
-    green_gene_set_expression = hl.literal(green_genes)
-
-    new_genes = {gene for gene in green_genes if len(panel_data.genes[gene].new) > 0}
-    get_logger().info(f'Extracted {len(new_genes)} NEW genes')
-    if new_genes:
-        return green_gene_set_expression, hl.literal(new_genes)
-
-    return green_gene_set_expression, None
+    return hl.literal(green_genes)
 
 
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
@@ -909,8 +855,8 @@ def main(
     panelapp = read_json_from_path(panel_data, return_model=PanelApp)
     assert isinstance(panelapp, PanelApp)
 
-    # pull green and new genes from the panelapp data
-    green_expression, new_expression = green_and_new_from_panelapp(panelapp)
+    # pull green genes from the panelapp data
+    green_expression = green_from_panelapp(panelapp)
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
@@ -972,7 +918,6 @@ def main(
     get_logger().info('Applying categories')
     mt = annotate_category_1(mt=mt)
     mt = annotate_category_6(mt=mt)
-    mt = annotate_category_2(mt=mt, new_genes=new_expression)
     mt = annotate_category_3(mt=mt)
     mt = annotate_category_5(mt=mt)
 
