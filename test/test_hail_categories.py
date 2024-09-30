@@ -238,20 +238,19 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,two,three,four,five,six,pm5,length',
+    'one,three,four,five,six,pm5,length',
     [
-        (0, 0, 0, 'missing', 0, 0, 'missing', 0),
-        (1, 0, 0, 'missing', 0, 0, 'missing', 1),
-        (0, 1, 0, 'missing', 0, 0, 'missing', 1),
-        (0, 0, 1, 'missing', 0, 0, 'missing', 1),
-        (0, 0, 0, 'present', 0, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 1, 0, 'missing', 1),
-        (0, 0, 0, 'missing', 0, 1, 'missing', 1),
-        (0, 0, 0, 'missing', 0, 0, 'present', 1),
-        (0, 1, 1, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0),
+        (1, 0, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1),
+        (0, 1, 'missing', 0, 0, 'missing', 1),
+        (0, 0, 'present', 0, 0, 'missing', 1),
+        (0, 0, 'missing', 1, 0, 'missing', 1),
+        (0, 0, 'missing', 0, 1, 'missing', 1),
+        (0, 0, 'missing', 0, 0, 'present', 1),
     ],
 )
-def test_filter_to_classified(one, two, three, four, five, six, pm5, length, make_a_mt):
+def test_filter_to_classified(one, three, four, five, six, pm5, length, make_a_mt):
     """
 
     Args:
@@ -261,7 +260,6 @@ def test_filter_to_classified(one, two, three, four, five, six, pm5, length, mak
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
             categoryboolean1=one,
-            categoryboolean2=two,
             categoryboolean3=three,
             categorysample4=four,
             categoryboolean5=five,
