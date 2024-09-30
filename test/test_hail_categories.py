@@ -242,7 +242,6 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
     [
         (0, 0, 'missing', 0, 0, 'missing', 0),
         (1, 0, 'missing', 0, 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'missing', 1),
         (0, 1, 'missing', 0, 0, 'missing', 1),
         (0, 0, 'present', 0, 0, 'missing', 1),
         (0, 0, 'missing', 1, 0, 'missing', 1),
