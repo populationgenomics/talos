@@ -11,6 +11,7 @@ pandas>=2
 peds>=1.2.0
 pydantic>=2.5.2
 pyspark>=3.5.1
+python-dateutil>=2
 requests>=2.31.0
 semsimian>=0.2.15
 tabulate>=0.8.9

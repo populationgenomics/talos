@@ -4,6 +4,7 @@ Complete revision... again
 
 from argparse import ArgumentParser
 from datetime import datetime
+from dateutil.parser import parse
 
 from talos.config import config_retrieve
 from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
@@ -57,7 +58,7 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, datetime]:
         panel_activity (list[dict]):
 
     Returns:
-        dict
+        dict, mapping gene symbol to the date it was first graded green (high evidence)
     """
 
     return_dict: dict[str, datetime] = {}
@@ -80,7 +81,7 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, datetime]:
             continue
 
         # find the event date for this activity entry
-        creation = datetime.strptime(activity_entry['created'], '%Y-%m-%dT%H:%M:%S%z')
+        creation = parse(activity_entry['created'])
 
         # store it
         return_dict[gene_name] = creation
@@ -116,6 +117,8 @@ def get_panel(
 
     # get the activity log for this panel
     panel_activity = get_json_response(f'{PANELAPP_BASE}/{panel_id}/activities')
+
+    # TODO: continue from here
     _green_dates = parse_panel_activity(panel_activity)
 
     # add metadata for this panel & version

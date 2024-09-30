@@ -32,6 +32,7 @@ QUAD_PED = join(INPUT, 'trio_plus_sibling.fam')
 SUB_STUB = join(INPUT, 'tiny_summary.txt.gz')
 
 # panelapp testing paths
+PANEL_ACTIVITIES = join(INPUT, 'panelapp_activities.json')
 PANELAPP_LATEST = join(INPUT, 'panelapp_current_137.json')
 PANELAPP_INCIDENTALOME = join(INPUT, 'incidentalome.json')
 FAKE_PANELAPP_OVERVIEW = join(INPUT, 'panel_overview.json')
@@ -107,6 +108,12 @@ def fixture_fake_obo() -> str:
 def fixture_panelapp_overview() -> Any:
     """path to panelapp_overview json"""
     return read_json_from_path(FAKE_PANELAPP_OVERVIEW)
+
+
+@pytest.fixture(name='panel_activities', scope='session')
+def fixture_panel_activities() -> Any:
+    """path to activities json"""
+    return read_json_from_path(PANEL_ACTIVITIES)
 
 
 @pytest.fixture(name='latest_mendeliome', scope='session')
