@@ -391,11 +391,6 @@ class PanelApp(BaseModel):
     version: str = CURRENT_VERSION
 
 
-class HistoricPanels(BaseModel):
-    genes: dict[str, set[int]] = Field(default_factory=dict)
-    version: str = CURRENT_VERSION
-
-
 class CategoryMeta(BaseModel):
     """
     The mapping of category names to their display names
@@ -550,7 +545,6 @@ class Pedigree(BaseModel):
 LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: {},
-    HistoricPanels: {},
     HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
     ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101, '1.0.2_1.0.3': rd_102_to_103},
 }
@@ -558,7 +552,7 @@ LIFTOVER_METHODS: dict = {
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels,
+    model: HistoricVariants | ResultData | PanelApp | PhenotypeMatchedPanels,
 ) -> dict:
     """
     lift over data from one version to another

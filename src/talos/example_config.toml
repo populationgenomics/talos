@@ -12,6 +12,11 @@ forbidden_genes = ['a', 'list', 'of', 'forbidden', 'genes']  # symbols, ENSG, or
 # must exist in the relevant panelapp instance
 forced_panels = [1, 2, 3]
 
+# integer, when parsing panel data, this value determines whether a gene is 'recent'
+# we find the date each gene became Green/Ready, and if that is within X months of today
+# we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol
+within_x_months = 6
+
 [FindGeneSymbolMap]
 # much higher than this and we get into throttling issues
 chunk_size = 800

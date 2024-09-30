@@ -26,7 +26,6 @@ from talos.models import (
     CategoryMeta,
     Coordinates,
     FileTypes,
-    HistoricPanels,
     HistoricSampleVariant,
     HistoricVariants,
     PanelApp,
@@ -889,7 +888,7 @@ def filter_results(results: ResultData, singletons: bool):
     save_new_historic(results=latest_results, prefix=prefix)
 
 
-def save_new_historic(results: HistoricVariants | HistoricPanels, prefix: str = ''):
+def save_new_historic(results: HistoricVariants, prefix: str = ''):
     """
     save the new results in the historic results dir
 

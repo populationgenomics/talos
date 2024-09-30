@@ -4,19 +4,14 @@ Complete revision... again
 
 from argparse import ArgumentParser
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
+from dateutil.utils import today
+
 
 from talos.config import config_retrieve
-from talos.models import HistoricPanels, PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
-from talos.utils import (
-    ORDERED_MOIS,
-    find_latest_file,
-    get_json_response,
-    get_logger,
-    get_simple_moi,
-    read_json_from_path,
-    save_new_historic,
-)
+from talos.models import PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
+from talos.utils import ORDERED_MOIS, get_json_response, get_logger, get_simple_moi, read_json_from_path
 
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
 PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
@@ -24,7 +19,8 @@ PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD
 DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
-
+TODAY = today()
+REALLY_OLD = parse('1970-01-01')
 ACTIVITY_ENDING = 'has been classified as Green List (High Evidence).'
 
 
@@ -81,7 +77,7 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, datetime]:
             continue
 
         # find the event date for this activity entry
-        creation = parse(activity_entry['created'])
+        creation = parse(activity_entry['created'], ignoretz=True)
 
         # store it
         return_dict[gene_name] = creation
@@ -90,7 +86,6 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, datetime]:
 
 def get_panel(
     gene_dict: PanelApp,
-    old_data: HistoricPanels | None = None,
     panel_id: int = DEFAULT_PANEL,
     blacklist: list[str] | None = None,
     forbidden_genes: set[str] | None = None,
@@ -101,7 +96,6 @@ def get_panel(
 
     Args:
         gene_dict (): PanelApp obj to continue populating
-        old_data (HistoricPanels): dict of sets - panels per gene
         panel_id (): specific panel or 'base' (e.g. 137)
         blacklist (): list of symbols/ENSG IDs to remove from this panel
         forbidden_genes (set[str]): genes to remove for this cohort
@@ -118,8 +112,10 @@ def get_panel(
     # get the activity log for this panel
     panel_activity = get_json_response(f'{PANELAPP_BASE}/{panel_id}/activities')
 
-    # TODO: continue from here
-    _green_dates = parse_panel_activity(panel_activity)
+    green_dates = parse_panel_activity(panel_activity)
+
+    # find the threshold for when a gene should be treated as recent - new if added within this many months
+    recent_months = config_retrieve(['GeneratePanelData', 'within_x_months'])
 
     # add metadata for this panel & version
     gene_dict.metadata.append(PanelShort(name=panel_name, version=panel_version, id=panel_id))
@@ -127,6 +123,10 @@ def get_panel(
     # iterate over the genes in this panel result
     for gene in panel_genes:
         symbol = gene.get('entity_name')
+
+        # how long ago was this added to this panel? If within the last X months, treat as new
+        # if we didn't find an acceptable date from the API, fall back on REALLY_OLD (never recent)
+        new_gene = relativedelta(dt1=TODAY, dt2=green_dates.get(symbol, REALLY_OLD)).months < recent_months
 
         # only retain green genes
         if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene' or symbol in forbidden_genes:
@@ -152,12 +152,6 @@ def get_panel(
             get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
 
-        # check if this is a new gene in this analysis
-        new_gene = False
-        if old_data and (new_gene := (panel_id not in old_data.genes.get(ensg, {}))):
-            # add this panel to the gene, so it won't be new next time
-            old_data.genes.setdefault(ensg, set()).add(panel_id)
-
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
         # either update or add a new entry
@@ -170,7 +164,7 @@ def get_panel(
             # add this moi to the set
             this_gene.all_moi.add(exact_moi)
 
-            # if this is/was new - it's new
+            # if this is a recent addition to the panel, add this panel to the 'new' attr
             if new_gene:
                 this_gene.new.add(panel_id)
 
@@ -209,22 +203,6 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
-def create_new_history_from_current(current: PanelApp) -> HistoricPanels:
-    """
-    situation: we haven't generated a history file before, but we want to save this round's results
-
-    Args:
-        current (PanelApp): the genes and panels gathered in this round
-
-    Returns:
-        A validly formatted HistoricPanels object containing the current data
-    """
-    new_history: HistoricPanels = HistoricPanels()
-    for gene, gene_details in current.genes.items():
-        new_history.genes[gene] = gene_details.panels
-    return new_history
-
-
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--panels', help='JSON of per-participant panels')
@@ -247,18 +225,6 @@ def main(panels: str | None, out_path: str):
 
     # set the Forbidden genes (defaulting to an empty set)
     forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], set())
-    results_folder: str | None = config_retrieve('result_history', None)
-
-    # Cat. 2 is greedy - the lower barrier to entry means we should avoid using it unless
-    # there is a prior run to bootstrap from. If there's no history file, there are no 'new' genes in this round
-    if results_folder and (old_file := find_latest_file(results_folder=results_folder, start='panel_')):
-        get_logger().info(f'Grabbing legacy panel data from {old_file}')
-        old_data = read_json_from_path(old_file, return_model=HistoricPanels)
-        assert old_data, f'{old_file} did not contain data in a valid format'
-
-    else:
-        get_logger().info('No prior data found, not treating anything as new')
-        old_data = None
 
     # are there any genes to skip from the Mendeliome? i.e. only report if in a specifically phenotype-matched panel
     remove_from_core: list[str] = config_retrieve(['GeneratePanelData', 'require_pheno_match'], [])
@@ -269,7 +235,7 @@ def main(panels: str | None, out_path: str):
 
     # first add the base content
     get_logger().info('Getting Base Panel')
-    get_panel(gene_dict, old_data=old_data, blacklist=remove_from_core, forbidden_genes=forbidden_genes)
+    get_panel(gene_dict, blacklist=remove_from_core, forbidden_genes=forbidden_genes)
 
     # if participant panels were provided, add each of those to the gene data
     panel_list: set[int] = set()
@@ -290,7 +256,7 @@ def main(panels: str | None, out_path: str):
             continue
 
         get_logger().info(f'Getting Panel {panel}')
-        get_panel(gene_dict=gene_dict, panel_id=panel, old_data=old_data, forbidden_genes=forbidden_genes)
+        get_panel(gene_dict=gene_dict, panel_id=panel, forbidden_genes=forbidden_genes)
 
     # now get the best MOI, and update the entities in place
     get_best_moi(gene_dict.genes)
@@ -298,15 +264,6 @@ def main(panels: str | None, out_path: str):
     # write the output to long term storage
     with open(out_path, 'w') as out_file:
         out_file.write(PanelApp.model_validate(gene_dict).model_dump_json(indent=4))
-
-    if results_folder:
-        # identify situations where we should generate new historic results
-        if old_data is None:
-            # create new history from current data
-            old_data = create_new_history_from_current(gene_dict)
-
-        # Only save here if we have a historic location in config
-        save_new_historic(old_data, prefix='panel_')
 
 
 if __name__ == '__main__':

@@ -6,8 +6,8 @@ from copy import deepcopy
 
 import pytest
 
-from talos.models import CURRENT_VERSION, HistoricPanels, PanelApp, PanelDetail
-from talos.QueryPanelapp import create_new_history_from_current, get_best_moi, get_panel, parse_panel_activity
+from talos.models import PanelApp, PanelDetail
+from talos.QueryPanelapp import get_best_moi, get_panel, parse_panel_activity
 
 empty_gene_dict = PanelApp(genes={})
 
@@ -30,23 +30,6 @@ def test_activity_parser(panel_activities):
 
     assert 'GENE3' in activity_dict
     assert activity_dict['GENE3'].strftime('%Y-%m-%d') == '2024-09-15'
-
-
-def test_new_history_creation():
-    """
-    create some current data, render it as historic & check the contents
-    """
-    panels: PanelApp = PanelApp(
-        genes={
-            'ENSG1': {'panels': {1, 2}, 'symbol': 'ensg1'},
-            'ENSG2': {'panels': {2, 3}, 'symbol': 'ensg2'},
-        },
-    )
-
-    new_history = create_new_history_from_current(panels)
-
-    new_dict = new_history.model_dump()
-    assert new_dict == {'version': CURRENT_VERSION, 'genes': {'ENSG1': {1, 2}, 'ENSG2': {2, 3}}}
 
 
 @pytest.fixture(name='fake_panelapp')
@@ -72,12 +55,10 @@ def test_panel_query(fake_panelapp):  # noqa: ARG001
     """
 
     gd = deepcopy(empty_gene_dict)
-    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
-    get_panel(gd, old_data=old_data, forbidden_genes=set())
+    get_panel(gd, forbidden_genes=set())
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
     assert gd.genes['ENSG00ABCD'].panels == {137}
     assert gd.genes['ENSG00EFGH'].all_moi == {'monoallelic'}
-    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_removal(fake_panelapp):  # noqa: ARG001
@@ -87,12 +68,10 @@ def test_panel_query_removal(fake_panelapp):  # noqa: ARG001
     """
 
     gd = deepcopy(empty_gene_dict)
-    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
-    get_panel(gd, old_data=old_data, blacklist=['ENSG00EFGH'])
+    get_panel(gd, blacklist=['ENSG00EFGH'])
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
     assert gd.genes['ENSG00ABCD'].panels == {137}
     assert 'ENSG00EFGH' not in gd.genes
-    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_forbidden(fake_panelapp):  # noqa: ARG001
@@ -101,13 +80,11 @@ def test_panel_query_forbidden(fake_panelapp):  # noqa: ARG001
     :param fake_panelapp: fake web hook mock
     """
     gd = deepcopy(empty_gene_dict)
-    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
-    get_panel(gd, old_data=old_data, forbidden_genes={'ENSG00EFGH'})
+    get_panel(gd, forbidden_genes={'ENSG00EFGH'})
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
     assert gd.genes['ENSG00ABCD'].panels == {137}
     assert 'ENSG00EFGH' not in gd.genes
-    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_removal_2(fake_panelapp):  # noqa: ARG001
@@ -117,12 +94,10 @@ def test_panel_query_removal_2(fake_panelapp):  # noqa: ARG001
     """
 
     gd = deepcopy(empty_gene_dict)
-    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
-    get_panel(gd, old_data=old_data, blacklist=['EFGH'])
+    get_panel(gd, blacklist=['EFGH'])
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
     assert gd.genes['ENSG00ABCD'].panels == {137}
     assert 'ENSG00EFGH' not in gd.genes
-    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
@@ -132,20 +107,21 @@ def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
     """
 
     gd = deepcopy(empty_gene_dict)
-    old_data = HistoricPanels(genes={'ENSG00ABCD': {1}, 'ENSG00EFGH': {137}})
-    get_panel(gd, old_data=old_data, forbidden_genes={'EFGH'})
+    get_panel(gd, forbidden_genes={'EFGH'})
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
     assert gd.genes['ENSG00ABCD'].panels == {137}
     assert 'ENSG00EFGH' not in gd.genes
-    assert old_data.genes['ENSG00ABCD'] == {1, 137}
 
 
 def test_panel_query_addition(fake_panelapp: pytest.fixture):  # noqa: ARG001
     """
     check that the default parsing delivers correct data
     oof, this was a tricky one
-    :param fake_panelapp: fake web hook mock
+
+    Args:
+        fake_panelapp (): fake web hook mock
     """
+
     # assumed data we already gathered
     gd = PanelApp(
         metadata=[{'version': '0.11088', 'name': 'Mendeliome', 'id': 137}],
@@ -166,11 +142,7 @@ def test_panel_query_addition(fake_panelapp: pytest.fixture):  # noqa: ARG001
     )
 
     # should query for and integrate the incidentalome content
-    get_panel(
-        gd,
-        panel_id=126,
-        old_data=HistoricPanels(genes={'ENSG00EFGH': {137, 126}, 'ENSG00IJKL': {137}}),
-    )
+    get_panel(gd, panel_id=126)
     assert gd.genes['ENSG00ABCD'].all_moi == {'monoallelic', 'biallelic'}
     assert gd.genes['ENSG00ABCD'].panels == {137, 126}
     assert gd.genes['ENSG00IJKL'].all_moi == {'both'}
