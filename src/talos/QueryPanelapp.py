@@ -1,5 +1,8 @@
 """
-Complete revision... again
+Poll PanelApp for all the Panel contents relevant to this analysis
+Start by querying for a 'base' panel (either 137; The Mendeliome, or as specified in the config file)
+After the base panel, optionally iterate over all additional panels
+Write the data out as a PanelApp object model
 """
 
 from argparse import ArgumentParser
