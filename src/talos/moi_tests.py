@@ -683,7 +683,7 @@ class XPseudoDominantFemale(BaseMoi):
     Basically a Dominant MOI to be applied to Recessive genes, and results will be labelled as cautionary
     """
 
-    def __init__(self, pedigree: Pedigree, applied_moi: str = 'X_Dominant'):
+    def __init__(self, pedigree: Pedigree, applied_moi: str = 'X_PseudoDominant'):
         """
         accept male hets and homs, and female hets without support
 
@@ -718,7 +718,7 @@ class XPseudoDominantFemale(BaseMoi):
             comp_het ():
             partial_pen ():
         """
-
+        # unused in this class, we always run this with partial penetrance
         _unused = partial_pen
 
         classifications = []
