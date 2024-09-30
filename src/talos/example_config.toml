@@ -60,7 +60,7 @@ small_variants = 8
 
 [categories]
 1 = 'ClinVar Pathogenic'
-2 = 'New Gene-Disease Association'
+#2 = 'New Gene-Disease Association'
 3 = 'High Impact Variant'
 4 = 'de Novo'
 5 = 'High SpliceAI Score'
