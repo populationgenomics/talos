@@ -39,7 +39,6 @@ from talos.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    get_new_gene_map,
     make_flexible_pedigree,
     read_json_from_path,
 )
@@ -463,9 +462,6 @@ def main(
         default=None,
     )
 
-    # create the new gene map
-    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels)
-
     result_list: list[ReportVariant] = []
 
     # collect all sample IDs from each VCF type
@@ -490,7 +486,6 @@ def main(
             contig=contig,
             variant_source=vcf_opened,
             sv_sources=sv_opened,
-            new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
 

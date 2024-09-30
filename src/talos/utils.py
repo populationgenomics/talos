@@ -352,12 +352,7 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     return info_dict
 
 
-def create_small_variant(
-    var: cyvcf2.Variant,
-    samples: list[str],
-    as_singletons=False,
-    new_genes: dict[str, set[str]] | None = None,
-):
+def create_small_variant(var: cyvcf2.Variant, samples: list[str], as_singletons=False):
     """
     takes a small variant and creates a Model from it
 
@@ -365,7 +360,6 @@ def create_small_variant(
         var ():
         samples ():
         as_singletons ():
-        new_genes ():
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
@@ -377,19 +371,6 @@ def create_small_variant(
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
-
-    # hot-swap cat 2 from a boolean to a sample list - if appropriate
-    if info.get('categoryboolean2', 0) and new_genes:
-        new_gene_samples: set[str] = new_genes.get(info.get('gene_id', 'MISSING'), set())
-
-        # if 'all', keep cohort-wide boolean flag
-        if new_gene_samples == {'all'}:
-            get_logger().debug('New applies to all samples')
-
-        # otherwise assign only a specific sample list
-        elif new_gene_samples:
-            _boolcat = info.pop('categoryboolean2')
-            info['categorysample2'] = new_gene_samples
 
     # organise PM5
     info = organise_pm5(info)
@@ -500,7 +481,6 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    new_gene_map: dict[str, set[str]],
     singletons: bool = False,
     sv_sources: list | None = None,
 ) -> GeneDict:
@@ -514,7 +494,6 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         sv_sources (): an optional list of SV VCFs
-        new_gene_map ():
         singletons ():
 
     Returns:
@@ -542,12 +521,7 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-        small_variant = create_small_variant(
-            var=variant,
-            samples=variant_source.samples,
-            as_singletons=singletons,
-            new_genes=new_gene_map,
-        )
+        small_variant = create_small_variant(var=variant, samples=variant_source.samples, as_singletons=singletons)
 
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
