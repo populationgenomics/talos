@@ -118,7 +118,8 @@ def get_panel(
     green_dates = parse_panel_activity(panel_activity)
 
     # find the threshold for when a gene should be treated as recent - new if added within this many months
-    recent_months = config_retrieve(['GeneratePanelData', 'within_x_months'])
+    # by default we're falling back to 6 months, just so we don't fail is this is absent in config
+    recent_months = config_retrieve(['GeneratePanelData', 'within_x_months'], 6)
 
     # add metadata for this panel & version
     gene_dict.metadata.append(PanelShort(name=panel_name, version=panel_version, id=panel_id))

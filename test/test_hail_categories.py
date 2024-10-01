@@ -138,7 +138,6 @@ def annotate_c6_missing(make_a_mt, caplog):
 
 def test_green_from_panelapp():
     """
-    TODO make a proper object
     check that the set expressions from panelapp data are correct
     this is collection of ENSG names from panelapp
     """

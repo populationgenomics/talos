@@ -16,7 +16,7 @@ from talos.models import (
     ReportVariant,
     SmallVariant,
 )
-from talos.utils import get_simple_moi  # todo test this
+from talos.utils import get_simple_moi
 from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
@@ -132,7 +132,6 @@ def test_file_types_exception():
 )
 def test_get_simple_moi(string: str, expected: str, chrom: str):
     """
-    TODO improve this test case
     Tests the string parsing down to simple representation
     """
     assert get_simple_moi({string}, chrom) == {expected}

@@ -321,7 +321,6 @@ class ReportPanel(BaseModel):
     simple storage for all the panels to present in tooltips
     """
 
-    # TODO: update to the model here
     forced: dict[int, str] = Field(default_factory=dict)
     matched: dict[int, str] = Field(default_factory=dict)
 
@@ -383,8 +382,8 @@ class PanelShort(BaseModel):
     """
 
     id: int
-    version: str = Field(default_factory=str)
     name: str = Field(default_factory=str)
+    version: str = 'UNKNOWN'
 
 
 class PanelApp(BaseModel):
@@ -541,9 +540,7 @@ class Pedigree(BaseModel):
     by_id: dict[str, PedigreeMember] = Field(default_factory=dict)
 
 
-# methods defining how to transition between model versions
-# if unspecified, no transition is required
-# TODO needs a lift for the ResultData.ParticipantResults.ParticipantMeta
+# methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: {},
