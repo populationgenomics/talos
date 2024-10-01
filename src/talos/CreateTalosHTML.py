@@ -56,7 +56,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
     # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
     # catch this, but fail gracefully so that the process overall is a success
     try:
-        get_logger().info('Finding whole-cohort categorised variants')
+        get_logger().info(f'Writing whole-cohort categorised variants to {output}')
         html.write_html(output_filepath=output)
     except NoVariantsFoundError:
         get_logger().warning('No Categorised variants found in this whole cohort')
@@ -64,8 +64,10 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
 
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
-    if latest and (date_filtered_object := check_date_filter(results=results)):
+    date_filtered_object = check_date_filter(results=results)
+    if latest and date_filtered_object:
         # build the HTML for latest reports only
+        get_logger().info(f'Attempting to create whole-cohort latest report at {latest}')
         latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
         # this can fail if there are no latest-in-this-run variants, but we continue to splitting
         try:
@@ -88,19 +90,21 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
     for data, report, latest in split_data_into_sub_reports(results, split_samples):
         html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
-            get_logger().info(f'Attempting to create {report}')
-            html.write_html(output_filepath=f'{html_base}{report}')
-
+            output_filepath = f'{html_base}{report}'
+            get_logger().info(f'Attempting to create {report} at {output_filepath}')
+            html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
 
         # If the latest arg is used, filter the results
         # write the HTML if any results remain
-        if latest and (date_filtered_object := check_date_filter(results=data)):
+        date_filtered_object = check_date_filter(results=data)
+        if latest and date_filtered_object:
             # build the HTML for latest reports only
             latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
             try:
-                get_logger().info(f'Attempting to create {html_base}{latest}')
+                output_filepath = f'{html_base}{latest}'
+                get_logger().info(f'Attempting to create {latest} at {output_filepath}')
                 latest_html.write_html(output_filepath=f'{html_base}{latest}', latest=True)
             except NoVariantsFoundError:
                 get_logger().info('No variants in that latest report, skipping')
