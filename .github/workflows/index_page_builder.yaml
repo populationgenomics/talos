@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VERSION: 5.5.0
+      VERSION: 5.5.0alpha
 
     steps:
 
