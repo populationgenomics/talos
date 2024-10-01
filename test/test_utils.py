@@ -179,7 +179,7 @@ def test_gene_dict(two_trio_variants_vcf):
     """
     reader = VCFReader(two_trio_variants_vcf)
     contig = 'chr20'
-    var_dict = gather_gene_dict_from_contig(contig=contig, variant_source=reader, new_gene_map={})
+    var_dict = gather_gene_dict_from_contig(contig=contig, variant_source=reader)
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
@@ -211,11 +211,7 @@ def test_phased_dict(phased_vcf_path):
     gene = ENSG00000075043
     """
     reader = VCFReader(phased_vcf_path)
-    var_dict = gather_gene_dict_from_contig(
-        contig='chr20',
-        variant_source=reader,
-        new_gene_map={'ENSG00000075043': {'all'}},
-    )
+    var_dict = gather_gene_dict_from_contig(contig='chr20', variant_source=reader)
     assert len(var_dict) == ONE_EXPECTED
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
