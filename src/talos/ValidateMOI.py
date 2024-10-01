@@ -261,8 +261,7 @@ def clean_and_filter(
             prev_event.reasons.update(each_event.reasons)
             prev_event.gene = ','.join({*prev_event.gene.split(','), each_event.gene})
 
-            # combine flags across variants, and remove Ambiguous marking
-            # if it's no longer appropriate
+            # combine flags across variants, and remove Ambiguous marking if it's no longer appropriate
             both_flags = {*prev_event.flags, *each_event.flags}
             if prev_event.reasons != {'Autosomal Dominant'} and AMBIGUOUS_FLAG in both_flags:
                 both_flags.remove(AMBIGUOUS_FLAG)
