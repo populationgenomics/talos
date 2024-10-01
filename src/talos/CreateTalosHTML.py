@@ -191,11 +191,6 @@ class HTMLBuilder:
         self.metadata = results_dict.metadata
         self.panel_names = {panel.name for panel in self.metadata.panels}
 
-        # pull out forced panel matches
-        cohort_panels = config_retrieve(['GeneratePanelData', 'forced_panels'], [])
-        self.forced_panels: list = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
-        self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
-
         # Process samples and variants
         self.samples: list[Sample] = []
         self.solved: list[str] = []
@@ -299,7 +294,7 @@ class HTMLBuilder:
         parses into a general table and a panel table
         """
 
-        tables = {
+        return {
             'Panels': pd.DataFrame(
                 {'ID': panel.id, 'Version': panel.version, 'Name': panel.name} for panel in self.metadata.panels
             ),
@@ -317,11 +312,6 @@ class HTMLBuilder:
                 ],
             ),
         }
-
-        if self.forced_panels:
-            tables['Cohort Matched Panels'] = pd.DataFrame(self.forced_panels)
-
-        return tables
 
     def write_html(self, output_filepath: str, latest: bool = False):
         """
@@ -397,8 +387,7 @@ class Sample:
         self.family_members = metadata.members
         self.phenotypes = metadata.phenotypes
         self.ext_id = metadata.ext_id
-        self.panel_ids = metadata.panel_ids
-        self.panel_names = metadata.panel_names
+        self.panel_details = metadata.panel_details
         self.seqr_id = html_builder.seqr.get(name, None)
 
         # Ingest variants excluding any on the forbidden gene list
@@ -476,6 +465,10 @@ class Variant:
         # add the phenotype match date and HPO term id/labels
         self.phenotype_match_date = report_variant.date_of_phenotype_match
         self.phenotype_matches = report_variant.phenotype_labels
+
+        # todo: populate all these
+        self.new_in_mendeliome: bool = False
+        self.new_panels: list[str] = []
 
         # List of (gene_id, symbol)
         self.genes: list[tuple[str, str]] = []
