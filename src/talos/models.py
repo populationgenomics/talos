@@ -17,8 +17,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.0.3'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3']
+CURRENT_VERSION = '1.1.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -320,8 +320,9 @@ class ReportPanel(BaseModel):
     simple storage for all the panels to present in tooltips
     """
 
-    forced: set[str] = Field(default_factory=set)
-    matched: set[str] = Field(default_factory=set)
+    # TODO: update to the model here
+    forced: dict[int, str] = Field(default_factory=dict)
+    matched: dict[int, str] = Field(default_factory=dict)
 
 
 class ReportVariant(BaseModel):
@@ -461,8 +462,7 @@ class ParticipantMeta(BaseModel):
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
-    panel_ids: set[int] = Field(default_factory=set)
-    panel_names: set[str] = Field(default_factory=set)
+    panel_details: dict[int, str] = Field(default_factory=dict)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
     present_in_sv: bool = Field(default=False)
@@ -542,6 +542,7 @@ class Pedigree(BaseModel):
 
 # methods defining how to transition between model versions
 # if unspecified, no transition is required
+# TODO needs a lift for the ResultData.ParticipantResults.ParticipantMeta
 LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: {},

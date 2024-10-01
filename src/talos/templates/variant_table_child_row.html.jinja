@@ -100,13 +100,6 @@
                             </dd>
                             {% endif %}
 
-                            {% if '2' in variant.categories %}
-                            <dt class="col-sm-3">Category 2</dt>
-                            <dd class="col-sm-9">
-                                Recently reported disease associated gene
-                            </dd>
-                            {% endif %}
-
                             {% if '3' in variant.categories %}
                             <dt class="col-sm-3">Category 3</dt>
                             <dd class="col-sm-9">
@@ -181,8 +174,8 @@
                                 Assigned Panels:
                             </dt>
                             <dd class="col-sm-9">
-                            {% for panel in sample.panel_names %}
-                                {{ panel }}<br>
+                            {% for panel_id, panel_name in sample.panel_details.items() %}
+                                {{ panel_name }} ({{ panel_id }})<br>
                             {% endfor %}
                             </dd>
                         </dl>

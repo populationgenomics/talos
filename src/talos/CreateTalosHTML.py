@@ -153,6 +153,10 @@ class HTMLBuilder:
             results (str | ResultData): path to the results JSON, or the results object
             panelapp_path (str): where to read panelapp data from
         """
+        # get a hold of the base panel ID we're using
+        # this is used to differentiate between new in base and new in other
+        self.base_panel: int = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
         # If it exists, read the forbidden genes as a list
@@ -382,6 +386,7 @@ class Sample:
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
+        self.metadata = metadata
         self.name = name
         self.family_id = metadata.family_id
         self.family_members = metadata.members
@@ -396,7 +401,7 @@ class Sample:
                 report_variant,
                 self,
                 ext_labels.get(report_variant.var_data.coordinates.string_format, []),
-                html_builder.panelapp.genes,
+                html_builder,
             )
             for report_variant in variants
             if not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
@@ -404,6 +409,19 @@ class Sample:
 
     def __str__(self):
         return self.name
+
+
+def translate_panel_ids_to_strings(panel_details: dict, id_set: set[str]) -> set[str]:
+    """
+    Takes a set of panel IDs and translates them to strings
+    Args:
+        panel_details ():
+        id_set ():
+
+    Returns:
+        the integers
+    """
+    return {f'{panel_details[pid]}({pid})' for pid in id_set}
 
 
 class Variant:
@@ -443,7 +461,7 @@ class Variant:
         report_variant: ReportVariant,
         sample: Sample,
         ext_labels: list,
-        gene_map: dict[str, PanelDetail],
+        html_builder: HTMLBuilder,
     ):
         self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
@@ -456,25 +474,49 @@ class Variant:
         self.first_tagged: str = report_variant.first_tagged
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
-        self.panel_flags = report_variant.panels.matched
-        self.forced_matches = report_variant.panels.forced
+        # these are the panel IDs which are matched based on HPO matching in PanelApp
+        self.pheno_matches = {f'{name}({pid})' for pid, name in report_variant.panels.matched.items()}
+        # these are the panel IDs we manually applied to this whole cohort
+        self.forced_matches = {f'{name}({pid})' for pid, name in report_variant.panels.forced.items()}
+
+        # collect all forced and matched panel IDs
+        match_ids = set(report_variant.panels.forced.keys()).union(set(report_variant.panels.matched.keys())) - {
+            html_builder.base_panel,
+        }
+
         self.reasons = report_variant.reasons
         self.genotypes = report_variant.genotypes
         self.sample = sample
         self.ext_labels = ext_labels
         # add the phenotype match date and HPO term id/labels
         self.phenotype_match_date = report_variant.date_of_phenotype_match
-        self.phenotype_matches = report_variant.phenotype_labels
+        self.phenotype_matches = translate_panel_ids_to_strings(
+            sample.metadata.panel_details,
+            report_variant.phenotype_labels,
+        )
 
-        # todo: populate all these
-        self.new_in_mendeliome: bool = False
-        self.new_panels: list[str] = []
+        # check if this variant is new in the base panel
+        self.new_in_base_panel: bool = False
+
+        # store if this variant is new in any of the other panels
+        self.new_panels: set[str] = set()
 
         # List of (gene_id, symbol)
         self.genes: list[tuple[str, str]] = []
         for gene_id in report_variant.gene.split(','):
-            symbol = gene_map.get(gene_id, PanelDetail(symbol=gene_id)).symbol
-            self.genes.append((gene_id, symbol))
+            gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, PanelDetail(symbol=gene_id))
+            self.genes.append((gene_id, gene_panelapp_entry.symbol))
+
+            # is this a new gene?
+            new_panels = gene_panelapp_entry.new
+
+            if html_builder.base_panel in new_panels:
+                self.new_in_base_panel = True
+
+            # now draw the rest of the owl
+            self.new_panels.update(
+                {f'{sample.metadata.panel_details[pid]}({pid})' for pid in new_panels.intersection(match_ids)},
+            )
 
         # Summaries CSQ strings
         if isinstance(self.var_data, SmallVariant):

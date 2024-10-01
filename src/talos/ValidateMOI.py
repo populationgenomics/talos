@@ -214,7 +214,10 @@ def clean_and_filter(
         # get all forced panels this gene intersects with
         cohort_intersection: set[int] = cohort_panels.intersection(all_panels)
 
-        matched_panels = set()
+        # establish the object dictionaries
+        matched_panels = {}
+        forced_panels = {pid: panel_meta[pid] for pid in cohort_intersection}
+
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
@@ -227,14 +230,10 @@ def clean_and_filter(
                 continue
 
             matched_panels = {
-                panel_meta[pid]
+                pid: panel_meta[pid]
                 for pid in phenotype_intersection
                 if pid != config_retrieve(['GeneratePanelData', 'default_panel'], 137)
             }
-
-        forced_panels = set()
-        if cohort_intersection:
-            forced_panels = {panel_meta[pid] for pid in cohort_intersection}
 
         # don't remove variants here, we do that in the pheno-matching stage
         each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
@@ -377,8 +376,7 @@ def prepare_results_shell(
                 family_id=sample.family,
                 members=family_members,
                 phenotypes=sample_panel_data.hpo_terms,
-                panel_ids=sample_panel_data.panels,
-                panel_names=[panel_meta[panel_id] for panel_id in sample_panel_data.panels],
+                panel_details={panel_id: panel_meta[panel_id] for panel_id in sample_panel_data.panels},
                 solved=bool(sample.id in solved_cases or sample.family in solved_cases),
                 present_in_small=sample.id in small_samples,
                 present_in_sv=sample.id in sv_samples,
