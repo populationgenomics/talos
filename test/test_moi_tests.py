@@ -459,7 +459,7 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
     x_dom = XPseudoDominantFemale(pedigree=make_flexible_pedigree(pedigree_path))
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant'}
+    assert results[0].reasons == {'X_PseudoDominant'}
     assert 'Affected female with heterozygous variant in XLR gene' in results[0].flags
 
 

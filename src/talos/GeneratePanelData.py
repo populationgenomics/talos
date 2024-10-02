@@ -11,13 +11,13 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 import networkx as nx
-import requests
 from obonet import read_obo
 from peds import open_ped
 
 from talos.config import config_retrieve
 from talos.models import ParticipantHPOPanels, PhenoPacketHpo, PhenotypeMatchedPanels
 from talos.static_values import get_logger
+from talos.utils import get_json_response
 
 HPO_RE = re.compile(r'HP:[0-9]+')
 
@@ -27,23 +27,6 @@ try:
 except KeyError:
     get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     PANELS_ENDPOINT = PANELAPP_HARD_CODED_DEFAULT
-
-
-def get_json_response(url: str) -> dict:
-    """
-    takes a request URL, checks for healthy response, returns the JSON
-    For this purpose we only expect a dictionary return
-
-    Args:
-        url (str): str URL to retrieve JSON format data from
-
-    Returns:
-        the JSON response from the endpoint
-    """
-
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()
-    return response.json()
 
 
 def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:

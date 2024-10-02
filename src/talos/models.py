@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
+from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date, get_logger
@@ -17,8 +18,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.0.3'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3']
+CURRENT_VERSION = '1.1.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -320,8 +321,8 @@ class ReportPanel(BaseModel):
     simple storage for all the panels to present in tooltips
     """
 
-    forced: set[str] = Field(default_factory=set)
-    matched: set[str] = Field(default_factory=set)
+    forced: dict[int, str] = Field(default_factory=dict)
+    matched: dict[int, str] = Field(default_factory=dict)
 
 
 class ReportVariant(BaseModel):
@@ -381,18 +382,13 @@ class PanelShort(BaseModel):
     """
 
     id: int
-    version: str = Field(default_factory=str)
     name: str = Field(default_factory=str)
+    version: str = 'UNKNOWN'
 
 
 class PanelApp(BaseModel):
     metadata: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, PanelDetail]
-    version: str = CURRENT_VERSION
-
-
-class HistoricPanels(BaseModel):
-    genes: dict[str, set[int]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
 
 
@@ -466,8 +462,7 @@ class ParticipantMeta(BaseModel):
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
-    panel_ids: set[int] = Field(default_factory=set)
-    panel_names: set[str] = Field(default_factory=set)
+    panel_details: dict[int, str] = Field(default_factory=dict)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
     present_in_sv: bool = Field(default=False)
@@ -545,20 +540,23 @@ class Pedigree(BaseModel):
     by_id: dict[str, PedigreeMember] = Field(default_factory=dict)
 
 
-# methods defining how to transition between model versions
-# if unspecified, no transition is required
+# methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
     PanelApp: {},
-    HistoricPanels: {},
     HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
-    ResultData: {'None_1.0.0': rd_none_to_1_0_0, '1.0.0_1.0.1': rd_100_to_101, '1.0.2_1.0.3': rd_102_to_103},
+    ResultData: {
+        'None_1.0.0': rd_none_to_1_0_0,
+        '1.0.0_1.0.1': rd_100_to_101,
+        '1.0.2_1.0.3': rd_102_to_103,
+        '1.0.3_1.1.0': rd_103_to_110,
+    },
 }
 
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | HistoricPanels | ResultData | PanelApp | PhenotypeMatchedPanels,
+    model: HistoricVariants | ResultData | PanelApp | PhenotypeMatchedPanels,
 ) -> dict:
     """
     lift over data from one version to another

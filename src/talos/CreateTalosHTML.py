@@ -56,7 +56,7 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
     # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
     # catch this, but fail gracefully so that the process overall is a success
     try:
-        get_logger().info('Finding whole-cohort categorised variants')
+        get_logger().info(f'Writing whole-cohort categorised variants to {output}')
         html.write_html(output_filepath=output)
     except NoVariantsFoundError:
         get_logger().warning('No Categorised variants found in this whole cohort')
@@ -64,8 +64,10 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
 
     # If the latest arg is used, filter the results
     # write the HTML if any results remain
-    if latest and (date_filtered_object := check_date_filter(results=results)):
+    date_filtered_object = check_date_filter(results=results)
+    if latest and date_filtered_object:
         # build the HTML for latest reports only
+        get_logger().info(f'Attempting to create whole-cohort latest report at {latest}')
         latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
         # this can fail if there are no latest-in-this-run variants, but we continue to splitting
         try:
@@ -88,19 +90,21 @@ def main(results: str, panelapp: str, output: str, latest: str | None = None, sp
     for data, report, latest in split_data_into_sub_reports(results, split_samples):
         html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
-            get_logger().info(f'Attempting to create {report}')
-            html.write_html(output_filepath=f'{html_base}{report}')
-
+            output_filepath = f'{html_base}{report}'
+            get_logger().info(f'Attempting to create {report} at {output_filepath}')
+            html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
 
         # If the latest arg is used, filter the results
         # write the HTML if any results remain
-        if latest and (date_filtered_object := check_date_filter(results=data)):
+        date_filtered_object = check_date_filter(results=data)
+        if latest and date_filtered_object:
             # build the HTML for latest reports only
             latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
             try:
-                get_logger().info(f'Attempting to create {html_base}{latest}')
+                output_filepath = f'{html_base}{latest}'
+                get_logger().info(f'Attempting to create {latest} at {output_filepath}')
                 latest_html.write_html(output_filepath=f'{html_base}{latest}', latest=True)
             except NoVariantsFoundError:
                 get_logger().info('No variants in that latest report, skipping')
@@ -149,6 +153,10 @@ class HTMLBuilder:
             results (str | ResultData): path to the results JSON, or the results object
             panelapp_path (str): where to read panelapp data from
         """
+        # get a hold of the base panel ID we're using
+        # this is used to differentiate between new in base and new in other
+        self.base_panel: int = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
         # If it exists, read the forbidden genes as a list
@@ -186,11 +194,6 @@ class HTMLBuilder:
 
         self.metadata = results_dict.metadata
         self.panel_names = {panel.name for panel in self.metadata.panels}
-
-        # pull out forced panel matches
-        cohort_panels = config_retrieve(['GeneratePanelData', 'forced_panels'], [])
-        self.forced_panels: list = [panel for panel in self.metadata.panels if panel.id in cohort_panels]
-        self.forced_panel_names = {panel.name for panel in self.metadata.panels if panel.id in cohort_panels}
 
         # Process samples and variants
         self.samples: list[Sample] = []
@@ -295,7 +298,7 @@ class HTMLBuilder:
         parses into a general table and a panel table
         """
 
-        tables = {
+        return {
             'Panels': pd.DataFrame(
                 {'ID': panel.id, 'Version': panel.version, 'Name': panel.name} for panel in self.metadata.panels
             ),
@@ -313,11 +316,6 @@ class HTMLBuilder:
                 ],
             ),
         }
-
-        if self.forced_panels:
-            tables['Cohort Matched Panels'] = pd.DataFrame(self.forced_panels)
-
-        return tables
 
     def write_html(self, output_filepath: str, latest: bool = False):
         """
@@ -388,13 +386,13 @@ class Sample:
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
+        self.metadata = metadata
         self.name = name
         self.family_id = metadata.family_id
         self.family_members = metadata.members
         self.phenotypes = metadata.phenotypes
         self.ext_id = metadata.ext_id
-        self.panel_ids = metadata.panel_ids
-        self.panel_names = metadata.panel_names
+        self.panel_details = metadata.panel_details
         self.seqr_id = html_builder.seqr.get(name, None)
 
         # Ingest variants excluding any on the forbidden gene list
@@ -403,7 +401,7 @@ class Sample:
                 report_variant,
                 self,
                 ext_labels.get(report_variant.var_data.coordinates.string_format, []),
-                html_builder.panelapp.genes,
+                html_builder,
             )
             for report_variant in variants
             if not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
@@ -450,7 +448,7 @@ class Variant:
         report_variant: ReportVariant,
         sample: Sample,
         ext_labels: list,
-        gene_map: dict[str, PanelDetail],
+        html_builder: HTMLBuilder,
     ):
         self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
@@ -463,8 +461,16 @@ class Variant:
         self.first_tagged: str = report_variant.first_tagged
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
-        self.panel_flags = report_variant.panels.matched
-        self.forced_matches = report_variant.panels.forced
+        # these are the panel IDs which are matched based on HPO matching in PanelApp
+        self.pheno_matches = {f'{name}({pid})' for pid, name in report_variant.panels.matched.items()}
+        # these are the panel IDs we manually applied to this whole cohort
+        self.forced_matches = {f'{name}({pid})' for pid, name in report_variant.panels.forced.items()}
+
+        # collect all forced and matched panel IDs
+        match_ids = set(report_variant.panels.forced.keys()).union(set(report_variant.panels.matched.keys())) - {
+            html_builder.base_panel,
+        }
+
         self.reasons = report_variant.reasons
         self.genotypes = report_variant.genotypes
         self.sample = sample
@@ -473,11 +479,28 @@ class Variant:
         self.phenotype_match_date = report_variant.date_of_phenotype_match
         self.phenotype_matches = report_variant.phenotype_labels
 
+        # check if this variant is new in the base panel
+        self.new_in_base_panel: bool = False
+
+        # store if this variant is new in any of the other panels
+        self.new_panels: set[str] = set()
+
         # List of (gene_id, symbol)
         self.genes: list[tuple[str, str]] = []
         for gene_id in report_variant.gene.split(','):
-            symbol = gene_map.get(gene_id, PanelDetail(symbol=gene_id)).symbol
-            self.genes.append((gene_id, symbol))
+            gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, PanelDetail(symbol=gene_id))
+            self.genes.append((gene_id, gene_panelapp_entry.symbol))
+
+            # is this a new gene?
+            new_panels = gene_panelapp_entry.new
+
+            if html_builder.base_panel in new_panels:
+                self.new_in_base_panel = True
+
+            # now draw the rest of the owl
+            self.new_panels.update(
+                {f'{sample.metadata.panel_details[pid]}({pid})' for pid in new_panels.intersection(match_ids)},
+            )
 
         # Summaries CSQ strings
         if isinstance(self.var_data, SmallVariant):

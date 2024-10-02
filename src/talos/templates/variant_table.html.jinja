@@ -10,7 +10,6 @@
     <th class="group-false sorter-shortDate" data-date-format="yyyymmdd">First Tagged</th>
     <th class="group-false">MANE CSQ</th>
     <th class="group-false">ClinVar</th>
-    <th class="group-false">Phenotype Match</th>
     <th class="group-false">PM5 ClinVar</th>
     <th class="group-false">Ext. Label</th>
     <th class="group-false">Flags</th>
@@ -61,13 +60,25 @@
         {% for gene in variant.genes %}
         <a href="https://panelapp.agha.umccr.org/panels/entities/{{gene[1]}}" target="_blank">{{gene[1]}}</a>
         {% endfor %}
-        {% if variant.panel_flags %}
+        {% if variant.pheno_matches %}
         <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Phenotype match: {{variant.panel_flags|join(', ')}}"></i>
+            data-bs-title="Phenotype match: {{variant.pheno_matches|join(', ')}}"></i>
         {% endif %}
         {% if variant.forced_matches %}
         <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
+            data-bs-title="Cohort panels: {{variant.forced_matches.values()|join(', ')}}"></i>
+        {% endif %}
+        {% if variant.phenotype_matches %}
+        <i class="bi bi-file-earmark-medical-fill" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Var-level Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
+        {% endif %}
+        {% if variant.new_in_base_panel %}
+        <i class="bi bi-star-fill text-warning" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Gene new in Mendeliome"></i>
+        {% endif %}
+        {% if variant.new_panels %}
+        <i class="bi bi-star-fill text-primary" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Gene new in: {{ variant.new_panels|join(', ') }} "></i>
         {% endif %}
         <br>
         {% set pipe = joiner(", ") %}
@@ -107,16 +118,6 @@
             {% for i in range(variant.var_data.info.clinvar_stars|int) -%}
                 <i class="bi-star"></i>
             {% endfor %}
-        {% endif %}
-    </td>
-    <td>
-        {# Phenotype Match #}
-        {% if variant.phenotype_matches %}
-        Phenotype match!
-        <i class="bi bi-file-earmark-medical-fill" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
-        {% else %}
-            No Match
         {% endif %}
     </td>
     <td>

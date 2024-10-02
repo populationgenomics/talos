@@ -97,10 +97,8 @@ else
 fi
 
 # run the Phenotype-based flagging
-# TODO this needs a phenio.db file
 # downloaded from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz and unzipped
 PHENIO_DB=PLACEHOLDER
-# TODO needs a gene-to-phenotype map
 # download Genes to Phenotypes from https://hpo.jax.org/app/data/annotations
 GENE_TO_PHENOTYPE=PLACEHOLDER
 PHENO_ANNOTATED_RESULTS="${OUTPUT_DIR}/phenotype_annotated_results.json"

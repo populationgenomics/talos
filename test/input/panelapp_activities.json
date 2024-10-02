@@ -1,0 +1,74 @@
+[
+  {
+    "created": "2024-09-15T10:56:01.470559Z",
+    "text": "Marked gene: GENE3 as ready",
+    "entity_name": "GENE3",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-09-15T10:56:01.441302Z",
+    "text": "Gene: GENE3 has been classified as Green List (High Evidence).",
+    "entity_name": "GENE3",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-04-25T07:42:14.575144Z",
+    "text": "Marked gene: GENE2 as ready",
+    "entity_name": "GENE2",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-04-25T07:42:14.564972Z",
+    "text": "Gene: GENE2 has been classified as Green List (High Evidence).",
+    "entity_name": "GENE2",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-04-25T07:35:15.926366Z",
+    "text": "Publications for gene: GENE2 were set to RANDOM_PUB",
+    "entity_name": "GENE2",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-04-25T07:33:59.247481Z",
+    "text": "Mode of inheritance for gene: GENE2 was changed from Unknown to BIALLELIC, autosomal or pseudoautosomal",
+    "entity_name": "GENE2",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-03-25T07:42:14.564972Z",
+    "text": "Irrelevant, this should be ignored",
+    "entity_name": "NOT_GENE",
+    "entity_type": "not_gene"
+  },
+  {
+    "created": "2024-02-01T01:24:24.535752Z",
+    "text": "Classified gene: GENE1 as Green List (high evidence)",
+    "entity_name": "GENE1",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-02-01T01:24:24.514257Z",
+    "text": "Gene: GENE1 has been classified as Green List (High Evidence).",
+    "entity_name": "GENE1",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2023-08-15T10:56:01.441302Z",
+    "text": "DUPLICATED Gene: GENE3 has been classified as Green List (High Evidence).",
+    "entity_name": "GENE3",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2024-02-01T01:23:37.543151Z",
+    "text": "edited their review of gene: GENE1: Changed rating: GREEN",
+    "entity_name": "GENE1",
+    "entity_type": "gene"
+  },
+  {
+    "created": "2022-02-01T01:24:24.535752Z",
+    "text": "another dup: Classified gene: GENE1 as Green List (high evidence)",
+    "entity_name": "GENE1",
+    "entity_type": "gene"
+  }
+]

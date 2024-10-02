@@ -13,7 +13,7 @@ import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_and_new_from_panelapp, subselect_mt_to_pedigree
+from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
 
@@ -168,7 +168,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     # pull green and new genes from the panelapp data
     # new is not currently incorporated in this analysis
-    green_expression, _new_expression = green_and_new_from_panelapp(panelapp)
+    green_expression = green_from_panelapp(panelapp)
 
     # initiate Hail in local cluster mode
     number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)

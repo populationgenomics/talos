@@ -39,7 +39,6 @@ from talos.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    get_new_gene_map,
     make_flexible_pedigree,
     read_json_from_path,
 )
@@ -215,7 +214,10 @@ def clean_and_filter(
         # get all forced panels this gene intersects with
         cohort_intersection: set[int] = cohort_panels.intersection(all_panels)
 
-        matched_panels = set()
+        # establish the object dictionaries
+        matched_panels = {}
+        forced_panels = {pid: panel_meta[pid] for pid in cohort_intersection}
+
         # check that the gene is in a panel of interest, and confirm new
         # neither step is required if no custom panel data is supplied
         if participant_panels is not None:
@@ -228,14 +230,10 @@ def clean_and_filter(
                 continue
 
             matched_panels = {
-                panel_meta[pid]
+                pid: panel_meta[pid]
                 for pid in phenotype_intersection
                 if pid != config_retrieve(['GeneratePanelData', 'default_panel'], 137)
             }
-
-        forced_panels = set()
-        if cohort_intersection:
-            forced_panels = {panel_meta[pid] for pid in cohort_intersection}
 
         # don't remove variants here, we do that in the pheno-matching stage
         each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
@@ -262,8 +260,7 @@ def clean_and_filter(
             prev_event.reasons.update(each_event.reasons)
             prev_event.gene = ','.join({*prev_event.gene.split(','), each_event.gene})
 
-            # combine flags across variants, and remove Ambiguous marking
-            # if it's no longer appropriate
+            # combine flags across variants, and remove Ambiguous marking if it's no longer appropriate
             both_flags = {*prev_event.flags, *each_event.flags}
             if prev_event.reasons != {'Autosomal Dominant'} and AMBIGUOUS_FLAG in both_flags:
                 both_flags.remove(AMBIGUOUS_FLAG)
@@ -379,8 +376,7 @@ def prepare_results_shell(
                 family_id=sample.family,
                 members=family_members,
                 phenotypes=sample_panel_data.hpo_terms,
-                panel_ids=sample_panel_data.panels,
-                panel_names=[panel_meta[panel_id] for panel_id in sample_panel_data.panels],
+                panel_details={panel_id: panel_meta[panel_id] for panel_id in sample_panel_data.panels},
                 solved=bool(sample.id in solved_cases or sample.family in solved_cases),
                 present_in_small=sample.id in small_samples,
                 present_in_sv=sample.id in sv_samples,
@@ -463,9 +459,6 @@ def main(
         default=None,
     )
 
-    # create the new gene map
-    new_gene_map = get_new_gene_map(panelapp_data, pheno_panels)
-
     result_list: list[ReportVariant] = []
 
     # collect all sample IDs from each VCF type
@@ -490,7 +483,6 @@ def main(
             contig=contig,
             variant_source=vcf_opened,
             sv_sources=sv_opened,
-            new_gene_map=new_gene_map,
             singletons=bool('singleton' in pedigree),
         )
 

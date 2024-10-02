@@ -17,16 +17,13 @@ from talos.models import PhenotypeMatchedPanels
 from talos.utils import read_json_from_path
 
 
-def parse_genes_to_phenotype(
-    genes_to_phenotype_file: str,
-    symbols_to_ensembl: dict[str, str],
-) -> dict[frozenset, set[str]]:
+def parse_genes_to_phenotype(g2p_file: str, symbols_to_ensembl: dict[str, str]) -> dict[frozenset, set[str]]:
     """
     Parse genes to phenotype file from Jax.
     Returns a dict of gene_symbol -> set of HPO ids
 
     Args:
-        genes_to_phenotype_file ():
+        g2p_file ():
         symbols_to_ensembl (): the gene symbols to Ensembl gene IDs for genes relevant to this analysis
 
     Returns:
@@ -35,7 +32,7 @@ def parse_genes_to_phenotype(
 
     gene_symbols_in_analysis = set(symbols_to_ensembl.values())
     gene_to_phenotype = defaultdict(set)
-    with open(genes_to_phenotype_file) as f:
+    with open(g2p_file) as f:
         for line in f:
             ncbi_gene_id, gene_symbol, hpo_id, hpo_name, frequency, disease_id = line.split('\t')
             if gene_symbol in gene_symbols_in_analysis:

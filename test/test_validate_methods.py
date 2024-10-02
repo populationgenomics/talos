@@ -86,8 +86,7 @@ def test_results_shell(pedigree_path: str):
                         'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
                     },
                     'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
-                    'panel_ids': [1, 3],
-                    'panel_names': ['lorem', 'etc'],
+                    'panel_details': {1: 'lorem', 3: 'etc'},
                     'present_in_small': True,
                 },
             },
@@ -101,8 +100,7 @@ def test_results_shell(pedigree_path: str):
                         'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
                     },
                     'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
-                    'panel_ids': [1, 2],
-                    'panel_names': ['lorem', 'ipsum'],
+                    'panel_details': {1: 'lorem', 2: 'ipsum'},
                     'solved': True,
                     'present_in_sv': True,
                 },
@@ -155,23 +153,18 @@ def test_gene_clean_results_personal():
         },
     )
 
-    clean = clean_and_filter(
-        results_holder=results_holder,
-        result_list=dirty_data,
-        panelapp_data=panel_genes,
-        participant_panels=personal_panels,
-    )
+    clean = clean_and_filter(results_holder, dirty_data, panel_genes, personal_panels)
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert not clean.results['sam1'].variants[0].flags
-    assert clean.results['sam1'].variants[0].panels.matched == {'1'}
+    assert clean.results['sam1'].variants[0].panels.matched == {1: '1'}
     assert not clean.results['sam2'].variants
     assert len(clean.results['sam3'].variants) == TWO_EXPECTED
     for event in clean.results['sam3'].variants:
         if event.gene == 'ENSG4':
-            assert event.panels.matched == {'3'}
+            assert event.panels.matched == {3: '3'}
         if event.gene == 'ENSG5':
-            assert event.panels.matched == {'4'}
+            assert event.panels.matched == {4: '4'}
 
 
 def test_update_results_meta(pedigree_path: str):

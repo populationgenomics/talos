@@ -4,6 +4,7 @@ forced_panels = [99]
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
 panel_month_delta = 12
 require_pheno_match = ['FLG', 'GJB2']
+within_x_months = 6
 
 [ValidateMOI]
 description = 'thresholds for different filters during the MOI checks'
@@ -32,7 +33,6 @@ spliceai = 0.5
 
 [categories]
 1 = 'ClinVar Pathogenic'
-2 = 'New Gene-Disease Association'
 3 = 'High Impact Variant'
 4 = 'de Novo'
 5 = 'High SpliceAI Score'

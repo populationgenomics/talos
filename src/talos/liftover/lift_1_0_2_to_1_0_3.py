@@ -14,8 +14,6 @@ def resultdata(data_dict: dict) -> dict:
     if not data_dict['version'] < '1.0.3':
         raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
     metadata = data_dict['metadata']
-    print(metadata)
-
     if ('version' in metadata) or ('container' not in metadata):
         raise AssertionError(f'Metadata should have container, not version: {metadata}')
     metadata['version'] = metadata.pop('container')
@@ -30,4 +28,6 @@ def historicvariants(data_dict: dict) -> dict:
     """
     if not data_dict['version'] < '1.0.3':
         raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
+
+    # TODO maybe I never did this?
     return data_dict

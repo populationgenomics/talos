@@ -2,6 +2,7 @@
 classes and methods shared across reanalysis components
 """
 
+import httpx
 import json
 import re
 import zoneinfo
@@ -14,11 +15,9 @@ from typing import Any
 
 import backoff
 import cyvcf2
-import requests
 from backoff import fibo
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
-from requests.exceptions import ReadTimeout, RequestException
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -26,7 +25,6 @@ from talos.models import (
     CategoryMeta,
     Coordinates,
     FileTypes,
-    HistoricPanels,
     HistoricSampleVariant,
     HistoricVariants,
     PanelApp,
@@ -178,7 +176,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
 
 @backoff.on_exception(
     wait_gen=fibo,
-    exception=(TimeoutError, ReadTimeout, RequestException),
+    exception=(TimeoutError, httpx.ReadTimeout, httpx.RequestError),
     max_time=200,
     logger=get_logger(),
 )
@@ -194,9 +192,9 @@ def get_json_response(url):
     Returns:
         the JSON response from the endpoint
     """
-
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
+    response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    if not response.is_success:
+        raise ValueError(f'Request failed with status code {response.status_code} ({url})')
     return response.json()
 
 
@@ -353,12 +351,7 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     return info_dict
 
 
-def create_small_variant(
-    var: cyvcf2.Variant,
-    samples: list[str],
-    as_singletons=False,
-    new_genes: dict[str, set[str]] | None = None,
-):
+def create_small_variant(var: cyvcf2.Variant, samples: list[str], as_singletons=False):
     """
     takes a small variant and creates a Model from it
 
@@ -366,7 +359,6 @@ def create_small_variant(
         var ():
         samples ():
         as_singletons ():
-        new_genes ():
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
@@ -378,19 +370,6 @@ def create_small_variant(
         info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
-
-    # hot-swap cat 2 from a boolean to a sample list - if appropriate
-    if info.get('categoryboolean2', 0) and new_genes:
-        new_gene_samples: set[str] = new_genes.get(info.get('gene_id', 'MISSING'), set())
-
-        # if 'all', keep cohort-wide boolean flag
-        if new_gene_samples == {'all'}:
-            get_logger().debug('New applies to all samples')
-
-        # otherwise assign only a specific sample list
-        elif new_gene_samples:
-            _boolcat = info.pop('categoryboolean2')
-            info['categorysample2'] = new_gene_samples
 
     # organise PM5
     info = organise_pm5(info)
@@ -501,7 +480,6 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    new_gene_map: dict[str, set[str]],
     singletons: bool = False,
     sv_sources: list | None = None,
 ) -> GeneDict:
@@ -515,7 +493,6 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         sv_sources (): an optional list of SV VCFs
-        new_gene_map ():
         singletons ():
 
     Returns:
@@ -543,12 +520,7 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-        small_variant = create_small_variant(
-            var=variant,
-            samples=variant_source.samples,
-            as_singletons=singletons,
-            new_genes=new_gene_map,
-        )
+        small_variant = create_small_variant(var=variant, samples=variant_source.samples, as_singletons=singletons)
 
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
@@ -889,7 +861,7 @@ def filter_results(results: ResultData, singletons: bool):
     save_new_historic(results=latest_results, prefix=prefix)
 
 
-def save_new_historic(results: HistoricVariants | HistoricPanels, prefix: str = ''):
+def save_new_historic(results: HistoricVariants, prefix: str = ''):
     """
     save the new results in the historic results dir
 
