@@ -87,12 +87,12 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
     for participant in result_object.results.values():
         for variant in participant.variants:
             # get the gene ID
-            ensgs.add(variant.var_data.info['gene_id'])
+            ensgs.add(variant.var_data.info['gene_id'])  # type: ignore[arg-type]
 
             # for structural variants, add all the LOF'd genes
             # TODO (mwelland): if/when we create other SV categories, we may need to catch those here too
             if lof := variant.var_data.info.get('predicted_lof'):
-                ensgs.update(set(lof.split(',')))
+                ensgs.update(set(str(lof).split(',')))
 
     return ensgs
 
@@ -106,7 +106,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
     if strict is False, this will be done semantically via Semsimian
 
     Args:
-        results (ResultData):
+        result_object (ResultData):
         gen_phen (dict): mapping of ENSGs to relevant HPO terms
     """
 
@@ -120,7 +120,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
         for variant in participant.variants:
             var_gene = variant.var_data.info['gene_id']
-            gene_hpos = gen_phen.get(var_gene, set())
+            gene_hpos = gen_phen.get(var_gene, set())  # type: ignore[arg-type]
 
             # under strict matching we require exact overlapping terms
             # we always run a strict match
@@ -231,7 +231,7 @@ def cli_main():
     parser.add_argument('--phenout', help='Annotated phenotype-only output')
     args = parser.parse_args()
     main(
-        results=args.results,
+        result_file=args.results,
         gene_map=args.gene_map,
         gen2phen=args.gen2phen,
         phenio=args.phenio,
@@ -241,7 +241,7 @@ def cli_main():
 
 
 def main(
-    results: str,
+    result_file: str,
     gene_map: str,
     gen2phen: str,
     phenio: str,
@@ -251,7 +251,7 @@ def main(
     """
 
     Args:
-        results (str): path to the ValidateMOI output JSON
+        result_file (str): path to the ValidateMOI output JSON
         gene_map (str): output of FindGeneSymbolMap, JSON
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
@@ -260,7 +260,7 @@ def main(
     """
 
     # read the results JSON into an object
-    results = read_json_from_path(results, return_model=ResultData)
+    results = read_json_from_path(result_file, return_model=ResultData)
 
     # find all the genes present in this report
     relevant_ensgs = find_genes_in_these_results(results)
