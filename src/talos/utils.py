@@ -2,6 +2,7 @@
 classes and methods shared across reanalysis components
 """
 
+import httpx
 import json
 import re
 import zoneinfo
@@ -14,11 +15,9 @@ from typing import Any
 
 import backoff
 import cyvcf2
-import requests
 from backoff import fibo
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
-from requests.exceptions import ReadTimeout, RequestException
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -177,7 +176,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
 
 @backoff.on_exception(
     wait_gen=fibo,
-    exception=(TimeoutError, ReadTimeout, RequestException),
+    exception=(TimeoutError, httpx.ReadTimeout, httpx.RequestError),
     max_time=200,
     logger=get_logger(),
 )
@@ -193,9 +192,9 @@ def get_json_response(url):
     Returns:
         the JSON response from the endpoint
     """
-
-    response = requests.get(url, headers={'Accept': 'application/json'}, timeout=60)
-    response.raise_for_status()  # Raise an exception for bad responses (4xx and 5xx)
+    response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    if response.is_success:
+        raise ValueError(f'Request failed with status code {response.status_code} ({url})')
     return response.json()
 
 

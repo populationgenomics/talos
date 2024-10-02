@@ -110,10 +110,10 @@ def get_panel(
     if forbidden_genes is None:
         forbidden_genes = set()
 
-    panel_name, panel_version, panel_genes = request_panel_data(f'{PANELAPP_BASE}/{panel_id}')
+    panel_name, panel_version, panel_genes = request_panel_data(f'{PANELAPP_BASE}/{panel_id}/')
 
     # get the activity log for this panel
-    panel_activity = get_json_response(f'{PANELAPP_BASE}/{panel_id}/activities')
+    panel_activity = get_json_response(f'{PANELAPP_BASE}/{panel_id}/activities/')
 
     green_dates = parse_panel_activity(panel_activity)
 
