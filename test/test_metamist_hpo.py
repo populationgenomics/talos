@@ -3,7 +3,6 @@ test file for metamist panel-participant matching
 """
 
 import networkx as nx
-import pytest
 from obonet import read_obo
 
 from talos.GeneratePanelData import (
@@ -15,22 +14,13 @@ from talos.GeneratePanelData import (
 )
 from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
-PANELAPP = 'https://fake_panelapp.agha.umccr.org/api/v1/panels/'
 
-
-@pytest.fixture(name='fake_panelapp_overview')
-def fixture_fake_panelapp_overview(requests_mock, fake_panelapp_overview):
-    """
-    a new fixture to contain the panel data
-    """
-    requests_mock.register_uri('GET', PANELAPP, json=fake_panelapp_overview)
-
-
-def test_get_panels(fake_panelapp_overview):  # noqa: ARG001
+def test_get_panels(httpx_mock, fake_panelapp_overview):
     """
     check that the endpoint parser works ok
     """
-    panels_parsed = get_panels(PANELAPP)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/', json=fake_panelapp_overview)
+    panels_parsed = get_panels('https://panelapp.agha.umccr.org/api/v1/panels/')
     assert panels_parsed == {'HP:1': {2}, 'HP:4': {1}, 'HP:6': {2}}
 
 
