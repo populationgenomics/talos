@@ -411,19 +411,6 @@ class Sample:
         return self.name
 
 
-def translate_panel_ids_to_strings(panel_details: dict, id_set: set[str]) -> set[str]:
-    """
-    Takes a set of panel IDs and translates them to strings
-    Args:
-        panel_details ():
-        id_set ():
-
-    Returns:
-        the integers
-    """
-    return {f'{panel_details[pid]}({pid})' for pid in id_set}
-
-
 class Variant:
     """
     Handle as much of per variant logic as we can here. Hopefully, this is just simple
@@ -490,10 +477,7 @@ class Variant:
         self.ext_labels = ext_labels
         # add the phenotype match date and HPO term id/labels
         self.phenotype_match_date = report_variant.date_of_phenotype_match
-        self.phenotype_matches = translate_panel_ids_to_strings(
-            sample.metadata.panel_details,
-            report_variant.phenotype_labels,
-        )
+        self.phenotype_matches = report_variant.phenotype_labels
 
         # check if this variant is new in the base panel
         self.new_in_base_panel: bool = False
