@@ -17,7 +17,8 @@ from talos.utils import create_small_variant, read_json_from_path
 # force this to come first
 PWD = Path(__file__).parent
 INPUT: str = str(PWD / 'input')
-hl.init(default_reference='GRCh38')
+hl.init()
+hl.default_reference('GRCh38')
 environ['TALOS_CONFIG'] = join(INPUT, 'example_config.toml')
 
 LABELLED = join(INPUT, '1_labelled_variant.vcf.bgz')

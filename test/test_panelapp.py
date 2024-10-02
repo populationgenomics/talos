@@ -4,8 +4,6 @@ tests for the PanelApp parser
 
 from copy import deepcopy
 
-import pytest
-
 from talos.models import PanelApp, PanelDetail
 from talos.QueryPanelapp import get_best_moi, get_panel, parse_panel_activity
 
@@ -32,27 +30,11 @@ def test_activity_parser(panel_activities):
     assert activity_dict['GENE3'].strftime('%Y-%m-%d') == '2024-09-15'
 
 
-@pytest.fixture(name='fake_panelapp')
-def fixture_fake_panelapp(requests_mock, latest_mendeliome, latest_incidentalome):
-    """
-    prepares the web requests mock to serve as stand-in panelapp
-    Args:
-        requests_mock ():
-        latest_mendeliome ():
-        latest_incidentalome ():
-    """
+def test_panel_query(httpx_mock, latest_mendeliome):
+    """check that the default parsing delivers correct data"""
 
-    requests_mock.register_uri('GET', 'https://panelapp.agha.umccr.org/api/v1/panels/137', json=latest_mendeliome)
-    requests_mock.register_uri('GET', 'https://panelapp.agha.umccr.org/api/v1/panels/137/activities', json=[])
-    requests_mock.register_uri('GET', 'https://panelapp.agha.umccr.org/api/v1/panels/126', json=latest_incidentalome)
-    requests_mock.register_uri('GET', 'https://panelapp.agha.umccr.org/api/v1/panels/126/activities', json=[])
-
-
-def test_panel_query(fake_panelapp):  # noqa: ARG001
-    """
-    check that the default parsing delivers correct data
-    :param fake_panelapp: fake web hook mock
-    """
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/', json=latest_mendeliome)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/activities/', json=[])
 
     gd = deepcopy(empty_gene_dict)
     get_panel(gd, forbidden_genes=set())
@@ -61,11 +43,11 @@ def test_panel_query(fake_panelapp):  # noqa: ARG001
     assert gd.genes['ENSG00EFGH'].all_moi == {'monoallelic'}
 
 
-def test_panel_query_removal(fake_panelapp):  # noqa: ARG001
-    """
-    check that the default parsing delivers correct data
-    :param fake_panelapp: fake web hook mock
-    """
+def test_panel_query_removal(httpx_mock, latest_mendeliome):
+    """check that the default parsing delivers correct data"""
+
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/', json=latest_mendeliome)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/activities/', json=[])
 
     gd = deepcopy(empty_gene_dict)
     get_panel(gd, blacklist=['ENSG00EFGH'])
@@ -74,11 +56,12 @@ def test_panel_query_removal(fake_panelapp):  # noqa: ARG001
     assert 'ENSG00EFGH' not in gd.genes
 
 
-def test_panel_query_forbidden(fake_panelapp):  # noqa: ARG001
-    """
-    check that the default parsing delivers correct data
-    :param fake_panelapp: fake web hook mock
-    """
+def test_panel_query_forbidden(httpx_mock, latest_mendeliome):
+    """check that the default parsing delivers correct data"""
+
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/', json=latest_mendeliome)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/activities/', json=[])
+
     gd = deepcopy(empty_gene_dict)
     get_panel(gd, forbidden_genes={'ENSG00EFGH'})
     assert gd.genes['ENSG00ABCD'].all_moi == {'biallelic'}
@@ -87,11 +70,11 @@ def test_panel_query_forbidden(fake_panelapp):  # noqa: ARG001
     assert 'ENSG00EFGH' not in gd.genes
 
 
-def test_panel_query_removal_2(fake_panelapp):  # noqa: ARG001
-    """
-    check skipping by symbol works as well
-    :param fake_panelapp: fake web hook mock
-    """
+def test_panel_query_removal_2(httpx_mock, latest_mendeliome):
+    """check skipping by symbol works as well. This test has a weirdly long runtime"""
+
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/', json=latest_mendeliome)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/activities/', json=[])
 
     gd = deepcopy(empty_gene_dict)
     get_panel(gd, blacklist=['EFGH'])
@@ -100,11 +83,11 @@ def test_panel_query_removal_2(fake_panelapp):  # noqa: ARG001
     assert 'ENSG00EFGH' not in gd.genes
 
 
-def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
-    """
-    check skipping by symbol works as well
-    :param fake_panelapp: fake web hook mock
-    """
+def test_panel_query_forbidden_2(latest_mendeliome, httpx_mock):
+    """check skipping by symbol works as well"""
+
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/', json=latest_mendeliome)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/137/activities/', json=[])
 
     gd = deepcopy(empty_gene_dict)
     get_panel(gd, forbidden_genes={'EFGH'})
@@ -113,13 +96,10 @@ def test_panel_query_forbidden_2(fake_panelapp):  # noqa: ARG001
     assert 'ENSG00EFGH' not in gd.genes
 
 
-def test_panel_query_addition(fake_panelapp: pytest.fixture):  # noqa: ARG001
+def test_panel_query_addition(latest_incidentalome, httpx_mock):
     """
     check that the default parsing delivers correct data
     oof, this was a tricky one
-
-    Args:
-        fake_panelapp (): fake web hook mock
     """
 
     # assumed data we already gathered
@@ -140,6 +120,8 @@ def test_panel_query_addition(fake_panelapp: pytest.fixture):  # noqa: ARG001
             },
         },
     )
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/126/', json=latest_incidentalome)
+    httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/126/activities/', json=[])
 
     # should query for and integrate the incidentalome content
     get_panel(gd, panel_id=126)
