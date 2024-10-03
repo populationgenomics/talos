@@ -192,7 +192,7 @@ def get_json_response(url):
     Returns:
         the JSON response from the endpoint
     """
-    response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60)
+    response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60, follow_redirects=True)
     if not response.is_success:
         raise ValueError(f'Request failed with status code {response.status_code} ({url})')
     return response.json()

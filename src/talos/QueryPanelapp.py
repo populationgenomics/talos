@@ -7,7 +7,6 @@ Write the data out as a PanelApp object model
 
 from argparse import ArgumentParser
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 from dateutil.utils import today
 
@@ -130,7 +129,14 @@ def get_panel(
 
         # how long ago was this added to this panel? If within the last X months, treat as new
         # if we didn't find an acceptable date from the API, fall back on REALLY_OLD (never recent)
-        new_gene = relativedelta(dt1=TODAY, dt2=green_dates.get(symbol, REALLY_OLD)).months < recent_months
+        # relativedelta is complete ass for this test, rewriting manually here
+        # for posterity, relativedelta in dateutil does this calculation, then overwrites it with a
+        # non year-aware version, which is a bit of a mess IMO
+        # the dateutil result between March 2023 and September 2024 is 6 months, which is incorrect
+        # for this purpose as it ignores the 12 full months between the two dates
+        event_datetime = green_dates.get(symbol, REALLY_OLD)
+        months = (TODAY.year - event_datetime.year) * 12 + (TODAY.month - event_datetime.month)
+        new_gene = months < recent_months
 
         # only retain green genes
         if gene['confidence_level'] != '3' or gene['entity_type'] != 'gene' or symbol in forbidden_genes:
