@@ -5,6 +5,7 @@ classes and methods shared across reanalysis components
 import httpx
 import json
 import re
+import time
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
@@ -13,9 +14,7 @@ from pathlib import Path
 from string import punctuation
 from typing import Any
 
-import backoff
 import cyvcf2
-from backoff import fibo
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
 
@@ -174,28 +173,37 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {extensions}')
 
 
-@backoff.on_exception(
-    wait_gen=fibo,
-    exception=(TimeoutError, httpx.ReadTimeout, httpx.RequestError),
-    max_time=200,
-    logger=get_logger(),
-)
-def get_json_response(url):
+def get_json_response(url, num_retries=5):
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
     List use-case (activities endpoint) no longer supported
 
+    manually implemented exponential backoff, as the backoff library is trash
+
     Args:
         url (str): URL to retrieve JSON format data from
+        num_retries (int): number of times to retry the request
 
     Returns:
         the JSON response from the endpoint
     """
-    response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60, follow_redirects=True)
-    if not response.is_success:
-        raise ValueError(f'Request failed with status code {response.status_code} ({url})')
-    return response.json()
+    for attempt in range(num_retries):
+        try:
+            response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60, follow_redirects=True)
+            if response.is_success:
+                return response.json()
+            get_logger().warning(f'Request failed with status code {response.status_code} ({url})')
+        except httpx.ReadTimeout:
+            get_logger().warning(f'Request timed out ({url})')
+        except httpx.ConnectError:
+            get_logger().warning(f'Connection error ({url})')
+        except httpx.TooManyRedirects:
+            get_logger().warning(f'Too many redirects ({url})')
+        except httpx.RequestError:
+            get_logger().warning(f'Request error ({url})')
+        time.sleep(2**attempt)
+    raise ValueError(f'Request failed after {num_retries} attempts ({url})')
 
 
 def get_new_gene_map(
