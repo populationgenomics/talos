@@ -62,15 +62,15 @@
         {% endfor %}
         {% if variant.pheno_matches %}
         <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Phenotype match: {{variant.pheno_matches|join(', ')}}"></i>
+            data-bs-title="Phenotype-Panel match: {{variant.pheno_matches|join(', ')}}"></i>
         {% endif %}
         {% if variant.forced_matches %}
         <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Cohort panels: {{variant.forced_matches.values()|join(', ')}}"></i>
+            data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
         {% endif %}
         {% if variant.phenotype_matches %}
-        <i class="bi bi-file-earmark-medical-fill" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Var-level Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
+        <i class="bi-person-check-fill" style="color: #FF5733" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Gene-Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
         {% endif %}
         {% if variant.new_in_base_panel %}
         <i class="bi bi-star-fill text-warning" data-bs-toggle="tooltip" data-bs-placement="top"

@@ -23,7 +23,7 @@ ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
 TODAY = today()
 REALLY_OLD = parse('1970-01-01')
-ACTIVITY_ENDING = 'has been classified as Green List (High Evidence).'
+ACTIVITY_CONTENT = {'green list (high evidence)', 'expert review green'}
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -70,12 +70,9 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, datetime]:
         # get the name of the gene
         gene_name = activity_entry['entity_name']
 
-        # we already found a date for this one
-        if gene_name in return_dict:
-            continue
-
         # check for relevant text
-        if not activity_entry['text'].endswith(ACTIVITY_ENDING):
+        lower_text = activity_entry['text'].lower()
+        if not any(each_string in lower_text for each_string in ACTIVITY_CONTENT):
             continue
 
         # find the event date for this activity entry

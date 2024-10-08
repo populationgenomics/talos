@@ -21,13 +21,13 @@ def test_activity_parser(panel_activities):
     assert 'NOT_GENE' not in activity_dict
 
     assert 'GENE1' in activity_dict
-    assert activity_dict['GENE1'].strftime('%Y-%m-%d') == '2024-02-01'
+    assert activity_dict['GENE1'].strftime('%Y-%m-%d') == '2022-02-01'
 
     assert 'GENE2' in activity_dict
     assert activity_dict['GENE2'].strftime('%Y-%m-%d') == '2024-04-25'
 
     assert 'GENE3' in activity_dict
-    assert activity_dict['GENE3'].strftime('%Y-%m-%d') == '2024-09-15'
+    assert activity_dict['GENE3'].strftime('%Y-%m-%d') == '2023-08-15'
 
 
 def test_panel_query(httpx_mock, latest_mendeliome):

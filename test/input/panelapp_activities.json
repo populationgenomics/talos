@@ -67,7 +67,7 @@
   },
   {
     "created": "2022-02-01T01:24:24.535752Z",
-    "text": "another dup: Classified gene: GENE1 as Green List (high evidence)",
+    "text": "DUPLICATED: Classified gene: GENE1 as Green List (high evidence)",
     "entity_name": "GENE1",
     "entity_type": "gene"
   }
