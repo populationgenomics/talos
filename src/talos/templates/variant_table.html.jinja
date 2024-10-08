@@ -1,19 +1,20 @@
 <table class="table tablesorter" id="variant-table">
 <thead>
     <tr>
-    <th class="group-separator">Individual </th>
-    <th class="group-separator">Family ID </th>
+    <th class="group-separator">Individual</th>
+    <th class="group-separator">Family</th>
     <th class="group-separator">Source</th>
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
     <th class="group-false">Categories</th>
     <th class="group-false sorter-shortDate" data-date-format="yyyymmdd">First Tagged</th>
     <th class="group-false">MANE CSQ</th>
-    <th class="group-false">ClinVar</th>
-    <th class="group-false">PM5 ClinVar</th>
+    <th class="group-false">ClinvArbitration <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">[?]</a></th>
+    <th class="group-false">PM5 ClinvArbitration</th>
     <th class="group-false">Ext. Label</th>
     <th class="group-false">Flags</th>
     <th class="group-false">Support</th>
+    <th class="group-false">Pheno Match</th>
     </tr>
 </thead>
 <tbody>
@@ -155,11 +156,20 @@
             </a>
         {% endfor %}
     </td>
+    <td>
+        {# Pheno Match #}
+        {% if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches %}
+            Y
+        {% else %}
+            N
+        {% endif %}
+    </td>
 </tr>
 
 {% include "variant_table_child_row.html.jinja" %}
 
 {% endfor %}
+
 {% endfor %}
 </tbody>
 </table>
