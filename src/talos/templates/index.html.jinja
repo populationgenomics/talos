@@ -25,6 +25,7 @@
         {{ metadata.run_datetime }}
       </span>
     </nav>
+
     <main class="container mt-4 mb-4">
 
       {# Tab list #}
@@ -46,6 +47,19 @@
         {# Results #}
         <div class="tab-pane fade show active" id="results-tab-pane" role="tabpanel" tabindex="0">
           <h1>Variants</h1>
+            </br>
+            ClinvArbitration, CPG's re-aggregation of ClinVar submissions: <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">https://github.com/populationgenomics/ClinvArbitration</a>
+            </br>
+            <i class="bi-person-check-fill text-success"> Genes in panels matched to this participant by phenotype</i>
+            </br>
+            <i class="bi-person-check-fill text-info"> Genes in panels applied to all members of this cohort by config</i>
+            </br>
+            <i class="bi-person-check-fill" style="color: #FF5733"> Genes selected by Talos, which also have a semsimian phenotype match</i>
+            </br>
+            <i class="bi bi-star-fill text-warning"> New Genes in the Mendeliome</i>
+            </br>
+            <i class="bi bi-star-fill text-primary"> New Genes in phenotype-matched panels</i>
+
             {% include "variant_table.html.jinja" %}
         </div>
 
