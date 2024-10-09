@@ -13,6 +13,7 @@ Additional separate pages will contain metadata/panel data
 import re
 import sys
 from argparse import ArgumentParser
+from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
@@ -26,7 +27,7 @@ from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import get_logger, read_json_from_path
 
-JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'split_templates'
 
 # above this length we trim the actual bases to just an int
 MAX_INDEL_LEN: int = 10
@@ -302,46 +303,70 @@ class HTMLBuilder:
         # we ignore that here, and catch it in the outer scope
         (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
-        report_title = 'Talos Report (Latest Variants Only)' if latest else 'Talos Report'
-
         template_context = {
-            'metadata': self.metadata,
+            # 'metadata': self.metadata,
+            'index_path': to_anypath(output_filepath).name,
+            'run_datetime': self.metadata.run_datetime,
             'samples': self.samples,
             'seqr_url': config_retrieve(['CreateTalosHTML', 'seqr_instance'], ''),
             'seqr_project': config_retrieve(['CreateTalosHTML', 'seqr_project'], ''),
-            'meta_tables': {},
-            'forbidden_genes': sorted(self.forbidden_genes),
-            'zero_categorised_samples': zero_cat_samples,
-            'unused_ext_labels': unused_ext_labels,
-            'summary_table': None,
-            'report_title': report_title,
-            'solved': self.solved,
+            # 'meta_tables': {},
+            # 'forbidden_genes': sorted(self.forbidden_genes),
+            # 'zero_categorised_samples': zero_cat_samples,
+            # 'unused_ext_labels': unused_ext_labels,
+            # 'summary_table': None,
+            'report_title': 'Full Talos Report',
+            # 'solved': self.solved,
+            'type': 'whole_cohort',
         }
 
-        for title, meta_table in self.read_metadata().items():
-            template_context['meta_tables'][title] = DataTable(
-                id=f'{title.lower()}-table',
-                heading=title,
-                description='',
-                columns=list(meta_table.columns),
-                rows=list(meta_table.to_records(index=False)),
-            )
+        if latest:
+            template_context['report_title'] += ' (Latest Variants Only)'
 
-        template_context['summary_table'] = DataTable(
-            id='summary-table',
-            heading='Per-Category Summary',
-            description='',
-            columns=list(summary_table.columns),
-            rows=list(summary_table.to_records(index=False)),
-        )
+        # for title, meta_table in self.read_metadata().items():
+        #     template_context['meta_tables'][title] = DataTable(
+        #         id=f'{title.lower()}-table',
+        #         heading=title,
+        #         description='',
+        #         columns=list(meta_table.columns),
+        #         rows=list(meta_table.to_records(index=False)),
+        #     )
+
+        # template_context['summary_table'] = DataTable(
+        #     id='summary-table',
+        #     heading='Per-Category Summary',
+        #     description='',
+        #     columns=list(summary_table.columns),
+        #     rows=list(summary_table.to_records(index=False)),
+        # )
 
         # write all HTML content to the output file in one go
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        to_anypath(output_filepath).open('w').writelines(
+        to_anypath(output_filepath).open('wt').writelines(
             '\n'.join(line for line in content.split('\n') if line.strip()),
         )
+        get_logger().info(f'Wrote {output_filepath}')
+
+        # then write the per-sample content
+        for sample in template_context['samples']:
+            if not sample.variants:
+                continue
+
+            report_address = output_filepath.replace(to_anypath(output_filepath).name, sample.report_url)
+
+            get_logger().info(f'Writing {report_address}')
+
+            new_context = deepcopy(template_context)
+            new_context |= {'samples': [sample], 'report_title': f'Talos Report for {sample.name}', 'type': 'sample'}
+            if latest:
+                new_context['report_title'] += ' (Latest Variants Only)'
+            template = env.get_template('sample_index.html.jinja')
+            content = template.render(**new_context)
+            to_anypath(report_address).open('w').writelines(
+                '\n'.join(line for line in content.split('\n') if line.strip()),
+            )
 
 
 class Sample:
@@ -365,6 +390,7 @@ class Sample:
         self.ext_id = metadata.ext_id
         self.panel_details = metadata.panel_details
         self.seqr_id = html_builder.seqr.get(name, None)
+        self.report_url = f'{self.name}.html'
 
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [

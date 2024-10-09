@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{{ report_title|default("Talos Report") }}</title>
+    <title>{{ report_title }}</title>
     <meta name="description" content="Talos Report">
 
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
@@ -20,16 +20,15 @@
 
   <body>
     <nav class="navbar navbar-dark bg-dark justify-content-start">
-      <a class="navbar-brand p-3" href="#"> {{ report_title|default("Talos Report") }}</a>
+      <a class="navbar-brand p-1" href="#"> {{ report_title|default("Talos Report") }}</a>
       <span class="navbar-text">
-        {{ metadata.run_datetime }}
+        {{ run_datetime }}
       </span>
     </nav>
 
-    <main class="container mt-4 mb-4">
     {# Results #}
-    <div class="tab-pane fade show active" id="results-tab-pane" role="tabpanel" tabindex="0">
-      <h1>Variants</h1>
+    <div>
+
         </br>
         ClinvArbitration, CPG's re-aggregation of ClinVar submissions: <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">https://github.com/populationgenomics/ClinvArbitration</a>
         </br>
@@ -43,7 +42,6 @@
         </br>
         <i class="bi bi-star-fill text-primary"> New Genes in phenotype-matched panels</i>
 
-        # the table header/cols
         <table class="table tablesorter" id="variant-table">
             <thead>
                 <tr>
@@ -72,7 +70,6 @@
             </tbody>
         </table>
     </div>
-    </main>
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -82,6 +79,9 @@
 
     <script type="text/javascript">
       $(document).ready(function() {
+        // Tablesorter: hide child rows
+        $('.tablesorter-childRow td').hide();
+
         // Tablesorter: configure variant table
         $("#variant-table").tablesorter({
           theme : "bootstrap",
@@ -96,6 +96,12 @@
             group_separator : " "
             }
         })
+
+        // Tablesorter: Show/hide child rows on toggle
+        $('.tablesorter').delegate('.toggle', 'click' ,function() {
+          $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
+          return false;
+        });
 
         // Enable bootstrap tool tips
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
