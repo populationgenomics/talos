@@ -1,7 +1,12 @@
 <tr>
     <td style="white-space: nowrap">
         {# Individual ID #}
-        <a href="#" class="toggle"><i class="bi-card-text"></i></a>
+        {% if type == 'sample' %}
+            <a href="#" class="toggle"><i class="bi-card-text"></i></a>
+        {% elif type == 'whole_cohort' %}
+            <a href="{{sample.report_url}}"><i class="bi-card-text"></i></a>
+        {% endif %}
+
         {% if sample.seqr_id %}
             <a href="{{seqr_url}}/project/{{seqr_project}}/family_page/{{sample.seqr_id}}" target="_blank">
                 {{sample.ext_id}}
