@@ -1,16 +1,17 @@
 <table class="table tablesorter" id="variant-table">
 <thead>
     <tr>
-    <th class="group-separator">Individual </th>
-    <th class="group-separator">Family ID </th>
+    <th class="group-separator">Individual</th>
+    <th class="group-separator">Family</th>
     <th class="group-separator">Source</th>
     <th class="group-false">Variant</th>
     <th class="group-false">Gene (MOI)</th>
+    <th data-value="Y" class="group-false">Pheno Match</th>
     <th class="group-false">Categories</th>
     <th class="group-false sorter-shortDate" data-date-format="yyyymmdd">First Tagged</th>
     <th class="group-false">MANE CSQ</th>
-    <th class="group-false">ClinVar</th>
-    <th class="group-false">PM5 ClinVar</th>
+    <th class="group-false">ClinvArbitration</th>
+    <th class="group-false">PM5 ClinvArbitration</th>
     <th class="group-false">Ext. Label</th>
     <th class="group-false">Flags</th>
     <th class="group-false">Support</th>
@@ -60,18 +61,6 @@
         {% for gene in variant.genes %}
         <a href="https://panelapp.agha.umccr.org/panels/entities/{{gene[1]}}" target="_blank">{{gene[1]}}</a>
         {% endfor %}
-        {% if variant.pheno_matches %}
-        <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Phenotype-Panel match: {{variant.pheno_matches|join(', ')}}"></i>
-        {% endif %}
-        {% if variant.forced_matches %}
-        <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
-        {% endif %}
-        {% if variant.phenotype_matches %}
-        <i class="bi-person-check-fill" style="color: #FF5733" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Gene-Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
-        {% endif %}
         {% if variant.new_in_base_panel %}
         <i class="bi bi-star-fill text-warning" data-bs-toggle="tooltip" data-bs-placement="top"
             data-bs-title="Gene new in Mendeliome"></i>
@@ -88,6 +77,24 @@
         |replace("Autosomal Dominant","AD")
         }}
         {% endfor %})
+    </td>
+    <td>
+        {# Pheno Match #}
+        {% if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches %}
+            Y
+            {% if variant.pheno_matches %}
+            <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-title="Phenotype-Panel match: {{variant.pheno_matches|join(', ')}}"></i>
+            {% endif %}
+            {% if variant.forced_matches %}
+            <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
+            {% endif %}
+            {% if variant.phenotype_matches %}
+            <i class="bi-person-check-fill" style="color: #FF5733" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-title="Gene-Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
+            {% endif %}
+        {% endif %}
     </td>
     <td>
         {# Categories #}
@@ -155,11 +162,13 @@
             </a>
         {% endfor %}
     </td>
+
 </tr>
 
 {% include "variant_table_child_row.html.jinja" %}
 
 {% endfor %}
+
 {% endfor %}
 </tbody>
 </table>
