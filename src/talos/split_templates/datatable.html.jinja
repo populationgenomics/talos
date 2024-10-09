@@ -1,0 +1,24 @@
+<div class="mt-4 mb-4 w-100">
+  {% if table.description %}
+    <p>{{ table.description }}</p>
+  {% endif %}
+
+  <table id="{{ table.id }}" class="table table-striped table-bordered table-hover w-100">
+    <thead>
+      <tr>
+        {% for c in table.columns %}
+          <th>{{ c }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in table.rows %}
+      <tr>
+        {% for d in row %}
+          <td>{{ d|safe }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
