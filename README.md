@@ -9,7 +9,7 @@ Talos is a Python variant prioritisation tool which finds variants with diagnost
 Analysis consists of two main phases:
 
 1. Variant Categorisation
-   * We have created a number of `categories`, each represents a decision tree of criteria. 
+   * We have created a number of `categories`, each represents a decision tree of criteria.
    * If a variant passes all criteria of a category, it is labelled with that category.
    * If a variant passes multiple categories, it is labelled with all applicable categories.
    * Once all categories have been applied, any un-categorised variants are removed.
@@ -84,7 +84,7 @@ Talos consists of the following components:
 
 [example_usage.sh](example_usage.sh) demonstrates a full execution of Talos. This should be worked up into a workflow language script, but this bash script should suffice as guidance.
 
-## Categories 
+## Categories
 
 ![CatDiagram](design_docs/images/Categories.png)
 
