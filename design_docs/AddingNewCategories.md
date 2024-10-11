@@ -9,11 +9,9 @@ new category are:
    values are exported in the labelled VCF (
    e.g. [here](https://github.com/populationgenomics/talos/blob/afcf1bfa2acc30803558fa2092fab4fd8b0a58a5/reanalysis/reanalysis_global.toml#L36)).
    Without this change, the values will not be pulled from the MT, and cannot be presented in the report
-3. Add a new category method in the [hail_filter_and_label.py script](../reanalysis/hail_filter_and_label.py), (
-   e.g. [here](https://github.com/populationgenomics/talos/blob/afcf1bfa2acc30803558fa2092fab4fd8b0a58a5/reanalysis/hail_filter_and_label.py#L622-L658).
-   This method should stand independently, and contain all the logic to decide whether the label is applied or not. This
-   encapsulation should also include the decision about whether a classification is Boolean (once per variant), Sample (
-   only relevant to a subset of Samples), or Support (a lesser level of significance)
+3. Add a new category method in the [RunHailFiltering.py script](../reanalysis/RunHailFiltering.py), (
+   e.g. [here](https://github.com/populationgenomics/talos/blob/main/src/talos/RunHailFiltering.py#L410-L443).
+   This method should stand independently, and contain all the logic to decide whether the label is applied or not. This encapsulation should also include the decision about whether a classification is Boolean (once per variant), Sample (only relevant to a subset of Samples), or Support (a lesser level of significance)
 4. Add a new diagram describing the decision tree to the [images folder](images), and reference it in
    the [README](RunHailFiltering)
 5. If you require new fields to be displayed in the HTML report, make the appropriate changes to the templates

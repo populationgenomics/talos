@@ -1,8 +1,7 @@
 [GeneratePanelData]
 # the panelapp instance to use
 panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
-# the panel ID in that panelapp instance to use as a base
-# by default this is the 'Mendeliome'
+# panel ID in that panelapp instance to use as a base, by default this is the 'Mendeliome'
 default_panel = 137
 # these genes are removed from the base panel, but will be included if they occur in a phenotype-matched panel
 require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
@@ -60,7 +59,6 @@ small_variants = 8
 
 [categories]
 1 = 'ClinVar Pathogenic'
-#2 = 'New Gene-Disease Association'
 3 = 'High Impact Variant'
 4 = 'de Novo'
 5 = 'High SpliceAI Score'

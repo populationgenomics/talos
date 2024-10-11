@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 """
+Not currently in use - this doesn't scale appropriately for our needs at this time
+
 Take the following inputs:
     - a lookup of the gene symbol to the Ensembl gene ID for each gene in the ROI
     - a lookup of the gene symbol to phenotypic HPO terms
-    - Pedigree file containing
-
+    ...
 """
 
 from argparse import ArgumentParser
