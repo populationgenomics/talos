@@ -32,7 +32,6 @@ from talos.utils import read_json_from_path
 # set some Hail constants
 MISSING_INT = hl.int32(0)
 MISSING_FLOAT_LO = hl.float64(0.0)
-MISSING_FLOAT_HI = hl.float64(1.0)
 MISSING_STRING = hl.str('missing')
 ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
@@ -46,13 +45,13 @@ MAX_PARTITIONS = 10000
 
 def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
-    Changed logic: don't allow these annotations to be missing
+    Don't allow these annotations to be missing
     - Talos has been co-developed with ClinvArbitration, a ClinVar re-summary effort
     - We no longer permit this to be missing (this has slipped in the past, causing odd results)
 
     See: https://github.com/populationgenomics/ClinvArbitration
 
-    We replace any existing ClinVar annotations with our own version, then identify Path/Benign variants
+    We replace any existing ClinVar annotations with our own version, then identify Pathogenic/Benign variants
 
     Args:
         mt (): the MatrixTable of all variants

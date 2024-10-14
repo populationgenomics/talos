@@ -4,6 +4,7 @@ setup.py for the talos package
 
 from setuptools import find_packages, setup
 
+
 with open('README.md', encoding='utf-8') as handle:
     readme = handle.read()
 
@@ -31,7 +32,7 @@ setup(
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
-    url='https://github.com/populationgenomics/automated-interpretation-pipeline',
+    url='https://github.com/populationgenomics/talos',
     license='MIT',
     classifiers=[
         'Environment :: Console',

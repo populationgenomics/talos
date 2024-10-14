@@ -185,13 +185,13 @@ version should probably have been a major bump due to wholesale changes in how i
 ### Changed
 
 * Adds a number of changes to how ClinVar pathogenic variants are processed
-* See [this PR](https://github.com/populationgenomics/automated-interpretation-pipeline/pull/305)
+* See [this PR](https://github.com/populationgenomics/talos/pull/305)
 
 [1.1.1] - 2023-05-08
 
 ### Added
 
-* See [this PR](https://github.com/populationgenomics/automated-interpretation-pipeline/pull/293)
+* See [this PR](https://github.com/populationgenomics/talos/pull/293)
 * Adds the PM5 category, and the VEP content to create the relevant annotation data
 
 [1.0.1] - 2023-04-01

@@ -55,7 +55,9 @@ def get_logger(
         handler.setLevel(log_level)
 
         # create format string for messages
-        formatter = logging.Formatter('%(asctime)s - %(name)s %(lineno)d - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            '%(asctime)s - %(filename)s:%(funcName)s %(lineno)d - %(levelname)s - %(message)s',
+        )
         handler.setFormatter(formatter)
 
         # set the logger to use this handler
