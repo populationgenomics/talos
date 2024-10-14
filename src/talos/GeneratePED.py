@@ -11,6 +11,8 @@ This headerless output file is a TSV in the format:
     HPO terms, one per column, no limit on number of columns
 
 This is the CPG-specific implementation of this process
+
+TODO consider changing this to PhenoPackets
 """
 
 import re
