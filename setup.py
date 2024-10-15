@@ -59,7 +59,7 @@ setup(
             # for use in translating a VEP annotated VCF to a MatrixTable
             'vcf_to_mt = talos.vep_vcf_to_mt:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
-            'BuildReportIndexPage = talos.BuildReportIndexPage:run_both',
+            'BuildReportIndexPage = talos.BuildReportIndexPage:main',
             # CPG implementation, builds an extended Pedigree format
             'GeneratePED = talos.GeneratePED:main',
             # use the HPO terms to select panels for this analysis
