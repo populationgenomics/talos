@@ -24,7 +24,7 @@ Analysis consists of two main phases:
 At this time the recommended way to use this tool is via Docker, building using the Dockerfile in this repository.
 
 ```commandline
-docker build -t talos:5.5.3 .
+docker build -t talos:5.5.4 .
 ```
 
 ## Input Data
