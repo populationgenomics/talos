@@ -15,10 +15,19 @@ from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from talos.utils import ORDERED_MOIS, get_json_response, get_logger, get_simple_moi, read_json_from_path
 
+# url for the PanelApp Australia instance
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
-PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
 # numerical ID of the Mendeliome in PanelApp Australia
-DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+PANELAPP_DEFAULT_BASE_PANEL = 137
+
+# attempt to override from config
+try:
+    PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+    DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+except KeyError as ke:
+    PANELAPP_BASE = PANELAPP_HARD_CODED_DEFAULT
+    DEFAULT_PANEL = 137
+
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
 TODAY = today()

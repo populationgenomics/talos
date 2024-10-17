@@ -26,7 +26,8 @@ process GeneratePanelData {
         path "${params.cohort}_hpo_panel_data.json"
 
     """
-    GeneratePanelData -i ${pedigree} --hpo ${hpo} --out_path ${params.cohort}_hpo_panel_data.json
+    GeneratePanelData -i ${pedigree} --hpo ${hpo} --out_path ${params.cohort}_hpo_panel_data.json -h
+    touch ${params.cohort}_hpo_panel_data.json
     """
 }
 
@@ -42,7 +43,8 @@ process QueryPanelapp {
 
     // the command
     """
-    QueryPanelapp --panels ${panel_data}  --out_path ${params.cohort}_panelapp_results.json
+    QueryPanelapp --panels ${hpo_panel_matches}  --out_path ${params.cohort}_panelapp_results.json -h
+    touch ${params.cohort}_panelapp_results.json
     """
 }
 
@@ -79,7 +81,7 @@ process RunHailFiltering {
         def checkpoint = checkpoint.name != 'NO_FILE' ? "${checkpoint}" : ''
 
     """
-    RunHailFilteringSV \
+    RunHailFiltering \
         --mt ${matrix_table} \
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \
@@ -122,7 +124,7 @@ process RunHailFilteringSV {
         --vcf_out ${params.cohort}_small_variants.vcf.bgz
     """
 }
----
+
 process sayHello {
     // this takes the resulting file from the work/hash/hash directory, writes into "results"
     publishDir 'results', mode: 'copy'
@@ -165,13 +167,12 @@ process convertToUpper {
 }
 
 workflow {
+    // existence of these files is necessary for starting the workflow
+    // so we must open them as a channel, and pass the channel through to the method
+    pedigree_channel = Channel.fromPath(params.pedigree)
 
-    GeneratePanelData(params.pedigree, params.hpo)
-    // create a channel for inputs from a file
-    greeting_ch = Channel.fromPath(params.input_file).splitText() { it.trim() }
+    // we can do this by saving as an object, or inside the method call
+    GeneratePanelData(pedigree_channel, Channel.fromPath(params.hpo))
 
-    sayHello(greeting_ch)
-
-    // convert the greeting to uppercase
-    convertToUpper(sayHello.out)
+    QueryPanelapp(GeneratePanelData.out)
 }
