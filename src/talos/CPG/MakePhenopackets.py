@@ -11,10 +11,6 @@ The phenopackets data interchange format is a GA4GH standard, and is being devel
 
 Here we represent our cohort as a Cohort object, consisting of multiple Members. Each Member is a Phenopacket,
 encapsulating their phenotypic data and relevant ontological details.
-
-I'll try and provide a liftover from the current pedigree format to the phenopackets format for simplicity. This
-process is otherwise an altered implementation of CPG/GeneratePED.py, which will be altered in the future to only
-contain content relevant to the pure Pedigree generation.
 """
 
 import re
