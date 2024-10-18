@@ -5,13 +5,7 @@ test file for metamist panel-participant matching
 import networkx as nx
 from obonet import read_obo
 
-from talos.GeneratePanelData import (
-    get_panels,
-    match_hpo_terms,
-    match_hpos_to_panels,
-    match_participants_to_panels,
-    update_hpo_with_label,
-)
+from talos.GeneratePanelData import get_panels, match_hpo_terms, match_hpos_to_panels, match_participants_to_panels
 from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
 
@@ -105,35 +99,4 @@ def test_match_participants_to_panels():
         family_id='fam2',
         hpo_terms=[{'id': 'HP:1', 'label': ''}, {'id': 'HP:6', 'label': ''}],
         panels={137, 101, 102, 666},
-    )
-
-
-def test_update_hpo_with_description():
-    """
-    test that the description is added to the hpo
-    """
-    hpo_dict = PhenotypeMatchedPanels(
-        samples={
-            'luke_skywalker': {
-                'external_id': 'participant1',
-                'family_id': 'fam1',
-                'hpo_terms': [{'id': 'HP:1', 'label': ''}, {'id': 'HP:2', 'label': ''}],
-                'panels': {137},
-            },
-        },
-    )
-    hpo_to_desc = {'HP:1': "Philosopher's Stone", 'HP:2': 'Chamber of Secrets'}
-    hpo_dict = update_hpo_with_label(hpo_dict, hpo_to_desc)
-    assert hpo_dict == PhenotypeMatchedPanels(
-        samples={
-            'luke_skywalker': {
-                'external_id': 'participant1',
-                'family_id': 'fam1',
-                'hpo_terms': [
-                    {'id': 'HP:1', 'label': "Philosopher's Stone"},
-                    {'id': 'HP:2', 'label': 'Chamber of Secrets'},
-                ],
-                'panels': {137},
-            },
-        },
     )

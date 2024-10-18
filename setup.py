@@ -28,7 +28,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='5.5.4',
+    version='6.0.0',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
@@ -60,8 +60,8 @@ setup(
             'vcf_to_mt = talos.vep_vcf_to_mt:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
             'BuildReportIndexPage = talos.BuildReportIndexPage:main',
-            # CPG implementation, builds an extended Pedigree format
-            'GeneratePED = talos.GeneratePED:main',
+            # CPG implementation, builds cohort phenopackets
+            'MakePhenopackets = talos.CPG.MakePhenopackets:cli_main',
             # use the HPO terms to select panels for this analysis
             'GeneratePanelData = talos.GeneratePanelData:cli_main',
             # query PanelApp for those selected panels
