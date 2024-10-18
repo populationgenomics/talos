@@ -122,7 +122,7 @@ def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[st
                     version='2024-08-13',
                     namespace_prefix='HP',
                     iri_prefix='http://purl.obolibrary.org/obo/HP_',
-                )
+                ),
             ],
         ),
     )
@@ -168,7 +168,8 @@ def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo
 
     # pull all the relevant data from metamist
     metamist_data = query(
-        PARTICIPANT_QUERY, variables={'project': dataset, 'sequencing_type': seq_type, 'technology': tech}
+        PARTICIPANT_QUERY,
+        variables={'project': dataset, 'sequencing_type': seq_type, 'technology': tech},
     )
 
     # match names to HPO terms
@@ -177,7 +178,7 @@ def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo
     # build the cohort
     cohort = assemble_phenopackets(dataset=dataset, metamist_data=metamist_data, hpo_lookup=labelled_hpos)
 
-    with open(output, 'wt', encoding='utf-8') as handle:
+    with open(output, 'w', encoding='utf-8') as handle:
         json = MessageToJson(cohort)
         handle.write(json)
 

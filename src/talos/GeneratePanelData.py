@@ -226,7 +226,7 @@ def main(ga4gh_cohort_file: str, panel_out: str, hpo_file: str):
 
     # validate and write using pydantic
     if panel_out:
-        with open(panel_out, 'wt', encoding='utf-8') as handle:
+        with open(panel_out, 'w', encoding='utf-8') as handle:
             handle.write(valid_pheno_dict.model_dump_json(indent=4))
 
 

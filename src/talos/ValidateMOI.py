@@ -293,7 +293,7 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
     trios_in_a_quad = 2
 
     # the final dict of counts to return
-    stat_counter: dict[str, int] = defaultdict(int)
+    stat_counter: dict[str | MemberSex, int] = defaultdict(int)
 
     # now count family sizes, structures, sexes, and affected
     for family_members in pedigree.by_family.values():

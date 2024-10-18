@@ -29,7 +29,6 @@ from talos.models import (
     PanelApp,
     Pedigree,
     PedigreeMember,
-    PhenoPacketHpo,
     PhenotypeMatchedPanels,
     ResultData,
     SmallVariant,
