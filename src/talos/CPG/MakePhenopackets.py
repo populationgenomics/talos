@@ -19,7 +19,6 @@ contain content relevant to the pure Pedigree generation.
 
 import re
 from argparse import ArgumentParser
-from datetime import datetime
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
@@ -42,6 +41,9 @@ query MyQuery($project: String!, $sequencing_type: String!, $technology: String!
           externalId
           phenotypes
           reportedSex
+          families {
+            externalId
+          }
         }
       }
     }
@@ -128,14 +130,18 @@ def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[st
     # iterate over all SG Entities
     for sg in metamist_data['project']['sequencingGroups']:
         ext_id = sg['sample']['participant']['externalId']
+
+        # require a family ID
+        family_id = sg['sample']['participant']['families'][0]['externalId']
         # create a Phenopacket for this individual
         ppack = pps2.Phenopacket(
             # primary ID is the internal CPG ID
             id=sg['id'],
             subject=pps2.Individual(
-                # individual ID is the external ID, to capture both
-                # alternate_ids is also a valid option
-                id=ext_id,
+                # ID here is the Family ID; the Cohort model doesn't explicitly accommodate Family ID, but we need it
+                id=family_id,
+                # alternate_ids captures the external ID, and is optional
+                alternate_ids=[ext_id],
                 date_of_birth=sg['sample']['participant']['phenotypes'].get('Date of birth', None),
                 sex=reported_sex_map.get(sg['sample']['participant']['reportedSex'], pps2.Sex.UNKNOWN_SEX),
             ),
