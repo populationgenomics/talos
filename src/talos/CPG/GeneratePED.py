@@ -24,7 +24,6 @@ PARTICIPANT_QUERY = gql(
     """
 query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {
   project(name: $project) {
-    pedigree
     sequencingGroups(technology: {eq: $technology}, type:  {eq: $sequencing_type}) {
       id
       sample {
@@ -95,7 +94,7 @@ def get_data_from_metamist(project: str, seq_type: str, tech: str) -> list[list[
     return ped_entries
 
 
-def main():
+def cli_main():
     parser = ArgumentParser(description='Generate a PED file for Talos')
     parser.add_argument('dataset', help='The dataset to query for')
     parser.add_argument('output', help='The output file')
@@ -112,4 +111,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli_main()
