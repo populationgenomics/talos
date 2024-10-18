@@ -19,6 +19,7 @@ from cyvcf2 import VCFReader
 from talos.config import config_retrieve
 from talos.models import (
     FamilyMembers,
+    MemberSex,
     PanelApp,
     PanelDetail,
     ParticipantHPOPanels,
@@ -45,7 +46,7 @@ from talos.utils import (
 from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown', '0': 'unknown'}
+MALE_FEMALE = {'1': MemberSex.MALE, '2': MemberSex.FEMALE, '-9': MemberSex.UNKNOWN, '0': MemberSex.UNKNOWN}
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:
@@ -329,7 +330,7 @@ def prepare_results_shell(
     sv_samples: set[str],
     pedigree: Pedigree,
     panelapp: PanelApp,
-    panel_data: PhenotypeMatchedPanels | None = None,
+    panel_data: PhenotypeMatchedPanels,
 ) -> ResultData:
     """
     Creates a ResultData object, with participant metadata filled out
@@ -339,15 +340,12 @@ def prepare_results_shell(
         small_samples (): samples in the Small VCF
         sv_samples (): samples in the SV VCFs
         pedigree (): the Pedigree object
-        panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
+        panel_data (): dictionary of per-participant panels, may be empty
 
     Returns:
         ResultData with sample metadata filled in
     """
-
-    if panel_data is None:
-        panel_data = PhenotypeMatchedPanels()
 
     # create an empty dict for all the samples
     results_shell = ResultData(metadata=results_meta)
@@ -444,20 +442,20 @@ def main(
     if labelled_sv is None:
         labelled_sv = []
 
+    pheno_panels: PhenotypeMatchedPanels = read_json_from_path(
+        participant_panels,
+        return_model=PhenotypeMatchedPanels,
+        default=PhenotypeMatchedPanels(),
+    )
+
     # parse the pedigree from the file
-    ped = make_flexible_pedigree(pedigree)
+    ped = make_flexible_pedigree(pedigree, pheno_panels)
 
     # parse panelapp data from dict
     panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
-
-    pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
-        participant_panels,
-        return_model=PhenotypeMatchedPanels,
-        default=None,
-    )
 
     result_list: list[ReportVariant] = []
 

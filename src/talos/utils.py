@@ -60,14 +60,18 @@ REMOVE_IN_SINGLETONS = {'categorysample4'}
 
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
+# this just saves some typing
+MEMBER_LOOKUP_DICT = {'0': None}
 
-def make_flexible_pedigree(pedigree: str) -> Pedigree:
+
+def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:
     """
     takes the representation offered by peds and reshapes it to be searchable
     this is really just one short step from writing my own implementation...
 
     Args:
         pedigree (str): path to a pedigree file
+        pheno_panels (PhenotypeMatchedPanels | None, optional): a PhenotypeMatchedPanels object. Defaults to None.
 
     Returns:
         a searchable representation of the ped file
@@ -76,25 +80,21 @@ def make_flexible_pedigree(pedigree: str) -> Pedigree:
     ped_data = open_ped(pedigree)
     for family in ped_data:
         for member in family:
-            # any extra columns are parsed as a tuple of strings
-            member_data = member.data
-
-            # default to repeating internal ID
-            ext_id = member_data[0] if member_data else member.id
-
-            # can be an empty list
-            hpos = [PhenoPacketHpo(id=hpo, label=hpo) for hpo in member_data[1:]]
-
             me = PedigreeMember(
                 family=member.family,
                 id=member.id,
-                mother=None if member.mom == '0' else member.mom,
-                father=None if member.dad == '0' else member.dad,
+                mother=MEMBER_LOOKUP_DICT.get(member.mom, member.mom),
+                father=MEMBER_LOOKUP_DICT.get(member.dad, member.dad),
                 sex=member.sex,
                 affected=member.phenotype,
-                ext_id=ext_id,
-                hpo_terms=hpos,
             )
+
+            # populate this info if we have it from the GeneratePanelData step/output
+            if pheno_panels:
+                pheno_participant = pheno_panels.samples.get(member.id)
+                if pheno_participant:
+                    me.ext_id = pheno_participant.external_id
+                    me.hpo_terms = pheno_participant.hpo_terms
 
             # add as a member
             new_ped.members.append(me)

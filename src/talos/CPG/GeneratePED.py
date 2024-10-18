@@ -28,6 +28,7 @@ query MyQuery($project: String!, $sequencing_type: String!, $technology: String!
         }
       }
     }
+    pedigree
   }
 }""",
 )
