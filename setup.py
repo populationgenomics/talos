@@ -60,8 +60,6 @@ setup(
             'vcf_to_mt = talos.vep_vcf_to_mt:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
             'BuildReportIndexPage = talos.BuildReportIndexPage:main',
-            # CPG implementation, builds an extended Pedigree format
-            'GeneratePED = talos.CPG.GeneratePED:cli_main',
             # CPG implementation, builds cohort phenopackets
             'MakePhenopackets = talos.CPG.MakePhenopackets:cli_main',
             # use the HPO terms to select panels for this analysis
