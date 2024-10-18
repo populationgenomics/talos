@@ -1,5 +1,5 @@
 """
-This script generates a loaded PED file for use in Talos
+This script generates a PED file for use in Talos
 This headerless output file is a TSV in the format:
     Family ID
     Individual ID
@@ -7,20 +7,16 @@ This headerless output file is a TSV in the format:
     Maternal ID (or 0 is missing)
     Sex (1=male; 2=female; other=unknown)
     Phenotype (-9/0=missing, 1=unaffected, 2=affected)
-    Ext ID (or a repeat of Individual ID)
-    HPO terms, one per column, no limit on number of columns
 
 This is the CPG-specific implementation of this process
 """
 
-import re
 from argparse import ArgumentParser
 
 from metamist.graphql import gql, query
 
-HPO_KEY = 'HPO Terms (present)'
-HPO_RE = re.compile(r'HP:[0-9]+')
-PARTICIPANT_QUERY = gql(
+
+PEDIGREE_QUERY = gql(
     """
 query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {
   project(name: $project) {
@@ -29,7 +25,6 @@ query MyQuery($project: String!, $sequencing_type: String!, $technology: String!
       sample {
         participant {
           externalId
-          phenotypes
         }
       }
     }
@@ -49,48 +44,34 @@ def get_data_from_metamist(project: str, seq_type: str, tech: str) -> list[list[
     Returns:
         returns the new Ped contents, ready to be written to a file
         each row is a list of Strings, forming a regular pedigree
-        followed by an external ID (can be a repeat of internal ID)
-        then an arbitrary number of columns for HPO terms
     """
 
     # to store the new PED entries
     ped_entries: list[list[str]] = []
 
-    # first get a lookup of Int IDs to Ext IDs
-    result = query(PARTICIPANT_QUERY, variables={'project': project, 'sequencing_type': seq_type, 'technology': tech})
+    # pull the Pedigree, and a lookup of Int IDs to Ext IDs
+    result = query(PEDIGREE_QUERY, variables={'project': project, 'sequencing_type': seq_type, 'technology': tech})
 
     # maps External IDs from the Pedigree endpoint to Internal CPG IDs
-    ext_to_int: dict[str, str] = {}
-
-    # will map each CPG ID to its set of HPO terms (can be empty)
-    cpg_to_hpos: dict[str, set[str]] = {}
-
-    # iterate over all SG Entities
-    for sg in result['project']['sequencingGroups']:
-        ext_to_int[sg['sample']['participant']['externalId']] = sg['id']
-        cpg_to_hpos[sg['id']] = set(HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, '')))
+    ext_to_int: dict[str, str] = {
+        sg['sample']['participant']['externalId']: sg['id'] for sg in result['project']['sequencingGroups']
+    }
 
     # iterate over the pedigree entities, forming a list from each. List elements:
-    # Family ID, Individual ID, Paternal, Maternal, Sex, Affection status, Ext ID (or repeat), HPOs (or not if absent)
+    # Family ID, Individual ID, Paternal, Maternal, Sex, Affection status
     for entry in result['project']['pedigree']:
         if not (int_id := ext_to_int.get(entry['individual_id'], entry['individual_id'])).startswith('CPG'):
             continue
-        ped_row: list[str] = [
-            entry['family_id'],
-            int_id,
-            ext_to_int.get(entry['paternal_id'], '0') or '0',
-            ext_to_int.get(entry['maternal_id'], '0') or '0',
-            str(entry['sex']),
-            str(entry['affected']),
-            entry['individual_id'],
-        ]
-
-        # if there are recorded HPOs, extend the row with them
-        if hpos := cpg_to_hpos.get(ext_to_int.get(entry['individual_id'], 'missing')):
-            ped_row.extend(sorted(hpos))
-
-        ped_entries.append(ped_row)
-
+        ped_entries.append(
+            [
+                entry['family_id'],
+                int_id,
+                ext_to_int.get(entry['paternal_id'], '0') or '0',
+                ext_to_int.get(entry['maternal_id'], '0') or '0',
+                str(entry['sex']),
+                str(entry['affected']),
+            ]
+        )
     return ped_entries
 
 
@@ -105,7 +86,7 @@ def cli_main():
     new_ped_rows = get_data_from_metamist(args.dataset, seq_type=args.type, tech=args.tech)
 
     # write a headless TSV file, as an extended PED format
-    with open(args.output, 'w', encoding='utf-8') as handle:
+    with open(args.output, 'wt', encoding='utf-8') as handle:
         for line in new_ped_rows:
             handle.write('\t'.join(line) + '\n')
 
