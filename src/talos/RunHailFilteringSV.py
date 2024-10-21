@@ -129,12 +129,12 @@ def cli_main():
     main method wrapper for console script execution
     """
     parser = ArgumentParser()
-    parser.add_argument('--mt', required=True, help='path to input MT')
-    parser.add_argument('--panelapp', type=str, required=True, help='panelapp JSON')
+    parser.add_argument('--input', required=True, help='path to input MT')
+    parser.add_argument('--panelapp', type=str, required=True, help='GeneratePanelData JSON')
     parser.add_argument('--pedigree', type=str, required=True, help='Cohort Pedigree')
-    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
+    parser.add_argument('--output', help='Where to write the VCF', required=True)
     args = parser.parse_args()
-    main(mt_path=args.mt, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.vcf_out)
+    main(mt_path=args.input, panelapp_path=args.panelapp, pedigree=args.pedigree, vcf_out=args.output)
 
 
 def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):

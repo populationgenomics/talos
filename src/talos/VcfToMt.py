@@ -350,14 +350,14 @@ def cli_main():
     """
 
     parser = ArgumentParser(description='Takes a VEP annotated VCF and makes it a MT')
-    parser.add_argument('vcf', help='Path to the annotated VCF')
-    parser.add_argument('output', help='output MatrixTable path')
+    parser.add_argument('--input', help='Path to the annotated VCF')
+    parser.add_argument('--output', help='output MatrixTable path')
     parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', default=None)
     args, unknown = parser.parse_known_args()
     if unknown:
         raise ValueError(f'Whats the deal with {unknown}?')
 
-    main(vcf_path=args.vcf, output_path=args.output, alpha_m=args.am)
+    main(vcf_path=args.input, output_path=args.output, alpha_m=args.am)
 
 
 def main(vcf_path: str, output_path: str, alpha_m: str | None = None):

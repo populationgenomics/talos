@@ -19,6 +19,7 @@ from cyvcf2 import VCFReader
 from talos.config import config_retrieve
 from talos.models import (
     FamilyMembers,
+    MemberSex,
     PanelApp,
     PanelDetail,
     ParticipantHPOPanels,
@@ -45,7 +46,12 @@ from talos.utils import (
 from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'1': 'male', '2': 'female', '-9': 'unknown', '0': 'unknown'}
+MALE_FEMALE = {
+    '1': MemberSex.MALE.value,
+    '2': MemberSex.FEMALE.value,
+    '-9': MemberSex.UNKNOWN.value,
+    '0': MemberSex.UNKNOWN.value,
+}
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:
@@ -292,7 +298,7 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
     trios_in_a_quad = 2
 
     # the final dict of counts to return
-    stat_counter: dict[str, int] = defaultdict(int)
+    stat_counter: dict[str | MemberSex, int] = defaultdict(int)
 
     # now count family sizes, structures, sexes, and affected
     for family_members in pedigree.by_family.values():
@@ -329,7 +335,7 @@ def prepare_results_shell(
     sv_samples: set[str],
     pedigree: Pedigree,
     panelapp: PanelApp,
-    panel_data: PhenotypeMatchedPanels | None = None,
+    panel_data: PhenotypeMatchedPanels,
 ) -> ResultData:
     """
     Creates a ResultData object, with participant metadata filled out
@@ -339,15 +345,12 @@ def prepare_results_shell(
         small_samples (): samples in the Small VCF
         sv_samples (): samples in the SV VCFs
         pedigree (): the Pedigree object
-        panel_data (): dictionary of per-participant panels, or None
         panelapp (): dictionary of gene data
+        panel_data (): dictionary of per-participant panels, may be empty
 
     Returns:
         ResultData with sample metadata filled in
     """
-
-    if panel_data is None:
-        panel_data = PhenotypeMatchedPanels()
 
     # create an empty dict for all the samples
     results_shell = ResultData(metadata=results_meta)
@@ -390,15 +393,15 @@ def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
-    parser.add_argument('--out_json', help='Prefix to write JSON results to', required=True)
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data', required=True)
-    parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
-    parser.add_argument('--participant_panels', help='panels per participant', default=None)
+    parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
+    parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
+    parser.add_argument('--pedigree', help='Path to PED file', required=True)
+    parser.add_argument('--participant_panels', help='GeneratePanelData JSON', default=None)
     args = parser.parse_args()
 
     main(
         labelled_vcf=args.labelled_vcf,
-        out_json=args.out_json,
+        output=args.output,
         panelapp=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
@@ -408,7 +411,7 @@ def cli_main():
 
 def main(
     labelled_vcf: str,
-    out_json: str,
+    output: str,
     panelapp: str,
     pedigree: str,
     labelled_sv: list[str] | None = None,
@@ -424,7 +427,7 @@ def main(
     Args:
         labelled_vcf (str): VCF output from Hail Labelling stage
         labelled_sv (str | None): optional second VCF (SV)
-        out_json (str): location to write output file
+        output (str): location to write output file
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
         participant_panels (str): json of panels per participant
@@ -444,20 +447,20 @@ def main(
     if labelled_sv is None:
         labelled_sv = []
 
+    pheno_panels: PhenotypeMatchedPanels = read_json_from_path(
+        participant_panels,
+        return_model=PhenotypeMatchedPanels,
+        default=PhenotypeMatchedPanels(),
+    )
+
     # parse the pedigree from the file
-    ped = make_flexible_pedigree(pedigree)
+    ped = make_flexible_pedigree(pedigree, pheno_panels)
 
     # parse panelapp data from dict
     panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
-
-    pheno_panels: PhenotypeMatchedPanels | None = read_json_from_path(
-        participant_panels,
-        return_model=PhenotypeMatchedPanels,
-        default=None,
-    )
 
     result_list: list[ReportVariant] = []
 
@@ -525,7 +528,7 @@ def main(
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
-    with open(out_json, 'w') as out_file:
+    with open(output, 'w') as out_file:
         out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
 
 

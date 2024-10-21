@@ -9,4 +9,4 @@ The configuration file is a TOML file, containing headed sections for each princ
 5. `CreateTalosHTML` - variables here are used in the CPG HTML implementation, mostly to connect internal and Seqr samples IDs, and to identify an appropriate seqr instance
 6. `categories` - not Stage specific, but this contains a plaintext description of each category in the current codebase
 
-This config file should be created in full prior to running Talos stages, a template is present at [../]
+This config file should be created in full prior to running Talos stages, a template is present at [example_config.toml](../src/talos/example_config.toml)

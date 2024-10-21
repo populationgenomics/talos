@@ -15,10 +15,20 @@ from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from talos.utils import ORDERED_MOIS, get_json_response, get_logger, get_simple_moi, read_json_from_path
 
+
+# global variables for PanelApp interaction
 PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
-PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
 # numerical ID of the Mendeliome in PanelApp Australia
-DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+PANELAPP_HARD_CODED_BASE_PANEL = 137
+
+try:
+    PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
+    DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], PANELAPP_HARD_CODED_BASE_PANEL)
+except KeyError:
+    get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
+    PANELAPP_BASE = PANELAPP_HARD_CODED_DEFAULT
+    DEFAULT_PANEL = PANELAPP_HARD_CODED_BASE_PANEL
+
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
 TODAY = today()
@@ -212,10 +222,10 @@ def get_best_moi(gene_dict: dict):
 
 def cli_main():
     parser = ArgumentParser()
-    parser.add_argument('--panels', help='JSON of per-participant panels')
-    parser.add_argument('--out_path', required=True, help='destination for results')
+    parser.add_argument('--input', help='JSON of per-participant panels', default=None)
+    parser.add_argument('--output', required=True, help='destination for results')
     args = parser.parse_args()
-    main(panels=args.panels, out_path=args.out_path)
+    main(panels=args.input, out_path=args.output)
 
 
 def main(panels: str | None, out_path: str):
