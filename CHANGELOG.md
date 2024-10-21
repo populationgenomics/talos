@@ -14,6 +14,24 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[6.0.0] - 2024-10-21
+
+### Added
+
+* MakePhenopackets stage, which generates a Phenopacket file from Metamist
+
+### Changed
+
+* Renamed `GenerateSeqrFile` to `MinimiseOutputForSeqr`
+* Renamed `vcf_to_mt` to `VcfToMt`
+* The 'extended PED' file format is no longer used - instead we use a normal 6-col PED file, and a separate file with
+  phenotypic data and external IDs for each participant in a GA4GH-compliant Cohort/Phenopacket format
+  * An adapter remains in [talos/CPG](src/talos/CPG/convert_ePED_to_phenopackets.py) to convert the old format to the new format
+
+### Deprecated
+
+* GeneratePED has been deleted
+
 [5.0.0] - 2024-07-08
 
 ### Changed
