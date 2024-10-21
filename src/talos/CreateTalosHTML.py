@@ -27,7 +27,7 @@ from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import get_logger, read_json_from_path
 
-JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'split_templates'
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 
 # above this length we trim the actual bases to just an int
 MAX_INDEL_LEN: int = 10
@@ -343,9 +343,7 @@ class HTMLBuilder:
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        to_anypath(output_filepath).open('wt').writelines(
-            '\n'.join(line for line in content.split('\n') if line.strip()),
-        )
+        to_anypath(output_filepath).open('wt').writelines(content)
         get_logger().info(f'Wrote {output_filepath}')
 
         # then write the per-sample content
@@ -363,9 +361,7 @@ class HTMLBuilder:
                 new_context['report_title'] += ' (Latest Variants Only)'
             template = env.get_template('sample_index.html.jinja')
             content = template.render(**new_context)
-            to_anypath(report_address).open('w').writelines(
-                '\n'.join(line for line in content.split('\n') if line.strip()),
-            )
+            to_anypath(report_address).open('w').writelines(content)
 
 
 class Sample:
