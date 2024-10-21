@@ -783,7 +783,7 @@ def cli_main():
     """
 
     parser = ArgumentParser()
-    parser.add_argument('--mt', required=True, help='path to input MT')
+    parser.add_argument('--input', required=True, help='path to input MT')
     parser.add_argument('--panelapp', required=True, help='panelapp JSON')
     parser.add_argument('--pedigree', required=True, help='Cohort Pedigree')
     parser.add_argument('--output', help='Where to write the VCF', required=True)
@@ -792,7 +792,7 @@ def cli_main():
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
-        mt_path=args.mt,
+        mt_path=args.input,
         panel_data=args.panelapp,
         pedigree=args.pedigree,
         vcf_out=args.output,

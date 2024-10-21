@@ -394,14 +394,14 @@ def cli_main():
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
-    parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data', required=True)
-    parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
-    parser.add_argument('--participant_panels', help='panels per participant', default=None)
+    parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
+    parser.add_argument('--pedigree', help='Path to PED file', required=True)
+    parser.add_argument('--participant_panels', help='GeneratePanelData JSON', default=None)
     args = parser.parse_args()
 
     main(
         labelled_vcf=args.labelled_vcf,
-        out_json=args.output,
+        output=args.output,
         panelapp=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
@@ -411,7 +411,7 @@ def cli_main():
 
 def main(
     labelled_vcf: str,
-    out_json: str,
+    output: str,
     panelapp: str,
     pedigree: str,
     labelled_sv: list[str] | None = None,
@@ -427,7 +427,7 @@ def main(
     Args:
         labelled_vcf (str): VCF output from Hail Labelling stage
         labelled_sv (str | None): optional second VCF (SV)
-        out_json (str): location to write output file
+        output (str): location to write output file
         panelapp (str): location of PanelApp data JSON
         pedigree (str): location of PED file
         participant_panels (str): json of panels per participant
@@ -528,7 +528,7 @@ def main(
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
-    with open(out_json, 'w') as out_file:
+    with open(output, 'w') as out_file:
         out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
 
 

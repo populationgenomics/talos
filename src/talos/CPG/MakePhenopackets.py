@@ -188,7 +188,7 @@ def cli_main():
     parser.add_argument('--tech', help='Sequencing technology', default='short-read')
     args = parser.parse_args()
 
-    main(output=args.output, dataset=args.dataset, seq_type=args.type, tech=args.tech, hpo_file=args.hpo)
+    main(dataset=args.dataset, output=args.output, seq_type=args.type, hpo_file=args.hpo, tech=args.tech)
 
 
 if __name__ == '__main__':
