@@ -4,7 +4,7 @@ tests for the HTML builder
 
 from test.test_utils import TWO_EXPECTED
 
-from talos.CreateTalosHTML import check_date_filter
+from talos.original_templates.CreateTalosHTML import check_date_filter
 from talos.models import Coordinates, ResultData, SmallVariant
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
