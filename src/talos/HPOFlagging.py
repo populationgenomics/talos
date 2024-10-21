@@ -223,19 +223,19 @@ def filter_and_write_out(annotated_results: ResultData, out_path: str):
 
 def cli_main():
     parser = ArgumentParser(description='')
-    parser.add_argument('--results', help='The Result data in JSON form')
+    parser.add_argument('--input', help='The Result data in JSON form')
     parser.add_argument('--gene_map', help='A map of gene symbol to ENSG for all genes in this analysis')
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
-    parser.add_argument('--out', help='Annotated full output')
+    parser.add_argument('--output', help='Annotated full output')
     parser.add_argument('--phenout', help='Annotated phenotype-only output')
     args = parser.parse_args()
     main(
-        result_file=args.results,
+        result_file=args.input,
         gene_map=args.gene_map,
         gen2phen=args.gen2phen,
         phenio=args.phenio,
-        out_path=args.out,
+        out_path=args.output,
         phenout=args.phenout,
     )
 

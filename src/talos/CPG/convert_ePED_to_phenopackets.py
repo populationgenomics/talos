@@ -17,8 +17,8 @@ reported_sex_map = {1: pps2.Sex.MALE, 2: pps2.Sex.FEMALE}
 
 def cli_main():
     parser = ArgumentParser()
-    parser.add_argument('ped_file', help='path to the extended PED file')
-    parser.add_argument('output', help='stem path to write phenopacket and new PED file')
+    parser.add_argument('--input', help='path to the extended PED file')
+    parser.add_argument('--output', help='stem path to write phenopacket and new PED file')
     args = parser.parse_args()
     main(args.ped_file, args.output)
 

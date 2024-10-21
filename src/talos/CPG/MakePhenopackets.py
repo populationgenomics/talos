@@ -181,9 +181,9 @@ def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo
 
 def cli_main():
     parser = ArgumentParser(description='Generate a PED file for Talos')
-    parser.add_argument('dataset', help='The dataset to query for')
-    parser.add_argument('output', help='The output file')
-    parser.add_argument('type', help='Sequencing type (exome or genome)')
+    parser.add_argument('--dataset', help='The dataset to query for')
+    parser.add_argument('--output', help='The output file')
+    parser.add_argument('--type', help='Sequencing type (exome or genome)')
     parser.add_argument('--hpo', help='HPO ontology file')
     parser.add_argument('--tech', help='Sequencing technology', default='short-read')
     args = parser.parse_args()

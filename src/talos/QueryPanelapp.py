@@ -223,9 +223,9 @@ def get_best_moi(gene_dict: dict):
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--panels', help='JSON of per-participant panels', default=None)
-    parser.add_argument('--out_path', required=True, help='destination for results')
+    parser.add_argument('--output', required=True, help='destination for results')
     args = parser.parse_args()
-    main(panels=args.panels, out_path=args.out_path)
+    main(panels=args.panels, out_path=args.output)
 
 
 def main(panels: str | None, out_path: str):

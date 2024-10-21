@@ -32,13 +32,13 @@ CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 def cli_main():
     get_logger(__file__).info('Running HTML builder')
     parser = ArgumentParser()
-    parser.add_argument('--results', help='Path to analysis results', required=True)
+    parser.add_argument('--input', help='Path to analysis results', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Optional second report, latest variants only')
     parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
     args = parser.parse_args()
-    main(args.results, args.panelapp, args.output, args.latest, args.split_samples)
+    main(args.input, args.panelapp, args.output, args.latest, args.split_samples)
 
 
 def main(results: str, panelapp: str, output: str, latest: str | None = None, split_samples: int | None = None):

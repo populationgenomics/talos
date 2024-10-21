@@ -51,7 +51,7 @@ async def match_symbol_to_ensg(gene_symbol: str, session: ClientSession) -> tupl
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--panelapp', help='Path to the PanelApp results file', required=True)
-    parser.add_argument('--out_path', help='where to write the output (.json)', required=True)
+    parser.add_argument('--output', help='where to write the output (.json)', required=True)
     args = parser.parse_args()
 
     main(args.panelapp, out_path=args.out_path)

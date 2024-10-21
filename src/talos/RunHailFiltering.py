@@ -786,7 +786,7 @@ def cli_main():
     parser.add_argument('--mt', required=True, help='path to input MT')
     parser.add_argument('--panelapp', required=True, help='panelapp JSON')
     parser.add_argument('--pedigree', required=True, help='Cohort Pedigree')
-    parser.add_argument('--vcf_out', help='Where to write the VCF', required=True)
+    parser.add_argument('--output', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
@@ -795,7 +795,7 @@ def cli_main():
         mt_path=args.mt,
         panel_data=args.panelapp,
         pedigree=args.pedigree,
-        vcf_out=args.vcf_out,
+        vcf_out=args.output,
         clinvar=args.clinvar,
         pm5=args.pm5,
         checkpoint=args.checkpoint,

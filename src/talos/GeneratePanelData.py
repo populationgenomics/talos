@@ -185,11 +185,11 @@ def match_participants_to_panels(participant_hpos: PhenotypeMatchedPanels, hpo_p
 def cli_main():
     get_logger(__file__).info('Starting HPO~Panel matching')
     parser = ArgumentParser()
-    parser.add_argument('cohort_file', help='GA4GH Cohort/PhenoPacket File')
-    parser.add_argument('output', help='Path to write PhenotypeMatchedPanels to (JSON)')
+    parser.add_argument('--input', help='GA4GH Cohort/PhenoPacket File')
+    parser.add_argument('--output', help='Path to write PhenotypeMatchedPanels to (JSON)')
     parser.add_argument('--hpo', help='Local copy of HPO obo file', required=True)
     args = parser.parse_args()
-    main(ga4gh_cohort_file=args.cohort_file, panel_out=args.output, hpo_file=args.hpo)
+    main(ga4gh_cohort_file=args.input, panel_out=args.output, hpo_file=args.hpo)
 
 
 def main(ga4gh_cohort_file: str, panel_out: str, hpo_file: str):

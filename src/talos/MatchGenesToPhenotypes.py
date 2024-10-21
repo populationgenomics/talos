@@ -136,11 +136,11 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--g2p', help='path to the genotype-phenotype file', required=True)
     parser.add_argument('--gs2id', help='path to JSON with gene symbol to Ensembl gene ID', required=True)
-    parser.add_argument('--panels', help='path to the participant-HPO-panels file', required=True)
+    parser.add_argument('--input', help='path to GeneratePanelData output', required=True)
     parser.add_argument('--phenio', help='path to the phenio db file', required=True)
     parser.add_argument('--output', help='where to write the output (.json)', required=True)
     args = parser.parse_args()
-    main(gen2phen_path=args.g2p, gs2id=args.gs2id, panels_path=args.panels, phenio_db=args.phenio, out_path=args.output)
+    main(gen2phen_path=args.g2p, gs2id=args.gs2id, panels_path=args.input, phenio_db=args.phenio, out_path=args.output)
 
 
 def main(gen2phen_path: str, gs2id: str, panels_path: str, phenio_db: str, out_path: str, min_similarity: float = 14.0):

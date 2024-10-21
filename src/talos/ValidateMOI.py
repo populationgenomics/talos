@@ -393,7 +393,7 @@ def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
-    parser.add_argument('--out_json', help='Prefix to write JSON results to', required=True)
+    parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='Path to JSON file of PanelApp data', required=True)
     parser.add_argument('--pedigree', help='Path to joint-call PED file', required=True)
     parser.add_argument('--participant_panels', help='panels per participant', default=None)
@@ -401,7 +401,7 @@ def cli_main():
 
     main(
         labelled_vcf=args.labelled_vcf,
-        out_json=args.out_json,
+        out_json=args.output,
         panelapp=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
