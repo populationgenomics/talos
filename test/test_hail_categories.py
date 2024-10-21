@@ -14,7 +14,7 @@ from talos.RunHailFiltering import (
     annotate_category_3,
     annotate_category_5,
     annotate_category_6,
-    annotate_talos_clinvar,
+    annotate_clinvarbitration,
     filter_to_categorised,
     filter_to_population_rare,
     green_from_panelapp,
@@ -306,7 +306,7 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    returned_table = annotate_talos_clinvar(make_a_mt, clinvar=table_path)
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
     assert len([x for x in returned_table.info.clinvar_talos_strong.collect() if x == 1]) == strong

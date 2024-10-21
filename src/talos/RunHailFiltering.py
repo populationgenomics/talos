@@ -43,7 +43,7 @@ PATHOGENIC = hl.str('pathogenic')
 MAX_PARTITIONS = 10000
 
 
-def annotate_talos_clinvar(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
+def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
     Don't allow these annotations to be missing
     - Talos has been co-developed with ClinvArbitration, a ClinVar re-summary effort
@@ -852,6 +852,14 @@ def main(
     mt = hl.read_matrix_table(mt_path)
     get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
+    # lookups for required fields all delegated to the hail_audit file
+    if not (
+        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)
+        and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
+    ):
+        mt.describe()
+        raise KeyError('Fields were missing from the input Matrix')
+
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
@@ -860,14 +868,6 @@ def main(
         if checkpoint:
             get_logger().info('Trying to write the result locally, might need more space on disk...')
             mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
-
-    # lookups for required fields all delegated to the hail_audit file
-    if not (
-        fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)
-        and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
-    ):
-        mt.describe()
-        raise KeyError('Fields were missing from the input Matrix')
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
@@ -878,14 +878,14 @@ def main(
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
 
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
+
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_talos_clinvar(mt=mt, clinvar=clinvar)
+    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
 
     # remove common-in-gnomad variants (also includes ClinVar annotation)
     mt = filter_to_population_rare(mt=mt)
-
-    if checkpoint:
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_data')
 
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
@@ -901,6 +901,9 @@ def main(
 
     # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
+
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean')
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
