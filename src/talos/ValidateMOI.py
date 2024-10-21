@@ -46,7 +46,12 @@ from talos.utils import (
 from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
-MALE_FEMALE = {'1': MemberSex.MALE, '2': MemberSex.FEMALE, '-9': MemberSex.UNKNOWN, '0': MemberSex.UNKNOWN}
+MALE_FEMALE = {
+    '1': MemberSex.MALE.value,
+    '2': MemberSex.FEMALE.value,
+    '-9': MemberSex.UNKNOWN.value,
+    '0': MemberSex.UNKNOWN.value,
+}
 
 
 def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:

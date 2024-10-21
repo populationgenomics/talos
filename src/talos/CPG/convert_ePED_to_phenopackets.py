@@ -72,7 +72,7 @@ def main(ped_file: str, output: str) -> None:
                     phenotypic_features=[
                         pps2.PhenotypicFeature(type=pps2.OntologyClass(id=hpo)) for hpo in participant.data[1:]
                     ],
-                )
+                ),
             )
             # save the minimal pedigree entry
             participant.data = []

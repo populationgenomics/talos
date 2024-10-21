@@ -52,11 +52,15 @@ def test_results_shell(pedigree_path: str):
     sample_panels = PhenotypeMatchedPanels(
         samples={
             'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
+            'father_1': {'external_id': 'father_1', 'hpo_terms': []},
+            'mother_1': {'external_id': 'mother_1', 'hpo_terms': []},
             'female': {
                 'panels': {1, 2},
                 'external_id': 'female',
                 'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
             },
+            'father_2': {'external_id': 'father_2', 'hpo_terms': []},
+            'mother_2': {'external_id': 'mother_2', 'hpo_terms': []},
         },
         all_panels={1, 2, 3},
     )
@@ -68,7 +72,7 @@ def test_results_shell(pedigree_path: str):
         results_meta=ResultMeta(),
         small_samples={'male'},
         sv_samples={'female'},
-        pedigree=make_flexible_pedigree(pedigree=pedigree_path),
+        pedigree=make_flexible_pedigree(pedigree=pedigree_path, pheno_panels=sample_panels),
         panel_data=sample_panels,
         panelapp=panelapp,
     )
