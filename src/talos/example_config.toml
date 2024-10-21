@@ -64,6 +64,7 @@ small_variants = 8
 5 = 'High SpliceAI Score'
 6 = 'AlphaMissense P/LP'
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
+svdb = 'SpliceVarDB Predicted Splice-Altering'
 sv1 = 'Predicted LOF SV'
 
 [CreateTalosHTML]
