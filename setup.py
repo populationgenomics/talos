@@ -57,7 +57,7 @@ setup(
     entry_points={
         'console_scripts': [
             # for use in translating a VEP annotated VCF to a MatrixTable
-            'vcf_to_mt = talos.vep_vcf_to_mt:cli_main',
+            'VcfToMt = talos.VcfToMt:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
             'BuildReportIndexPage = talos.BuildReportIndexPage:main',
             # CPG implementation, builds cohort phenopackets
@@ -82,7 +82,7 @@ setup(
             # CPG internal (?), publish those results as an HTML report
             'CreateTalosHTML = talos.CreateTalosHTML:cli_main',
             # CPG internal (?), generate a file for ingestion by Seqr
-            'GenerateSeqrFile = talos.minimise_output_for_seqr:cli_main',
+            'MinimiseOutputForSeqr = talos.MinimiseOutputForSeqr:cli_main',
         ],
     },
 )

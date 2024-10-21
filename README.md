@@ -51,6 +51,7 @@ To run Talos you will need:
 
 Talos consists of the following components:
 
+- `VcfToMt` - An adapter step for converting an annotated VCF to a MatrixTable.
 - `MakePhenopackets` - This is a CPG-specific implementation for generating a Cohort/Phenopacket file. It can serve as a template for generating a compliant Phenopackets input file.
 - `GeneratePanelData` - [optional] Phenopacket file, and generates a per-participant list of panels to be used for this analysis, writing the result as a JSON. This also requires a local copy of the HPO ontology, downloadable from [here](http://purl.obolibrary.org/obo/hp.obo).
 - `QueryPanelapp` - Takes the output of `GeneratePanelData`, or None if no PhenoPacket file was provided, Queries PanelApp for the panels selected for the cohort, and writes the result as a JSON.
@@ -65,7 +66,7 @@ Talos consists of the following components:
   variants which pass the MOI tests.
 - `HPOFlagging` - Takes the results of `ValidateMOI`, and uses semsimian to test whether the HPO term(s) associated with the gene matches the HPO term(s) associated with the participant.
 - `CreateTalosHTML` - Generates a report from the results of the `ValidateMOI`.
-- `GenerateSeqrFile` - Parses the result of `ValidateMOI`, generates a file for ingestion by Seqr.
+- `MinimiseOutputForSeqr` - Parses the result of `ValidateMOI`, generates a file for ingestion by Seqr.
 
 [example_usage.sh](example_usage.sh) demonstrates a full execution of Talos. This should be worked up into a workflow language script, but this bash script should suffice as guidance.
 
