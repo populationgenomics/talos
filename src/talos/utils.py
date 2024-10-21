@@ -8,11 +8,13 @@ https://tenacity.readthedocs.io/en/latest/
 import httpx
 import json
 import re
+import string
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
+from random import choices
 from string import punctuation
 from typing import Any
 
@@ -63,6 +65,18 @@ DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 # this just saves some typing
 MEMBER_LOOKUP_DICT = {'0': None}
+
+
+def get_random_string(length: int = 6) -> str:
+    """
+    get a random string of a pre-determined leng`th
+    Args:
+        length ():
+
+    Returns:
+        A random string comprised of upper-case letters and numbers
+    """
+    return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
 
 
 def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:

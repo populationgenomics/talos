@@ -27,11 +27,11 @@ Process:
 
 import gzip
 import os
-import string
 from argparse import ArgumentParser
-from random import choices
 
 import hail as hl
+
+from talos.utils import get_random_string
 
 
 def process_header(final_header_line: str) -> dict[str, int]:
@@ -146,9 +146,7 @@ def main(alpha_m_file: str, ht_path: str):
     """
 
     # generate a random file name so that we don't overwrite anything consistently
-    random_intermediate_file: str = (
-        ''.join(choices(string.ascii_uppercase + string.digits, k=6)) + '.tsv.gz'  # noqa: S311
-    )
+    random_intermediate_file: str = f'{get_random_string()}.tsv.gz'
 
     # generate a new tsv of just pathogenic entries
     filter_for_pathogenic_am(alpha_m_file, random_intermediate_file)
