@@ -1,3 +1,15 @@
+"""
+Script for pre-processing the SpliceVarDB tsv file into a Hail table
+
+SpliceVarDB: A comprehensive database of experimentally validated human splicing variants
+Sullivan, Patricia J. et al.
+The American Journal of Human Genetics, Volume 111, Issue 10, 2164 - 2175
+
+This input file is obtained from the "Download all variants" button on https://compbio.ccia.org.au/splicevardb/
+
+The intention is to use this pre-validated data to accompany and improve upon SpliceAi within Talos.
+"""
+
 import gzip
 from argparse import ArgumentParser
 
