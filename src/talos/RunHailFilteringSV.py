@@ -91,14 +91,15 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float | None = 0.03) -
     return mt.filter_rows((mt.info.MALE_AF[0] <= ac_threshold) & (mt.info.FEMALE_AF[0] <= ac_threshold))
 
 
-def rearrange_filters(mt: hl.MatrixTable) -> hl.MatrixTable:
+def rearrange_variantId(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    Rearrange the variantId MT, and remove filter-failing variants
+    Rearrange the variantId MT
+    For now we do not filter out failing variant sites, we'll reserve this for per-sample quality failures
 
     Args:
         mt ():
     """
-    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+    # mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
     return mt.annotate_rows(info=mt.info.annotate(variantId=mt.variantId))
 
 
@@ -185,7 +186,7 @@ def main(mt_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # apply blanket filters
     mt = filter_matrix_by_ac(mt, ac_threshold=config_retrieve(['RunHailFiltering', 'callset_af_sv_recessive']))
     mt = filter_matrix_by_af(mt, af_threshold=config_retrieve(['RunHailFiltering', 'callset_af_sv_recessive']))
-    mt = rearrange_filters(mt)
+    mt = rearrange_variantId(mt)
 
     # pre-filter the MT and rearrange fields for export
     mt = restructure_mt_by_gene(mt)
