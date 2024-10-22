@@ -139,21 +139,17 @@ def main(results: str, panelapp: str, output: str, split_samples: int | None = N
         split_samples (int, optional): how many sub-reports to generate
     """
 
-    html = HTMLBuilder(results=results, panelapp_path=panelapp)
-    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
-    # catch this, but fail gracefully so that the process overall is a success
-    try:
-        get_logger().info(f'Writing whole-cohort categorised variants to {output}')
-        makedirs('individuals', exist_ok=True)
-        html.write_html(output_filepath=output)
-    except NoVariantsFoundError:
-        get_logger().warning('No Categorised variants found in this whole cohort')
-        sys.exit(0)
-
-    # if no splitting, just exit here
     if not split_samples:
-        get_logger().info('No splitting required in this run, exiting')
-        sys.exit(0)
+        html = HTMLBuilder(results=results, panelapp_path=panelapp)
+        # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
+        # catch this, but fail gracefully so that the process overall is a success
+        try:
+            get_logger().info(f'Writing whole-cohort categorised variants to {output}')
+            makedirs('individuals', exist_ok=True)
+            html.write_html(output_filepath=output)
+        except NoVariantsFoundError:
+            get_logger().warning('No Categorised variants found in this whole cohort')
+        return
 
     # do something to split the output into separate datasets
     # either look for an ID convention, or go with a random split
