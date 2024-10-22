@@ -20,7 +20,7 @@ from talos.static_values import get_logger
 
 DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
-JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
+JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent.parent / 'templates'
 PROJECT_QUERY = gql(
     """
     query MyQuery {
