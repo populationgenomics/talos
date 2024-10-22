@@ -114,8 +114,13 @@ def cli_main():
     parser.add_argument('--input', help='Path to analysis results', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
+    parser.add_argument('--latest', help='Not in use')
     parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
     args = parser.parse_args()
+
+    if args.latest:
+        get_logger(__file__).warning('"--latest" argument is not in use')
+
     main(
         results=args.input,
         panelapp=args.panelapp,
