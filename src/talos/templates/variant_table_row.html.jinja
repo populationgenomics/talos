@@ -4,7 +4,7 @@
         {% if type == 'sample' %}
             <a href="#" class="toggle"><i class="bi-card-text"></i></a>
         {% elif type == 'whole_cohort' %}
-            <a href="{{sample.report_url}}"><i class="bi-card-text"></i></a>
+            <a href="{{sample.report_url}} target="_blank""><i class="bi-card-text"></i></a>
         {% endif %}
 
         {% if sample.seqr_id %}
