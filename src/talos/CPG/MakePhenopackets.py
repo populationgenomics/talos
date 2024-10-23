@@ -127,8 +127,12 @@ def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[st
     for sg in metamist_data['project']['sequencingGroups']:
         ext_id = sg['sample']['participant']['externalId']
 
-        # require a family ID
-        family_id = sg['sample']['participant']['families'][0]['externalId']
+        # allow for wild situation where we have no families
+        if not sg['sample']['participant']['families']:
+            family_id = ext_id
+        else:
+            family_id = sg['sample']['participant']['families'][0]['externalId']
+
         # create a Phenopacket for this individual
         ppack = pps2.Phenopacket(
             # primary ID is the internal CPG ID

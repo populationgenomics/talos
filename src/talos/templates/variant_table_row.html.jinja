@@ -1,0 +1,159 @@
+<tr>
+    <td style="white-space: nowrap">
+        {# Individual ID #}
+        {% if type == 'sample' %}
+            <a href="#" class="toggle"><i class="bi-card-text"></i></a>
+        {% elif type == 'whole_cohort' %}
+            <a href="{{sample.report_url}} target="_blank""><i class="bi-card-text"></i></a>
+        {% endif %}
+
+        {% if sample.seqr_id %}
+            <a href="{{seqr_url}}/project/{{seqr_project}}/family_page/{{sample.seqr_id}}" target="_blank">
+                {{sample.ext_id}}
+            </a>
+        {% else %}
+            {{sample.ext_id}}
+        {% endif %}
+        {% if sample.name != sample.ext_id %}
+            <br><span class="text-muted">({{ sample }})</span>
+        {% endif %}
+    </td>
+    <td>
+        {{sample.family_id}}
+    </td>
+    <td>
+        {{ variant.var_type }}
+    </td>
+    <td>
+        {# Coordinates #}
+        {% if sample.seqr_id %}
+            <a href="{{seqr_url}}/variant_search/variant/{{variant.var_data.info.seqr_link}}/family/{{sample.seqr_id}}" target="_blank">
+                {{variant.chrom}}:{{variant.pos}}
+            </a>
+        {% else %}
+            {{variant.chrom}}:{{variant.pos}}
+        {% endif %}
+        <br>
+        {{ variant.change }}
+    </td>
+    <td>
+        {# Gene symbol #}
+        {% for gene in variant.genes %}
+        <a href="https://panelapp.agha.umccr.org/panels/entities/{{gene[1]}}" target="_blank">{{gene[1]}}</a>
+        {% endfor %}
+        {% if variant.new_in_base_panel %}
+        <i class="bi bi-star-fill text-warning" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Gene new in Mendeliome"></i>
+        {% endif %}
+        {% if variant.new_panels %}
+        <i class="bi bi-star-fill text-primary" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Gene new in: {{ variant.new_panels|join(', ') }} "></i>
+        {% endif %}
+        <br>
+        {% set pipe = joiner(", ") %}
+        ({% for moi in variant.reasons -%}
+        {{pipe()}}{{ moi|replace("Autosomal Recessive Homozygous","AR-Hom")
+        |replace("Autosomal Recessive Compound-Het","AR-CH")
+        |replace("Autosomal Dominant","AD")
+        }}
+        {% endfor %})
+    </td>
+    <td>
+        {# Pheno Match #}
+        {% if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches %}
+            Y
+            {% if variant.pheno_matches %}
+            <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-title="Phenotype-Panel match: {{variant.pheno_matches|join(', ')}}"></i>
+            {% endif %}
+            {% if variant.forced_matches %}
+            <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
+            {% endif %}
+            {% if variant.phenotype_matches %}
+            <i class="bi-person-check-fill" style="color: #FF5733" data-bs-toggle="tooltip" data-bs-placement="top"
+                data-bs-title="Gene-Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
+            {% endif %}
+        {% endif %}
+    </td>
+    <td>
+        {# Categories #}
+        {{variant.categories|join(", ")|replace("_", " ")}}
+    </td>
+    <td>
+        {% if variant.var_type == 'SmallVariant' %}
+            gnomAD WGS: <a
+                href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
+                target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
+            gnomAD WES: <a
+                href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
+                target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
+        {% elif (variant.var_type == 'StructuralVariant') and (variant.var_data.info.gnomad_key) %}
+            gnomAD v2.1: <a
+                href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key}}?dataset=gnomad_sv_r2_1"
+                target="_blank">{{variant.var_data.info['gnomad_v2.1_sv_af'] | round(4)}}</a><br>
+        {% endif %}
+    </td>
+    <td>
+        {# First Tagged #}
+        {{ variant.first_tagged }}
+    </td>
+    <td>
+        {# CSQ #}
+        {% if variant.mane_csq %}
+            {{variant.mane_csq}}
+            <br>
+            {{ variant.mane_hgvsps }}
+        {% elif variant.var_type == 'SmallVariant' %}
+            <span class="badge text-bg-warning">Non-canonical transcript only</span>
+        {% endif %}
+    </td>
+    <td>
+        {# Clinvar #}
+        <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele}}[alleleid]"
+            target="_blank">
+            {{ variant.var_data.info.clinvar_significance|replace('missing','') }}
+        </a>
+        {% if variant.var_data.info.clinvar_stars %}
+            <br>
+            {% for i in range(variant.var_data.info.clinvar_stars|int) -%}
+                <i class="bi-star"></i>
+            {% endfor %}
+        {% endif %}
+    </td>
+    <td>
+        {# PM5 ClinVar #}
+        {% if 'pm5' in variant.categories %}
+            {% for allele, stars in variant.var_data.info.pm5_data.items() %}
+                <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[alleleid]"
+                    target="_blank">
+                    {{allele}}
+                </a>
+            {% endfor %}
+        {% endif %}
+    </td>
+    <td>
+        {# External Labels #}
+        {% for label in variant.ext_labels %}
+        <span class="badge text-bg-info">
+            {{ label }}
+        </span><br>
+        {% endfor %}
+    </td>
+    <td>
+        {# Warning Flags #}
+        {% for flag in variant.warning_flags %}
+        <span class="badge text-bg-warning">
+            {{ flag|replace("_", " ") }}
+        </span><br>
+        {% endfor %}
+    </td>
+    <td>
+        {# Support #}
+        {% for coords in variant.support_vars %}
+            <a href="{{seqr_url}}/variant_search/variant/{{coords}}/family/{{sample.seqr_id}}" target="_blank">
+                {{coords.split('-')[:2]|join(':')}}
+            </a>
+        {% endfor %}
+    </td>
+</tr>

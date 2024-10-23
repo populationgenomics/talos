@@ -1,33 +1,25 @@
 """
 Methods for taking the final output and generating static report content
-
-
-TOTAL REWRITE (kinda)
-This is unwieldy, so we're snapping it into pieces
-One document will have the main table
-Separate documents will have the variant details per-family
-The variant row will offer a hyperlink to the variant details
-Additional separate pages will contain metadata/panel data
 """
 
 import re
+import sys
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
-from os import makedirs
 from pathlib import Path
 from typing import Any
 
 import jinja2
 import pandas as pd
+from cloudpathlib.anypath import to_anypath
 
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
-from talos.utils import chunks, get_logger, read_json_from_path
+from talos.utils import get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
-MIN_REPORT_SIZE: int = 10
 
 # above this length we trim the actual bases to just an int
 MAX_INDEL_LEN: int = 10
@@ -37,125 +29,56 @@ KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 
 
-def known_date_prefix_check(all_results: ResultData) -> list[str]:
-    """
-    Check for known date prefixes in the results
-
-    Args:
-        all_results (): the whole summary dataset
-
-    Returns:
-        a list of all found prefixes, or empty list
-    """
-
-    known_prefixes: dict[str, int] = defaultdict(int)
-    for content in all_results.results.values():
-        if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
-            known_prefixes[match.group()[0:2]] += 1
-        else:
-            get_logger().info(f'At least one sample lacks a consistent prefix: {content.metadata.ext_id}')
-            return []
-
-    get_logger().info(f'Sample distribution by prefix: {dict(known_prefixes)}')
-    return sorted(known_prefixes.keys())
-
-
-def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tuple[ResultData, str, str]]:
-    """
-    Split the data into sub-reports
-    Return a list of the ResultData subsets, output base path, and a subset identifier
-
-    Args:
-        data_path ():
-        split_samples ():
-
-    Returns:
-        tuple: a list of tuples, each containing a ResultData object, the output base path, and a subset identifier
-    """
-    all_results = read_json_from_path(data_path, return_model=ResultData)
-    return_results: list[tuple[ResultData, str, str]] = []
-
-    if prefixes := known_date_prefix_check(all_results):
-        for prefix in prefixes:
-            this_rd = ResultData(
-                metadata=all_results.metadata,
-                results={
-                    sample: content
-                    for sample, content in all_results.results.items()
-                    if content.metadata.ext_id.startswith(prefix)
-                },
-                version=all_results.version,
-            )
-            get_logger().info(f'Found {len(this_rd.results)} with prefix {prefix}')
-            return_results.append((this_rd, f'subset_{prefix}.html', prefix))
-        return return_results
-
-    # only interested in presenting probands with results (for now)
-    results_with_variants = {
-        key: val for key, val in all_results.results.items() if val.variants and not val.metadata.solved
-    }
-
-    # calculate the number of samples per sub-report
-    samples_per_report = len(results_with_variants) // split_samples
-
-    # resolve dodgy remainders
-    if len(results_with_variants) % split_samples < MIN_REPORT_SIZE:
-        samples_per_report += (MIN_REPORT_SIZE // split_samples) + 1
-
-    # split the data into sub-reports
-    sub_reports = []
-    for i, chunk in enumerate(chunks(list(results_with_variants.keys()), samples_per_report), start=1):
-        sub_report = ResultData(
-            metadata=all_results.metadata,
-            results={key: results_with_variants[key] for key in chunk},
-        )
-        sub_reports.append((sub_report, f'subset_{i}.html', str(i)))
-
-    return sub_reports
-
-
 def cli_main():
     get_logger(__file__).info('Running HTML builder')
     parser = ArgumentParser()
     parser.add_argument('--input', help='Path to analysis results', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
-    parser.add_argument('--latest', help='Not in use')
+    parser.add_argument('--latest', help='Optional second report, latest variants only')
     parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
     args = parser.parse_args()
-
-    if args.latest:
-        get_logger(__file__).warning('"--latest" argument is not in use')
-
-    main(
-        results=args.input,
-        panelapp=args.panelapp,
-        output=args.output,
-        split_samples=args.split_samples,
-    )
+    main(args.input, args.panelapp, args.output, args.latest, args.split_samples)
 
 
-def main(results: str, panelapp: str, output: str, split_samples: int | None = None):
+def main(results: str, panelapp: str, output: str, latest: str | None = None, split_samples: int | None = None):
     """
 
     Args:
         results (str): path to the MOI-tested results file
         panelapp (str): path to the panelapp data
         output (str): where to write the HTML file
-        split_samples (int, optional): how many sub-reports to generate
+        latest (str, optional): where to write a latest-results only file
+        split_samples (int, optional): if this cohort should be subdivided into multiple reports
     """
 
-    if not split_samples:
-        html = HTMLBuilder(results=results, panelapp_path=panelapp)
-        # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
-        # catch this, but fail gracefully so that the process overall is a success
+    html = HTMLBuilder(results=results, panelapp_path=panelapp)
+    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
+    # catch this, but fail gracefully so that the process overall is a success
+    try:
+        get_logger().info(f'Writing whole-cohort categorised variants to {output}')
+        html.write_html(output_filepath=output)
+    except NoVariantsFoundError:
+        get_logger().warning('No Categorised variants found in this whole cohort')
+        sys.exit(0)
+
+    # If the latest arg is used, filter the results
+    # write the HTML if any results remain
+    date_filtered_object = check_date_filter(results=results)
+    if latest and date_filtered_object:
+        # build the HTML for latest reports only
+        get_logger().info(f'Attempting to create whole-cohort latest report at {latest}')
+        latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
+        # this can fail if there are no latest-in-this-run variants, but we continue to splitting
         try:
-            get_logger().info(f'Writing whole-cohort categorised variants to {output}')
-            makedirs('individuals', exist_ok=True)
-            html.write_html(output_filepath=output)
+            latest_html.write_html(output_filepath=latest, latest=True)
         except NoVariantsFoundError:
-            get_logger().warning('No Categorised variants found in this whole cohort')
-        return
+            get_logger().info('No latest-only variants found, but continuing on to subset splitting')
+
+    # if no splitting, just exit here
+    if not split_samples:
+        get_logger().info('No splitting required in this run, exiting')
+        sys.exit(0)
 
     # do something to split the output into separate datasets
     # either look for an ID convention, or go with a random split
@@ -164,15 +87,27 @@ def main(results: str, panelapp: str, output: str, split_samples: int | None = N
     default_report_name = Path(output).name
     html_base = output.rstrip(default_report_name)
 
-    for data, report, prefix in split_data_into_sub_reports(results, split_samples):
-        html = HTMLBuilder(results=data, panelapp_path=panelapp, subset_id=prefix)
+    for data, report, latest in split_data_into_sub_reports(results, split_samples):
+        html = HTMLBuilder(results=data, panelapp_path=panelapp)
         try:
             output_filepath = f'{html_base}{report}'
             get_logger().info(f'Attempting to create {report} at {output_filepath}')
-            makedirs(f'individuals_{prefix}', exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
+
+        # If the latest arg is used, filter the results
+        # write the HTML if any results remain
+        date_filtered_object = check_date_filter(results=data)
+        if latest and date_filtered_object:
+            # build the HTML for latest reports only
+            latest_html = HTMLBuilder(results=date_filtered_object, panelapp_path=panelapp)
+            try:
+                output_filepath = f'{html_base}{latest}'
+                get_logger().info(f'Attempting to create {latest} at {output_filepath}')
+                latest_html.write_html(output_filepath=f'{html_base}{latest}', latest=True)
+            except NoVariantsFoundError:
+                get_logger().info('No variants in that latest report, skipping')
 
 
 class NoVariantsFoundError(Exception):
@@ -212,16 +147,12 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str | ResultData, panelapp_path: str, subset_id: str | None = None):
+    def __init__(self, results: str | ResultData, panelapp_path: str):
         """
         Args:
             results (str | ResultData): path to the results JSON, or the results object
             panelapp_path (str): where to read panelapp data from
-            subset_id (str, optional): the subset ID to use for this report
         """
-        # ID to use if this is a subset report
-        self.subset_id = subset_id
-
         # get a hold of the base panel ID we're using
         # this is used to differentiate between new in base and new in other
         self.base_panel: int = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
@@ -266,11 +197,11 @@ class HTMLBuilder:
 
         # Process samples and variants
         self.samples: list[Sample] = []
+        self.solved: list[str] = []
         for sample, content in results_dict.results.items():
-            # skip for now if there's nothing to show
-            if not content.variants:
+            if content.metadata.solved:
+                self.solved.append(sample)
                 continue
-
             self.samples.append(
                 Sample(
                     name=sample,
@@ -386,82 +317,60 @@ class HTMLBuilder:
             ),
         }
 
-    def write_html(self, output_filepath: str):
+    def write_html(self, output_filepath: str, latest: bool = False):
         """
         Uses the results to create the HTML tables
         writes all content to the output path
 
         Args:
             output_filepath (str): where to write the results to
+            latest (bool):
         """
 
         # if no variants were found, this can fail with a NoVariantsFoundException error
         # we ignore that here, and catch it in the outer scope
         (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
+        report_title = 'Talos Report (Latest Variants Only)' if latest else 'Talos Report'
+
         template_context = {
-            # 'metadata': self.metadata,
-            'index_path': f'../{Path(output_filepath).name}',
-            'run_datetime': self.metadata.run_datetime,
+            'metadata': self.metadata,
             'samples': self.samples,
             'seqr_url': config_retrieve(['CreateTalosHTML', 'seqr_instance'], ''),
             'seqr_project': config_retrieve(['CreateTalosHTML', 'seqr_project'], ''),
-            # 'meta_tables': {},
-            # 'forbidden_genes': sorted(self.forbidden_genes),
-            # 'zero_categorised_samples': zero_cat_samples,
-            # 'unused_ext_labels': unused_ext_labels,
-            # 'summary_table': None,
-            'report_title': 'Full Talos Report',
-            # 'solved': self.solved,
-            'type': 'whole_cohort',
+            'meta_tables': {},
+            'forbidden_genes': sorted(self.forbidden_genes),
+            'zero_categorised_samples': zero_cat_samples,
+            'unused_ext_labels': unused_ext_labels,
+            'summary_table': None,
+            'report_title': report_title,
+            'solved': self.solved,
         }
 
-        # for title, meta_table in self.read_metadata().items():
-        #     template_context['meta_tables'][title] = DataTable(
-        #         id=f'{title.lower()}-table',
-        #         heading=title,
-        #         description='',
-        #         columns=list(meta_table.columns),
-        #         rows=list(meta_table.to_records(index=False)),
-        #     )
+        for title, meta_table in self.read_metadata().items():
+            template_context['meta_tables'][title] = DataTable(
+                id=f'{title.lower()}-table',
+                heading=title,
+                description='',
+                columns=list(meta_table.columns),
+                rows=list(meta_table.to_records(index=False)),
+            )
 
-        # template_context['summary_table'] = DataTable(
-        #     id='summary-table',
-        #     heading='Per-Category Summary',
-        #     description='',
-        #     columns=list(summary_table.columns),
-        #     rows=list(summary_table.to_records(index=False)),
-        # )
+        template_context['summary_table'] = DataTable(
+            id='summary-table',
+            heading='Per-Category Summary',
+            description='',
+            columns=list(summary_table.columns),
+            rows=list(summary_table.to_records(index=False)),
+        )
 
         # write all HTML content to the output file in one go
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        with open(output_filepath, 'w') as handle:
-            handle.writelines(content)
-
-        get_logger().info(f'Wrote {output_filepath}')
-
-        outpath_name = Path(output_filepath).name
-
-        for sample in template_context['samples']:
-            if not sample.variants:
-                continue
-
-            report_address = output_filepath.replace(outpath_name, sample.report_url)
-
-            get_logger().info(f'Writing {report_address}')
-
-            new_context = template_context | {
-                'samples': [sample],
-                'report_title': f'Talos Report for {sample.name}',
-                'type': 'sample',
-            }
-
-            template = env.get_template('sample_index.html.jinja')
-            content = template.render(**new_context)
-            with open(report_address, 'w') as handle:
-                handle.writelines(content)
+        to_anypath(output_filepath).open('w').writelines(
+            '\n'.join(line for line in content.split('\n') if line.strip()),
+        )
 
 
 class Sample:
@@ -477,7 +386,6 @@ class Sample:
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
-        indi_folder = f'individuals_{html_builder.subset_id}' if html_builder.subset_id is not None else 'individuals'
         self.metadata = metadata
         self.name = name
         self.family_id = metadata.family_id
@@ -486,7 +394,6 @@ class Sample:
         self.ext_id = metadata.ext_id
         self.panel_details = metadata.panel_details
         self.seqr_id = html_builder.seqr.get(name, None)
-        self.report_url = f'{indi_folder}/{self.name}.html'
 
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [
@@ -536,7 +443,13 @@ class Variant:
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 
-    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):
+    def __init__(
+        self,
+        report_variant: ReportVariant,
+        sample: Sample,
+        ext_labels: list,
+        html_builder: HTMLBuilder,
+    ):
         self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
         self.chrom = report_variant.var_data.coordinates.chrom
@@ -560,6 +473,7 @@ class Variant:
 
         self.reasons = report_variant.reasons
         self.genotypes = report_variant.genotypes
+        self.sample = sample
         self.ext_labels = ext_labels
         # add the phenotype match date and HPO term id/labels
         self.phenotype_match_date = report_variant.date_of_phenotype_match
@@ -590,7 +504,7 @@ class Variant:
 
         # Summaries CSQ strings
         if isinstance(self.var_data, SmallVariant):
-            (self.mane_csq, self.mane_hgvsps) = self.parse_csq()
+            (self.mane_csq, self.non_mane_csq, self.mane_hgvsps) = self.parse_csq()
 
         # pull up the highest AlphaMissense score, if present
         am_scores = (
@@ -620,12 +534,14 @@ class Variant:
         """
         Parse CSQ variant string returning:
             - set of "consequences" from MANE transcripts
+            - set of "consequences" from non-MANE transcripts
             - Set of variant effects in p. nomenclature (or c. if no p. is available)
 
         condense massive cdna annotations, e.g.
         c.4978-2_4978-1insAGGTAAGCTTAGAAATGAGAAAAGACATGCACTTTTCATGTTAATGAAGTGATCTGGCTTCTCTTTCTA
         """
         mane_consequences = set()
+        non_mane_consequences = set()
         mane_hgvsps = set()
 
         for csq in self.var_data.transcript_consequences:
@@ -645,12 +561,10 @@ class Variant:
                         hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
 
                     mane_hgvsps.add(hgvsc)
+            else:
+                non_mane_consequences.add(csq['consequence'])
 
-        # simplify the consequence strings
-        mane_consequences = ', '.join(_csq.replace('_variant', '').replace('_', ' ') for _csq in mane_consequences)
-        mane_hgvsps = ', '.join(mane_hgvsps)
-
-        return mane_consequences, mane_hgvsps
+        return mane_consequences, non_mane_consequences, mane_hgvsps
 
 
 def check_date_filter(results: str | ResultData, filter_date: str | None = None) -> ResultData | None:
@@ -660,8 +574,6 @@ def check_date_filter(results: str | ResultData, filter_date: str | None = None)
 
     Extra consideration - if one part of a comp-het variant pair is new,
     retain both sides in the report
-
-    deprecated for now, migrating to lightweight fitler-able reports, which should mitigate need for this
 
     Args:
         results (str): path to the results file
@@ -703,6 +615,69 @@ def check_date_filter(results: str | ResultData, filter_date: str | None = None)
 
     get_logger().info(f'No filtered results obtained for {filter_date}')
     return None
+
+
+def known_date_prefix_check(all_results: ResultData) -> list[str]:
+    """
+    Check for known date prefixes in the results
+
+    Args:
+        all_results (): the whole summary dataset
+
+    Returns:
+        a list of all found prefixes, or empty list
+    """
+
+    known_prefixes: dict[str, int] = defaultdict(int)
+    for content in all_results.results.values():
+        if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
+            known_prefixes[match.group()[0:2]] += 1
+        else:
+            get_logger().info(f'At least one sample lacks a consistent prefix: {content.metadata.ext_id}')
+            return []
+
+    get_logger().info(f'Sample distribution by prefix: {dict(known_prefixes)}')
+    return sorted(known_prefixes.keys())
+
+
+def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tuple[ResultData, str, str]]:
+    """
+    Split the data into sub-reports
+    """
+    all_results = read_json_from_path(data_path, return_model=ResultData)
+    assert isinstance(all_results, ResultData)
+    return_results: list[tuple[ResultData, str, str]] = []
+
+    if prefixes := known_date_prefix_check(all_results):
+        for prefix in prefixes:
+            this_rd = ResultData(
+                metadata=all_results.metadata,
+                results={
+                    sample: content
+                    for sample, content in all_results.results.items()
+                    if content.metadata.ext_id.startswith(prefix)
+                },
+                version=all_results.version,
+            )
+            get_logger().info(f'Found {len(this_rd.results)} with prefix {prefix}')
+            return_results.append((this_rd, f'subset_{prefix}.html', f'subset_{prefix}_latest.html'))
+        return return_results
+
+    # calculate the number of samples per sub-report
+    samples_per_report = len(all_results.results.keys()) // split_samples
+
+    # split the data into sub-reports
+    sub_reports = []
+    for i in range(split_samples):
+        start = i * samples_per_report
+        end = (i + 1) * samples_per_report
+        sub_report = ResultData(
+            metadata=all_results.metadata,
+            results=dict(list(all_results.results.items())[start:end]),
+        )
+        sub_reports.append((sub_report, f'subset_{i}.html', f'subset_{i}_latest.html'))
+
+    return sub_reports
 
 
 if __name__ == '__main__':

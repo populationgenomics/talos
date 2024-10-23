@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{{ report_title|default("Talos Report") }}</title>
+    <meta name="description" content="Talos Report">
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/css/widget.grouping.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/css/theme.bootstrap_4.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style type="text/css">
+      a {text-decoration: none;}
+      .group-name {font-weight: normal;}
+    </style>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-dark bg-dark justify-content-start">
+      <a class="navbar-brand p-3" href="#"> {{ report_title|default("Talos Report") }}</a>
+      <span class="navbar-text">
+        {{ metadata.run_datetime }}
+      </span>
+    </nav>
+
+    <main class="container mt-4 mb-4">
+
+      {# Tab list #}
+      <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-tab-pane" type="button">Results</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats-tab-pane" type="button">Run Statistics</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata-tab-pane" type="button">Run Metadata</button>
+        </li>
+      </ul>
+
+      {# Tab panels #}
+      <div class="tab-content">
+
+        {# Results #}
+        <div class="tab-pane fade show active" id="results-tab-pane" role="tabpanel" tabindex="0">
+          <h1>Variants</h1>
+            </br>
+            ClinvArbitration, CPG's re-aggregation of ClinVar submissions: <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">https://github.com/populationgenomics/ClinvArbitration</a>
+            </br>
+            <i class="bi-person-check-fill text-success"> Genes in panels matched to this participant by phenotype</i>
+            </br>
+            <i class="bi-person-check-fill text-info"> Genes in panels applied to all members of this cohort by config</i>
+            </br>
+            <i class="bi-person-check-fill" style="color: #FF5733"> Genes selected by Talos, which also have a semsimian phenotype match</i>
+            </br>
+            <i class="bi bi-star-fill text-warning"> New Genes in the Mendeliome</i>
+            </br>
+            <i class="bi bi-star-fill text-primary"> New Genes in phenotype-matched panels</i>
+
+            {% include "variant_table.html.jinja" %}
+        </div>
+
+        {# Run statistics #}
+        <div class="tab-pane fade" id="stats-tab-pane" role="tabpanel"tabindex="0">
+          <div>
+            <h3>Candidate variant statistics</h3>
+            {% with table=summary_table %}
+              {% include "datatable.html.jinja" %}
+            {% endwith %}
+          </div>
+
+          <div>
+            <h3>Family statistics</h3>
+            {% with table=meta_tables['Families'] %}
+              {% include "datatable.html.jinja" %}
+            {% endwith %}
+          </div>
+
+          <div>
+            <h3>Families with no candidate variants</h3>
+            {% if zero_categorised_samples %}
+              <ul>
+                {% for sample in zero_categorised_samples %}
+                  <li>{{ sample }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>All samples have reportable variants.</p>
+            {% endif %}
+          </div>
+          <div>
+              <h3>Unused external labels</h3>
+              {% if unused_ext_labels %}
+                <ul>
+                  {% for label in unused_ext_labels %}
+                    <li>
+                      <a href="{{seqr_url}}/variant_search/variant/{{label['variant']}}/family/{{label['sample_ext']}}" target="_blank">
+                          {{ label ['sample'] }} ({{ label['sample_ext'] }}) -- {{ label['variant'] }} {{ label['labels'] }}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p>All external labels displayed in variants table.</p>
+              {% endif %}
+          </div>
+
+          <div>
+              <h3>Solved Cases</h3>
+              {% if solved %}
+                <ul>
+                  {% for sample in solved %}
+                    <li>
+                        {{sample}}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p>No Solved cases removed</p>
+              {% endif %}
+          </div>
+        </div>
+
+        {# Run Metadata #}
+        <div class="tab-pane fade" id="metadata-tab-pane" role="tabpanel" aria-labelledby="contact-tab" tabindex="0">
+          <div>
+            <h3>Run metadata</h3>
+            {% with table=meta_tables['Meta'] %}
+              {% include "datatable.html.jinja" %}
+            {% endwith %}
+          </div>
+
+          <div>
+            <h3>Excluded genes</h3>
+              {% if forbidden_genes %}
+                <ul>
+                  {% for gene_id in forbidden_genes %}
+                    <li>{{ gene_id }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p>There are no excluded genes.</p>
+              {% endif %}
+            </div>
+
+          <div>
+            <h3>PanelApp Panels</h3>
+            {% with table=meta_tables['Panels'] %}
+              {% include "datatable.html.jinja" %}
+            {% endwith %}
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.widgets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/widgets/widget-grouping.min.js"></script>
+
+    <script type="text/javascript">
+      $(document).ready(function() {
+        // Tablesorter: hide child rows
+        $('.tablesorter-childRow td').hide();
+
+        // Tablesorter: configure variant table
+        $("#variant-table").tablesorter({
+          theme : "bootstrap",
+          sortList : [[0,0]],
+          widgets : [ "filter", "columns", "group" ],
+          widgetOptions : {
+            // class names added to columns when sorted
+            columns: [ "", "", "" ],
+            group_collapsible : true,
+            group_collapsed   : false,
+            group_count       : false,
+            group_separator : " "
+            }
+        })
+
+        // Tablesorter: Show/hide child rows on toggle
+        $('.tablesorter').delegate('.toggle', 'click' ,function() {
+          $(this).closest('tr').nextUntil('tr:not(.tablesorter-childRow)').find('td').toggle();
+          return false;
+        });
+
+        // Enable bootstrap tool tips
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+      })
+    </script>
+  </body>
+</html>
