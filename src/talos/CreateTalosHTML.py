@@ -11,10 +11,8 @@ Additional separate pages will contain metadata/panel data
 """
 
 import re
-import sys
 from argparse import ArgumentParser
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
 from os import makedirs
@@ -26,9 +24,10 @@ import pandas as pd
 
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
-from talos.utils import get_logger, read_json_from_path
+from talos.utils import chunks, get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
+MIN_REPORT_SIZE: int = 10
 
 # above this length we trim the actual bases to just an int
 MAX_INDEL_LEN: int = 10
@@ -91,19 +90,26 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
             return_results.append((this_rd, f'subset_{prefix}.html', prefix))
         return return_results
 
+    # only interested in presenting probands with results (for now)
+    results_with_variants = {
+        key: val for key, val in all_results.results.items() if val.variants and not val.metadata.solved
+    }
+
     # calculate the number of samples per sub-report
-    samples_per_report = len(all_results.results.keys()) // split_samples
+    samples_per_report = len(results_with_variants) // split_samples
+
+    # resolve dodgy remainders
+    if len(results_with_variants) % split_samples < MIN_REPORT_SIZE:
+        samples_per_report += (MIN_REPORT_SIZE // split_samples) + 1
 
     # split the data into sub-reports
     sub_reports = []
-    for i in range(split_samples):
-        start = i * samples_per_report
-        end = (i + 1) * samples_per_report
+    for i, chunk in enumerate(chunks(list(results_with_variants.keys()), samples_per_report), start=1):
         sub_report = ResultData(
             metadata=all_results.metadata,
-            results=dict(list(all_results.results.items())[start:end]),
+            results={key: results_with_variants[key] for key in chunk},
         )
-        sub_reports.append((sub_report, f'subset_{i}.html', i))
+        sub_reports.append((sub_report, f'subset_{i}.html', str(i)))
 
     return sub_reports
 
@@ -260,11 +266,11 @@ class HTMLBuilder:
 
         # Process samples and variants
         self.samples: list[Sample] = []
-        self.solved: list[str] = []
         for sample, content in results_dict.results.items():
-            if content.metadata.solved:
-                self.solved.append(sample)
+            # skip for now if there's nothing to show
+            if not content.variants:
                 continue
+
             self.samples.append(
                 Sample(
                     name=sample,
@@ -431,19 +437,22 @@ class HTMLBuilder:
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
-        open(output_filepath, 'wt').writelines(content)
+        with open(output_filepath, 'w') as handle:
+            handle.writelines(content)
+
         get_logger().info(f'Wrote {output_filepath}')
 
-        # then write the per-sample content
+        outpath_name = Path(output_filepath).name
+
         for sample in template_context['samples']:
             if not sample.variants:
                 continue
 
-            report_address = output_filepath.replace(Path(output_filepath).name, sample.report_url)
+            report_address = output_filepath.replace(outpath_name, sample.report_url)
 
             get_logger().info(f'Writing {report_address}')
 
-            new_context = deepcopy(template_context) | {
+            new_context = template_context | {
                 'samples': [sample],
                 'report_title': f'Talos Report for {sample.name}',
                 'type': 'sample',
@@ -451,7 +460,8 @@ class HTMLBuilder:
 
             template = env.get_template('sample_index.html.jinja')
             content = template.render(**new_context)
-            open(report_address, 'w').writelines(content)
+            with open(report_address, 'w') as handle:
+                handle.writelines(content)
 
 
 class Sample:
@@ -467,7 +477,7 @@ class Sample:
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
-        indi_folder = f'individuals_{html_builder.subset_id}' if html_builder.subset_id else 'individuals'
+        indi_folder = f'individuals_{html_builder.subset_id}' if html_builder.subset_id is not None else 'individuals'
         self.metadata = metadata
         self.name = name
         self.family_id = metadata.family_id
@@ -550,7 +560,6 @@ class Variant:
 
         self.reasons = report_variant.reasons
         self.genotypes = report_variant.genotypes
-        self.sample = sample
         self.ext_labels = ext_labels
         # add the phenotype match date and HPO term id/labels
         self.phenotype_match_date = report_variant.date_of_phenotype_match
@@ -581,7 +590,7 @@ class Variant:
 
         # Summaries CSQ strings
         if isinstance(self.var_data, SmallVariant):
-            (self.mane_csq, self.non_mane_csq, self.mane_hgvsps) = self.parse_csq()
+            (self.mane_csq, self.mane_hgvsps) = self.parse_csq()
 
         # pull up the highest AlphaMissense score, if present
         am_scores = (
@@ -611,14 +620,12 @@ class Variant:
         """
         Parse CSQ variant string returning:
             - set of "consequences" from MANE transcripts
-            - set of "consequences" from non-MANE transcripts
             - Set of variant effects in p. nomenclature (or c. if no p. is available)
 
         condense massive cdna annotations, e.g.
         c.4978-2_4978-1insAGGTAAGCTTAGAAATGAGAAAAGACATGCACTTTTCATGTTAATGAAGTGATCTGGCTTCTCTTTCTA
         """
         mane_consequences = set()
-        non_mane_consequences = set()
         mane_hgvsps = set()
 
         for csq in self.var_data.transcript_consequences:
@@ -638,10 +645,12 @@ class Variant:
                         hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
 
                     mane_hgvsps.add(hgvsc)
-            else:
-                non_mane_consequences.add(csq['consequence'])
 
-        return mane_consequences, non_mane_consequences, mane_hgvsps
+        # simplify the consequence strings
+        mane_consequences = ', '.join(_csq.replace('_variant', '').replace('_', ' ') for _csq in mane_consequences)
+        mane_hgvsps = ', '.join(mane_hgvsps)
+
+        return mane_consequences, mane_hgvsps
 
 
 def check_date_filter(results: str | ResultData, filter_date: str | None = None) -> ResultData | None:

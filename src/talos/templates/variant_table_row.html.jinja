@@ -81,15 +81,29 @@
         {{variant.categories|join(", ")|replace("_", " ")}}
     </td>
     <td>
+        {% if variant.var_type == 'SmallVariant' %}
+            gnomAD WGS: <a
+                href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r3"
+                target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
+            gnomAD WES: <a
+                href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r2_1"
+                target="_blank">{{variant.var_data.info.gnomad_ex_ac}}</a>
+        {% elif (variant.var_type == 'StructuralVariant') and (variant.var_data.info.gnomad_key) %}
+            gnomAD v2.1: <a
+                href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key}}?dataset=gnomad_sv_r2_1"
+                target="_blank">{{variant.var_data.info['gnomad_v2.1_sv_af'] | round(4)}}</a><br>
+        {% endif %}
+    </td>
+    <td>
         {# First Tagged #}
         {{ variant.first_tagged }}
     </td>
     <td>
         {# CSQ #}
         {% if variant.mane_csq %}
-            {{variant.mane_csq|join(', ')|replace("_variant", "")|replace("_", " ")}}
+            {{variant.mane_csq}}
             <br>
-            {{ variant.mane_hgvsps|join(', ') }}
+            {{ variant.mane_hgvsps }}
         {% elif variant.var_type == 'SmallVariant' %}
             <span class="badge text-bg-warning">Non-canonical transcript only</span>
         {% endif %}
