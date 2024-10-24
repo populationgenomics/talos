@@ -539,6 +539,10 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     get_logger().info('Running de novo search')
 
+    # we're trialing the use of de novo checks without making any assertion of variant consequence
+    # these checks will already be limited to trios, green genes, and population frequencies
+    # so hopefull this won't generate too much noise
+    # de_novo_matrix = filter_by_consequence(mt)
     de_novo_matrix = filter_by_consequence(mt)
 
     pedigree = hl.Pedigree.read(ped_file_path)
