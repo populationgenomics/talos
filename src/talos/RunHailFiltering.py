@@ -362,6 +362,8 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
 
     this is the single most powerful filtering row, effectively leaving just the genes we're interested in
 
+    updated 25/10/2024 - we're retaining snRNA transcripts here, to enable them in
+
     Args:
         mt ():
         green_genes (): set of all relevant genes
@@ -381,7 +383,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
                 lambda x: (mt.geneIds == x.gene_id)
-                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM'))),
+                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM') | (x.biotype == 'snRNA'))),
             ),
         ),
     )
@@ -510,7 +512,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     filtered_mt = mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: hl.len(hl.set(x.consequence_terms).intersection(critical_consequences)) > 0,
+                lambda x: (hl.len(hl.set(x.consequence_terms).intersection(critical_consequences)) > 0)
+                | (x.biotype == 'snRNA'),
             ),
         ),
     )
@@ -542,7 +545,6 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     # we're trialing the use of de novo checks without making any assertion of variant consequence
     # these checks will already be limited to trios, green genes, and population frequencies
     # so hopefull this won't generate too much noise
-    # de_novo_matrix = filter_by_consequence(mt)
     de_novo_matrix = filter_by_consequence(mt)
 
     pedigree = hl.Pedigree.read(ped_file_path)
