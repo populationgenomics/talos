@@ -35,7 +35,6 @@ MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_STRING = hl.str('missing')
 ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
-CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
@@ -81,19 +80,12 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
     return mt.annotate_rows(
         info=mt.info.annotate(
             clinvar_talos=hl.if_else(
-                (
-                    (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
-                    & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
-                ),
+                mt.info.clinvar_significance.lower().contains(PATHOGENIC),
                 ONE_INT,
                 MISSING_INT,
             ),
             clinvar_talos_strong=hl.if_else(
-                (
-                    (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
-                    & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
-                    & (mt.info.clinvar_stars > 0)
-                ),
+                (mt.info.clinvar_significance.lower().contains(PATHOGENIC)) & (mt.info.clinvar_stars > 0),
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -362,6 +354,8 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
 
     this is the single most powerful filtering row, effectively leaving just the genes we're interested in
 
+    updated 25/10/2024 - we're retaining snRNA transcripts here, to enable them in
+
     Args:
         mt ():
         green_genes (): set of all relevant genes
@@ -381,7 +375,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
                 lambda x: (mt.geneIds == x.gene_id)
-                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM'))),
+                & ((x.biotype == 'protein_coding') | (x.mane_select.contains('NM') | (x.biotype == 'snRNA'))),
             ),
         ),
     )
@@ -502,15 +496,16 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], []))
-    additional_consequences = set(config_retrieve(['RunHailFiltering', 'additional_csq'], []))
-    critical_consequences.update(additional_consequences)
+    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], [])) | set(
+        config_retrieve(['RunHailFiltering', 'additional_csq'], []),
+    )
 
     # overwrite the consequences with an intersection against a limited list
     filtered_mt = mt.annotate_rows(
         vep=mt.vep.annotate(
             transcript_consequences=mt.vep.transcript_consequences.filter(
-                lambda x: hl.len(hl.set(x.consequence_terms).intersection(critical_consequences)) > 0,
+                lambda x: (hl.len(hl.set(x.consequence_terms).intersection(critical_consequences)) > 0)
+                | (x.biotype == 'snRNA'),
             ),
         ),
     )

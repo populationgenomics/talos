@@ -205,9 +205,9 @@ class BaseMoi:
 
         # check for valid inheritance within the immediate trio, if possible
         for member_id in [this_member.father, this_member.mother]:
-            if member_id is None:
+            if member_id is None or (iter_member := self.pedigree.by_id.get(member_id)) is None:
                 continue
-            iter_member = self.pedigree.by_id[member_id]
+
             # complete & incomplete penetrance - affected samples must have the variant
             # complete pen. requires participants to be affected if they have the var
             # if any of these combinations occur, fail the family
