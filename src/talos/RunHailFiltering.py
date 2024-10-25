@@ -504,9 +504,9 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], []))
-    additional_consequences = set(config_retrieve(['RunHailFiltering', 'additional_csq'], []))
-    critical_consequences.update(additional_consequences)
+    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], [])) | set(
+        config_retrieve(['RunHailFiltering', 'additional_csq'], [])
+    )
 
     # overwrite the consequences with an intersection against a limited list
     filtered_mt = mt.annotate_rows(
