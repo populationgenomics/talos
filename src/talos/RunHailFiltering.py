@@ -35,7 +35,6 @@ MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_STRING = hl.str('missing')
 ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
-CONFLICTING = hl.str('conflicting')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 
@@ -81,19 +80,12 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
     return mt.annotate_rows(
         info=mt.info.annotate(
             clinvar_talos=hl.if_else(
-                (
-                    (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
-                    & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
-                ),
+                mt.info.clinvar_significance.lower().contains(PATHOGENIC),
                 ONE_INT,
                 MISSING_INT,
             ),
             clinvar_talos_strong=hl.if_else(
-                (
-                    (mt.info.clinvar_significance.lower().contains(PATHOGENIC))
-                    & ~(mt.info.clinvar_significance.lower().contains(CONFLICTING))
-                    & (mt.info.clinvar_stars > 0)
-                ),
+                (mt.info.clinvar_significance.lower().contains(PATHOGENIC)) & (mt.info.clinvar_stars > 0),
                 ONE_INT,
                 MISSING_INT,
             ),
