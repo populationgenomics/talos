@@ -92,9 +92,13 @@ def calculate_report_size(num_results: int, max_elements: int = MAX_REPORT_SIZE)
     # calculate the number of samples per sub-report
     samples_per_report = num_results // report_count
 
+    get_logger().info(f'Samples per report, before refinement: {samples_per_report}')
+
     # adjust so that we don't make tiny little report HTMLs
     if num_results % samples_per_report < MIN_REPORT_SIZE:
         samples_per_report += MIN_REPORT_SIZE
+
+    get_logger().info(f'Samples per report, after refinement: {samples_per_report}')
 
     return samples_per_report
 
@@ -147,6 +151,8 @@ def split_up(all_results: ResultData, max_elements: int = MAX_REPORT_SIZE) -> li
     for subset_of_cases, name in partially_split:
         # get the number of samples to include in this report
         samples_per_report = calculate_report_size(len(subset_of_cases.results), max_elements)
+
+        get_logger().info(f'{name} will be split into reports containing {samples_per_report} samples')
 
         # split the data into sub-reports
         for i, chunk in enumerate(chunks(list(subset_of_cases.results.keys()), samples_per_report), start=1):
