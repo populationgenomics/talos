@@ -441,7 +441,13 @@ class HTMLBuilder:
         # )
 
         # write all HTML content to the output file in one go
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
+            autoescape=True,
+            trim_blocks=True,
+            keep_trailing_newline=False,
+            lstrip_blocks=True,
+        )
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
         with open(output_filepath, 'w') as handle:
