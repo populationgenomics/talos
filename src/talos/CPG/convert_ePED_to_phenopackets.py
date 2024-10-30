@@ -20,7 +20,7 @@ def cli_main():
     parser.add_argument('--input', help='path to the extended PED file')
     parser.add_argument('--output', help='stem path to write phenopacket and new PED file')
     args = parser.parse_args()
-    main(args.ped_file, args.output)
+    main(ped_file=args.input, output=args.output)
 
 
 def main(ped_file: str, output: str) -> None:
