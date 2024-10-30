@@ -16,6 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from os import makedirs
+from os.path import join
 from pathlib import Path
 from typing import Any
 
@@ -145,16 +146,22 @@ def main(results: str, panelapp: str, output: str, split_samples: int | None = N
         split_samples (int, optional): how many sub-reports to generate
     """
 
+    report_output_dir = Path(output).parent
+
+    # we always make this main page - we need a reliable output path to generate analysis entries [CPG]
+    html = HTMLBuilder(results=results, panelapp_path=panelapp)
+    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
+    # catch this, but fail gracefully so that the process overall is a success
+    try:
+        get_logger().info(f'Writing whole-cohort categorised variants to {output}')
+        # find the path to the output directory, and make an individual directory
+        makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
+        html.write_html(output_filepath=output)
+    except NoVariantsFoundError:
+        get_logger().warning('No Categorised variants found in this whole cohort')
+
+    # then quit if we're not splitting samples
     if not split_samples:
-        html = HTMLBuilder(results=results, panelapp_path=panelapp)
-        # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
-        # catch this, but fail gracefully so that the process overall is a success
-        try:
-            get_logger().info(f'Writing whole-cohort categorised variants to {output}')
-            makedirs('individuals', exist_ok=True)
-            html.write_html(output_filepath=output)
-        except NoVariantsFoundError:
-            get_logger().warning('No Categorised variants found in this whole cohort')
         return
 
     # do something to split the output into separate datasets
@@ -169,7 +176,7 @@ def main(results: str, panelapp: str, output: str, split_samples: int | None = N
         try:
             output_filepath = f'{html_base}{report}'
             get_logger().info(f'Attempting to create {report} at {output_filepath}')
-            makedirs(f'individuals_{prefix}', exist_ok=True)
+            makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
