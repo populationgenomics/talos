@@ -110,15 +110,9 @@
     </td>
     <td>
         {# Clinvar #}
-        <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele}}[alleleid]"
-            target="_blank">
-            {{ variant.var_data.info.clinvar_significance|replace('missing','') }}
-        </a>
-        {% if variant.var_data.info.clinvar_stars %}
-            <br>
-            {% for i in range(variant.var_data.info.clinvar_stars|int) -%}
-                <i class="bi-star"></i>
-            {% endfor %}
+        {% if variant.var_data.info.clinvar_allele %}
+            <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele}}[alleleid]"target="_blank">{{ variant.var_data.info.clinvar_significance|replace('missing','') }}</a>
+            {% if variant.var_data.info.clinvar_stars %}{% for i in range(variant.var_data.info.clinvar_stars|int) -%}<i class="bi-star"></i>{% endfor %}{% endif %}
         {% endif %}
     </td>
     <td>
