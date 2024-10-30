@@ -196,7 +196,7 @@ def main(results: str, panelapp: str, output: str):
     # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
     # catch this, but fail gracefully so that the process overall is a success
     try:
-        get_logger().info(f'Writing whole-cohort categorised variants to {output}')
+        get_logger().debug(f'Writing whole-cohort categorised variants to {output}')
         # find the path to the output directory, and make an individual directory
         makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
         html.write_html(output_filepath=output)
@@ -214,11 +214,15 @@ def main(results: str, panelapp: str, output: str):
     default_report_name = Path(output).name
     html_base = output.rstrip(default_report_name)
 
-    for data, report, prefix in split_up(results_object):
+    report_fragments = split_up(results_object)
+
+    get_logger().info(f'Splitting into {len(report_fragments)} reports')
+
+    for data, report, prefix in report_fragments:
         html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
         try:
             output_filepath = f'{html_base}{report}'
-            get_logger().info(f'Attempting to create {report} at {output_filepath}')
+            get_logger().debug(f'Attempting to create {report} at {output_filepath}')
             makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
@@ -485,7 +489,7 @@ class HTMLBuilder:
 
             report_address = output_filepath.replace(outpath_name, sample.report_url)
 
-            get_logger().info(f'Writing {report_address}')
+            get_logger().debug(f'Writing {report_address}')
 
             new_context = template_context | {
                 'samples': [sample],
@@ -688,7 +692,7 @@ class Variant:
         return mane_consequences, mane_hgvsps
 
 
-def check_date_filter(results: str | ResultData, filter_date: str | None = None) -> ResultData | None:
+def check_date_filter(results_dict: ResultData, filter_date: str | None = None) -> ResultData | None:
     """
     Check if there's a date filter in the config
     if there is, load the results JSON and filter out variants
@@ -699,16 +703,9 @@ def check_date_filter(results: str | ResultData, filter_date: str | None = None)
     deprecated for now, migrating to lightweight filter-able reports, which should mitigate need for this
 
     Args:
-        results (str): path to the results file
+        results_dict (ResultData): results file contents
         filter_date (str | None): path to the results file
     """
-
-    # take both types
-    if isinstance(results, str):
-        # Load the results JSON
-        results_dict: ResultData = read_json_from_path(results, return_model=ResultData)
-    else:
-        results_dict = results
 
     # pick up the current date from datetime or config
     if filter_date is None:
