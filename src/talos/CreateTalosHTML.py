@@ -656,7 +656,7 @@ class Variant:
             and GNOMAD_SV_KEY in self.var_data.info
             and isinstance(self.var_data.info[GNOMAD_SV_KEY], str)
         ):
-            self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]
+            self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]  # type: ignore[union-attr]
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
