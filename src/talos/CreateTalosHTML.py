@@ -1,22 +1,17 @@
 """
 Methods for taking the final output and generating static report content
 
+This is another total rewrite, which tries to fit some resource-friendly
+frontage onto the report, so that it loads in good time.
 
-TOTAL REWRITE (kinda)
-This is unwieldy, so we're snapping it into pieces
-One document will have the main table
-Separate documents will have the variant details per-family
-The variant row will offer a hyperlink to the variant details
-Additional separate pages will contain metadata/panel data
-
-We're snapping it even further!
+If there's a common prefix (e.g. by year), we split the data into sub-reports,
+but we don't need to keep paring it down and down
 """
 
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
-from itertools import chain
 from os import makedirs
 from os.path import join
 from pathlib import Path
@@ -27,7 +22,7 @@ import pandas as pd
 
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
-from talos.utils import chunks, get_logger, read_json_from_path
+from talos.utils import get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 MIN_REPORT_SIZE: int = 10
@@ -59,7 +54,7 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
         if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
             known_prefixes[match.group()[0:2]] += 1
         else:
-            get_logger().info(f'At least one sample lacks a consistent prefix: {content.metadata.ext_id}')
+            get_logger().info('There is no consistent sample ID prefix')
             return []
 
     get_logger().info(f'Sample distribution by prefix: {dict(known_prefixes)}')
@@ -139,6 +134,7 @@ def main(results: str, panelapp: str, output: str):
     except NoVariantsFoundError:
         get_logger().warning('No Categorised variants found in this whole cohort')
 
+    # we only need to do sub-reports if we can delineate by year
     for data, report, prefix in split_data_into_sub_reports(results_object):
         html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
         try:
