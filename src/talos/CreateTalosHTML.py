@@ -66,68 +66,19 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
     return sorted(known_prefixes.keys())
 
 
-def calculate_report_size(num_results: int, max_elements: int = MAX_REPORT_SIZE) -> int:
+def split_data_into_sub_reports(all_results: ResultData) -> list[tuple[ResultData, str, str]]:
     """
-    Calculate the number of samples per report
-    Args:
-        num_results (): total number of samples to report
-        max_elements (): maximum number of samples per report
-
-    Returns:
-        a number of samples to include in each report
-    """
-
-    # to begin, assume a single report is fine
-    report_count = 1
-
-    # keep track of the number of cases in each report fragment
-    if num_results < max_elements:
-        return num_results
-    while True:
-        report_count += 1
-        # break when we hava number that subdivides this group well enough
-        if (num_results // report_count) <= max_elements:
-            break
-
-    # calculate the number of samples per sub-report
-    samples_per_report = num_results // report_count
-
-    get_logger().info(f'Samples per report, before refinement: {samples_per_report}')
-
-    # adjust so that we don't make tiny little report HTMLs
-    if num_results % samples_per_report < MIN_REPORT_SIZE:
-        samples_per_report += MIN_REPORT_SIZE
-
-    get_logger().info(f'Samples per report, after refinement: {samples_per_report}')
-
-    return samples_per_report
-
-
-def split_up(all_results: ResultData, max_elements: int = MAX_REPORT_SIZE) -> list[tuple[ResultData, str, str]]:
-    """
-    Split the data into sub-reports
+    Split the data into sub-reports, only if there's a common prefix (e.g. by year)
     Return a list of the ResultData subsets, output base path, and a subset identifier
 
-    Alright, this is going to be a bit rogue - make this splitting reactive to the number
-    of elements in the split.
-
     Args:
-        all_results (ResultData): the whole cohort results
-        max_elements ():
+        all_results ():
 
     Returns:
         tuple: a list of tuples, each containing a ResultData object, the output base path, and a subset identifier
     """
+    return_results: list[tuple[ResultData, str, str]] = []
 
-    # only interested in presenting probands with results (for now)
-    # so we're stripping these back to just results with variants for the smaller reports
-    all_results.results = {
-        key: val for key, val in all_results.results.items() if val.variants and not val.metadata.solved
-    }
-
-    partially_split: list[tuple[ResultData, str]] = []
-
-    # first check if there's a logical way to break up the results
     if prefixes := known_date_prefix_check(all_results):
         for prefix in prefixes:
             this_rd = ResultData(
@@ -140,28 +91,7 @@ def split_up(all_results: ResultData, max_elements: int = MAX_REPORT_SIZE) -> li
                 version=all_results.version,
             )
             get_logger().info(f'Found {len(this_rd.results)} with prefix {prefix}')
-            partially_split.append((this_rd, f'subset_{prefix}'))
-
-    else:
-        partially_split = [(all_results, 'whole_cohort')]
-
-    # ready an object to return the final results
-    return_results: list[tuple[ResultData, str, str]] = []
-
-    for subset_of_cases, name in partially_split:
-        # get the number of samples to include in this report
-        samples_per_report = calculate_report_size(len(subset_of_cases.results), max_elements)
-
-        get_logger().info(f'{name} will be split into reports containing {samples_per_report} samples')
-
-        # split the data into sub-reports
-        for i, chunk in enumerate(chunks(list(subset_of_cases.results.keys()), samples_per_report), start=1):
-            sub_report = ResultData(
-                metadata=all_results.metadata,
-                results={key: subset_of_cases.results[key] for key in chunk},
-            )
-            return_results.append((sub_report, f'{name}_{i}.html', f'{name}_{i}'))
-
+            return_results.append((this_rd, f'subset_{prefix}.html', prefix))
     return return_results
 
 
@@ -172,7 +102,7 @@ def cli_main():
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Not in use')
-    parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
+    parser.add_argument('--split_samples', help='Not in use')
     args = parser.parse_args()
 
     if args.latest:
@@ -209,25 +139,10 @@ def main(results: str, panelapp: str, output: str):
     except NoVariantsFoundError:
         get_logger().warning('No Categorised variants found in this whole cohort')
 
-    # then quit if we're not splitting samples
-    if len(results_object.results) <= MAX_REPORT_SIZE:
-        return
-
-    # do something to split the output into separate datasets
-    # either look for an ID convention, or go with a random split
-    # originally this used Path(X).parent, but that translates gs:// to gs:/
-    # gs:/ as a schema is not recognised as a GCP path, leading to write errors
-    default_report_name = Path(output).name
-    html_base = output.rstrip(default_report_name)
-
-    report_fragments = split_up(results_object)
-
-    get_logger().info(f'Splitting into {len(report_fragments)} reports')
-
-    for data, report, prefix in report_fragments:
+    for data, report, prefix in split_data_into_sub_reports(results_object):
         html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
         try:
-            output_filepath = f'{html_base}{report}'
+            output_filepath = join(report_output_dir, report)
             get_logger().debug(f'Attempting to create {report} at {output_filepath}')
             makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
@@ -696,51 +611,6 @@ class Variant:
         mane_hgvsps = ', '.join(mane_hgvsps)
 
         return mane_consequences, mane_hgvsps
-
-
-def check_date_filter(results_dict: ResultData, filter_date: str | None = None) -> ResultData | None:
-    """
-    Check if there's a date filter in the config
-    if there is, load the results JSON and filter out variants
-
-    Extra consideration - if one part of a comp-het variant pair is new,
-    retain both sides in the report
-
-    deprecated for now, migrating to lightweight filter-able reports, which should mitigate need for this
-
-    Args:
-        results_dict (ResultData): results file contents
-        filter_date (str | None): path to the results file
-    """
-
-    # pick up the current date from datetime or config
-    if filter_date is None:
-        filter_date = results_dict.metadata.run_datetime
-
-    # Filter out variants based on date
-    for content in results_dict.results.values():
-        # keep only this run's new variants, or partners thereof
-        vars_to_keep = [variant for variant in content.variants if variant.first_tagged == filter_date]
-
-        pairs_to_keep = set(chain.from_iterable(var.support_vars for var in vars_to_keep))
-        content.variants = [
-            variant
-            for variant in content.variants
-            if (variant.first_tagged == filter_date or variant.var_data.coordinates.string_format in pairs_to_keep)
-        ]
-
-    # pop off all the samples with no variants
-    for sample_id in list(results_dict.results.keys()):
-        if not results_dict.results[sample_id].variants:
-            results_dict.results.pop(sample_id)
-
-    # check if there's anything to return
-    if results_dict.results:
-        get_logger().info(f'Filtered results obtained for {filter_date}')
-        return results_dict
-
-    get_logger().info(f'No filtered results obtained for {filter_date}')
-    return None
 
 
 if __name__ == '__main__':
