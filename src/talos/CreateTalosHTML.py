@@ -1,21 +1,19 @@
 """
 Methods for taking the final output and generating static report content
 
+This is another total rewrite, which tries to fit some resource-friendly
+frontage onto the report, so that it loads in good time.
 
-TOTAL REWRITE (kinda)
-This is unwieldy, so we're snapping it into pieces
-One document will have the main table
-Separate documents will have the variant details per-family
-The variant row will offer a hyperlink to the variant details
-Additional separate pages will contain metadata/panel data
+If there's a common prefix (e.g. by year), we split the data into sub-reports,
+but we don't need to keep paring it down and down
 """
 
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
-from itertools import chain
 from os import makedirs
+from os.path import join
 from pathlib import Path
 from typing import Any
 
@@ -24,10 +22,11 @@ import pandas as pd
 
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
-from talos.utils import chunks, get_logger, read_json_from_path
+from talos.utils import get_logger, read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 MIN_REPORT_SIZE: int = 10
+MAX_REPORT_SIZE: int = 200
 
 # above this length we trim the actual bases to just an int
 MAX_INDEL_LEN: int = 10
@@ -35,6 +34,8 @@ MAX_INDEL_LEN: int = 10
 # regex pattern - number, number, not-number
 KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
+MEAN_SLASH_SAMPLE = 'Mean/sample'
+GNOMAD_SV_KEY = 'gnomad_v2.1_sv_svid'
 
 
 def known_date_prefix_check(all_results: ResultData) -> list[str]:
@@ -53,26 +54,24 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
         if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
             known_prefixes[match.group()[0:2]] += 1
         else:
-            get_logger().info(f'At least one sample lacks a consistent prefix: {content.metadata.ext_id}')
+            get_logger().info('There is no consistent sample ID prefix')
             return []
 
     get_logger().info(f'Sample distribution by prefix: {dict(known_prefixes)}')
     return sorted(known_prefixes.keys())
 
 
-def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tuple[ResultData, str, str]]:
+def split_data_into_sub_reports(all_results: ResultData) -> list[tuple[ResultData, str, str]]:
     """
-    Split the data into sub-reports
+    Split the data into sub-reports, only if there's a common prefix (e.g. by year)
     Return a list of the ResultData subsets, output base path, and a subset identifier
 
     Args:
-        data_path ():
-        split_samples ():
+        all_results ():
 
     Returns:
         tuple: a list of tuples, each containing a ResultData object, the output base path, and a subset identifier
     """
-    all_results = read_json_from_path(data_path, return_model=ResultData)
     return_results: list[tuple[ResultData, str, str]] = []
 
     if prefixes := known_date_prefix_check(all_results):
@@ -88,30 +87,7 @@ def split_data_into_sub_reports(data_path: str, split_samples: int) -> list[tupl
             )
             get_logger().info(f'Found {len(this_rd.results)} with prefix {prefix}')
             return_results.append((this_rd, f'subset_{prefix}.html', prefix))
-        return return_results
-
-    # only interested in presenting probands with results (for now)
-    results_with_variants = {
-        key: val for key, val in all_results.results.items() if val.variants and not val.metadata.solved
-    }
-
-    # calculate the number of samples per sub-report
-    samples_per_report = len(results_with_variants) // split_samples
-
-    # resolve dodgy remainders
-    if len(results_with_variants) % split_samples < MIN_REPORT_SIZE:
-        samples_per_report += (MIN_REPORT_SIZE // split_samples) + 1
-
-    # split the data into sub-reports
-    sub_reports = []
-    for i, chunk in enumerate(chunks(list(results_with_variants.keys()), samples_per_report), start=1):
-        sub_report = ResultData(
-            metadata=all_results.metadata,
-            results={key: results_with_variants[key] for key in chunk},
-        )
-        sub_reports.append((sub_report, f'subset_{i}.html', str(i)))
-
-    return sub_reports
+    return return_results
 
 
 def cli_main():
@@ -121,55 +97,50 @@ def cli_main():
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--latest', help='Not in use')
-    parser.add_argument('--split_samples', help='divides samples into sub-reports', type=int)
+    parser.add_argument('--split_samples', help='Not in use')
     args = parser.parse_args()
 
     if args.latest:
         get_logger(__file__).warning('"--latest" argument is not in use')
 
-    main(
-        results=args.input,
-        panelapp=args.panelapp,
-        output=args.output,
-        split_samples=args.split_samples,
-    )
+    if args.split_samples:
+        get_logger(__file__).warning('"--split_samples" argument is not in use')
+
+    main(results=args.input, panelapp=args.panelapp, output=args.output)
 
 
-def main(results: str, panelapp: str, output: str, split_samples: int | None = None):
+def main(results: str, panelapp: str, output: str):
     """
 
     Args:
         results (str): path to the MOI-tested results file
         panelapp (str): path to the panelapp data
         output (str): where to write the HTML file
-        split_samples (int, optional): how many sub-reports to generate
     """
 
-    if not split_samples:
-        html = HTMLBuilder(results=results, panelapp_path=panelapp)
-        # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
-        # catch this, but fail gracefully so that the process overall is a success
-        try:
-            get_logger().info(f'Writing whole-cohort categorised variants to {output}')
-            makedirs('individuals', exist_ok=True)
-            html.write_html(output_filepath=output)
-        except NoVariantsFoundError:
-            get_logger().warning('No Categorised variants found in this whole cohort')
-        return
+    report_output_dir = Path(output).parent
 
-    # do something to split the output into separate datasets
-    # either look for an ID convention, or go with a random split
-    # originally this used Path(X).parent, but that translates gs:// to gs:/
-    # gs:/ as a schema is not recognised as a GCP path, leading to write errors
-    default_report_name = Path(output).name
-    html_base = output.rstrip(default_report_name)
+    results_object = read_json_from_path(results, return_model=ResultData)
 
-    for data, report, prefix in split_data_into_sub_reports(results, split_samples):
-        html = HTMLBuilder(results=data, panelapp_path=panelapp, subset_id=prefix)
+    # we always make this main page - we need a reliable output path to generate analysis entries [CPG]
+    html = HTMLBuilder(results_dict=results_object, panelapp_path=panelapp)
+    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
+    # catch this, but fail gracefully so that the process overall is a success
+    try:
+        get_logger().debug(f'Writing whole-cohort categorised variants to {output}')
+        # find the path to the output directory, and make an individual directory
+        makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
+        html.write_html(output_filepath=output)
+    except NoVariantsFoundError:
+        get_logger().warning('No Categorised variants found in this whole cohort')
+
+    # we only need to do sub-reports if we can delineate by year
+    for data, report, prefix in split_data_into_sub_reports(results_object):
+        html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
         try:
-            output_filepath = f'{html_base}{report}'
-            get_logger().info(f'Attempting to create {report} at {output_filepath}')
-            makedirs(f'individuals_{prefix}', exist_ok=True)
+            output_filepath = join(report_output_dir, report)
+            get_logger().debug(f'Attempting to create {report} at {output_filepath}')
+            makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             get_logger().info('No variants in that report, skipping')
@@ -212,10 +183,10 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results: str | ResultData, panelapp_path: str, subset_id: str | None = None):
+    def __init__(self, results_dict: ResultData, panelapp_path: str, subset_id: str | None = None):
         """
         Args:
-            results (str | ResultData): path to the results JSON, or the results object
+            results_dict (ResultData): the results object
             panelapp_path (str): where to read panelapp data from
             subset_id (str, optional): the subset ID to use for this report
         """
@@ -256,10 +227,6 @@ class HTMLBuilder:
         # }
         self.ext_labels: dict[str, dict] = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
         assert isinstance(self.ext_labels, dict)
-
-        # Read results file, or take it directly
-        results_dict = read_json_from_path(results, return_model=ResultData) if isinstance(results, str) else results
-        assert isinstance(results_dict, ResultData)
 
         self.metadata = results_dict.metadata
         self.panel_names = {panel.name for panel in self.metadata.panels}
@@ -341,7 +308,7 @@ class HTMLBuilder:
                 'Total': sum(category_count[key]),
                 'Unique': len(unique_variants[key]),
                 'Peak #/sample': max(category_count[key]),
-                'Mean/sample': sum(category_count[key]) / len(category_count[key]),
+                MEAN_SLASH_SAMPLE: sum(category_count[key]) / len(category_count[key]),
             }
             for key in ordered_categories
             if category_count[key]
@@ -352,7 +319,7 @@ class HTMLBuilder:
             raise NoVariantsFoundError('No categorised variants found')
 
         my_df: pd.DataFrame = pd.DataFrame(summary_dicts)
-        my_df['Mean/sample'] = my_df['Mean/sample'].round(3)
+        my_df[MEAN_SLASH_SAMPLE] = my_df[MEAN_SLASH_SAMPLE].round(3)
 
         # the table re-sorts when parsed into the DataTable
         # so this forced ordering doesn't work
@@ -416,25 +383,14 @@ class HTMLBuilder:
             'type': 'whole_cohort',
         }
 
-        # for title, meta_table in self.read_metadata().items():
-        #     template_context['meta_tables'][title] = DataTable(
-        #         id=f'{title.lower()}-table',
-        #         heading=title,
-        #         description='',
-        #         columns=list(meta_table.columns),
-        #         rows=list(meta_table.to_records(index=False)),
-        #     )
-
-        # template_context['summary_table'] = DataTable(
-        #     id='summary-table',
-        #     heading='Per-Category Summary',
-        #     description='',
-        #     columns=list(summary_table.columns),
-        #     rows=list(summary_table.to_records(index=False)),
-        # )
-
         # write all HTML content to the output file in one go
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR), autoescape=True)
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_DIR),
+            autoescape=True,
+            trim_blocks=True,
+            keep_trailing_newline=False,
+            lstrip_blocks=True,
+        )
         template = env.get_template('index.html.jinja')
         content = template.render(**template_context)
         with open(output_filepath, 'w') as handle:
@@ -450,7 +406,7 @@ class HTMLBuilder:
 
             report_address = output_filepath.replace(outpath_name, sample.report_url)
 
-            get_logger().info(f'Writing {report_address}')
+            get_logger().debug(f'Writing {report_address}')
 
             new_context = template_context | {
                 'samples': [sample],
@@ -608,10 +564,10 @@ class Variant:
         # this is the weird gnomad callset ID
         if (
             isinstance(self.var_data, StructuralVariant)
-            and 'gnomad_v2.1_sv_svid' in self.var_data.info
-            and isinstance(self.var_data.info['gnomad_v2.1_sv_svid'], str)
+            and GNOMAD_SV_KEY in self.var_data.info
+            and isinstance(self.var_data.info[GNOMAD_SV_KEY], str)
         ):
-            self.var_data.info['gnomad_key'] = self.var_data.info['gnomad_v2.1_sv_svid'].split('v2.1_')[-1]
+            self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]  # type: ignore[union-attr]
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
@@ -651,58 +607,6 @@ class Variant:
         mane_hgvsps = ', '.join(mane_hgvsps)
 
         return mane_consequences, mane_hgvsps
-
-
-def check_date_filter(results: str | ResultData, filter_date: str | None = None) -> ResultData | None:
-    """
-    Check if there's a date filter in the config
-    if there is, load the results JSON and filter out variants
-
-    Extra consideration - if one part of a comp-het variant pair is new,
-    retain both sides in the report
-
-    deprecated for now, migrating to lightweight fitler-able reports, which should mitigate need for this
-
-    Args:
-        results (str): path to the results file
-        filter_date (str | None): path to the results file
-    """
-
-    # take both types
-    if isinstance(results, str):
-        # Load the results JSON
-        results_dict: ResultData = read_json_from_path(results, return_model=ResultData)
-    else:
-        results_dict = results
-
-    # pick up the current date from datetime or config
-    if filter_date is None:
-        filter_date = results_dict.metadata.run_datetime
-
-    # Filter out variants based on date
-    for content in results_dict.results.values():
-        # keep only this run's new variants, or partners thereof
-        vars_to_keep = [variant for variant in content.variants if variant.first_tagged == filter_date]
-
-        pairs_to_keep = set(chain.from_iterable(var.support_vars for var in vars_to_keep))
-        content.variants = [
-            variant
-            for variant in content.variants
-            if (variant.first_tagged == filter_date or variant.var_data.coordinates.string_format in pairs_to_keep)
-        ]
-
-    # pop off all the samples with no variants
-    for sample_id in list(results_dict.results.keys()):
-        if not results_dict.results[sample_id].variants:
-            results_dict.results.pop(sample_id)
-
-    # check if there's anything to return
-    if results_dict.results:
-        get_logger().info(f'Filtered results obtained for {filter_date}')
-        return results_dict
-
-    get_logger().info(f'No filtered results obtained for {filter_date}')
-    return None
 
 
 if __name__ == '__main__':
