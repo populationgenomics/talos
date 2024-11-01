@@ -17,6 +17,7 @@
 
     <link href="https://cdn.datatables.net/rowgroup/1.0.2/css/rowGroup.dataTables.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.datatables.net/rowgroup/1.0.2/js/dataTables.rowGroup.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <style type="text/css">
         a {
@@ -122,16 +123,15 @@
                         r.style.display = collapsed ? 'none' : '';
                     });
 
-                    // Add category name to the <tr>. NOTE: Hardcoded colspan
+                    // Add category name to the <tr>
                     return $('<tr/>')
-                        .append('<td colspan="10">' + group + ' (' + rows.count() + ')</td>')
+                        .append('<td colspan="100%">' + group + ' (' + rows.count() + ')</td>')
                         .attr('data-name', group)
                         .toggleClass('collapsed', collapsed);
                 }
               }
             }
         );
-
 
        $('#variant-table tbody').on('click', 'tr.group-start', function () {
             var name = $(this).data('name');
@@ -155,7 +155,12 @@
                 }
             });
         });
-    });
+
+
+        // Enable bootstrap tool tips
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+      });
     </script>
   </body>
 </html>
