@@ -1,4 +1,4 @@
-FROM python:3.10-bullseye
+FROM python:3.13-bullseye
 
 RUN apt update && apt install -y --no-install-recommends \
         apt-transport-https \
@@ -19,6 +19,14 @@ RUN curl https://sdk.cloud.google.com > install.sh && \
 
 ENV PATH=$PATH:/opt/google-cloud-sdk/bin
 
+# install nextflow
+ADD https://get.nextflow.io nextflow
+RUN chmod +x nextflow && \
+    mv nextflow /usr/bin && \
+    nextflow self-update
+
+# # then finally, install Talos
 COPY requirements*.txt README.md setup.py .
 COPY src src/
-RUN pip install .[cpg]
+RUN pip install --upgrade pip \
+    && pip install .[cpg]
