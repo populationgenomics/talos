@@ -15,7 +15,8 @@ params.input_file = "data/greetings.txt"
 
 process GeneratePanelData {
     // takes the HPO-embellished pedigree and matches panels to participants
-    publishDir 'results', mode: 'copy'
+    publishDir params.output_dir, mode: 'copy'
+
     input:
         // the pedigree file
         path pedigree
@@ -33,7 +34,7 @@ process GeneratePanelData {
 
 process QueryPanelapp {
     // uses matched panels to query the PanelApp API
-    publishDir 'results', mode: 'copy'
+    publishDir params.output_dir, mode: 'copy'
 
     input:
         path hpo_panel_matches
@@ -50,7 +51,7 @@ process QueryPanelapp {
 
 process FindGeneSymbolMap {
     // finds corresponding gene symbols for the panelapp results
-    publishDir 'results', mode: 'copy'
+    publishDir params.output_dir, mode: 'copy'
 
     input:
         path panelapp_data
