@@ -13,6 +13,35 @@ params.greeting = ["Bonjour", "le", "monde!"]
 params.input_file = "data/greetings.txt"
 
 
+process MakePhenopackets {
+    publishDir params.output_dir, mode: 'copy'
+
+    input:
+        // the name of the dataset for use in API queries
+        val dataset
+
+        // the sequencing type
+        val sequencing_type
+
+        // the path to the HPO file
+        path hpo
+
+        // sequencing technology, not currently overridden
+        val sequencing_tech
+
+    output:
+        path "${params.cohort}_phenopackets.json"
+
+    """
+    MakePhenopackets \
+        --dataset ${dataset} \
+        --output ${params.cohort}_phenopackets.json \
+        --type ${sequencing_type} \
+        --hpo ${hpo} \
+        --tech ${sequencing_tech}
+    """
+}
+
 process GeneratePanelData {
     // takes the HPO-embellished pedigree and matches panels to participants
     publishDir params.output_dir, mode: 'copy'
@@ -27,8 +56,7 @@ process GeneratePanelData {
         path "${params.cohort}_hpo_panel_data.json"
 
     """
-    GeneratePanelData -i ${pedigree} --hpo ${hpo} --out_path ${params.cohort}_hpo_panel_data.json -h
-    touch ${params.cohort}_hpo_panel_data.json
+    GeneratePanelData --input ${pedigree} --hpo ${hpo} --output ${params.cohort}_hpo_panel_data.json
     """
 }
 
@@ -38,14 +66,14 @@ process QueryPanelapp {
 
     input:
         path hpo_panel_matches
+        env TALOS_CONFIG
 
     output:
         path "${params.cohort}_panelapp_results.json"
 
     // the command
     """
-    QueryPanelapp --panels ${hpo_panel_matches}  --out_path ${params.cohort}_panelapp_results.json -h
-    touch ${params.cohort}_panelapp_results.json
+    QueryPanelapp --input ${hpo_panel_matches}  --output ${params.cohort}_panelapp_results.json
     """
 }
 
@@ -169,11 +197,17 @@ process convertToUpper {
 
 workflow {
     // existence of these files is necessary for starting the workflow
-    // so we must open them as a channel, and pass the channel through to the method
+    // we open them as a channel, and pass the channel through to the method
     pedigree_channel = Channel.fromPath(params.pedigree)
+    hpo_file_channel = Channel.fromPath(params.hpo)
+
+    MakePhenopackets(params.cohort, params.sequencing_type, hpo_file_channel, params.sequencing_tech)
+//
+//     // make a phenopackets file (CPG-specific)
+//     phenopackets_channel = Channel.fromPath(params.phenopackets)
 
     // we can do this by saving as an object, or inside the method call
-    GeneratePanelData(pedigree_channel, Channel.fromPath(params.hpo))
+    GeneratePanelData(MakePhenopackets.out, hpo_file_channel)
 
-    QueryPanelapp(GeneratePanelData.out)
+    QueryPanelapp(GeneratePanelData.out, params.runtime_config)
 }

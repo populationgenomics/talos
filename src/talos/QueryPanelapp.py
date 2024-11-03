@@ -24,7 +24,7 @@ PANELAPP_HARD_CODED_BASE_PANEL = 137
 try:
     PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
     DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], PANELAPP_HARD_CODED_BASE_PANEL)
-except KeyError:
+except (FileNotFoundError, KeyError):
     get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     PANELAPP_BASE = PANELAPP_HARD_CODED_DEFAULT
     DEFAULT_PANEL = PANELAPP_HARD_CODED_BASE_PANEL
