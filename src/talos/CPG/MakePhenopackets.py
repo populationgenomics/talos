@@ -16,6 +16,7 @@ encapsulating their phenotypic data and relevant ontological details.
 import re
 from argparse import ArgumentParser
 
+import networkx as nx
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
 from obonet import read_obo
@@ -65,17 +66,25 @@ def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[st
     all_hpos: set[str] = set()
     per_sg_hpos: dict[str, set[str]] = {}
 
+    moi_nodes: set[str] = set()
+    hpo_graph = None
+    if hpo_file:
+        # create a graph of HPO terms
+        hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
+        moi_nodes = nx.ancestors(hpo_graph, 'HP:0000005')
+
     for sg in metamist_data['project']['sequencingGroups']:
         hpos = set(HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, '')))
+
+        # groom out any strictly MOI related terms
+        hpos -= moi_nodes
+
         all_hpos.update(hpos)
         per_sg_hpos[sg['id']] = hpos
 
     # no label obtained, that's fine...
-    if not hpo_file:
+    if not (hpo_file and hpo_graph):
         return {sg: [{'id': hp, 'label': 'Unknown'} for hp in hpos] for sg, hpos in per_sg_hpos.items()}
-
-    # create a graph of HPO terms
-    hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
 
     # create a dictionary of HPO terms to their text
     hpo_to_text: dict[str, str] = {}
