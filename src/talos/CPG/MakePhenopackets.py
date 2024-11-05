@@ -56,6 +56,12 @@ def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[st
     """
     match HPO terms to their plaintext names
 
+    NB. we are making a decision here to strip out any participant HPO terms which are descendants of the term
+    'Mode of Inheritance' (HP...5). Some clinicians may use this term to describe the suspected inheritance patterns
+    for a familial disease, which can enable better variant curation. Downstream, we can discover associations between
+    disease genes and their MOI terms directly, which messes with what we are trying to do:
+        associate patient _phenotypes_ with variant _genes_.
+
     Args:
         metamist_data ():
         hpo_file ():
