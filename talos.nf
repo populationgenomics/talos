@@ -110,6 +110,7 @@ process RunHailFiltering {
         def checkpoint = checkpoint.name != 'NO_FILE' ? "${checkpoint}" : ''
 
     """
+
     RunHailFiltering \
         --mt ${matrix_table} \
         --panelapp ${panelapp_data} \
@@ -201,10 +202,8 @@ workflow {
     pedigree_channel = Channel.fromPath(params.pedigree)
     hpo_file_channel = Channel.fromPath(params.hpo)
 
+    // make a phenopackets file (CPG-specific)
     MakePhenopackets(params.cohort, params.sequencing_type, hpo_file_channel, params.sequencing_tech)
-//
-//     // make a phenopackets file (CPG-specific)
-//     phenopackets_channel = Channel.fromPath(params.phenopackets)
 
     // we can do this by saving as an object, or inside the method call
     GeneratePanelData(MakePhenopackets.out, hpo_file_channel)
