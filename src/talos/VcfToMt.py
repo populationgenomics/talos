@@ -47,7 +47,6 @@ RELEVANT_FIELDS: list[str] = [
     'protein_position',
     'sift',
     'symbol',
-    'variant_class',
 ]
 TYPE_UPDATES: dict[str, dict] = {
     'am_pathogenicity': {'insert': False, 'type': 'float'},
@@ -101,12 +100,10 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
         ),
     )
 
-    # add variant_class at the mt.vep level?
     # cdna, protein, and cds positions are all strings, potentially with ranges, so we need to convert them to ints
     # in some cases, the values can be "?-X" or "X-?", which are replaced with missing values
     return mt.annotate_rows(
         vep=mt.vep.annotate(
-            variant_class=mt.vep.transcript_consequences[0].variant_class,
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
                     cdna_start=hl.if_else(

@@ -75,7 +75,7 @@ schema = (
     'protein_id:str,gene_symbol_source:str,canonical:int32,cdna_start:int32,'
     'cds_start:int32,cds_end:int32,biotype:str,protein_start:int32,protein_end:int32,'
     'sift_score:float64,sift_prediction:str,polyphen_prediction:str,polyphen_score:'
-    'float64,mane_select:str,lof:str}>,variant_class:str},geneIds:set<str>'
+    'float64,mane_select:str,lof:str}>},geneIds:set<str>'
     '}'
 )
 
@@ -256,7 +256,6 @@ class VepVariant:
         dbnsfp: DBnsfp | None = None,
         clinvar: Clinvar | None = None,
         splice: Splice | None = None,
-        var_class: str = 'SNV',
     ):
         """
         VEP variant data model
@@ -269,12 +268,11 @@ class VepVariant:
             dbnsfp (DBnsfp): Revel/MutationTaster, or None
             clinvar (Clinvar): Clinvar data, or None
             splice (Splice): SpliceAI data, or None
-            var_class (str): ... SNV
         """
 
         self.data = (
             {
-                'vep': {'transcript_consequences': tx, 'variant_class': var_class},
+                'vep': {'transcript_consequences': tx},
                 'geneIds': {tx.gene_id for tx in tx},
                 'dbnsfp': dbnsfp or DBnsfp(),
                 'cadd': cadd or CADD(),
