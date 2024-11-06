@@ -848,7 +848,6 @@ def main(
         fields_audit(mt=mt, base_fields=BASE_FIELDS_REQUIRED, nested_fields=FIELDS_REQUIRED)
         and vep_audit(mt=mt, expected_fields=VEP_TX_FIELDS_REQUIRED)
     ):
-        mt.describe()
         raise KeyError('Fields were missing from the input Matrix')
 
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions

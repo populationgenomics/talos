@@ -5,12 +5,25 @@
 
 params.checkpoint = "$projectDir/assets/NO_FILE"
 
-params.greeting = ["Bonjour", "le", "monde!"]
+process VcfToMt {
+    publishDir params.output_dir, mode: 'copy'
 
-/*
- * Pipeline parameters
- */
-params.input_file = "data/greetings.txt"
+    input:
+
+        // the path to the HPO file
+        path vcf
+        path vcf_idx
+
+    output:
+        path "${params.cohort}_small_variants.mt.tar.gz"
+
+    """
+    VcfToMt \
+        --input ${vcf} \
+        --output ${params.cohort}_small_variants.mt
+    tar -czf ${params.cohort}_small_variants.mt.tar.gz ${params.cohort}_small_variants.mt
+    """
+}
 
 
 process MakePhenopackets {
@@ -104,32 +117,35 @@ process RunHailFiltering {
         path clinvar
         path pm5
         path checkpoint
+        env TALOS_CONFIG
+
+//     output:
+//         path '${params.cohort}_small_variants_labelled.vcf.bgz', emit: 'vcf'
+//         path '${params.cohort}_small_variants_labelled.vcf.bgz.tbi', emit: 'index'
+
+    output:
+        tuple \
+            path("${params.cohort}_small_variants_labelled.vcf.bgz"), \
+            path("${params.cohort}_small_variants_labelled.vcf.bgz.tbi")
 
     // only write a checkpoint if we were given a path
     script:
-        def checkpoint = checkpoint.name != 'NO_FILE' ? "${checkpoint}" : ''
+        def checkpoint = checkpoint.name != 'NO_FILE' ? "--checkpoint ${checkpoint}" : ''
 
     """
+    # unzip the ClinvArbitration data directories
+    tar -zxf ${clinvar}
+    tar -zxf ${pm5}
+    tar -zxf ${matrix_table}
 
     RunHailFiltering \
-        --mt ${matrix_table} \
+        --input ${params.cohort}_small_variants.mt \
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \
-        --vcf_out ${params.cohort}_small_variants.vcf.bgz \
-        --clinvar ${clinvar} \
-        --clinvar ${pm5} \
-        --checkpoint ${checkpoint}
-    """
-
-    output:
-        path tuple path("${params.cohort}_small_variants.vcf.bgz"), path("${params.cohort}_small_variants.vcf.bgz.tbi")
-
-    """
-    RunHailFilteringSV \
-        --mt ${matrix_table} \
-        --panelapp ${panelapp_data} \
-        --pedigree ${pedigree} \
-        --vcf_out ${params.cohort}_small_variants.vcf.bgz
+        --output ${params.cohort}_small_variants_labelled.vcf.bgz \
+        --clinvar clinvar_decisions_fake.ht \
+        --pm5 clinvar_pm5_fake.ht \
+        ${checkpoint}
     """
 }
 
@@ -144,7 +160,8 @@ process RunHailFilteringSV {
         path pedigree
 
     output:
-        path tuple path("${params.cohort}_small_variants.vcf.bgz"), path("${params.cohort}_small_variants.vcf.bgz.tbi")
+        path '${params.cohort}_small_variants.vcf.bgz', emit: 'vcf'
+        path '${params.cohort}_small_variants.vcf.bgz.tbi', emit: 'index'
 
     """
     RunHailFilteringSV \
@@ -155,44 +172,27 @@ process RunHailFilteringSV {
     """
 }
 
-process sayHello {
-    // this takes the resulting file from the work/hash/hash directory, writes into "results"
-    publishDir 'results', mode: 'copy'
-
-    // if doubled
-    output:
-        tuple path(input_bam), path("${input_bam}.bai")
-
-    // if passed
-    input:
-        tuple path(input_bam), path(input_bam_index)
-
-    output:
-        path "${greeting}-output.txt"
+process ValidateMOI {
+    // process the labelled variants
+    publishDir params.output_dir, mode: 'copy'
 
     input:
-        val greeting
-
-    """
-    echo '$greeting' > '$greeting-output.txt'
-    """
-}
-
-/*
- * Use a text replace utility to convert the greeting to uppercase
- */
-process convertToUpper {
-
-    publishDir 'results', mode: 'copy'
-
-    input:
-        path input_file
+        tuple path(labelled_vcf), path(labelled_vcf_index)
+        path panelapp
+        path pedigree
+        path hpo_panel_matches
+        env TALOS_CONFIG
 
     output:
-        path "UPPER-${input_file}"
+        path"${params.cohort}_results.json"
 
     """
-    cat '$input_file' | tr '[a-z]' '[A-Z]' > UPPER-${input_file}
+    ValidateMOI \
+        --labelled_vcf ${labelled_vcf} \
+        --panelapp ${panelapp} \
+        --pedigree ${pedigree} \
+        --participant_panels ${hpo_panel_matches} \
+        --output ${params.cohort}_results.json
     """
 }
 
@@ -202,6 +202,11 @@ workflow {
     pedigree_channel = Channel.fromPath(params.pedigree)
     hpo_file_channel = Channel.fromPath(params.hpo)
 
+    // turn the VCF into a MatrixTable
+    input_vcf = Channel.fromPath(params.annotated_vcf)
+    input_vcf_idx = Channel.fromPath("${params.annotated_vcf}.tbi")
+    VcfToMt(input_vcf, input_vcf_idx)
+
     // make a phenopackets file (CPG-specific)
     MakePhenopackets(params.cohort, params.sequencing_type, hpo_file_channel, params.sequencing_tech)
 
@@ -209,4 +214,25 @@ workflow {
     GeneratePanelData(MakePhenopackets.out, hpo_file_channel)
 
     QueryPanelapp(GeneratePanelData.out, params.runtime_config)
+
+    // run the hail filtering
+    RunHailFiltering(
+        VcfToMt.out,
+        QueryPanelapp.out,
+        params.pedigree,
+        params.clinvar_decisions,
+        params.clinvar_pm5,
+        params.checkpoint,
+        params.runtime_config,
+    )
+
+    // Validate MOI of all variants
+    ValidateMOI(
+        RunHailFiltering.out,
+        QueryPanelapp.out,
+        params.pedigree,
+        GeneratePanelData.out,
+        params.runtime_config,
+    )
+
 }
