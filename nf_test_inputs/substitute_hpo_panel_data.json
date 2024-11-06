@@ -1,0 +1,36 @@
+{
+    "samples": {
+        "proband": {
+            "external_id": "ext_id_proband",
+            "family_id": "TEST_FAMILY",
+            "hpo_terms": [],
+            "panels": [
+                137
+            ],
+            "matched_genes": [],
+            "matched_phenotypes": []
+        },
+        "mother": {
+            "external_id": "ext_id_mother",
+            "family_id": "TEST_FAMILY",
+            "hpo_terms": [],
+            "panels": [
+                137
+            ],
+            "matched_genes": [],
+            "matched_phenotypes": []
+        },
+        "father": {
+            "external_id": "ext_id_father",
+            "family_id": "TEST_FAMILY",
+            "hpo_terms": [],
+            "panels": [
+                137
+            ],
+            "matched_genes": [],
+            "matched_phenotypes": []
+        }
+    },
+    "all_panels": [],
+    "version": "1.1.0"
+}
