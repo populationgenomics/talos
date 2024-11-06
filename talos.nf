@@ -115,7 +115,6 @@ process RunHailFiltering {
         path panelapp_data
         path pedigree
         path clinvar
-        path pm5
         path checkpoint
         env TALOS_CONFIG
 
@@ -132,10 +131,9 @@ process RunHailFiltering {
     script:
         def checkpoint = checkpoint.name != 'NO_FILE' ? "--checkpoint ${checkpoint}" : ''
 
+    // unzip the ClinvArbitration data directory and MatrixTable
     """
-    # unzip the ClinvArbitration data directories
     tar -zxf ${clinvar}
-    tar -zxf ${pm5}
     tar -zxf ${matrix_table}
 
     RunHailFiltering \
@@ -143,8 +141,8 @@ process RunHailFiltering {
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \
         --output ${params.cohort}_small_variants_labelled.vcf.bgz \
-        --clinvar clinvar_decisions_fake.ht \
-        --pm5 clinvar_pm5_fake.ht \
+        --clinvar clinvarbitration_data/clinvar_decisions.ht \
+        --pm5 clinvarbitration_data/clinvar_pm5.ht \
         ${checkpoint}
     """
 }
@@ -220,8 +218,7 @@ workflow {
         VcfToMt.out,
         QueryPanelapp.out,
         params.pedigree,
-        params.clinvar_decisions,
-        params.clinvar_pm5,
+        params.clinvar,
         params.checkpoint,
         params.runtime_config,
     )
