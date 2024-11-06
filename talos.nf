@@ -227,13 +227,11 @@ workflow {
     )
 
     // Validate MOI of all variants
-    // I've swapped out GeneratePanelData.out
-    // as the data IDs don't line up with the validation cohort in metamist
     ValidateMOI(
         RunHailFiltering.out,
         QueryPanelapp.out,
         params.pedigree,
-        params.substitute_hpo_panel_data,
+        GeneratePanelData.out,
         params.runtime_config,
     )
 

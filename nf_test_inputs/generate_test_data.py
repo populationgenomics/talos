@@ -6,11 +6,12 @@ import hail as hl
 
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 
-# create a proband, mother, and father
-comp_het = {'proband': Entry('1/1'), 'mother': Entry('0/1'), 'father': Entry('0/1')}
-de_novo = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/0')}
-mat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/1'), 'father': Entry('0/0')}
-pat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/1')}
+hl.init(default_reference='GRCh38')
+
+comp_het = {'CPG255208': Entry('1/1'), 'CPG255224': Entry('0/1'), 'CPG255216': Entry('0/1')}
+de_novo = {'CPG255208': Entry('0/1'), 'CPG255224': Entry('0/0'), 'CPG255216': Entry('0/0')}
+mat_inherited = {'CPG255208': Entry('0/1'), 'CPG255224': Entry('0/1'), 'CPG255216': Entry('0/0')}
+pat_inherited = {'CPG255208': Entry('0/1'), 'CPG255224': Entry('0/0'), 'CPG255216': Entry('0/1')}
 
 # dull example, single tx consequence, all default values, i.e. only gene symbol & ID
 t = TXFields('a', 'ensga')
@@ -19,16 +20,16 @@ t = TXFields('a', 'ensga')
 sample_schema = {k: v.get_schema_entry() for k, v in comp_het.items()}
 
 # Cat 1, 3, dominant, WT1
-v1 = VepVariant(BaseFields('chr11:32392032', ['G', 'A']), [t], sample_data=mat_inherited)
+v1 = VepVariant(BaseFields('chr11:32392032', ['G', 'A']), [t], sample_data=de_novo)
 
 # cat 6, dominant, DAAM2
-v2 = VepVariant(BaseFields('chr6:39887558', ['C', 'T']), [t], sample_data=mat_inherited)
+v2 = VepVariant(BaseFields('chr6:39887558', ['C', 'T']), [t], sample_data=de_novo)
 
 # cats 1 5 3, POC1B, AR
 v3 = VepVariant(BaseFields('chr12:89470359', ['A', 'C']), [t], sample_data=comp_het)
 
 # cat pm5, dominant, PKHD1
-v4 = VepVariant(BaseFields('chr6:51659900', ['T', 'C']), [t], sample_data=mat_inherited)
+v4 = VepVariant(BaseFields('chr6:51659900', ['T', 'C']), [t], sample_data=de_novo)
 
 # cat 1, recessive, HFE
 v5 = VepVariant(BaseFields('chr6:26090951', ['C', 'G']), [t], sample_data=comp_het)
@@ -42,7 +43,7 @@ loci = [
 ]
 
 # create a SneakyTable object, which will take a list of VepVariant objects
-sn = SneakyTable([v1, v2, v3, v4, v5], '../test', sample_schema)
+sn = SneakyTable([v1, v2, v3, v4, v5], '.', sample_schema)
 
 # once the table is parsed using the JSON schema, convert to a Hail MatrixTable
 # using the row_major functionality - this takes the list of sample IDs, converts those

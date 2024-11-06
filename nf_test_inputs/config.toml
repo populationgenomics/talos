@@ -15,7 +15,7 @@ panelapp = "https://panelapp.agha.umccr.org/api/v1/panels"
 require_pheno_match = [ "FLG", "GJB2", "F2", "F5",]
 within_x_months = 3
 forbidden_genes = []
-forced_panels = [ 4059,]
+forced_panels = [ 144,]
 
 [FindGeneSymbolMap]
 chunk_size = 800
