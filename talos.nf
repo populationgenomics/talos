@@ -2,93 +2,11 @@
 
 nextflow.enable.dsl=2
 
-process VcfToMt {
-    publishDir params.output_dir, mode: 'copy'
+include { VcfToMt } from './modules/talos/VcfToMt/main'
+include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
+include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
+include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
 
-    input:
-
-        // the path to the HPO file
-        path vcf
-        path vcf_idx
-
-    output:
-        path "${params.cohort}_small_variants.mt.tar.gz"
-
-    """
-    VcfToMt \
-        --input ${vcf} \
-        --output ${params.cohort}_small_variants.mt
-    tar -czf ${params.cohort}_small_variants.mt.tar.gz ${params.cohort}_small_variants.mt
-    """
-}
-
-
-process ConvertPedToPhenopackets {
-    // takes the pedigree file, and converts it to a phenopackets file and regular pedigree file
-    publishDir params.output_dir, mode: 'copy'
-
-    input:
-        // the pedigree with embedded HPO terms
-        path pedigree
-
-    output:
-        path "${params.cohort}_pedigree.ped", emit: "ped"
-        path "${params.cohort}_phenopackets.json", emit: "phenopackets"
-
-    """
-    ConvertPedToPhenopackets \
-        --input ${pedigree} \
-        --output ${params.cohort}
-    """
-}
-
-
-process MakePhenopackets {
-    publishDir params.output_dir, mode: 'copy'
-
-    input:
-        // the name of the dataset for use in API queries
-        val dataset
-
-        // the sequencing type
-        val sequencing_type
-
-        // the path to the HPO file
-        path hpo
-
-        // sequencing technology, not currently overridden
-        val sequencing_tech
-
-    output:
-        path "${params.cohort}_phenopackets.json"
-
-    """
-    MakePhenopackets \
-        --dataset ${dataset} \
-        --output ${params.cohort}_phenopackets.json \
-        --type ${sequencing_type} \
-        --hpo ${hpo} \
-        --tech ${sequencing_tech}
-    """
-}
-
-process GeneratePanelData {
-    // takes the HPO-embellished pedigree and matches panels to participants
-    publishDir params.output_dir, mode: 'copy'
-
-    input:
-        // the pedigree file
-        path pedigree
-        // the HPO obo/ontology file
-        path hpo
-
-    output:
-        path "${params.cohort}_hpo_panel_data.json"
-
-    """
-    GeneratePanelData --input ${pedigree} --hpo ${hpo} --output ${params.cohort}_hpo_panel_data.json
-    """
-}
 
 process QueryPanelapp {
     // uses matched panels to query the PanelApp API
@@ -222,9 +140,8 @@ workflow {
     clinvar_tar_channel = Channel.fromPath(params.clinvar)
 
     // turn the VCF into a MatrixTable
-    input_vcf = Channel.fromPath(params.annotated_vcf)
-    input_vcf_idx = Channel.fromPath("${params.annotated_vcf}.tbi")
-    VcfToMt(input_vcf, input_vcf_idx)
+    input_vcf = Channel.fromPath(params.annotated_vcf).map{ it -> [file(it), file("${it}.tbi")]}
+    VcfToMt(input_vcf)
 
     // make a phenopackets file from pedigree (CPG-specific)
     ConvertPedToPhenopackets(hpo_pedigree_channel)
