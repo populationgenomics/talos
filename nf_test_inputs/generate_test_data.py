@@ -8,10 +8,10 @@ from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVarian
 
 hl.init(default_reference='GRCh38')
 
-comp_het = {'CPG255208': Entry('1/1'), 'CPG255224': Entry('0/1'), 'CPG255216': Entry('0/1')}
-de_novo = {'CPG255208': Entry('0/1'), 'CPG255224': Entry('0/0'), 'CPG255216': Entry('0/0')}
-mat_inherited = {'CPG255208': Entry('0/1'), 'CPG255224': Entry('0/1'), 'CPG255216': Entry('0/0')}
-pat_inherited = {'CPG255208': Entry('0/1'), 'CPG255224': Entry('0/0'), 'CPG255216': Entry('0/1')}
+comp_het = {'proband': Entry('1/1'), 'mother': Entry('0/1'), 'father': Entry('0/1')}
+de_novo = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/0')}
+mat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/1'), 'father': Entry('0/0')}
+pat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/1')}
 
 # dull example, single tx consequence, all default values, i.e. only gene symbol & ID
 t = TXFields('a', 'ensga')

@@ -26,6 +26,26 @@ process VcfToMt {
 }
 
 
+process ConvertPedToPhenopackets {
+    // takes the pedigree file, and converts it to a phenopackets file and regular pedigree file
+    publishDir params.output_dir, mode: 'copy'
+
+    input:
+        // the pedigree with embedded HPO terms
+        path pedigree
+
+    output:
+        path "${params.cohort}_pedigree.ped", emit: "ped"
+        path "${params.cohort}_phenopackets.json", emit: "phenopackets"
+
+    """
+    ConvertPedToPhenopackets \
+        --input ${pedigree} \
+        --output ${params.cohort}
+    """
+}
+
+
 process MakePhenopackets {
     publishDir params.output_dir, mode: 'copy'
 
@@ -79,13 +99,14 @@ process QueryPanelapp {
 
     input:
         path hpo_panel_matches
-        env TALOS_CONFIG
+        path talos_config
 
     output:
         path "${params.cohort}_panelapp_results.json"
 
     // the command
     """
+    export TALOS_CONFIG=${talos_config}
     QueryPanelapp --input ${hpo_panel_matches}  --output ${params.cohort}_panelapp_results.json
     """
 }
@@ -115,8 +136,8 @@ process RunHailFiltering {
         path panelapp_data
         path pedigree
         path clinvar
-        path checkpoint
-        env TALOS_CONFIG
+        val checkpoint
+        path talos_config
 
 //     output:
 //         path '${params.cohort}_small_variants_labelled.vcf.bgz', emit: 'vcf'
@@ -129,10 +150,12 @@ process RunHailFiltering {
 
     // only write a checkpoint if we were given a path
     script:
-        def checkpoint = checkpoint.name != 'NO_FILE' ? "--checkpoint ${checkpoint}" : ''
+        def checkpoint = checkpoint != 'NO_FILE' ? "--checkpoint ${checkpoint}" : ''
 
     // unzip the ClinvArbitration data directory and MatrixTable
     """
+    export TALOS_CONFIG=${talos_config}
+
     tar -zxf ${clinvar}
     tar -zxf ${matrix_table}
 
@@ -158,8 +181,8 @@ process RunHailFilteringSV {
         path pedigree
 
     output:
-        path '${params.cohort}_small_variants.vcf.bgz', emit: 'vcf'
-        path '${params.cohort}_small_variants.vcf.bgz.tbi', emit: 'index'
+        path "${params.cohort}_small_variants.vcf.bgz", emit: "vcf"
+        path "${params.cohort}_small_variants.vcf.bgz.tbi", emit: "index"
 
     """
     RunHailFilteringSV \
@@ -179,12 +202,14 @@ process ValidateMOI {
         path panelapp
         path pedigree
         path hpo_panel_matches
-        env TALOS_CONFIG
+        path talos_config
 
     output:
         path"${params.cohort}_results.json"
 
     """
+    export TALOS_CONFIG=${talos_config}
+
     ValidateMOI \
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \
@@ -197,39 +222,48 @@ process ValidateMOI {
 workflow {
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    pedigree_channel = Channel.fromPath(params.pedigree)
+    // pedigree_channel = Channel.fromPath(params.pedigree)
+    hpo_pedigree_channel = Channel.fromPath(params.hpo_pedigree)
     hpo_file_channel = Channel.fromPath(params.hpo)
+    runtime_config_channel = Channel.fromPath(params.runtime_config)
+    clinvar_tar_channel = Channel.fromPath(params.clinvar)
 
     // turn the VCF into a MatrixTable
     input_vcf = Channel.fromPath(params.annotated_vcf)
     input_vcf_idx = Channel.fromPath("${params.annotated_vcf}.tbi")
     VcfToMt(input_vcf, input_vcf_idx)
 
+    // make a phenopackets file from pedigree (CPG-specific)
+    ConvertPedToPhenopackets(hpo_pedigree_channel)
+
     // make a phenopackets file (CPG-specific)
     MakePhenopackets(params.cohort, params.sequencing_type, hpo_file_channel, params.sequencing_tech)
 
     // we can do this by saving as an object, or inside the method call
-    GeneratePanelData(MakePhenopackets.out, hpo_file_channel)
+    GeneratePanelData(ConvertPedToPhenopackets.out[1], hpo_file_channel)
 
-    QueryPanelapp(GeneratePanelData.out, params.runtime_config)
+    QueryPanelapp(
+        GeneratePanelData.out,
+        runtime_config_channel,
+    )
 
     // run the hail filtering
     RunHailFiltering(
         VcfToMt.out,
         QueryPanelapp.out,
-        params.pedigree,
-        params.clinvar,
+        ConvertPedToPhenopackets.out[0],
+        clinvar_tar_channel,
         params.checkpoint,
-        params.runtime_config,
+        runtime_config_channel,
     )
 
     // Validate MOI of all variants
     ValidateMOI(
         RunHailFiltering.out,
         QueryPanelapp.out,
-        params.pedigree,
+        ConvertPedToPhenopackets.out[0],
         GeneratePanelData.out,
-        params.runtime_config,
+        runtime_config_channel,
     )
 
 }

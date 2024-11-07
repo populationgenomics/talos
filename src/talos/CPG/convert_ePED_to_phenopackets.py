@@ -78,16 +78,16 @@ def main(ped_file: str, output: str) -> None:
             participant.data = []
             minimal_ped.append(str(participant))
 
-    # make a parent directory for the output, if required
-    if not exists(output):
-        makedirs(output)
+    # # make a parent directory for the output, if required
+    # if not exists(output):
+    #     makedirs(output)
 
     # save the phenopacket JSON
-    with open(join(output, 'phenopackets.json'), 'w', encoding='utf-8') as handle:
+    with open(f'{output}_phenopackets.json', 'w', encoding='utf-8') as handle:
         handle.write(MessageToJson(cohort))
 
     # save the pedigree
-    with open(join(output, 'pedigree.ped'), 'w', encoding='utf-8') as handle:
+    with open(f'{output}_pedigree.ped', 'w', encoding='utf-8') as handle:
         handle.write(''.join(minimal_ped))
 
 
