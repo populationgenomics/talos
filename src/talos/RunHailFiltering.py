@@ -280,7 +280,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     min_callset_ac = 5
     return mt.filter_rows(
-        ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.AN))
+        ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
         | (mt.info.clinvar_talos == ONE_INT),
     )
 
