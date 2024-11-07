@@ -6,80 +6,11 @@ include { VcfToMt } from './modules/talos/VcfToMt/main'
 include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
 include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
+include { QueryPanelapp } from './modules/talos/QueryPanelapp/main'
+include { FindGeneSymbolMap } from './modules/talos/FindGeneSymbolMap/main'
+include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
+include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 
-
-process QueryPanelapp {
-    // uses matched panels to query the PanelApp API
-    publishDir params.output_dir, mode: 'copy'
-
-    input:
-        path hpo_panel_matches
-        path talos_config
-
-    output:
-        path "${params.cohort}_panelapp_results.json"
-
-    // the command
-    """
-    export TALOS_CONFIG=${talos_config}
-    QueryPanelapp --input ${hpo_panel_matches}  --output ${params.cohort}_panelapp_results.json
-    """
-}
-
-process FindGeneSymbolMap {
-    // finds corresponding gene symbols for the panelapp results
-    publishDir params.output_dir, mode: 'copy'
-
-    input:
-        path panelapp_data
-
-    output:
-        path "${params.cohort}_symbol_to_ensg.json"
-
-    // the command
-    """
-    FindGeneSymbolMap --panelapp ${panel_data}  --out_path ${params.cohort}_symbol_to_ensg.json
-    """
-}
-
-process RunHailFiltering {
-    // runs the hail small-variant filtering
-    publishDir 'results', mode: 'copy'
-
-    input:
-        path matrix_table
-        path panelapp_data
-        path pedigree
-        path clinvar
-        val checkpoint
-        path talos_config
-
-    output:
-        tuple \
-            path("${params.cohort}_small_variants_labelled.vcf.bgz"), \
-            path("${params.cohort}_small_variants_labelled.vcf.bgz.tbi")
-
-    // only write a checkpoint if we were given a path
-    script:
-        def checkpoint = checkpoint != 'NO_FILE' ? "--checkpoint ${checkpoint}" : ''
-
-    // unzip the ClinvArbitration data directory and MatrixTable
-    """
-    export TALOS_CONFIG=${talos_config}
-
-    tar -zxf ${clinvar}
-    tar -zxf ${matrix_table}
-
-    RunHailFiltering \
-        --input ${params.cohort}_small_variants.mt \
-        --panelapp ${panelapp_data} \
-        --pedigree ${pedigree} \
-        --output ${params.cohort}_small_variants_labelled.vcf.bgz \
-        --clinvar clinvarbitration_data/clinvar_decisions.ht \
-        --pm5 clinvarbitration_data/clinvar_pm5.ht \
-        ${checkpoint}
-    """
-}
 
 process RunHailFilteringSV {
     // runs the hail structural-variant filtering
@@ -101,32 +32,6 @@ process RunHailFilteringSV {
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \
         --vcf_out ${params.cohort}_small_variants.vcf.bgz
-    """
-}
-
-process ValidateMOI {
-    // process the labelled variants
-    publishDir params.output_dir, mode: 'copy'
-
-    input:
-        tuple path(labelled_vcf), path(labelled_vcf_index)
-        path panelapp
-        path pedigree
-        path hpo_panel_matches
-        path talos_config
-
-    output:
-        path"${params.cohort}_results.json"
-
-    """
-    export TALOS_CONFIG=${talos_config}
-
-    ValidateMOI \
-        --labelled_vcf ${labelled_vcf} \
-        --panelapp ${panelapp} \
-        --pedigree ${pedigree} \
-        --participant_panels ${hpo_panel_matches} \
-        --output ${params.cohort}_results.json
     """
 }
 
