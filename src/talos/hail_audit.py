@@ -11,11 +11,12 @@ import hail as hl
 BASE_FIELDS_REQUIRED = [
     ('locus', hl.LocusExpression),
     ('alleles', hl.ArrayExpression),
-    ('AC', hl.Int32Expression),
-    ('AF', hl.Float64Expression),
-    ('AN', hl.Int32Expression),
 ]
 FIELDS_REQUIRED = {
+    'info': [
+        ('AC', hl.ArrayExpression),
+        ('AN', hl.Int32Expression),
+    ],
     'splice_ai': [
         ('delta_score', hl.Float32Expression),
         ('splice_consequence', hl.StringExpression),

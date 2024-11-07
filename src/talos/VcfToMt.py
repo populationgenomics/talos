@@ -383,9 +383,6 @@ def main(vcf_path: str, output_path: str, alpha_m: str | None = None):
     # checkpoint it locally to make everything faster
     mt = mt.checkpoint('checkpoint.mt', overwrite=True, _read_if_exists=True)
 
-    # take out some base fields - not sure why these should be at the top level. Expecting normalised
-    mt = mt.annotate_rows(AC=mt.info.AC[0], AF=mt.info.AF[0], AN=mt.info.AN)
-
     # re-shuffle the CSQ elements
     mt = csq_strings_into_hail_structs(vep_header_elements, mt)
 

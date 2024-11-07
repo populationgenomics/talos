@@ -249,8 +249,6 @@ def extract_annotations(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            AC=hl.or_else(mt.AC, MISSING_INT),
-            AN=hl.or_else(mt.AN, MISSING_INT),
             gnomad_ex_af=hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO),
             gnomad_ex_an=hl.or_else(mt.gnomad_exomes.AN, MISSING_INT),
             gnomad_ex_ac=hl.or_else(mt.gnomad_exomes.AC, MISSING_INT),
@@ -282,7 +280,8 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     min_callset_ac = 5
     return mt.filter_rows(
-        ((min_callset_ac >= mt.AC) | (ac_threshold > mt.AC / mt.AN)) | (mt.info.clinvar_talos == ONE_INT),
+        ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
+        | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
