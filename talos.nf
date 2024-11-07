@@ -1,9 +1,6 @@
+#!/usr/bin/env nextflow
 
-/*
- * Pipeline parameters - this sets the defaults
- */
-
-params.checkpoint = "$projectDir/assets/NO_FILE"
+nextflow.enable.dsl=2
 
 process VcfToMt {
     publishDir params.output_dir, mode: 'copy'
@@ -138,10 +135,6 @@ process RunHailFiltering {
         path clinvar
         val checkpoint
         path talos_config
-
-//     output:
-//         path '${params.cohort}_small_variants_labelled.vcf.bgz', emit: 'vcf'
-//         path '${params.cohort}_small_variants_labelled.vcf.bgz.tbi', emit: 'index'
 
     output:
         tuple \
