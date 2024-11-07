@@ -323,9 +323,7 @@ def drop_useless_fields(mt: hl.MatrixTable) -> hl.MatrixTable:
     mt = mt.drop(*[field for field in USELESS_FIELDS if field in mt.row_value])
 
     # now drop most VEP fields
-    return mt.annotate_rows(
-        vep=hl.Struct(transcript_consequences=mt.vep.transcript_consequences, variant_class=mt.vep.variant_class),
-    )
+    return mt.annotate_rows(vep=hl.Struct(transcript_consequences=mt.vep.transcript_consequences))
 
 
 def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
@@ -621,7 +619,6 @@ def vep_struct_to_csq(vep_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpres
             {
                 'consequence': hl.delimit(element.consequence_terms, delimiter='&'),
                 'feature': element.transcript_id,
-                'variant_class': vep_expr.variant_class,
                 'ensp': element.protein_id,
                 'gene': element.gene_id,
                 'symbol': element.gene_symbol,
