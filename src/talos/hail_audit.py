@@ -15,7 +15,6 @@ BASE_FIELDS_REQUIRED = [
 FIELDS_REQUIRED = {
     'info': [
         ('AC', hl.ArrayExpression),
-        # ('AF', hl.ArrayExpression),  # not explicitly required
         ('AN', hl.Int32Expression),
     ],
     'splice_ai': [

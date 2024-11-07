@@ -62,20 +62,15 @@ class CustomEncoder(json.JSONEncoder):
 schema = (
     'struct{'
     'locus:str,alleles:array<str>,rsid:str,qual:float64,filters:set<str>,'
-    'AC:int32,AF:float64,AN:int32,info:struct{AC:int32,AF:float64,AN:int32},'
+    'info:struct{AC:array<int32>,AF:array<float64>,AN:int32},'
     'gnomad_genomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
     'gnomad_exomes:struct{AF:float64,AN:int32,AC:int32,Hom:int32,Hemi:int32},'
     'splice_ai:struct{delta_score:float32,splice_consequence:str},'
-    'cadd:struct{PHRED:float32},'
-    'dbnsfp:struct{REVEL_score:str,MutationTaster_pred:str},'
     'clinvar:struct{clinical_significance:str,gold_stars:int32,allele_id:int32},'
-    'vep:struct{'
-    'transcript_consequences:array<struct{gene_symbol:str,gene_id:str,'
-    'variant_allele:str,consequence_terms:array<str>,transcript_id:str,'
-    'protein_id:str,gene_symbol_source:str,canonical:int32,cdna_start:int32,'
+    'vep:struct{transcript_consequences:array<struct{gene_symbol:str,gene_id:str,'
+    'consequence_terms:array<str>,transcript_id:str,protein_id:str,cdna_start:int32,'
     'cds_start:int32,cds_end:int32,biotype:str,protein_start:int32,protein_end:int32,'
-    'sift_score:float64,sift_prediction:str,polyphen_prediction:str,polyphen_score:'
-    'float64,mane_select:str,lof:str}>},geneIds:set<str>'
+    'mane_select:str,lof:str}>},geneIds:set<str>'
     '}'
 )
 
@@ -93,8 +88,8 @@ class BaseFields:
         filters: set[str] | None = None,
         rsid: str | None = '.',
         qual: float | None = 60.0,
-        ac: int | None = 1,
-        af: float | None = 0.001,
+        ac: list[int] | None = None,
+        af: list[float] | None = None,
         an: int | None = 1,
     ):
         self.locus = locus
@@ -102,11 +97,9 @@ class BaseFields:
         self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
-        # shouldn't be required in info anymore
-        self.info = {'AC': ac, 'AF': af, 'AN': an}
-        self.AC = ac
-        self.AF = af
-        self.AN = an
+        real_ac = ac or [1]
+        real_af = af or [0.001]
+        self.info = {'AC': real_ac, 'AF': real_af, 'AN': an}
 
 
 @dataclass
@@ -142,25 +135,6 @@ class Splice:
 
 
 @dataclass
-class CADD:
-    """
-    CADD data model
-    """
-
-    PHRED: float = field(default=0.01)
-
-
-@dataclass
-class DBnsfp:
-    """
-    DBnsfp data model
-    """
-
-    REVEL_score: str = field(default='0.0')
-    MutationTaster_pred: str = field(default='n')
-
-
-@dataclass
 class Clinvar:
     """
     Clinvar data model
@@ -179,26 +153,14 @@ class TXFields:
 
     gene_symbol: str
     gene_id: str
-    # todo marked for deletion
-    variant_allele: str = field(default_factory=str)
     consequence_terms: list = field(default_factory=list)
     transcript_id: str = field(default_factory=str)
     protein_id: str = field(default_factory=str)
-    # todo marked for deletion
-    gene_symbol_source: str = field(default_factory=str)
-    # todo marked for deletion
-    canonical: int = field(default=1)
     cdna_start: int = field(default=1)
     cds_end: int = field(default=1)
     biotype: str = field(default_factory=str)
     protein_start: int = field(default=1)
     protein_end: int = field(default=1)
-    # todo marked for deletion
-    sift_score: float = field(default=1.0)  # lowest possible score
-    # todo marked for deletion
-    polyphen_score: float = field(default=0.01)
-    sift_prediction: str = field(default_factory=str)
-    polyphen_prediction: str = field(default='neutral')
     mane_select: str = field(default_factory=str)
     lof: str = field(default_factory=str)
 
@@ -252,8 +214,6 @@ class VepVariant:
         tx: list[TXFields],
         sample_data: dict[str, Entry] | None = None,
         af: AFData | None = None,
-        cadd: CADD | None = None,
-        dbnsfp: DBnsfp | None = None,
         clinvar: Clinvar | None = None,
         splice: Splice | None = None,
     ):
@@ -264,8 +224,6 @@ class VepVariant:
             base (BaseFields): global variables
             sample_data (dict[str, Entry]): per-sample data
             af (AFData): Allele Freq data, or None
-            cadd (CADD): CADD data, or None
-            dbnsfp (DBnsfp): Revel/MutationTaster, or None
             clinvar (Clinvar): Clinvar data, or None
             splice (Splice): SpliceAI data, or None
         """
@@ -274,8 +232,6 @@ class VepVariant:
             {
                 'vep': {'transcript_consequences': tx},
                 'geneIds': {tx.gene_id for tx in tx},
-                'dbnsfp': dbnsfp or DBnsfp(),
-                'cadd': cadd or CADD(),
                 'clinvar': clinvar or Clinvar(),
                 'splice_ai': splice or Splice(),
             }
