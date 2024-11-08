@@ -1,8 +1,5 @@
 FROM python:3.11-bullseye AS base
 
-# gcloud (default) and none are availabe choices
-ARG cloud="gcloud"
-
 RUN apt update && apt install -y --no-install-recommends \
         apt-transport-https \
         bzip2 \
@@ -33,7 +30,6 @@ ENV PATH=$PATH:/opt/google-cloud-sdk/bin
 COPY requirements*.txt README.md setup.py ./
 COPY src src/
 RUN pip install --upgrade pip && pip install .[cpg]
-
 
 FROM base AS talos_none
 
