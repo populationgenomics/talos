@@ -1,5 +1,8 @@
 
 process RunHailFiltering {
+    container params.container
+
+
     // runs the hail small-variant filtering
     publishDir 'results', mode: 'copy'
 

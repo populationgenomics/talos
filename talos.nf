@@ -52,7 +52,9 @@ workflow {
     ConvertPedToPhenopackets(hpo_pedigree_channel)
 
     // make a phenopackets file (CPG-specific)
-    MakePhenopackets(params.cohort, params.sequencing_type, hpo_file_channel, params.sequencing_tech)
+    // commenting this call out as authenticating inside the container is more effort than it's worth right now
+    // the validation cohort doesn't have any phenotypes, so we gain nothing from this
+    // MakePhenopackets(params.cohort, params.sequencing_type, hpo_file_channel, params.sequencing_tech)
 
     // we can do this by saving as an object, or inside the method call
     GeneratePanelData(ConvertPedToPhenopackets.out[1], hpo_file_channel)

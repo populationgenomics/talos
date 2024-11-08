@@ -1,5 +1,8 @@
 
 process QueryPanelapp {
+    container params.container
+
+
     // uses matched panels to query the PanelApp API
     publishDir params.output_dir, mode: 'copy'
 

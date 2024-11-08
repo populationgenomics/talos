@@ -14,6 +14,7 @@ protobuf==3.20.2
 pydantic>=2.5.2
 pyspark>=3.5.1
 python-dateutil>=2
+# this is a ruff package with a python interface, limited to specific python versions
 semsimian
 tabulate>=0.8.9
 toml==0.10.2

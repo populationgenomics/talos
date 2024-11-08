@@ -1,5 +1,7 @@
 
 process FindGeneSymbolMap {
+    container params.container
+
     // finds corresponding gene symbols for the panelapp results
     publishDir params.output_dir, mode: 'copy'
 

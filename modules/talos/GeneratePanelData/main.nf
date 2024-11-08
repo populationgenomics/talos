@@ -1,5 +1,8 @@
 
 process GeneratePanelData {
+    container params.container
+
+
     // takes the HPO-embellished pedigree and matches panels to participants
     publishDir params.output_dir, mode: 'copy'
 

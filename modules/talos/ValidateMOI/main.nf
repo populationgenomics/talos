@@ -1,5 +1,8 @@
 
 process ValidateMOI {
+    container params.container
+
+
     // process the labelled variants
     publishDir params.output_dir, mode: 'copy'
 

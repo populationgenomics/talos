@@ -1,5 +1,7 @@
 
 process ConvertPedToPhenopackets {
+    container params.container
+
     // takes the pedigree file, and converts it to a phenopackets file and regular pedigree file
     publishDir params.output_dir, mode: 'copy'
 
