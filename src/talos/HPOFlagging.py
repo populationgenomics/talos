@@ -21,6 +21,9 @@ Variants where all categories are on that list will be removed unless any of the
 from argparse import ArgumentParser
 from collections import defaultdict
 
+from pyhpo import Ontology
+
+# https://pyhpo.readthedocs.io/en/stable/tutorial/basics.html
 from semsimian import Semsimian
 
 from talos.config import config_retrieve
