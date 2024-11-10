@@ -20,9 +20,9 @@ RUN chmod +x nextflow && \
 FROM base AS talos_gcloud
 
 # Google Cloud SDK: use the script-based installation, as the Debian package is outdated.
-RUN curl https://sdk.cloud.google.com > install.sh && \
-    bash install.sh --disable-prompts --install-dir=/opt && \
-    rm install.sh
+ADD https://sdk.cloud.google.com install_glcoud.sh
+RUN bash install_glcoud.sh --disable-prompts --install-dir=/opt && \
+    rm install_glcoud.sh
 
 ENV PATH=$PATH:/opt/google-cloud-sdk/bin
 

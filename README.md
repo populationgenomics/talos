@@ -6,15 +6,18 @@
 
 Talos is a Python variant prioritisation tool which finds variants with diagnostic relevance within large callsets. It incorporates consequence annotation, family structures, participant phenotypes, and existing clinical knowledge to identify variants likely to be relevant to participant phenotypes. It has been configured to do this with high specificity whilst retaining maximal sensitivity to reduce burden on curators.
 
-Analysis consists of two main phases:
+Analysis consists of three main phases:
 
-1. Variant Categorisation
+1. Selection of 'Region of Interest' for the analysis
+   * To ensure a highly specific analysis, we base the ROI for an analysis on known Mendelian disease genes (with their corresponding Mode of Inheritanc, MOI)
+   * If phenotypic data is provided for participants, we create a personalised ROI for each participant. This is done by matching between the HPO terms assigned to the participant, and disease-specific panels in PanelApp which are tagged with relevant HPO terms.
+   * If no phenotypic data is provided, we use the default Mendeliome ROI.
+2. Variant Categorisation
    * We have created a number of `categories`, each represents a decision tree of criteria.
    * If a variant passes all criteria of a category, it is labelled with that category.
    * If a variant passes multiple categories, it is labelled with all applicable categories.
    * Once all categories have been applied, any un-categorised variants are removed.
-
-2. Mode of Inheritance (MOI) Checking
+3. Mode of Inheritance (MOI) Checking
    * For each remaining variant, we check if the variant's presence in members of the family is consistent with the MOI associated with the gene it is found in.
      * This includes checking for individual variants and compound-heterozygotes between multiple different variants.
    * If the variant is consistent with the MOI, the variant is retained for a final report.
@@ -23,9 +26,30 @@ Analysis consists of two main phases:
 
 At this time the recommended way to use this tool is via Docker, building using the Dockerfile in this repository.
 
-```commandline
-docker build -t talos:6.1.3 .
+The Dockerfile offers two builds, use the `--target` flag to specify which build you want to use. To only build the required layers, ensure `DOCKERBUILDKIT` is set to `1` in your environment.
+
+- one for a non-cloud environment (default, called `talos_none`)
+- one for a Google cloud environment (called `talos_gcloud`).
+
+```bash
+DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.1.3  .
 ```
+
+## Workflow Demonstration with Nextflow
+
+A Nextflow pipeline is provided to demonstrate how to run Talos. This pipeline is designed to be run on a local machine, and requires that you have nextflow installed locally, and a docker daemon running. First, as described above, build the docker image:
+
+```bash
+docker build --target talos_none -t talos:6.1.3  .
+```
+
+Then, run the pipeline:
+
+```bash
+nextflow -c nf_test_inputs/nextflow.config run talos.nf
+```
+
+This will run the pipeline on the test data provided in `nf_test_inputs`. The output will be written to `talos_nf_results`.
 
 ## Input Data
 
