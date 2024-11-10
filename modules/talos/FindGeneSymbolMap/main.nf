@@ -7,12 +7,14 @@ process FindGeneSymbolMap {
 
     input:
         path panelapp_data
+        path talos_config
 
     output:
         path "${params.cohort}_symbol_to_ensg.json"
 
     // the command
     """
-    FindGeneSymbolMap --panelapp ${panel_data}  --out_path ${params.cohort}_symbol_to_ensg.json
+    export TALOS_CONFIG=${talos_config}
+    FindGeneSymbolMap --input ${panelapp_data}  --output ${params.cohort}_symbol_to_ensg.json
     """
 }

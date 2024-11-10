@@ -10,6 +10,8 @@ include { QueryPanelapp } from './modules/talos/QueryPanelapp/main'
 include { FindGeneSymbolMap } from './modules/talos/FindGeneSymbolMap/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
+include { HPOFlagging } from './modules/talos/HPOFlagging/main'
+include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
 
 
 process RunHailFilteringSV {
@@ -43,6 +45,8 @@ workflow {
     hpo_file_channel = Channel.fromPath(params.hpo)
     runtime_config_channel = Channel.fromPath(params.runtime_config)
     clinvar_tar_channel = Channel.fromPath(params.clinvar)
+    gen2phen_channel = Channel.fromPath(params.gen2phen)
+    phenio_db_channel = Channel.fromPath(params.phenio_db)
 
     // turn the VCF into a MatrixTable
     input_vcf = Channel.fromPath(params.annotated_vcf).map{ it -> [file(it), file("${it}.tbi")]}
@@ -59,10 +63,9 @@ workflow {
     // we can do this by saving as an object, or inside the method call
     GeneratePanelData(ConvertPedToPhenopackets.out[1], hpo_file_channel)
 
-    QueryPanelapp(
-        GeneratePanelData.out,
-        runtime_config_channel,
-    )
+    QueryPanelapp(GeneratePanelData.out, runtime_config_channel)
+
+    FindGeneSymbolMap(QueryPanelapp.out, runtime_config_channel)
 
     // run the hail filtering
     RunHailFiltering(
@@ -83,4 +86,19 @@ workflow {
         runtime_config_channel,
     )
 
+    // Flag any relevant HPO terms
+    HPOFlagging(
+        ValidateMOI.out,
+        FindGeneSymbolMap.out,
+        gen2phen_channel,
+        phenio_db_channel,
+        runtime_config_channel,
+    )
+
+    // Generate HTML report - only suited to single-report runs
+    CreateTalosHTML(
+        HPOFlagging.out.pheno_annotated,
+        QueryPanelapp.out,
+        runtime_config_channel,
+    )
 }
