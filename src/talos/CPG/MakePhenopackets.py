@@ -15,17 +15,17 @@ encapsulating their phenotypic data and relevant ontological details.
 
 import re
 from argparse import ArgumentParser
+from collections import defaultdict
 
-import networkx as nx
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
-from obonet import read_obo
+from pyhpo import Ontology
 
 from metamist.graphql import gql, query
 from talos.static_values import get_logger
 
 HPO_KEY = 'HPO Terms (present)'
-HPO_RE = re.compile(r'HP:[0-9]+')
+HPO_RE = re.compile(r'HP:\d+')
 PARTICIPANT_QUERY = gql(
     """
 query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {
@@ -48,11 +48,37 @@ query MyQuery($project: String!, $sequencing_type: String!, $technology: String!
 }""",
 )
 
+# create an ontology object, once
+_ = Ontology()
+
 # map the integer reported sex values to the enum
 reported_sex_map = {1: pps2.Sex.MALE, 2: pps2.Sex.FEMALE}
 
 
-def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[str, list[dict[str, str]]]:
+def get_all_moi_children() -> set[str]:
+    """
+    get all the HPO terms which are children of the term 'Mode of Inheritance' (HP...5)
+    Returns:
+        set of all HPO terms Strings
+    """
+
+    # start collecting all relevant terms
+    moi_and_related_terms: set[str] = set()
+
+    # starting from this term, check all children, recursively
+    terms_to_check: list[str] = [Ontology.get_hpo_object('HP:0000005')]
+
+    # until empty, add each term, then add its children to the list to process
+    while terms_to_check:
+        term = terms_to_check.pop()
+        moi_and_related_terms.add(term.id)
+        for child in term.children:
+            terms_to_check.append(child)
+
+    return moi_and_related_terms
+
+
+def find_hpo_labels(metamist_data: dict) -> dict[str, list[dict[str, str]]]:
     """
     match HPO terms to their plaintext names
 
@@ -62,22 +88,19 @@ def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[st
     disease genes and their MOI terms directly, which messes with what we are trying to do:
         associate patient _phenotypes_ with variant _genes_.
 
+    As we're now using hpo3/pyHPO which ships with a built-in ontology, we can use assume presence of a valid Ontology,
+    simplifying the code
+
     Args:
         metamist_data ():
-        hpo_file ():
 
     Returns:
         dict, participant IDs to HPO:labels
     """
-    all_hpos: set[str] = set()
-    per_sg_hpos: dict[str, set[str]] = {}
+    per_sg_hpos: dict[str, list[dict[str, str]]] = defaultdict(list)
 
-    moi_nodes: set[str] = set()
-    hpo_graph = None
-    if hpo_file:
-        # create a graph of HPO terms
-        hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
-        moi_nodes = nx.ancestors(hpo_graph, 'HP:0000005')
+    # get all MOI related terms
+    moi_nodes: set[str] = get_all_moi_children()
 
     for sg in metamist_data['project']['sequencingGroups']:
         hpos = set(HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, '')))
@@ -85,23 +108,15 @@ def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[st
         # groom out any strictly MOI related terms
         hpos -= moi_nodes
 
-        all_hpos.update(hpos)
-        per_sg_hpos[sg['id']] = hpos
+        # allow for HPO terms to be missing from this edition of the ontology
+        for hpo in hpos:
+            try:
+                per_sg_hpos[sg['id']].append({'id': hpo, 'label': Ontology.get_hpo_object(hpo).name})
+            except ValueError:
+                get_logger(__file__).error(f'HPO term was absent from the tree: {hpo}')
+                per_sg_hpos[sg['id']].append({'id': hpo, 'label': 'Unknown'})
 
-    # no label obtained, that's fine...
-    if not (hpo_file and hpo_graph):
-        return {sg: [{'id': hp, 'label': 'Unknown'} for hp in hpos] for sg, hpos in per_sg_hpos.items()}
-
-    # create a dictionary of HPO terms to their text
-    hpo_to_text: dict[str, str] = {}
-    for hpo in all_hpos:
-        if not hpo_graph.has_node(hpo):
-            get_logger(__file__).error(f'HPO term was absent from the tree: {hpo}')
-            hpo_to_text[hpo] = 'Unknown'
-        else:
-            hpo_to_text[hpo] = hpo_graph.nodes[hpo]['name']
-
-    return {sg: [{'id': hp, 'label': hpo_to_text[hp]} for hp in hpos] for sg, hpos in per_sg_hpos.items()}
+    return per_sg_hpos
 
 
 def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[str, list[dict[str, str]]]):
@@ -170,7 +185,7 @@ def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[st
     return cohort
 
 
-def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo_file: str | None = None):
+def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read'):
     """
     Assemble a cohort phenopacket from the metamist data
     Args:
@@ -178,7 +193,6 @@ def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo
         dataset (str): the dataset to query for
         seq_type (str): exome/genome
         tech (str): type of sequence data to query for
-        hpo_file (str): path to an obo file containing HPO tree
     """
 
     # pull all the relevant data from metamist
@@ -188,7 +202,7 @@ def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo
     )
 
     # match names to HPO terms
-    labelled_hpos = find_hpo_labels(hpo_file=hpo_file, metamist_data=metamist_data)
+    labelled_hpos = find_hpo_labels(metamist_data=metamist_data)
 
     # build the cohort
     cohort = assemble_phenopackets(dataset=dataset, metamist_data=metamist_data, hpo_lookup=labelled_hpos)
@@ -203,11 +217,10 @@ def cli_main():
     parser.add_argument('--dataset', help='The dataset to query for')
     parser.add_argument('--output', help='The output file')
     parser.add_argument('--type', help='Sequencing type (exome or genome)')
-    parser.add_argument('--hpo', help='HPO ontology file')
     parser.add_argument('--tech', help='Sequencing technology', default='short-read')
     args = parser.parse_args()
 
-    main(dataset=args.dataset, output=args.output, seq_type=args.type, hpo_file=args.hpo, tech=args.tech)
+    main(dataset=args.dataset, output=args.output, seq_type=args.type, tech=args.tech)
 
 
 if __name__ == '__main__':
