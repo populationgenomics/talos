@@ -13,30 +13,6 @@ include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
 include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
 
-
-process RunHailFilteringSV {
-    // runs the hail structural-variant filtering
-    // here we can have multiple files - should we derive output name from input?
-    publishDir 'results', mode: 'copy'
-
-    input:
-        path matrix_table
-        path panelapp_data
-        path pedigree
-
-    output:
-        path "${params.cohort}_small_variants.vcf.bgz", emit: "vcf"
-        path "${params.cohort}_small_variants.vcf.bgz.tbi", emit: "index"
-
-    """
-    RunHailFilteringSV \
-        --mt ${matrix_table} \
-        --panelapp ${panelapp_data} \
-        --pedigree ${pedigree} \
-        --vcf_out ${params.cohort}_small_variants.vcf.bgz
-    """
-}
-
 workflow {
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
