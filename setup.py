@@ -62,6 +62,8 @@ setup(
             'BuildReportIndexPage = talos.CPG.BuildReportIndexPage:main',
             # CPG implementation, builds cohort phenopackets
             'MakePhenopackets = talos.CPG.MakePhenopackets:cli_main',
+            # CPG implementation, builds cohort phenopackets from a pedigree with HPO terms
+            'ConvertPedToPhenopackets = talos.CPG.convert_ePED_to_phenopackets:cli_main',
             # use the HPO terms to select panels for this analysis
             'GeneratePanelData = talos.GeneratePanelData:cli_main',
             # query PanelApp for those selected panels

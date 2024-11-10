@@ -1,2 +1,2 @@
 gql
-metamist>=6.5.0
+metamist>=7.4.0

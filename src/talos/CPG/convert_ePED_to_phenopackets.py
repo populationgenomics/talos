@@ -4,7 +4,8 @@ script for converting the 'extended PED format' to a regular PED file and Phenop
 
 from argparse import ArgumentParser
 from os import makedirs
-from os.path import join, exists
+from os.path import exists
+from pathlib import Path
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
@@ -78,16 +79,17 @@ def main(ped_file: str, output: str) -> None:
             participant.data = []
             minimal_ped.append(str(participant))
 
+    output_dir = Path(output).parent
     # make a parent directory for the output, if required
-    if not exists(output):
-        makedirs(output)
+    if not exists(output_dir):
+        makedirs(output_dir)
 
     # save the phenopacket JSON
-    with open(join(output, 'phenopackets.json'), 'w', encoding='utf-8') as handle:
+    with open(f'{output}_phenopackets.json', 'w', encoding='utf-8') as handle:
         handle.write(MessageToJson(cohort))
 
     # save the pedigree
-    with open(join(output, 'pedigree.ped'), 'w', encoding='utf-8') as handle:
+    with open(f'{output}_pedigree.ped', 'w', encoding='utf-8') as handle:
         handle.write(''.join(minimal_ped))
 
 
