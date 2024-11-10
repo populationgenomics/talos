@@ -8,10 +8,10 @@ Talos is a Python variant prioritisation tool which finds variants with diagnost
 
 Analysis consists of three main phases:
 
-1. Selection of 'Region of Interest' for the analysis
-   * To ensure a highly specific analysis, we base the ROI for an analysis on known Mendelian disease genes (with their corresponding Mode of Inheritanc, MOI)
-   * If phenotypic data is provided for participants, we create a personalised ROI for each participant. This is done by matching between the HPO terms assigned to the participant, and disease-specific panels in PanelApp which are tagged with relevant HPO terms.
-   * If no phenotypic data is provided, we use the default Mendeliome ROI.
+1. Selection of Gene Panel for the analysis
+   * To ensure a highly specific analysis, we base the analysis on known Mendelian disease genes (with their corresponding Mode of Inheritance, MOI)
+   * If phenotypic data is provided for participants, we create a personalised gene panel for each participant. This is done by matching between the HPO terms assigned to the participant, and disease-specific panels in PanelApp which are tagged with relevant HPO terms.
+   * If no phenotypic data is provided, we use the default Mendeliome for all participants.
 2. Variant Categorisation
    * We have created a number of `categories`, each represents a decision tree of criteria.
    * If a variant passes all criteria of a category, it is labelled with that category.
