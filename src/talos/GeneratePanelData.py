@@ -12,8 +12,7 @@ from collections import defaultdict
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import ParseDict
-from networkx import MultiDiGraph
-from obonet import read_obo
+from pyhpo import Ontology
 
 from talos.config import config_retrieve
 from talos.models import ParticipantHPOPanels, PhenoPacketHpo, PhenotypeMatchedPanels
@@ -32,6 +31,9 @@ except KeyError:
     get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     PANELS_ENDPOINT = PANELAPP_HARD_CODED_DEFAULT
     DEFAULT_PANEL = PANELAPP_HARD_CODED_BASE_PANEL
+
+# create an ontology object, once
+_ = Ontology()
 
 
 def get_panels(endpoint: str = PANELS_ENDPOINT) -> dict[str, set[int]]:
@@ -89,60 +91,15 @@ def set_up_cohort_pmp(cohort: pps2.Cohort) -> tuple[PhenotypeMatchedPanels, set[
     return hpo_dict, all_hpos
 
 
-def match_hpo_terms(
-    panel_map: dict[str, set[int]],
-    hpo_tree: MultiDiGraph,
-    hpo_str: str,
-    selections: set[int] | None = None,
-) -> set[int]:
-    """
-    get panels relevant for this HPO using a recursive edge traversal
-    for live terms we recurse on all parents
-    if a term is obsolete we instead check each replacement term
-
-    relevant usage guide:
-    https://github.com/dhimmel/obonet/blob/main/examples/go-obonet.ipynb
-
-    Args:
-        panel_map (dict):
-        hpo_tree (): a graph object representing the HPO tree
-        hpo_str (str): the query HPO term
-        selections (set[int]): collected panel IDs so far
-
-    Returns:
-        set: panel IDs relating to this HPO term
-    """
-
-    if selections is None:
-        selections = set()
-
-    # identify identical match and select the panel
-    if hpo_str in panel_map:
-        selections.update(panel_map[hpo_str])
-
-    # if a node is invalid, recursively call this method for each replacement D:
-    # there are simpler ways, just none that are as fun to write
-    if not hpo_tree.has_node(hpo_str):
-        get_logger().error(f'HPO term was absent from the tree: {hpo_str}')
-        return selections
-
-    hpo_node = hpo_tree.nodes[hpo_str]
-    if hpo_node.get('is_obsolete', 'false') == 'true':
-        for hpo_term in hpo_node.get('replaced_by', []):
-            selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, selections))
-    # search for parent(s), even if the term is obsolete
-    for hpo_term in hpo_node.get('is_a', []):
-        selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, selections))
-    return selections
-
-
-def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], hpo_file: str, all_hpos: set[str]) -> dict[str, set[int]]:
+def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], all_hpos: set[str]) -> dict[str, set[int]]:
     """
     take the HPO terms from the participant metadata, and match to panels
 
+    greatly simplified implementation, as we're now using hpo3/pyHPO which ships with a built-in ontology
+    we're checking for clashes between PanelApp contents and each exact term, or its ancestors
+
     Args:
         hpo_panel_map (dict): panel IDs to all related panels
-        hpo_file (str): path to an obo file containing HPO tree
         all_hpos (set[str]): collection of all unique HPO terms
 
     Returns:
@@ -150,12 +107,23 @@ def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], hpo_file: str, all_
         a second dictionary linking all HPO terms to their plaintext names
     """
 
-    hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
-
-    hpo_to_panels = {}
+    hpo_to_panels: dict[str, set[int]] = {}
     for hpo in all_hpos:
-        panel_ids = match_hpo_terms(panel_map=hpo_panel_map, hpo_tree=hpo_graph, hpo_str=hpo)
-        hpo_to_panels[hpo] = panel_ids
+        # set must exist, even if empyt - defaultdict doesn't do this
+        hpo_to_panels[hpo] = set()
+
+        # if we have an exact match, use that as a starting point
+        if hpo in hpo_panel_map:
+            hpo_to_panels[hpo] = hpo_panel_map[hpo]
+
+        # try and fetch the node in the ontology
+        try:
+            hpo_node = Ontology.get_hpo_object(hpo)
+            for parent in hpo_node.all_parents:
+                if parent.id in hpo_panel_map:
+                    hpo_to_panels[hpo].update(hpo_panel_map[parent.id])
+        except ValueError:
+            get_logger(__file__).error(f'HPO term was absent from the tree: {hpo}')
 
     return hpo_to_panels
 
@@ -187,12 +155,11 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--input', help='GA4GH Cohort/PhenoPacket File')
     parser.add_argument('--output', help='Path to write PhenotypeMatchedPanels to (JSON)')
-    parser.add_argument('--hpo', help='Local copy of HPO obo file', required=True)
     args = parser.parse_args()
-    main(ga4gh_cohort_file=args.input, panel_out=args.output, hpo_file=args.hpo)
+    main(ga4gh_cohort_file=args.input, panel_out=args.output)
 
 
-def main(ga4gh_cohort_file: str, panel_out: str, hpo_file: str):
+def main(ga4gh_cohort_file: str, panel_out: str):
     """
     query PanelApp - get all panels and their assc. HPOs
     read Cohort/PhenoPacket file
@@ -202,7 +169,6 @@ def main(ga4gh_cohort_file: str, panel_out: str, hpo_file: str):
     Args:
         ga4gh_cohort_file (str): path to GA4GH Cohort/PhenoPacket file
         panel_out (str): where to write PhenotypeMatchedPanels file
-        hpo_file (str): path to an obo file containing HPO tree
     """
 
     # read the Cohort/PhenoPacket file as a JSON
@@ -217,7 +183,7 @@ def main(ga4gh_cohort_file: str, panel_out: str, hpo_file: str):
 
     # match HPO terms to panel IDs
     # returns a lookup of each HPO term in the cohort, and panels it is associated with
-    hpo_to_panels = match_hpos_to_panels(hpo_panel_map=panels_by_hpo, all_hpos=all_hpos, hpo_file=hpo_file)
+    hpo_to_panels = match_hpos_to_panels(hpo_panel_map=panels_by_hpo, all_hpos=all_hpos)
 
     match_participants_to_panels(pmp_dict, hpo_to_panels)
 

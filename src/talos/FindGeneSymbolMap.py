@@ -34,7 +34,8 @@ async def match_ensgs_to_symbols(genes: list[str], session: ClientSession) -> di
     r.raise_for_status()
     json_reponse = await r.json()
     # match symbol to the ENSG (or Unknown if the key is missing, or has a None value)
-    return {value.get('display_name'): key for key, value in json_reponse.items() if value}
+    # we want the key to be ENSG
+    return {key: value.get('display_name') for key, value in json_reponse.items() if value}
 
 
 async def match_symbol_to_ensg(gene_symbol: str, session: ClientSession) -> tuple[str, str]:

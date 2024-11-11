@@ -95,7 +95,7 @@ class VariantCommon(BaseModel):
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)
     sample_categories: list[str] = Field(default_factory=list, exclude=True)
     sample_support: list[str] = Field(default_factory=list, exclude=True)
-    phased: dict = Field(default_factory=dict)
+    phased: dict = Field(default_factory=dict, exclude=True)
 
     def __str__(self):
         return repr(self)

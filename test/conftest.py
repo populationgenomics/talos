@@ -10,6 +10,7 @@ from typing import Any
 import hail as hl
 import pytest
 from cyvcf2 import VCFReader
+from pyhpo import Ontology
 
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 from talos.utils import create_small_variant, read_json_from_path
@@ -24,7 +25,6 @@ environ['TALOS_CONFIG'] = join(INPUT, 'example_config.toml')
 LABELLED = join(INPUT, '1_labelled_variant.vcf.bgz')
 Talos_OUTPUT = join(INPUT, 'aip_output_example.json')
 DE_NOVO_PED = join(INPUT, 'de_novo_ped.fam')
-FAKE_OBO = join(INPUT, 'hpo_test.obo')
 LOOKUP_PED = join(INPUT, 'mock_sm_lookup.json')
 PHASED_TRIO = join(INPUT, 'newphase.vcf.bgz')
 PED_FILE = join(INPUT, 'pedfile.ped')
@@ -57,6 +57,17 @@ def fixture_hail_cleanup():
     # remove all hail log files
     for filename in log_files:
         filename.unlink()
+
+
+@pytest.fixture(name='setup_ontology', scope='session', autouse=True)
+def fixture_set_up_pyhpo_ontology():
+    """
+    a fixture to instantiate a pyhpo ontology, once
+    """
+    _ = Ontology()
+
+    # yield something to suspend
+    yield ''
 
 
 @pytest.fixture(name='make_a_mt', scope='session')
@@ -97,12 +108,6 @@ def fixture_test_input_path() -> str:
 def fixture_test_input_models_path() -> str:
     """path to the test input directory"""
     return join(INPUT, 'models')
-
-
-@pytest.fixture(name='fake_obo_path', scope='session')
-def fixture_fake_obo() -> str:
-    """path to fake obo"""
-    return FAKE_OBO
 
 
 @pytest.fixture(name='fake_panelapp_overview', scope='session')
