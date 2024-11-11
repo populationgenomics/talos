@@ -55,29 +55,6 @@ _ = Ontology()
 reported_sex_map = {1: pps2.Sex.MALE, 2: pps2.Sex.FEMALE}
 
 
-def get_all_moi_children() -> set[str]:
-    """
-    get all the HPO terms which are children of the term 'Mode of Inheritance' (HP...5)
-    Returns:
-        set of all HPO terms Strings
-    """
-
-    # start collecting all relevant terms
-    moi_and_related_terms: set[str] = set()
-
-    # starting from this term, check all children, recursively
-    terms_to_check: list[HPOTerm] = [Ontology.get_hpo_object('HP:0000005')]
-
-    # until empty, add each term, then add its children to the list to process
-    while terms_to_check:
-        term = terms_to_check.pop()
-        moi_and_related_terms.add(term.id)
-        for child in term.children:
-            terms_to_check.append(child)
-
-    return moi_and_related_terms
-
-
 def find_hpo_labels(metamist_data: dict) -> dict[str, list[dict[str, str]]]:
     """
     match HPO terms to their plaintext names
@@ -99,14 +76,13 @@ def find_hpo_labels(metamist_data: dict) -> dict[str, list[dict[str, str]]]:
     """
     per_sg_hpos: dict[str, list[dict[str, str]]] = defaultdict(list)
 
-    # get all MOI related terms
-    moi_nodes: set[str] = get_all_moi_children()
-
     for sg in metamist_data['project']['sequencingGroups']:
-        hpos = set(HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, '')))
-
-        # groom out any strictly MOI related terms
-        hpos -= moi_nodes
+        # select all HPO terms, so long as they are not a child of 'Mode of Inheritance' (HP:0000005)
+        hpos = {
+            hpo_term
+            for hpo_term in HPO_RE.findall(sg['sample']['participant']['phenotypes'].get(HPO_KEY, ''))
+            if 'HP:0000005' not in Ontology.get_hpo_object(hpo_term).all_parents
+        }
 
         # allow for HPO terms to be missing from this edition of the ontology
         for hpo in hpos:
