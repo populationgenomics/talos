@@ -19,7 +19,7 @@ from collections import defaultdict
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
-from pyhpo import Ontology
+from pyhpo import HPOTerm, Ontology
 
 from metamist.graphql import gql, query
 from talos.static_values import get_logger
@@ -66,7 +66,7 @@ def get_all_moi_children() -> set[str]:
     moi_and_related_terms: set[str] = set()
 
     # starting from this term, check all children, recursively
-    terms_to_check: list[str] = [Ontology.get_hpo_object('HP:0000005')]
+    terms_to_check: list[HPOTerm] = [Ontology.get_hpo_object('HP:0000005')]
 
     # until empty, add each term, then add its children to the list to process
     while terms_to_check:
