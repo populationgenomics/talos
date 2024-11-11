@@ -19,7 +19,7 @@ from collections import defaultdict
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
-from pyhpo import HPOTerm, Ontology
+from pyhpo import Ontology
 
 from metamist.graphql import gql, query
 from talos.static_values import get_logger

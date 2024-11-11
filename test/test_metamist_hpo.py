@@ -18,20 +18,11 @@ def test_get_panels(httpx_mock, fake_panelapp_overview):
 def test_match_hpos_to_panels():
     """
     test the hpo-to-panel matching
-    TODO this test will fail without real HPO terms
-    TODO HP:0000574 has to feature somehow
-    TODO all my Harry Potter related test fixtures are useless
     """
-    panel_map = {'HP:2': {1, 2}, 'HP:5': {5}}
-    assert match_hpos_to_panels(panel_map, all_hpos={'HP:4', 'HP:7a'}) == {
-        'HP:4': {1, 2},
-        'HP:7a': {1, 2, 5},
-    }
-
-    # full depth from the terminal node should capture all panels
-    assert match_hpos_to_panels(panel_map, all_hpos={'HP:4', 'HP:7a'}) == {
-        'HP:4': {1, 2},
-        'HP:7a': {1, 2, 5},
+    panel_map = {'HP:0000574': {1, 2}, 'HP:0000234': {5}}
+    assert match_hpos_to_panels(panel_map, all_hpos={'HP:0000574', 'HP:0000234'}) == {
+        'HP:0000574': {1, 2, 5},
+        'HP:0000234': {5},
     }
 
 
