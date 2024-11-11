@@ -24,18 +24,44 @@ Variants where all categories are on that list will be removed unless any of the
 
 from argparse import ArgumentParser
 
-from pyhpo import HPOSet, Ontology
+from pyhpo import Gene, HPOSet, Ontology
 from pyhpo.stats import EnrichmentModel
 
 from talos.config import config_retrieve
 from talos.models import ParticipantResults, ResultData
 from talos.static_values import get_granular_date
-from talos.utils import phenotype_label_history, read_json_from_path
+from talos.utils import get_logger, phenotype_label_history, read_json_from_path
 
 
 # some setup for hpo3
 _ = Ontology()
 ENRICHMENT_MODEL = EnrichmentModel('gene')
+
+
+def get_gene_enrichment(hpo_terms: list[str]) -> dict[str, dict[str, float]]:
+    """
+    get the gene enrichment for a set of HPO terms
+    Args:
+        hpo_terms ():
+
+    Returns:
+        dictionary of genes and their enrichments
+    """
+
+    # pull the enrichment threshold from config
+    enrichment_threshold = config_retrieve(['HPOFlagging', 'enrichment_threshold'], 0.05)
+
+    # check for genes enriched in the participant's HPO terms
+    participant_hpo3 = HPOSet.from_queries(hpo_terms)
+
+    # find genes which are enriched relative to the participant's HPO terms
+    filtered_enriched: dict[str, dict[str, float]] = {
+        gene['item'].name: {'enrichment': gene['enrichment'], 'fold': gene['fold']}
+        for gene in ENRICHMENT_MODEL.enrichment(method='hypergeom', hposet=participant_hpo3)
+        if gene['enrichment'] <= enrichment_threshold
+    }
+
+    return filtered_enriched
 
 
 def annotate_phenotype_matches(result_object: ResultData, ensg2symbol: str):
@@ -50,12 +76,6 @@ def annotate_phenotype_matches(result_object: ResultData, ensg2symbol: str):
 
     ensg_map: dict[str, str] = read_json_from_path(ensg2symbol)
 
-    enrichment_threshold = config_retrieve(['HPOFlagging', 'enrichment_threshold'], 0.05)
-
-    # Remove from various configs, swap for enrichment_threshold
-    _semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
-    _min_similarity: float = config_retrieve(['HPOFlagging', 'min_similarity'])
-
     for participant in result_object.results.values():
         # no HPOs, no problems
         if not participant.metadata.phenotypes:
@@ -64,27 +84,28 @@ def annotate_phenotype_matches(result_object: ResultData, ensg2symbol: str):
         participant_hpos_dict = {hpo.id: hpo.label for hpo in participant.metadata.phenotypes}
         participant_hpos = list(participant_hpos_dict.keys())
 
-        # check for genes enriched in the participant's HPO terms
-        participant_hpo3 = HPOSet.from_queries(participant_hpos)
-
         # find genes which are enriched relative to the participant's HPO terms
-        filtered_enriched: dict[str, dict[str, float]] = {
-            gene['item'].name: {'enrichment': gene['enrichment'], 'fold': gene['fold']}
-            for gene in ENRICHMENT_MODEL.enrichment(method='hypergeom', hposet=participant_hpo3)
-            if gene['enrichment'] <= enrichment_threshold
-        }
+        filtered_enriched = get_gene_enrichment(participant_hpos)
 
         for variant in participant.variants:
-            var_gene: str = variant.var_data.info['gene_id']  # type: ignore[assignment]
-            var_symbol = ensg_map.get(var_gene)
-
-            if var_symbol is None:
-                continue
+            var_symbol = ensg_map.get(variant.var_data.info['gene_id'])  # type: ignore[assignment]
 
             if var_symbol in filtered_enriched:
                 variant.phenotype_labels.add(f'p.{filtered_enriched[var_symbol]["enrichment"]:.4f}')
                 if variant.date_of_phenotype_match is None:
                     variant.date_of_phenotype_match = get_granular_date()
+
+            # get exactly matching  HPO terms for the gene
+            try:
+                gene_hpo_set = Gene.get(var_symbol).hpo_set()
+                gene_hpo_strings = {hpo_term.id for hpo_term in gene_hpo_set}
+                for hpo_term in gene_hpo_strings & set(participant_hpos):
+                    if variant.date_of_phenotype_match is None:
+                        variant.date_of_phenotype_match = get_granular_date()
+                    hpo_object = Ontology.get_hpo_object(hpo_term)
+                    variant.phenotype_labels.add(f'{hpo_term}: {hpo_object.name} (exact)')
+            except KeyError:
+                get_logger(__file__).warning(f'Could not find gene {var_symbol} in the ontology')
 
     phenotype_label_history(result_object)
 
