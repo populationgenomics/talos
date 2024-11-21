@@ -8,13 +8,17 @@ and to ensure that we can separately repeat this one step in isolation
 if we run into API/throttling issues
 
 This may  be integrated into the HPO~Phenotype matching script if it runs consistently enough
+
+Backoff wrapping is done using tenacity
+https://tenacity.readthedocs.io/en/latest/
 """
 
+import aiohttp
 import asyncio
 import json
 from argparse import ArgumentParser
 
-from aiohttp import ClientSession
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
@@ -23,7 +27,13 @@ from talos.utils import chunks, read_json_from_path
 ENSEMBL_REST_API = 'http://rest.ensembl.org'
 
 
-async def match_ensgs_to_symbols(genes: list[str], session: ClientSession) -> dict[str, str]:
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
+    retry=retry_if_exception_type(aiohttp.client_exceptions.ClientResponseError),
+    reraise=True,
+)
+async def match_ensgs_to_symbols(genes: list[str], session: aiohttp.ClientSession) -> dict[str, str]:
     data_payload = json.dumps({'ids': genes})
     r = await session.request(
         method='POST',
@@ -37,7 +47,13 @@ async def match_ensgs_to_symbols(genes: list[str], session: ClientSession) -> di
     return {value.get('display_name'): key for key, value in json_reponse.items() if value}
 
 
-async def match_symbol_to_ensg(gene_symbol: str, session: ClientSession) -> tuple[str, str]:
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
+    retry=retry_if_exception_type(aiohttp.client_exceptions.ClientResponseError),
+    reraise=True,
+)
+async def match_symbol_to_ensg(gene_symbol: str, session: aiohttp.ClientSession) -> tuple[str, str]:
     r = await session.request(
         method='GET',
         url=f'{ENSEMBL_REST_API}/lookup/id/{gene_symbol}',
@@ -75,9 +91,9 @@ def main(panelapp_path: str, output: str):
 
 
 async def get_symbols_for_ensgs(genes: list[str]) -> dict[str, str]:
-    chunksize = config_retrieve(['FindGeneSymbolMap', 'chunk_size'], 800)
+    chunksize = config_retrieve(['FindGeneSymbolMap', 'chunk_size'], 1800)
     all_results: dict[str, str] = {}
-    async with ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
         for chunk in chunks(genes, chunksize):
             all_results |= await match_ensgs_to_symbols(chunk, session=session)
     return all_results
