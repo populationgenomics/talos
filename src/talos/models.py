@@ -283,7 +283,9 @@ class SmallVariant(VariantCommon):
         Returns:
             return a flag if this sample has low read depth
         """
-        if self.depths[sample] < threshold and not var_is_cat_1:
+        if var_is_cat_1:
+            return set()
+        if self.depths[sample] < threshold:
             return {'Low Read Depth'}
         return set()
 
