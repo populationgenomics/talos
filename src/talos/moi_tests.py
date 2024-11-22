@@ -264,18 +264,22 @@ class BaseMoi:
         }
 
     @staticmethod
-    def check_frequency_passes(info: dict, thresholds: dict[str, int | float]) -> bool:
+    def check_frequency_passes(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
         """
         Method to check multiple info keys against a single threshold
         This just reduces the line count, as this is called a bunch of times
+        By default we always let clinvar pathogenic variants pass
 
         Args:
             info (): the dict of values for this dict
             thresholds (): the dict of keys - thresholds to test against
+            permit_clinvar (bool): if True, always allow clinvar pathogenic variants to pass
 
         Returns:
             True if any of the info attributes is above the threshold
         """
+        if permit_clinvar and info.get('categoryboolean1'):
+            return True
         return all(info.get(key, 0) <= test for key, test in thresholds.items())
 
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
@@ -353,7 +357,10 @@ class DominantAutosomal(BaseMoi):
 
         # reject support for dominant MOI, apply checks based on var type
         if principal.support_only or not (
-            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
+            self.check_frequency_passes(
+                principal.info,
+                self.freq_tests[principal.__class__.__name__],
+            )
         ):
             return classifications
 
@@ -440,14 +447,16 @@ class RecessiveAutosomalCH(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if not (
-            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
-            or principal.info.get('categoryboolean1')
+        if not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
         ):
             return classifications
 
         # if hets are present, try and find support
         for sample_id in principal.het_samples:
+            if sample_id != 'CPG259705':
+                continue
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
@@ -468,11 +477,9 @@ class RecessiveAutosomalCH(BaseMoi):
                     sample_id,
                     self.minimum_depth,
                     partner_variant.info.get('categoryboolean1'),
-                ) or not (
-                    self.check_frequency_passes(
-                        partner_variant.info,
-                        self.freq_tests[partner_variant.__class__.__name__],
-                    )
+                ) or not self.check_frequency_passes(
+                    partner_variant.info,
+                    self.freq_tests[partner_variant.__class__.__name__],
                 ):
                     continue
 
@@ -534,9 +541,9 @@ class RecessiveAutosomalHomo(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if principal.support_only or not (
-            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
-            or principal.info.get('categoryboolean1')
+        if principal.support_only or not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
         ):
             return classifications
 
@@ -633,7 +640,10 @@ class XDominant(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
+        if not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
+        ):
             return classifications
 
         # all samples which have a variant call
@@ -729,7 +739,10 @@ class XPseudoDominantFemale(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
+        if not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
+        ):
             return classifications
 
         # all females which have a variant call
@@ -822,7 +835,10 @@ class XRecessiveMale(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if not self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__]):
+        if not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
+        ):
             return classifications
 
         # combine het and hom here, we don't trust the variant callers
@@ -900,9 +916,9 @@ class XRecessiveFemaleHom(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if principal.support_only or not (
-            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
-            or principal.info.get('categoryboolean1')
+        if principal.support_only or not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
         ):
             return classifications
 
@@ -983,9 +999,9 @@ class XRecessiveFemaleCH(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if not (
-            self.check_frequency_passes(principal.info, self.freq_tests[principal.__class__.__name__])
-            or principal.info.get('categoryboolean1')
+        if not self.check_frequency_passes(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
         ):
             return classifications
         het_females = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
@@ -1009,9 +1025,9 @@ class XRecessiveFemaleCH(BaseMoi):
                 require_non_support=principal.sample_support_only(sample_id),
             ):
                 # allow for de novo check - also screen out high-AF partners
-                if not partner.sample_category_check(sample_id, allow_support=True) or not (
-                    self.check_frequency_passes(partner.info, self.freq_tests[partner.__class__.__name__])
-                    or partner.info.get('categoryboolean1')
+                if not partner.sample_category_check(sample_id, allow_support=True) or not self.check_frequency_passes(
+                    partner.info,
+                    self.freq_tests[partner.__class__.__name__],
                 ):
                     continue
 

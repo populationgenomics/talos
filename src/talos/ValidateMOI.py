@@ -119,6 +119,8 @@ def apply_moi_to_variants(
     results = []
 
     for gene, variants in variant_dict.items():
+        if gene != 'ENSG00000197249':
+            continue
         comp_het_dict = find_comp_hets(var_list=variants, pedigree=pedigree)
 
         # extract the panel data specific to this gene
@@ -480,7 +482,7 @@ def main(
     all_samples: set[str] = small_vcf_samples.union(sv_vcf_samples)
 
     # obtain a set of all contigs with variants
-    for contig in canonical_contigs_from_vcf(vcf_opened):
+    for contig in ['chr14']:  # canonical_contigs_from_vcf(vcf_opened):
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
