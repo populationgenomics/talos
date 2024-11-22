@@ -55,7 +55,6 @@ TODAY = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d_%H:%M')
 # usage = if we have two MOIs for the same gene, take the broadest
 ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic']
 IRRELEVANT_MOI = {'unknown', 'other'}
-REMOVE_IN_SINGLETONS = {'categorysample4'}
 
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
@@ -358,14 +357,13 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     return info_dict
 
 
-def create_small_variant(var: cyvcf2.Variant, samples: list[str], as_singletons=False):
+def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
     """
     takes a small variant and creates a Model from it
 
     Args:
         var ():
         samples ():
-        as_singletons ():
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
@@ -391,14 +389,10 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str], as_singletons=
         info[cat] = info.get(cat, 0) == 1
 
     # sample categories are a set of strings or 'missing'
-    # if cohort runs as singletons, remove possibility of de novo
-    # if not singletons, split each into a set of sample IDs
     for sam_cat in sample_categories:
-        if as_singletons and sam_cat in REMOVE_IN_SINGLETONS:
-            info[sam_cat] = set()
-        elif isinstance(info[sam_cat], str):
+        if isinstance(info[sam_cat], str):
             info[sam_cat] = info[sam_cat].split(',') if info[sam_cat] != 'missing' else set()
-        elif isinstance(info[sam_cat], list):
+        if isinstance(info[sam_cat], list):
             info[sam_cat] = set(info[sam_cat])
 
     phased = get_phase_data(samples, var)
@@ -487,7 +481,6 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
-    singletons: bool = False,
     sv_sources: list | None = None,
 ) -> GeneDict:
     """
@@ -500,7 +493,6 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         sv_sources (): an optional list of SV VCFs
-        singletons ():
 
     Returns:
         A lookup in the form
@@ -527,7 +519,10 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-        small_variant = create_small_variant(var=variant, samples=variant_source.samples, as_singletons=singletons)
+        small_variant = create_small_variant(
+            var=variant,
+            samples=variant_source.samples,
+        )
 
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
@@ -743,13 +738,12 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
     return comp_het_results
 
 
-def generate_fresh_latest_results(current_results: ResultData, prefix: str = ''):
+def generate_fresh_latest_results(current_results: ResultData):
     """
     This will be called if a cohort has no latest results, but has
     indicated a place to save them.
     Args:
         current_results (ResultData): results from this current run
-        prefix (str): optional prefix for the filename
     """
 
     new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
@@ -769,7 +763,7 @@ def generate_fresh_latest_results(current_results: ResultData, prefix: str = '')
                 first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
                 clinvar_stars=clinvar_stars,
             )
-    save_new_historic(results=new_history, prefix=prefix)
+    save_new_historic(results=new_history)
 
 
 def phenotype_label_history(results: ResultData):
@@ -785,7 +779,7 @@ def phenotype_label_history(results: ResultData):
         get_logger().info('No historic data folder, no labelling')
         return
 
-    latest_results_path = find_latest_file(results_folder=historic_folder, start='2')
+    latest_results_path = find_latest_file(results_folder=historic_folder)
     get_logger().info(f'latest results: {latest_results_path}')
 
     # get latest results as a HistoricVariants object, or fail - on fail, return
@@ -826,7 +820,7 @@ def phenotype_label_history(results: ResultData):
     save_new_historic(results=latest_results)
 
 
-def filter_results(results: ResultData, singletons: bool):
+def filter_results(results: ResultData):
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -834,7 +828,6 @@ def filter_results(results: ResultData, singletons: bool):
 
     Args:
         results (ResultData): the results produced during this run
-        singletons (bool): whether to read/write a singleton specific file
 
     Returns: same results annotated with date-first-seen
     """
@@ -847,28 +840,24 @@ def filter_results(results: ResultData, singletons: bool):
                 var.evidence_last_updated = get_granular_date()
         return
 
-    # get the latest result file from the folder
-    # this will be none if the folder doesn't exist or is empty
-    prefix = 'singletons_' if singletons else ''
-
-    # 2 is the required prefix, i.e. 2022_*, to discriminate vs. 'singletons_'
-    latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None), start=prefix or '2')
+    # If there;s a historic data folder, find the most recent entry in it
+    latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None))
 
     get_logger().info(f'latest results: {latest_results_path}')
 
     # get latest results as a HistoricVariants object, or fail - on fail, return
-    if (latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)) is None:
+    if latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants):
+        # this is just to please the type checker
+        assert isinstance(latest_results, HistoricVariants)
+
+        date_annotate_results(results, latest_results)
+        save_new_historic(results=latest_results)
+    else:
         # generate and write some new latest data
-        generate_fresh_latest_results(current_results=results, prefix=prefix)
-        return
-
-    assert isinstance(latest_results, HistoricVariants)
-
-    date_annotate_results(results, latest_results)
-    save_new_historic(results=latest_results, prefix=prefix)
+        generate_fresh_latest_results(current_results=results)
 
 
-def save_new_historic(results: HistoricVariants, prefix: str = ''):
+def save_new_historic(results: HistoricVariants):
     """
     save the new results in the historic results dir
 
@@ -882,7 +871,7 @@ def save_new_historic(results: HistoricVariants, prefix: str = ''):
         return
 
     # we're using cloud paths here
-    new_file = to_anypath(directory) / f'{prefix}{TODAY}.json'
+    new_file = to_anypath(directory) / f'{TODAY}.json'
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
@@ -904,12 +893,11 @@ def date_from_string(string: str) -> str:
     raise ValueError(f'No date found in {string}')
 
 
-def find_latest_file(results_folder: str, start: str = '', ext: str = 'json') -> str | None:
+def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
     """
     takes a directory of files, and finds the latest
     Args:
         results_folder (): local or remote folder, or don't call this method
-        start (str): the start of the filename, if applicable
         ext (): the type of files we're looking for
 
     Returns: most recent file path, or None
@@ -918,9 +906,7 @@ def find_latest_file(results_folder: str, start: str = '', ext: str = 'json') ->
     get_logger().info(f'Using results from {results_folder}')
 
     # this is currently a CloudPath to access globbing for files in cloud or local settings
-    date_files = {
-        date_from_string(filename.name): filename for filename in to_anypath(results_folder).glob(f'{start}*.{ext}')
-    }
+    date_files = {date_from_string(filename.name): filename for filename in to_anypath(results_folder).glob(f'*.{ext}')}
     if not date_files:
         return None
 
