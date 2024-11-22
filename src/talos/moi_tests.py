@@ -455,8 +455,6 @@ class RecessiveAutosomalCH(BaseMoi):
 
         # if hets are present, try and find support
         for sample_id in principal.het_samples:
-            if sample_id != 'CPG259705':
-                continue
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
