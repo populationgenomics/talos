@@ -70,7 +70,8 @@ def check_for_second_hit(
 
 class MOIRunner:
     """
-    pass
+    The abstract class for a single MOI runner
+    This will be instantiated once per MOI, and run once per related gene, on the collection of all variants in the gene
     """
 
     def __init__(self, pedigree: Pedigree, target_moi: str):

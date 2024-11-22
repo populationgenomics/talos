@@ -153,9 +153,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     pl_filepath = Path(file_path)
 
     # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
-    extensions = pl_filepath.suffixes
-
-    if not len(extensions) > 0:
+    if not (extensions := pl_filepath.suffixes):
         raise ValueError('cannot identify input type from extensions')
 
     if extensions[-1] == '.ht':
