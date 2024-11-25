@@ -25,7 +25,7 @@ from metamist.graphql import gql, query
 from talos.static_values import get_logger
 
 HPO_KEY = 'HPO Terms (present)'
-HPO_RE = re.compile(r'HP:[0-9]+')
+HPO_RE = re.compile(r'HP:\d+')
 PARTICIPANT_QUERY = gql(
     """
 query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {

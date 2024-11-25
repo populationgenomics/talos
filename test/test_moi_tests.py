@@ -413,14 +413,14 @@ def test_x_dominant_male_hom_passes(pedigree_path):
 
 
 @pytest.mark.parametrize(
-    'info',
+    'info,wins',
     [
-        {'gnomad_af': 0.1, 'gene_id': 'TEST1', 'categoryboolean1': True},
-        {'gnomad_hom': 2, 'gene_id': 'TEST1', 'categoryboolean1': True},
-        {'gnomad_hemi': 3, 'gene_id': 'TEST1', 'categoryboolean1': True},
+        ({'gnomad_af': 0.1, 'gene_id': 'TEST1', 'categoryboolean1': True}, 1),
+        ({'gnomad_hom': 2, 'gene_id': 'TEST1', 'categoryboolean1': True}, 1),
+        ({'gnomad_hemi': 3, 'gene_id': 'TEST1', 'categoryboolean1': False}, 0),
     ],
 )
-def test_x_dominant_info_fails(info, pedigree_path):
+def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
     """
     check for info dict exclusions
     """
@@ -430,9 +430,11 @@ def test_x_dominant_info_fails(info, pedigree_path):
         coordinates=TEST_COORDS_X_1,
         boolean_categories=['categoryboolean1'],
         transcript_consequences=[],
+        depths={'male': 100},
     )
+    print(passing_variant)
     x_dom = XDominant(pedigree=make_flexible_pedigree(pedigree_path))
-    assert len(x_dom.run(passing_variant)) == 0
+    assert len(x_dom.run(passing_variant)) == wins
 
 
 def test_x_dominant_female_inactivation_passes(pedigree_path):

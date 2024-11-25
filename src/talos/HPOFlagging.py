@@ -67,7 +67,7 @@ def parse_genes_to_hpo(g2p_file: str, ensg2symbol: str, genes: set[str]) -> dict
     gene_to_phenotype: dict[str, set[str]] = defaultdict(set)
     with open(g2p_file, encoding='utf-8') as f:
         for line in f:
-            ncbi_gene_id, gene_symbol, hpo_id, hpo_name, frequency, disease_id = line.split('\t')
+            _, gene_symbol, hpo_id, _, _, _ = line.split('\t')
             if gene_symbol in ensg_map and ensg_map[gene_symbol] in genes:
                 gene_to_phenotype.setdefault(ensg_map[gene_symbol], set()).add(hpo_id)
     return gene_to_phenotype
@@ -109,7 +109,6 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
         result_object (ResultData):
         gen_phen (dict): mapping of ENSGs to relevant HPO terms
     """
-
     semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
 
     min_similarity: float = config_retrieve(['HPOFlagging', 'min_similarity'])

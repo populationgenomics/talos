@@ -486,7 +486,6 @@ def main(
             contig=contig,
             variant_source=vcf_opened,
             sv_sources=sv_opened,
-            singletons=bool('singleton' in pedigree),
         )
 
         result_list.extend(
@@ -524,7 +523,7 @@ def main(
     results_model = clean_and_filter(results_model, result_list, panelapp_data, pheno_panels)
 
     # annotate previously seen results using cumulative data file(s)
-    filter_results(results_model, singletons=bool('singleton' in pedigree))
+    filter_results(results_model)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful
