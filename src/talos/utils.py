@@ -1,11 +1,13 @@
 """
 classes and methods shared across reanalysis components
+
+HTTPX requests are backoff-wrapped using tenaticy
+https://tenacity.readthedocs.io/en/latest/
 """
 
 import httpx
 import json
 import re
-import time
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
@@ -17,6 +19,7 @@ from typing import Any
 import cyvcf2
 from cloudpathlib.anypath import to_anypath
 from peds import open_ped
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -169,37 +172,37 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     raise TypeError(f'File cannot be definitively typed: {extensions}')
 
 
-def get_json_response(url, num_retries=5):
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
+    retry=retry_if_exception_type(
+        (
+            httpx.ReadTimeout,
+            httpx.ConnectError,
+            httpx.TooManyRedirects,
+            httpx.RequestError,
+        ),
+    ),
+    reraise=True,
+)
+def get_json_response(url):
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return
     List use-case (activities endpoint) no longer supported
 
-    manually implemented exponential backoff, as the backoff library is trash
+    for backoff handling I'm using the tenacity library
 
     Args:
         url (str): URL to retrieve JSON format data from
-        num_retries (int): number of times to retry the request
 
     Returns:
         the JSON response from the endpoint
     """
-    for attempt in range(num_retries):
-        try:
-            response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60, follow_redirects=True)
-            if response.is_success:
-                return response.json()
-            get_logger().warning(f'Request failed with status code {response.status_code} ({url})')
-        except httpx.ReadTimeout:
-            get_logger().warning(f'Request timed out ({url})')
-        except httpx.ConnectError:
-            get_logger().warning(f'Connection error ({url})')
-        except httpx.TooManyRedirects:
-            get_logger().warning(f'Too many redirects ({url})')
-        except httpx.RequestError:
-            get_logger().warning(f'Request error ({url})')
-        time.sleep(2**attempt)
-    raise ValueError(f'Request failed after {num_retries} attempts ({url})')
+    response = httpx.get(url, headers={'Accept': 'application/json'}, timeout=60, follow_redirects=True)
+    if response.is_success:
+        return response.json()
+    raise ValueError('The JSON response could not be parsed successfully')
 
 
 def get_new_gene_map(
