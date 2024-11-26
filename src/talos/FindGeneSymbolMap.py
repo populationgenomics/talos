@@ -28,7 +28,7 @@ ENSEMBL_REST_API = 'http://rest.ensembl.org'
 
 
 @retry(
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(5),
     wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
     retry=retry_if_exception_type(aiohttp.client_exceptions.ClientResponseError),
     reraise=True,
@@ -48,7 +48,7 @@ async def match_ensgs_to_symbols(genes: list[str], session: aiohttp.ClientSessio
 
 
 @retry(
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(5),
     wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
     retry=retry_if_exception_type(aiohttp.client_exceptions.ClientResponseError),
     reraise=True,
