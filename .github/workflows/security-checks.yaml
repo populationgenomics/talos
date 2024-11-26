@@ -1,0 +1,16 @@
+name: Security Checks
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    name: Pip Audit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: requirements.txt requirements-dev.txt requirements-lint.txt requirements-cpg.txt
+          summary: true
