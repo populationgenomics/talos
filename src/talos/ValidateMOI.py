@@ -376,7 +376,7 @@ def prepare_results_shell(
             variants=[],
             metadata=ParticipantMeta(
                 ext_id=sample.ext_id,
-                family_id=sample.family,
+                family_id=sample_panel_data.family_id or sample.family,
                 members=family_members,
                 phenotypes=sample_panel_data.hpo_terms,
                 panel_details={panel_id: panel_meta[panel_id] for panel_id in sample_panel_data.panels},

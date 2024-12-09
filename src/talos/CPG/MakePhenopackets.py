@@ -30,7 +30,9 @@ PARTICIPANT_QUERY = gql(
     """
 query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {
   project(name: $project) {
-    pedigree
+    pedigree(
+      replaceWithFamilyExternalIds: false
+    )
     sequencingGroups(technology: {eq: $technology}, type:  {eq: $sequencing_type}) {
       id
       sample {
