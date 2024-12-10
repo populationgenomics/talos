@@ -5,7 +5,7 @@ test file for metamist panel-participant matching
 import networkx as nx
 from obonet import read_obo
 
-from talos.GeneratePanelData import get_panels, match_hpo_terms, match_hpos_to_panels, match_participants_to_panels
+from talos.GeneratePanelData import get_panels, match_hpos_to_panels, match_participants_to_panels
 from talos.models import ParticipantHPOPanels, PhenotypeMatchedPanels
 
 
@@ -16,17 +16,6 @@ def test_get_panels(httpx_mock, fake_panelapp_overview):
     httpx_mock.add_response(url='https://panelapp.agha.umccr.org/api/v1/panels/', json=fake_panelapp_overview)
     panels_parsed = get_panels('https://panelapp.agha.umccr.org/api/v1/panels/')
     assert panels_parsed == {'HP:1': {2}, 'HP:4': {1}, 'HP:6': {2}}
-
-
-def test_match_hpo_terms(fake_obo_path):
-    """
-    check that HP tree traversal works
-    this test is kinda limited now that the layer count is constant
-    """
-    obo_parsed = read_obo(fake_obo_path)
-    panel_map = {'HP:2': {1, 2}}
-    assert match_hpo_terms(panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:4') == {1, 2}
-    assert match_hpo_terms(panel_map=panel_map, hpo_tree=obo_parsed, hpo_str='HP:2') == {1, 2}
 
 
 def test_match_hpos_to_panels(fake_obo_path):
