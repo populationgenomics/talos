@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import ParseDict
-from networkx import MultiDiGraph, dfs_successors
+from networkx import dfs_successors
 from obonet import read_obo
 
 from talos.config import config_retrieve
