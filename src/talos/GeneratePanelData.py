@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import ParseDict
-from networkx import MultiDiGraph
+from networkx import MultiDiGraph, dfs_successors
 from obonet import read_obo
 
 from talos.config import config_retrieve
@@ -89,53 +89,6 @@ def set_up_cohort_pmp(cohort: pps2.Cohort) -> tuple[PhenotypeMatchedPanels, set[
     return hpo_dict, all_hpos
 
 
-def match_hpo_terms(
-    panel_map: dict[str, set[int]],
-    hpo_tree: MultiDiGraph,
-    hpo_str: str,
-    selections: set[int] | None = None,
-) -> set[int]:
-    """
-    get panels relevant for this HPO using a recursive edge traversal
-    for live terms we recurse on all parents
-    if a term is obsolete we instead check each replacement term
-
-    relevant usage guide:
-    https://github.com/dhimmel/obonet/blob/main/examples/go-obonet.ipynb
-
-    Args:
-        panel_map (dict):
-        hpo_tree (): a graph object representing the HPO tree
-        hpo_str (str): the query HPO term
-        selections (set[int]): collected panel IDs so far
-
-    Returns:
-        set: panel IDs relating to this HPO term
-    """
-
-    if selections is None:
-        selections = set()
-
-    # identify identical match and select the panel
-    if hpo_str in panel_map:
-        selections.update(panel_map[hpo_str])
-
-    # if a node is invalid, recursively call this method for each replacement D:
-    # there are simpler ways, just none that are as fun to write
-    if not hpo_tree.has_node(hpo_str):
-        get_logger().error(f'HPO term was absent from the tree: {hpo_str}')
-        return selections
-
-    hpo_node = hpo_tree.nodes[hpo_str]
-    if hpo_node.get('is_obsolete', 'false') == 'true':
-        for hpo_term in hpo_node.get('replaced_by', []):
-            selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, selections))
-    # search for parent(s), even if the term is obsolete
-    for hpo_term in hpo_node.get('is_a', []):
-        selections.update(match_hpo_terms(panel_map, hpo_tree, hpo_term, selections))
-    return selections
-
-
 def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], hpo_file: str, all_hpos: set[str]) -> dict[str, set[int]]:
     """
     take the HPO terms from the participant metadata, and match to panels
@@ -147,15 +100,18 @@ def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], hpo_file: str, all_
 
     Returns:
         a dictionary linking all HPO terms to a corresponding set of Panel IDs
-        a second dictionary linking all HPO terms to their plaintext names
     """
 
     hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
 
-    hpo_to_panels = {}
+    hpo_to_panels = defaultdict(set)
     for hpo in all_hpos:
-        panel_ids = match_hpo_terms(panel_map=hpo_panel_map, hpo_tree=hpo_graph, hpo_str=hpo)
-        hpo_to_panels[hpo] = panel_ids
+        # identify all HPO terms back to the ontology root
+        successor_hpo_terms = set(dfs_successors(hpo_graph, hpo))
+
+        for hpo_term in successor_hpo_terms:
+            if hpo_term in hpo_panel_map:
+                hpo_to_panels[hpo].update(hpo_panel_map[hpo_term])
 
     return hpo_to_panels
 
