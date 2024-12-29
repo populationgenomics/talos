@@ -13,9 +13,9 @@ The intention is to use this pre-validated data to accompany and improve upon Sp
 import gzip
 from argparse import ArgumentParser
 
-from talos.utils import get_random_string
+import hail as hl
 
-from parse_amissense_into_ht import hail_table_from_tsv
+from talos.utils import get_random_string, hail_table_from_tsv
 
 
 """
@@ -50,7 +50,11 @@ def main(input_tsv, output_ht) -> None:
     """
 
     new_tsv = parse_splicevardb_into_tsv(input_tsv)
-    hail_table_from_tsv(new_tsv, output_ht)
+
+    hl.init()
+    hl.default_reference('GRCh38')
+
+    hail_table_from_tsv(new_tsv, output_ht, types={'pos': hl.tint32})
 
 
 def parse_splicevardb_into_tsv(input_tsv: str) -> str:

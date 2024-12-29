@@ -58,6 +58,8 @@ setup(
         'console_scripts': [
             # for use in translating a VEP annotated VCF to a MatrixTable
             'VcfToMt = talos.VcfToMt:cli_main',
+            # turns the SVDB TSV into a Hail Table
+            'ConvertSpliceVarDb = talos.ConvertSpliceVarDb:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
             'BuildReportIndexPage = talos.CPG.BuildReportIndexPage:main',
             # CPG implementation, builds cohort phenopackets

@@ -7,6 +7,7 @@
 pm5 = "ACMG PM5 - missense in same residue as known pathogenic"
 support = "High in Silico Scores"
 sv1 = "Predicted LOF SV"
+svdb = "SpliceVarDB entry"
 
 [GeneratePanelData]
 default_panel = 137

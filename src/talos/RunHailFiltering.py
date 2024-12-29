@@ -230,15 +230,15 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
-            svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_INT),
-            svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_INT),
+            svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_STRING),
+            svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_STRING),
         ),
     )
 
     # annotate category if Splice-altering according to SVDB
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolenSVDB=hl.if_else(
+            categorybooleanSVDB=hl.if_else(
                 mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
                 ONE_INT,
                 MISSING_INT,

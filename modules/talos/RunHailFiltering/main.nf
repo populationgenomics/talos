@@ -11,6 +11,7 @@ process RunHailFiltering {
         path panelapp_data
         path pedigree
         path clinvar
+        path svdb
         val checkpoint
         path talos_config
 
@@ -29,6 +30,7 @@ process RunHailFiltering {
 
     tar -zxf ${clinvar}
     tar -zxf ${matrix_table}
+    tar -zxf ${svdb}
 
     RunHailFiltering \
         --input ${params.cohort}_small_variants.mt \
@@ -37,6 +39,7 @@ process RunHailFiltering {
         --output ${params.cohort}_small_variants_labelled.vcf.bgz \
         --clinvar clinvarbitration_data/clinvar_decisions.ht \
         --pm5 clinvarbitration_data/clinvar_pm5.ht \
+        --svdb ${params.cohort}_svdb.ht \
         ${checkpoint}
     """
 }

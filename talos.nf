@@ -2,6 +2,7 @@
 
 nextflow.enable.dsl=2
 
+include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
 include { VcfToMt } from './modules/talos/VcfToMt/main'
 include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
@@ -23,6 +24,10 @@ workflow {
     clinvar_tar_channel = Channel.fromPath(params.clinvar)
     gen2phen_channel = Channel.fromPath(params.gen2phen)
     phenio_db_channel = Channel.fromPath(params.phenio_db)
+    svdb_tsv_channel = Channel.fromPath(params.svdb_tsv)
+
+    // convert the SVDB TSV into a Hail Table
+    ConvertSpliceVarDb(svdb_tsv_channel)
 
     // turn the VCF into a MatrixTable
     input_vcf = Channel.fromPath(params.annotated_vcf).map{ it -> [file(it), file("${it}.tbi")]}
@@ -49,6 +54,7 @@ workflow {
         QueryPanelapp.out,
         ConvertPedToPhenopackets.out[0],
         clinvar_tar_channel,
+        ConvertSpliceVarDb.out,
         params.checkpoint,
         runtime_config_channel,
     )
