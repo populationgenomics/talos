@@ -208,6 +208,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     """
     Takes the locus,ref,alt indexed table of SpliceVarDB variants, and matches
     them up against the variant data
+    Annotates with a boolean flag if the variant is Splice-altering according to SVDB
 
     Args:
         mt (): MT of all variants
@@ -225,6 +226,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     get_logger().info(f'Reading SpliceVarDB data from {svdb_path}')
     svdb_ht = hl.read_table(svdb_path)
 
+    # annotate relevant variants with the SVDB results
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
@@ -233,13 +235,13 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
         ),
     )
 
-    # annotate as either strong or regular, return the result
+    # annotate category if Splice-altering according to SVDB
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorydetailsSVDB=hl.if_else(
+            categoryboolenSVDB=hl.if_else(
                 mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
-                hl.str('::').join([mt.info.svdb_classification, mt.info.svdb_method]),
-                MISSING_STRING,
+                ONE_INT,
+                MISSING_INT,
             ),
         ),
     )
@@ -698,7 +700,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
         | (mt.info.categorydetailsPM5 != MISSING_STRING)
-        | (mt.info.categorydetailsSVDB != MISSING_STRING),
+        | (mt.info.categorybooleanSVDB == 1),
     )
 
 
