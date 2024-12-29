@@ -122,6 +122,7 @@ def hail_table_from_tsv(tsv_file: str, new_ht: str):
     ht = ht.transmute(locus=hl.locus(contig=ht.chrom, pos=ht.pos), alleles=[ht.ref, ht.alt])
     ht = ht.key_by('locus', 'alleles')
     ht.write(new_ht)
+    ht.describe()
 
 
 def cli_main():
