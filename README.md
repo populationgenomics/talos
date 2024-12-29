@@ -32,7 +32,7 @@ The Dockerfile offers two builds, use the `--target` flag to specify which build
 - one for a Google cloud environment (called `talos_gcloud`).
 
 ```bash
-DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.2.1  .
+DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.3.0  .
 ```
 
 ## Workflow Demonstration with Nextflow
@@ -40,7 +40,7 @@ DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.2.1  .
 A Nextflow pipeline is provided to demonstrate how to run Talos. This pipeline is designed to be run on a local machine, and requires that you have nextflow installed locally, and a docker daemon running. First, as described above, build the docker image:
 
 ```bash
-docker build --target talos_none -t talos:6.2.1  .
+docker build --target talos_none -t talos:6.3.0  .
 ```
 
 Then, run the pipeline:
