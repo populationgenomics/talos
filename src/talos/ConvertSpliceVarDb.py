@@ -31,6 +31,7 @@ CLASSIFICATION: str = 'classification'
 METHOD: str = 'method'
 VAR_ID: str = 'variant_id'
 LOCATION: str = 'location'
+DOI: str = 'doi'
 
 
 def cli_main():
@@ -69,7 +70,7 @@ def parse_splicevardb_into_tsv(input_tsv: str) -> str:
     """
 
     # holder for new output lines
-    new_lines: list[str] = ['chrom\tpos\tref\talt\tgene\tvar_id\tmethod\tclassification\tlocation']
+    new_lines: list[str] = ['chrom\tpos\tref\talt\tgene\tvar_id\tmethod\tclassification\tlocation\tdoi']
     with open(input_tsv, encoding='utf-8') as handle:
         # file has a header, with no quotes
         header = handle.readline().strip().split('\t')
@@ -98,9 +99,12 @@ def parse_splicevardb_into_tsv(input_tsv: str) -> str:
             # get the location
             location = stripped_list[header.index(LOCATION)]
 
+            # get the publication IDs
+            doi = stripped_list[header.index(DOI)]
+
             # get the location
             classification = stripped_list[header.index(CLASSIFICATION)]
-            new_line = f'{chrom}\t{pos}\t{ref}\t{alt}\t{gene}\t{variant_id}\t{method}\t{classification}\t{location}'
+            new_line = f'{chrom}\t{pos}\t{ref}\t{alt}\t{gene}\t{variant_id}\t{method}\t{classification}\t{location}\t{doi}'
             new_lines.append(new_line)
 
     random_intermediate_file: str = f'{get_random_string()}.tsv.gz'

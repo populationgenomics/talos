@@ -232,6 +232,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
             svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
             svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_STRING),
             svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_STRING),
+            svdb_doi=hl.or_else(svdb_ht[mt.row_key].doi, MISSING_STRING),
         ),
     )
 
