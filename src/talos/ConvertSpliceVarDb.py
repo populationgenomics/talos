@@ -104,7 +104,9 @@ def parse_splicevardb_into_tsv(input_tsv: str) -> str:
 
             # get the location
             classification = stripped_list[header.index(CLASSIFICATION)]
-            new_line = f'{chrom}\t{pos}\t{ref}\t{alt}\t{gene}\t{variant_id}\t{method}\t{classification}\t{location}\t{doi}'
+            new_line = (
+                f'{chrom}\t{pos}\t{ref}\t{alt}\t{gene}\t{variant_id}\t{method}\t{classification}\t{location}\t{doi}'
+            )
             new_lines.append(new_line)
 
     random_intermediate_file: str = f'{get_random_string()}.tsv.gz'
