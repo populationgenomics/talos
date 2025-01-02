@@ -334,14 +334,14 @@ def organise_pm5(info_dict: dict[str, Any]):
     """
 
     if 'categorydetailspm5' not in info_dict:
-        return info_dict
+        return
 
     pm5_content = info_dict.pop('categorydetailspm5')
 
     # nothing to do here
     if pm5_content == 'missing':
         info_dict['categorybooleanpm5'] = 0
-        return info_dict
+        return
 
     # current clinvar annotation, if any
     current_clinvar = str(info_dict.get('clinvar_allele', 'not_this'))
