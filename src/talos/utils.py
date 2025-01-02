@@ -67,6 +67,8 @@ DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 # this just saves some typing
 MEMBER_LOOKUP_DICT = {'0': None}
 
+DOI_URL = 'https://doi.org/'
+
 
 def get_random_string(length: int = 6) -> str:
     """
@@ -320,7 +322,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     return dict(phased_dict)
 
 
-def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
+def organise_pm5(info_dict: dict[str, Any]):
     """
     method dedicated to handling the new pm5 annotations
 
@@ -370,7 +372,30 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     else:
         info_dict['categorybooleanpm5'] = 0
 
-    return info_dict
+
+def organise_svdb_doi(info_dict: dict[str, Any]):
+    """
+    method dedicated to handling the SV DB DOI records
+    edits in place
+
+    Args:
+        info_dict ():
+    """
+    if 'svdb_doi' not in info_dict:
+        return
+
+    # pop off the value
+    doi_value = info_dict.pop('svdb_doi')
+
+    if doi_value == 'missing':
+        info_dict['svdb_doi'] = []
+        return
+
+    # split the value
+    doi_urls = []
+    for doi in doi_value.split(','):
+        doi_urls.append(DOI_URL + doi)
+    info_dict['svdb_doi'] = doi_urls
 
 
 def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
@@ -393,7 +418,10 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
     # organise PM5
-    info = organise_pm5(info)
+    organise_pm5(info)
+
+    # organise SVDB DOIs
+    organise_svdb_doi(info)
 
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
