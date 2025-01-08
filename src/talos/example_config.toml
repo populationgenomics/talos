@@ -66,6 +66,7 @@ small_variants = 8
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 svdb = 'SpliceVarDB Predicted Splice-Altering'
 sv1 = 'Predicted LOF SV'
+exomiser = 'Variant prioritised by Exomiser'
 
 [CreateTalosHTML]
 external_labels = "path to labels file"
