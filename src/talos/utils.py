@@ -322,6 +322,48 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     return dict(phased_dict)
 
 
+def organise_exomiser(info_dict: dict[str, Any]):
+    """
+    method dedicated to handling the new exomiser annotations
+
+    If present, these are in a condensed format of FAMILY_RANK_MOI, delimited by "::" e.g.
+    "FAM1_29_AR::FAM2_26_AR::FAM3_23_AR"
+
+    When parsing this, we optionally filter to only the top-n ranked results
+
+    TODO Exomiser results are based on family, results here are based on individual. Use a lookup to get back
+    to the exomiser family IDs.
+
+    Args:
+        info_dict ():
+
+    Returns:
+
+    """
+
+    # if completely absent, the 'samples' category annotation is an empty set
+    if 'categorydetailsexomiser' not in info_dict:
+        info_dict['categorysampleexomiser'] = set()
+        return
+
+    # this becomes a dict of dicts - Family, MOI, rank
+    info_dict['exomiser'] = defaultdict(dict)
+
+    # pop off the exomiser details
+    exomiser_details = info_dict.pop('categorydetailsexomiser')
+
+    # split the string into a list of strings, iterate over the list
+    for each_exomiser in exomiser_details.split('::'):
+        # split the string into its component parts
+        fam, rank, moi = each_exomiser.split('_')
+        info_dict['exomiser'][fam][moi] = rank
+
+    # todo
+    # we need a lookup here to work back from family to sample ID
+    all_families = set(info_dict['exomiser'].keys())
+    info_dict['categorysampleexomiser'] = set()
+
+
 def organise_pm5(info_dict: dict[str, Any]):
     """
     method dedicated to handling the new pm5 annotations
@@ -422,6 +464,9 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
 
     # organise SVDB DOIs
     organise_svdb_doi(info)
+
+    # organise the exomiser data, if present
+    organise_exomiser(info)
 
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
