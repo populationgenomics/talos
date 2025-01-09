@@ -32,6 +32,9 @@ gnomad_max_ac_dominant = 10
 gnomad_max_hemi = 1
 callset_af_sv_dominant = 0.01
 
+# by default, only consider the top two exomiser results
+exomiser_rank_threshold = 2
+
 # optionally, ignore some categories. Categories named here are stripped from the variants upon ingestion
 #ignore_categories = ['categoryboolean6']
 

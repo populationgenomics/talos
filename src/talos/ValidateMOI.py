@@ -434,13 +434,13 @@ def main(
     """
     get_logger(__file__).info(
         r"""Welcome To
-███████████   █████████   █████          ███████     █████████
-█   ███   █  ███     ███   ███         ███     ███  ███     ███
-    ███      ███     ███   ███        ███       ███ ███
-    ███      ███████████   ███        ███       ███  █████████
-    ███      ███     ███   ███        ███       ███         ███
-    ███      ███     ███   ███      █  ███     ███  ███     ███
-   █████    █████   █████ ███████████    ███████     █████████
+    ███████████   █████████   █████          ███████     █████████
+    █   ███   █  ███     ███   ███         ███     ███  ███     ███
+        ███      ███     ███   ███        ███       ███ ███
+        ███      ███████████   ███        ███       ███  █████████
+        ███      ███     ███   ███        ███       ███         ███
+        ███      ███     ███   ███      █  ███     ███  ███     ███
+       █████    █████   █████ ███████████    ███████     █████████
         """,
     )
 
@@ -483,9 +483,7 @@ def main(
     for contig in canonical_contigs_from_vcf(vcf_opened):
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
-            contig=contig,
-            variant_source=vcf_opened,
-            sv_sources=sv_opened,
+            contig=contig, variant_source=vcf_opened, sv_sources=sv_opened, pedigree=ped
         )
 
         result_list.extend(

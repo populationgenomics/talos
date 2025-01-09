@@ -322,7 +322,11 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     return dict(phased_dict)
 
 
-def organise_exomiser(info_dict: dict[str, Any]):
+def organise_exomiser(
+    info_dict: dict[str, Any],
+    rank_threshold: int | None = None,
+    pedigree: Pedigree | None = None,
+):
     """
     method dedicated to handling the new exomiser annotations
 
@@ -331,14 +335,13 @@ def organise_exomiser(info_dict: dict[str, Any]):
 
     When parsing this, we optionally filter to only the top-n ranked results
 
-    TODO Exomiser results are based on family, results here are based on individual. Use a lookup to get back
-    to the exomiser family IDs.
+    Exomiser results are based on family, results here are based on individual. Use the pedigree as a lookup to get from
+    the family IDs the affected individuals.
 
     Args:
         info_dict ():
-
-    Returns:
-
+        rank_threshold (int | None): if present, only retain results above this rank
+        pedigree (Pedigree | None): the flexible pedigree representation
     """
 
     # if completely absent, the 'samples' category annotation is an empty set
@@ -356,12 +359,28 @@ def organise_exomiser(info_dict: dict[str, Any]):
     for each_exomiser in exomiser_details.split('::'):
         # split the string into its component parts
         fam, rank, moi = each_exomiser.split('_')
-        info_dict['exomiser'][fam][moi] = rank
 
-    # todo
-    # we need a lookup here to work back from family to sample ID
-    all_families = set(info_dict['exomiser'].keys())
-    info_dict['categorysampleexomiser'] = set()
+        # swap that rank to an int
+        rank_int: int = int(rank)
+
+        # optionally, filter by a threshold rank
+        if rank_threshold and rank_int > rank_threshold:
+            continue
+
+        if pedigree is None:
+            info_dict['exomiser'][fam][moi] = rank_int
+            continue
+
+        # if we have the pedigree, map this to the affected samples in the family (typically a single proband)
+        all_samples = pedigree.by_family.get(fam, [])
+        affected_samples = [sam for sam in all_samples if sam.affected == '2']
+        for sam in affected_samples:
+            info_dict['exomiser'][sam.id][moi] = rank_int
+
+    # keep the sample-type category for use in "is this variant labelled for this sample" checks
+    # it's not exact - we need the pedigree for this to work at all
+    # and there is the potential for catching family members without the variant
+    info_dict['categorysampleexomiser'] = set(info_dict['exomiser'].keys())
 
 
 def organise_pm5(info_dict: dict[str, Any]):
@@ -440,13 +459,18 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
     info_dict['svdb_doi'] = doi_urls
 
 
-def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
+def create_small_variant(
+    var: cyvcf2.Variant,
+    samples: list[str],
+    pedigree: Pedigree | None = None,
+):
     """
     takes a small variant and creates a Model from it
 
     Args:
         var ():
         samples ():
+        pedigree (): optional, flexible pedigree representation
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
@@ -466,7 +490,14 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
     organise_svdb_doi(info)
 
     # organise the exomiser data, if present
-    organise_exomiser(info)
+    organise_exomiser(
+        info,
+        rank_threshold=config_retrieve(
+            ['ValidateMOI', 'exomiser_rank_threshold'],
+            100,
+        ),
+        pedigree=pedigree,
+    )
 
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
@@ -571,6 +602,7 @@ def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
     sv_sources: list | None = None,
+    pedigree: Pedigree | None = None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -582,6 +614,7 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         sv_sources (): an optional list of SV VCFs
+        pedigree (): optional, the flexible pedigree
 
     Returns:
         A lookup in the form
@@ -611,6 +644,7 @@ def gather_gene_dict_from_contig(
         small_variant = create_small_variant(
             var=variant,
             samples=variant_source.samples,
+            pedigree=pedigree,
         )
 
         if small_variant.coordinates.string_format in blacklist:
