@@ -24,13 +24,13 @@ from talos.models import ResultData
 from talos.utils import read_json_from_path
 
 
-def main(input_path: str, output_path: str, prefix: int | None = None):
+def main(input_path: str, output_path: str | None = None, prefix: int | None = None):
     """
     read the target report, and summarise the number of affected samples involved
 
     Args:
         input_path (str): where to read the report from
-        output_path ():
+        output_path (str): optional, if we want to write the output to a file
         prefix (int): optional, if we want to break down by family prefix
     """
 
@@ -41,16 +41,17 @@ def main(input_path: str, output_path: str, prefix: int | None = None):
     family_breakdown = report.metadata.family_breakdown
 
     if prefix:
-        # setup a section in the dictionary for this
+        # set up a section in the dictionary for this
         family_breakdown['grouped_families'] = defaultdict(int)
         for proband in report.results.values():
             family_breakdown[proband.metadata.family_id[:prefix]] += 1
 
     print(json.dumps(family_breakdown, indent=4))
 
-    # write the output to file
-    with to_path(output_path).open('w') as handle:
-        json.dump(family_breakdown, handle, indent=4)
+    if output_path:
+        # write the output to file
+        with to_path(output_path).open('w') as handle:
+            json.dump(family_breakdown, handle, indent=4)
 
 
 def cli_main():
@@ -60,7 +61,7 @@ def cli_main():
 
     parser = ArgumentParser()
     parser.add_argument('--input', help='Path to the input report file')
-    parser.add_argument('--output', help='Where to write the output', required=True)
+    parser.add_argument('--output', help='Where to write the output')
     parser.add_argument('--prefix', type=int, help='breakdown by family prefix', default=None)
     args = parser.parse_args()
     main(
