@@ -21,14 +21,7 @@ from cpg_utils import to_path
 
 from talos.models import ResultData
 
-from talos.utils import (
-    GeneDict,
-    canonical_contigs_from_vcf,
-    filter_results,
-    find_comp_hets,
-    make_flexible_pedigree,
-    read_json_from_path,
-)
+from talos.utils import read_json_from_path
 
 
 def main(input_path: str, output_path: str, prefix: int | None = None):
