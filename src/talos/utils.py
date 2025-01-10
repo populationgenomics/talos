@@ -8,16 +8,19 @@ https://tenacity.readthedocs.io/en/latest/
 import httpx
 import json
 import re
+import string
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
+from random import choices
 from string import punctuation
 from typing import Any
 
 import cyvcf2
 from cloudpathlib.anypath import to_anypath
+import hail as hl
 from peds import open_ped
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
@@ -63,6 +66,20 @@ DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 # this just saves some typing
 MEMBER_LOOKUP_DICT = {'0': None}
+
+DOI_URL = 'https://doi.org/'
+
+
+def get_random_string(length: int = 6) -> str:
+    """
+    get a random string of a pre-determined leng`th
+    Args:
+        length ():
+
+    Returns:
+        A random string comprised of upper-case letters and numbers
+    """
+    return ''.join(choices(string.ascii_uppercase + string.digits, k=length))  # noqa: S311
 
 
 def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:
@@ -305,7 +322,7 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     return dict(phased_dict)
 
 
-def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
+def organise_pm5(info_dict: dict[str, Any]):
     """
     method dedicated to handling the new pm5 annotations
 
@@ -317,14 +334,14 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     """
 
     if 'categorydetailspm5' not in info_dict:
-        return info_dict
+        return
 
     pm5_content = info_dict.pop('categorydetailspm5')
 
     # nothing to do here
     if pm5_content == 'missing':
         info_dict['categorybooleanpm5'] = 0
-        return info_dict
+        return
 
     # current clinvar annotation, if any
     current_clinvar = str(info_dict.get('clinvar_allele', 'not_this'))
@@ -355,7 +372,30 @@ def organise_pm5(info_dict: dict[str, Any]) -> dict[str, Any]:
     else:
         info_dict['categorybooleanpm5'] = 0
 
-    return info_dict
+
+def organise_svdb_doi(info_dict: dict[str, Any]):
+    """
+    method dedicated to handling the SV DB DOI records
+    edits in place
+
+    Args:
+        info_dict ():
+    """
+    if 'svdb_doi' not in info_dict:
+        return
+
+    # pop off the value
+    doi_value = info_dict.pop('svdb_doi')
+
+    if doi_value == 'missing':
+        info_dict['svdb_doi'] = []
+        return
+
+    # split the value
+    doi_urls = []
+    for doi in doi_value.split(','):
+        doi_urls.append(DOI_URL + doi)
+    info_dict['svdb_doi'] = doi_urls
 
 
 def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
@@ -378,7 +418,10 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
     # organise PM5
-    info = organise_pm5(info)
+    organise_pm5(info)
+
+    # organise SVDB DOIs
+    organise_svdb_doi(info)
 
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
@@ -994,3 +1037,28 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     first_tagged=get_granular_date(),
                     clinvar_stars=clinvar_stars,
                 )
+
+
+def hail_table_from_tsv(tsv_file: str, new_ht: str, types: dict[str, hl.tstr] | None = None):
+    """
+    take a previously created TSV file and ingest it as a Hail Table
+    requires an initiated Hail context
+
+    Args:
+        tsv_file ():
+        new_ht ():
+        types (dict[str, hl.tstr]): optional, a dictionary of column names and their types
+    """
+
+    if types is None:
+        types = {}
+
+    # import as a hail table, force=True as this isn't Block-Zipped so all read on one core
+    # We also provide some data types for non-string columns
+    ht = hl.import_table(tsv_file, types=types, force=True)
+
+    # combine the two alleles into a single list
+    ht = ht.transmute(locus=hl.locus(contig=ht.chrom, pos=ht.pos), alleles=[ht.ref, ht.alt])
+    ht = ht.key_by('locus', 'alleles')
+    ht.write(new_ht)
+    ht.describe()

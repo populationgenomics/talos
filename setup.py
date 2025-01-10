@@ -28,7 +28,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='6.2.1',
+    version='6.3.0',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
@@ -58,6 +58,8 @@ setup(
         'console_scripts': [
             # for use in translating a VEP annotated VCF to a MatrixTable
             'VcfToMt = talos.VcfToMt:cli_main',
+            # turns the SVDB TSV into a Hail Table
+            'ConvertSpliceVarDb = talos.ConvertSpliceVarDb:cli_main',
             # CPG internal, scans database for published reports, collects into an index page
             'BuildReportIndexPage = talos.CPG.BuildReportIndexPage:main',
             # CPG implementation, builds cohort phenopackets

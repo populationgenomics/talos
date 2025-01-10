@@ -127,6 +127,19 @@
         {% endif %}
     </td>
     <td>
+        {# SpliceVarDB #}
+        {% if 'svdb' in variant.categories %}
+            {{ variant.var_data.info.svdb_classification }} ({{ variant.var_data.info.svdb_method }})
+
+            {% for doi in variant.var_data.info.svdb_doi %}
+                <a href="{{doi}}" target="_blank">
+                    {{doi}}
+                </a>
+            {% endfor %}
+
+        {% endif %}
+    </td>
+    <td>
         {# External Labels #}
         {% for label in variant.ext_labels %}
         <span class="badge text-bg-info">

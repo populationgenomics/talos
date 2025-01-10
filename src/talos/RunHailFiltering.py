@@ -37,6 +37,7 @@ ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
+SPLICE_ALTERING = hl.str('splice-altering')
 
 # decide whether to repartition the data before processing starts
 MAX_PARTITIONS = 10000
@@ -199,6 +200,50 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorydetailsPM5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
+        ),
+    )
+
+
+def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
+    """
+    Takes the locus,ref,alt indexed table of SpliceVarDB variants, and matches
+    them up against the variant data
+    Annotates with a boolean flag if the variant is Splice-altering according to SVDB
+
+    Args:
+        mt (): MT of all variants
+        svdb_path (str or None): path to a (localised) PM5 annotations Hail Table
+
+    Returns:
+        Same MT with an extra category label
+    """
+
+    if svdb_path is None:
+        get_logger().info('SVDB table not found, skipping annotation')
+        return mt.annotate_rows(info=mt.info.annotate(categorydetailsSVDB=MISSING_STRING))
+
+    # read in the codon table
+    get_logger().info(f'Reading SpliceVarDB data from {svdb_path}')
+    svdb_ht = hl.read_table(svdb_path)
+
+    # annotate relevant variants with the SVDB results
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
+            svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_STRING),
+            svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_STRING),
+            svdb_doi=hl.or_else(svdb_ht[mt.row_key].doi, MISSING_STRING),
+        ),
+    )
+
+    # annotate category if Splice-altering according to SVDB
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categorybooleanSVDB=hl.if_else(
+                mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
+                ONE_INT,
+                MISSING_INT,
+            ),
         ),
     )
 
@@ -655,7 +700,8 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
-        | (mt.info.categorydetailsPM5 != MISSING_STRING),
+        | (mt.info.categorydetailsPM5 != MISSING_STRING)
+        | (mt.info.categorybooleanSVDB == 1),
     )
 
 
@@ -780,6 +826,7 @@ def cli_main():
     parser.add_argument('--output', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
+    parser.add_argument('--svdb', help='HT containing SpliceVarDB annotations, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
@@ -789,6 +836,7 @@ def cli_main():
         vcf_out=args.output,
         clinvar=args.clinvar,
         pm5=args.pm5,
+        svdb=args.svdb,
         checkpoint=args.checkpoint,
     )
 
@@ -800,6 +848,7 @@ def main(
     vcf_out: str,
     clinvar: str,
     pm5: str | None = None,
+    svdb: str | None = None,
     checkpoint: str | None = None,
 ):
     """
@@ -812,6 +861,7 @@ def main(
         vcf_out (str): where to write VCF out
         clinvar (str): location to a ClinVar HT, or unspecified
         pm5 (str): location to a pm5 HT, or unspecified
+        svdb (str): location to a SpliceVarDB HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
     get_logger(__file__).info(
@@ -910,6 +960,9 @@ def main(
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
+
+    # if a clinvar-codon table is supplied, use that for PM5
+    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
 
     # remove all variants without positively assigned labels
     mt = filter_to_categorised(mt=mt)

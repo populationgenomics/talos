@@ -237,18 +237,19 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,three,four,five,six,pm5,length',
+    'one,three,four,five,six,pm5,svdb,length',
     [
-        (0, 0, 'missing', 0, 0, 'missing', 0),
-        (1, 0, 'missing', 0, 0, 'missing', 1),
-        (0, 1, 'missing', 0, 0, 'missing', 1),
-        (0, 0, 'present', 0, 0, 'missing', 1),
-        (0, 0, 'missing', 1, 0, 'missing', 1),
-        (0, 0, 'missing', 0, 1, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'present', 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 0),
+        (1, 0, 'missing', 0, 0, 'missing', 0, 1),
+        (0, 1, 'missing', 0, 0, 'missing', 0, 1),
+        (0, 0, 'present', 0, 0, 'missing', 0, 1),
+        (0, 0, 'missing', 1, 0, 'missing', 0, 1),
+        (0, 0, 'missing', 0, 1, 'missing', 0, 1),
+        (0, 0, 'missing', 0, 0, 'present', 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1, 1),
     ],
 )
-def test_filter_to_classified(one, three, four, five, six, pm5, length, make_a_mt):
+def test_filter_to_classified(one, three, four, five, six, pm5, svdb, length, make_a_mt):
     """
 
     Args:
@@ -263,6 +264,7 @@ def test_filter_to_classified(one, three, four, five, six, pm5, length, make_a_m
             categoryboolean5=five,
             categoryboolean6=six,
             categorydetailsPM5=pm5,
+            categorybooleanSVDB=svdb,
         ),
     )
     matrix = filter_to_categorised(anno_matrix)
