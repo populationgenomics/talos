@@ -344,16 +344,20 @@ def organise_exomiser(
         pedigree (Pedigree | None): the flexible pedigree representation
     """
 
-    # if completely absent, the 'samples' category annotation is an empty set
-    if 'categorydetailsexomiser' not in info_dict:
-        info_dict['categorysampleexomiser'] = set()
-        return
+    info_dict['categorysampleexomiser'] = set()
 
     # this becomes a dict of dicts - Family, MOI, rank
     info_dict['exomiser'] = defaultdict(dict)
 
+    # if completely absent, the 'samples' category annotation is an empty set
+    if 'categorydetailsexomiser' not in info_dict:
+        return
+
     # pop off the exomiser details
     exomiser_details = info_dict.pop('categorydetailsexomiser')
+
+    if exomiser_details == 'missing':
+        return
 
     # split the string into a list of strings, iterate over the list
     for each_exomiser in exomiser_details.split('::'):
