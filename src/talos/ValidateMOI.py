@@ -146,6 +146,7 @@ def apply_moi_to_variants(
             runner = moi_lookup[panel_moi]
             if not isinstance(runner, MOIRunner):
                 raise TypeError(f'MOIRunner was not a MOIRunner object: {runner}')
+
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
@@ -519,6 +520,9 @@ def main(
 
     # remove duplicate and invalid variants
     results_model = clean_and_filter(results_model, result_list, panelapp_data, pheno_panels)
+
+    # need some extra filtering here to tidy up exomiser categorisation
+    results_model = polish_exomiser_results(results_model)
 
     # annotate previously seen results using cumulative data file(s)
     filter_results(results_model)

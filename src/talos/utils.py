@@ -493,12 +493,12 @@ def create_small_variant(
     # organise SVDB DOIs
     organise_svdb_doi(info)
 
-    # organise the exomiser data, if present
+    # organise the exomiser data, if present. By default only retain teh top 5 ranked results
     organise_exomiser(
         info,
         rank_threshold=config_retrieve(
             ['ValidateMOI', 'exomiser_rank_threshold'],
-            100,
+            5,
         ),
         pedigree=pedigree,
     )
