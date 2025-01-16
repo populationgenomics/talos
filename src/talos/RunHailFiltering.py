@@ -98,7 +98,7 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None) -> hl.Mat
     """
     Annotate this MT with top hits from Exomiser
 
-    The exomiser table must be indexed on [locus, alleles], with an extra column "family_details"
+    The exomiser table must be indexed on [locus, alleles], with an extra column "proband_details"
 
     Args:
         mt (): the MatrixTable of all variants
@@ -116,7 +116,7 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None) -> hl.Mat
     exomiser_ht = hl.read_table(exomiser)
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].family_details, MISSING_STRING),
+            categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].proband_details, MISSING_STRING),
         ),
     )
 

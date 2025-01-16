@@ -339,7 +339,7 @@ def organise_exomiser(
         rank_threshold (int | None): if present, only retain results above this rank
     """
 
-    info_dict['categorysampleexomiser'] = set()
+    info_dict['categorysampleexomiser'] = []
 
     # this becomes a dict of dicts - Family, MOI, rank
     info_dict['exomiser'] = defaultdict(dict)
@@ -371,7 +371,7 @@ def organise_exomiser(
     # keep the sample-type category for use in "is this variant labelled for this sample" checks
     # it's not exact - we need the pedigree for this to work at all
     # and there is the potential for catching family members without the variant
-    info_dict['categorysampleexomiser'] = set(info_dict['exomiser'].keys())
+    info_dict['categorysampleexomiser'] = list(info_dict['exomiser'].keys())
 
 
 def polish_exomiser_results(results: ResultData) -> None:
@@ -522,9 +522,9 @@ def create_small_variant(
     # sample categories are a set of strings or 'missing'
     for sam_cat in sample_categories:
         if isinstance(info[sam_cat], str):
-            info[sam_cat] = info[sam_cat].split(',') if info[sam_cat] != 'missing' else set()
+            info[sam_cat] = info[sam_cat].split(',') if info[sam_cat] != 'missing' else []
         if isinstance(info[sam_cat], list):
-            info[sam_cat] = set(info[sam_cat])
+            info[sam_cat] = info[sam_cat]
 
     phased = get_phase_data(samples, var)
     ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
