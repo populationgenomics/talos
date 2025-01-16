@@ -519,12 +519,14 @@ def create_small_variant(
     for cat in support_categories + boolean_categories:
         info[cat] = info.get(cat, 0) == 1
 
-    # sample categories are a set of strings or 'missing'
+    # sample categories are a list of strings or 'missing'
     for sam_cat in sample_categories:
         if isinstance(info[sam_cat], str):
             info[sam_cat] = info[sam_cat].split(',') if info[sam_cat] != 'missing' else []
-        if isinstance(info[sam_cat], list):
+        elif isinstance(info[sam_cat], list):
             info[sam_cat] = info[sam_cat]
+        elif isinstance(info[sam_cat], set):
+            info[sam_cat] = list(info[sam_cat])
 
     phased = get_phase_data(samples, var)
     ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
