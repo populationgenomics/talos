@@ -295,7 +295,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
             (mt.info.clinvar_talos == ONE_INT)
             | (mt.info.categorybooleanSVDB == ONE_INT)
             | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        )
+        ),
     )
 
 
@@ -387,7 +387,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
             (mt.info.clinvar_talos == ONE_INT)
             | (mt.info.categorybooleanSVDB == ONE_INT)
             | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        )
+        ),
     )
 
 

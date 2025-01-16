@@ -483,7 +483,6 @@ def create_small_variant(
     Args:
         var ():
         samples ():
-        pedigree (): optional, flexible pedigree representation
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
@@ -995,7 +994,6 @@ def save_new_historic(results: HistoricVariants):
 
     Args:
         results (HistoricVariants): object to save as JSON
-        prefix (str): name prefix for this file (optional)
     """
 
     if (directory := config_retrieve('result_history', None)) is None:
