@@ -3,6 +3,7 @@ A home for all data models used in Talos
 """
 
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -89,7 +90,7 @@ class VariantCommon(BaseModel):
     """
 
     coordinates: Coordinates = Field(repr=True)
-    info: dict[str, str | int | float | list[str] | list[float] | dict[str, str] | bool] = Field(default_factory=dict)
+    info: dict[str, Any] = Field(default_factory=dict)
     het_samples: set[str] = Field(default_factory=set, exclude=True)
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)

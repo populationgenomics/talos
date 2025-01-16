@@ -325,23 +325,18 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
 def organise_exomiser(
     info_dict: dict[str, Any],
     rank_threshold: int | None = None,
-    pedigree: Pedigree | None = None,
 ):
     """
     method dedicated to handling the new exomiser annotations
 
-    If present, these are in a condensed format of FAMILY_RANK_MOI, delimited by "::" e.g.
-    "FAM1_29_AR::FAM2_26_AR::FAM3_23_AR"
+    If present, these are in a condensed format of PROBAND_RANK_MOI, delimited by "::" e.g.
+    "PROBAND1_29_AR::PROBAND2_26_AR::PROAND3_23_AR"
 
     When parsing this, we optionally filter to only the top-n ranked results
-
-    Exomiser results are based on family, results here are based on individual. Use the pedigree as a lookup to get from
-    the family IDs the affected individuals.
 
     Args:
         info_dict ():
         rank_threshold (int | None): if present, only retain results above this rank
-        pedigree (Pedigree | None): the flexible pedigree representation
     """
 
     info_dict['categorysampleexomiser'] = set()
@@ -362,7 +357,7 @@ def organise_exomiser(
     # split the string into a list of strings, iterate over the list
     for each_exomiser in exomiser_details.split('::'):
         # split the string into its component parts
-        fam, rank, moi = each_exomiser.split('_')
+        sam_id, rank, moi = each_exomiser.split('_')
 
         # swap that rank to an int
         rank_int: int = int(rank)
@@ -371,20 +366,35 @@ def organise_exomiser(
         if rank_threshold and rank_int > rank_threshold:
             continue
 
-        if pedigree is None:
-            info_dict['exomiser'][fam][moi] = rank_int
-            continue
-
-        # if we have the pedigree, map this to the affected samples in the family (typically a single proband)
-        all_samples = pedigree.by_family.get(fam, [])
-        affected_samples = [sam for sam in all_samples if sam.affected == '2']
-        for sam in affected_samples:
-            info_dict['exomiser'][sam.id][moi] = rank_int
+        info_dict['exomiser'][sam_id][moi] = rank_int
 
     # keep the sample-type category for use in "is this variant labelled for this sample" checks
     # it's not exact - we need the pedigree for this to work at all
     # and there is the potential for catching family members without the variant
     info_dict['categorysampleexomiser'] = set(info_dict['exomiser'].keys())
+
+
+def polish_exomiser_results(results: ResultData) -> None:
+    """
+    now that we have all the per-participant events, we pare back any exomiser content in the variant info
+    field to be exclusively those relevant to each sample
+
+    Args:
+        results (ResultData): the results object to be updated
+    """
+    # iterate over the samples in the results part of the data model
+    for sample, content in results.results.items():
+        # for each variant
+        for var in content.variants:
+            # if this sample had exomiser ratings
+            if 'exomiser' in var.categories:
+                # pull out the exomiser section specific to this sample
+                exomiser_section = var.var_data.info['exomiser'][sample]
+                # shove them in a list of strings
+                var.var_data.info['exomiser'] = [f'{moi}:{rank}' for moi, rank in exomiser_section.items()]
+            else:
+                # if it wasn't categorised for this sample, empty list
+                var.var_data.info['exomiser'] = []
 
 
 def organise_pm5(info_dict: dict[str, Any]):
@@ -466,7 +476,6 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
 def create_small_variant(
     var: cyvcf2.Variant,
     samples: list[str],
-    pedigree: Pedigree | None = None,
 ):
     """
     takes a small variant and creates a Model from it
@@ -493,14 +502,13 @@ def create_small_variant(
     # organise SVDB DOIs
     organise_svdb_doi(info)
 
-    # organise the exomiser data, if present. By default only retain teh top 5 ranked results
+    # organise the exomiser data, if present. By default, only retain teh top 5 ranked results
     organise_exomiser(
         info,
         rank_threshold=config_retrieve(
             ['ValidateMOI', 'exomiser_rank_threshold'],
             5,
         ),
-        pedigree=pedigree,
     )
 
     # set the class attributes
@@ -606,7 +614,6 @@ def gather_gene_dict_from_contig(
     contig: str,
     variant_source,
     sv_sources: list | None = None,
-    pedigree: Pedigree | None = None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -618,7 +625,6 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
         sv_sources (): an optional list of SV VCFs
-        pedigree (): optional, the flexible pedigree
 
     Returns:
         A lookup in the form
@@ -648,7 +654,6 @@ def gather_gene_dict_from_contig(
         small_variant = create_small_variant(
             var=variant,
             samples=variant_source.samples,
-            pedigree=pedigree,
         )
 
         if small_variant.coordinates.string_format in blacklist:

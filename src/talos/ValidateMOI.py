@@ -40,6 +40,7 @@ from talos.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    polish_exomiser_results,
     make_flexible_pedigree,
     read_json_from_path,
 )
@@ -484,7 +485,9 @@ def main(
     for contig in canonical_contigs_from_vcf(vcf_opened):
         # assemble {gene: [var1, var2, ..]}
         contig_dict = gather_gene_dict_from_contig(
-            contig=contig, variant_source=vcf_opened, sv_sources=sv_opened, pedigree=ped
+            contig=contig,
+            variant_source=vcf_opened,
+            sv_sources=sv_opened,
         )
 
         result_list.extend(
@@ -522,7 +525,7 @@ def main(
     results_model = clean_and_filter(results_model, result_list, panelapp_data, pheno_panels)
 
     # need some extra filtering here to tidy up exomiser categorisation
-    results_model = polish_exomiser_results(results_model)
+    polish_exomiser_results(results_model)
 
     # annotate previously seen results using cumulative data file(s)
     filter_results(results_model)
