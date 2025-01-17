@@ -87,6 +87,8 @@ setup(
             'CreateTalosHTML = talos.CreateTalosHTML:cli_main',
             # CPG internal (?), generate a file for ingestion by Seqr
             'MinimiseOutputForSeqr = talos.MinimiseOutputForSeqr:cli_main',
+            # CPG internal (?), generate a JSON summary of an existing report
+            'SummariseReport = talos.SummariseReport:cli_main',
         ],
     },
 )
