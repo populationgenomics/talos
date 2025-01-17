@@ -164,7 +164,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
 
     if pm5_path is None:
         get_logger().info('PM5 table not found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsPM5=MISSING_STRING))
+        return mt.annotate_rows(info=mt.info.annotate(categorydetailspm5=MISSING_STRING))
 
     # read in the codon table
     get_logger().info(f'Reading clinvar alleles by codon from {pm5_path}')
@@ -226,7 +226,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     # conditional annotation back into the original MT
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorydetailsPM5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
+            categorydetailspm5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
         ),
     )
 
@@ -266,7 +266,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     # annotate category if Splice-altering according to SVDB
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleanSVDB=hl.if_else(
+            categorybooleansvdb=hl.if_else(
                 mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
                 ONE_INT,
                 MISSING_INT,
@@ -293,7 +293,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.filters.length() == 0)
         | (
             (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleanSVDB == ONE_INT)
+            | (mt.info.categorybooleansvdb == ONE_INT)
             | (mt.info.categorydetailsexomiser != MISSING_STRING)
         ),
     )
@@ -363,7 +363,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
         ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
         | (
             (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleanSVDB == ONE_INT)
+            | (mt.info.categorybooleansvdb == ONE_INT)
             | (mt.info.categorydetailsexomiser != MISSING_STRING)
         ),
     )
@@ -385,7 +385,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
         )
         | (
             (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleanSVDB == ONE_INT)
+            | (mt.info.categorybooleansvdb == ONE_INT)
             | (mt.info.categorydetailsexomiser != MISSING_STRING)
         ),
     )
@@ -743,8 +743,8 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
-        | (mt.info.categorydetailsPM5 != MISSING_STRING)
-        | (mt.info.categorybooleanSVDB == 1)
+        | (mt.info.categorydetailspm5 != MISSING_STRING)
+        | (mt.info.categorybooleansvdb == 1)
         | (mt.info.categorydetailsexomiser != MISSING_STRING),
     )
 
