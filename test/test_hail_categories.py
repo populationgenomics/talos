@@ -169,7 +169,7 @@ def test_green_from_panelapp():
     ],
 )
 def test_filter_rows_for_rare(
-    exomes: float, genomes: float, clinvar: int, svdb: int, exomiser: str, length: int, make_a_mt
+    exomes: float, genomes: float, clinvar: int, svdb: int, exomiser: str, length: int, make_a_mt,
 ):
     """
     annotate categories and test for retention
