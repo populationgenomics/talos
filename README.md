@@ -98,7 +98,7 @@ Talos consists of the following components:
 
 ![CatDiagram](design_docs/images/Categories.png)
 
-This is a highly simplified representation of the categories currently implemented. The code block
+This is a highly simplified representation of the categories currently implemented.
 
 ## ClinvArbitration
 
@@ -109,6 +109,12 @@ Talos uses ClinVar submissions to determine if a variant has been previously rep
 In addition to providing the top-line rating, ClinvArbitration also re-indexes ClinVar variants based on the transcript and codon they alter. Talos uses this table to identify any missense variants impacting a codon previously reported to be altered by a pathogenic variant in ClinVar and assign the `PM5` evidence category.
 
 ClinvArbitration is used to re-process ClinVar releases periodically and the ready-to-use results are available via the ClinvArbitration repository's Release page.
+
+## Exomiser Integration
+
+[Exomiser](https://github.com/exomiser/Exomiser) is a similar tool in this space, running variant prioritisation based on variant annotations and matching genes to participant phenotypes. In our benchmarking cohorts we've found that performance of Talos and Exomiser are comparable when used independently, but when the two analyses are combined, they perform better than either in isolation. To that end we have facilitated the integration of Exomiser variants into Talos analyses. If you have previously generated Exomiser (v14) results, the script [CombineExomiserVariantTsvs.py](src/talos/CombineExomiserVariantTsvs.py) will aggregate the per-proband TSVs into a single JSON file, and write the results as a Hail Table. This Hail Table can be passed to `RunHailFiltering`, with variants prioritised by Exomiser annotated in as another data source. In the HTML report, an `Exomiser` column will display the rank and Mode of Inheritance (MOI) of the variant in the Exomiser reports. 
+
+This preparatory script expects that the Exomiser Variant analysis TSVs have the naming convention `PROBAND.variant.tsv`, where PROBAND is the name of the proband in the cohort/VCF/MatrixTable.
 
 ## Reanalysis
 
