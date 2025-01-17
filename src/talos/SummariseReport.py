@@ -42,9 +42,9 @@ def main(input_path: str, output_path: str | None = None, prefix: int | None = N
 
     if prefix:
         # set up a section in the dictionary for this
-        family_breakdown['grouped_families'] = defaultdict(int)
+        family_breakdown['grouped_by_prefix'] = defaultdict(int)
         for proband in report.results.values():
-            family_breakdown['grouped_families'][proband.metadata.family_id[:prefix]] += 1
+            family_breakdown['grouped_by_prefix'][proband.metadata.ext_id[:prefix]] += 1
 
     print(json.dumps(family_breakdown, indent=4))
 
