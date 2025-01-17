@@ -22,6 +22,7 @@ workflow {
     hpo_file_channel = Channel.fromPath(params.hpo)
     runtime_config_channel = Channel.fromPath(params.runtime_config)
     clinvar_tar_channel = Channel.fromPath(params.clinvar)
+    exomiser_tar_channel = Channel.fromPath(params.exomiser)
     gen2phen_channel = Channel.fromPath(params.gen2phen)
     phenio_db_channel = Channel.fromPath(params.phenio_db)
     svdb_tsv_channel = Channel.fromPath(params.svdb_tsv)
@@ -54,6 +55,7 @@ workflow {
         QueryPanelapp.out,
         ConvertPedToPhenopackets.out[0],
         clinvar_tar_channel,
+        exomiser_tar_channel,
         ConvertSpliceVarDb.out,
         params.checkpoint,
         runtime_config_channel,

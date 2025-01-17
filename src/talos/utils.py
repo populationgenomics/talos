@@ -322,6 +322,81 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
     return dict(phased_dict)
 
 
+def organise_exomiser(
+    info_dict: dict[str, Any],
+    rank_threshold: int | None = None,
+):
+    """
+    method dedicated to handling the new exomiser annotations
+
+    If present, these are in a condensed format of PROBAND_RANK_MOI, delimited by "::" e.g.
+    "PROBAND1_29_AR::PROBAND2_26_AR::PROAND3_23_AR"
+
+    When parsing this, we optionally filter to only the top-n ranked results
+
+    Args:
+        info_dict ():
+        rank_threshold (int | None): if present, only retain results above this rank
+    """
+
+    info_dict['categorysampleexomiser'] = []
+
+    # this becomes a dict of dicts - Family, MOI, rank
+    info_dict['exomiser'] = defaultdict(dict)
+
+    # if completely absent, the 'samples' category annotation is an empty set
+    if 'categorydetailsexomiser' not in info_dict:
+        return
+
+    # pop off the exomiser details
+    exomiser_details = info_dict.pop('categorydetailsexomiser')
+
+    if exomiser_details == 'missing':
+        return
+
+    # split the string into a list of strings, iterate over the list
+    for each_exomiser in exomiser_details.split('::'):
+        # split the string into its component parts
+        sam_id, rank, moi = each_exomiser.split('_')
+
+        # swap that rank to an int
+        rank_int: int = int(rank)
+
+        # optionally, filter by a threshold rank
+        if rank_threshold and rank_int > rank_threshold:
+            continue
+
+        info_dict['exomiser'][sam_id][moi] = rank_int
+
+    # keep the sample-type category for use in "is this variant labelled for this sample" checks
+    # it's not exact - we need the pedigree for this to work at all
+    # and there is the potential for catching family members without the variant
+    info_dict['categorysampleexomiser'] = list(info_dict['exomiser'].keys())
+
+
+def polish_exomiser_results(results: ResultData) -> None:
+    """
+    now that we have all the per-participant events, we pare back any exomiser content in the variant info
+    field to be exclusively those relevant to each sample
+
+    Args:
+        results (ResultData): the results object to be updated
+    """
+    # iterate over the samples in the results part of the data model
+    for sample, content in results.results.items():
+        # for each variant
+        for var in content.variants:
+            # if this sample had exomiser ratings
+            if 'exomiser' in var.categories:
+                # pull out the exomiser section specific to this sample
+                exomiser_section = var.var_data.info['exomiser'][sample]
+                # shove them in a list of strings
+                var.var_data.info['exomiser'] = [f'{moi}:{rank}' for moi, rank in exomiser_section.items()]
+            else:
+                # if it wasn't categorised for this sample, empty list
+                var.var_data.info['exomiser'] = []
+
+
 def organise_pm5(info_dict: dict[str, Any]):
     """
     method dedicated to handling the new pm5 annotations
@@ -398,7 +473,10 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
     info_dict['svdb_doi'] = doi_urls
 
 
-def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
+def create_small_variant(
+    var: cyvcf2.Variant,
+    samples: list[str],
+):
     """
     takes a small variant and creates a Model from it
 
@@ -423,6 +501,15 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
     # organise SVDB DOIs
     organise_svdb_doi(info)
 
+    # organise the exomiser data, if present. By default, only retain teh top 5 ranked results
+    organise_exomiser(
+        info,
+        rank_threshold=config_retrieve(
+            ['ValidateMOI', 'exomiser_rank_threshold'],
+            5,
+        ),
+    )
+
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
     sample_categories = [key for key in info if key.startswith('categorysample')]
@@ -432,12 +519,14 @@ def create_small_variant(var: cyvcf2.Variant, samples: list[str]):
     for cat in support_categories + boolean_categories:
         info[cat] = info.get(cat, 0) == 1
 
-    # sample categories are a set of strings or 'missing'
+    # sample categories are a list of strings or 'missing'
     for sam_cat in sample_categories:
         if isinstance(info[sam_cat], str):
-            info[sam_cat] = info[sam_cat].split(',') if info[sam_cat] != 'missing' else set()
-        if isinstance(info[sam_cat], list):
-            info[sam_cat] = set(info[sam_cat])
+            info[sam_cat] = info[sam_cat].split(',') if info[sam_cat] != 'missing' else []
+        elif isinstance(info[sam_cat], list):
+            info[sam_cat] = info[sam_cat]
+        elif isinstance(info[sam_cat], set):
+            info[sam_cat] = list(info[sam_cat])
 
     phased = get_phase_data(samples, var)
     ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
@@ -907,7 +996,6 @@ def save_new_historic(results: HistoricVariants):
 
     Args:
         results (HistoricVariants): object to save as JSON
-        prefix (str): name prefix for this file (optional)
     """
 
     if (directory := config_retrieve('result_history', None)) is None:

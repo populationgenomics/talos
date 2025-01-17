@@ -94,6 +94,33 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
     )
 
 
+def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None) -> hl.MatrixTable:
+    """
+    Annotate this MT with top hits from Exomiser
+
+    The exomiser table must be indexed on [locus, alleles], with an extra column "proband_details"
+
+    Args:
+        mt (): the MatrixTable of all variants
+        exomiser (str | None): optional, path to HT of exomiser results
+
+    Returns:
+        The same MatrixTable but with additional annotations
+    """
+
+    if not exomiser:
+        get_logger().info('No exomiser table found, skipping annotation')
+        return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
+
+    get_logger().info(f'loading exomiser variants from {exomiser}')
+    exomiser_ht = hl.read_table(exomiser)
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].proband_details, MISSING_STRING),
+        ),
+    )
+
+
 def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     """
     takes the protein indexed clinvar results and matches up against
@@ -137,7 +164,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
 
     if pm5_path is None:
         get_logger().info('PM5 table not found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsPM5=MISSING_STRING))
+        return mt.annotate_rows(info=mt.info.annotate(categorydetailspm5=MISSING_STRING))
 
     # read in the codon table
     get_logger().info(f'Reading clinvar alleles by codon from {pm5_path}')
@@ -199,7 +226,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     # conditional annotation back into the original MT
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorydetailsPM5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
+            categorydetailspm5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
         ),
     )
 
@@ -239,7 +266,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     # annotate category if Splice-altering according to SVDB
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleanSVDB=hl.if_else(
+            categorybooleansvdb=hl.if_else(
                 mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
                 ONE_INT,
                 MISSING_INT,
@@ -261,7 +288,15 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
         MT with all filtered variants removed
     """
 
-    return mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0) | (mt.info.clinvar_talos == ONE_INT))
+    return mt.filter_rows(
+        hl.is_missing(mt.filters)
+        | (mt.filters.length() == 0)
+        | (
+            (mt.info.clinvar_talos == ONE_INT)
+            | (mt.info.categorybooleansvdb == ONE_INT)
+            | (mt.info.categorydetailsexomiser != MISSING_STRING)
+        ),
+    )
 
 
 def filter_to_well_normalised(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -326,7 +361,11 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     min_callset_ac = 5
     return mt.filter_rows(
         ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
-        | (mt.info.clinvar_talos == ONE_INT),
+        | (
+            (mt.info.clinvar_talos == ONE_INT)
+            | (mt.info.categorybooleansvdb == ONE_INT)
+            | (mt.info.categorydetailsexomiser != MISSING_STRING)
+        ),
     )
 
 
@@ -344,7 +383,11 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
             (hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
             & (hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
         )
-        | (mt.info.clinvar_talos == ONE_INT),
+        | (
+            (mt.info.clinvar_talos == ONE_INT)
+            | (mt.info.categorybooleansvdb == ONE_INT)
+            | (mt.info.categorydetailsexomiser != MISSING_STRING)
+        ),
     )
 
 
@@ -700,8 +743,9 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != MISSING_STRING)
         | (mt.info.categoryboolean5 == 1)
-        | (mt.info.categorydetailsPM5 != MISSING_STRING)
-        | (mt.info.categorybooleanSVDB == 1),
+        | (mt.info.categorydetailspm5 != MISSING_STRING)
+        | (mt.info.categorybooleansvdb == 1)
+        | (mt.info.categorydetailsexomiser != MISSING_STRING),
     )
 
 
@@ -826,6 +870,7 @@ def cli_main():
     parser.add_argument('--output', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
+    parser.add_argument('--exomiser', help='HT containing exomiser variant selections, optional', default=None)
     parser.add_argument('--svdb', help='HT containing SpliceVarDB annotations, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
@@ -836,6 +881,7 @@ def cli_main():
         vcf_out=args.output,
         clinvar=args.clinvar,
         pm5=args.pm5,
+        exomiser=args.exomiser,
         svdb=args.svdb,
         checkpoint=args.checkpoint,
     )
@@ -848,6 +894,7 @@ def main(
     vcf_out: str,
     clinvar: str,
     pm5: str | None = None,
+    exomiser: str | None = None,
     svdb: str | None = None,
     checkpoint: str | None = None,
 ):
@@ -859,9 +906,10 @@ def main(
         panel_data ():
         pedigree (str): path to a pedigree for this cohort (used in de novo testing)
         vcf_out (str): where to write VCF out
-        clinvar (str): location to a ClinVar HT, or unspecified
-        pm5 (str): location to a pm5 HT, or unspecified
-        svdb (str): location to a SpliceVarDB HT, or unspecified
+        clinvar (str): path to a ClinVar HT, or unspecified
+        pm5 (str): path to a pm5 HT, or unspecified
+        exomiser (str): path of an exomiser HT, or unspecified
+        svdb (str): path to a SpliceVarDB HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
     get_logger(__file__).info(
@@ -924,6 +972,12 @@ def main(
     # swap out the default clinvar annotations with private clinvar
     mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
 
+    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
+    mt = annotate_exomiser(mt=mt, exomiser=exomiser)
+
+    # if a SVDB data is provided, use that to apply category annotations
+    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
+
     # remove common-in-gnomad variants (also includes ClinVar annotation)
     mt = filter_to_population_rare(mt=mt)
 
@@ -960,9 +1014,6 @@ def main(
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
-
-    # if a clinvar-codon table is supplied, use that for PM5
-    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
 
     # remove all variants without positively assigned labels
     mt = filter_to_categorised(mt=mt)

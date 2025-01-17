@@ -127,6 +127,14 @@
         {% endif %}
     </td>
     <td>
+        {# Exomiser #}
+        {% if 'exomiser' in variant.categories %}
+            {% for exomiser_entry in variant.var_data.info.exomiser %}
+                {{exomiser_entry}}
+            {% endfor %}
+        {% endif %}
+    </td>
+    <td>
         {# SpliceVarDB #}
         {% if 'svdb' in variant.categories %}
             {{ variant.var_data.info.svdb_classification }} ({{ variant.var_data.info.svdb_method }})

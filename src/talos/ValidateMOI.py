@@ -40,6 +40,7 @@ from talos.utils import (
     filter_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    polish_exomiser_results,
     make_flexible_pedigree,
     read_json_from_path,
 )
@@ -146,6 +147,7 @@ def apply_moi_to_variants(
             runner = moi_lookup[panel_moi]
             if not isinstance(runner, MOIRunner):
                 raise TypeError(f'MOIRunner was not a MOIRunner object: {runner}')
+
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
@@ -434,13 +436,13 @@ def main(
     """
     get_logger(__file__).info(
         r"""Welcome To
-███████████   █████████   █████          ███████     █████████
-█   ███   █  ███     ███   ███         ███     ███  ███     ███
-    ███      ███     ███   ███        ███       ███ ███
-    ███      ███████████   ███        ███       ███  █████████
-    ███      ███     ███   ███        ███       ███         ███
-    ███      ███     ███   ███      █  ███     ███  ███     ███
-   █████    █████   █████ ███████████    ███████     █████████
+    ███████████   █████████   █████          ███████     █████████
+    █   ███   █  ███     ███   ███         ███     ███  ███     ███
+        ███      ███     ███   ███        ███       ███ ███
+        ███      ███████████   ███        ███       ███  █████████
+        ███      ███     ███   ███        ███       ███         ███
+        ███      ███     ███   ███      █  ███     ███  ███     ███
+       █████    █████   █████ ███████████    ███████     █████████
         """,
     )
 
@@ -521,6 +523,9 @@ def main(
 
     # remove duplicate and invalid variants
     results_model = clean_and_filter(results_model, result_list, panelapp_data, pheno_panels)
+
+    # need some extra filtering here to tidy up exomiser categorisation
+    polish_exomiser_results(results_model)
 
     # annotate previously seen results using cumulative data file(s)
     filter_results(results_model)

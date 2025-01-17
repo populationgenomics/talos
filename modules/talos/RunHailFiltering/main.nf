@@ -2,15 +2,15 @@
 process RunHailFiltering {
     container params.container
 
-
     // runs the hail small-variant filtering
-    publishDir 'results', mode: 'copy'
+    publishDir params.output_dir, mode: 'copy'
 
     input:
         path matrix_table
         path panelapp_data
         path pedigree
         path clinvar
+        path exomiser
         path svdb
         val checkpoint
         path talos_config
@@ -22,7 +22,7 @@ process RunHailFiltering {
 
     // only write a checkpoint if we were given a path
     script:
-        def checkpoint = checkpoint != 'NO_FILE' ? "--checkpoint ${checkpoint}" : ''
+        def checkpoint = checkpoint != "${params.output_dir}/assets/NO_FILE" ? "--checkpoint ${checkpoint}" : ''
 
     // unzip the ClinvArbitration data directory and MatrixTable
     """
@@ -31,6 +31,7 @@ process RunHailFiltering {
     tar -zxf ${clinvar}
     tar -zxf ${matrix_table}
     tar -zxf ${svdb}
+    tar -zxf ${exomiser}
 
     RunHailFiltering \
         --input ${params.cohort}_small_variants.mt \
@@ -40,6 +41,7 @@ process RunHailFiltering {
         --clinvar clinvarbitration_data/clinvar_decisions.ht \
         --pm5 clinvarbitration_data/clinvar_pm5.ht \
         --svdb ${params.cohort}_svdb.ht \
+        --exomiser exomiser_nf.ht \
         ${checkpoint}
     """
 }
