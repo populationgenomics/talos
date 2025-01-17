@@ -23,7 +23,14 @@ from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags,
     ],
 )
 def test_ac_filter_no_filt(
-    ac: int, an: int, clinvar: int, svdb: str, exomiser: str, threshold: float, rows: int, make_a_mt: hl.MatrixTable,
+    ac: int,
+    an: int,
+    clinvar: int,
+    svdb: str,
+    exomiser: str,
+    threshold: float,
+    rows: int,
+    make_a_mt: hl.MatrixTable,
 ):
     """
     run tests on the ac filtering method
@@ -55,7 +62,12 @@ def test_ac_filter_no_filt(
     ],
 )
 def test_filter_on_quality_flags(
-    filters: hl.set, clinvar: int, svdb: str, exomiser: str, length: int, make_a_mt: hl.MatrixTable,
+    filters: hl.set,
+    clinvar: int,
+    svdb: str,
+    exomiser: str,
+    length: int,
+    make_a_mt: hl.MatrixTable,
 ):
     """
     annotate filters and run tests
