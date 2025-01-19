@@ -271,11 +271,13 @@ class SmallVariant(VariantCommon):
         """
         gets all report flags for this sample - currently only one flag
         """
-        return self.check_ab_ratio(sample) | self.check_read_depth(sample)
+        return self.check_ab_ratio(sample) | self.check_read_depth_strict(sample)
 
     def check_read_depth(self, sample: str, threshold: int = 10, var_is_cat_1: bool = False) -> set[str]:
         """
         flag low read depth for this sample
+        this version is used to determine whether a variant should be considered for _this_ sample
+        in this situation we pass variants in clinvar, regardless of read depth
 
         Args:
             sample (str): sample ID matching VCF
@@ -287,6 +289,19 @@ class SmallVariant(VariantCommon):
         """
         if var_is_cat_1:
             return set()
+        return self.check_read_depth_strict(sample, threshold)
+
+    def check_read_depth_strict(self, sample: str, threshold: int = 10) -> set[str]:
+        """
+        flag low read depth for this sample - doesn't care if it's in ClinVar
+
+        Args:
+            sample (str): sample ID matching VCF
+            threshold (int): cut-off for flagging as a failure
+
+        Returns:
+            return a flag if this sample has low read depth
+        """
         if self.depths[sample] < threshold:
             return {'Low Read Depth'}
         return set()

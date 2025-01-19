@@ -349,7 +349,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     """
     Remove variants with AC in joint-call over threshold
     Will never remove variants with 5 or fewer instances
-    Also overridden by having a Clinvar Pathogenic anno.
+    This is now more strict, not permitting clinvar pathogenics to pass through
 
     Args:
         mt (hl.MatrixTable):
@@ -359,14 +359,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
         (unless overridden by clinvar path)
     """
     min_callset_ac = 5
-    return mt.filter_rows(
-        ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
-    )
+    return mt.filter_rows((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
 
 
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
