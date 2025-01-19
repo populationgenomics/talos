@@ -57,6 +57,9 @@ max_parent_ab = 0.05
 minimum_depth = 10
 spliceai = 0.5
 
+# if true, we retain all common-in-callset variants if they have been prioritised as pathogenic (ClinVar, Exomiser)
+allow_clinvar_common = false
+
 [RunHailFiltering.cores]
 small_variants = 8
 
