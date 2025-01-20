@@ -334,7 +334,7 @@ class DominantAutosomal(BaseMoi):
         # prepare the AF test dicts
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
-            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold, 'af': self.ad_threshold},
             StructuralVariant.__name__: {'af': self.sv_af_threshold, SV_AF_KEY: self.sv_af_threshold},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
@@ -608,7 +608,7 @@ class XDominant(BaseMoi):
         self.freq_tests = {
             SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
             | {key: self.hemi_threshold for key in INFO_HEMI}
-            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold, 'af': self.ad_threshold},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS}
             | {key: self.hemi_threshold for key in SV_HEMI},
         }
