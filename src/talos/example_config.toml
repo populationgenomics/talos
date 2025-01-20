@@ -82,7 +82,7 @@ seqr_project = "e.g. COHORT_project_id"
 
 # a variant will only be permitted into the final report if it has no `flags` attached, or if all the attached
 # flags fully overlap with this list. Examples are "AB Ratio" for allelic balance, or "Low Read Depth"
-allow_filters = []
+allow_filters = ['Ambiguous Cat.1 MOI', 'Affected female with heterozygous variant in XLR gene']
 
 [HPOFlagging]
 # this section relates to phenotype-matching the final variant set

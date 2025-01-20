@@ -15,6 +15,7 @@ from talos.utils import X_CHROMOSOME, CompHetDict
 
 # config keys to use for dominant MOI tests
 CALLSET_AF_SV_DOMINANT = 'callset_af_sv_dominant'
+CB1 = 'categoryboolean1'
 GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
 GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
 GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
@@ -174,7 +175,7 @@ class BaseMoi:
                 self.pedigree.by_id[sample_id].affected == '2'
                 and variant.sample_category_check(sample_id, allow_support=False)
             )
-        ) or variant.check_read_depth(sample_id, self.minimum_depth, var_is_cat_1=variant.info.get('categoryboolean1')):
+        ) or variant.check_read_depth(sample_id, self.minimum_depth, var_is_cat_1=variant.info.get(CB1)):
             return True
         return False
 
@@ -278,9 +279,9 @@ class BaseMoi:
         Returns:
             True if any of the info attributes are above the threshold, unless we use a clinvar escape
         """
-        if permit_clinvar and info.get('categoryboolean1'):
+        if permit_clinvar and info.get(CB1):
             return False
-        return any(info.get(key, 0) >= test for key, test in thresholds.items())
+        return any(info.get(key, 0) > test for key, test in thresholds.items())
 
     @staticmethod
     def check_callset_af_fails(info: dict, threshold: float) -> bool:
@@ -300,7 +301,7 @@ class BaseMoi:
         """
 
         min_ac = 5
-        if info.get('ac', 0) < min_ac:
+        if info.get('ac', 0) <= min_ac:
             return False
 
         return info.get('af', 0.0) >= threshold
@@ -402,7 +403,7 @@ class DominantAutosomal(BaseMoi):
                 principal.check_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    var_is_cat_1=principal.info.get('categoryboolean1'),
+                    var_is_cat_1=principal.info.get(CB1),
                 )
             ):
                 continue
@@ -487,7 +488,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     self.pedigree.by_id[sample_id].affected == '2'
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
-            ) or (principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))):
+            ) or (principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1))):
                 continue
 
             for partner_variant in check_for_second_hit(
@@ -499,7 +500,7 @@ class RecessiveAutosomalCH(BaseMoi):
                 if partner_variant.check_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    partner_variant.info.get('categoryboolean1'),
+                    partner_variant.info.get(CB1),
                 ) or self.check_frequency_fails(
                     partner_variant.info,
                     self.freq_tests[partner_variant.__class__.__name__],
@@ -579,7 +580,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                     self.pedigree.by_id[sample_id].affected == '2'
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1)):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -682,7 +683,7 @@ class XDominant(BaseMoi):
                     principal.sample_category_check(sample_id, allow_support=False)
                     and self.pedigree.by_id[sample_id].affected == '2'
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1)):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -781,7 +782,7 @@ class XPseudoDominantFemale(BaseMoi):
                     principal.sample_category_check(sample_id, allow_support=False)
                     and self.pedigree.by_id[sample_id].affected == '2'
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1)):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -879,7 +880,7 @@ class XRecessiveMale(BaseMoi):
                     self.pedigree.by_id[sample_id].affected == '2'
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1)):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -956,7 +957,7 @@ class XRecessiveFemaleHom(BaseMoi):
                     self.pedigree.by_id[sample_id].affected == '2'
                     and principal.sample_category_check(sample_id, allow_support=False)
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1)):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -1039,7 +1040,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     self.pedigree.by_id[sample_id].affected == '2'
                     and principal.sample_category_check(sample_id, allow_support=True)
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get(CB1)):
                 continue
 
             for partner in check_for_second_hit(
@@ -1056,7 +1057,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     continue
 
                 # check for minimum depth in partner
-                if partner.check_read_depth(sample_id, self.minimum_depth, partner.info.get('categoryboolean1')):
+                if partner.check_read_depth(sample_id, self.minimum_depth, partner.info.get(CB1)):
                     continue
 
                 if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner):
