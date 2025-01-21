@@ -183,7 +183,6 @@ class VariantCommon(BaseModel):
         categories: set[str] = set()
         for category in self.sample_categories:
             cat_samples = self.info[category]
-            print(cat_samples, category)
             if not isinstance(cat_samples, list):
                 raise TypeError(f'Sample categories should be a list: {cat_samples}')
             if sample in cat_samples:
@@ -370,6 +369,8 @@ class ReportVariant(BaseModel):
     support_vars: set[str] = Field(default_factory=set)
     # log whether there was an increase in ClinVar star rating since the last run
     clinvar_increase: bool = Field(default=False)
+    # exomiser results - I'd like to store this in a cleaner way in future
+    exomiser_results: list[str] = Field(default_factory=list)
 
     def __eq__(self, other):
         """
