@@ -569,7 +569,9 @@ class Variant:
             else []
         )
 
+        # make these accessible in the report/presentation
         self.var_data.info['alpha_missense_max'] = max(am_scores) if am_scores else 'missing'
+        self.exomiser_results = report_variant.exomiser_results
 
         # this is the weird gnomad callset ID
         if (
