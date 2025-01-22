@@ -250,9 +250,6 @@ class HTMLBuilder:
 
         self.samples.sort(key=lambda x: x.ext_id)
 
-        # if a variant has any filters (AB Ratio, Low Depth), the variant will only be reported if it's in this list
-        self.allow_filters: set[str] = set(config_retrieve(['CreateTalosHTML', 'allow_filters'], []))
-
     def get_summary_stats(self) -> tuple[pd.DataFrame, list[str], list[dict]]:
         """
         Run the numbers across all variant categories
@@ -448,11 +445,14 @@ class Sample:
         self.seqr_id = html_builder.seqr.get(name, None)
         self.report_url = f'{indi_folder}/{self.name}.html'
 
+        # if a variant has any filters (AB Ratio, Low Depth), the variant will only be reported if it's in this list
+        self.allow_filters: set[str] = set(config_retrieve(['CreateTalosHTML', 'allow_filters'], []))
+
         # exclude any on the forbidden gene list
         variants = [var for var in variants if not variant_in_forbidden_gene(var, html_builder.forbidden_genes)]
 
         # drop variants which fail quality/depth filters, unless all filters are explicitly permitted
-        variants = [var for var in variants if not (var.flags - html_builder.allow_filters)]
+        variants = [var for var in variants if not (var.flags - self.allow_filters)]
 
         self.variants = [
             Variant(
