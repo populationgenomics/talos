@@ -21,7 +21,7 @@ from typing import Any
 import cyvcf2
 from cloudpathlib.anypath import to_anypath
 import hail as hl
-from peds import open_ped
+from peds import open_ped, family
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
 from talos.config import config_retrieve
@@ -82,6 +82,24 @@ def get_random_string(length: int = 6) -> str:
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))  # noqa: S311
 
 
+def check_for_trio(ped_family: family.Family) -> bool:
+    """
+    checks if a family contains a trio does not differentiate between a trio and a quadruple...
+    We break as True if an affected member has both parents present
+
+    Args:
+        ped_family (family): a Peds representation of a family
+
+    Returns:
+        boolean, true if there's a trio present
+    """
+
+    for member in ped_family:
+        if (member.phenotype == '2') and (member.mom is not None) and (member.dad is not None):
+            return True
+    return False
+
+
 def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:
     """
     takes the representation offered by peds and reshapes it to be searchable
@@ -97,6 +115,8 @@ def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels |
     new_ped = Pedigree()
     ped_data = open_ped(pedigree)
     for family in ped_data:
+        part_of_trio = check_for_trio(family)
+        family_size = len(family)
         for member in family:
             me = PedigreeMember(
                 family=member.family,
@@ -105,6 +125,8 @@ def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels |
                 father=MEMBER_LOOKUP_DICT.get(member.dad, member.dad),
                 sex=member.sex,
                 affected=member.phenotype,
+                part_of_trio=part_of_trio,
+                family_size=family_size,
             )
 
             # populate this info if we have it from the GeneratePanelData step/output

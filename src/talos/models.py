@@ -536,6 +536,9 @@ class PedigreeMember(BaseModel):
     affected: str
     ext_id: str = 'Missing'
     hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    # some attributes to make report parsing a little easier
+    family_size: int = 1
+    part_of_trio: bool = False
 
 
 class Pedigree(BaseModel):
