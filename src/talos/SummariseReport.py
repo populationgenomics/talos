@@ -51,6 +51,7 @@ def get_variant_summary(results: ResultData) -> dict:
     ordered_categories = ['any', *all_categories]
 
     category_count: dict = {key: [] for key in ordered_categories}
+    unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 
     for sample_data in results.results.values():
         sample_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
@@ -58,11 +59,13 @@ def get_variant_summary(results: ResultData) -> dict:
         # iterate over the list of variants
         for variant in sample_data.variants:
             var_string = variant.var_data.coordinates.string_format
+            unique_variants['any'].add(var_string)
             sample_variants['any'].add(var_string)
 
             # find all categories associated with this variant
             # for each category, add to corresponding list and set
             for category_value in variant.categories:
+                unique_variants[category_value].add(var_string)
                 sample_variants[category_value].add(var_string)
 
         # update the global lists with per-sample counts
@@ -73,7 +76,7 @@ def get_variant_summary(results: ResultData) -> dict:
         key: {
             'Description': results.metadata.categories.get(key, 'All Variants'),
             'Total': sum(category_count[key]),
-            'Unique': len(set(category_count[key])),
+            'Unique': len(unique_variants[key]),
             'Peak #/sample': max(category_count[key]),
             MEAN_SLASH_SAMPLE: sum(category_count[key]) / len(category_count[key]),
         }
