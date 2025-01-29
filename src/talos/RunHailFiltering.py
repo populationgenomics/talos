@@ -108,17 +108,8 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None) -> hl.Mat
         The same MatrixTable but with additional annotations
     """
 
-    if not exomiser:
-        get_logger().info('No exomiser table found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
-
-    get_logger().info(f'loading exomiser variants from {exomiser}')
-    exomiser_ht = hl.read_table(exomiser)
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].proband_details, MISSING_STRING),
-        ),
-    )
+    get_logger().info('No exomiser table found, skipping annotation')
+    return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
 
 
 def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
@@ -245,33 +236,15 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
         Same MT with an extra category label
     """
 
-    if svdb_path is None:
-        get_logger().info('SVDB table not found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsSVDB=MISSING_STRING))
-
-    # read in the codon table
-    get_logger().info(f'Reading SpliceVarDB data from {svdb_path}')
-    svdb_ht = hl.read_table(svdb_path)
-
-    # annotate relevant variants with the SVDB results
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
-            svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_STRING),
-            svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_STRING),
-            svdb_doi=hl.or_else(svdb_ht[mt.row_key].doi, MISSING_STRING),
-        ),
-    )
-
-    # annotate category if Splice-altering according to SVDB
+    get_logger().info('SVDB table not found, skipping annotation')
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleansvdb=hl.if_else(
-                mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
-                ONE_INT,
-                MISSING_INT,
-            ),
-        ),
+            categorydetailsSVDB=MISSING_STRING,
+            svdb_classification=MISSING_STRING,
+            svdb_location=MISSING_STRING,
+            svdb_method=MISSING_STRING,
+            svdb_doi=MISSING_STRING,
+        )
     )
 
 
