@@ -289,13 +289,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     return mt.filter_rows(
-        hl.is_missing(mt.filters)
-        | (mt.filters.length() == 0)
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        hl.is_missing(mt.filters) | (mt.filters.length() == 0) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -361,11 +355,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     min_callset_ac = 5
     return mt.filter_rows(
         ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
