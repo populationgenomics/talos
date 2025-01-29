@@ -947,7 +947,7 @@ def main(
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
-        get_logger().info('Shrinking partitions way down with a unshuffled repartition')
+        get_logger().info('Shrinking partitions way down with an unshuffled repartition')
         mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
         if checkpoint:
             get_logger().info('Trying to write the result locally, might need more space on disk...')
