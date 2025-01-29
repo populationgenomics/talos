@@ -239,7 +239,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     get_logger().info('SVDB table not found, skipping annotation')
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categorydetailsSVDB=MISSING_STRING,
+            categorydetailssvdb=MISSING_STRING,
             svdb_classification=MISSING_STRING,
             svdb_location=MISSING_STRING,
             svdb_method=MISSING_STRING,
