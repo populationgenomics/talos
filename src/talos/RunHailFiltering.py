@@ -383,11 +383,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
             (hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
             & (hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
         )
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -955,7 +951,13 @@ def main(
         mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
         if checkpoint:
             get_logger().info('Trying to write the result locally, might need more space on disk...')
-            mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
+            mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
+
+    # swap out the default clinvar annotations with private clinvar
+    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
+
+    # remove common-in-gnomad variants (also includes ClinVar annotation)
+    mt = filter_to_population_rare(mt=mt)
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
@@ -968,18 +970,6 @@ def main(
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
-
-    # swap out the default clinvar annotations with private clinvar
-    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
-
-    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
-    mt = annotate_exomiser(mt=mt, exomiser=exomiser)
-
-    # if a SVDB data is provided, use that to apply category annotations
-    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
-
-    # remove common-in-gnomad variants (also includes ClinVar annotation)
-    mt = filter_to_population_rare(mt=mt)
 
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
@@ -998,6 +988,15 @@ def main(
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean')
+
+    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
+    mt = annotate_exomiser(mt=mt, exomiser=exomiser)
+
+    # if a SVDB data is provided, use that to apply category annotations
+    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
+
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
