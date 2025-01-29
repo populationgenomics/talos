@@ -375,7 +375,6 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
         ac_threshold (float):
     Returns:
         MT with all common-in-this-JC variants removed
-        (unless overridden by clinvar path)
     """
     min_callset_ac = 5
     return mt.filter_rows((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
@@ -384,22 +383,14 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad Exomes and Genomes
-    allow clinvar pathogenic to slip through this filter
     """
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
     # 'semi-rare' as dominant filters will be more strictly filtered later
     rare_af_threshold = config_retrieve(['RunHailFiltering', 'af_semi_rare'])
     return mt.filter_rows(
-        (
-            (hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
-            & (hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
-        )
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        (hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
+        & (hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
     )
 
 
@@ -978,6 +969,9 @@ def main(
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
 
+    # remove common-in-gnomad variants
+    mt = filter_to_population_rare(mt=mt)
+
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
 
@@ -989,9 +983,6 @@ def main(
 
     # if a SVDB data is provided, use that to apply category annotations
     mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
-
-    # remove common-in-gnomad variants (also includes ClinVar annotation)
-    mt = filter_to_population_rare(mt=mt)
 
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
