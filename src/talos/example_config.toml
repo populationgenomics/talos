@@ -57,6 +57,12 @@ max_parent_ab = 0.05
 minimum_depth = 10
 spliceai = 0.5
 
+# Hail's gVCF combiner is a cheaper approach to joint-calling, but drops some data regarding call quality
+# one specific issue is that the 0/0 GT for Wild-types is established, but the Allele Depths are missing
+# This has specific implications for our de novo filtering process, which relies heavily on PL and AD fields
+# If this attribute is True, we replace all missing ADs with [DP, 0] if DP is populated, else [30, 0]
+update_wt_ad = true
+
 [RunHailFiltering.cores]
 small_variants = 8
 

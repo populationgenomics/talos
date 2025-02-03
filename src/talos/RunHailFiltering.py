@@ -435,6 +435,30 @@ def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpr
     return mt.filter_rows(hl.len(green_genes.intersection(mt.geneIds)) > 0)
 
 
+def update_wt_ad_entry(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Take the MT as it is currently, and update the AD field for WT calls to be [AD, 0] where missing
+
+    Args:
+        mt ():
+
+    Returns:
+        Same MT, with updated fields
+    """
+    return mt.annotate_entries(
+        AD=hl.case()
+        .when(
+            ~hl.is_missing(mt.AD),
+            mt.AD,
+        )
+        .when(
+            (~hl.is_missing(mt.DP)) & (mt.GT.is_hom_ref()),
+            [mt.DP, 0],
+        )
+        .default([30, 0]),
+    )
+
+
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
     splits each GeneId onto a new row, then filters any rows not annotating a Green PanelApp gene
@@ -977,6 +1001,10 @@ def main(
 
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
+
+    # update WT genotypes and AD fields
+    if config_retrieve(['RunHailFiltering', 'update_wt_ad'], True):
+        mt = update_wt_ad_entry(mt)
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
