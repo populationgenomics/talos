@@ -264,7 +264,7 @@ class BaseMoi:
         }
 
     @staticmethod
-    def check_frequency_passes(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
+    def check_frequency_fails(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
         """
         Method to check multiple info keys against a single threshold
         This just reduces the line count, as this is called a bunch of times
@@ -279,8 +279,8 @@ class BaseMoi:
             True if any of the info attributes is above the threshold
         """
         if permit_clinvar and info.get('categoryboolean1'):
-            return True
-        return all(info.get(key, 0) <= test for key, test in thresholds.items())
+            return False
+        return any(info.get(key, 0) > test for key, test in thresholds.items())
 
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """
@@ -356,11 +356,11 @@ class DominantAutosomal(BaseMoi):
         classifications = []
 
         # reject support for dominant MOI, apply checks based on var type
-        if principal.support_only or not (
-            self.check_frequency_passes(
+        print(self.freq_tests)
+        print(principal.info)
+        if principal.support_only or self.check_frequency_fails(
                 principal.info,
                 self.freq_tests[principal.__class__.__name__],
-            )
         ):
             return classifications
 
@@ -447,7 +447,7 @@ class RecessiveAutosomalCH(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if not self.check_frequency_passes(
+        if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -475,7 +475,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     sample_id,
                     self.minimum_depth,
                     partner_variant.info.get('categoryboolean1'),
-                ) or not self.check_frequency_passes(
+                ) or self.check_frequency_fails(
                     partner_variant.info,
                     self.freq_tests[partner_variant.__class__.__name__],
                 ):
@@ -539,7 +539,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if principal.support_only or not self.check_frequency_passes(
+        if principal.support_only or self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -638,7 +638,7 @@ class XDominant(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if not self.check_frequency_passes(
+        if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -737,7 +737,7 @@ class XPseudoDominantFemale(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if not self.check_frequency_passes(
+        if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -833,7 +833,7 @@ class XRecessiveMale(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if not self.check_frequency_passes(
+        if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -914,7 +914,7 @@ class XRecessiveFemaleHom(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if principal.support_only or not self.check_frequency_passes(
+        if principal.support_only or self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -997,7 +997,7 @@ class XRecessiveFemaleCH(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if not self.check_frequency_passes(
+        if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -1023,7 +1023,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 require_non_support=principal.sample_support_only(sample_id),
             ):
                 # allow for de novo check - also screen out high-AF partners
-                if not partner.sample_category_check(sample_id, allow_support=True) or not self.check_frequency_passes(
+                if (not partner.sample_category_check(sample_id, allow_support=True)) or self.check_frequency_fails(
                     partner.info,
                     self.freq_tests[partner.__class__.__name__],
                 ):

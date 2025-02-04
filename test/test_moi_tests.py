@@ -100,7 +100,7 @@ def test_dominant_autosomal_passes(pedigree_path):
     :return:
     """
 
-    info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0, 'cat1': True, 'gene_id': 'TEST1'}
+    info_dict = {'gnomad_af': 0.0001, 'af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0, 'cat1': True, 'gene_id': 'TEST1'}
 
     # attributes relating to categorisation
     boolean_categories = ['cat1']
