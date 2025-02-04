@@ -9,25 +9,21 @@ from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags,
 
 
 @pytest.mark.parametrize(  # needs clinvar
-    'ac,an,clinvar,svdb,exomiser,threshold,rows',
+    'ac,an,clinvar,threshold,rows',
     [
-        ([1], 1, 0, 0, 'missing', 0.01, 1),
-        ([6], 1, 0, 0, 'missing', 0.01, 0),
-        ([6], 1, 0, 1, 'missing', 0.01, 1),
-        ([6], 1, 0, 0, 'present', 0.01, 1),
-        ([6], 1, 1, 0, 'missing', 0.01, 1),
-        ([6], 70, 0, 0, 'missing', 0.1, 1),
-        ([50], 999999, 0, 0, 'missing', 0.01, 1),
-        ([50], 50, 0, 0, 'missing', 0.01, 0),
-        ([50], 50, 1, 0, 'missing', 0.01, 1),
+        ([1], 1, 0, 0.01, 1),
+        ([6], 1, 0, 0.01, 0),
+        ([6], 1, 1, 0.01, 1),
+        ([6], 70, 0, 0.1, 1),
+        ([50], 999999, 0, 0.01, 1),
+        ([50], 50, 0, 0.01, 0),
+        ([50], 50, 1, 0.01, 1),
     ],
 )
 def test_ac_filter_no_filt(
     ac: int,
     an: int,
     clinvar: int,
-    svdb: str,
-    exomiser: str,
     threshold: float,
     rows: int,
     make_a_mt: hl.MatrixTable,
@@ -41,8 +37,6 @@ def test_ac_filter_no_filt(
             clinvar_talos=clinvar,
             AC=ac,
             AN=an,
-            categorybooleansvdb=svdb,
-            categorydetailsexomiser=exomiser,
         ),
     )
 
@@ -50,22 +44,18 @@ def test_ac_filter_no_filt(
 
 
 @pytest.mark.parametrize(
-    'filters,clinvar,svdb,exomiser,length',
+    'filters,clinvar,length',
     [
-        (hl.empty_set(hl.tstr), 0, 0, 'missing', 1),
-        (hl.literal({'fail'}), 0, 0, 'missing', 0),
-        (hl.literal({'fail'}), 0, 1, 'missing', 1),
-        (hl.literal({'fail'}), 0, 0, 'present', 1),
-        (hl.literal({'fail'}), 1, 0, 'missing', 1),
-        (hl.literal({'VQSR'}), 0, 0, 'missing', 0),
-        (hl.literal({'VQSR'}), 1, 0, 'missing', 1),
+        (hl.empty_set(hl.tstr), 0, 1),
+        (hl.literal({'fail'}), 0, 0),
+        (hl.literal({'fail'}), 1, 1),
+        (hl.literal({'VQSR'}), 0, 0),
+        (hl.literal({'VQSR'}), 1, 1),
     ],
 )
 def test_filter_on_quality_flags(
     filters: hl.set,
     clinvar: int,
-    svdb: str,
-    exomiser: str,
     length: int,
     make_a_mt: hl.MatrixTable,
 ):
@@ -76,11 +66,7 @@ def test_filter_on_quality_flags(
     anno_matrix = make_a_mt.key_rows_by('locus')
     anno_matrix = anno_matrix.annotate_rows(
         filters=filters,
-        info=anno_matrix.info.annotate(
-            clinvar_talos=clinvar,
-            categorybooleansvdb=svdb,
-            categorydetailsexomiser=exomiser,
-        ),
+        info=anno_matrix.info.annotate(clinvar_talos=clinvar),
     )
     assert filter_on_quality_flags(anno_matrix).count_rows() == length
 
