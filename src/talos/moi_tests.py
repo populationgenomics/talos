@@ -282,6 +282,26 @@ class BaseMoi:
             return False
         return any(info.get(key, 0) > test for key, test in thresholds.items())
 
+    @staticmethod
+    def check_callset_af_fails(info: dict) -> bool:
+        """
+        if the callset is large enough, apply this filter
+        this is predicated on info containing both ac and af
+        previously we've permitted < 5 instances in the callset through
+        This doesn't care about a variant being in ClinVar
+
+        Args:
+            info (dict): info dict for this variant
+        Returns:
+            True if this variant is above the filtering threshold
+        """
+
+        min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 5)
+        if info.get('ac', 0) <= min_ac:
+            return False
+
+        return info.get('af', 0.0) >= config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
+
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """
         use parents to accept or dismiss the comp-het
@@ -358,9 +378,13 @@ class DominantAutosomal(BaseMoi):
         # reject support for dominant MOI, apply checks based on var type
         print(self.freq_tests)
         print(principal.info)
-        if principal.support_only or self.check_frequency_fails(
+        if (
+            principal.support_only
+            or self.check_frequency_fails(
                 principal.info,
                 self.freq_tests[principal.__class__.__name__],
+            )
+            or self.check_callset_af_fails(principal.info)
         ):
             return classifications
 
@@ -641,7 +665,7 @@ class XDominant(BaseMoi):
         if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
-        ):
+        ) or self.check_callset_af_fails(principal.info):
             return classifications
 
         # all samples which have a variant call
@@ -740,7 +764,7 @@ class XPseudoDominantFemale(BaseMoi):
         if self.check_frequency_fails(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
-        ):
+        ) or self.check_callset_af_fails(principal.info):
             return classifications
 
         # all females which have a variant call

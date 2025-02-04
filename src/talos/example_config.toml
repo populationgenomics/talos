@@ -43,6 +43,12 @@ exomiser_rank_threshold = 2
 # apologies for the inconsistency
 phenotype_match = ['6']
 
+# These two attributes relate to the filters applied specifically to Dominant MOI tests
+# if the total number of occurences in the callset is lower than this, don't apply an AF filter
+min_callset_ac_to_filter = 5
+# if applied, this is the threshold for the callset AF filter
+callset_af_threshold = 0.01
+
 [RunHailFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
 csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
