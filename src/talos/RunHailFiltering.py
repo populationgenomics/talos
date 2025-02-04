@@ -107,8 +107,13 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None) -> hl.Mat
     Returns:
         The same MatrixTable but with additional annotations
     """
-
-    if not exomiser:
+    if not exomiser or (
+        'exomiser'
+        in config_retrieve(
+            ['ValidateMOI', 'ignore_categories'],
+            [],
+        )
+    ):
         get_logger().info('No exomiser table found, skipping annotation')
         return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
 
@@ -119,6 +124,9 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None) -> hl.Mat
             categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].proband_details, MISSING_STRING),
         ),
     )
+
+    get_logger().info('No exomiser table found, skipping annotation')
+    return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
 
 
 def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
@@ -244,12 +252,24 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     Returns:
         Same MT with an extra category label
     """
+    if svdb_path is None or (
+        'svdb'
+        in config_retrieve(
+            ['ValidateMOI', 'ignore_categories'],
+            [],
+        )
+    ):
+        get_logger().info('Skipping SVDB annotation')
+        return mt.annotate_rows(
+            info=mt.info.annotate(
+                categorybooleansvdb=MISSING_INT,
+                svdb_location=MISSING_STRING,
+                svdb_method=MISSING_STRING,
+                svdb_doi=MISSING_STRING,
+            ),
+        )
 
-    if svdb_path is None:
-        get_logger().info('SVDB table not found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsSVDB=MISSING_STRING))
-
-    # read in the codon table
+        # read in the codon table
     get_logger().info(f'Reading SpliceVarDB data from {svdb_path}')
     svdb_ht = hl.read_table(svdb_path)
 
@@ -289,13 +309,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     return mt.filter_rows(
-        hl.is_missing(mt.filters)
-        | (mt.filters.length() == 0)
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        hl.is_missing(mt.filters) | (mt.filters.length() == 0) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -361,11 +375,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     min_callset_ac = 5
     return mt.filter_rows(
         ((min_callset_ac >= mt.info.AC[0]) | (ac_threshold > mt.info.AC[0] / mt.info.AN))
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -383,11 +393,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
             (hl.or_else(mt.gnomad_exomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
             & (hl.or_else(mt.gnomad_genomes.AF, MISSING_FLOAT_LO) < rare_af_threshold)
         )
-        | (
-            (mt.info.clinvar_talos == ONE_INT)
-            | (mt.info.categorybooleansvdb == ONE_INT)
-            | (mt.info.categorydetailsexomiser != MISSING_STRING)
-        ),
+        | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -427,6 +433,30 @@ def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpr
 
     # filter rows without a green gene (removes empty geneIds)
     return mt.filter_rows(hl.len(green_genes.intersection(mt.geneIds)) > 0)
+
+
+def update_wt_ad_entry(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Take the MT as it is currently, and update the AD field for WT calls to be [AD, 0] where missing
+
+    Args:
+        mt ():
+
+    Returns:
+        Same MT, with updated fields
+    """
+    return mt.annotate_entries(
+        AD=hl.case()
+        .when(
+            ~hl.is_missing(mt.AD),
+            mt.AD,
+        )
+        .when(
+            (~hl.is_missing(mt.DP)) & (mt.GT.is_hom_ref()),
+            [mt.DP, 0],
+        )
+        .default([30, 0]),
+    )
 
 
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
@@ -951,11 +981,17 @@ def main(
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
-        get_logger().info('Shrinking partitions way down with a unshuffled repartition')
+        get_logger().info('Shrinking partitions way down with an unshuffled repartition')
         mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
         if checkpoint:
             get_logger().info('Trying to write the result locally, might need more space on disk...')
-            mt = generate_a_checkpoint(mt, f'{checkpoint}_reparitioned')
+            mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
+
+    # swap out the default clinvar annotations with private clinvar
+    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
+
+    # remove common-in-gnomad variants (also includes ClinVar annotation)
+    mt = filter_to_population_rare(mt=mt)
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
@@ -966,20 +1002,12 @@ def main(
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
 
+    # update WT genotypes and AD fields
+    if config_retrieve(['RunHailFiltering', 'update_wt_ad'], True):
+        mt = update_wt_ad_entry(mt)
+
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
-
-    # swap out the default clinvar annotations with private clinvar
-    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
-
-    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
-    mt = annotate_exomiser(mt=mt, exomiser=exomiser)
-
-    # if a SVDB data is provided, use that to apply category annotations
-    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
-
-    # remove common-in-gnomad variants (also includes ClinVar annotation)
-    mt = filter_to_population_rare(mt=mt)
 
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
@@ -998,6 +1026,15 @@ def main(
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean')
+
+    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
+    mt = annotate_exomiser(mt=mt, exomiser=exomiser)
+
+    # if a SVDB data is provided, use that to apply category annotations
+    mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
+
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
 
     # add Labels to the MT
     # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
