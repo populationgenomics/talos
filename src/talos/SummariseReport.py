@@ -15,7 +15,7 @@ If there is no common prefix, we don't attempt this grouping
 import json
 
 from argparse import ArgumentParser
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from cpg_utils import to_path
 
@@ -53,12 +53,16 @@ def get_variant_summary(results: ResultData) -> dict:
     category_count: dict = {key: [] for key in ordered_categories}
     unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 
+    # this keeps a count of the total instances of each variant
+    global_count: dict[str, int] = defaultdict(int)
+
     for sample_data in results.results.values():
         sample_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
 
         # iterate over the list of variants
         for variant in sample_data.variants:
             var_string = variant.var_data.coordinates.string_format
+            global_count[var_string] += 1
             unique_variants['any'].add(var_string)
             sample_variants['any'].add(var_string)
 
@@ -82,6 +86,9 @@ def get_variant_summary(results: ResultData) -> dict:
         }
         for key in ordered_categories
     }
+
+    # make a Counter object from the collected counts, identify the 10 most frequent
+    summary_dicts['most_common'] = dict(Counter(global_count).most_common(10))
 
     # this can fail if there are no categorised variants... at all
     if not summary_dicts:
