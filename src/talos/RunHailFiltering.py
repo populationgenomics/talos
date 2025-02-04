@@ -531,18 +531,18 @@ def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
     Args:
         mt (hl.MatrixTable):
     Returns:
-        same variants, categoryboolean6 set to 1 or 0
+        same variants, categorysupport6 set to 1 or 0
     """
 
     # focus on the auto-annotated AlphaMissense class
     # allow for the field to be missing
     if 'am_class' not in list(mt.vep.transcript_consequences[0].keys()):
         get_logger().warning('AlphaMissense class not found, skipping annotation')
-        return mt.annotate_rows(info=mt.info.annotate(categoryboolean6=MISSING_INT))
+        return mt.annotate_rows(info=mt.info.annotate(categorysupport6=MISSING_INT))
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolean6=hl.if_else(
+            categorysupport6=hl.if_else(
                 hl.len(mt.vep.transcript_consequences.filter(lambda x: x.am_class == 'likely_pathogenic')) > 0,
                 ONE_INT,
                 MISSING_INT,
@@ -627,7 +627,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return filtered_mt.filter_rows(
-        (hl.len(filtered_mt.vep.transcript_consequences) == 0) & (filtered_mt.info.categoryboolean5 == 0),
+        (hl.len(filtered_mt.vep.transcript_consequences) == 0) & (filtered_mt.info.categorysupport5 == 0),
         keep=False,
     )
 
@@ -697,12 +697,12 @@ def annotate_category_5(mt: hl.MatrixTable) -> hl.MatrixTable:
         mt ():
 
     Returns:
-        same variants, categoryboolean5 set to 0 or 1
+        same variants, categorysupport5 set to 0 or 1
     """
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolean5=hl.if_else(
+            categorysupport5=hl.if_else(
                 mt.info.splice_ai_delta >= config_retrieve(['RunHailFiltering', 'spliceai']),
                 ONE_INT,
                 MISSING_INT,
@@ -769,10 +769,10 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.filter_rows(
         (mt.info.categoryboolean1 == 1)
-        | (mt.info.categoryboolean6 == 1)
+        | (mt.info.categorysupport6 == 1)
         | (mt.info.categoryboolean3 == 1)
         | (mt.info.categorysample4 != MISSING_STRING)
-        | (mt.info.categoryboolean5 == 1)
+        | (mt.info.categorysupport5 == 1)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
         | (mt.info.categorybooleansvdb == 1)
         | (mt.info.categorydetailsexomiser != MISSING_STRING),

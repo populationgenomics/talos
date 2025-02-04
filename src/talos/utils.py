@@ -506,7 +506,7 @@ def create_small_variant(
         info,
         rank_threshold=config_retrieve(
             ['ValidateMOI', 'exomiser_rank_threshold'],
-            5,
+            2,
         ),
     )
 
