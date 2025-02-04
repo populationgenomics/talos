@@ -266,7 +266,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
                 svdb_location=MISSING_STRING,
                 svdb_method=MISSING_STRING,
                 svdb_doi=MISSING_STRING,
-            )
+            ),
         )
 
         # read in the codon table
