@@ -376,8 +376,6 @@ class DominantAutosomal(BaseMoi):
         classifications = []
 
         # reject support for dominant MOI, apply checks based on var type
-        print(self.freq_tests)
-        print(principal.info)
         if (
             principal.support_only
             or self.check_frequency_fails(
