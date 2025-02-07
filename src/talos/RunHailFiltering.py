@@ -310,7 +310,7 @@ def override_male_hemi_calls(mt: hl.MatrixTable, ped_file_path: str) -> hl.Matri
     """
 
     # get a list/set of all the Males in the pedigree
-    males: set[str] = {}
+    males: set[str] = set()
 
     # get all the males in the pedigree
     for family in open_ped(ped_file_path):
@@ -329,7 +329,7 @@ def override_male_hemi_calls(mt: hl.MatrixTable, ped_file_path: str) -> hl.Matri
     het_call = hl.parse_call('0/1')
 
     # annotate entries - overwrite GT with hl.call('0/1') if
-    # - locus.in_x_nonpar() or locus.in_y_nonpar()
+    # - locus is in chrX nonpar() or locus is in chrY nonpar()
     # - sample is male
     # - sample is not ref
     male_to_het = (
