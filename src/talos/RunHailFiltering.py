@@ -295,6 +295,50 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None):
     )
 
 
+def override_male_hemi_calls(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
+    """
+    GATK (and potentially other callers) calls male Hemis as Homozygous.
+    This throws off de novo testing (which expect an explicit Het-HomRef-HomRef)
+    We're finding non-par X & Y calls in males, and manually rewriting them as Hets
+
+    Args:
+        mt ():
+        ped_file_path (str): path to the pedigree file
+
+    Returns:
+        Same MT, with Male X/Y non-par variant genotypes manually coded down to Hets
+    """
+
+    # get a list/set of all the Males in the pedigree
+    males: set[str] = {}
+
+    # get all the males in the pedigree
+    for family in open_ped(ped_file_path):
+        for member in family:
+            if member.is_male():
+                males.add(member.id)
+
+    # cast these as a hail literal
+    male_literal = hl.literal(males)
+
+    # booleans for sex-chr non-par, Entry is Male, Entry is not ref: parts of the case test
+    hemi_x = mt.locus.in_x_nonpar()
+    hemi_y = mt.locus.in_y_nonpar()
+    male_entry = male_literal.contains(mt.s)
+    non_ref_gt = mt.GT.is_hom_var()
+    het_call = hl.parse_call('0/1')
+
+    # annotate entries - overwrite GT with hl.call('0/1') if
+    # - locus.in_x_nonpar() or locus.in_y_nonpar()
+    # - sample is male
+    # - sample is not ref
+    male_to_het = (
+        hl.case().when(~(hemi_x | hemi_y), mt.GT).when(~(male_entry), mt.GT).when(non_ref_gt, het_call).or_missing()
+    )
+
+    return mt.annotate_entries(GT=male_to_het)
+
+
 def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with 0 quality filters
@@ -1032,6 +1076,9 @@ def main(
 
     # if a SVDB data is provided, use that to apply category annotations
     mt = annotate_splicevardb(mt=mt, svdb_path=svdb)
+
+    # mangle some X chrom calls
+    mt = override_male_hemi_calls(mt=mt, ped_file_path=pedigree)
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
