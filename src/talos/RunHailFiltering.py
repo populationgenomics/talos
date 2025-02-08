@@ -672,10 +672,12 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     min_gq: int = 20
     min_child_ab: float = 0.20
     min_dp_ratio: float = 0.10
-    MIN_POP_PRIOR = 1 / 300000
-    MIN_DEPTH = 5
-    MAX_DEPTH = 1000
-    MIN_GQ = 25
+    min_depth = 5
+    max_depth = 1000
+    min_gq = 25
+    ratio_0_2 = 0.2
+    ratio_0_3 = 0.3
+    ten = 10
 
     get_logger().info('Running de novo search')
 
@@ -685,12 +687,12 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     # do some rational variant filtering
     de_novo_matrix = de_novo_matrix.filter_entries(
-        (de_novo_matrix.DP < MIN_DEPTH)
-        | (de_novo_matrix.DP > MAX_DEPTH)
+        (min_depth > de_novo_matrix.DP)
+        | (max_depth < de_novo_matrix.DP)
         # kyles test implements the stricter GQ filter later, so use it unconditionally here
-        | (de_novo_matrix.GQ < MIN_GQ)
-        | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < MIN_GQ))
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < MIN_GQ))
+        | (min_gq > de_novo_matrix.GQ)
+        | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < min_gq))
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < min_gq))
         # single added condition here
         | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (0.20 * de_novo_matrix.DP))),
         keep=False,
@@ -733,31 +735,31 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     tm = tm.annotate_entries(
         de_novo_tested=hl.case()
         .when(~has_candidate_gt_configuration, failure)
-        .when(kid.GQ < min_gq, failure)
+        .when(min_gq > kid.GQ, failure)
         .when((dp_ratio < min_dp_ratio) | (kid_ad_ratio < min_child_ab), failure)
         .when(
             ~is_snp,
             hl.case()
             .when(
-                kid_ad_ratio > 0.3,
+                kid_ad_ratio > ratio_0_3,
                 hl.struct(confidence='MEDIUM'),
             )
-            .when(kid_ad_ratio > 0.2, hl.struct(confidence='LOW'))
+            .when(kid_ad_ratio > ratio_0_2, hl.struct(confidence='LOW'))
             .or_missing(),
         )
         .default(
             hl.case()
             .when(
-                ((kid_ad_ratio > 0.3) & (dp_ratio > 0.2)) | ((kid_ad_ratio > 0.3) & (kid.DP > 10)),
+                ((kid_ad_ratio > ratio_0_3) & (dp_ratio > ratio_0_2)) | ((kid_ad_ratio > ratio_0_3) & (ten < kid.DP)),
                 hl.struct(confidence='HIGH'),
             )
             .when(
-                (kid_ad_ratio > 0.3),
+                (kid_ad_ratio > ratio_0_3),
                 hl.struct(confidence='MEDIUM'),
             )
-            .when(kid_ad_ratio > 0.2, hl.struct(confidence='LOW'))
-            .or_missing()
-        )
+            .when(kid_ad_ratio > ratio_0_2, hl.struct(confidence='LOW'))
+            .or_missing(),
+        ),
     )
     tm = tm.filter_entries(hl.is_defined(tm.de_novo_tested))
 
