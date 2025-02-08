@@ -27,6 +27,45 @@ SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
+def too_common_in_population(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
+    """
+    Method to check multiple info keys against a single threshold
+    This just reduces the line count, as this is called a bunch of times
+    By default we always let clinvar pathogenic variants pass
+
+    Args:
+        info (): the dict of values for this dict
+        thresholds (): the dict of keys - thresholds to test against
+        permit_clinvar (bool): if True, always allow clinvar pathogenic variants to pass
+
+    Returns:
+        True if any of the info attributes is above the threshold
+    """
+    if permit_clinvar and info.get('categoryboolean1'):
+        return False
+    return any(info.get(key, 0) > test for key, test in thresholds.items())
+
+
+def too_common_in_callset(info: dict) -> bool:
+    """
+    if the callset is large enough, apply this filter
+    this is predicated on info containing both ac and af
+    previously we've permitted < 5 instances in the callset through
+    This doesn't care about a variant being in ClinVar
+
+    Args:
+        info (dict): info dict for this variant
+    Returns:
+        True if this variant is above the filtering threshold
+    """
+
+    min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 5)
+    if info.get('ac', 0) <= min_ac:
+        return False
+
+    return info.get('af', 0.0) >= config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
+
+
 def check_for_second_hit(
     first_variant: str,
     comp_hets: CompHetDict,
@@ -159,25 +198,6 @@ class BaseMoi:
         run all applicable inheritance patterns and finds good fits
         """
 
-    def check_affected_category_depths(self, variant: VARIANT_MODELS, sample_id: str) -> bool:
-        """
-
-        Args:
-            variant ():
-            sample_id ():
-
-        Returns:
-            bool: True if the variant passes the depth checks
-        """
-        if (
-            not (
-                self.pedigree.by_id[sample_id].affected == '2'
-                and variant.sample_category_check(sample_id, allow_support=False)
-            )
-        ) or variant.check_read_depth(sample_id, self.minimum_depth, var_is_cat_1=variant.info.get('categoryboolean1')):
-            return True
-        return False
-
     def check_familial_inheritance(self, sample_id: str, called_variants: set[str], partial_pen: bool = False) -> bool:
         """
         check for single variant inheritance
@@ -263,45 +283,6 @@ class BaseMoi:
             for member in self.pedigree.by_family[sample_family_id]
         }
 
-    @staticmethod
-    def check_frequency_fails(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
-        """
-        Method to check multiple info keys against a single threshold
-        This just reduces the line count, as this is called a bunch of times
-        By default we always let clinvar pathogenic variants pass
-
-        Args:
-            info (): the dict of values for this dict
-            thresholds (): the dict of keys - thresholds to test against
-            permit_clinvar (bool): if True, always allow clinvar pathogenic variants to pass
-
-        Returns:
-            True if any of the info attributes is above the threshold
-        """
-        if permit_clinvar and info.get('categoryboolean1'):
-            return False
-        return any(info.get(key, 0) > test for key, test in thresholds.items())
-
-    @staticmethod
-    def check_callset_af_fails(info: dict) -> bool:
-        """
-        if the callset is large enough, apply this filter
-        this is predicated on info containing both ac and af
-        previously we've permitted < 5 instances in the callset through
-        This doesn't care about a variant being in ClinVar
-
-        Args:
-            info (dict): info dict for this variant
-        Returns:
-            True if this variant is above the filtering threshold
-        """
-
-        min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 5)
-        if info.get('ac', 0) <= min_ac:
-            return False
-
-        return info.get('af', 0.0) >= config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
-
     def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
         """
         use parents to accept or dismiss the comp-het
@@ -378,11 +359,11 @@ class DominantAutosomal(BaseMoi):
         # reject support for dominant MOI, apply checks based on var type
         if (
             principal.support_only
-            or self.check_frequency_fails(
+            or too_common_in_population(
                 principal.info,
                 self.freq_tests[principal.__class__.__name__],
             )
-            or self.check_callset_af_fails(principal.info)
+            or too_common_in_callset(principal.info)
         ):
             return classifications
 
@@ -469,7 +450,7 @@ class RecessiveAutosomalCH(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if self.check_frequency_fails(
+        if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -497,7 +478,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     sample_id,
                     self.minimum_depth,
                     partner_variant.info.get('categoryboolean1'),
-                ) or self.check_frequency_fails(
+                ) or too_common_in_population(
                     partner_variant.info,
                     self.freq_tests[partner_variant.__class__.__name__],
                 ):
@@ -561,7 +542,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if principal.support_only or self.check_frequency_fails(
+        if principal.support_only or too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -660,10 +641,10 @@ class XDominant(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if self.check_frequency_fails(
+        if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
-        ) or self.check_callset_af_fails(principal.info):
+        ) or too_common_in_callset(principal.info):
             return classifications
 
         # all samples which have a variant call
@@ -759,10 +740,10 @@ class XPseudoDominantFemale(BaseMoi):
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if self.check_frequency_fails(
+        if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
-        ) or self.check_callset_af_fails(principal.info):
+        ) or too_common_in_callset(principal.info):
             return classifications
 
         # all females which have a variant call
@@ -855,7 +836,7 @@ class XRecessiveMale(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if self.check_frequency_fails(
+        if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -936,7 +917,7 @@ class XRecessiveFemaleHom(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if principal.support_only or self.check_frequency_fails(
+        if principal.support_only or too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -1019,7 +1000,7 @@ class XRecessiveFemaleCH(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if self.check_frequency_fails(
+        if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -1045,7 +1026,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 require_non_support=principal.sample_support_only(sample_id),
             ):
                 # allow for de novo check - also screen out high-AF partners
-                if (not partner.sample_category_check(sample_id, allow_support=True)) or self.check_frequency_fails(
+                if (not partner.sample_category_check(sample_id, allow_support=True)) or too_common_in_population(
                     partner.info,
                     self.freq_tests[partner.__class__.__name__],
                 ):
