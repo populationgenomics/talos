@@ -699,7 +699,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     )
 
     # create a trio matrix (variant rows, trio columns)
-    tm = hl.trio_matrix(mt, pedigree, complete_trios=True)
+    tm = hl.trio_matrix(de_novo_matrix, pedigree, complete_trios=True)
 
     kid = tm.proband_entry
     dad = tm.father_entry
