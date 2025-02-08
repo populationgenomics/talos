@@ -79,9 +79,7 @@ class Coordinates(BaseModel):
         if self.chrom in CHROM_ORDER and other.chrom in CHROM_ORDER:
             return CHROM_ORDER.index(self.chrom) < CHROM_ORDER.index(other.chrom)
         # if self is on a canonical chromosome, sort before HLA/Decoy etc.
-        if self.chrom in CHROM_ORDER:
-            return True
-        return False
+        return self.chrom in CHROM_ORDER
 
 
 class VariantCommon(BaseModel):

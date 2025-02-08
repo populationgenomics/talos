@@ -19,7 +19,9 @@ from talos.moi_tests import (
     XRecessiveFemaleCH,
     XRecessiveFemaleHom,
     XRecessiveMale,
+    too_common_in_callset,
     check_for_second_hit,
+    too_common_in_population,
 )
 from talos.utils import make_flexible_pedigree
 
@@ -100,7 +102,7 @@ def test_dominant_autosomal_passes(pedigree_path):
     :return:
     """
 
-    info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0, 'cat1': True, 'gene_id': 'TEST1'}
+    info_dict = {'gnomad_af': 0.0001, 'af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0, 'cat1': True, 'gene_id': 'TEST1'}
 
     # attributes relating to categorisation
     boolean_categories = ['cat1']
@@ -736,3 +738,61 @@ def test_genotype_calls(pedigree_path):
     assert base_moi.get_family_genotypes(x_variant_2, 'female') == {'father_2': 'WT', 'female': 'Hom', 'mother_2': 'WT'}
     variant_missing = SmallVariant(info=info_dict, coordinates=TEST_COORDS, transcript_consequences=[])
     assert base_moi.get_family_genotypes(variant_missing, 'male') == {'father_1': 'WT', 'male': 'WT', 'mother_1': 'WT'}
+
+
+def test_too_common_in_population_passes_cat1():
+    """this should return false, i.e. would not be removed"""
+    info = {'categoryboolean1': True}
+    assert not too_common_in_population(info=info, thresholds={})
+
+
+def test_too_common_in_population_passes_nocat1_notests():
+    """this should return false, i.e. would not be removed"""
+    info = {'categoryboolean1': True}
+    assert not too_common_in_population(info=info, thresholds={}, permit_clinvar=False)
+
+
+def test_too_common_in_population_passes_below_thresholds():
+    """should return false, i.e. attributes are below thresholds"""
+    info = {'categoryboolean1': False, 'value': 0}
+    thresholds = {'value': 0.01}
+    assert not too_common_in_population(info, thresholds)
+
+
+def test_too_common_in_population_true():
+    """should return true, i.e. attributes above threshold"""
+    info = {'categoryboolean1': False, 'value': 10}
+    thresholds = {'value': 0.01}
+    assert too_common_in_population(info, thresholds)
+
+
+def test_too_common_in_population_true_multi():
+    """should return true, i.e. attributes above thresholds, even if others are below"""
+    info = {'categoryboolean1': False, 'value': 0, 'bad_value': 10}
+    thresholds = {'value': 0.01, 'bad_value': 0}
+    assert too_common_in_population(info, thresholds)
+
+
+def test_too_common_in_population_true_c1_ignored():
+    """should return false, i.e. attributes are below thresholds, clinvar disabled"""
+    info = {'categoryboolean1': True, 'value': 10}
+    thresholds = {'value': 0.01}
+    assert too_common_in_population(info, thresholds, permit_clinvar=False)
+
+
+def test_too_common_in_callset_true():
+    """should return True, i.e. variant is too common"""
+    info = {'ac': 6, 'af': 0.1}
+    assert too_common_in_callset(info)
+
+
+def test_too_common_in_callset_false_low_ac():
+    """should return True, but AC too low, disabling test, i.e. variant is too common"""
+    info = {'ac': 4, 'af': 0.1}
+    assert not too_common_in_callset(info)
+
+
+def test_too_common_in_callset_false_low_af():
+    """properly false, high enough callset AC, but rare enough to pass"""
+    info = {'ac': 40, 'af': 0.001}
+    assert not too_common_in_callset(info)

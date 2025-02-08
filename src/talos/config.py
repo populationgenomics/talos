@@ -4,7 +4,7 @@ https://github.com/populationgenomics/cpg-utils/blob/main/cpg_utils/config.py
 """
 
 from os import environ
-from typing import Any, Type
+from typing import Any
 
 import toml
 
@@ -76,7 +76,7 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
     return d
 
 
-def config_check(key: list[str], expected_type: Type | tuple[Type]) -> list[str]:
+def config_check(key: list[str], expected_type: type | tuple[type]) -> list[str]:
     """
     take a path to a config entry, and one or more expected types
     return a list of Strings:
