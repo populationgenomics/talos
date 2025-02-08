@@ -790,3 +790,9 @@ def test_too_common_in_callset_false_low_ac():
     """should return True, but AC too low, disabling test, i.e. variant is too common"""
     info = {'ac': 4, 'af': 0.1}
     assert not too_common_in_callset(info)
+
+
+def test_too_common_in_callset_false_low_af():
+    """properly false, high enough callset AC, but rare enough to pass"""
+    info = {'ac': 40, 'af': 0.001}
+    assert not too_common_in_callset(info)
