@@ -38,6 +38,16 @@ BENIGN = hl.str('benign')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 SPLICE_ALTERING = hl.str('splice-altering')
+ADDITIONAL_CSQ_DEFAULT = ['missense_variant']
+CRITICAL_CSQ_DEFAULT = [
+    'frameshift_variant',
+    'splice_acceptor_variant',
+    'splice_donor_variant',
+    'start_lost',
+    'stop_gained',
+    'stop_lost',
+    'transcript_ablation',
+]
 
 # decide whether to repartition the data before processing starts
 MAX_PARTITIONS = 10000
@@ -564,7 +574,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categoryboolean3 set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
+    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT))
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -611,8 +621,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], [])) | set(
-        config_retrieve(['RunHailFiltering', 'additional_csq'], []),
+    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT)) | set(
+        config_retrieve(['RunHailFiltering', 'additional_csq'], ADDITIONAL_CSQ_DEFAULT),
     )
 
     # overwrite the consequences with an intersection against a limited list
@@ -635,17 +645,37 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
-    default uses the Hail builtin method (very strict)
-    config switch to use the lenient version
+    The Hail builtin method has limitations around Hemizygous regions
+
+    This was rebuilt by Kyle in the Talkowski lab
+    https://github.com/talkowski-lab/variant-interpretation/blob/3a4cdd2e74f0826aa1640473ade03567364602f3/scripts/wes_denovo_full.py
+
+    Both versions heavily rely on probablity likelihoods and AD/Depths to make decisions about whether a call is more
+    likely to be noise or a true event.
+
+    In our latest combiner callsets (which may apply at other sites), we don't have PL/AD fields populated for WT calls
+    Instead of inserting fake PL and AD values for parents, I'm starting off by not including any of the p value/prior
+    testing, using a naive method which checks genotypes and GQ in all family members, AB ratio in child, and permits
+    a male proband to have a Hom genotype as a Hemizygous event (looking at you, GATK)
+
+    If this finds the variants we're looking for, great. If we need to reduce noise later, that's fine.
 
     Args:
         mt ():
         ped_file_path (): path to a pedigree in PLINK format
 
     Returns:
-        same variants, categorysample4 either 'missing' or sample IDs
-        where de novo inheritance is seen
+        same variants, categorysample4 either 'missing' or sample IDs where de novo inheritance is seen
     """
+
+    # these should be modifiable through config
+    min_gq: int = 20
+    min_child_ab: float = 0.20
+    min_dp_ratio: float = 0.10
+    MIN_POP_PRIOR = 1 / 300000
+    MIN_DEPTH = 5
+    MAX_DEPTH = 1000
+    MIN_GQ = 25
 
     get_logger().info('Running de novo search')
 
@@ -653,22 +683,86 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     pedigree = hl.Pedigree.read(ped_file_path)
 
-    get_logger().info('Updating synthetic PL values for WT calls where missing')
-
-    de_novo_matrix = de_novo_matrix.annotate_entries(
-        PL=hl.case()
-        .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
-        .when((de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)), hl.missing('array<int32>'))
-        .default([0, de_novo_matrix.GQ, 1000]),
+    # do some rational variant filtering
+    de_novo_matrix = de_novo_matrix.filter_entries(
+        (de_novo_matrix.DP < MIN_DEPTH)
+        | (de_novo_matrix.DP > MAX_DEPTH)
+        # kyles test implements the stricter GQ filter later, so use it unconditionally here
+        | (de_novo_matrix.GQ < MIN_GQ)
+        | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < MIN_GQ))
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < MIN_GQ))
+        # single added condition here
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (0.20 * de_novo_matrix.DP))),
+        keep=False,
     )
 
-    dn_table = hl.de_novo(
-        de_novo_matrix,
-        pedigree,
-        pop_frequency_prior=de_novo_matrix.info.gnomad_af,
-        ignore_in_sample_allele_frequency=True,
-        max_parent_ab=config_retrieve(['RunHailFiltering', 'max_parent_ab'], 0.05),
+    # create a trio matrix (variant rows, trio columns)
+    tm = hl.trio_matrix(mt, pedigree, complete_trios=True)
+
+    kid = tm.proband_entry
+    dad = tm.father_entry
+    mom = tm.mother_entry
+
+    # Updated for hemizygous child calls to not require a call in uninvolved parent
+    has_candidate_gt_configuration = (
+        (tm.locus.in_autosome_or_par() & kid.GT.is_het() & dad.GT.is_hom_ref() & mom.GT.is_hom_ref())
+        | (tm.locus.in_x_nonpar() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
+        | (tm.locus.in_y_nonpar() & kid.GT.is_hom_var() & dad.GT.is_hom_ref())
+        | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
+
+    # create a returnable object
+    failure = hl.missing(hl.tstruct(confidence=hl.tstr))
+
+    # even using the combiner we have AD & PL for called variants, just not for HomRef
+    kid_ad_ratio = kid.AD[1] / hl.sum(kid.AD)
+
+    # Try to get these all to an expected value of 0.5
+    dp_ratio = (
+        hl.case()
+        .when((tm.locus.in_x_nonpar()) & (~tm.is_female), kid.DP / mom.DP)  # Because mom is diploid but kid is not
+        .when((tm.locus.in_y_nonpar()) & (~tm.is_female), kid.DP / (2 * dad.DP))
+        .when(tm.locus.in_mito(), kid.DP / (2 * mom.DP))
+        .when(tm.locus.in_x_nonpar() & tm.is_female, (kid.DP / (mom.DP + dad.DP)) * (3 / 4))  # Because of hemi dad
+        .default(kid.DP / (mom.DP + dad.DP))
+    )
+
+    is_snp = hl.is_snp(tm.alleles[0], tm.alleles[1])
+
+    # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
+    tm = tm.annotate_entries(
+        de_novo_tested=hl.case()
+        .when(~has_candidate_gt_configuration, failure)
+        .when(kid.GQ < min_gq, failure)
+        .when((dp_ratio < min_dp_ratio) | (kid_ad_ratio < min_child_ab), failure)
+        .when(
+            ~is_snp,
+            hl.case()
+            .when(
+                kid_ad_ratio > 0.3,
+                hl.struct(confidence='MEDIUM'),
+            )
+            .when(kid_ad_ratio > 0.2, hl.struct(confidence='LOW'))
+            .or_missing(),
+        )
+        .default(
+            hl.case()
+            .when(
+                ((kid_ad_ratio > 0.3) & (dp_ratio > 0.2)) | ((kid_ad_ratio > 0.3) & (kid.DP > 10)),
+                hl.struct(confidence='HIGH'),
+            )
+            .when(
+                (kid_ad_ratio > 0.3),
+                hl.struct(confidence='MEDIUM'),
+            )
+            .when(kid_ad_ratio > 0.2, hl.struct(confidence='LOW'))
+            .or_missing()
+        )
+    )
+    tm = tm.filter_entries(hl.is_defined(tm.de_novo_tested))
+
+    # skip most stuff, just retain the keys?
+    dn_table = tm.entries().select()
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
     dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
