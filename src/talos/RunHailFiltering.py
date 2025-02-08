@@ -709,7 +709,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     has_candidate_gt_configuration = (
         (tm.locus.in_autosome_or_par() & kid.GT.is_het() & dad.GT.is_hom_ref() & mom.GT.is_hom_ref())
         | (tm.locus.in_x_nonpar() & ~tm.is_female & ((kid.GT.is_hom_var()) | (kid.GT.is_het())) & mom.GT.is_hom_ref())
-        | (tm.locus.in_x_nonpar() & tm.is_female & kid.GT.is_het() & mom.GT.is_hom_ref())
+        | (tm.locus.in_x_nonpar() & tm.is_female & kid.GT.is_het() & mom.GT.is_hom_ref() & dad.GT.is_hom_ref())
         | (tm.locus.in_y_nonpar() & ((kid.GT.is_hom_var()) | (kid.GT.is_het())) & dad.GT.is_hom_ref())
         | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
