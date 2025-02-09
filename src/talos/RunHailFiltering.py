@@ -613,9 +613,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # filter out rows with no tx consequences left, and no splice cat. assignment
     return filtered_mt.filter_rows(
-        (hl.len(filtered_mt.vep.transcript_consequences) == 0)
-        & (filtered_mt.info.categoryboolean5 == 0)
-        & (filtered_mt.info.clinvar_talos_strong == 0),
+        (hl.len(filtered_mt.vep.transcript_consequences) == 0) & (filtered_mt.info.categoryboolean5 == 0),
         keep=False,
     )
 
@@ -647,12 +645,12 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
-    min_dp_ratio: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_dp_ratio'], 0.10)
-    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'], 5)
-    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'], 1000)
-    min_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_gq'], 25)
-    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
+    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
+    min_dp_ratio: float = config_retrieve(['de_novo', 'min_dp_ratio'], 0.10)
+    min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
+    max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
+    min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
+    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
 
     # some constants to please the linter
     ratio_0_2 = 0.2
@@ -692,7 +690,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
 
-    # even using the combiner we have AD & PL for called variants, just not for HomRef
+    # require AD & PL for called variants, just not always for HomRef
     kid_ad_ratio = kid.AD[1] / hl.sum(kid.AD)
 
     # Try to get these all to an expected value of 0.5
@@ -718,7 +716,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     )
     tm = tm.filter_entries(tm.de_novo_tested == 1)
 
-    # skip most stuff, just retain the keys?
+    # skip most stuff, just retain the keys
     dn_table = tm.entries().select()
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
