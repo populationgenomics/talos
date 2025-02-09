@@ -59,15 +59,15 @@ additional_csq = ['missense_variant']
 af_semi_rare = 0.01
 callset_af_sv_recessive = 0.03
 critical_csq = ['frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_gained', 'stop_lost', 'transcript_ablation']
-max_parent_ab = 0.05
-minimum_depth = 10
 spliceai = 0.5
 
-# Hail's gVCF combiner is a cheaper approach to joint-calling, but drops some data regarding call quality
-# one specific issue is that the 0/0 GT for Wild-types is established, but the Allele Depths are missing
-# This has specific implications for our de novo filtering process, which relies heavily on PL and AD fields
-# If this attribute is True, we replace all missing ADs with [DP, 0] if DP is populated, else [30, 0]
-update_wt_ad = true
+[de_novo]
+min_child_ab = 0.2
+min_dp_ratio = 0.10
+min_depth = 5
+max_depth = 1000
+min_gq = 25
+min_alt_depth = 5
 
 [RunHailFiltering.cores]
 small_variants = 8
