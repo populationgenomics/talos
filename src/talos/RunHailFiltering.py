@@ -445,30 +445,6 @@ def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpr
     return mt.filter_rows(hl.len(green_genes.intersection(mt.geneIds)) > 0)
 
 
-def update_wt_ad_entry(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Take the MT as it is currently, and update the AD field for WT calls to be [AD, 0] where missing
-
-    Args:
-        mt ():
-
-    Returns:
-        Same MT, with updated fields
-    """
-    return mt.annotate_entries(
-        AD=hl.case()
-        .when(
-            ~hl.is_missing(mt.AD),
-            mt.AD,
-        )
-        .when(
-            (~hl.is_missing(mt.DP)) & (mt.GT.is_hom_ref()),
-            [mt.DP, 0],
-        )
-        .default([30, 0]),
-    )
-
-
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
     splits each GeneId onto a new row, then filters any rows not annotating a Green PanelApp gene
@@ -668,16 +644,16 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         same variants, categorysample4 either 'missing' or sample IDs where de novo inheritance is seen
     """
 
-    # these should be modifiable through config
-    min_gq: int = 20
-    min_child_ab: float = 0.20
-    min_dp_ratio: float = 0.10
-    min_depth = 5
-    max_depth = 1000
-    min_gq = 25
+    # modifiable through config
+    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
+    min_dp_ratio: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_dp_ratio'], 0.10)
+    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'], 5)
+    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'], 1000)
+    min_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_gq'], 25)
+    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
+
+    # some constants to please the linter
     ratio_0_2 = 0.2
-    ratio_0_3 = 0.3
-    ten = 10
 
     get_logger().info('Running de novo search')
 
@@ -714,9 +690,6 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
 
-    # create a returnable object
-    failure = hl.missing(hl.tstruct(confidence=hl.tstr))
-
     # even using the combiner we have AD & PL for called variants, just not for HomRef
     kid_ad_ratio = kid.AD[1] / hl.sum(kid.AD)
 
@@ -730,39 +703,18 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         .default(kid.DP / (mom.DP + dad.DP))
     )
 
-    is_snp = hl.is_snp(tm.alleles[0], tm.alleles[1])
-
     # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
+    # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
     tm = tm.annotate_entries(
         de_novo_tested=hl.case()
-        .when(~has_candidate_gt_configuration, failure)
-        .when(min_gq > kid.GQ, failure)
-        .when((dp_ratio < min_dp_ratio) | (kid_ad_ratio < min_child_ab), failure)
-        .when(
-            ~is_snp,
-            hl.case()
-            .when(
-                kid_ad_ratio > ratio_0_3,
-                hl.struct(confidence='MEDIUM'),
-            )
-            .when(kid_ad_ratio > ratio_0_2, hl.struct(confidence='LOW'))
-            .or_missing(),
-        )
-        .default(
-            hl.case()
-            .when(
-                ((kid_ad_ratio > ratio_0_3) & (dp_ratio > ratio_0_2)) | ((kid_ad_ratio > ratio_0_3) & (ten < kid.DP)),
-                hl.struct(confidence='HIGH'),
-            )
-            .when(
-                (kid_ad_ratio > ratio_0_3),
-                hl.struct(confidence='MEDIUM'),
-            )
-            .when(kid_ad_ratio > ratio_0_2, hl.struct(confidence='LOW'))
-            .or_missing(),
-        ),
+        .when(~has_candidate_gt_configuration, MISSING_INT)
+        .when(min_alt_depth > kid.AD[1], MISSING_INT)
+        .when(min_gq > kid.GQ, MISSING_INT)
+        .when((dp_ratio < min_dp_ratio) | (kid_ad_ratio < min_child_ab), MISSING_INT)
+        .when(kid_ad_ratio > ratio_0_2, ONE_INT)
+        .default(MISSING_INT),
     )
-    tm = tm.filter_entries(hl.is_defined(tm.de_novo_tested))
+    tm = tm.filter_entries(tm.de_novo_tested == 1)
 
     # skip most stuff, just retain the keys?
     dn_table = tm.entries().select()
@@ -1098,10 +1050,6 @@ def main(
 
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
-
-    # update WT genotypes and AD fields
-    if config_retrieve(['RunHailFiltering', 'update_wt_ad'], True):
-        mt = update_wt_ad_entry(mt)
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
