@@ -38,6 +38,16 @@ BENIGN = hl.str('benign')
 LOFTEE_HC = hl.str('HC')
 PATHOGENIC = hl.str('pathogenic')
 SPLICE_ALTERING = hl.str('splice-altering')
+ADDITIONAL_CSQ_DEFAULT = ['missense_variant']
+CRITICAL_CSQ_DEFAULT = [
+    'frameshift_variant',
+    'splice_acceptor_variant',
+    'splice_donor_variant',
+    'start_lost',
+    'stop_gained',
+    'stop_lost',
+    'transcript_ablation',
+]
 
 # decide whether to repartition the data before processing starts
 MAX_PARTITIONS = 10000
@@ -435,30 +445,6 @@ def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpr
     return mt.filter_rows(hl.len(green_genes.intersection(mt.geneIds)) > 0)
 
 
-def update_wt_ad_entry(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Take the MT as it is currently, and update the AD field for WT calls to be [AD, 0] where missing
-
-    Args:
-        mt ():
-
-    Returns:
-        Same MT, with updated fields
-    """
-    return mt.annotate_entries(
-        AD=hl.case()
-        .when(
-            ~hl.is_missing(mt.AD),
-            mt.AD,
-        )
-        .when(
-            (~hl.is_missing(mt.DP)) & (mt.GT.is_hom_ref()),
-            [mt.DP, 0],
-        )
-        .default([30, 0]),
-    )
-
-
 def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.SetExpression) -> hl.MatrixTable:
     """
     splits each GeneId onto a new row, then filters any rows not annotating a Green PanelApp gene
@@ -564,7 +550,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categoryboolean3 set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq']))
+    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT))
 
     # First check if we have any HIGH consequences
     # then explicitly link the LOFTEE check with HIGH consequences
@@ -611,8 +597,8 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], [])) | set(
-        config_retrieve(['RunHailFiltering', 'additional_csq'], []),
+    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT)) | set(
+        config_retrieve(['RunHailFiltering', 'additional_csq'], ADDITIONAL_CSQ_DEFAULT),
     )
 
     # overwrite the consequences with an intersection against a limited list
@@ -635,17 +621,35 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
-    default uses the Hail builtin method (very strict)
-    config switch to use the lenient version
+    The Hail builtin method has limitations around Hemizygous regions
+
+    This was rebuilt by Kyle in the Talkowski lab
+    https://github.com/talkowski-lab/variant-interpretation/blob/3a4cdd2e74f0826aa1640473ade03567364602f3/scripts/wes_denovo_full.py
+
+    Both versions heavily rely on probablity likelihoods and AD/Depths to make decisions about whether a call is more
+    likely to be noise or a true event.
+
+    In our latest combiner callsets (which may apply at other sites), we don't have PL/AD fields populated for WT calls
+    Instead of inserting fake PL and AD values for parents, I'm starting off by not including any of the p value/prior
+    testing, using a naive method which checks genotypes and GQ in all family members, AB ratio in child, and permits
+    a male proband to have a Hom genotype as a Hemizygous event (looking at you, GATK)
+
+    If this finds the variants we're looking for, great. If we need to reduce noise later, that's fine.
 
     Args:
         mt ():
         ped_file_path (): path to a pedigree in PLINK format
 
     Returns:
-        same variants, categorysample4 either 'missing' or sample IDs
-        where de novo inheritance is seen
+        same variants, categorysample4 either 'missing' or sample IDs where de novo inheritance is seen
     """
+
+    # modifiable through config
+    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
+    min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
+    max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
+    min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
+    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
 
     get_logger().info('Running de novo search')
 
@@ -653,22 +657,52 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     pedigree = hl.Pedigree.read(ped_file_path)
 
-    get_logger().info('Updating synthetic PL values for WT calls where missing')
-
-    de_novo_matrix = de_novo_matrix.annotate_entries(
-        PL=hl.case()
-        .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
-        .when((de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)), hl.missing('array<int32>'))
-        .default([0, de_novo_matrix.GQ, 1000]),
+    # do some rational variant filtering
+    de_novo_matrix = de_novo_matrix.filter_entries(
+        (min_depth > de_novo_matrix.DP)
+        | (max_depth < de_novo_matrix.DP)
+        # kyles test implements the stricter GQ filter later, so use it unconditionally here
+        | (min_gq > de_novo_matrix.GQ)
+        | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < min_gq))
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < min_gq))
+        # single added condition here
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))),
+        keep=False,
     )
 
-    dn_table = hl.de_novo(
-        de_novo_matrix,
-        pedigree,
-        pop_frequency_prior=de_novo_matrix.info.gnomad_af,
-        ignore_in_sample_allele_frequency=True,
-        max_parent_ab=config_retrieve(['RunHailFiltering', 'max_parent_ab'], 0.05),
+    # create a trio matrix (variant rows, trio columns)
+    tm = hl.trio_matrix(de_novo_matrix, pedigree, complete_trios=True)
+
+    kid = tm.proband_entry
+    dad = tm.father_entry
+    mom = tm.mother_entry
+
+    # Updated for hemizygous child calls to not require a call in uninvolved parent
+    has_candidate_gt_configuration = (
+        (tm.locus.in_autosome_or_par() & kid.GT.is_het() & dad.GT.is_hom_ref() & mom.GT.is_hom_ref())
+        | (tm.locus.in_x_nonpar() & ~tm.is_female & ((kid.GT.is_hom_var()) | (kid.GT.is_het())) & mom.GT.is_hom_ref())
+        | (tm.locus.in_x_nonpar() & tm.is_female & kid.GT.is_het() & mom.GT.is_hom_ref() & dad.GT.is_hom_ref())
+        | (tm.locus.in_y_nonpar() & ((kid.GT.is_hom_var()) | (kid.GT.is_het())) & dad.GT.is_hom_ref())
+        | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
+
+    # require AD & PL for called variants, just not always for HomRef
+    kid_ab = kid.AD[1] / hl.sum(kid.AD)
+
+    # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
+    # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
+    tm = tm.annotate_entries(
+        de_novo_tested=hl.case()
+        .when(~has_candidate_gt_configuration, MISSING_INT)
+        .when(min_alt_depth > kid.AD[1], MISSING_INT)
+        .when(min_gq > kid.GQ, MISSING_INT)
+        .when(kid_ab < min_child_ab, MISSING_INT)
+        .default(ONE_INT),
+    )
+    tm = tm.filter_entries(tm.de_novo_tested == 1)
+
+    # skip most stuff, just retain the keys
+    dn_table = tm.entries().select()
 
     # re-key the table by locus,alleles, removing the sampleID from the compound key
     dn_table = dn_table.key_by(dn_table.locus, dn_table.alleles)
@@ -1001,10 +1035,6 @@ def main(
 
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
-
-    # update WT genotypes and AD fields
-    if config_retrieve(['RunHailFiltering', 'update_wt_ad'], True):
-        mt = update_wt_ad_entry(mt)
 
     if checkpoint:
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
