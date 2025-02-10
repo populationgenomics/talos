@@ -690,16 +690,6 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     # require AD & PL for called variants, just not always for HomRef
     kid_ab = kid.AD[1] / hl.sum(kid.AD)
 
-    # Try to get these all to an expected value of 0.5
-    dp_ratio = (
-        hl.case()
-        .when((tm.locus.in_x_nonpar()) & (~tm.is_female), kid.DP / mom.DP)  # Because mom is diploid but kid is not
-        .when((tm.locus.in_y_nonpar()) & (~tm.is_female), kid.DP / (2 * dad.DP))
-        .when(tm.locus.in_mito(), kid.DP / (2 * mom.DP))
-        .when(tm.locus.in_x_nonpar() & tm.is_female, (kid.DP / (mom.DP + dad.DP)) * (3 / 4))  # Because of hemi dad
-        .default(kid.DP / (mom.DP + dad.DP))
-    )
-
     # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
     # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
     tm = tm.annotate_entries(
@@ -707,7 +697,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         .when(~has_candidate_gt_configuration, MISSING_INT)
         .when(min_alt_depth > kid.AD[1], MISSING_INT)
         .when(min_gq > kid.GQ, MISSING_INT)
-        .when((dp_ratio < min_dp_ratio) | (kid_ab < min_child_ab), MISSING_INT)
+        .when(kid_ab < min_child_ab, MISSING_INT)
         .default(ONE_INT),
     )
     tm = tm.filter_entries(tm.de_novo_tested == 1)
