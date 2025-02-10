@@ -652,9 +652,6 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
     min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
 
-    # some constants to please the linter
-    ratio_0_2 = 0.2
-
     get_logger().info('Running de novo search')
 
     de_novo_matrix = filter_by_consequence(mt)
@@ -670,7 +667,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < min_gq))
         | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < min_gq))
         # single added condition here
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (0.20 * de_novo_matrix.DP))),
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))),
         keep=False,
     )
 
@@ -691,7 +688,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     )
 
     # require AD & PL for called variants, just not always for HomRef
-    kid_ad_ratio = kid.AD[1] / hl.sum(kid.AD)
+    kid_ab = kid.AD[1] / hl.sum(kid.AD)
 
     # Try to get these all to an expected value of 0.5
     dp_ratio = (
@@ -710,8 +707,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         .when(~has_candidate_gt_configuration, MISSING_INT)
         .when(min_alt_depth > kid.AD[1], MISSING_INT)
         .when(min_gq > kid.GQ, MISSING_INT)
-        .when((dp_ratio < min_dp_ratio) | (kid_ad_ratio < min_child_ab), MISSING_INT)
-        .when(kid_ad_ratio > ratio_0_2, ONE_INT)
+        .when((dp_ratio > min_dp_ratio) | (kid_ab > min_child_ab), ONE_INT)
         .default(MISSING_INT),
     )
     tm = tm.filter_entries(tm.de_novo_tested == 1)
