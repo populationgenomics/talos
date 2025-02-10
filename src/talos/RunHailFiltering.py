@@ -646,7 +646,6 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     # modifiable through config
     min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
-    min_dp_ratio: float = config_retrieve(['de_novo', 'min_dp_ratio'], 0.10)
     min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
     max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
     min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)

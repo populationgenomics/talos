@@ -63,7 +63,6 @@ spliceai = 0.5
 
 [de_novo]
 min_child_ab = 0.2
-min_dp_ratio = 0.10
 min_depth = 5
 max_depth = 1000
 min_gq = 25
