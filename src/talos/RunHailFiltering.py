@@ -707,8 +707,8 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         .when(~has_candidate_gt_configuration, MISSING_INT)
         .when(min_alt_depth > kid.AD[1], MISSING_INT)
         .when(min_gq > kid.GQ, MISSING_INT)
-        .when((dp_ratio > min_dp_ratio) | (kid_ab > min_child_ab), ONE_INT)
-        .default(MISSING_INT),
+        .when((dp_ratio < min_dp_ratio) | (kid_ab < min_child_ab), MISSING_INT)
+        .default(ONE_INT),
     )
     tm = tm.filter_entries(tm.de_novo_tested == 1)
 
