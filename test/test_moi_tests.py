@@ -115,6 +115,7 @@ def test_dominant_autosomal_passes(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS,
         boolean_categories=boolean_categories,
+        alt_depths={'male': 109},
         depths={'male': 999},
         transcript_consequences=[],
     )
@@ -128,6 +129,7 @@ def test_dominant_autosomal_passes(pedigree_path):
         hom_samples={'male'},
         coordinates=TEST_COORDS,
         boolean_categories=boolean_categories,
+        alt_depths={'male': 199},
         depths={'male': 999},
         transcript_consequences=[],
     )
@@ -169,6 +171,7 @@ def test_recessive_autosomal_hom_passes(pedigree_path):
         hom_samples={'male'},
         coordinates=TEST_COORDS,
         ab_ratios={'male': 1.0},
+        alt_depths={'male': 15},
         depths={'male': 15},
         boolean_categories=['categoryboolean1'],
         info={'categoryboolean1': True, 'gene_id': 'TEST1'},
@@ -178,6 +181,26 @@ def test_recessive_autosomal_hom_passes(pedigree_path):
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Homozygous'}
+
+
+def test_recessive_autosomal_hom_fails_alt_reads(pedigree_path):
+    """
+    check that when the info values are defaults (0)
+    we accept a homozygous variant as a Recessive
+    """
+    passing_variant = SmallVariant(
+        hom_samples={'male'},
+        coordinates=TEST_COORDS,
+        ab_ratios={'male': 1.0},
+        alt_depths={'male': 4},
+        depths={'male': 15},
+        boolean_categories=['categoryboolean1'],
+        info={'categoryboolean1': True, 'gene_id': 'TEST1'},
+        transcript_consequences=[],
+    )
+    rec = RecessiveAutosomalHomo(pedigree=make_flexible_pedigree(pedigree_path))
+    results = rec.run(passing_variant)
+    assert not results
 
 
 def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path):
@@ -190,6 +213,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path):
         hom_samples={'male'},
         coordinates=TEST_COORDS,
         ab_ratios={'male': 0.4},
+        alt_depths={'male': 40},
         depths={'male': 40},
         boolean_categories=['categoryboolean1'],
         info={'categoryboolean1': True, 'gene_id': 'TEST1'},
@@ -213,6 +237,7 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS,
         ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
@@ -222,6 +247,7 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS2,
         ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
@@ -243,6 +269,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS,
         ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
@@ -252,6 +279,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS2,
         ab_ratios={'male': 1.0},
+        alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
@@ -274,6 +302,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         het_samples={'female'},
         coordinates=TEST_COORDS,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
@@ -283,6 +312,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         het_samples={'female'},
         coordinates=TEST_COORDS2,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
@@ -304,6 +334,7 @@ def test_recessive_autosomal_comp_het_fails_no_ch_return(pedigree_path):
     failing_variant = SmallVariant(
         info={'gene_id': 'TEST1'},
         het_samples={'male'},
+        alt_depths={'male': 25},
         depths={'male': 50},
         coordinates=TEST_COORDS,
         transcript_consequences=[],
@@ -321,6 +352,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS,
         ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
         depths={'male': 50},
         info={'gene_id': 'TEST1'},
         transcript_consequences=[],
@@ -329,6 +361,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(pedigree_path):
         het_samples={'female'},
         coordinates=TEST_COORDS2,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
         depths={'female': 50},
         info={'gene_id': 'TEST1'},
         transcript_consequences=[],
@@ -365,6 +398,7 @@ def test_x_dominant_female_and_male_het_passes(pedigree_path):
         boolean_categories=['categoryboolean1'],
         info={'gnomad_hemi': 0, 'gene_id': 'TEST1', 'categoryboolean1': True},
         het_samples={'female', 'male'},
+        alt_depths={'female': 50, 'male': 50},
         depths={'female': 50, 'male': 50},
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
@@ -385,6 +419,7 @@ def test_x_dominant_female_hom_passes(pedigree_path):
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
         hom_samples={'female'},
+        alt_depths={'female': 100},
         depths={'female': 100},
         ab_ratios={'female': 0.5},
         coordinates=TEST_COORDS_X_1,
@@ -404,6 +439,7 @@ def test_x_dominant_male_hom_passes(pedigree_path):
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
         hom_samples={'male'},
+        alt_depths={'male': 100},
         depths={'male': 100},
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
@@ -432,6 +468,7 @@ def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
         coordinates=TEST_COORDS_X_1,
         boolean_categories=['categoryboolean1'],
         transcript_consequences=[],
+        alt_depths={'male': 100},
         depths={'male': 100},
     )
     print(passing_variant)
@@ -452,6 +489,7 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
         'categoryboolean1': True,
     }
     passing_variant = SmallVariant(
+        alt_depths={'female': 100, 'male': 100},
         depths={'female': 100, 'male': 100},
         info=info_dict,
         het_samples={'female', 'male'},
@@ -472,6 +510,7 @@ def test_x_recessive_male_hom_passes(pedigree_path):
         hom_samples={'female', 'male'},
         coordinates=TEST_COORDS_X_1,
         ab_ratios={'female': 1.0, 'male': 1.0},
+        alt_depths={'female': 100, 'male': 100},
         depths={'female': 100, 'male': 100},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
@@ -492,6 +531,7 @@ def test_x_recessive_female_hom_passes(pedigree_path):
         hom_samples={'female', 'male'},
         coordinates=TEST_COORDS_X_1,
         ab_ratios={'female': 1.0, 'male': 1.0},
+        alt_depths={'female': 100, 'male': 100},
         depths={'female': 100, 'male': 100},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
@@ -508,6 +548,7 @@ def test_x_recessive_male_het_passes(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS_X_1,
         ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         info={'gene_id': 'TEST1', 'categoryboolean1': True},
@@ -524,6 +565,7 @@ def test_x_recessive_female_het_passes(pedigree_path):
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
         depths={'female': 50},
         sample_categories=['categorysample4'],
         info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
@@ -533,6 +575,7 @@ def test_x_recessive_female_het_passes(pedigree_path):
         het_samples={'female'},
         coordinates=TEST_COORDS_X_2,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
         depths={'female': 50},
         sample_categories=['categorysample4'],
         info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
@@ -552,6 +595,7 @@ def test_het_de_novo_passes(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         sample_categories=['categorysample4'],
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 40},
         depths={'female': 99},
         info={'gene_id': 'TEST1', 'categorysample4': ['female']},
         transcript_consequences=[],
@@ -569,6 +613,7 @@ def test_het_de_novo_het_passes_flagged(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         sample_categories=['categorysample4'],
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 40},
         depths={'female': 99},
         info={'gene_id': 'TEST1', 'categorysample4': ['female']},
         transcript_consequences=[],
@@ -584,6 +629,7 @@ def test_x_recessive_female_het_fails(pedigree_path):
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
         depths={'female': 50},
         sample_categories=['categorysample4'],
         info={'gene_id': 'TEST1', 'categorysample4': ['male']},
@@ -593,6 +639,7 @@ def test_x_recessive_female_het_fails(pedigree_path):
         het_samples={'male'},
         coordinates=TEST_COORDS_X_2,
         ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
         depths={'male': 50},
         sample_categories=['categorysample4'],
         info={'gene_id': 'TEST1', 'categorysample4': ['male']},
@@ -611,6 +658,7 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, pedigree_pa
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
         ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
         depths={'female': 50},
         info={'gene_id': 'TEST1', 'categorysample1': True, 'boolean_categories': 'categorysample1'},
         transcript_consequences=[],

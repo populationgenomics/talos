@@ -486,12 +486,9 @@ def create_small_variant(
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
+    alt_depths: dict[str, int] = dict(zip(samples, map(int, var.gt_alt_depths)))
     depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
-
-    # optionally - ignore some categories from this analysis
-    if ignore_cats := config_retrieve(['ValidateMOI', 'ignore_categories'], []):
-        info = {key: val for key, val in info.items() if key not in ignore_cats}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
@@ -501,22 +498,35 @@ def create_small_variant(
     # organise SVDB DOIs
     organise_svdb_doi(info)
 
-    # organise the exomiser data, if present. By default, only retain teh top 5 ranked results
+    # organise the exomiser data, if present. By default, only retain the top 2 ranked results
     organise_exomiser(
         info,
         rank_threshold=config_retrieve(
             ['ValidateMOI', 'exomiser_rank_threshold'],
-            5,
+            2,
         ),
     )
 
-    # set the class attributes
-    boolean_categories = [key for key in info if key.startswith('categoryboolean')]
-    sample_categories = [key for key in info if key.startswith('categorysample')]
-    support_categories = [key for key in info if key.startswith('categorysupport')]
+    # optionally - ignore some categories from this analysis
+    ignored_categories = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
+
+    # set the class attributes - skipping over categories we've chosen to ignore
+    boolean_categories = [
+        key
+        for key in info
+        if key.startswith('categoryboolean') and key.replace('categoryboolean', '') not in ignored_categories
+    ]
+    sample_categories = [
+        key
+        for key in info
+        if key.startswith('categorysample') and key.replace('categorysample', '') not in ignored_categories
+    ]
+
+    # the categories to be treated as support-only for this runtime - make it a set
+    support_categories = set(config_retrieve(['ValidateMOI', 'support_categories'], []))
 
     # overwrite with true booleans
-    for cat in support_categories + boolean_categories:
+    for cat in boolean_categories:
         info[cat] = info.get(cat, 0) == 1
 
     # sample categories are a list of strings or 'missing'
@@ -539,8 +549,10 @@ def create_small_variant(
         hom_samples=hom_samples,
         boolean_categories=boolean_categories,
         sample_categories=sample_categories,
-        sample_support=support_categories,
+        ignored_categories=ignored_categories,
+        support_categories=support_categories,
         phased=phased,
+        alt_depths=alt_depths,
         depths=depths,
         ab_ratios=ab_ratios,
         transcript_consequences=transcript_consequences,
@@ -652,17 +664,10 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-        small_variant = create_small_variant(
-            var=variant,
-            samples=variant_source.samples,
-        )
+        small_variant = create_small_variant(var=variant, samples=variant_source.samples)
 
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
-            continue
-
-        # if unclassified, skip the whole variant
-        if not small_variant.is_classified:
             continue
 
         # update the variant count
@@ -1098,6 +1103,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                         hist.categories[cat] = get_granular_date()
 
                 # update to include all support_variants
+                # support vars is comp-het partners, different from support-level category importance
                 hist.support_vars.update(var.support_vars)
 
                 # mark the first seen timestamp

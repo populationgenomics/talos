@@ -8,7 +8,6 @@ import pytest
 from cyvcf2 import VCFReader
 
 from talos.models import (
-    VARIANT_MODELS,
     Coordinates,
     FileTypes,
     PanelApp,
@@ -60,7 +59,7 @@ def test_abs_var_sorting(two_trio_abs_variants: list[SmallVariant]):
     assert var1 > var2
 
 
-def test_reported_variant_ordering(trio_abs_variant):
+def test_reported_variant_ordering(trio_abs_variant: SmallVariant):
     """
     test that equivalence between Report objects works as exp.
     """
@@ -149,25 +148,35 @@ def test_get_non_ref_samples(cyvcf_example_variant):
     assert not hom
 
 
-def test_av_categories(trio_abs_variant: VARIANT_MODELS):
+def test_av_categories(trio_abs_variant: SmallVariant):
     """
     Cat. 3, and Cat. 4 for PROBAND only:
     """
-    assert trio_abs_variant.is_classified
-    assert trio_abs_variant.category_non_support
-    assert trio_abs_variant.has_sample_categories
     assert trio_abs_variant.info.get('categoryboolean3')
     assert not trio_abs_variant.info.get('categoryboolean1')
     assert not trio_abs_variant.info.get('categoryboolean2')
-    assert trio_abs_variant.sample_categorised_check('male')
-    assert not trio_abs_variant.sample_categorised_check('father_1')
+    assert trio_abs_variant.sample_category_check('male')
+
+    for sample_cat in trio_abs_variant.sample_categories:
+        assert 'father_1' not in trio_abs_variant.info[sample_cat]
+
+
+def test_av_categories_support(trio_abs_variant: SmallVariant):
+    """
+    Cat. 3, and Cat. 4 for PROBAND only
+    """
+    assert trio_abs_variant.info.get('categoryboolean3')
+    assert trio_abs_variant.sample_category_check('male')
+
+    # now make the categories support-only
+    trio_abs_variant.support_categories.update({'3', '4'})
+    assert trio_abs_variant.sample_category_check('male')
+    assert not trio_abs_variant.sample_category_check('male', allow_support=False)
 
 
 def test_av_phase(trio_abs_variant: SmallVariant):
     """
     nothing here yet
-    :param trio_abs_variant:
-    :return:
     """
     assert trio_abs_variant.phased == {}
 

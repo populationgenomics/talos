@@ -24,6 +24,9 @@ chunk_size = 800
 # thresholds for different filters during the MOI checks
 gnomad_dominant = 0.001
 
+# we dismiss variants where the proband doesn't have at least this much alt support
+min_alt_depth = 5
+
 # if the population frequency annotations contain allele count, and hemi-count, these are used
 # if absent, these additional tests are skipped
 gnomad_max_homs_dominant = 0
@@ -35,13 +38,22 @@ callset_af_sv_dominant = 0.01
 # by default, only consider the top two exomiser results
 exomiser_rank_threshold = 2
 
-# optionally, ignore some categories. Categories named here are stripped from the variants upon ingestion
-#ignore_categories = ['categoryboolean6']
+# optionally, ignore some categories at runtime
+# entries in this list should be the final component of a category name
+# e.g. categoryboolean6 -> "6"
+# e.g. categorysample4 -> "4"
+#ignore_categories = ['6']
 
 # for these categories, require a phenotype-gene match
 # this is the final part of the Category name, e.g. categorydetailspm5 is "pm5", and categorybooleansv1 is "sv1"
 # apologies for the inconsistency
 phenotype_match = ['6']
+
+# all categories in this list are treated as support
+# i.e. can appear as the second-hit, but will not independently be reported
+# comp-het formations of two support variants are also removed
+# all categories not in this list are treated as fully important
+support_categories = ['5', '6']
 
 # These two attributes relate to the filters applied specifically to Dominant MOI tests
 # if the total number of occurences in the callset is lower than this, don't apply an AF filter
