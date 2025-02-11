@@ -513,12 +513,12 @@ def create_small_variant(
     boolean_categories = [
         key
         for key in info
-        if key.startswith('categoryboolean') and not (key.replace('categoryboolean', '') in ignored_categories)
+        if key.startswith('categoryboolean') and key.replace('categoryboolean', '') not in ignored_categories
     ]
     sample_categories = [
         key
         for key in info
-        if key.startswith('categorysample') and not (key.replace('categorysample', '') in ignored_categories)
+        if key.startswith('categorysample') and key.replace('categorysample', '') not in ignored_categories
     ]
 
     # the categories to be treated as support-only for this runtime - make it a set
