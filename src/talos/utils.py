@@ -489,10 +489,6 @@ def create_small_variant(
     depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
-    # optionally - ignore some categories from this analysis
-    if ignore_cats := config_retrieve(['ValidateMOI', 'ignore_categories'], []):
-        info = {key: val for key, val in info.items() if key not in ignore_cats}
-
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
     # organise PM5
@@ -501,18 +497,29 @@ def create_small_variant(
     # organise SVDB DOIs
     organise_svdb_doi(info)
 
-    # organise the exomiser data, if present. By default, only retain teh top 5 ranked results
+    # organise the exomiser data, if present. By default, only retain the top 2 ranked results
     organise_exomiser(
         info,
         rank_threshold=config_retrieve(
             ['ValidateMOI', 'exomiser_rank_threshold'],
-            5,
+            2,
         ),
     )
 
-    # set the class attributes
-    boolean_categories = [key for key in info if key.startswith('categoryboolean')]
-    sample_categories = [key for key in info if key.startswith('categorysample')]
+    # optionally - ignore some categories from this analysis
+    ignored_categories = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
+
+    # set the class attributes - skipping over categories we've chosen to ignore
+    boolean_categories = [
+        key
+        for key in info
+        if key.startswith('categoryboolean') and not (key.replace('categoryboolean', '') in ignored_categories)
+    ]
+    sample_categories = [
+        key
+        for key in info
+        if key.startswith('categorysample') and not (key.replace('categorysample', '') in ignored_categories)
+    ]
 
     # the categories to be treated as support-only for this runtime - make it a set
     support_categories = set(config_retrieve(['ValidateMOI', 'support_categories'], []))
@@ -541,6 +548,7 @@ def create_small_variant(
         hom_samples=hom_samples,
         boolean_categories=boolean_categories,
         sample_categories=sample_categories,
+        ignored_categories=ignored_categories,
         support_categories=support_categories,
         phased=phased,
         depths=depths,

@@ -13,14 +13,15 @@ from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
 from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
+from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.static_values import get_granular_date, get_logger
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.1.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0']
+CURRENT_VERSION = '1.2.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -93,6 +94,7 @@ class VariantCommon(BaseModel):
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)
     sample_categories: list[str] = Field(default_factory=list, exclude=True)
+    ignored_categories: set[str] = Field(default_factory=set)
     support_categories: set[str] = Field(default_factory=set)
     phased: dict = Field(default_factory=dict, exclude=True)
 
@@ -484,14 +486,19 @@ class Pedigree(BaseModel):
 
 # methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
-    PhenotypeMatchedPanels: {'None_1.0.0': pmp_none_to_1_0_0},
+    PhenotypeMatchedPanels: {
+        'None_1.0.0': pmp_none_to_1_0_0,
+    },
     PanelApp: {},
-    HistoricVariants: {'1.0.0_1.0.1': hv_100_to_101},
+    HistoricVariants: {
+        '1.0.0_1.0.1': hv_100_to_101,
+    },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,
         '1.0.0_1.0.1': rd_100_to_101,
         '1.0.2_1.0.3': rd_102_to_103,
         '1.0.3_1.1.0': rd_103_to_110,
+        '1.1.0_1.2.0': rd_110_to_120,
     },
 }
 

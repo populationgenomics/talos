@@ -35,8 +35,11 @@ callset_af_sv_dominant = 0.01
 # by default, only consider the top two exomiser results
 exomiser_rank_threshold = 2
 
-# optionally, ignore some categories. Categories named here are stripped from the variants upon ingestion
-#ignore_categories = ['categoryboolean6']
+# optionally, ignore some categories at runtime
+# entries in this list should be the final component of a category name
+# e.g. categoryboolean6 -> "6"
+# e.g. categorysample4 -> "4"
+#ignore_categories = ['6']
 
 # for these categories, require a phenotype-gene match
 # this is the final part of the Category name, e.g. categorydetailspm5 is "pm5", and categorybooleansv1 is "sv1"
