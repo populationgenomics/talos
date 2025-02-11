@@ -486,6 +486,7 @@ def create_small_variant(
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
+    alt_depths: dict[str, int] = dict(zip(samples, map(int, var.gt_alt_depths)))
     depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
@@ -551,6 +552,7 @@ def create_small_variant(
         ignored_categories=ignored_categories,
         support_categories=support_categories,
         phased=phased,
+        alt_depths=alt_depths,
         depths=depths,
         ab_ratios=ab_ratios,
         transcript_consequences=transcript_consequences,

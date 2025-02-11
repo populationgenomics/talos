@@ -24,6 +24,9 @@ chunk_size = 800
 # thresholds for different filters during the MOI checks
 gnomad_dominant = 0.001
 
+# we dismiss variants where the proband doesn't have at least this much alt support
+min_alt_depth = 5
+
 # if the population frequency annotations contain allele count, and hemi-count, these are used
 # if absent, these additional tests are skipped
 gnomad_max_homs_dominant = 0

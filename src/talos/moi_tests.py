@@ -185,6 +185,7 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
+        self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'], 5)
         self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
 
     @abstractmethod
@@ -369,15 +370,18 @@ class DominantAutosomal(BaseMoi):
             # skip primary analysis for unaffected members
             # we require this specific sample to be categorised
             # force a minimum depth on the proband call
-            if not (
-                self.pedigree.by_id[sample_id].affected == '2'
-                and principal.sample_category_check(sample_id, allow_support=False)
-            ) or (
-                principal.check_read_depth(
+            # and a minimum number of alt reads supporting
+            if (
+                not (
+                    self.pedigree.by_id[sample_id].affected == '2'
+                    and principal.sample_category_check(sample_id, allow_support=False)
+                )
+                or principal.check_read_depth(
                     sample_id,
                     self.minimum_depth,
                     var_is_cat_1=principal.info.get('categoryboolean1'),
                 )
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -457,11 +461,15 @@ class RecessiveAutosomalCH(BaseMoi):
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
-                not (
-                    self.pedigree.by_id[sample_id].affected == '2'
-                    and principal.sample_category_check(sample_id, allow_support=True)
+                (
+                    not (
+                        self.pedigree.by_id[sample_id].affected == '2'
+                        and principal.sample_category_check(sample_id, allow_support=True)
+                    )
                 )
-            ) or (principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             for partner_variant in check_for_second_hit(
@@ -546,11 +554,15 @@ class RecessiveAutosomalHomo(BaseMoi):
             # require this sample to be categorised - check Sample contents
             # minimum depth of call
             if (
-                not (
-                    self.pedigree.by_id[sample_id].affected == '2'
-                    and principal.sample_category_check(sample_id, allow_support=False)
+                (
+                    not (
+                        self.pedigree.by_id[sample_id].affected == '2'
+                        and principal.sample_category_check(sample_id, allow_support=False)
+                    )
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -644,11 +656,15 @@ class XDominant(BaseMoi):
             # we require this specific sample to be categorised (non-support)
             # force minimum depth
             if (
-                not (
-                    principal.sample_category_check(sample_id, allow_support=False)
-                    and self.pedigree.by_id[sample_id].affected == '2'
+                (
+                    not (
+                        principal.sample_category_check(sample_id, allow_support=False)
+                        and self.pedigree.by_id[sample_id].affected == '2'
+                    )
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -741,11 +757,15 @@ class XPseudoDominantFemale(BaseMoi):
             # we require this specific sample to be categorised
             # force minimum depth
             if (
-                not (
-                    principal.sample_category_check(sample_id, allow_support=False)
-                    and self.pedigree.by_id[sample_id].affected == '2'
+                (
+                    not (
+                        principal.sample_category_check(sample_id, allow_support=False)
+                        and self.pedigree.by_id[sample_id].affected == '2'
+                    )
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             # check if this is a candidate for dominant inheritance
@@ -839,11 +859,15 @@ class XRecessiveMale(BaseMoi):
         for sample_id in males:
             # specific affected sample category check, never consider support on X for males
             if (
-                not (
-                    self.pedigree.by_id[sample_id].affected == '2'
-                    and principal.sample_category_check(sample_id, allow_support=False)
+                (
+                    not (
+                        self.pedigree.by_id[sample_id].affected == '2'
+                        and principal.sample_category_check(sample_id, allow_support=False)
+                    )
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -916,11 +940,15 @@ class XRecessiveFemaleHom(BaseMoi):
         for sample_id in samples_to_check:
             # specific affected sample category check
             if (
-                not (
-                    self.pedigree.by_id[sample_id].affected == '2'
-                    and principal.sample_category_check(sample_id, allow_support=False)
+                (
+                    not (
+                        self.pedigree.by_id[sample_id].affected == '2'
+                        and principal.sample_category_check(sample_id, allow_support=False)
+                    )
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
@@ -999,11 +1027,15 @@ class XRecessiveFemaleCH(BaseMoi):
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
             if (
-                not (
-                    self.pedigree.by_id[sample_id].affected == '2'
-                    and principal.sample_category_check(sample_id, allow_support=True)
+                (
+                    not (
+                        self.pedigree.by_id[sample_id].affected == '2'
+                        and principal.sample_category_check(sample_id, allow_support=True)
+                    )
                 )
-            ) or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1')):
+                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
+                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+            ):
                 continue
 
             for partner in check_for_second_hit(

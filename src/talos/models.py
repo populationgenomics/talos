@@ -186,6 +186,7 @@ class SmallVariant(VariantCommon):
     everything as a SmallVariant
     """
 
+    alt_depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     ab_ratios: dict[str, float] = Field(default_factory=dict, exclude=True)
     transcript_consequences: list[dict[str, str | float | int]]
@@ -227,6 +228,21 @@ class SmallVariant(VariantCommon):
         """
         if self.depths[sample] < threshold:
             return {'Low Read Depth'}
+        return set()
+
+    def check_minimum_alt_depth(self, sample: str, threshold: int = 5):
+        """
+        flag variants which have insufficient alt read support
+
+        Args:
+            sample (str): sample ID matching the VCF
+            threshold (int): minimum number of alt reads required
+
+        Returns:
+            return a flag if this sample has low supporting read depth
+        """
+        if self.alt_depths[sample] < threshold:
+            return {'Low Alt Support'}
         return set()
 
     def check_ab_ratio(self, sample: str) -> set[str]:
