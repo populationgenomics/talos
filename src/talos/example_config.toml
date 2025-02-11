@@ -43,6 +43,12 @@ exomiser_rank_threshold = 2
 # apologies for the inconsistency
 phenotype_match = ['6']
 
+# all categories in this list are treated as support
+# i.e. can appear as the second-hit, but will not independently be reported
+# comp-het formations of two support variants are also removed
+# all categories not in this list are treated as fully important
+support_categories = ['5', '6']
+
 # These two attributes relate to the filters applied specifically to Dominant MOI tests
 # if the total number of occurences in the callset is lower than this, don't apply an AF filter
 min_callset_ac_to_filter = 5
