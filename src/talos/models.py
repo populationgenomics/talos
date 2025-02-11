@@ -175,7 +175,7 @@ class VariantCommon(BaseModel):
         """
         return set()
 
-    def check_minimum_alt_depth(self, sample: str, threshold: int = 5) -> set[str]:  # noqa: ARG002, ANN002, ANN003
+    def check_minimum_alt_depth(self, sample: str, threshold: int = 5) -> set[str]:  # noqa: ARG002
         """
         dummy method for alt read depth checking - not implemented for SVs
         """
