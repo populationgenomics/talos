@@ -93,7 +93,7 @@ class VariantCommon(BaseModel):
     hom_samples: set[str] = Field(default_factory=set, exclude=True)
     boolean_categories: list[str] = Field(default_factory=list, exclude=True)
     sample_categories: list[str] = Field(default_factory=list, exclude=True)
-    sample_support: list[str] = Field(default_factory=list, exclude=True)
+    support_categories: set[str] = Field(default_factory=set)
     phased: dict = Field(default_factory=dict, exclude=True)
 
     def __str__(self):
@@ -105,69 +105,9 @@ class VariantCommon(BaseModel):
     def __eq__(self, other):
         return self.coordinates == other.coordinates
 
-    @property
-    def has_boolean_categories(self) -> bool:
-        """
-        check that the variant has at least one assigned class
-        """
-        return any(self.info[value] for value in self.boolean_categories)
-
-    @property
-    def has_sample_categories(self) -> bool:
-        """
-        check that the variant has any list-category entries
-        """
-        return any(self.info[value] for value in self.sample_categories)
-
-    @property
-    def has_support(self) -> bool:
-        """
-        check for a True flag in any CategorySupport* attribute
-        Returns:
-            True if variant is support
-        """
-        return any(self.info[value] for value in self.sample_support)
-
-    @property
-    def category_non_support(self) -> bool:
-        """
-        check the variant has at least one non-support category assigned
-        Returns:
-            True if var has a non-support category assigned
-        """
-        return self.has_sample_categories or self.has_boolean_categories
-
-    @property
-    def is_classified(self) -> bool:
-        """
-        check for at least one assigned class, inc. support
-        Returns:
-            True if classified
-        """
-        return self.category_non_support or self.has_support
-
-    @property
-    def support_only(self) -> bool:
-        """
-        check that the variant is exclusively cat. support
-        Returns:
-            True if support only
-        """
-        return self.has_support and not self.category_non_support
-
-    def sample_support_only(self, sample_id: str) -> bool:
-        """
-        check that the variant is exclusively cat. support
-        check that this sample is missing from sample flags
-
-        Returns:
-            True if support only
-        """
-        return self.has_support and not (self.category_non_support or self.sample_categorised_check(sample_id))
-
     def category_values(self, sample: str) -> set[str]:
         """
-        get all variant categories
+        get all variant categories which apply to this Sample (Boolean and Sample-specific)
         steps category flags down to booleans - true for this sample
 
         Args:
@@ -183,36 +123,15 @@ class VariantCommon(BaseModel):
             cat_samples = self.info[category]
             if not isinstance(cat_samples, list):
                 raise TypeError(f'Sample categories should be a list: {cat_samples}')
-            if sample in cat_samples:
+
+            if any(sam in cat_samples for sam in [sample, 'all']):
                 categories.add(category.removeprefix('categorysample'))
 
         categories.update(
             {bool_cat.replace('categoryboolean', '') for bool_cat in self.boolean_categories if self.info[bool_cat]},
         )
 
-        if self.has_support:
-            categories.add('support')
-
         return categories
-
-    def sample_categorised_check(self, sample_id: str) -> bool:
-        """
-        check if any *sample categories applied for this sample
-
-        Args:
-            sample_id (str): the specific sample ID to check
-
-        Returns:
-            bool: True if this sample features in any
-                  named-sample category, includes 'all'
-        """
-        for category in self.sample_categories:
-            cat_samples = self.info[category]
-            assert isinstance(cat_samples, list)
-            if any(sam in cat_samples for sam in [sample_id, 'all']):
-                return True
-
-        return False
 
     def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
@@ -226,10 +145,15 @@ class VariantCommon(BaseModel):
         Returns:
             True if the variant is categorised for this sample
         """
-        big_cat = self.has_boolean_categories or self.sample_categorised_check(sample_id)
-        if allow_support:
-            return big_cat or self.has_support
-        return big_cat
+
+        # get all categories, both boolean and sample-specific - set of Strings
+        categories_applied = self.category_values(sample_id)
+
+        # if we don't want to allow support variants, remove any from the list of applied categories
+        if not allow_support:
+            categories_applied -= self.support_categories
+
+        return bool(len(categories_applied) > 0)
 
     def check_ab_ratio(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """

@@ -513,10 +513,12 @@ def create_small_variant(
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
     sample_categories = [key for key in info if key.startswith('categorysample')]
-    support_categories = [key for key in info if key.startswith('categorysupport')]
+
+    # the categories to be treated as support-only for this runtime
+    support_categories = set(config_retrieve(['ValidateMOI', 'support_categories'], []))
 
     # overwrite with true booleans
-    for cat in support_categories + boolean_categories:
+    for cat in boolean_categories:
         info[cat] = info.get(cat, 0) == 1
 
     # sample categories are a list of strings or 'missing'
@@ -539,7 +541,7 @@ def create_small_variant(
         hom_samples=hom_samples,
         boolean_categories=boolean_categories,
         sample_categories=sample_categories,
-        sample_support=support_categories,
+        support_categories=support_categories,
         phased=phased,
         depths=depths,
         ab_ratios=ab_ratios,
@@ -652,17 +654,10 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-        small_variant = create_small_variant(
-            var=variant,
-            samples=variant_source.samples,
-        )
+        small_variant = create_small_variant(var=variant, samples=variant_source.samples)
 
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
-            continue
-
-        # if unclassified, skip the whole variant
-        if not small_variant.is_classified:
             continue
 
         # update the variant count

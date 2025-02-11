@@ -103,7 +103,7 @@ def check_for_second_hit(
 
     partners = comp_hets[sample].get(first_variant, [])
     if require_non_support:
-        return [partner for partner in partners if not partner.sample_support_only(sample)]
+        return [partner for partner in partners if partner.sample_category_check(sample, allow_support=False)]
     return partners
 
 
@@ -357,14 +357,10 @@ class DominantAutosomal(BaseMoi):
         classifications = []
 
         # reject support for dominant MOI, apply checks based on var type
-        if (
-            principal.support_only
-            or too_common_in_population(
-                principal.info,
-                self.freq_tests[principal.__class__.__name__],
-            )
-            or too_common_in_callset(principal.info)
-        ):
+        if too_common_in_population(
+            principal.info,
+            self.freq_tests[principal.__class__.__name__],
+        ) or too_common_in_callset(principal.info):
             return classifications
 
         # autosomal dominant doesn't require support, but consider het and hom
@@ -472,7 +468,7 @@ class RecessiveAutosomalCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
-                require_non_support=principal.sample_support_only(sample_id),
+                require_non_support=principal.sample_category_check(sample_id, allow_support=False),
             ):
                 if partner_variant.check_read_depth(
                     sample_id,
@@ -542,10 +538,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if principal.support_only or too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ):
+        if too_common_in_population(principal.info, self.freq_tests[principal.__class__.__name__]):
             return classifications
 
         for sample_id in principal.hom_samples:
@@ -636,10 +629,6 @@ class XDominant(BaseMoi):
 
         classifications = []
 
-        if principal.support_only:
-            return classifications
-
-        # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
         if too_common_in_population(
             principal.info,
@@ -652,7 +641,7 @@ class XDominant(BaseMoi):
 
         for sample_id in samples_with_this_variant:
             # skip primary analysis for unaffected members
-            # we require this specific sample to be categorised
+            # we require this specific sample to be categorised (non-support)
             # force minimum depth
             if (
                 not (
@@ -730,13 +719,11 @@ class XPseudoDominantFemale(BaseMoi):
             comp_het ():
             partial_pen ():
         """
+
         # unused in this class, we always run this with partial penetrance
         _unused = partial_pen
 
         classifications = []
-
-        if principal.support_only:
-            return classifications
 
         # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
@@ -917,7 +904,7 @@ class XRecessiveFemaleHom(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if principal.support_only or too_common_in_population(
+        if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
         ):
@@ -1023,7 +1010,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
-                require_non_support=principal.sample_support_only(sample_id),
+                require_non_support=principal.sample_category_check(sample_id, allow_support=False),
             ):
                 # allow for de novo check - also screen out high-AF partners
                 if (not partner.sample_category_check(sample_id, allow_support=True)) or too_common_in_population(
