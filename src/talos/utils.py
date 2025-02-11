@@ -514,7 +514,7 @@ def create_small_variant(
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
     sample_categories = [key for key in info if key.startswith('categorysample')]
 
-    # the categories to be treated as support-only for this runtime
+    # the categories to be treated as support-only for this runtime - make it a set
     support_categories = set(config_retrieve(['ValidateMOI', 'support_categories'], []))
 
     # overwrite with true booleans
@@ -1093,6 +1093,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                         hist.categories[cat] = get_granular_date()
 
                 # update to include all support_variants
+                # support vars is comp-het partners, different from support-level category importance
                 hist.support_vars.update(var.support_vars)
 
                 # mark the first seen timestamp
