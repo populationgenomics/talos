@@ -27,7 +27,7 @@ RUN bash install_glcoud.sh --disable-prompts --install-dir=/opt && \
 ENV PATH=$PATH:/opt/google-cloud-sdk/bin
 
 # Add in the additional requirements that are most likely to change.
-COPY requirements*.txt README.md setup.py ./
+COPY README.md pyproject.toml ./
 COPY src src/
 RUN pip install --upgrade pip && pip install .[cpg]
 
@@ -36,7 +36,6 @@ FROM base AS talos_none
 RUN echo "Skipping cloud dependency installation"
 
 # Add in the additional requirements that are most likely to change.
-COPY requirements*.txt README.md setup.py ./
-RUN pip install -r requirements.txt
+COPY README.md pyproject.toml ./
 COPY src src/
-RUN pip install .
+RUN pip install ".[cpg]"
