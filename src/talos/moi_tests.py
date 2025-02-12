@@ -444,9 +444,6 @@ class RecessiveAutosomalCH(BaseMoi):
             list[ReportVariant]: data object if RecessiveAutosomal fits
         """
 
-        if principal.coordinates.pos == 71652747:
-            print('waiting')
-
         if comp_het is None:
             comp_het = {}
 
@@ -461,7 +458,6 @@ class RecessiveAutosomalCH(BaseMoi):
 
         # if hets are present, try and find support
         for sample_id in principal.het_samples:
-            print(sample_id)
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
