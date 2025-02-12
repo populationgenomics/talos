@@ -155,7 +155,7 @@ class VariantCommon(BaseModel):
         if not allow_support:
             categories_applied -= self.support_categories
 
-        return bool(len(categories_applied) > 0)
+        return len(categories_applied) > 0
 
     def check_ab_ratio(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """
