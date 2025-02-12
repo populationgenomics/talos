@@ -101,12 +101,12 @@ def check_for_second_hit(
     if sample not in comp_hets:
         return []
 
-    partners = comp_hets[sample].get(first_variant, [])
-
     # thin out the possible partners by alt depth
-    partners = [partner for partner in partners if not partner.check_minimum_alt_depth(sample, min_alt_depth)]
-
-    return partners
+    return [
+        var
+        for var in comp_hets[sample].get(first_variant, [])
+        if not var.check_minimum_alt_depth(sample, min_alt_depth)
+    ]
 
 
 class MOIRunner:
@@ -488,7 +488,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         [
                             principal.sample_category_check(sample_id, allow_support=False),
                             partner_variant.sample_category_check(sample_id, allow_support=False),
-                        ]
+                        ],
                     )
                 ):
                     continue
@@ -1020,6 +1020,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
+                min_alt_depth=self.minimum_alt_depth,
             ):
                 # allow for de novo check - also screen out high-AF partners
                 if too_common_in_population(
@@ -1029,7 +1030,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     [
                         principal.sample_category_check(sample_id, allow_support=False),
                         partner.sample_category_check(sample_id, allow_support=False),
-                    ]
+                    ],
                 ):
                     continue
 
