@@ -70,7 +70,6 @@ def check_for_second_hit(
     first_variant: str,
     comp_hets: CompHetDict,
     sample: str,
-    require_non_support: bool = False,
     min_alt_depth: int = 5,
 ) -> list[VARIANT_MODELS]:
     """
@@ -92,7 +91,7 @@ def check_for_second_hit(
         first_variant (str): string representation of variant1
         comp_hets (dict[str, Variant]): lookup for compound hets
         sample (str): sample ID
-        require_non_support (bool): if true, don't return Support only
+        min_alt_depth (int): skip over partners without the minimum alt read support
 
     Returns:
         a list of variants which are potential partners
@@ -107,10 +106,6 @@ def check_for_second_hit(
     # thin out the possible partners by alt depth
     partners = [partner for partner in partners if not partner.check_minimum_alt_depth(sample, min_alt_depth)]
 
-    if require_non_support:
-        return [
-            partner for partner in partners if partner.sample_category_check(sample, allow_support=require_non_support)
-        ]
     return partners
 
 
@@ -481,16 +476,24 @@ class RecessiveAutosomalCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
-                require_non_support=principal.sample_category_check(sample_id, allow_support=False),
                 min_alt_depth=self.minimum_alt_depth,
             ):
-                if partner_variant.check_read_depth(
-                    sample_id,
-                    self.minimum_depth,
-                    partner_variant.info.get('categoryboolean1'),
-                ) or too_common_in_population(
-                    partner_variant.info,
-                    self.freq_tests[partner_variant.__class__.__name__],
+                if (
+                    partner_variant.check_read_depth(
+                        sample_id,
+                        self.minimum_depth,
+                        partner_variant.info.get('categoryboolean1'),
+                    )
+                    or too_common_in_population(
+                        partner_variant.info,
+                        self.freq_tests[partner_variant.__class__.__name__],
+                    )
+                    or not any(
+                        [
+                            principal.sample_category_check(sample_id, allow_support=False),
+                            partner_variant.sample_category_check(sample_id, allow_support=False),
+                        ]
+                    )
                 ):
                     continue
 
@@ -1021,12 +1024,16 @@ class XRecessiveFemaleCH(BaseMoi):
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
-                require_non_support=principal.sample_category_check(sample_id, allow_support=False),
             ):
                 # allow for de novo check - also screen out high-AF partners
                 if too_common_in_population(
                     partner.info,
                     self.freq_tests[partner.__class__.__name__],
+                ) or not any(
+                    [
+                        principal.sample_category_check(sample_id, allow_support=False),
+                        partner.sample_category_check(sample_id, allow_support=False),
+                    ]
                 ):
                     continue
 
