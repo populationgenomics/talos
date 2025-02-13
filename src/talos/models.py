@@ -157,7 +157,7 @@ class VariantCommon(BaseModel):
 
         return len(categories_applied) > 0
 
-    def check_ab_ratio(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
+    def dodgy_ab_ratio_test(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """
         dummy method for AB ratio checking - not implemented for SVs
         """
@@ -169,13 +169,13 @@ class VariantCommon(BaseModel):
         """
         return set()
 
-    def check_read_depth(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
+    def insufficient_read_depth(self, *args, **kwargs) -> set[str]:  # noqa: ARG002, ANN002, ANN003
         """
         dummy method for read depth checking - not implemented for SVs
         """
         return set()
 
-    def check_minimum_alt_depth(self, sample: str, threshold: int = 5) -> set[str]:  # noqa: ARG002
+    def insufficient_alt_depth(self, sample: str, threshold: int = 5) -> set[str]:  # noqa: ARG002
         """
         dummy method for alt read depth checking - not implemented for SVs
         """
@@ -201,9 +201,9 @@ class SmallVariant(VariantCommon):
         """
         gets all report flags for this sample - currently only one flag
         """
-        return self.check_ab_ratio(sample) | self.check_read_depth_strict(sample)
+        return self.dodgy_ab_ratio_test(sample) | self.insufficient_read_depth_strict(sample)
 
-    def check_read_depth(self, sample: str, threshold: int = 10, var_is_cat_1: bool = False) -> set[str]:
+    def insufficient_read_depth(self, sample: str, threshold: int = 10, var_is_cat_1: bool = False) -> set[str]:
         """
         flag low read depth for this sample
         this version is used to determine whether a variant should be considered for _this_ sample
@@ -219,9 +219,9 @@ class SmallVariant(VariantCommon):
         """
         if var_is_cat_1:
             return set()
-        return self.check_read_depth_strict(sample, threshold)
+        return self.insufficient_read_depth_strict(sample, threshold)
 
-    def check_read_depth_strict(self, sample: str, threshold: int = 10) -> set[str]:
+    def insufficient_read_depth_strict(self, sample: str, threshold: int = 10) -> set[str]:
         """
         flag low read depth for this sample - doesn't care if it's in ClinVar
 
@@ -236,7 +236,7 @@ class SmallVariant(VariantCommon):
             return {'Low Read Depth'}
         return set()
 
-    def check_minimum_alt_depth(self, sample: str, threshold: int = 5):
+    def insufficient_alt_depth(self, sample: str, threshold: int = 5):
         """
         flag variants which have insufficient alt read support
 
@@ -251,7 +251,7 @@ class SmallVariant(VariantCommon):
             return {'Low Alt Support'}
         return set()
 
-    def check_ab_ratio(self, sample: str) -> set[str]:
+    def dodgy_ab_ratio_test(self, sample: str) -> set[str]:
         """
         AB ratio test for this sample's variant call
 

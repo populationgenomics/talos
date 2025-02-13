@@ -103,9 +103,7 @@ def check_for_second_hit(
 
     # thin out the possible partners by alt depth
     return [
-        var
-        for var in comp_hets[sample].get(first_variant, [])
-        if not var.check_minimum_alt_depth(sample, min_alt_depth)
+        var for var in comp_hets[sample].get(first_variant, []) if not var.insufficient_alt_depth(sample, min_alt_depth)
     ]
 
 
@@ -376,12 +374,12 @@ class DominantAutosomal(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not principal.sample_category_check(sample_id, allow_support=False)
-                or principal.check_read_depth(
+                or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
                     var_is_cat_1=principal.info.get('categoryboolean1'),
                 )
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -463,8 +461,10 @@ class RecessiveAutosomalCH(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or (not principal.sample_category_check(sample_id, allow_support=True))
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -475,7 +475,7 @@ class RecessiveAutosomalCH(BaseMoi):
                 min_alt_depth=self.minimum_alt_depth,
             ):
                 if (
-                    partner_variant.check_read_depth(
+                    partner_variant.insufficient_read_depth(
                         sample_id,
                         self.minimum_depth,
                         partner_variant.info.get('categoryboolean1'),
@@ -561,8 +561,10 @@ class RecessiveAutosomalHomo(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -659,8 +661,10 @@ class XDominant(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -756,8 +760,10 @@ class XPseudoDominantFemale(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -851,8 +857,10 @@ class XRecessiveMale(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -928,8 +936,10 @@ class XRecessiveFemaleHom(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not principal.sample_category_check(sample_id, allow_support=False)
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -1011,8 +1021,10 @@ class XRecessiveFemaleCH(BaseMoi):
             if (
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not principal.sample_category_check(sample_id, allow_support=True)
-                or principal.check_read_depth(sample_id, self.minimum_depth, principal.info.get('categoryboolean1'))
-                or principal.check_minimum_alt_depth(sample_id, self.minimum_alt_depth)
+                or principal.insufficient_read_depth(
+                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                )
+                or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
                 continue
 
@@ -1035,7 +1047,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     continue
 
                 # check for minimum depth in partner
-                if partner.check_read_depth(sample_id, self.minimum_depth, partner.info.get('categoryboolean1')):
+                if partner.insufficient_read_depth(sample_id, self.minimum_depth, partner.info.get('categoryboolean1')):
                     continue
 
                 if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner):
