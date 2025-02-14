@@ -460,7 +460,9 @@ class RecessiveAutosomalCH(BaseMoi):
 
                 # check if this is a candidate for comp-het inheritance
                 if self.comp_het_explains_disease_in_family(
-                    sample_id=sample_id, variant_1=principal, variant_2=partner,
+                    sample_id=sample_id,
+                    variant_1=principal,
+                    variant_2=partner,
                 ):
                     classifications.append(
                         ReportVariant(
@@ -833,7 +835,9 @@ class XRecessiveMale(BaseMoi):
 
             # check if this is a possible candidate for homozygous inheritance
             if self.single_variant_explains_disease_in_family(
-                sample_id=sample_id, called_variants=males, partial_pen=partial_pen,
+                sample_id=sample_id,
+                called_variants=males,
+                partial_pen=partial_pen,
             ):
                 classifications.append(
                     ReportVariant(
@@ -1008,7 +1012,9 @@ class XRecessiveFemaleCH(BaseMoi):
                     )
                     or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
                     or partner.insufficient_read_depth(
-                        sample_id, self.minimum_depth, partner.info.get('categoryboolean1'),
+                        sample_id,
+                        self.minimum_depth,
+                        partner.info.get('categoryboolean1'),
                     )
                     or not any(
                         [
@@ -1020,7 +1026,9 @@ class XRecessiveFemaleCH(BaseMoi):
                     continue
 
                 if self.comp_het_explains_disease_in_family(
-                    sample_id=sample_id, variant_1=principal, variant_2=partner,
+                    sample_id=sample_id,
+                    variant_1=principal,
+                    variant_2=partner,
                 ):
                     classifications.append(
                         ReportVariant(

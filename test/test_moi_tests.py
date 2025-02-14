@@ -812,7 +812,8 @@ def test_check_familial_inheritance_mother_fail(pedigree_path):
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
     assert not base_moi.single_variant_explains_disease_in_family(
-        sample_id='male', called_variants={'male', 'mother_1'},
+        sample_id='male',
+        called_variants={'male', 'mother_1'},
     )
 
 
@@ -838,7 +839,8 @@ def test_check_familial_inheritance_father_fail(pedigree_path):
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
     assert not base_moi.single_variant_explains_disease_in_family(
-        sample_id='male', called_variants={'male', 'father_1'},
+        sample_id='male',
+        called_variants={'male', 'father_1'},
     )
 
 
