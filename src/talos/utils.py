@@ -48,6 +48,9 @@ HETALT: int = 1
 UNKNOWN: int = 2
 HOMALT: int = 3
 
+TWO = 2
+THREE = 3
+
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 PHASE_SET_DEFAULT = -2147483648
@@ -310,10 +313,10 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes, strict=True):
                 # cyvcf2.Variant holds two ints, and a bool for biallelic calls
                 # but only one int and a bool for hemi
-                if len(genotype) == 3:
+                if len(genotype) == THREE:
                     allele_1, allele_2, phased = genotype
                     gt = f'{allele_1}|{allele_2}'
-                elif len(genotype) == 2:
+                elif len(genotype) == TWO:
                     allele_1, phased = genotype
                     gt = f'{allele_1}'
                 else:
@@ -337,12 +340,12 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
             except KeyError as ke2:
                 get_logger().info('Also failed using PID and PGT')
                 raise ke2
-    except (KeyError, ValueError) as ke:
+    except (KeyError, ValueError):
         global PHASE_BROKEN
         if not PHASE_BROKEN:
             get_logger().info('Failed to correctly parse phase attributes using existing methods')
             get_logger().info(
-                'Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions'
+                'Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions',
             )
         PHASE_BROKEN = True
 
