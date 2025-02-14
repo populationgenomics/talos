@@ -66,11 +66,10 @@ def too_common_in_callset(info: dict) -> bool:
     return info.get('af', 0.0) >= config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
 
 
-def check_for_second_hit(
+def find_candidate_comp_het_partners(
     first_variant: str,
     comp_hets: CompHetDict,
     sample: str,
-    min_alt_depth: int = 5,
 ) -> list[VARIANT_MODELS]:
     """
     checks for a second hit partner in this gene
@@ -91,7 +90,6 @@ def check_for_second_hit(
         first_variant (str): string representation of variant1
         comp_hets (dict[str, Variant]): lookup for compound hets
         sample (str): sample ID
-        min_alt_depth (int): skip over partners without the minimum alt read support
 
     Returns:
         a list of variants which are potential partners
@@ -102,9 +100,7 @@ def check_for_second_hit(
         return []
 
     # thin out the possible partners by alt depth
-    return [
-        var for var in comp_hets[sample].get(first_variant, []) if not var.insufficient_alt_depth(sample, min_alt_depth)
-    ]
+    return comp_hets[sample].get(first_variant, [])
 
 
 class MOIRunner:
@@ -468,33 +464,33 @@ class RecessiveAutosomalCH(BaseMoi):
             ):
                 continue
 
-            for partner_variant in check_for_second_hit(
+            for partner in find_candidate_comp_het_partners(
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
-                min_alt_depth=self.minimum_alt_depth,
             ):
                 if (
-                    partner_variant.insufficient_read_depth(
+                    partner.insufficient_read_depth(
                         sample_id,
                         self.minimum_depth,
-                        partner_variant.info.get('categoryboolean1'),
+                        partner.info.get('categoryboolean1'),
                     )
                     or too_common_in_population(
-                        partner_variant.info,
-                        self.freq_tests[partner_variant.__class__.__name__],
+                        partner.info,
+                        self.freq_tests[partner.__class__.__name__],
                     )
+                    or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
                     or not any(
                         [
                             principal.sample_category_check(sample_id, allow_support=False),
-                            partner_variant.sample_category_check(sample_id, allow_support=False),
+                            partner.sample_category_check(sample_id, allow_support=False),
                         ],
                     )
                 ):
                     continue
 
                 # check if this is a candidate for comp-het inheritance
-                if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner_variant):
+                if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner):
                     continue
 
                 classifications.append(
@@ -506,8 +502,8 @@ class RecessiveAutosomalCH(BaseMoi):
                         categories=principal.category_values(sample_id),
                         reasons={self.applied_moi},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                        support_vars={partner_variant.info['seqr_link']},
-                        flags=principal.get_sample_flags(sample_id) | partner_variant.get_sample_flags(sample_id),
+                        support_vars={partner.info['seqr_link']},
+                        flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
                         independent=False,
                     ),
                 )
@@ -1028,21 +1024,24 @@ class XRecessiveFemaleCH(BaseMoi):
             ):
                 continue
 
-            for partner in check_for_second_hit(
+            for partner in find_candidate_comp_het_partners(
                 first_variant=principal.coordinates.string_format,
                 comp_hets=comp_het,
                 sample=sample_id,
-                min_alt_depth=self.minimum_alt_depth,
             ):
                 # allow for de novo check - also screen out high-AF partners
-                if too_common_in_population(
-                    partner.info,
-                    self.freq_tests[partner.__class__.__name__],
-                ) or not any(
-                    [
-                        principal.sample_category_check(sample_id, allow_support=False),
-                        partner.sample_category_check(sample_id, allow_support=False),
-                    ],
+                if (
+                    too_common_in_population(
+                        partner.info,
+                        self.freq_tests[partner.__class__.__name__],
+                    )
+                    or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
+                    or not any(
+                        [
+                            principal.sample_category_check(sample_id, allow_support=False),
+                            partner.sample_category_check(sample_id, allow_support=False),
+                        ],
+                    )
                 ):
                     continue
 
