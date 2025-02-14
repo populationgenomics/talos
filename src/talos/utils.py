@@ -70,8 +70,7 @@ MEMBER_LOOKUP_DICT = {'0': None}
 DOI_URL = 'https://doi.org/'
 
 # we've noted some instances where we failed the whole process due to failure to parse phase data
-# don't fail, just post some informative information, suggest that someone raises an issue on github, then don't try
-# to parse any further phase data
+# don't fail, just suggest that someone raises an issue on github, but only print this message once
 PHASE_BROKEN: bool = False
 
 
@@ -295,11 +294,6 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
         var ():
     """
 
-    # escape here if a previous variant parsing broke - don't print something for every failing variant
-    global PHASE_BROKEN
-    if PHASE_BROKEN:
-        return {}
-
     phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
 
     # check we have relevant attributes in the variant format fields
@@ -344,8 +338,12 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
                 get_logger().info('Also failed using PID and PGT')
                 raise ke2
     except (KeyError, ValueError) as ke:
-        get_logger().info('Failed to find phase attributes using existing methods')
-        get_logger().info('Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions')
+        global PHASE_BROKEN
+        if not PHASE_BROKEN:
+            get_logger().info('Failed to correctly parse phase attributes using existing methods')
+            get_logger().info(
+                'Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions'
+            )
         PHASE_BROKEN = True
 
     return dict(phased_dict)
@@ -359,7 +357,7 @@ def organise_exomiser(
     method dedicated to handling the new exomiser annotations
 
     If present, these are in a condensed format of PROBAND_RANK_MOI, delimited by "::" e.g.
-    "PROBAND1_29_AR::PROBAND2_26_AR::PROAND3_23_AR"
+    "PROBAND1_29_AR::PROBAND2_26_AR::PROBAND3_23_AR"
 
     When parsing this, we optionally filter to only the top-n ranked results
 
