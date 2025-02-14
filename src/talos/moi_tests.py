@@ -158,7 +158,12 @@ class BaseMoi:
         run all applicable inheritance patterns and finds good fits
         """
 
-    def check_familial_inheritance(self, sample_id: str, called_variants: set[str], partial_pen: bool = False) -> bool:
+    def single_variant_explains_disease_in_family(
+        self,
+        sample_id: str,
+        called_variants: set[str],
+        partial_pen: bool = False,
+    ) -> bool:
         """
         check for single variant inheritance
         - find the family ID from this sample
@@ -243,7 +248,12 @@ class BaseMoi:
             for member in self.pedigree.by_family[sample_family_id]
         }
 
-    def check_comp_het(self, sample_id: str, variant_1: VARIANT_MODELS, variant_2: VARIANT_MODELS) -> bool:
+    def comp_het_explains_disease_in_family(
+        self,
+        sample_id: str,
+        variant_1: VARIANT_MODELS,
+        variant_2: VARIANT_MODELS,
+    ) -> bool:
         """
         use parents to accept or dismiss the comp-het
         If the 'comp-het' pair are inherited from a single parent, they are in cis
@@ -343,26 +353,24 @@ class DominantAutosomal(BaseMoi):
                 continue
 
             # check if this is a candidate for dominant inheritance
-            if not self.check_familial_inheritance(
+            if self.single_variant_explains_disease_in_family(
                 sample_id=sample_id,
                 called_variants=samples_with_this_variant,
                 partial_pen=partial_pen,
             ):
-                continue
-
-            classifications.append(
-                ReportVariant(
-                    sample=sample_id,
-                    family=self.pedigree.by_id[sample_id].family,
-                    gene=principal.info.get('gene_id'),
-                    var_data=principal,
-                    categories=principal.category_values(sample_id),
-                    reasons={self.applied_moi},
-                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    flags=principal.get_sample_flags(sample_id),
-                    independent=True,
-                ),
-            )
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.by_id[sample_id].family,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories=principal.category_values(sample_id),
+                        reasons={self.applied_moi},
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        flags=principal.get_sample_flags(sample_id),
+                        independent=True,
+                    ),
+                )
 
         return classifications
 
@@ -451,23 +459,23 @@ class RecessiveAutosomalCH(BaseMoi):
                     continue
 
                 # check if this is a candidate for comp-het inheritance
-                if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner):
-                    continue
-
-                classifications.append(
-                    ReportVariant(
-                        sample=sample_id,
-                        family=self.pedigree.by_id[sample_id].family,
-                        gene=principal.info.get('gene_id'),
-                        var_data=principal,
-                        categories=principal.category_values(sample_id),
-                        reasons={self.applied_moi},
-                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                        support_vars={partner.info['seqr_link']},
-                        flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
-                        independent=False,
-                    ),
-                )
+                if self.comp_het_explains_disease_in_family(
+                    sample_id=sample_id, variant_1=principal, variant_2=partner,
+                ):
+                    classifications.append(
+                        ReportVariant(
+                            sample=sample_id,
+                            family=self.pedigree.by_id[sample_id].family,
+                            gene=principal.info.get('gene_id'),
+                            var_data=principal,
+                            categories=principal.category_values(sample_id),
+                            reasons={self.applied_moi},
+                            genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                            support_vars={partner.info['seqr_link']},
+                            flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
+                            independent=False,
+                        ),
+                    )
 
         return classifications
 
@@ -528,26 +536,24 @@ class RecessiveAutosomalHomo(BaseMoi):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
-            if not self.check_familial_inheritance(
+            if self.single_variant_explains_disease_in_family(
                 sample_id=sample_id,
                 called_variants=principal.hom_samples,
                 partial_pen=partial_pen,
             ):
-                continue
-
-            classifications.append(
-                ReportVariant(
-                    sample=sample_id,
-                    family=self.pedigree.by_id[sample_id].family,
-                    gene=principal.info.get('gene_id'),
-                    var_data=principal,
-                    categories=principal.category_values(sample_id),
-                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    reasons={self.applied_moi},
-                    flags=principal.get_sample_flags(sample_id),
-                    independent=True,
-                ),
-            )
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.by_id[sample_id].family,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories=principal.category_values(sample_id),
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        reasons={self.applied_moi},
+                        flags=principal.get_sample_flags(sample_id),
+                        independent=True,
+                    ),
+                )
 
         return classifications
 
@@ -630,26 +636,24 @@ class XDominant(BaseMoi):
                 continue
 
             # check if this is a candidate for dominant inheritance
-            if not self.check_familial_inheritance(
+            if self.single_variant_explains_disease_in_family(
                 sample_id=sample_id,
                 called_variants=samples_with_this_variant,
                 partial_pen=partial_pen,
             ):
-                continue
-
-            classifications.append(
-                ReportVariant(
-                    sample=sample_id,
-                    family=self.pedigree.by_id[sample_id].family,
-                    gene=principal.info.get('gene_id'),
-                    var_data=principal,
-                    categories=principal.category_values(sample_id),
-                    reasons={self.applied_moi},
-                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    flags=principal.get_sample_flags(sample_id),
-                    independent=True,
-                ),
-            )
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.by_id[sample_id].family,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories=principal.category_values(sample_id),
+                        reasons={self.applied_moi},
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        flags=principal.get_sample_flags(sample_id),
+                        independent=True,
+                    ),
+                )
         return classifications
 
 
@@ -738,27 +742,25 @@ class XPseudoDominantFemale(BaseMoi):
             # females under partial penetrance, but that's not trivial without creating a second familial check method.
             # Leaving that aside now as the current implementation is pretty central to the algorithm. Will revisit if
             # this is noisy.
-            if not self.check_familial_inheritance(
+            if self.single_variant_explains_disease_in_family(
                 sample_id=sample_id,
                 called_variants=all_with_variant,
                 partial_pen=True,
             ):
-                continue
-
-            classifications.append(
-                ReportVariant(
-                    sample=sample_id,
-                    family=self.pedigree.by_id[sample_id].family,
-                    gene=principal.info.get('gene_id'),
-                    var_data=principal,
-                    categories=principal.category_values(sample_id),
-                    reasons={self.applied_moi},
-                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    flags=principal.get_sample_flags(sample_id)
-                    | {'Affected female with heterozygous variant in XLR gene'},
-                    independent=True,
-                ),
-            )
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.by_id[sample_id].family,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories=principal.category_values(sample_id),
+                        reasons={self.applied_moi},
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        flags=principal.get_sample_flags(sample_id)
+                        | {'Affected female with heterozygous variant in XLR gene'},
+                        independent=True,
+                    ),
+                )
         return classifications
 
 
@@ -830,22 +832,22 @@ class XRecessiveMale(BaseMoi):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
-            if not self.check_familial_inheritance(sample_id=sample_id, called_variants=males, partial_pen=partial_pen):
-                continue
-
-            classifications.append(
-                ReportVariant(
-                    sample=sample_id,
-                    family=self.pedigree.by_id[sample_id].family,
-                    gene=principal.info.get('gene_id'),
-                    var_data=principal,
-                    categories=principal.category_values(sample_id),
-                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    reasons={self.applied_moi},
-                    flags=principal.get_sample_flags(sample_id),
-                    independent=True,
-                ),
-            )
+            if self.single_variant_explains_disease_in_family(
+                sample_id=sample_id, called_variants=males, partial_pen=partial_pen,
+            ):
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.by_id[sample_id].family,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories=principal.category_values(sample_id),
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        reasons={self.applied_moi},
+                        flags=principal.get_sample_flags(sample_id),
+                        independent=True,
+                    ),
+                )
         return classifications
 
 
@@ -911,26 +913,24 @@ class XRecessiveFemaleHom(BaseMoi):
                 continue
 
             # check if this is a possible candidate for homozygous inheritance
-            if not self.check_familial_inheritance(
+            if self.single_variant_explains_disease_in_family(
                 sample_id=sample_id,
                 called_variants=samples_to_check,
                 partial_pen=partial_pen,
             ):
-                continue
-
-            classifications.append(
-                ReportVariant(
-                    sample=sample_id,
-                    family=self.pedigree.by_id[sample_id].family,
-                    gene=principal.info.get('gene_id'),
-                    var_data=principal,
-                    categories=principal.category_values(sample_id),
-                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                    reasons={self.applied_moi},
-                    flags=principal.get_sample_flags(sample_id),
-                    independent=True,
-                ),
-            )
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.by_id[sample_id].family,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories=principal.category_values(sample_id),
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        reasons={self.applied_moi},
+                        flags=principal.get_sample_flags(sample_id),
+                        independent=True,
+                    ),
+                )
         return classifications
 
 
@@ -1000,12 +1000,16 @@ class XRecessiveFemaleCH(BaseMoi):
 
             for partner in comp_het[sample_id].get(principal.coordinates.string_format, []):
                 # allow for de novo check - also screen out high-AF partners
+                # check for minimum depth and alt support in partner
                 if (
                     too_common_in_population(
                         partner.info,
                         self.freq_tests[partner.__class__.__name__],
                     )
                     or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
+                    or partner.insufficient_read_depth(
+                        sample_id, self.minimum_depth, partner.info.get('categoryboolean1'),
+                    )
                     or not any(
                         [
                             principal.sample_category_check(sample_id, allow_support=False),
@@ -1015,27 +1019,23 @@ class XRecessiveFemaleCH(BaseMoi):
                 ):
                     continue
 
-                # check for minimum depth in partner
-                if partner.insufficient_read_depth(sample_id, self.minimum_depth, partner.info.get('categoryboolean1')):
-                    continue
-
-                if not self.check_comp_het(sample_id=sample_id, variant_1=principal, variant_2=partner):
-                    continue
-
-                classifications.append(
-                    ReportVariant(
-                        sample=sample_id,
-                        family=self.pedigree.by_id[sample_id].family,
-                        gene=principal.info.get('gene_id'),
-                        var_data=principal,
-                        categories=principal.category_values(sample_id),
-                        reasons={self.applied_moi},
-                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                        # needs to comply with Seqr
-                        support_vars={partner.info['seqr_link']},
-                        flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
-                        independent=False,
-                    ),
-                )
+                if self.comp_het_explains_disease_in_family(
+                    sample_id=sample_id, variant_1=principal, variant_2=partner,
+                ):
+                    classifications.append(
+                        ReportVariant(
+                            sample=sample_id,
+                            family=self.pedigree.by_id[sample_id].family,
+                            gene=principal.info.get('gene_id'),
+                            var_data=principal,
+                            categories=principal.category_values(sample_id),
+                            reasons={self.applied_moi},
+                            genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                            # needs to comply with Seqr
+                            support_vars={partner.info['seqr_link']},
+                            flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
+                            independent=False,
+                        ),
+                    )
 
         return classifications

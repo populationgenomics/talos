@@ -802,7 +802,7 @@ def test_check_familial_inheritance_simple(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert base_moi.check_familial_inheritance(sample_id='male', called_variants={'male'})
+    assert base_moi.single_variant_explains_disease_in_family(sample_id='male', called_variants={'male'})
 
 
 def test_check_familial_inheritance_mother_fail(pedigree_path):
@@ -811,7 +811,9 @@ def test_check_familial_inheritance_mother_fail(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert not base_moi.check_familial_inheritance(sample_id='male', called_variants={'male', 'mother_1'})
+    assert not base_moi.single_variant_explains_disease_in_family(
+        sample_id='male', called_variants={'male', 'mother_1'},
+    )
 
 
 def test_check_familial_inheritance_mother_passes(pedigree_path):
@@ -822,7 +824,7 @@ def test_check_familial_inheritance_mother_passes(pedigree_path):
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
 
-    assert base_moi.check_familial_inheritance(
+    assert base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
         called_variants={'male', 'mother_1'},
         partial_pen=True,
@@ -835,7 +837,9 @@ def test_check_familial_inheritance_father_fail(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert not base_moi.check_familial_inheritance(sample_id='male', called_variants={'male', 'father_1'})
+    assert not base_moi.single_variant_explains_disease_in_family(
+        sample_id='male', called_variants={'male', 'father_1'},
+    )
 
 
 def test_check_familial_inheritance_father_passes(pedigree_path):
@@ -846,7 +850,7 @@ def test_check_familial_inheritance_father_passes(pedigree_path):
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
 
-    result = base_moi.check_familial_inheritance(
+    result = base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
         called_variants={'male', 'father_1'},
         partial_pen=True,
@@ -861,7 +865,7 @@ def test_check_familial_inheritance_top_down(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert base_moi.check_familial_inheritance(
+    assert base_moi.single_variant_explains_disease_in_family(
         sample_id='father_1',
         called_variants={'male', 'father_1'},
         partial_pen=True,
@@ -876,7 +880,7 @@ def test_check_familial_inheritance_no_calls(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert base_moi.check_familial_inheritance(sample_id='male', called_variants=set(), partial_pen=True)
+    assert base_moi.single_variant_explains_disease_in_family(sample_id='male', called_variants=set(), partial_pen=True)
 
 
 def test_genotype_calls(pedigree_path):
