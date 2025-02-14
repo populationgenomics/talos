@@ -69,6 +69,11 @@ MEMBER_LOOKUP_DICT = {'0': None}
 
 DOI_URL = 'https://doi.org/'
 
+# we've noted some instances where we failed the whole process due to failure to parse phase data
+# don't fail, just post some informative information, suggest that someone raises an issue on github, then don't try
+# to parse any further phase data
+PHASE_BROKEN: bool = False
+
 
 def get_random_string(length: int = 6) -> str:
     """
@@ -289,44 +294,59 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
         samples ():
         var ():
     """
+
+    # escape here if a previous variant parsing broke - don't print something for every failing variant
+    global PHASE_BROKEN
+    if PHASE_BROKEN:
+        return {}
+
     phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
+
+    # check we have relevant attributes in the variant format fields
+    if not any(x in var.FORMAT for x in ['PS', 'PGT', 'PID']):
+        return dict(phased_dict)
 
     # first set the numpy.ndarray to be a list of ints
     # then zip against ordered sample IDs
     # this might need to store the exact genotype too
     # i.e. 0|1 and 1|0 can be in the same phase-set
     # but are un-phased variants
-
     try:
-        for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes):
-            # cyvcf2.Variant holds two ints, and a bool for biallelic calls, but only one int and a bool for hemi
-            if len(genotype) == 3:
-                allele_1, allele_2, phased = genotype
-                gt = f'{allele_1}|{allele_2}'
-            elif len(genotype) == 2:
-                allele_1, phased = genotype
-                gt = f'{allele_1}'
-            else:
-                raise ValueError(f'Unexpected genotype length: {len(genotype)}: {genotype}')
+        if 'PS' in var.FORMAT:
+            for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes, strict=True):
+                # cyvcf2.Variant holds two ints, and a bool for biallelic calls
+                # but only one int and a bool for hemi
+                if len(genotype) == 3:
+                    allele_1, allele_2, phased = genotype
+                    gt = f'{allele_1}|{allele_2}'
+                elif len(genotype) == 2:
+                    allele_1, phased = genotype
+                    gt = f'{allele_1}'
+                else:
+                    raise ValueError(f'Unexpected genotype length: {len(genotype)}: {genotype}')
 
-            if not phased:
-                continue
+                if not phased:
+                    continue
 
-            # phase set is a number
-            if phase != PHASE_SET_DEFAULT:
-                phased_dict[sample][phase] = gt
+                # phase set is a number
+                if phase != PHASE_SET_DEFAULT:
+                    phased_dict[sample][phase] = gt
 
+        elif all(attr_name in var.FORMAT for attr_name in ['PGT', 'PID']):
+            get_logger().info('Failed to find PS phase attributes')
+            try:
+                # retry using PGT & PID
+                for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID')):
+                    if phase_gt != '.' and phase_id != '.':
+                        phased_dict[sample][phase_id] = phase_gt
+
+            except KeyError as ke2:
+                get_logger().info('Also failed using PID and PGT')
+                raise ke2
     except (KeyError, ValueError) as ke:
-        get_logger().info('failed to find PS phase attributes')
-        try:
-            # retry using PGT & PID
-            for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID')):
-                if phase_gt != '.' and phase_id != '.':
-                    phased_dict[sample][phase_id] = phase_gt
-
-        except KeyError as ke2:
-            get_logger().info('also failed using PID and PGT')
-            raise ke from ke2
+        get_logger().info('Failed to find phase attributes using existing methods')
+        get_logger().info('Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions')
+        PHASE_BROKEN = True
 
     return dict(phased_dict)
 
