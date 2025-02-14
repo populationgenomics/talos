@@ -299,15 +299,24 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
 
     try:
         for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes):
-            # cyvcf2.Variant holds two ints, and a bool
-            allele_1, allele_2, phased = genotype
+            # cyvcf2.Variant holds two ints, and a bool for biallelic calls, but only one int and a bool for hemi
+            if len(genotype) == 3:
+                allele_1, allele_2, phased = genotype
+                gt = f'{allele_1}|{allele_2}'
+            elif len(genotype) == 2:
+                allele_1, phased = genotype
+                gt = f'{allele_1}'
+            else:
+                raise ValueError(f'Unexpected genotype length: {len(genotype)}: {genotype}')
+
             if not phased:
                 continue
-            gt = f'{allele_1}|{allele_2}'
+
             # phase set is a number
             if phase != PHASE_SET_DEFAULT:
                 phased_dict[sample][phase] = gt
-    except KeyError as ke:
+
+    except (KeyError, ValueError) as ke:
         get_logger().info('failed to find PS phase attributes')
         try:
             # retry using PGT & PID
