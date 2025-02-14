@@ -260,6 +260,85 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
 
 
+def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
+    """
+    check that when one variant is support only, and the other is full, both reach the report
+    """
+
+    passing_variant = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean1'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant2 = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS2,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean6'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'male': {
+            TEST_COORDS.string_format: [passing_variant2],
+            TEST_COORDS2.string_format: [passing_variant],
+        },
+    }
+    rec = RecessiveAutosomalCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(rec.run(passing_variant2, comp_het=comp_hets))
+    assert len(results) == 2
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+
+
+def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
+    """
+    check that when one variant is support only, and the other is full, both reach the report
+    """
+
+    passing_variant = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean6'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant2 = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS2,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean6'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'male': {
+            TEST_COORDS.string_format: [passing_variant2],
+            TEST_COORDS2.string_format: [passing_variant],
+        },
+    }
+    rec = RecessiveAutosomalCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(rec.run(passing_variant2, comp_het=comp_hets))
+    assert len(results) == 0
+
+
 def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
     """
     info values are defaults (0) & comp-het test is always True we accept a heterozygous variant as a Comp-Het
@@ -587,6 +666,78 @@ def test_x_recessive_female_het_passes(pedigree_path):
     assert len(results) == 1
     assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
     assert results[0].support_vars == {'passing2'}
+
+
+def test_x_recessive_female_het_passes_one_support(pedigree_path):
+    passing_variant = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_1,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories={'4'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant_2 = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_2,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories=set(),
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'female': {
+            TEST_COORDS_X_1.string_format: [passing_variant_2],
+            TEST_COORDS_X_2.string_format: [passing_variant],
+        },
+    }
+    x_rec = XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = x_rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
+    assert len(results) == 2
+    assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
+    assert results[0].support_vars == {'passing2'}
+
+
+def test_x_recessive_female_het_fails_both_support(pedigree_path):
+    passing_variant = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_1,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories={'4'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant_2 = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_2,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories={'4'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'female': {
+            TEST_COORDS_X_1.string_format: [passing_variant_2],
+            TEST_COORDS_X_2.string_format: [passing_variant],
+        },
+    }
+    x_rec = XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = x_rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
+    assert len(results) == 0
 
 
 def test_het_de_novo_passes(pedigree_path):
