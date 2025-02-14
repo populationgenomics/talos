@@ -3,7 +3,6 @@ tests relating to the MOI filters
 """
 
 from test.test_utils import TWO_EXPECTED
-from unittest import mock
 
 import pytest
 
@@ -20,7 +19,6 @@ from talos.moi_tests import (
     XRecessiveFemaleHom,
     XRecessiveMale,
     too_common_in_callset,
-    find_candidate_comp_het_partners,
     too_common_in_population,
 )
 from talos.utils import make_flexible_pedigree
@@ -29,28 +27,6 @@ TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
 TEST_COORDS_X_1 = Coordinates(chrom='X', pos=1, ref='G', alt='T')
 TEST_COORDS_X_2 = Coordinates(chrom='X', pos=2, ref='G', alt='T')
-
-
-@pytest.mark.parametrize(
-    'first,comp_hets,sample,values',
-    (
-        ('', {}, '', []),  # no values
-        ('', {}, 'a', []),  # sample not present
-        ('', {'a': {'foo': []}}, 'a', []),  # var not present
-        ('foo', {'a': {'foo': ['bar']}}, 'a', ['bar']),  # all values present
-        ('foo', {'a': {'foo': ['bar', 'baz']}}, 'a', ['bar', 'baz']),  # all values present
-    ),
-)
-def test_check_second_hit(first, comp_hets, sample, values):
-    """
-    quick test for the 2nd hit mechanic
-    return all strings when the comp-het lookup contains:
-        - the sample
-        - the gene
-        - the variant signature
-    """
-
-    assert find_candidate_comp_het_partners(first_variant=first, comp_hets=comp_hets, sample=sample) == values
 
 
 @pytest.mark.parametrize(
@@ -801,8 +777,7 @@ def test_x_recessive_female_het_fails(pedigree_path):
     assert not x_rec.run(passing_variant, comp_het=comp_hets)
 
 
-@mock.patch('talos.moi_tests.find_candidate_comp_het_partners')
-def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, pedigree_path):
+def test_x_recessive_female_het_no_pair_fails(pedigree_path):
     """ """
 
     passing_variant = SmallVariant(
@@ -814,7 +789,6 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, pedigree_pa
         info={'gene_id': 'TEST1', 'categorysample1': True, 'boolean_categories': 'categorysample1'},
         transcript_consequences=[],
     )
-    second_hit.return_value = []
     assert not XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path)).run(passing_variant)
 
 

@@ -66,43 +66,6 @@ def too_common_in_callset(info: dict) -> bool:
     return info.get('af', 0.0) >= config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
 
 
-def find_candidate_comp_het_partners(
-    first_variant: str,
-    comp_hets: CompHetDict,
-    sample: str,
-) -> list[VARIANT_MODELS]:
-    """
-    checks for a second hit partner in this gene
-
-    Example formatting of the comp-het dict
-    {
-        "SampleID": {
-            "12-52287177-T-C": [
-                Variant(12-52287180-TGG-T)
-            ],
-            "12-52287180-TGG-T": [
-                Variant(12-52287177-T-C)
-            ]
-        } ...
-    }
-
-    Args:
-        first_variant (str): string representation of variant1
-        comp_hets (dict[str, Variant]): lookup for compound hets
-        sample (str): sample ID
-
-    Returns:
-        a list of variants which are potential partners
-    """
-
-    # check if the sample has any comp-hets
-    if sample not in comp_hets:
-        return []
-
-    # thin out the possible partners by alt depth
-    return comp_hets[sample].get(first_variant, [])
-
-
 class MOIRunner:
     """
     The abstract class for a single MOI runner
@@ -464,11 +427,7 @@ class RecessiveAutosomalCH(BaseMoi):
             ):
                 continue
 
-            for partner in find_candidate_comp_het_partners(
-                first_variant=principal.coordinates.string_format,
-                comp_hets=comp_het,
-                sample=sample_id,
-            ):
+            for partner in comp_het[sample_id].get(principal.coordinates.string_format, []):
                 if (
                     partner.insufficient_read_depth(
                         sample_id,
@@ -1000,6 +959,7 @@ class XRecessiveFemaleCH(BaseMoi):
 
         if comp_het is None:
             comp_het = {}
+
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
@@ -1024,11 +984,7 @@ class XRecessiveFemaleCH(BaseMoi):
             ):
                 continue
 
-            for partner in find_candidate_comp_het_partners(
-                first_variant=principal.coordinates.string_format,
-                comp_hets=comp_het,
-                sample=sample_id,
-            ):
+            for partner in comp_het[sample_id].get(principal.coordinates.string_format, []):
                 # allow for de novo check - also screen out high-AF partners
                 if (
                     too_common_in_population(
