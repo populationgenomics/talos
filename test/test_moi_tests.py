@@ -3,7 +3,6 @@ tests relating to the MOI filters
 """
 
 from test.test_utils import TWO_EXPECTED
-from unittest import mock
 
 import pytest
 
@@ -20,7 +19,6 @@ from talos.moi_tests import (
     XRecessiveFemaleHom,
     XRecessiveMale,
     too_common_in_callset,
-    check_for_second_hit,
     too_common_in_population,
 )
 from talos.utils import make_flexible_pedigree
@@ -30,27 +28,8 @@ TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
 TEST_COORDS_X_1 = Coordinates(chrom='X', pos=1, ref='G', alt='T')
 TEST_COORDS_X_2 = Coordinates(chrom='X', pos=2, ref='G', alt='T')
 
-
-@pytest.mark.parametrize(
-    'first,comp_hets,sample,values',
-    (
-        ('', {}, '', []),  # no values
-        ('', {}, 'a', []),  # sample not present
-        ('', {'a': {'foo': []}}, 'a', []),  # var not present
-        ('foo', {'a': {'foo': ['bar']}}, 'a', ['bar']),  # all values present
-        ('foo', {'a': {'foo': ['bar', 'baz']}}, 'a', ['bar', 'baz']),  # all values present
-    ),
-)
-def test_check_second_hit(first, comp_hets, sample, values):
-    """
-    quick test for the 2nd hit mechanic
-    return all strings when the comp-het lookup contains:
-        - the sample
-        - the gene
-        - the variant signature
-    """
-
-    assert check_for_second_hit(first_variant=first, comp_hets=comp_hets, sample=sample) == values
+# just to please Ruff
+TWO_RESULTS = 2
 
 
 @pytest.mark.parametrize(
@@ -258,6 +237,85 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+
+
+def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
+    """
+    check that when one variant is support only, and the other is full, both reach the report
+    """
+
+    passing_variant = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean1'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant2 = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS2,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean6'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'male': {
+            TEST_COORDS.string_format: [passing_variant2],
+            TEST_COORDS2.string_format: [passing_variant],
+        },
+    }
+    rec = RecessiveAutosomalCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(rec.run(passing_variant2, comp_het=comp_hets))
+    assert len(results) == TWO_RESULTS
+    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+
+
+def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
+    """
+    check that when one variant is support only, and the other is full, both reach the report
+    """
+
+    passing_variant = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean6'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant2 = SmallVariant(
+        het_samples={'male'},
+        coordinates=TEST_COORDS2,
+        ab_ratios={'male': 0.5},
+        alt_depths={'male': 25},
+        depths={'male': 50},
+        boolean_categories=['categoryboolean6'],
+        support_categories={'6'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'male': {
+            TEST_COORDS.string_format: [passing_variant2],
+            TEST_COORDS2.string_format: [passing_variant],
+        },
+    }
+    rec = RecessiveAutosomalCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(rec.run(passing_variant2, comp_het=comp_hets))
+    assert len(results) == 0
 
 
 def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
@@ -589,6 +647,78 @@ def test_x_recessive_female_het_passes(pedigree_path):
     assert results[0].support_vars == {'passing2'}
 
 
+def test_x_recessive_female_het_passes_one_support(pedigree_path):
+    passing_variant = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_1,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories={'4'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant_2 = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_2,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories=set(),
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'female': {
+            TEST_COORDS_X_1.string_format: [passing_variant_2],
+            TEST_COORDS_X_2.string_format: [passing_variant],
+        },
+    }
+    x_rec = XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = x_rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
+    assert len(results) == TWO_RESULTS
+    assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
+    assert results[0].support_vars == {'passing2'}
+
+
+def test_x_recessive_female_het_fails_both_support(pedigree_path):
+    passing_variant = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_1,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 25},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories={'4'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        transcript_consequences=[],
+    )
+    passing_variant_2 = SmallVariant(
+        het_samples={'female'},
+        coordinates=TEST_COORDS_X_2,
+        ab_ratios={'female': 0.5},
+        alt_depths={'female': 50},
+        depths={'female': 50},
+        sample_categories=['categorysample4'],
+        support_categories={'4'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        transcript_consequences=[],
+    )
+    comp_hets = {
+        'female': {
+            TEST_COORDS_X_1.string_format: [passing_variant_2],
+            TEST_COORDS_X_2.string_format: [passing_variant],
+        },
+    }
+    x_rec = XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path))
+    results = x_rec.run(passing_variant, comp_het=comp_hets)
+    results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
+    assert len(results) == 0
+
+
 def test_het_de_novo_passes(pedigree_path):
     passing_variant = SmallVariant(
         het_samples={'female'},
@@ -650,8 +780,7 @@ def test_x_recessive_female_het_fails(pedigree_path):
     assert not x_rec.run(passing_variant, comp_het=comp_hets)
 
 
-@mock.patch('talos.moi_tests.check_for_second_hit')
-def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, pedigree_path):
+def test_x_recessive_female_het_no_pair_fails(pedigree_path):
     """ """
 
     passing_variant = SmallVariant(
@@ -663,7 +792,6 @@ def test_x_recessive_female_het_no_pair_fails(second_hit: mock.Mock, pedigree_pa
         info={'gene_id': 'TEST1', 'categorysample1': True, 'boolean_categories': 'categorysample1'},
         transcript_consequences=[],
     )
-    second_hit.return_value = []
     assert not XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path)).run(passing_variant)
 
 
@@ -674,7 +802,7 @@ def test_check_familial_inheritance_simple(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert base_moi.check_familial_inheritance(sample_id='male', called_variants={'male'})
+    assert base_moi.single_variant_explains_disease_in_family(sample_id='male', called_variants={'male'})
 
 
 def test_check_familial_inheritance_mother_fail(pedigree_path):
@@ -683,7 +811,10 @@ def test_check_familial_inheritance_mother_fail(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert not base_moi.check_familial_inheritance(sample_id='male', called_variants={'male', 'mother_1'})
+    assert not base_moi.single_variant_explains_disease_in_family(
+        sample_id='male',
+        called_variants={'male', 'mother_1'},
+    )
 
 
 def test_check_familial_inheritance_mother_passes(pedigree_path):
@@ -694,7 +825,7 @@ def test_check_familial_inheritance_mother_passes(pedigree_path):
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
 
-    assert base_moi.check_familial_inheritance(
+    assert base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
         called_variants={'male', 'mother_1'},
         partial_pen=True,
@@ -707,7 +838,10 @@ def test_check_familial_inheritance_father_fail(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert not base_moi.check_familial_inheritance(sample_id='male', called_variants={'male', 'father_1'})
+    assert not base_moi.single_variant_explains_disease_in_family(
+        sample_id='male',
+        called_variants={'male', 'father_1'},
+    )
 
 
 def test_check_familial_inheritance_father_passes(pedigree_path):
@@ -718,7 +852,7 @@ def test_check_familial_inheritance_father_passes(pedigree_path):
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
 
-    result = base_moi.check_familial_inheritance(
+    result = base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
         called_variants={'male', 'father_1'},
         partial_pen=True,
@@ -733,7 +867,7 @@ def test_check_familial_inheritance_top_down(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert base_moi.check_familial_inheritance(
+    assert base_moi.single_variant_explains_disease_in_family(
         sample_id='father_1',
         called_variants={'male', 'father_1'},
         partial_pen=True,
@@ -748,7 +882,7 @@ def test_check_familial_inheritance_no_calls(pedigree_path):
     """
 
     base_moi = BaseMoi(pedigree=make_flexible_pedigree(pedigree_path), applied_moi='applied')
-    assert base_moi.check_familial_inheritance(sample_id='male', called_variants=set(), partial_pen=True)
+    assert base_moi.single_variant_explains_disease_in_family(sample_id='male', called_variants=set(), partial_pen=True)
 
 
 def test_genotype_calls(pedigree_path):

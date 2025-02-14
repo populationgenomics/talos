@@ -32,7 +32,7 @@ The Dockerfile offers two builds, use the `--target` flag to specify which build
 - one for a Google cloud environment (called `talos_gcloud`).
 
 ```bash
-DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.6.1  .
+DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.6.2  .
 ```
 
 ## Workflow Demonstration with Nextflow
