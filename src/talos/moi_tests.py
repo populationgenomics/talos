@@ -421,7 +421,9 @@ class RecessiveAutosomalCH(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or (not principal.sample_category_check(sample_id, allow_support=True))
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -517,7 +519,9 @@ class RecessiveAutosomalHomo(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -617,7 +621,9 @@ class XDominant(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -716,7 +722,9 @@ class XPseudoDominantFemale(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -813,7 +821,9 @@ class XRecessiveMale(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not (principal.sample_category_check(sample_id, allow_support=False))
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -892,7 +902,9 @@ class XRecessiveFemaleHom(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not principal.sample_category_check(sample_id, allow_support=False)
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -978,7 +990,9 @@ class XRecessiveFemaleCH(BaseMoi):
                 self.pedigree.by_id[sample_id].affected != '2'
                 or not principal.sample_category_check(sample_id, allow_support=True)
                 or principal.insufficient_read_depth(
-                    sample_id, self.minimum_depth, principal.info.get('categoryboolean1')
+                    sample_id,
+                    self.minimum_depth,
+                    principal.info.get('categoryboolean1'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):

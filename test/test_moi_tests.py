@@ -28,6 +28,9 @@ TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
 TEST_COORDS_X_1 = Coordinates(chrom='X', pos=1, ref='G', alt='T')
 TEST_COORDS_X_2 = Coordinates(chrom='X', pos=2, ref='G', alt='T')
 
+# just to please Ruff
+TWO_RESULTS = 2
+
 
 @pytest.mark.parametrize(
     'moi_string,filters',
@@ -272,7 +275,7 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
     rec = RecessiveAutosomalCH(pedigree=make_flexible_pedigree(pedigree_path))
     results = rec.run(passing_variant, comp_het=comp_hets)
     results.extend(rec.run(passing_variant2, comp_het=comp_hets))
-    assert len(results) == 2
+    assert len(results) == TWO_RESULTS
     assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
 
 
@@ -676,7 +679,7 @@ def test_x_recessive_female_het_passes_one_support(pedigree_path):
     x_rec = XRecessiveFemaleCH(pedigree=make_flexible_pedigree(pedigree_path))
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
-    assert len(results) == 2
+    assert len(results) == TWO_RESULTS
     assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
     assert results[0].support_vars == {'passing2'}
 
