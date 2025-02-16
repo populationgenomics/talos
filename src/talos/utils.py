@@ -288,14 +288,22 @@ def get_new_gene_map(
     return pheno_matched_new
 
 
-def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
+def get_phase_data(samples: list[str], var) -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
 
+    we tolerate a variety of failures, the worst case scenario is that we have no phase data
+    PS - PhaseSet
+    PID/PGT - PhaseID/PhaseGenotype
+
+    No other phase types are currently supported
+
     Args:
-        samples ():
-        var ():
+        samples (list[str]): all samples in the VCF
+        var (cyvcf2.Variant):
     """
+
+    global PHASE_BROKEN
 
     phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
 
@@ -338,12 +346,15 @@ def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
                         phased_dict[sample][phase_id] = phase_gt
 
             except KeyError as ke2:
-                get_logger().info('Also failed using PID and PGT')
+                get_logger().info('Failed to determine phase information using PID and PGT')
                 raise ke2
+        elif not PHASE_BROKEN:
+            get_logger().info('Found no PS phase attributes (known formats are PS, PGT/PID)')
+            PHASE_BROKEN = True
+
     except (KeyError, ValueError):
-        global PHASE_BROKEN
         if not PHASE_BROKEN:
-            get_logger().info('Failed to correctly parse phase attributes using existing methods')
+            get_logger().info('Failed to correctly parse known phase attributes using existing methods')
             get_logger().info(
                 'Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions',
             )
