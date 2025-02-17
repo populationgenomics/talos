@@ -45,7 +45,6 @@ dependencies=[
     "toml==0.10.2",
 ]
 
-
 [project.optional-dependencies]
 cpg = [
     "cpg-flow>=v0.1.2",

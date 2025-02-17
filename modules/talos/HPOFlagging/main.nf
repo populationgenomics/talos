@@ -18,13 +18,15 @@ process HPOFlagging {
 
     // the command
     """
+    gunzip -f -d ${phenio_db}
     export TALOS_CONFIG=${talos_config}
     HPOFlagging \
          --input ${talos_result_json} \
          --gene_map ${gene_symbol_map} \
          --gen2phen ${gene_to_phenotype} \
-         --phenio ${phenio_db} \
+         --phenio phenio.db \
          --output ${params.cohort}_pheno_annotated_report.json \
          --phenout ${params.cohort}_pheno_filtered_report.json
+    rm phenio.db
     """
 }
