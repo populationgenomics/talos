@@ -37,5 +37,6 @@ RUN echo "Skipping cloud dependency installation"
 
 # Add in the additional requirements that are most likely to change.
 COPY requirements*.txt README.md setup.py ./
+RUN pip install -r requirements.txt
 COPY src src/
-RUN pip install .[cpg]
+RUN pip install .

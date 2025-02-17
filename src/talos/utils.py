@@ -48,6 +48,9 @@ HETALT: int = 1
 UNKNOWN: int = 2
 HOMALT: int = 3
 
+TWO = 2
+THREE = 3
+
 # in cyVCF2, these ints represent HOMREF, and UNKNOWN
 BAD_GENOTYPES: set[int] = {HOMREF, UNKNOWN}
 PHASE_SET_DEFAULT = -2147483648
@@ -68,6 +71,10 @@ DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 MEMBER_LOOKUP_DICT = {'0': None}
 
 DOI_URL = 'https://doi.org/'
+
+# we've noted some instances where we failed the whole process due to failure to parse phase data
+# don't fail, just suggest that someone raises an issue on github, but only print this message once
+PHASE_BROKEN: bool = False
 
 
 def get_random_string(length: int = 6) -> str:
@@ -281,43 +288,77 @@ def get_new_gene_map(
     return pheno_matched_new
 
 
-def get_phase_data(samples, var) -> dict[str, dict[int, str]]:
+def get_phase_data(samples: list[str], var) -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
 
+    we tolerate a variety of failures, the worst case scenario is that we have no phase data
+    PS - PhaseSet
+    PID/PGT - PhaseID/PhaseGenotype
+
+    No other phase types are currently supported
+
     Args:
-        samples ():
-        var ():
+        samples (list[str]): all samples in the VCF
+        var (cyvcf2.Variant):
     """
+
+    global PHASE_BROKEN
+
     phased_dict: dict[str, dict[int, str]] = defaultdict(dict)
+
+    # check we have relevant attributes in the variant format fields
+    if not any(x in var.FORMAT for x in ['PS', 'PGT', 'PID']):
+        return dict(phased_dict)
 
     # first set the numpy.ndarray to be a list of ints
     # then zip against ordered sample IDs
     # this might need to store the exact genotype too
     # i.e. 0|1 and 1|0 can be in the same phase-set
     # but are un-phased variants
-
     try:
-        for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes):
-            # cyvcf2.Variant holds two ints, and a bool
-            allele_1, allele_2, phased = genotype
-            if not phased:
-                continue
-            gt = f'{allele_1}|{allele_2}'
-            # phase set is a number
-            if phase != PHASE_SET_DEFAULT:
-                phased_dict[sample][phase] = gt
-    except KeyError as ke:
-        get_logger().info('failed to find PS phase attributes')
-        try:
-            # retry using PGT & PID
-            for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID')):
-                if phase_gt != '.' and phase_id != '.':
-                    phased_dict[sample][phase_id] = phase_gt
+        if 'PS' in var.FORMAT:
+            for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes, strict=True):
+                # cyvcf2.Variant holds two ints, and a bool for biallelic calls
+                # but only one int and a bool for hemi
+                if len(genotype) == THREE:
+                    allele_1, allele_2, phased = genotype
+                    gt = f'{allele_1}|{allele_2}'
+                elif len(genotype) == TWO:
+                    allele_1, phased = genotype
+                    gt = f'{allele_1}'
+                else:
+                    raise ValueError(f'Unexpected genotype length: {len(genotype)}: {genotype}')
 
-        except KeyError as ke2:
-            get_logger().info('also failed using PID and PGT')
-            raise ke from ke2
+                if not phased:
+                    continue
+
+                # phase set is a number
+                if phase != PHASE_SET_DEFAULT:
+                    phased_dict[sample][phase] = gt
+
+        elif all(attr_name in var.FORMAT for attr_name in ['PGT', 'PID']):
+            get_logger().info('Failed to find PS phase attributes')
+            try:
+                # retry using PGT & PID
+                for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID')):
+                    if phase_gt != '.' and phase_id != '.':
+                        phased_dict[sample][phase_id] = phase_gt
+
+            except KeyError as ke2:
+                get_logger().info('Failed to determine phase information using PID and PGT')
+                raise ke2
+        elif not PHASE_BROKEN:
+            get_logger().info('Found no PS phase attributes (known formats are PS, PGT/PID)')
+            PHASE_BROKEN = True
+
+    except (KeyError, ValueError):
+        if not PHASE_BROKEN:
+            get_logger().info('Failed to correctly parse known phase attributes using existing methods')
+            get_logger().info(
+                'Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions',
+            )
+        PHASE_BROKEN = True
 
     return dict(phased_dict)
 
@@ -330,7 +371,7 @@ def organise_exomiser(
     method dedicated to handling the new exomiser annotations
 
     If present, these are in a condensed format of PROBAND_RANK_MOI, delimited by "::" e.g.
-    "PROBAND1_29_AR::PROBAND2_26_AR::PROAND3_23_AR"
+    "PROBAND1_29_AR::PROBAND2_26_AR::PROBAND3_23_AR"
 
     When parsing this, we optionally filter to only the top-n ranked results
 
