@@ -7,7 +7,7 @@ For each reportable result, identify if the variant is a strong phenotype match 
 
 Include something here about where to find the inputs ...
 
-gene_to_phtnotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
+gene_to_phenotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
 phenio.db: Download: https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
 
 The removal of variants where a phenotype match is required but not found it now done here
@@ -138,7 +138,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
                 # Find all phenotype matches that meet the min_score threshold
                 pheno_matches = {
-                    f"{match['object_id']}: {object_termset[match['object_id']]}"
+                    f'{match["object_id"]}: {object_termset[match["object_id"]]}'
                     for match in termset_similarity['subject_best_matches']['similarity'].values()
                     if float(match['ancestor_information_content']) > min_similarity
                 }
