@@ -39,6 +39,7 @@ dependencies=[
     "pyspark>=3.5.1",
     "python-dateutil>=2",
     "semsimian",
+    "setuptools",
     "tabulate>=0.8.9",
     "tenacity>=9.0.0",
     "toml==0.10.2",

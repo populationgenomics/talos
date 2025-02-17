@@ -92,8 +92,8 @@ class MOIRunner:
         elif target_moi in ['Mono_And_Biallelic', 'Unknown']:
             self.filter_list = [
                 DominantAutosomal(pedigree=pedigree),
-                RecessiveAutosomalHomo(pedigree=pedigree),
                 RecessiveAutosomalCH(pedigree=pedigree),
+                RecessiveAutosomalHomo(pedigree=pedigree),
             ]
         elif target_moi == 'Biallelic':
             self.filter_list = [RecessiveAutosomalHomo(pedigree=pedigree), RecessiveAutosomalCH(pedigree=pedigree)]
@@ -104,8 +104,8 @@ class MOIRunner:
         elif target_moi == 'Hemi_Bi_In_Female':
             self.filter_list = [
                 XRecessiveMale(pedigree=pedigree),
-                XRecessiveFemaleHom(pedigree=pedigree),
                 XRecessiveFemaleCH(pedigree=pedigree),
+                XRecessiveFemaleHom(pedigree=pedigree),
                 XPseudoDominantFemale(pedigree=pedigree),
             ]
 
