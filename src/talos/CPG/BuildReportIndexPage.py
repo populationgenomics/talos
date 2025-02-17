@@ -85,7 +85,7 @@ def get_project_analyses(project: str) -> dict[str, str]:
     """
 
     # we no longer generate 'latest' reports - HTML limitations have been removed
-    project_reports: dict[str, str] = {'exome': None, 'genome': None}
+    project_reports: dict[str, str] = {'exome': '', 'genome': ''}
     all_analyses = query(REPORT_QUERY, variables={'project': project})['project']['analyses']
     for analysis in all_analyses:
         # get the type or skip (outdated)
