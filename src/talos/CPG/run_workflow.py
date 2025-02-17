@@ -4,20 +4,7 @@ point of entry script to run this pipeline
 
 from argparse import ArgumentParser
 
-from talos.CPG.stages import (
-    GeneratePED,
-    MakeRuntimeConfig,
-    MakePhenopackets,
-    GeneratePanelData,
-    QueryPanelapp,
-    FindGeneSymbolMap,
-    RunHailFiltering,
-    RunHailFilteringSV,
-    ValidateMOI,
-    HPOFlagging,
-    CreateTalosHTML,
-    MinimiseOutputForSeqr,
-)
+from talos.CPG.stages import CreateTalosHTML, MinimiseOutputForSeqr
 from cpg_flow.workflow import run_workflow
 
 
@@ -31,16 +18,6 @@ def cli_main():
 def main(dry_run: bool = False):
     run_workflow(
         stages=[
-            GeneratePED,
-            MakeRuntimeConfig,
-            MakePhenopackets,
-            GeneratePanelData,
-            QueryPanelapp,
-            FindGeneSymbolMap,
-            RunHailFiltering,
-            RunHailFilteringSV,
-            ValidateMOI,
-            HPOFlagging,
             CreateTalosHTML,
             MinimiseOutputForSeqr,
         ],
