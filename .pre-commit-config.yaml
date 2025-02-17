@@ -6,8 +6,9 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: large_files
       - id: trailing-whitespace
-        exclude: '\.txt|\.tsv$'
+        exclude: '\.txt|\.tsv|.obo$'
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: detect-private-key
