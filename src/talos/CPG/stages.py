@@ -666,7 +666,7 @@ class ValidateMOI(DatasetStage):
             **{
                 'vcf.bgz': hail_inputs,
                 'vcf.bgz.tbi': hail_inputs + '.tbi',
-            }
+            },
         )['vcf.bgz']
 
         job.command(f'export TALOS_CONFIG={conf_in_batch}')
