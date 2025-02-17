@@ -10,12 +10,11 @@ Please see https://github.com/exomiser/Exomiser for more information
 
 import json
 from argparse import ArgumentParser
+from cloudpathlib.anypath import to_anypath
 from collections import defaultdict
 from csv import DictReader
 
 import hail as hl
-
-from cpg_utils import to_path
 
 ORDERED_ALLELES: list[str] = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 PROBAND_DICT = dict[str, dict[str, list[dict]]]
@@ -40,7 +39,7 @@ def process_tsv(tsv_path: str) -> tuple[PROBAND_DICT, VAR_DICT]:
 
     # this is on the assumption that we retain the path/to/file/PROBAND.variant.tsv naming convention
     # if we read into the batch as /tmp/path/PROBAND this logic is still valid
-    file_as_path = to_path(tsv_path)
+    file_as_path = to_anypath(tsv_path)
     proband = file_as_path.name.split('.')[0]
 
     variant_dictionary: VAR_DICT = defaultdict(list)

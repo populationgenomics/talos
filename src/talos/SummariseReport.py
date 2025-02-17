@@ -3,8 +3,6 @@
 """
 A standalone script to read some talos report files, and summarise the number of affected samples involved
 
-very very simple
-
 Allows for the printing of affected participants grouped by a portion of the family ID
 Examples are when the family  ID is prefixed with the year, e.g. 19DNAXXXX for 2019
 The simple count function doesn't have this level of granularity
@@ -17,7 +15,7 @@ import json
 from argparse import ArgumentParser
 from collections import defaultdict, Counter
 
-from cpg_utils import to_path
+from cloudpathlib.anypath import to_anypath
 
 from talos.models import ResultData
 
@@ -129,7 +127,7 @@ def main(input_path: str, output_path: str | None = None, prefix: int | None = N
 
     if output_path:
         # write the output to file
-        with to_path(output_path).open('w') as handle:
+        with to_anypath(output_path).open('w') as handle:
             json.dump(summarised_content, handle, indent=4)
 
 

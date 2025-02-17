@@ -86,7 +86,7 @@ def get_random_string(length: int = 6) -> str:
     Returns:
         A random string comprised of upper-case letters and numbers
     """
-    return ''.join(choices(string.ascii_uppercase + string.digits, k=length))  # noqa: S311
+    return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
 
 
 def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:
@@ -341,7 +341,7 @@ def get_phase_data(samples: list[str], var) -> dict[str, dict[int, str]]:
             get_logger().info('Failed to find PS phase attributes')
             try:
                 # retry using PGT & PID
-                for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID')):
+                for sample, phase_gt, phase_id in zip(samples, var.format('PGT'), var.format('PID'), strict=True):
                     if phase_gt != '.' and phase_id != '.':
                         phased_dict[sample][phase_id] = phase_gt
 
@@ -527,8 +527,8 @@ def create_small_variant(
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
-    alt_depths: dict[str, int] = dict(zip(samples, map(int, var.gt_alt_depths)))
-    depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
+    alt_depths: dict[str, int] = dict(zip(samples, map(int, var.gt_alt_depths), strict=True))
+    depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths), strict=True))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -580,7 +580,7 @@ def create_small_variant(
             info[sam_cat] = list(info[sam_cat])
 
     phased = get_phase_data(samples, var)
-    ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
+    ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs), strict=True))
     transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
     return SmallVariant(
@@ -834,7 +834,7 @@ def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]
     hom_samples = set()
 
     # this iteration is based on the cyvcf2 representations
-    for sam, genotype_int in zip(samples, variant.gt_types):
+    for sam, genotype_int in zip(samples, variant.gt_types, strict=True):
         if genotype_int in BAD_GENOTYPES:
             continue
         if genotype_int == HETALT:
