@@ -1,4 +1,4 @@
-FROM python:3.11-bullseye AS base
+FROM python:3.10-bullseye AS base
 
 RUN apt update && apt install -y --no-install-recommends \
         apt-transport-https \
