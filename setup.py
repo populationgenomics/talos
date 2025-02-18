@@ -28,7 +28,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='6.6.3',
+    version='6.7.0',
     author='Matthew Welland, CPG',
     python_requires='==3.10.*',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
