@@ -30,6 +30,7 @@ setup(
     long_description=readme,
     version='6.6.3',
     author='Matthew Welland, CPG',
+    python_requires='==3.10.*',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
     url='https://github.com/populationgenomics/talos',
@@ -89,6 +90,8 @@ setup(
             'MinimiseOutputForSeqr = talos.MinimiseOutputForSeqr:cli_main',
             # CPG internal (?), generate a JSON summary of an existing report
             'SummariseReport = talos.SummariseReport:cli_main',
+            # sets off the whole workflow in cpg-flow orchestrated Stages
+            'run_workflow = talos.CPG.run_workflow:cli_main',
         ],
     },
 )
