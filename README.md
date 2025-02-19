@@ -24,6 +24,9 @@ Analysis consists of three main phases:
 
 ## Installation
 
+> **_NOTE:_**  This repository contains some large files, tracked with [git-lfs](https://github.com/git-lfs/git-lfs). If you don't already have git-lfs installed, we recommend you install it prior to cloning this repository. The [README](large_files/README.md) for the files in question describes their source if you intend to download them separately.
+
+
 At this time the recommended way to use this tool is via Docker, building using the Dockerfile in this repository.
 
 The Dockerfile offers two builds, use the `--target` flag to specify which build you want to use. To only build the required layers, ensure `DOCKERBUILDKIT` is set to `1` in your environment.
