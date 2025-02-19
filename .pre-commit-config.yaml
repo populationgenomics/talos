@@ -7,7 +7,7 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
-        exclude: '\.txt|\.tsv$'
+        exclude: '\.txt|\.tsv|.obo$'
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: detect-private-key
@@ -31,3 +31,4 @@ repos:
     hooks:
       - id: mypy
         args: [--pretty, --show-error-codes, --install-types, --non-interactive]
+exclude: 'large_files/.*'
