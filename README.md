@@ -40,7 +40,7 @@ DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.6.3  .
 A Nextflow pipeline is provided to demonstrate how to run Talos. This pipeline is designed to be run on a local machine, and requires that you have nextflow installed locally, and a docker daemon running. First, as described above, build the docker image:
 
 ```bash
-docker build --target talos_none -t talos:local_none .
+docker build --target talos_none -t talos:6.6.3 .
 ```
 
 Then, run the pipeline:
