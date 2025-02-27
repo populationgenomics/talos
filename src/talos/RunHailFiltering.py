@@ -21,6 +21,7 @@ from talos.models import PanelApp
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
 
+
 # set some Hail constants
 MISSING_INT = hl.int32(0)
 MISSING_FLOAT_LO = hl.float64(0.0)
@@ -305,7 +306,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.MatrixTable:
+def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01, min_ac_to_filter: int = 5) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
     Will never remove variants with 5 or fewer instances
@@ -314,13 +315,13 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01) -> hl.Ma
     Args:
         mt (hl.MatrixTable):
         ac_threshold (float):
+        min_ac_to_filter (int): minimum AC to filter on (no filtering if fewer than X instances in callset)
     Returns:
         MT with all common-in-this-JC variants removed
         (unless overridden by clinvar path)
     """
-    min_callset_ac = 5
     return mt.filter_rows(
-        ((min_callset_ac >= mt.info.AC[0]) | (mt.info.AF[0] > ac_threshold)) | (mt.info.clinvar_talos == ONE_INT),
+        ((min_ac_to_filter >= mt.info.AC[0]) | (mt.info.AF[0] > ac_threshold)) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -765,12 +766,9 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
     Args:
         mt ():
         checkpoint_path (str): where to write the checkpoint
-
-    Returns:
-
     """
     get_logger().info(f'Checkpointing to {checkpoint_path} after filtering out a ton of variants')
-    mt = mt.checkpoint(checkpoint_path, overwrite=True, _read_if_exists=True)
+    mt = mt.checkpoint(checkpoint_path, overwrite=True)
 
     # die if there are no variants remaining. Only ever count rows after a checkpoint
     if not (current_rows := mt.count_rows()):
@@ -912,8 +910,8 @@ def main(
     if checkpoint and not all(cat in ignored_categories for cat in ['exomiser', 'svdb']):
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
 
-    # add Labels to the MT
-    # current logic is to apply 1, 2, 3, and 5, then 4 (de novo)
+    # current logic is to apply 1, 6, 3, then 4 (de novo)
+    # 1 was applied earlier during the integration of clinvar data
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
     get_logger().info('Applying categories')
     mt = annotate_category_6(mt=mt)
