@@ -488,7 +488,7 @@ class Variant:
 
             return f'{self.ref}->{self.alt}'
         if isinstance(self.var_data, StructuralVariant):
-            return f"{self.var_data.info['svtype']} {self.var_data.info['svlen']}bp"
+            return f'{self.var_data.info["svtype"]} {self.var_data.info["svlen"]}bp'
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 
@@ -589,7 +589,7 @@ class Variant:
                 continue
 
             # if csq['mane_select'] or csq['mane_plus_clinical']:
-            if csq['mane_select']:
+            if csq['mane']:
                 mane_consequences.update(csq['consequence'].split('&'))
                 if csq['hgvsp']:
                     mane_hgvsps.add(csq['hgvsp'].split(':')[1])

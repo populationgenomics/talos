@@ -931,7 +931,7 @@ def main(
     # also take the single gene_id (from the exploded attribute)
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            CSQ=csq_struct_to_string(mt.transcript_consequences),
+            csq=csq_struct_to_string(mt.transcript_consequences),
             gene_id=mt.gene_ids,
         )
     )
