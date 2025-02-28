@@ -175,7 +175,7 @@ def variant_in_forbidden_gene(variant_obj: ReportVariant, forbidden_genes):
         return False
 
     # Allow for exclusion by Symbol too
-    return any(tx_con['symbol'] in forbidden_genes for tx_con in variant_obj.var_data.transcript_consequences)
+    return any(tx_con['gene'] in forbidden_genes for tx_con in variant_obj.var_data.transcript_consequences)
 
 
 class HTMLBuilder:
@@ -588,19 +588,20 @@ class Variant:
             if 'consequence' not in csq:
                 continue
 
-            # if csq['mane_select'] or csq['mane_plus_clinical']:
-            if csq['mane']:
+            if csq['nm_id']:
                 mane_consequences.update(csq['consequence'].split('&'))
-                if csq['hgvsp']:
-                    mane_hgvsps.add(csq['hgvsp'].split(':')[1])
-                elif csq['hgvsc']:
-                    hgvsc = csq['hgvsc'].split(':')[1]
-
-                    # if massive indel base stretches are included, replace with a numerical length
-                    if match := CDNA_SQUASH.search(hgvsc):
-                        hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
-
-                    mane_hgvsps.add(hgvsc)
+                if aa := csq.get('amino_acid_change'):
+                    mane_hgvsps.add(f'{csq["ensp"]}: {aa}')
+                # TODO (MattWellie) add HGVS c. notation
+                # TODO (MattWellie) add HGVS p. notation
+                # elif csq['hgvsc']:
+                #     hgvsc = csq['hgvsc'].split(':')[1]
+                #
+                #     # if massive indel base stretches are included, replace with a numerical length
+                #     if match := CDNA_SQUASH.search(hgvsc):
+                #         hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
+                #
+                #     mane_hgvsps.add(hgvsc)
 
         # simplify the consequence strings
         mane_consequences = ', '.join(_csq.replace('_variant', '').replace('_', ' ') for _csq in mane_consequences)
