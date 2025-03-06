@@ -3,7 +3,6 @@
 nextflow.enable.dsl=2
 
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
-include { VcfToMt } from './modules/talos/VcfToMt/main'
 include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
 include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
@@ -30,9 +29,9 @@ workflow {
     // convert the SVDB TSV into a Hail Table
     ConvertSpliceVarDb(svdb_tsv_channel)
 
-    // turn the VCF into a MatrixTable
-    input_vcf = Channel.fromPath(params.annotated_vcf).map{ it -> [file(it), file("${it}.tbi")]}
-    VcfToMt(input_vcf)
+    // TODO turn the VCF into a MatrixTable
+//     input_vcf = Channel.fromPath(params.annotated_vcf).map{ it -> [file(it), file("${it}.tbi")]}
+//     VcfToMt(input_vcf)
 
     // make a phenopackets file from pedigree (CPG-specific)
     ConvertPedToPhenopackets(hpo_pedigree_channel)
