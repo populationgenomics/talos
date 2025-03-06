@@ -34,7 +34,7 @@ workflow {
         alphamissense_table = alphamissense_to_ht.out
     }
 
-    // generate the gene region file
+    // generate the gene region file, and a overlap-merged version of the same
     generate_roi()
 
     // get all the VCFs
@@ -44,7 +44,7 @@ workflow {
     merge_vcfs(
         vcfs.collect(),
         tbis.collect(),
-        generate_roi.out.bed,
+        generate_roi.out.merged_bed,
     )
 
     // now get the annotation channels (one zip per chromosome)
