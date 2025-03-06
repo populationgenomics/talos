@@ -1,21 +1,18 @@
-FROM python:3.11-bullseye AS base
+ARG PY_VER=${PY_VER:-3.10}
+ARG UV_VER=${UV_VER:-0.6.4}
 
-RUN apt update && apt install -y --no-install-recommends \
+FROM ghcr.io/astral-sh/uv:${UV_VER}-python${PY_VER}-bookworm-slim AS basic
+
+RUN apt update && apt install --no-install-recommends -y \
         apt-transport-https \
         bzip2 \
         ca-certificates \
         git \
         gnupg \
-        openjdk-11-jdk-headless \
+        openjdk-17-jre-headless \
         wget \
         zip && \
     apt clean
-
-# install nextflow
-ADD https://get.nextflow.io nextflow
-RUN chmod +x nextflow && \
-    mv nextflow /usr/bin && \
-    nextflow self-update
 
 FROM base AS talos_gcloud
 
@@ -29,7 +26,7 @@ ENV PATH=$PATH:/opt/google-cloud-sdk/bin
 # Add in the additional requirements that are most likely to change.
 COPY requirements*.txt README.md setup.py ./
 COPY src src/
-RUN pip install --upgrade pip && pip install .[cpg]
+RUN pip install --upgrade pip && pip install --no-cache-dir .[cpg]
 
 FROM base AS talos_none
 
@@ -39,4 +36,4 @@ RUN echo "Skipping cloud dependency installation"
 COPY requirements*.txt README.md setup.py ./
 RUN pip install -r requirements.txt
 COPY src src/
-RUN pip install .
+RUN pip install --no-cache-dir .
