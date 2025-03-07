@@ -30,7 +30,7 @@ workflow {
     }
     else {
         LocaliseAlphamissenseWithWget()
-        ParseAlphaMissenseIntoHt(localise_alphamissense.out)
+        ParseAlphaMissenseIntoHt(LocaliseAlphamissenseWithWget.out)
         ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
 
