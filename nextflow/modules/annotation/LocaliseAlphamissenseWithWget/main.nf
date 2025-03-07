@@ -6,10 +6,10 @@ process LocaliseAlphamissenseWithWget {
     publishDir params.generic_output_dir, mode: 'copy'
 
     output:
-        path("alphamissense.tsv.gz")
+        path("alphamissense_38.tsv.gz")
 
     script:
         """
-        wget ${params.alphamissense_url} -O alphamissense.tsv.gz
+        wget ${params.alphamissense_url} -O alphamissense_38.tsv.gz
         """
 }

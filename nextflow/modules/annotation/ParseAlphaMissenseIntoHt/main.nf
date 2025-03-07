@@ -9,14 +9,14 @@ process ParseAlphaMissenseIntoHt {
         path(am_tsv)
 
     output:
-        path("alphamissense.ht.tar.gz")
+        path("alphamissense_38.ht.tar.gz")
 
     script:
         """
         ParseAlphaMissenseIntoHt \
             --am_tsv ${am_tsv} \
-            --ht_out alphamissense.ht
-        tar -czf alphamissense.ht.tar.gz alphamissense.ht
-        rm -r alphamissense.ht
+            --ht_out alphamissense_38.ht
+        tar -czf alphamissense_38.ht.tar.gz alphamissense_38.ht
+        rm -r alphamissense_38.ht
         """
 }
