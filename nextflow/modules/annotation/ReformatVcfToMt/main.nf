@@ -24,7 +24,7 @@ process ReformatVcfToMt {
             --output ${params.cohort}.mt \
             --mane ${mane}
         # cut down on work folder space
-        rm -r alphamissense.ht
+        rm -r alphamissense_38.ht
 
         tar -czf ${params.cohort}.mt.tar.gz ${params.cohort}.mt
         # not deleting the MT at the moment, someone might want to use it without decompressing the process output
