@@ -71,10 +71,12 @@ def generate_bed_lines(
             # allowing for some situations that don't work,
             # e.g. ENSG00000225931 (novel transcript, to be experimentally confirmed)
             # search for ID and transcript separately, ordering not guaranteed
-            try:
-                gene_name = GENE_NAME_RE.search(line_as_list[DETAILS_INDEX]).group(1)
-                gene_id = GENE_ID_RE.search(line_as_list[DETAILS_INDEX]).group(1)
-            except AttributeError:
+            gene_name_match = GENE_NAME_RE.search(line_as_list[DETAILS_INDEX])
+            gene_id_match = GENE_ID_RE.search(line_as_list[DETAILS_INDEX])
+            if gene_id_match and gene_name_match:
+                gene_name = gene_name_match.group(1)
+                gene_id = gene_id_match.group(1)
+            else:
                 print(f'Failed to extract gene name from {line_as_list[DETAILS_INDEX]}')
                 continue
 
@@ -91,7 +93,7 @@ def generate_bed_lines(
                     f'chr{line_as_list[CHROM_INDEX]}',
                     int(line_as_list[START_INDEX]) - flanking,
                     int(line_as_list[END_INDEX]) + flanking,
-                )
+                ),
             )
     return output_lines
 
@@ -115,7 +117,7 @@ def merge_output(
     contig = None
     start = None
     end = None
-    with open(output, 'wt') as handle:
+    with open(output, 'w') as handle:
         for this_chrom, this_start, this_end in unmerged_lines:
             if contig is None:
                 contig = this_chrom

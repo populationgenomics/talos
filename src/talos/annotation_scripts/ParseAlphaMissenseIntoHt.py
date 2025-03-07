@@ -66,7 +66,7 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
 
     # empty dictionary to contain the target indexes
     header_indexes: dict[str, int] = {}
-    with gzip.open(input_file, 'rt') as read_handle, open(intermediate_file, 'wt') as write_handle:
+    with gzip.open(input_file, 'rt') as read_handle, open(intermediate_file, 'w') as write_handle:
         for line in read_handle:
             # skip over the headers
             if line.startswith('#'):
@@ -88,7 +88,7 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
             content_dict: dict[str, str | float] = {key: content[header_indexes[key]] for key in headers}
 
             # trim transcripts
-            content_dict['transcript'] = content_dict['transcript'].split('.')[0]
+            content_dict['transcript'] = str(content_dict['transcript']).split('.')[0]
 
             # convert the AM score to a float, and pos to an int
             content_dict['pos'] = int(content_dict['pos'])

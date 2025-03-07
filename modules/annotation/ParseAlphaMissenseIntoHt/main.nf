@@ -1,6 +1,6 @@
 
-process alphamissense_to_ht {
-    container params.hail_docker
+process ParseAlphaMissenseIntoHt {
+    container params.container
 
     // parse AM data as a Hail Table
     publishDir params.generic_output_dir, mode: 'copy'
@@ -13,7 +13,7 @@ process alphamissense_to_ht {
 
     script:
         """
-        python3 /talos/parse_alphamissense_into_ht.py \
+        ParseAlphaMissenseIntoHt \
             --am_tsv ${am_tsv} \
             --ht_out alphamissense.ht
         tar -czf alphamissense.ht.tar.gz alphamissense.ht

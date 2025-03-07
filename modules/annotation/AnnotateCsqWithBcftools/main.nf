@@ -1,7 +1,7 @@
 
 
-process csq_annotation {
-    container params.bcftools_docker
+process AnnotateCsqWithBcftools {
+    container params.container
 
     input:
         path(vcf)

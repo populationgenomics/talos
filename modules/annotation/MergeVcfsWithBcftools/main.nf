@@ -1,6 +1,6 @@
 
-process merge_vcfs {
-    container params.bcftools_docker
+process MergeVcfsWithBcftools {
+    container params.container
 
     input:
         path(vcfs)

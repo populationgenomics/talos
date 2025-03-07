@@ -1,6 +1,6 @@
 
-process gnomad_annotate {
-    container params.echtvar_docker
+process AnnotateGnomadAfWithEchtvar {
+    container params.container
 
     input:
         tuple path(vcf), path(tbi)

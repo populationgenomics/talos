@@ -63,19 +63,19 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
     split_csqs = split_csqs.map(
         lambda x: hl.if_else(
             # if there were only 4 values, add 3 missing Strings
-            hl.len(x) == 4,
+            hl.len(x) == 4,  # noqa: PLR2004
             x.extend([MISSING_STRING, MISSING_STRING, MISSING_STRING]),
             hl.if_else(
                 # 5 values... add 2 missing Strings
-                hl.len(x) == 5,
+                hl.len(x) == 5,  # noqa: PLR2004
                 x.extend([MISSING_STRING, MISSING_STRING]),
                 hl.if_else(
-                    hl.len(x) == 6,
+                    hl.len(x) == 6,  # noqa: PLR2004
                     x.extend([MISSING_STRING]),
                     x,
                 ),
             ),
-        )
+        ),
     )
 
     # transform the CSQ string arrays into structs using the header names
@@ -108,20 +108,20 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
     )
 
 
-def annotate_gene_ids(mt: hl.MatrixTable, bed_file: str | None = None) -> hl.MatrixTable:
+def annotate_gene_ids(mt: hl.MatrixTable, bed_file: str) -> hl.MatrixTable:
     """
     The BED file contains the gene IDs, but not all is applied by BCFtool csq
     This method will add the gene IDs to the MatrixTable
 
     Args:
         mt ():
-        bed_file ():
+        bed_file (str): path to a bed file containing gene IDs
     """
 
     # indexed on contig, then gene symbol: ID
-    id_dict = defaultdict(dict)
+    id_dict: dict[str, dict[str, str]] = defaultdict(dict)
 
-    with open(bed_file, 'r') as handle:
+    with open(bed_file) as handle:
         for line in handle:
             # skip over headers and dividing lines
             if line.startswith('#'):
@@ -204,11 +204,11 @@ def apply_mane_annotations(mt: hl.MatrixTable, mane_path: str | None = None) -> 
                     nm_id=MISSING_STRING,
                 ),
                 mt.transcript_consequences,
-            )
+            ),
         )
 
     # read in the mane table
-    with open(mane_path, 'r') as handle:
+    with open(mane_path) as handle:
         mane_dict = json.load(handle)
 
     # convert the dict into a Hail Dict
@@ -225,7 +225,7 @@ def apply_mane_annotations(mt: hl.MatrixTable, mane_path: str | None = None) -> 
                 nm_id=hl.if_else(key_set.contains(x.transcript), hl_mane_dict[x.transcript]['nm_id'], MISSING_STRING),
             ),
             mt.transcript_consequences,
-        )
+        ),
     )
 
 

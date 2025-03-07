@@ -19,7 +19,7 @@ def mane_to_json(input_path: str, output_path: str):
     Reformat the MANE summary file into a JSON file
     I can't quite grok the annotation from table, so I'm doing the dumb version
     """
-    transcript_dict = defaultdict(dict)
+    transcript_dict: dict[str, dict[str, str]] = defaultdict(dict)
 
     with gzip.open(input_path, 'rt') as handle:
         reader = DictReader(handle, delimiter='\t')
@@ -50,7 +50,7 @@ def mane_to_ht(input_path: str, output_path: str):
 
     temp_tsv = 'temp.tsv'
     # read the file
-    with gzip.open(input_path, 'rt') as handle, open(temp_tsv, 'wt') as write_handle:
+    with gzip.open(input_path, 'rt') as handle, open(temp_tsv, 'w') as write_handle:
         write_handle.write('\t'.join(['enst', 'ensg', 'ensp', 'symbol', 'nm_id', 'mane']) + '\n')
         reader = DictReader(handle, delimiter='\t')
         for line in reader:

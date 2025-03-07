@@ -1,6 +1,6 @@
 
-process vcf_to_mt {
-    container params.hail_docker
+process ReformatVcfToMt {
+    container params.container
 
     input:
         path(vcf)
@@ -17,7 +17,7 @@ process vcf_to_mt {
         """
         set -ex
         tar -xf ${alphamissense}
-        python3 /talos/convert_vcf_to_mt.py \
+        ReformatVcfToMt \
             --input ${vcf} \
             --am alphamissense.ht \
             --gene_bed ${gene_bed} \

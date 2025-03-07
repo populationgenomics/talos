@@ -169,7 +169,7 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     """
 
     if pm5_path is None:
-        get_logger().info('PM5 not required or requested, skipping annotation. Table path: {}'.format(pm5_path))
+        get_logger().info(f'PM5 not required or requested, skipping annotation. Table path: {pm5_path}')
         return mt.annotate_rows(info=mt.info.annotate(categorydetailspm5=MISSING_STRING))
 
     # read in the codon table
@@ -387,25 +387,6 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
         transcript_consequences=mt.transcript_consequences.filter(
             lambda x: (mt.gene_ids == x.gene_id)
             & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.nm_id.contains('NM'))),
-        ),
-    )
-
-
-def annotate_category_1(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Applies the boolean Category1 annotation
-     - clinvar_talos_strong flag, as set in annotate_aip_clinvar
-     - represents non-conflicting clinvar pathogenic/likely path
-
-    Args:
-        mt ():
-    Returns:
-        same variants, with categoryboolean1 set to 1 or 0
-    """
-
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categoryboolean1=hl.if_else(mt.info.clinvar_talos_strong == ONE_INT, ONE_INT, MISSING_INT),
         ),
     )
 
@@ -933,7 +914,7 @@ def main(
         info=mt.info.annotate(
             csq=csq_struct_to_string(mt.transcript_consequences),
             gene_id=mt.gene_ids,
-        )
+        ),
     )
 
     write_matrix_to_vcf(mt=mt, vcf_out=vcf_out)

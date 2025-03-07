@@ -14,54 +14,64 @@ The specific annotations are:
 
 nextflow.enable.dsl=2
 
-include { alphamissense_to_ht } from './modules/annotation/alphamissense_to_ht/main'
-include { csq_annotation } from './modules/annotation/csq_annotation/main'
-include { generate_roi } from './modules/annotation/generate_roi/main'
-include { gnomad_annotate } from './modules/annotation/gnomad_annotate/main'
-include { localise_alphamissense } from './modules/annotation/localise_alphamissense/main'
-include { merge_vcfs } from './modules/annotation/merge_vcfs/main'
-include { pull_and_parse_mane } from './modules/annotation/pull_and_parse_mane/main'
-include { vcf_to_mt } from './modules/annotation/vcf_to_mt/main'
+include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
+include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
+include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
+include { AnnotateGnomadAfWithEchtvar } from './modules/annotation/AnnotateGnomadAfWithEchtvar/main'
+include { LocaliseAlphamissenseWithWget } from './modules/annotation/LocaliseAlphamissenseWithWget/main'
+include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
+include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'
+include { ReformatVcfToMt } from './modules/annotation/ReformatVcfToMt/main'
 
 workflow {
     // generate the AlphaMissense HT - long running, stored in a separate folder
     if (file(params.alphamissense_output).exists()) {
-        alphamissense_table = channel.fromPath(params.alphamissense_output)
+        ch_alphamissense_table = channel.fromPath(params.alphamissense_output)
     }
     else {
-        localise_alphamissense()
-        alphamissense_to_ht(localise_alphamissense.out)
-        alphamissense_table = alphamissense_to_ht.out
+        LocaliseAlphamissenseWithWget()
+        ParseAlphaMissenseIntoHt(localise_alphamissense.out)
+        ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
 
     // generate the gene region file, and a overlap-merged version of the same
-    generate_roi()
+    CreateRoiFromGff3()
 
     // get all the VCFs
-    vcfs = channel.fromPath(params.input_vcfs)
-    tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
+    ch_vcfs = channel.fromPath(params.input_vcfs)
+    ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
 
-    merge_vcfs(
-        vcfs.collect(),
-        tbis.collect(),
-        generate_roi.out.merged_bed,
+    MergeVcfsWithBcftools(
+        ch_vcfs.collect(),
+        ch_tbis.collect(),
+        CreateRoiFromGff3.out.merged_bed,
     )
 
-    // now get the annotation channels (one zip per chromosome)
-    annotation_zip = channel.fromPath(params.gnomad_zip)
+    // read the whole-genome Zip file as an input channel
+    ch_gnomad_zip = channel.fromPath(params.gnomad_zip)
 
     // and apply the annotation using echtvar
-    gnomad_annotate(merge_vcfs.out, annotation_zip)
+    AnnotateGnomadAfWithEchtvar(
+        MergeVcfsWithBcftools.out,
+        ch_gnomad_zip,
+    )
 
     // bcftools csq
-    ref_genome = channel.fromPath(params.ref_genome)
-    csq_annotation(gnomad_annotate.out, generate_roi.out.gff3, ref_genome)
+    ch_ref_genome = channel.fromPath(params.ref_genome)
+    AnnotateCsqWithBcftools(
+        AnnotateGnomadAfWithEchtvar.out,
+        CreateRoiFromGff3.out.gff3,
+        ch_ref_genome
+    )
 
     // pull and parse the MANE data into a Hail Table
-    pull_and_parse_mane()
+    ParseManeIntoJson()
 
     // now what
-    vcf_to_mt(csq_annotation.out, alphamissense_table, generate_roi.out.bed, pull_and_parse_mane.out)
+    ReformatVcfToMt(
+        AnnotateCsqWithBcftools.out,
+        ch_alphamissense_table,
+        CreateRoiFromGff3.out.bed,
+        ParseManeIntoJson.out.json
+    )
 }
-
-
