@@ -19,7 +19,7 @@ process ReformatVcfToMt {
         tar -xf ${alphamissense}
         ReformatVcfToMt \
             --input ${vcf} \
-            --am alphamissense.ht \
+            --am alphamissense_38.ht \
             --gene_bed ${gene_bed} \
             --output ${params.cohort}.mt \
             --mane ${mane}
