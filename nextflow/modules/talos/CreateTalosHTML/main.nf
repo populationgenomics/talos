@@ -21,6 +21,6 @@ process CreateTalosHTML {
         --input ${talos_result_json} \
         --panelapp ${panelapp_data} \
         --output ${params.cohort}_report/${params.cohort}_report.html
-    tar -czf ${params.cohort}_report.tar.gz ${params.cohort}_report
+    tar --no-xattrs -czf ${params.cohort}_report.tar.gz ${params.cohort}_report
     """
 }

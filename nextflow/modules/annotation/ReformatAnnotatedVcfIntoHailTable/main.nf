@@ -1,5 +1,5 @@
 
-process ReformatVcfToMt {
+process ReformatAnnotatedVcfIntoHailTable {
     container params.container
 
     input:
@@ -11,22 +11,24 @@ process ReformatVcfToMt {
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        path("${params.cohort}.mt.tar.gz")
+        path("${params.cohort}_annotations.ht.tar.gz")
 
+    // TODO write this script...
     script:
         """
         set -ex
         tar -xf ${alphamissense}
-        ReformatVcfToMt \
+        ReformatAnnotatedVcfIntoHailTable \
             --input ${vcf} \
             --am alphamissense_38.ht \
             --gene_bed ${gene_bed} \
-            --output ${params.cohort}.mt \
+            --output ${params.cohort}_annotations.ht \
             --mane ${mane}
         # cut down on work folder space
         rm -r alphamissense_38.ht
 
-        tar --no-xattrs -czf ${params.cohort}.mt.tar.gz ${params.cohort}.mt
-        # not deleting the MT at the moment, someone might want to use it without decompressing the process output
+        tar --no-xattrs -czf ${params.cohort}_annotations.ht.tar.gz ${params.cohort}_annotations.ht
+
+        rm -r ${params.cohort}_annotations.ht
         """
 }

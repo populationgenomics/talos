@@ -16,7 +16,7 @@ process ParseAlphaMissenseIntoHt {
         ParseAlphaMissenseIntoHt \
             --am_tsv ${am_tsv} \
             --ht_out alphamissense_38.ht
-        tar -czf alphamissense_38.ht.tar.gz alphamissense_38.ht
+        tar --no-xattrs -czf alphamissense_38.ht.tar.gz alphamissense_38.ht
         rm -r alphamissense_38.ht
         """
 }

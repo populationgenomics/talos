@@ -15,6 +15,6 @@ process ConvertSpliceVarDb {
     ConvertSpliceVarDb \
         --input ${svdb} \
         --output ${params.cohort}_svdb.ht
-    tar -czf ${params.cohort}_svdb.ht.tar.gz ${params.cohort}_svdb.ht
+    tar --no-xattrs -czf ${params.cohort}_svdb.ht.tar.gz ${params.cohort}_svdb.ht
     """
 }

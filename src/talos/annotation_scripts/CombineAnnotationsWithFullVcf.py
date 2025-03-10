@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 
 """
-This is an adapter process to take a VCF annotated by BCFtools, and re-arranges the annotations into the format
-expected in Talos
-
-The as-imlpemented Nextflow pipeline doesn't use this script, but it's retained in case we change direction.
-
-This expected the BCFtools and gnomAD annotations to have been supplied to the whole VCF, which is read in as a
-MatrixTable. The currently implemented process expects annotations to have been run on the sites-only VCF, which will
-scale SO much better. For smaller cohorts this saves a few steps, but the NextFlow workflow doesn't implement it.
+Takes the VCF joint-call, and the sites-only annotations reformatted as a HailTable, and hops the annotations from one
+to the other.
 """
 
 import json
@@ -253,7 +247,7 @@ def cli_main():
 
 def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str | None = None, mane: str | None = None):
     """
-    Takes a BCFtools & gnomAD-annotated VCF, reorganises into a Talos-compatible MatrixTable
+    Takes a VEP-annotated VCF, reorganises into a Talos-compatible MatrixTable
     If supplied, will annotate at runtime with AlphaMissense annotations
 
     Args:
@@ -261,7 +255,7 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str | None = N
         output_path ():
         gene_bed (str):
         alpha_m ():
-        mane (str | None): path to a MANE Hail Table for enhanced protein annotation
+        mane (str | None): path to a MANE Hail Table for enhanced annotation
     """
 
     hl.default_reference('GRCh38')

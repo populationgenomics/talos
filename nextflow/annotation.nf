@@ -14,17 +14,27 @@ The specific annotations are:
 
 nextflow.enable.dsl=2
 
-include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
-include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
 include { AnnotateGnomadAfWithEchtvar } from './modules/annotation/AnnotateGnomadAfWithEchtvar/main'
+include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
 include { LocaliseAlphamissenseWithWget } from './modules/annotation/LocaliseAlphamissenseWithWget/main'
+include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnlyVcfWithBcftools/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
+include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
 include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'
-include { ReformatVcfToMt } from './modules/annotation/ReformatVcfToMt/main'
+// include { ReformatVcfToMt } from './modules/annotation/ReformatVcfToMt/main'
+include { ReformatAnnotatedVcfIntoHailTable } from './modules/annotation/ReformatAnnotatedVcfIntoHailTable/main'
+include { TransferAnnotationsToMatrixTable } from './modules/annotation/TransferAnnotationsToMatrixTable/main'
 
 workflow {
+
+    // populate input channels - VCFs, reference genome
+    ch_vcfs = channel.fromPath(params.input_vcfs)
+    ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
+    ch_ref_genome = channel.fromPath(params.ref_genome)
+
     // generate the AlphaMissense HT - long running, stored in a separate folder
+    // read in as a channel if this was already generated
     if (file(params.alphamissense_output).exists()) {
         ch_alphamissense_table = channel.fromPath(params.alphamissense_output)
     }
@@ -34,12 +44,10 @@ workflow {
         ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
 
-    // generate the gene region file, and a overlap-merged version of the same
+    // generate the Region-of-interest BED file from Ensembl GFF3
+    // generates a per-gene BED file with ID annotations
+    // and a overlap-merged version of the same for more efficient region filtering
     CreateRoiFromGff3()
-
-    // get all the VCFs
-    ch_vcfs = channel.fromPath(params.input_vcfs)
-    ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
 
     MergeVcfsWithBcftools(
         ch_vcfs.collect(),
@@ -47,17 +55,21 @@ workflow {
         CreateRoiFromGff3.out.merged_bed,
     )
 
+    // create a sites-only version of this VCF, just to pass less data around when annotating
+    MakeSitesOnlyVcfWithBcftools(
+        MergeVcfsWithBcftools.out
+    )
+
     // read the whole-genome Zip file as an input channel
     ch_gnomad_zip = channel.fromPath(params.gnomad_zip)
 
     // and apply the annotation using echtvar
     AnnotateGnomadAfWithEchtvar(
-        MergeVcfsWithBcftools.out,
+        MakeSitesOnlyVcfWithBcftools.out,
         ch_gnomad_zip,
     )
 
-    // bcftools csq
-    ch_ref_genome = channel.fromPath(params.ref_genome)
+    // annotate transcript consequences with bcftools csq
     AnnotateCsqWithBcftools(
         AnnotateGnomadAfWithEchtvar.out,
         CreateRoiFromGff3.out.gff3,
@@ -67,11 +79,25 @@ workflow {
     // pull and parse the MANE data into a Hail Table
     ParseManeIntoJson()
 
-    // now what
-    ReformatVcfToMt(
+    // reformat the annotations in the VCF, retain as a Hail Table
+    ReformatAnnotatedVcfIntoHailTable(
         AnnotateCsqWithBcftools.out,
         ch_alphamissense_table,
         CreateRoiFromGff3.out.bed,
         ParseManeIntoJson.out.json
     )
+
+    // combine the join-VCF and annotations as a HailTable
+    TransferAnnotationsToMatrixTable(
+        ReformatAnnotatedVcfIntoHailTable.out,
+        MergeVcfsWithBcftools.out,
+    )
+//
+//     // now what
+//     ReformatVcfToMt(
+//         AnnotateCsqWithBcftools.out,
+//         ch_alphamissense_table,
+//         CreateRoiFromGff3.out.bed,
+//         ParseManeIntoJson.out.json
+//     )
 }
