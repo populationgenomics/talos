@@ -1,9 +1,6 @@
-FROM python:3.11-slim-bullseye AS base
+FROM python:3.11-slim-bookworm AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-ARG BCFTOOLS_VERSION=${BCFTOOLS_VERSION:-1.21}
-ARG ECHTVAR_VERSION=${ECHTVAR_VERSION:-v0.2.1}
 
 RUN apt update && apt install -y --no-install-recommends \
         apt-transport-https \
@@ -22,6 +19,8 @@ RUN apt update && apt install -y --no-install-recommends \
     pip install --no-cache-dir --upgrade pip
 
 FROM base AS bcftools_compiler
+
+ARG BCFTOOLS_VERSION=${BCFTOOLS_VERSION:-1.21}
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         gcc \
@@ -45,6 +44,8 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
 
 FROM base_bcftools AS base_bcftools_echtvar
+
+ARG ECHTVAR_VERSION=${ECHTVAR_VERSION:-v0.2.1}
 
 ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" /bin/echtvar
 

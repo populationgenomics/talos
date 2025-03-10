@@ -268,7 +268,8 @@ class SneakyTable:
         self.sample_details = sample_details
         self.tmp_path = tmp_path
         try:
-            hl.init(default_reference='GRCh38')
+            hl.init(idempotent=True)
+            hl.default_reference('GRCh38')
         except FatalError as fe:
             get_logger().info(f'Hail already initialised: {fe}')
 
