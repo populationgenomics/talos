@@ -68,9 +68,18 @@ def main(
     # read the annotations into a Table
     ht = hl.read_table(annotations)
 
+    # syntax sweeter for later on
+    matched_annotations = ht[mt.row_key]
+
     mt = mt.annotate_rows(
-        info=ht[mt.row_key].info,
-        gene_ids=ht[mt.row_key].gene_ids,
+        gnomad=hl.struct(
+            gnomad_AC=matched_annotations.info.gnomad_AC,
+            gnomad_AF=matched_annotations.info.gnomad_AF,
+            gnomad_AN=matched_annotations.info.gnomad_AN,
+            gnomad_HomAlt=matched_annotations.info.gnomad_HomAlt,
+        ),
+        transcript_consequences=matched_annotations.transcript_consequences,
+        gene_ids=matched_annotations.gene_ids,
     )
 
     mt.describe()

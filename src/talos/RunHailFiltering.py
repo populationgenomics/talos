@@ -335,7 +335,7 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     # 'semi-rare' as dominant filters will be more strictly filtered later
     rare_af_threshold = config_retrieve(['RunHailFiltering', 'af_semi_rare'])
     return mt.filter_rows(
-        (hl.or_else(mt.info.gnomad_AF, MISSING_FLOAT_LO) < rare_af_threshold) | (mt.info.clinvar_talos == ONE_INT),
+        (hl.or_else(mt.gnomad.gnomad_AF, MISSING_FLOAT_LO) < rare_af_threshold) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -910,8 +910,10 @@ def main(
 
     # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
     # also take the single gene_id (from the exploded attribute)
+    # and retrieves the gnomAD annotations
     mt = mt.annotate_rows(
         info=mt.info.annotate(
+            **mt.gnomad,
             csq=csq_struct_to_string(mt.transcript_consequences),
             gene_id=mt.gene_ids,
         ),
