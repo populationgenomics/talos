@@ -588,7 +588,7 @@ class Variant:
             if 'consequence' not in csq:
                 continue
 
-            if csq['nm_id']:
+            if csq['mane_id']:
                 mane_consequences.update(csq['consequence'].split('&'))
                 if aa := csq.get('amino_acid_change'):
                     mane_hgvsps.add(f'{csq["ensp"]}: {aa}')

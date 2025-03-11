@@ -386,7 +386,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
     return mt.annotate_rows(
         transcript_consequences=mt.transcript_consequences.filter(
             lambda x: (mt.gene_ids == x.gene_id)
-            & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.nm_id.contains('NM'))),
+            & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.mane_id.contains('NM'))),
         ),
     )
 

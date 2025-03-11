@@ -28,13 +28,13 @@ def mane_to_json(input_path: str, output_path: str):
             ensg = line['Ensembl_Gene'].split('.')[0]  # ENSG
             ensp = line['Ensembl_prot'].split('.')[0]  # ENSP
             symbol = line['symbol'].split('.')[0]  # symbol
-            nm_id = line['RefSeq_nuc'].split('.')[0]  # NMID
-            mane = line['MANE_status']  # "MANE Select" or "MANE Plus Clinical"
+            mane_id = line['RefSeq_nuc'].split('.')[0]  # NMID
+            mane_status = line['MANE_status']  # "MANE Select" or "MANE Plus Clinical"
 
             transcript_dict[enst] = {
-                'mane': mane,
+                'mane_status': mane_status,
                 'ensp': ensp,
-                'nm_id': nm_id,
+                'mane_id': mane_id,
                 'ensg': ensg,
                 'symbol': symbol,
             }
@@ -51,7 +51,7 @@ def mane_to_ht(input_path: str, output_path: str):
     temp_tsv = 'temp.tsv'
     # read the file
     with gzip.open(input_path, 'rt') as handle, open(temp_tsv, 'w') as write_handle:
-        write_handle.write('\t'.join(['enst', 'ensg', 'ensp', 'symbol', 'nm_id', 'mane']) + '\n')
+        write_handle.write('\t'.join(['enst', 'ensg', 'ensp', 'symbol', 'mane_id', 'mane_status']) + '\n')
         reader = DictReader(handle, delimiter='\t')
         for line in reader:
             line_elements = [
