@@ -219,7 +219,7 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
-def update_moi_from_config(gene_dict: PanelApp, update_dict: dict[str, str]) -> dict:
+def update_moi_from_config(gene_dict: PanelApp, update_dict: dict[str, str]) -> PanelApp:
     """
     Update the MOI for a gene or genes based on a dictionary of gene: moi
 
@@ -303,6 +303,7 @@ def main(panels: str | None, out_path: str):
 
     # optional block here - override the naturally discovered MOI for a gene or genes, based on config
     # this config entry should look like a dictionary of gene: moi
+    # ruff: noqa: ERA001
     # ['GeneratePanelData.forced_moi']
     # ENSG1234 = 'MOI'
     # ENSG5678 = 'OTHER_MOI'
