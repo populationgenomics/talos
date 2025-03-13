@@ -1,6 +1,6 @@
 [GeneratePanelData]
 # the panelapp instance to use
-panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
+panelapp = 'https://panelapp-aus.org//api/v1/panels'
 # panel ID in that panelapp instance to use as a base, by default this is the 'Mendeliome'
 default_panel = 137
 # these genes are removed from the base panel, but will be included if they occur in a phenotype-matched panel
