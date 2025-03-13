@@ -56,8 +56,6 @@ def main(
 
     hl.default_reference('GRCh38')
 
-    # TODO(Welland): Can this annotation-hopping be improved by forcing consistent intervals?
-
     # read the VCF into a MatrixTable
     mt = hl.import_vcf(
         vcf_path,
