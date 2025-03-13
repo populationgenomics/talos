@@ -10,14 +10,13 @@ from datetime import datetime
 from dateutil.parser import parse
 from dateutil.utils import today
 
-
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from talos.utils import ORDERED_MOIS, get_json_response, get_logger, get_simple_moi, read_json_from_path
 
 
 # global variables for PanelApp interaction
-PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp.agha.umccr.org/api/v1/panels'
+PANELAPP_HARD_CODED_DEFAULT = 'https://panelapp-aus.org//api/v1/panels'
 # numerical ID of the Mendeliome in PanelApp Australia
 PANELAPP_HARD_CODED_BASE_PANEL = 137
 
@@ -220,6 +219,31 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
+def update_moi_from_config(gene_dict: PanelApp, update_dict: dict[str, str]) -> PanelApp:
+    """
+    Update the MOI for a gene or genes based on a dictionary of gene: moi
+
+    Args:
+        gene_dict (PanelApp): the gene data to update
+        update_dict (dict): the gene: moi dictionary
+    """
+
+    get_logger().info(f'Overriding MOI for specific genes: {", ".join(update_dict.keys())}')
+    for gene, moi in update_dict.items():
+        if moi not in ORDERED_MOIS:
+            raise ValueError(f'{moi} for {gene} is not a valid MOI, choose from {", ".join(ORDERED_MOIS)}')
+        get_logger().info(f'Overriding {gene} MOI to {moi}')
+        if gene not in gene_dict.genes:
+            raise ValueError(f'{gene} was not sourced from PanelApp')
+        current_moi = gene_dict.genes[gene].moi
+        if current_moi == moi:
+            get_logger().info(f'{gene} MOI was already {moi}, no change made')
+        else:
+            get_logger().info(f'{gene} MOI was updated from {current_moi} to {moi}')
+            gene_dict.genes[gene].moi = moi
+    return gene_dict
+
+
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--input', help='JSON of per-participant panels', default=None)
@@ -271,12 +295,21 @@ def main(panels: str | None, out_path: str):
         # skip mendeliome - we already queried for it
         if panel == DEFAULT_PANEL:
             continue
-
         get_logger().info(f'Getting Panel {panel}')
         get_panel(gene_dict=gene_dict, panel_id=panel, forbidden_genes=forbidden_genes)
 
     # now get the best MOI, and update the entities in place
     get_best_moi(gene_dict.genes)
+
+    # optional block here - override the naturally discovered MOI for a gene or genes, based on config
+    # this config entry should look like a dictionary of gene: moi
+    # ruff: noqa: ERA001
+    # ['GeneratePanelData.forced_moi']
+    # ENSG1234 = 'MOI'
+    # ENSG5678 = 'OTHER_MOI'
+    if moi_overrides := config_retrieve(key=['GeneratePanelData', 'forced_moi'], default=None):
+        assert isinstance(moi_overrides, dict), 'MOI overrides must be a dictionary of {gene: moi,}'
+        gene_dict = update_moi_from_config(gene_dict, moi_overrides)
 
     # write the output to long term storage
     with open(out_path, 'w') as out_file:

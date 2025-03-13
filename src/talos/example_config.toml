@@ -1,6 +1,6 @@
 [GeneratePanelData]
 # the panelapp instance to use
-panelapp = 'https://panelapp.agha.umccr.org/api/v1/panels'
+panelapp = 'https://panelapp-aus.org//api/v1/panels'
 # panel ID in that panelapp instance to use as a base, by default this is the 'Mendeliome'
 default_panel = 137
 # these genes are removed from the base panel, but will be included if they occur in a phenotype-matched panel
@@ -15,6 +15,12 @@ forced_panels = [1, 2, 3]
 # we find the date each gene became Green/Ready, and if that is within X months of today
 # we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol
 within_x_months = 6
+
+[GeneratePanelData.forced_moi]
+# choose gene IDs to overrule the PanelApp default MOI
+# must be selected from 'Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic'
+# e.g.
+# ENSG1234 = 'Biallelic'
 
 [FindGeneSymbolMap]
 # much higher than this and we get into throttling issues
