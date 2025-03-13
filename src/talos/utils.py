@@ -16,9 +16,8 @@ from itertools import chain, combinations_with_replacement, islice
 from pathlib import Path
 from random import choices
 from string import punctuation
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-import cyvcf2
 from cloudpathlib.anypath import to_anypath
 import hail as hl
 from peds import open_ped
@@ -42,6 +41,12 @@ from talos.models import (
     lift_up_model_version,
 )
 from talos.static_values import get_granular_date, get_logger
+
+
+if TYPE_CHECKING:
+    # I'm pretty sure this is a real thing
+    import cyvcf2
+
 
 HOMREF: int = 0
 HETALT: int = 1
@@ -179,7 +184,7 @@ def identify_file_type(file_path: str) -> FileTypes | Exception:
     """
     pl_filepath = Path(file_path)
 
-    # pull all extensions (e.g. .vcf.bgz will be split into [.vcf, .bgz]
+    # pull all extensions (e.g. vcf.bgz will be split into [vcf, .bgz]
     if not (extensions := pl_filepath.suffixes):
         raise ValueError('cannot identify input type from extensions')
 
@@ -288,7 +293,7 @@ def get_new_gene_map(
     return pheno_matched_new
 
 
-def get_phase_data(samples: list[str], var) -> dict[str, dict[int, str]]:
+def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[int, str]]:
     """
     read phase data from this variant
 
@@ -515,7 +520,7 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
 
 
 def create_small_variant(
-    var: cyvcf2.Variant,
+    var: 'cyvcf2.Variant',
     samples: list[str],
 ):
     """
@@ -527,8 +532,6 @@ def create_small_variant(
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
-    alt_depths: dict[str, int] = dict(zip(samples, map(int, var.gt_alt_depths)))
-    depths: dict[str, int] = dict(zip(samples, map(int, var.gt_depths)))
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
@@ -580,7 +583,14 @@ def create_small_variant(
             info[sam_cat] = list(info[sam_cat])
 
     phased = get_phase_data(samples, var)
-    ab_ratios = dict(zip(samples, map(float, var.gt_alt_freqs)))
+
+    # only keep these where the sample has a variant - the majority of samples have empty data, and we don't use it
+    # if we require depths/ratios/etc. for WT samples, revisit this
+    # hopefully a solution to the memory explosion in large cohorts
+    variant_samples = het_samples | hom_samples
+    depths: dict[str, int] = {k: v for k, v in zip(samples, map(int, var.gt_depths)) if k in variant_samples}
+    alt_depths: dict[str, int] = {k: v for k, v in zip(samples, map(int, var.gt_alt_depths)) if k in variant_samples}
+    ab_ratios: dict[str, float] = {k: v for k, v in zip(samples, map(float, var.gt_alt_freqs)) if k in variant_samples}
     transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
     return SmallVariant(
@@ -600,7 +610,7 @@ def create_small_variant(
     )
 
 
-def create_structural_variant(var: cyvcf2.Variant, samples: list[str]):
+def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]):
     """
     takes an SV and creates a Model from it
     far less complicated than the SmallVariant model
@@ -818,7 +828,7 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> set[str]:
     return return_mois
 
 
-def get_non_ref_samples(variant, samples: list[str]) -> tuple[set[str], set[str]]:
+def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[set[str], set[str]]:
     """
     for this variant, find all samples with a call
     cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT

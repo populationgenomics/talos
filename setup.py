@@ -69,8 +69,6 @@ setup(
             'ReformatAnnotatedVcfIntoHailTable = talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable:cli_main',
             # Combines the annotations and the VCF into a MatrixTable
             'TransferAnnotationsToMatrixTable = talos.annotation_scripts.TransferAnnotationsToMatrixTable:cli_main',
-            # # Reformats an annotated VCF to a MatrixTable, adding additional annotations
-            # 'ReformatVcfToMt = talos.annotation_scripts.ReformatVcfToMt:cli_main',
             # ----------------------------------------------------------------------------------------
             # these scripts are specific to internal CPG functions
             # ----------------------------------------------------------------------------------------

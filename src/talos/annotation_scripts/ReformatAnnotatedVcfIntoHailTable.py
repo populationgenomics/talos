@@ -300,6 +300,7 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
     # drop the BCSQ field
     ht = ht.annotate(info=ht.info.drop('BCSQ'))
 
+    # ruff: noqa: ERA001
     ## chocked this out for now, may become important at higher sample counts
     # # checkpoint again before rummaging around in MANE table
     # mt = mt.checkpoint('checkpoint_pre_mane.mt', overwrite=True, _read_if_exists=True)
