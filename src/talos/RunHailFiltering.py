@@ -252,7 +252,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None, ignored: boo
         Same MT with an extra category label
     """
     if svdb_path is None or ignored:
-        get_logger().info(f'SVDB not required or requested, skipping annotation. Table path: {svdb_path}')
+        get_logger().info(f'SVDB not required or requested, skipping annotation. (table path: {svdb_path})')
         return mt.annotate_rows(
             info=mt.info.annotate(
                 categorybooleansvdb=MISSING_INT,
