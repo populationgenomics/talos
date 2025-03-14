@@ -28,7 +28,7 @@ MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_STRING = hl.str('missing')
 ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
-PATHOGENIC = hl.str('pathogenic')
+PATHOGENIC = hl.str('Pathogenic/Likely Pathogenic')
 SPLICE_ALTERING = hl.str('splice-altering')
 ADDITIONAL_CSQ_DEFAULT = ['missense']
 CRITICAL_CSQ_DEFAULT = [
@@ -84,12 +84,12 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
     return mt.annotate_rows(
         info=mt.info.annotate(
             clinvar_talos=hl.if_else(
-                mt.info.clinvar_significance.lower().contains(PATHOGENIC),
+                mt.info.clinvar_significance == PATHOGENIC,
                 ONE_INT,
                 MISSING_INT,
             ),
             categoryboolean1=hl.if_else(
-                (mt.info.clinvar_significance.lower().contains(PATHOGENIC)) & (mt.info.clinvar_stars > 0),
+                (mt.info.clinvar_significance == PATHOGENIC) & (mt.info.clinvar_stars > 0),
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -436,11 +436,10 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category3 flag
     - Critical protein consequence on at least one transcript
-    - either predicted NMD or
-    - any star Pathogenic or Likely_pathogenic in Clinvar
 
     Args:
         mt (hl.MatrixTable):
+
     Returns:
         same variants, categoryboolean3 set to 1 or 0
     """
@@ -448,7 +447,6 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
     critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT))
 
     # First check if we have any HIGH consequences
-    # OR allow for a pathogenic ClinVar, any Stars
     return mt.annotate_rows(
         info=mt.info.annotate(
             categoryboolean3=hl.if_else(
