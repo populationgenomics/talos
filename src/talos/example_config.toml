@@ -4,7 +4,7 @@ panelapp = 'https://panelapp-aus.org//api/v1/panels'
 # panel ID in that panelapp instance to use as a base, by default this is the 'Mendeliome'
 default_panel = 137
 # these genes are removed from the base panel, but will be included if they occur in a phenotype-matched panel
-require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5']
+require_pheno_match = ['FLG', 'GJB2', 'F2', 'F5', 'HFE']
 # genes to remove from any panel, matched or otherwise. Effectively a blacklist
 forbidden_genes = ['a', 'list', 'of', 'forbidden', 'genes']  # symbols, ENSG, or a mix
 # IDs of panels to apply to all participants in this analysis, regardless of phenotype
