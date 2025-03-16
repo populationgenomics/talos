@@ -96,7 +96,7 @@ setup(
             # Filter and label a small-variant MatrixTable
             'RunHailFiltering = talos.RunHailFiltering:cli_main',
             # Filter and label a SV MatrixTable
-            'RunHailFilteringSV = talos.RunHailFilteringSV:cli_main',
+            'RunHailFilteringSV = talos.RunHailFilteringSv:cli_main',
             # Run each of the category-labelled variants through MOI filters
             'ValidateMOI = talos.ValidateMOI:cli_main',
             # catch variants which have strong phenotypic matches

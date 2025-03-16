@@ -1,6 +1,7 @@
 """
 A Hail filtering process for labelling analysis-relevant SVs
 Initially this will only contain a single category
+This expects data annotated by GATK's SVAnnotate tool
 
 CategoryBooleanSV1:
 - rare
@@ -16,6 +17,10 @@ from talos.models import PanelApp
 from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.static_values import get_logger
 from talos.utils import read_json_from_path
+
+
+BOTHSIDES_SUPPORT = 'BOTHSIDES_SUPPORT'
+PASS = 'PASS'
 
 
 def read_and_filter_mane_json(mane_json: str) -> hl.dict:
@@ -226,13 +231,19 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         reference_genome='GRCh38',
         skip_invalid_loci=True,
         force_bgz=True,
-        n_partitions=number_of_cores * 2,
+        n_partitions=number_of_cores,
+    ).checkpoint(
+        output='temporary.mt',
+        _read_if_exists=True,
     )
 
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
 
-    mt = mt.checkpoint('temporary.mt', _read_if_exists=True)
+    # remove filtered variants
+    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+
+    get_logger().info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
 
     # drop rows with no LOF consequences
     mt = mt.filter_rows(hl.len(mt.info.PREDICTED_LOF) > 0)
@@ -245,8 +256,10 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     mt = filter_matrix_by_ac(mt, ac_threshold=ac_threshold)
     mt = filter_matrix_by_af(mt, af_threshold=ac_threshold)
 
-    # filter to LOF in green genes
-    mt.filter_rows(hl.len(green_expression.intersection(mt.info.lof_ensg)) > 0)
+    mt = mt.explode_rows(mt.info.gene_id)
+
+    # hard filter remaining rows to PanelApp green genes
+    mt = mt.filter_rows(green_expression.contains(mt.info.gene_id))
 
     # everything left is `SV1`
     mt = mt.annotate_rows(
@@ -254,8 +267,6 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
             categorybooleansv1=ONE_INT,
         ),
     )
-
-    mt = mt.explode_rows(mt.info.gene_id)
 
     # Hail's MT -> VCF export doesn't handle hemizygous calls
     mt = fix_hemi_calls(mt)
