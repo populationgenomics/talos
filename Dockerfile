@@ -13,7 +13,8 @@ RUN apt update && apt install -y --no-install-recommends \
         openjdk-17-jdk-headless \
         wget \
         zip \
-        zlib1g && \
+        zlib1g \
+        zstd && \
     rm -r /var/lib/apt/lists/* && \
     rm -r /var/cache/apt/* && \
     pip install --no-cache-dir --upgrade pip
