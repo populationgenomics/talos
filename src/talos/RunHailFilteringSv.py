@@ -19,10 +19,6 @@ from talos.static_values import get_logger
 from talos.utils import read_json_from_path
 
 
-BOTHSIDES_SUPPORT = 'BOTHSIDES_SUPPORT'
-PASS = 'PASS'
-
-
 def read_and_filter_mane_json(mane_json: str) -> hl.dict:
     """
     Read the MANE JSON and filter it to the relevant fields
@@ -69,19 +65,17 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             end=mt.info.END,
             chr2=mt.info.CHR2,
             end2=mt.info.END2,
-        )
+        ),
     )
 
     # match the symbols to gene IDs
-    mt = mt.annotate_rows(
+    return mt.annotate_rows(
         info=mt.info.annotate(
             lof_ensg=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
             # this is so we can explode it out later, whilst keeping the full list
             gene_id=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
         ),
     )
-
-    return mt
 
 
 def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.MatrixTable:
@@ -101,7 +95,7 @@ def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.Ma
             mt.info.gnomad_sv_AF,
             MISSING_INT,
         )
-        < af_threshold
+        < af_threshold,
     )
 
 

@@ -37,7 +37,7 @@ SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
-def too_common_in_population(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
+def too_common_in_population(info: dict, thresholds: dict[str, int | float]) -> bool:
     """
     Method to check multiple info keys against a single threshold
     This just reduces the line count, as this is called a bunch of times
@@ -46,13 +46,10 @@ def too_common_in_population(info: dict, thresholds: dict[str, int | float], per
     Args:
         info (): the dict of values for this dict
         thresholds (): the dict of keys - thresholds to test against
-        permit_clinvar (bool): if True, always allow clinvar pathogenic variants to pass
 
     Returns:
         True if any of the info attributes is above the threshold
     """
-    # if permit_clinvar and info.get('categoryboolean1'):
-    #     return False
     return any(info.get(key, 0) > test for key, test in thresholds.items())
 
 
