@@ -2,7 +2,9 @@
 
 nextflow.enable.dsl=2
 
+// deactivated for now
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
+
 include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
 include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
