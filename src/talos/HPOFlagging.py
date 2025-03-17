@@ -62,22 +62,19 @@ def get_sem_client(phenio_db: str | None = None) -> Semsimian:
     return _SEMSIM_CLIENT
 
 
-def parse_genes_to_hpo(g2p_file: str, ensg2symbol: str, genes: set[str]) -> dict[str, set[str]]:
+def parse_genes_to_hpo(g2p_file: str, ensg_map: dict[str, str], genes: set[str]) -> dict[str, set[str]]:
     """
     Parse genes to phenotype file from Jax.
     Returns a dict of gene_symbol -> set of HPO ids
 
     Args:
         g2p_file ():
-        ensg2symbol (): the gene symbols to Ensembl gene IDs for genes relevant to this analysis
+        ensg_map (): gene symbols to Ensembl gene IDs
         genes (set[str]): all genes in this report
 
     Returns:
         dict[str, set[str]]: ENSG -> set of HPO ids
     """
-
-    # lookup of {symbol: ENSG}
-    ensg_map: dict[str, str] = read_json_from_path(ensg2symbol)
 
     gene_to_phenotype: dict[str, set[str]] = defaultdict(set)
     with open(g2p_file, encoding='utf-8') as f:
