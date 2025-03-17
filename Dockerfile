@@ -11,6 +11,7 @@ RUN apt update && apt install -y --no-install-recommends \
         libcurl4 \
         liblzma5 \
         openjdk-17-jdk-headless \
+        procps \
         wget \
         zip \
         zlib1g \
@@ -56,27 +57,10 @@ COPY echtvar_config.json /echtvar_config.json
 
 ENV ECHTVAR_CONFIG="/echtvar_config.json"
 
-FROM base_bcftools_echtvar AS talos_gcloud
-
-# Google Cloud SDK: use the script-based installation, as the Debian package is outdated.
-ADD https://sdk.cloud.google.com install_glcoud.sh
-RUN bash install_glcoud.sh --disable-prompts --install-dir=/opt && \
-    rm install_glcoud.sh
-
-ENV PATH=$PATH:/opt/google-cloud-sdk/bin
+FROM base_bcftools_echtvar AS talos
 
 # Add in the additional requirements that are most likely to change.
 COPY requirements*.txt README.md setup.py ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src src/
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .[cpg]
-
-FROM base_bcftools_echtvar AS talos_none
-
-RUN echo "Skipping cloud dependency installation"
-
-# Add in the additional requirements that are most likely to change.
-COPY requirements*.txt README.md setup.py ./
-RUN pip install --no-cache-dir -r requirements.txt
-COPY src src/
-RUN pip install --no-cache-dir .

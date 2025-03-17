@@ -26,13 +26,8 @@ Analysis consists of three main phases:
 
 At this time the recommended way to use this tool is via Docker, building using the Dockerfile in this repository.
 
-The Dockerfile offers two builds, use the `--target` flag to specify which build you want to use. To only build the required layers, ensure `DOCKERBUILDKIT` is set to `1` in your environment.
-
-- one for a non-cloud environment (default, called `talos_none`)
-- one for a Google cloud environment (called `talos_gcloud`).
-
 ```bash
-DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.6.3  .
+DOCKERBUILDKIT=1 docker build -t talos:6.6.3  .
 ```
 
 ## Workflow Demonstration with Nextflow
@@ -40,7 +35,7 @@ DOCKERBUILDKIT=1 docker build --target talos_none -t talos:6.6.3  .
 A Nextflow pipeline is provided to demonstrate how to run Talos. This pipeline is designed to be run on a local machine, and requires that you have nextflow installed locally, and a docker daemon running. First, as described above, build the docker image:
 
 ```bash
-docker build --target talos_none -t talos:local_none .
+docker build -t talos:6.6.3 .
 ```
 
 Then, run the pipeline:

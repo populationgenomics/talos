@@ -11,13 +11,13 @@ from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags
 @pytest.mark.parametrize(  # needs clinvar
     'ac,an,clinvar,threshold,rows',
     [
-        ([1], 1, 0, 0.01, 1),
-        ([6], 1, 0, 0.01, 0),
-        ([6], 1, 1, 0.01, 1),
-        ([6], 70, 0, 0.1, 1),
-        ([50], 999999, 0, 0.01, 1),
-        ([50], 50, 0, 0.01, 0),
-        ([50], 50, 1, 0.01, 1),
+        (1, 1, 0, 0.01, 1),
+        (6, 1, 0, 0.01, 0),
+        (6, 1, 1, 0.01, 1),
+        (6, 70, 0, 0.1, 1),
+        (50, 999999, 0, 0.01, 1),
+        (50, 50, 0, 0.01, 0),
+        (50, 50, 1, 0.01, 1),
     ],
 )
 def test_ac_filter_no_filt(

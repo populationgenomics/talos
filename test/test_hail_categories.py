@@ -19,7 +19,7 @@ from talos.RunHailFiltering import (
     split_rows_by_gene_and_filter_to_green,
 )
 
-category_1_keys = ['locus', 'clinvar_talos_strong']
+category_1_keys = ['locus', 'categoryboolean1']
 category_2_keys = ['locus', 'clinvar_talos', 'cadd', 'revel', 'geneIds', 'consequence_terms']
 category_3_keys = ['locus', 'clinvar_talos', 'lof', 'consequence_terms']
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
@@ -35,7 +35,7 @@ def test_class_1_assignment(value, classified, make_a_mt):
     """
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
-            clinvar_talos_strong=value,
+            categoryboolean1=value,
         ),
     )
     assert anno_matrix.info.categoryboolean1.collect() == [classified]
@@ -323,4 +323,4 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
-    assert len([x for x in returned_table.info.clinvar_talos_strong.collect() if x == 1]) == strong
+    assert len([x for x in returned_table.info.categoryboolean1.collect() if x == 1]) == strong
