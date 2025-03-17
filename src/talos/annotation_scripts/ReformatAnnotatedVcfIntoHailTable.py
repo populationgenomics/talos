@@ -59,7 +59,6 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table) -> hl.Ta
     # if BCFtools csq doesn't have a consequence annotation, it will truncate the pipe-delimited string
     # this is fine sometimes, but not when we're building a schema here
     # when we find truncated BCSQ strings, we need to add dummy values to the end of the array
-
     split_csqs = split_csqs.map(
         lambda x: hl.if_else(
             # if there were only 4 values, add 3 missing Strings
@@ -83,7 +82,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table) -> hl.Ta
     ht = ht.annotate(
         transcript_consequences=split_csqs.map(
             lambda x: hl.struct(
-                **{csq_strings[n]: x[n] for n in range(len(csq_strings))},
+                **{csq_strings[n]: x[n] for n in range(len(csq_strings)) if csq_strings[n] != 'strand'},
             ),
         ),
     )
