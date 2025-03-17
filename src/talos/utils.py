@@ -1,7 +1,7 @@
 """
 classes and methods shared across reanalysis components
 
-HTTPX requests are backoff-wrapped using tenaticy
+HTTPX requests are backoff-wrapped using tenacity
 https://tenacity.readthedocs.io/en/latest/
 """
 
