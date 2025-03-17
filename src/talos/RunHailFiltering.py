@@ -306,7 +306,7 @@ def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01, min_ac_to_filter: int = 5) -> hl.MatrixTable:
+def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_to_filter: int = 5) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
     Will never remove variants with 5 or fewer instances
@@ -314,14 +314,14 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.01, min_ac_t
 
     Args:
         mt (hl.MatrixTable):
-        ac_threshold (float):
+        af_threshold (float):
         min_ac_to_filter (int): minimum AC to filter on (no filtering if fewer than X instances in callset)
     Returns:
         MT with all common-in-this-JC variants removed
         (unless overridden by clinvar path)
     """
     return mt.filter_rows(
-        ((min_ac_to_filter >= mt.info.AC) | (ac_threshold < mt.info.AF)) | (mt.info.clinvar_talos == ONE_INT),
+        ((min_ac_to_filter >= mt.info.AC) | (af_threshold > mt.info.AF)) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 

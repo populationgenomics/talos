@@ -2,7 +2,7 @@
 unit testing collection for the hail MT methods
 """
 
-from test.test_utils import ONE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
+from test.test_utils import ONE_EXPECTED, TWO_EXPECTED
 
 import hail as hl
 import pandas as pd
@@ -25,37 +25,18 @@ category_3_keys = ['locus', 'clinvar_talos', 'lof', 'consequence_terms']
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
-@pytest.mark.skip(reason='category1 is rolled into clinVar annotation method')
-@pytest.mark.parametrize('value,classified', [(0, 0), (1, 1), (2, 0)])
-def test_class_1_assignment(value, classified, make_a_mt):
-    """
-    use some fake annotations, apply to the single fake variant
-    check that the classification process works as expected based
-    on the provided annotations
-    """
-    anno_matrix = make_a_mt.annotate_rows(
-        info=make_a_mt.info.annotate(
-            categoryboolean1=value,
-        ),
-    )
-    assert anno_matrix.info.categoryboolean1.collect() == [classified]
-
-
 @pytest.mark.parametrize(
-    'clinvar_talos,loftee,consequence_terms,classified',
+    'clinvar_talos,consequence_terms,classified',
     [
-        (0, 'hc', 'frameshift_variant', ZERO_EXPECTED),
-        (0, 'HC', 'frameshift_variant', ONE_EXPECTED),
-        (1, 'lc', 'frameshift_variant', ONE_EXPECTED),
-        (1, hl.missing(hl.tstr), 'frameshift_variant', ONE_EXPECTED),
+        (0, 'frameshift', ONE_EXPECTED),
+        (1, 'frameshift', ONE_EXPECTED),
     ],
 )
-def test_class_3_assignment(clinvar_talos, loftee, consequence_terms, classified, make_a_mt):
+def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a_mt):
     """
 
     Args:
         clinvar_talos ():
-        loftee ():
         consequence_terms ():
         classified ():
         make_a_mt ():
@@ -63,12 +44,10 @@ def test_class_3_assignment(clinvar_talos, loftee, consequence_terms, classified
 
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(clinvar_talos=clinvar_talos),
-        vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [
-                    hl.Struct(consequence_terms=hl.set([consequence_terms]), lof=loftee),
-                ],
-            ),
+        transcript_consequences=hl.array(
+            [
+                hl.Struct(consequence=consequence_terms),
+            ],
         ),
     )
 
@@ -96,7 +75,12 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
 
 @pytest.mark.parametrize(
     'am_class,classified',
-    [('likely_pathogenic', 1), ('not_pathogenic', 0), ('', 0), (hl.missing('tstr'), 0)],
+    [
+        ('likely_pathogenic', 1),
+        ('not_pathogenic', 0),
+        ('', 0),
+        (hl.missing('tstr'), 0),
+    ],
 )
 def test_class_6_assignment(am_class, classified, make_a_mt):
     """
@@ -108,7 +92,11 @@ def test_class_6_assignment(am_class, classified, make_a_mt):
     """
 
     anno_matrix = make_a_mt.annotate_rows(
-        vep=hl.Struct(transcript_consequences=hl.array([hl.Struct(am_class=am_class)])),
+        transcript_consequences=hl.array(
+            [
+                hl.Struct(am_class=am_class),
+            ],
+        ),
     )
 
     anno_matrix = annotate_category_6(anno_matrix)
@@ -125,7 +113,11 @@ def annotate_c6_missing(make_a_mt, caplog):
         caplog (fixture): pytest fixture, captures all logged text
     """
     anno_matrix = make_a_mt.annotate_rows(
-        vep=hl.Struct(transcript_consequences=hl.array([hl.Struct(not_am='a value')])),
+        transcript_consequences=hl.array(
+            [
+                hl.Struct(not_am='a value'),
+            ],
+        ),
     )
 
     anno_matrix = annotate_category_6(anno_matrix)
@@ -154,16 +146,14 @@ def test_green_from_panelapp():
 
 
 @pytest.mark.parametrize(
-    'exomes,genomes,clinvar,length',
+    'genomes,clinvar,length',
     [
-        [0, 0, 0, 1],
-        [1.0, 0, 0, 0],
-        [0.0001, 0.0001, 0, 1],
-        [0.0001, 0.0001, 1, 1],
+        [0, 0, 1],
+        [0.0001, 0, 1],
+        [0.0001, 1, 1],
     ],
 )
 def test_filter_rows_for_rare(
-    exomes: float,
     genomes: float,
     clinvar: int,
     length: int,
@@ -173,8 +163,7 @@ def test_filter_rows_for_rare(
     annotate categories and test for retention
     """
     anno_matrix = make_a_mt.annotate_rows(
-        gnomad_genomes=hl.Struct(AF=genomes),
-        gnomad_exomes=hl.Struct(AF=exomes),
+        gnomad=hl.Struct(gnomad_AF=genomes),
         info=make_a_mt.info.annotate(clinvar_talos=clinvar),
     )
     matrix = filter_to_population_rare(anno_matrix)
@@ -202,10 +191,8 @@ def test_filter_to_green_genes_and_split(gene_ids, length, make_a_mt):
     """
     green_genes = hl.literal({'green', 'gene'})
     anno_matrix = make_a_mt.annotate_rows(
-        geneIds=hl.literal(gene_ids),
-        vep=hl.Struct(
-            transcript_consequences=hl.array([hl.Struct(gene_id='gene', biotype='protein_coding', mane_select='')]),
-        ),
+        gene_ids=hl.literal(gene_ids),
+        transcript_consequences=hl.array([hl.Struct(gene_id='gene', biotype='protein_coding', mane_id='')]),
     )
     matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
     assert matrix.count_rows() == length
@@ -220,21 +207,19 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
     green_genes = hl.literal({'green'})
     anno_matrix = make_a_mt.annotate_rows(
-        geneIds=green_genes,
-        vep=hl.Struct(
-            transcript_consequences=hl.array(
-                [
-                    hl.Struct(gene_id='green', biotype='protein_coding', mane_select=''),
-                    hl.Struct(gene_id='green', biotype='batman', mane_select='NM_Bane'),
-                    hl.Struct(gene_id='green', biotype='non_coding', mane_select=''),
-                    hl.Struct(gene_id='NOT_GREEN', biotype='protein_coding', mane_select=''),
-                ],
-            ),
+        gene_ids=green_genes,
+        transcript_consequences=hl.array(
+            [
+                hl.Struct(gene_id='green', biotype='protein_coding', mane_id=''),
+                hl.Struct(gene_id='green', biotype='batman', mane_id='NM_Bane'),
+                hl.Struct(gene_id='green', biotype='non_coding', mane_id=''),
+                hl.Struct(gene_id='NOT_GREEN', biotype='protein_coding', mane_id=''),
+            ],
         ),
     )
     matrix = split_rows_by_gene_and_filter_to_green(anno_matrix, green_genes)
     assert matrix.count_rows() == 1
-    matrix = matrix.filter_rows(hl.len(matrix.vep.transcript_consequences) == TWO_EXPECTED)
+    matrix = matrix.filter_rows(hl.len(matrix.transcript_consequences) == TWO_EXPECTED)
     assert matrix.count_rows() == 1
 
 
@@ -246,7 +231,6 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
         (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1),
         (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 1),
         (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 1, 0, 'missing', 0, 'missing', 1),
         (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 1),
         (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 1),
         (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 1),
@@ -289,8 +273,8 @@ def test_filter_to_classified(
         ('benign', 0, 1, 0, 0),
         ('benign', 1, 0, 0, 0),
         ('other', 7, 1, 0, 0),
-        ('pathogenic', 0, 1, 1, 0),
-        ('pathogenic', 1, 1, 1, 1),
+        ('Pathogenic/Likely Pathogenic', 0, 1, 1, 0),
+        ('Pathogenic/Likely Pathogenic', 1, 1, 1, 1),
     ],
 )
 def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, make_a_mt):
