@@ -324,7 +324,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_t
     """
 
     return mt.filter_rows(
-        ((min_ac_to_filter >= mt.info.AC[-1]) | (af_threshold > mt.info.AF[-1])) | (mt.info.clinvar_talos == ONE_INT),
+        ((min_ac_to_filter >= mt.info.AC[0]) | (af_threshold > mt.info.AF[0])) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 

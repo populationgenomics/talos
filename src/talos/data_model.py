@@ -97,8 +97,8 @@ class BaseFields:
         self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
-        real_ac = ac or [999, 1]
-        real_af = af or [0.999, 0.001]
+        real_ac = ac or [1]
+        real_af = af or [0.001]
         self.info = {'AC': real_ac, 'AF': real_af, 'AN': an}
 
 
