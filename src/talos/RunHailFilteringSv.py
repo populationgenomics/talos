@@ -66,6 +66,9 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             status=mt.info.STATUS,
             male_af=mt.info.MALE_AF,
             female_af=mt.info.FEMALE_AF,
+            end=mt.info.END,
+            chr2=mt.info.CHR2,
+            end2=mt.info.END2,
         )
     )
 
