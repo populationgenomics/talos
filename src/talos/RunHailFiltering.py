@@ -312,6 +312,8 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_t
     Will never remove variants with 5 or fewer instances
     Also overridden by having a Clinvar Pathogenic anno.
 
+    Expectation here is that the AC and AF values are both arrays, with the first element being the reference
+
     Args:
         mt (hl.MatrixTable):
         af_threshold (float):
@@ -320,8 +322,9 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_t
         MT with all common-in-this-JC variants removed
         (unless overridden by clinvar path)
     """
+
     return mt.filter_rows(
-        ((min_ac_to_filter >= mt.info.AC) | (af_threshold > mt.info.AF)) | (mt.info.clinvar_talos == ONE_INT),
+        ((min_ac_to_filter >= mt.info.AC[-1]) | (af_threshold > mt.info.AF[-1])) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 

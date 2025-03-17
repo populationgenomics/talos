@@ -90,15 +90,15 @@ class BaseFields:
         qual: float | None = 60.0,
         ac: list[int] | None = None,
         af: list[float] | None = None,
-        an: int | None = 1,
+        an: int | None = 1000,
     ):
         self.locus = locus
         self.alleles = alleles
         self.filters = filters or set()
         self.rsid = rsid
         self.qual = qual
-        real_ac = ac or [1]
-        real_af = af or [0.001]
+        real_ac = ac or [999, 1]
+        real_af = af or [0.999, 0.001]
         self.info = {'AC': real_ac, 'AF': real_af, 'AN': an}
 
 

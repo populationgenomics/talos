@@ -67,7 +67,7 @@ workflow {
     // Flag any relevant HPO terms
     HPOFlagging(
         ValidateMOI.out,
-        FindGeneSymbolMap.out,
+        ch_mane,
         ch_gen2phen,
         ch_phenio_gz,
         ch_runtime_config,

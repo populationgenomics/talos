@@ -31,6 +31,6 @@ process RunHailFiltering {
         --output ${params.cohort}_small_variants_labelled.vcf.bgz \
         --clinvar clinvarbitration_data/clinvar_decisions.ht \
         --pm5 clinvarbitration_data/clinvar_pm5.ht \
-        --checkpoint
+        --checkpoint checkpoint
     """
 }

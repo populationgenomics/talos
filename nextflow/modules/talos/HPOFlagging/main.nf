@@ -21,7 +21,7 @@ process HPOFlagging {
     gunzip -f -d ${phenio_db}
     HPOFlagging \
          --input ${talos_result_json} \
-         --gene_map ${gene_symbol_map} \
+         --mane_json ${gene_symbol_map} \
          --gen2phen ${gene_to_phenotype} \
          --phenio phenio.db \
          --output ${params.cohort}_pheno_annotated_report.json \
