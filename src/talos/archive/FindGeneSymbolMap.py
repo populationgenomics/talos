@@ -7,10 +7,12 @@ This has been extracted to a separate script to allow for parallelisation
 and to ensure that we can separately repeat this one step in isolation
 if we run into API/throttling issues
 
-This may  be integrated into the HPO~Phenotype matching script if it runs consistently enough
+This may be integrated into the HPO~Phenotype matching script if it runs consistently enough
 
 Backoff wrapping is done using tenacity
 https://tenacity.readthedocs.io/en/latest/
+
+This was fun to write, but has been totally scrapped in favour of reading a static JSON, derived from a GFF from Ensembl
 """
 
 import aiohttp

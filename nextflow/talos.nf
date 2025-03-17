@@ -7,7 +7,6 @@ include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopack
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
 include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
 include { QueryPanelapp } from './modules/talos/QueryPanelapp/main'
-include { FindGeneSymbolMap } from './modules/talos/FindGeneSymbolMap/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
@@ -21,15 +20,9 @@ workflow {
     ch_hpo_file = channel.fromPath(params.hpo)
     ch_runtime_config = channel.fromPath(params.runtime_config)
     ch_clinvar_tar = channel.fromPath(params.clinvar)
-    ch_exomiser_tar = channel.fromPath(params.exomiser)
     ch_gen2phen = channel.fromPath(params.gen2phen)
     ch_phenio_gz = channel.fromPath(params.phenio_db)
-    ch_svdb_tsv = channel.fromPath(params.svdb_tsv)
-
-    // convert the SVDB TSV into a Hail Table
-    ConvertSpliceVarDb(
-        ch_svdb_tsv
-    )
+    ch_mane = channel.fromPath(params.parsed_mane)
 
     // make a phenopackets file (CPG-specific)
     // commenting this call out as authenticating inside the container is more effort than it's worth right now
@@ -52,11 +45,6 @@ workflow {
         ch_runtime_config
     )
 
-    FindGeneSymbolMap(
-        QueryPanelapp.out,
-        ch_runtime_config
-    )
-
     // run the hail filtering, using a Tarball'd MT path provided in config
     ch_mt_tar = channel.fromPath(params.matrix_tar, checkIfExists: true)
     RunHailFiltering(
@@ -64,9 +52,6 @@ workflow {
         QueryPanelapp.out,
         ConvertPedToPhenopackets.out[0],
         ch_clinvar_tar,
-        ch_exomiser_tar,
-        ConvertSpliceVarDb.out,
-        params.checkpoint,
         ch_runtime_config,
     )
 

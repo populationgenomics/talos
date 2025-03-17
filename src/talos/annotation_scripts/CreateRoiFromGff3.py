@@ -29,6 +29,8 @@ GENE_NAME_RE = re.compile(r'Name=([\w-]+);')
 
 TYPES_TO_KEEP: set[str] = {'gene', 'ncRNA_gene', 'snRNA'}
 
+CANONICAL_CONTIGS = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
+
 
 def main(gff3_file: str, unmerged_output: str, merged_output: str, flanking: int = 2000):
     """
@@ -64,7 +66,11 @@ def generate_bed_lines(
 
             # skip over non-genes (e.g. pseudogenes, ncRNA)
             # only focus on Ensembl genes/transcripts
-            if line_as_list[TYPE_INDEX] not in TYPES_TO_KEEP or 'ensembl' not in line_as_list[RESOURCE_INDEX]:
+            if (
+                line_as_list[TYPE_INDEX] not in TYPES_TO_KEEP
+                or 'ensembl' not in line_as_list[RESOURCE_INDEX]
+                or f'chr{line_as_list[CHROM_INDEX]}' not in CANONICAL_CONTIGS
+            ):
                 continue
 
             # extract the gene name from the details field

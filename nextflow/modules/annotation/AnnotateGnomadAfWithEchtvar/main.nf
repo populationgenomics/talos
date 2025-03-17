@@ -15,12 +15,6 @@ process AnnotateGnomadAfWithEchtvar {
     script:
         """
         set -ex
-        sorted_zips=""
-
-        for chrom in \$(seq 1 22) X Y; do
-            sorted_zips="\${sorted_zips} -e chr\${chrom}.zip "
-        done;
-
         echtvar anno \
             -e ${zip} \
             ${vcf} \

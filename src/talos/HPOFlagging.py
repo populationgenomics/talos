@@ -31,6 +31,21 @@ from talos.utils import phenotype_label_history, read_json_from_path
 _SEMSIM_CLIENT: Semsimian | None = None
 
 
+def read_and_filter_mane_json(mane_json: str) -> dict:
+    """
+    Read the MANE JSON and filter it to the relevant fields
+    Args:
+        mane_json ():
+
+    Returns:
+        a dictionary of {Symbol: ID}
+    """
+
+    json_dict = read_json_from_path(mane_json)
+
+    return {entry['symbol']: entry['ensg'] for entry in json_dict.values()}
+
+
 def get_sem_client(phenio_db: str | None = None) -> Semsimian:
     """
     create or retrieve a Semsimian client
@@ -138,7 +153,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
                 # Find all phenotype matches that meet the min_score threshold
                 pheno_matches = {
-                    f"{match['object_id']}: {object_termset[match['object_id']]}"
+                    f'{match["object_id"]}: {object_termset[match["object_id"]]}'
                     for match in termset_similarity['subject_best_matches']['similarity'].values()
                     if float(match['ancestor_information_content']) > min_similarity
                 }
@@ -223,7 +238,7 @@ def filter_and_write_out(annotated_results: ResultData, out_path: str):
 def cli_main():
     parser = ArgumentParser(description='')
     parser.add_argument('--input', help='The Result data in JSON form')
-    parser.add_argument('--gene_map', help='A map of gene symbol to ENSG for all genes in this analysis')
+    parser.add_argument('--mane_json', help='A map of gene symbol to ENSG for all genes in this analysis')
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
     parser.add_argument('--output', help='Annotated full output')
@@ -231,7 +246,7 @@ def cli_main():
     args = parser.parse_args()
     main(
         result_file=args.input,
-        gene_map=args.gene_map,
+        mane_json=args.mane_json,
         gen2phen=args.gen2phen,
         phenio=args.phenio,
         out_path=args.output,
@@ -241,7 +256,7 @@ def cli_main():
 
 def main(
     result_file: str,
-    gene_map: str,
+    mane_json: str,
     gen2phen: str,
     phenio: str,
     out_path: str,
@@ -251,12 +266,14 @@ def main(
 
     Args:
         result_file (str): path to the ValidateMOI output JSON
-        gene_map (str): output of FindGeneSymbolMap, JSON
+        mane_json (str): dictionary of all MANE genes we know about
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
         out_path (str): path to write the annotated results
         phenout (str): optional, path to phenotype filtered outputs
     """
+
+    gene_map = read_and_filter_mane_json(mane_json)
 
     # read the results JSON into an object
     results = read_json_from_path(result_file, return_model=ResultData)

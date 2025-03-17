@@ -1,5 +1,3 @@
-
-
 process AnnotateCsqWithBcftools {
     container params.container
 

@@ -91,8 +91,6 @@ setup(
             'GeneratePanelData = talos.GeneratePanelData:cli_main',
             # query PanelApp for those selected panels
             'QueryPanelapp = talos.QueryPanelapp:cli_main',
-            # use API queries to find the gene symbol for each gene ID
-            'FindGeneSymbolMap = talos.FindGeneSymbolMap:cli_main',
             # Filter and label a small-variant MatrixTable
             'RunHailFiltering = talos.RunHailFiltering:cli_main',
             # Filter and label a SV MatrixTable
