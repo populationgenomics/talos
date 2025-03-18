@@ -77,8 +77,8 @@ def too_common_in_callset(
     if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
         return False
 
-    min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 5)
-    if info.get('ac', 0) <= min_ac:
+    min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 10)
+    if info.get('ac', 0) < min_ac:
         return False
 
     callset_af_threshold = config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)

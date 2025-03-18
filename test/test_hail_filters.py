@@ -33,8 +33,8 @@ def test_ac_filter_no_filt(
     matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
             clinvar_talos=clinvar,
-            AC=ac,
-            AF=af,
+            AC=[ac],
+            AF=[af],
         ),
     )
 
