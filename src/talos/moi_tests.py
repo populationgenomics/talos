@@ -37,7 +37,10 @@ SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
-def too_common_in_population(info: dict, thresholds: dict[str, int | float]) -> bool:
+def too_common_in_population(
+    info: dict,
+    thresholds: dict[str, int | float],
+) -> bool:
     """
     Method to check multiple info keys against a single threshold
     This just reduces the line count, as this is called a bunch of times
@@ -50,12 +53,15 @@ def too_common_in_population(info: dict, thresholds: dict[str, int | float]) -> 
     Returns:
         True if any of the info attributes is above the threshold
     """
-    if info.get('categoryboolean1'):
+    if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
         return False
     return any(info.get(key, 0) > test for key, test in thresholds.items())
 
 
-def too_common_in_callset(info: dict, callset_ac_threshold: int | None = 10) -> bool:
+def too_common_in_callset(
+    info: dict,
+    callset_ac_threshold: int | None = 10,
+) -> bool:
     """
     if the callset is large enough, apply this filter
     this is predicated on info containing both ac and af
@@ -68,6 +74,8 @@ def too_common_in_callset(info: dict, callset_ac_threshold: int | None = 10) -> 
     Returns:
         True if this variant is above the filtering threshold
     """
+    if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
+        return False
 
     min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 5)
     if info.get('ac', 0) <= min_ac:

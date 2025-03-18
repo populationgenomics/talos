@@ -24,6 +24,11 @@ chunk_size = 800
 # thresholds for different filters during the MOI checks
 gnomad_dominant = 0.001
 
+# by default common in callset/gnomAD filters aren't applied to ClinVar pathogenics
+# set this flag to false to apply apply these filters
+# in testing this created a drastic reduction in candidates, at the expense of a few causative variants
+allow_common_clinvar = true
+
 # we dismiss variants where the proband doesn't have at least this much alt support
 min_alt_depth = 5
 
