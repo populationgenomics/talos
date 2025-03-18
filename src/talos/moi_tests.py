@@ -50,6 +50,8 @@ def too_common_in_population(info: dict, thresholds: dict[str, int | float]) -> 
     Returns:
         True if any of the info attributes is above the threshold
     """
+    if info.get('categoryboolean1'):
+        return False
     return any(info.get(key, 0) > test for key, test in thresholds.items())
 
 
