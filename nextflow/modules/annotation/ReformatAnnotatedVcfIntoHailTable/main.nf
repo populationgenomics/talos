@@ -24,10 +24,11 @@ process ReformatAnnotatedVcfIntoHailTable {
             --gene_bed ${gene_bed} \
             --output ${params.cohort}_annotations.ht \
             --mane ${mane}
+
         # cut down on work folder space
         rm -r alphamissense_38.ht
 
-        tar --no-xattrs -czf ${params.cohort}_annotations.ht.tar.gz ${params.cohort}_annotations.ht
+        tar --no-xattrs -cf ${params.cohort}_annotations.ht.tar ${params.cohort}_annotations.ht
 
         rm -r ${params.cohort}_annotations.ht
         """

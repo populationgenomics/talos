@@ -22,7 +22,7 @@ process RunHailFiltering {
     export TALOS_CONFIG=${talos_config}
 
     tar -zxf ${clinvar}
-    tar --zstd -xf ${mt_tar}
+    tar -xf ${mt_tar}
 
     RunHailFiltering \
         --input ${params.cohort}.mt \

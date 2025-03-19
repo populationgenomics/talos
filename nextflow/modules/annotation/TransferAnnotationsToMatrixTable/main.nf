@@ -9,7 +9,7 @@ process TransferAnnotationsToMatrixTable {
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        path("${params.cohort}.mt.tar.zst")
+        path("${params.cohort}.mt.tar")
 
     script:
         """
@@ -22,6 +22,8 @@ process TransferAnnotationsToMatrixTable {
 
         # cut down on work folder space
         rm -r ${params.cohort}_annotations.ht
-		tar --no-xattrs --remove-files -c --use-compress-program=zstdmt -f ${params.cohort}.mt.tar.zst ${params.cohort}.mt
+
+		tar --no-xattrs --remove-files -cf ${params.cohort}.mt.tar ${params.cohort}.mt
+		rm -r ${params.cohort}.mt
         """
 }

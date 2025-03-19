@@ -22,7 +22,6 @@ include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnl
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
 include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
 include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'
-// include { ReformatVcfToMt } from './modules/annotation/ReformatVcfToMt/main'
 include { ReformatAnnotatedVcfIntoHailTable } from './modules/annotation/ReformatAnnotatedVcfIntoHailTable/main'
 include { TransferAnnotationsToMatrixTable } from './modules/annotation/TransferAnnotationsToMatrixTable/main'
 
