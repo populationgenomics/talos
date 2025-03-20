@@ -511,7 +511,7 @@ def test_x_dominant_male_hom_passes(pedigree_path):
 @pytest.mark.parametrize(
     'info,wins',
     [
-        ({'gnomad_af': 0.1, 'gene_id': 'TEST1', 'categoryboolean1': True}, 1),
+        ({'gnomad_af': 0.001, 'gene_id': 'TEST1', 'categoryboolean1': True}, 1),
         ({'gnomad_hom': 2, 'gene_id': 'TEST1', 'categoryboolean1': True}, 1),
         ({'gnomad_hemi': 3, 'gene_id': 'TEST1', 'categoryboolean1': False}, 0),
     ],
@@ -928,12 +928,6 @@ def test_too_common_in_population_passes_cat1():
     assert not too_common_in_population(info=info, thresholds={})
 
 
-def test_too_common_in_population_passes_nocat1_notests():
-    """this should return false, i.e. would not be removed"""
-    info = {'categoryboolean1': True}
-    assert not too_common_in_population(info=info, thresholds={}, permit_clinvar=False)
-
-
 def test_too_common_in_population_passes_below_thresholds():
     """should return false, i.e. attributes are below thresholds"""
     info = {'categoryboolean1': False, 'value': 0}
@@ -959,12 +953,12 @@ def test_too_common_in_population_true_c1_ignored():
     """should return false, i.e. attributes are below thresholds, clinvar disabled"""
     info = {'categoryboolean1': True, 'value': 10}
     thresholds = {'value': 0.01}
-    assert too_common_in_population(info, thresholds, permit_clinvar=False)
+    assert too_common_in_population(info, thresholds)
 
 
 def test_too_common_in_callset_true():
     """should return True, i.e. variant is too common"""
-    info = {'ac': 6, 'af': 0.1}
+    info = {'ac': 10, 'af': 0.1}
     assert too_common_in_callset(info)
 
 
@@ -976,5 +970,5 @@ def test_too_common_in_callset_false_low_ac():
 
 def test_too_common_in_callset_false_low_af():
     """properly false, high enough callset AC, but rare enough to pass"""
-    info = {'ac': 40, 'af': 0.001}
+    info = {'ac': 5, 'af': 0.001}
     assert not too_common_in_callset(info)

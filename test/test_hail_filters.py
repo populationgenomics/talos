@@ -5,24 +5,23 @@ unit testing collection for the hail MT methods
 import hail as hl
 import pytest
 
-from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, filter_to_well_normalised
+from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags
 
 
 @pytest.mark.parametrize(  # needs clinvar
-    'ac,an,clinvar,threshold,rows',
+    'ac,af,clinvar,threshold,rows',
     [
-        ([1], 1, 0, 0.01, 1),
-        ([6], 1, 0, 0.01, 0),
-        ([6], 1, 1, 0.01, 1),
-        ([6], 70, 0, 0.1, 1),
-        ([50], 999999, 0, 0.01, 1),
-        ([50], 50, 0, 0.01, 0),
-        ([50], 50, 1, 0.01, 1),
+        (1, 0.0, 0, 0.01, 1),
+        (6, 0.1, 0, 0.01, 0),
+        (6, 0.1, 1, 0.01, 1),
+        (50, 0.001, 0, 0.01, 1),
+        (50, 0.2, 0, 0.01, 0),
+        (50, 0.2, 1, 0.01, 1),
     ],
 )
 def test_ac_filter_no_filt(
     ac: int,
-    an: int,
+    af: float,
     clinvar: int,
     threshold: float,
     rows: int,
@@ -30,17 +29,16 @@ def test_ac_filter_no_filt(
 ):
     """
     run tests on the ac filtering method
-    check that a clinvar pathogenic overrides the AC test
     """
     matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
             clinvar_talos=clinvar,
-            AC=ac,
-            AN=an,
+            AC=[ac],
+            AF=[af],
         ),
     )
 
-    assert filter_matrix_by_ac(matrix, threshold).count_rows() == rows
+    assert filter_matrix_by_ac(mt=matrix, af_threshold=threshold).count_rows() == rows
 
 
 @pytest.mark.parametrize(
@@ -69,21 +67,3 @@ def test_filter_on_quality_flags(
         info=anno_matrix.info.annotate(clinvar_talos=clinvar),
     )
     assert filter_on_quality_flags(anno_matrix).count_rows() == length
-
-
-@pytest.mark.parametrize(
-    'alleles,length',
-    [
-        (hl.literal(['A', 'C']), 1),
-        (hl.literal(['A', '*']), 0),
-        (hl.literal(['A', 'C', 'G']), 0),
-    ],
-)
-def test_filter_to_well_normalised(alleles, length, make_a_mt):
-    """
-    checks the allele-level tests
-    """
-    # to add new alleles, we need to scrub alleles from the key fields
-    anno_matrix = make_a_mt.key_rows_by('locus')
-    anno_matrix = anno_matrix.annotate_rows(alleles=alleles)
-    assert filter_to_well_normalised(anno_matrix).count_rows() == length

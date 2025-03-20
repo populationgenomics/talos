@@ -90,7 +90,7 @@ class BaseFields:
         qual: float | None = 60.0,
         ac: list[int] | None = None,
         af: list[float] | None = None,
-        an: int | None = 1,
+        an: int | None = 1000,
     ):
         self.locus = locus
         self.alleles = alleles
@@ -268,7 +268,8 @@ class SneakyTable:
         self.sample_details = sample_details
         self.tmp_path = tmp_path
         try:
-            hl.init(default_reference='GRCh38')
+            hl.init(idempotent=True)
+            hl.default_reference('GRCh38')
         except FatalError as fe:
             get_logger().info(f'Hail already initialised: {fe}')
 

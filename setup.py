@@ -28,7 +28,7 @@ setup(
     name='talos',
     description='Centre for Population Genomics Variant Prioritisation',
     long_description=readme,
-    version='6.6.3',
+    version='7.0.0',
     author='Matthew Welland, CPG',
     author_email='matthew.welland@populationgenomics.org.au, cas.simons@populationgenomics.org.au',
     package_data={'talos': ['templates/*.jinja', 'example_config.toml']},
@@ -56,38 +56,52 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            # for use in translating a VEP annotated VCF to a MatrixTable
-            'VcfToMt = talos.VcfToMt:cli_main',
+            # ----------------------------------------------------------------------------------------
+            # these scripts are used during the annotation & data formatting pre-workflow
+            # ----------------------------------------------------------------------------------------
+            # Parse an Ensembl GFF3 file, output a BED file of gene regions
+            'CreateRoiFromGff3 = talos.annotation_scripts.CreateRoiFromGff3:cli_main',
+            # Parse AlphaMissense into Hail Table
+            'ParseAlphaMissenseIntoHt = talos.annotation_scripts.ParseAlphaMissenseIntoHt:cli_main',
+            # Parse MANE summary file into JSON
+            'ParseManeIntoJson = talos.annotation_scripts.ParseManeIntoJson:cli_main',
+            # Reformats an annotated sites-only VCF into Table, adding additional annotations
+            'ReformatAnnotatedVcfIntoHailTable = talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable:cli_main',
+            # Combines the annotations and the VCF into a MatrixTable
+            'TransferAnnotationsToMatrixTable = talos.annotation_scripts.TransferAnnotationsToMatrixTable:cli_main',
+            # ----------------------------------------------------------------------------------------
+            # these scripts are specific to internal CPG functions
+            # ----------------------------------------------------------------------------------------
+            # Scans Metamist for published reports, collects into an index page
+            'BuildReportIndexPage = talos.cpg_internal_scripts.BuildReportIndexPage:main',
+            # Create cohort phenopackets from Metamist
+            'MakePhenopackets = talos.cpg_internal_scripts.MakePhenopackets:cli_main',
+            # Parse the summary JSON, generating a file for ingestion by Seqr
+            'MinimiseOutputForSeqr = talos.cpg_internal_scripts.MinimiseOutputForSeqr:cli_main',
+            # ----------------------------------------------------------------------------------------
+            # these scripts are part of the core Talos workflow
+            # ----------------------------------------------------------------------------------------
+            # Combine multiple separate Exomiser result files into a single Hail Table/JSON
+            'AggregateExomiserVariantTsvs = talos.AggregateExomiserVariantTsvs:cli_main',
             # turns the SVDB TSV into a Hail Table
             'ConvertSpliceVarDb = talos.ConvertSpliceVarDb:cli_main',
-            # CPG internal, scans database for published reports, collects into an index page
-            'BuildReportIndexPage = talos.CPG.BuildReportIndexPage:main',
-            # CPG implementation, builds cohort phenopackets
-            'MakePhenopackets = talos.CPG.MakePhenopackets:cli_main',
-            # CPG implementation, builds cohort phenopackets from a pedigree with HPO terms
-            'ConvertPedToPhenopackets = talos.CPG.convert_ePED_to_phenopackets:cli_main',
+            # Builds cohort phenopackets from a pedigree with HPO terms
+            'ConvertPedToPhenopackets = talos.ConvertPedToPhenopackets:cli_main',
             # use the HPO terms to select panels for this analysis
             'GeneratePanelData = talos.GeneratePanelData:cli_main',
             # query PanelApp for those selected panels
             'QueryPanelapp = talos.QueryPanelapp:cli_main',
-            # use API queries to find the gene symbol for each gene ID
-            'FindGeneSymbolMap = talos.FindGeneSymbolMap:cli_main',
-            # # TODO - this thing just doesn't work in its current form. Does not scale.
-            # # match participant HPOs to gene HPOs for prioritisation
-            # # 'MatchGenesToPhenotypes = talos.MatchGenesToPhenotypes:cli_main',  # noqa: ERA001
             # Filter and label a small-variant MatrixTable
             'RunHailFiltering = talos.RunHailFiltering:cli_main',
             # Filter and label a SV MatrixTable
-            'RunHailFilteringSV = talos.RunHailFilteringSV:cli_main',
+            'RunHailFilteringSV = talos.RunHailFilteringSv:cli_main',
             # Run each of the category-labelled variants through MOI filters
             'ValidateMOI = talos.ValidateMOI:cli_main',
             # catch variants which have strong phenotypic matches
             'HPOFlagging = talos.HPOFlagging:cli_main',
-            # CPG internal (?), publish those results as an HTML report
+            # Generate a HTML file from the report summary
             'CreateTalosHTML = talos.CreateTalosHTML:cli_main',
-            # CPG internal (?), generate a file for ingestion by Seqr
-            'MinimiseOutputForSeqr = talos.MinimiseOutputForSeqr:cli_main',
-            # CPG internal (?), generate a JSON summary of an existing report
+            # Generate a brief summary of an existing report (variant count, family size, etc.)
             'SummariseReport = talos.SummariseReport:cli_main',
         ],
     },

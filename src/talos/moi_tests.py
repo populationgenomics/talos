@@ -4,6 +4,17 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 
 Reduce the PanelApp plain text MOI description into a few categories
 We then run a permissive MOI match for the variant
+
+Expected available gnomad annotations:
+'gnomad': struct {
+    gnomad_AC: int32,
+    gnomad_AF: float64,
+    gnomad_AN: int32,
+    gnomad_AC_XY: int32,
+    gnomad_AF_XY: float64,
+    gnomad_FAF: float64,
+    gnomad_HomAlt: int32
+}
 """
 
 # mypy: ignore-errors
@@ -15,19 +26,21 @@ from talos.utils import X_CHROMOSOME, CompHetDict
 
 # config keys to use for dominant MOI tests
 CALLSET_AF_SV_DOMINANT = 'callset_af_sv_dominant'
+CALLSET_AC_DOMINANT = 'max_callset_ac_dominant'
 GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
 GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
 GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
 GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
 GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
-INFO_HOMS = {'gnomad_hom', 'gnomad_ex_hom'}
-INFO_HEMI = {'gnomad_hemi', 'gnomad_ex_hemi'}
 SV_AF_KEY = 'gnomad_v2.1_sv_AF'
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
-def too_common_in_population(info: dict, thresholds: dict[str, int | float], permit_clinvar: bool = True) -> bool:
+def too_common_in_population(
+    info: dict,
+    thresholds: dict[str, int | float],
+) -> bool:
     """
     Method to check multiple info keys against a single threshold
     This just reduces the line count, as this is called a bunch of times
@@ -36,34 +49,46 @@ def too_common_in_population(info: dict, thresholds: dict[str, int | float], per
     Args:
         info (): the dict of values for this dict
         thresholds (): the dict of keys - thresholds to test against
-        permit_clinvar (bool): if True, always allow clinvar pathogenic variants to pass
 
     Returns:
         True if any of the info attributes is above the threshold
     """
-    if permit_clinvar and info.get('categoryboolean1'):
+    if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
         return False
     return any(info.get(key, 0) > test for key, test in thresholds.items())
 
 
-def too_common_in_callset(info: dict) -> bool:
+def too_common_in_callset(
+    info: dict,
+    callset_ac_threshold: int | None = 10,
+) -> bool:
     """
     if the callset is large enough, apply this filter
     this is predicated on info containing both ac and af
-    previously we've permitted < 5 instances in the callset through
+    previously we've permitted < 5 instances in the callset through (callset too small to filter)
     This doesn't care about a variant being in ClinVar
 
     Args:
         info (dict): info dict for this variant
+        callset_ac_threshold (int): maximum AC
     Returns:
         True if this variant is above the filtering threshold
     """
-
-    min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 5)
-    if info.get('ac', 0) <= min_ac:
+    if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
         return False
 
-    return info.get('af', 0.0) >= config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
+    min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 10)
+    if info.get('ac', 0) < min_ac:
+        return False
+
+    callset_af_threshold = config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
+    if info.get('af', 0.0) >= callset_af_threshold:
+        return True
+
+    # if an AC threshold was given, use it to filter
+    if callset_ac_threshold is not None and info.get('ac', 0) >= callset_ac_threshold:
+        return True
+    return False
 
 
 class MOIRunner:
@@ -302,10 +327,15 @@ class DominantAutosomal(BaseMoi):
         self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
         self.sv_af_threshold = config_retrieve(['ValidateMOI', CALLSET_AF_SV_DOMINANT])
 
+        self.callset_ac_threshold = config_retrieve(['ValidateMOI', CALLSET_AC_DOMINANT])
+
         # prepare the AF test dicts
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
-            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            SmallVariant.__name__: {
+                'gnomad_homalt': self.hom_threshold,
+                'gnomad_ac': self.ac_threshold,
+                'gnomad_af': self.ad_threshold,
+            },
             StructuralVariant.__name__: {'af': self.sv_af_threshold, SV_AF_KEY: self.sv_af_threshold},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
@@ -330,7 +360,7 @@ class DominantAutosomal(BaseMoi):
         if too_common_in_population(
             principal.info,
             self.freq_tests[principal.__class__.__name__],
-        ) or too_common_in_callset(principal.info):
+        ) or too_common_in_callset(principal.info, callset_ac_threshold=self.callset_ac_threshold):
             return classifications
 
         # autosomal dominant doesn't require support, but consider het and hom
@@ -385,7 +415,7 @@ class RecessiveAutosomalCH(BaseMoi):
         """ """
         self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
+            SmallVariant.__name__: {'gnomad_homalt': self.hom_threshold},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
@@ -492,7 +522,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         """ """
         self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS},
+            SmallVariant.__name__: {'gnomad_homalt': self.hom_threshold},
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
@@ -584,9 +614,12 @@ class XDominant(BaseMoi):
         self.hemi_threshold = config_retrieve(['ValidateMOI', GNOMAD_HEMI_THRESHOLD])
 
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
-            | {key: self.hemi_threshold for key in INFO_HEMI}
-            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            SmallVariant.__name__: {
+                'gnomad_homalt': self.hom_threshold,
+                'gnomad_ac_xy': self.hemi_threshold,
+                'gnomad_ac': self.ac_threshold,
+                'gnomad_af': self.ad_threshold,
+            },
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS}
             | {key: self.hemi_threshold for key in SV_HEMI},
         }
@@ -681,8 +714,11 @@ class XPseudoDominantFemale(BaseMoi):
         self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
 
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_threshold for key in INFO_HOMS}
-            | {'gnomad_ac': self.ac_threshold, 'gnomad_af': self.ad_threshold},
+            SmallVariant.__name__: {
+                'gnomad_homalt': self.hom_threshold,
+                'gnomad_ac': self.ac_threshold,
+                'gnomad_af': self.ad_threshold,
+            },
             StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
         }
 
@@ -785,8 +821,10 @@ class XRecessiveMale(BaseMoi):
         self.hemi_threshold = config_retrieve(['ValidateMOI', GNOMAD_HEMI_THRESHOLD])
 
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_dom_threshold for key in INFO_HOMS}
-            | {key: self.hemi_threshold for key in INFO_HEMI},
+            SmallVariant.__name__: {
+                'gnomad_homalt': self.hom_dom_threshold,
+                'gnomad_ac_xy': self.hemi_threshold,
+            },
             StructuralVariant.__name__: {key: self.hom_dom_threshold for key in SV_HOMS}
             | {key: self.hemi_threshold for key in SV_HEMI},
         }
@@ -871,7 +909,7 @@ class XRecessiveFemaleHom(BaseMoi):
 
         self.hom_rec_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
+            SmallVariant.__name__: {'gnomad_homalt': self.hom_rec_threshold},
             StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
@@ -954,7 +992,7 @@ class XRecessiveFemaleCH(BaseMoi):
 
         self.hom_rec_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
         self.freq_tests = {
-            SmallVariant.__name__: {key: self.hom_rec_threshold for key in INFO_HOMS},
+            SmallVariant.__name__: {'gnomad_homalt': self.hom_rec_threshold},
             StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
         }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
