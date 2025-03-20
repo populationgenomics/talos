@@ -27,7 +27,7 @@ Analysis consists of three main phases:
 At this time the recommended way to use this tool is via Docker, building using the Dockerfile in this repository.
 
 ```bash
-DOCKERBUILDKIT=1 docker build -t talos:6.6.3  .
+DOCKERBUILDKIT=1 docker build -t talos:7.0.0  .
 ```
 
 ## Workflow Demonstration with Nextflow
@@ -35,7 +35,7 @@ DOCKERBUILDKIT=1 docker build -t talos:6.6.3  .
 A Nextflow pipeline is provided to demonstrate how to run Talos. This pipeline is designed to be run on a local machine, and requires that you have nextflow installed locally, and a docker daemon running. First, as described above, build the docker image:
 
 ```bash
-docker build -t talos:6.6.3 .
+docker build -t talos:7.0.0 .
 ```
 
 Then, run the pipeline:
