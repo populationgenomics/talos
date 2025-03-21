@@ -16,15 +16,30 @@ forced_panels = [1, 2, 3]
 # we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol
 within_x_months = 6
 
+[GeneratePanelData.manual_overrides]
+# this section permits the manual addition of genes to the panel data
+# each gene here will be folded into the panelapp data after standard API queries have taken place
+# if the gene was already identified for this analysis, the MOI provided here will take precedent
+# if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
+# associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
+[[GeneratePanelData.manual_overrides.genes]]
+# this field is mandatory - the ENSG ID of the gene
+ensg = 'ENSG0000012345'
+
+# this field should be supplied, if omitted will default to Mono_And_Biallelic
+moi = 'Biallelic'
+
+# optional - if ommitted the gene symbol will be looked up in the Ensembl data
+symbol = 'AGENE'
+
+# optional
+chrom = '1'
+
 [GeneratePanelData.forced_moi]
 # choose gene IDs to overrule the PanelApp default MOI
 # must be selected from 'Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic'
 # e.g.
 # ENSG1234 = 'Biallelic'
-
-[FindGeneSymbolMap]
-# much higher than this and we get into throttling issues
-chunk_size = 800
 
 [ValidateMOI]
 # thresholds for different filters during the MOI checks
@@ -121,3 +136,4 @@ semantic_match = true
 
 # min similarity score when doing a semsimian termset similarity test
 min_similarity = 14.0
+
