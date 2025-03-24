@@ -53,7 +53,7 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             ),
         )
 
-    # update the rest of these atributes if missing
+    # update the rest of these attributes if missing
     for sv_attribute in ('STATUS', 'CHR2', 'END2'):
         if sv_attribute not in mt.info:
             mt = mt.annotate_rows(
