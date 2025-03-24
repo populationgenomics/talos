@@ -53,6 +53,13 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             ),
         )
 
+    if 'STATUS' not in mt.info:
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                STATUS='CNV',
+            ),
+        )
+
     mt = mt.annotate_rows(
         info=hl.struct(
             AC=mt.info.AC,
