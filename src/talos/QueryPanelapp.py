@@ -10,10 +10,16 @@ from datetime import datetime
 from dateutil.parser import parse
 from dateutil.utils import today
 
-
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
-from talos.utils import ORDERED_MOIS, get_json_response, get_logger, get_simple_moi, read_json_from_path
+from talos.utils import (
+    ORDERED_MOIS,
+    get_json_response,
+    get_logger,
+    get_simple_moi,
+    read_json_from_path,
+    parse_mane_json_to_dict,
+)
 
 
 # global variables for PanelApp interaction
@@ -34,6 +40,8 @@ GENE_CONSTANT = 'gene'
 TODAY = today()
 REALLY_OLD = parse('1970-01-01')
 ACTIVITY_CONTENT = {'green list (high evidence)', 'expert review green'}
+DEFAULT_MOI_FOR_MANUAL_GENES = 'Mono_And_Biallelic'
+DEFAULT_PANEL_ID = 0
 
 
 def request_panel_data(url: str) -> tuple[str, str, list]:
@@ -152,6 +160,7 @@ def get_panel(
         ensg = None
         chrom = None
 
+        # TODO stop picking up ENSG from here
         # for some reason the build is capitalised oddly in panelapp
         # at least one entry doesn't have an ENSG annotation
         for build, content in gene['gene_data']['ensembl_genes'].items():
@@ -220,15 +229,73 @@ def get_best_moi(gene_dict: dict):
             content.moi = sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
+def update_moi_from_config(
+    gene_dict: PanelApp,
+    add_genes: list[dict[str, str]],
+    gene_json: str | None = None,
+) -> PanelApp:
+    """
+    Add additional genes from config
+    Update the MOI for a gene or genes based on a dictionary of gene: moi
+
+    Args:
+        gene_dict (PanelApp): the gene data to update
+        add_genes (list[dict]): entities to add
+        gene_json (str | None): path to the symbol: ensg dictionary in JSON form
+    """
+
+    get_logger().info(f'Overriding MOI for specific genes: {add_genes}')
+
+    # read the MANE file into a dictionary
+    mane_lookup = parse_mane_json_to_dict(gene_json) if gene_json else {}
+
+    for gene_data in add_genes:
+        # this field is mandatory
+        ensg = gene_data['ensg']
+
+        # not essential, but if we have a symbol lookup, use it
+        # if it wasn't provided, use the lookup, if it's not in the lookup, use ENSG
+        symbol = gene_data.get('symbol', mane_lookup.get(ensg, ensg))
+
+        # this field is optional
+        moi = gene_data.get('moi', DEFAULT_MOI_FOR_MANUAL_GENES)
+
+        if moi not in ORDERED_MOIS:
+            raise ValueError(f'{moi} for {ensg} is not a valid MOI, choose from {", ".join(ORDERED_MOIS)}')
+
+        # if this is a gene we already know about, try and update the MOI
+        # and add the custom panel ID to associated panels
+        if ensg in gene_dict.genes:
+            current_moi = gene_dict.genes[ensg].moi
+            if current_moi == moi:
+                get_logger().info(f'{ensg} MOI was already {moi}, no change made')
+            else:
+                get_logger().info(f'{ensg} MOI was updated from {current_moi} to {moi}')
+                gene_dict.genes[ensg].moi = moi
+            gene_dict.genes[ensg].panels.add(DEFAULT_PANEL_ID)
+
+        else:
+            # if this is a new gene, add it to the dictionary
+            gene_dict.genes[ensg] = PanelDetail(
+                symbol=symbol,
+                all_moi={moi},
+                moi=moi,
+                panels={DEFAULT_PANEL_ID},
+                chrom=gene_data.get('chrom', 'chrUnknown'),
+            )
+    return gene_dict
+
+
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--input', help='JSON of per-participant panels', default=None)
     parser.add_argument('--output', required=True, help='destination for results')
+    parser.add_argument('--gene_json', help='path to gene symbol JSON', default=None)
     args = parser.parse_args()
-    main(panels=args.input, out_path=args.output)
+    main(panels=args.input, out_path=args.output, gene_json_path=args.gene_json)
 
 
-def main(panels: str | None, out_path: str):
+def main(panels: str | None, out_path: str, gene_json_path: str | None = None):
     """
     Queries PanelApp for all the gene panels to use in the current analysis
     queries panelapp for each panel in turn, aggregating results
@@ -236,6 +303,7 @@ def main(panels: str | None, out_path: str):
     Args:
         panels (): file containing per-participant panels
         out_path (): where to write the results out to
+        gene_json_path (): path to gene symbol JSON, used to obtain a lookup of symbol to ENSG ID
     """
 
     get_logger().info('Starting PanelApp Query Stage')
@@ -271,12 +339,15 @@ def main(panels: str | None, out_path: str):
         # skip mendeliome - we already queried for it
         if panel == DEFAULT_PANEL:
             continue
-
         get_logger().info(f'Getting Panel {panel}')
         get_panel(gene_dict=gene_dict, panel_id=panel, forbidden_genes=forbidden_genes)
 
     # now get the best MOI, and update the entities in place
     get_best_moi(gene_dict.genes)
+
+    # try and pull from config, default to an empty list
+    if gene_data := config_retrieve(['GeneratePanelData', 'manual_overrides', 'genes'], []):
+        gene_dict = update_moi_from_config(gene_dict, gene_data, gene_json_path)
 
     # write the output to long term storage
     with open(out_path, 'w') as out_file:

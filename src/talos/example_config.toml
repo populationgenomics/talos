@@ -1,6 +1,6 @@
 [GeneratePanelData]
 # the panelapp instance to use
-panelapp = 'https://panelapp-aus.org//api/v1/panels'
+panelapp = 'https://panelapp-aus.org/api/v1/panels'
 # panel ID in that panelapp instance to use as a base, by default this is the 'Mendeliome'
 default_panel = 137
 # these genes are removed from the base panel, but will be included if they occur in a phenotype-matched panel
@@ -16,9 +16,24 @@ forced_panels = [1, 2, 3]
 # we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol
 within_x_months = 6
 
-[FindGeneSymbolMap]
-# much higher than this and we get into throttling issues
-chunk_size = 800
+[GeneratePanelData.manual_overrides]
+# this section permits the manual addition of genes to the panel data
+# each gene here will be folded into the panelapp data after standard API queries have taken place
+# if the gene was already identified for this analysis, the MOI provided here will take precedent
+# if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
+# associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
+[[GeneratePanelData.manual_overrides.genes]]
+# this field is mandatory - the ENSG ID of the gene
+ensg = 'ENSG0000012345'
+
+# this field should be supplied, if omitted will default to Mono_And_Biallelic
+moi = 'Biallelic'
+
+# optional - if ommitted the gene symbol will be looked up in the Ensembl data
+symbol = 'AGENE'
+
+# optional
+chrom = '1'
 
 [ValidateMOI]
 # thresholds for different filters during the MOI checks

@@ -26,24 +26,9 @@ from semsimian import Semsimian
 from talos.config import config_retrieve
 from talos.models import ParticipantResults, ResultData
 from talos.static_values import get_granular_date
-from talos.utils import phenotype_label_history, read_json_from_path
+from talos.utils import phenotype_label_history, read_json_from_path, parse_mane_json_to_dict
 
 _SEMSIM_CLIENT: Semsimian | None = None
-
-
-def read_and_filter_mane_json(mane_json: str) -> dict:
-    """
-    Read the MANE JSON and filter it to the relevant fields
-    Args:
-        mane_json ():
-
-    Returns:
-        a dictionary of {Symbol: ID}
-    """
-
-    json_dict = read_json_from_path(mane_json)
-
-    return {entry['symbol']: entry['ensg'] for entry in json_dict.values()}
 
 
 def get_sem_client(phenio_db: str | None = None) -> Semsimian:
@@ -270,7 +255,7 @@ def main(
         phenout (str): optional, path to phenotype filtered outputs
     """
 
-    gene_map = read_and_filter_mane_json(mane_json)
+    gene_map = parse_mane_json_to_dict(mane_json)
 
     # read the results JSON into an object
     results = read_json_from_path(result_file, return_model=ResultData)

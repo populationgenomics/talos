@@ -82,6 +82,21 @@ DOI_URL = 'https://doi.org/'
 PHASE_BROKEN: bool = False
 
 
+def parse_mane_json_to_dict(mane_json: str) -> dict:
+    """
+    Read the MANE JSON and filter it to the relevant fields
+    Args:
+        mane_json ():
+
+    Returns:
+        a dictionary of {Symbol: ID}
+    """
+
+    json_dict = read_json_from_path(mane_json)
+
+    return {entry['symbol']: entry['ensg'] for entry in json_dict.values()}
+
+
 def get_random_string(length: int = 6) -> str:
     """
     get a random string of a pre-determined leng`th

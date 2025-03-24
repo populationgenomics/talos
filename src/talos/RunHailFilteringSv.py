@@ -45,6 +45,14 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
         same MT, with shifted annotations
     """
 
+    # accept, but don't force, this GATK-SV field
+    if 'ALGORITHMS' not in mt.info:
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                algorithms=['gCNV'],
+            ),
+        )
+
     mt = mt.annotate_rows(
         info=hl.struct(
             AC=mt.info.AC,

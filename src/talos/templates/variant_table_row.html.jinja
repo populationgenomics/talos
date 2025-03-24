@@ -39,7 +39,7 @@
     <td>
         {# Gene symbol #}
         {% for gene in variant.genes %}
-        <a href="https://panelapp-aus.org//panels/entities/{{gene[1]}}" target="_blank">{{gene[1]}}</a>
+        <a href="https://panelapp-aus.org/panels/entities/{{gene[1]}}" target="_blank">{{gene[1]}}</a>
         {% endfor %}
         {% if variant.new_in_base_panel %}
         <i class="bi bi-star-fill text-warning" data-bs-toggle="tooltip" data-bs-placement="top"

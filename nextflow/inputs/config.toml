@@ -19,6 +19,25 @@ within_x_months = 3
 forbidden_genes = []
 forced_panels = [ 144,]
 
+[GeneratePanelData.manual_overrides]
+# this section permits the manual addition of genes to the panel data
+# each gene here will be folded into the panelapp data after standard API queries have taken place
+# if the gene was already identified for this analysis, the MOI provided here will take precedent
+# if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
+# associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
+[[GeneratePanelData.manual_overrides.genes]]
+# this field is mandatory - the ENSG ID of the gene
+ensg = 'ENSG0000012345'
+
+# this field should be supplied, if omitted will default to Mono_And_Biallelic
+moi = 'Biallelic'
+
+# optional - if ommitted the gene symbol will be looked up in the Ensembl data
+symbol = 'AGENE'
+
+# optional
+chrom = '1'
+
 [FindGeneSymbolMap]
 chunk_size = 800
 
