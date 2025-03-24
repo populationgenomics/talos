@@ -201,6 +201,10 @@ def clean_and_filter(
 
     cohort_panels = set(config_retrieve(['GeneratePanelData', 'forced_panels'], []))
 
+    # add the custom gene panel ID as a forced panel
+    # any gene added manually, either to override MOI, or to add the gene completely, will be applied to every family
+    cohort_panels.add(0)
+
     panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
 
     gene_details: dict[str, set[int]] = {}

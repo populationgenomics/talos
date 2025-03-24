@@ -1,6 +1,6 @@
 [GeneratePanelData]
 # the panelapp instance to use
-panelapp = 'https://panelapp-aus.org//api/v1/panels'
+panelapp = 'https://panelapp-aus.org/api/v1/panels'
 # panel ID in that panelapp instance to use as a base, by default this is the 'Mendeliome'
 default_panel = 137
 # these genes are removed from the base panel, but will be included if they occur in a phenotype-matched panel
@@ -34,12 +34,6 @@ symbol = 'AGENE'
 
 # optional
 chrom = '1'
-
-[GeneratePanelData.forced_moi]
-# choose gene IDs to overrule the PanelApp default MOI
-# must be selected from 'Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic'
-# e.g.
-# ENSG1234 = 'Biallelic'
 
 [ValidateMOI]
 # thresholds for different filters during the MOI checks
@@ -136,4 +130,3 @@ semantic_match = true
 
 # min similarity score when doing a semsimian termset similarity test
 min_similarity = 14.0
-
