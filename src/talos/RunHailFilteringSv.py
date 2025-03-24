@@ -49,9 +49,18 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
     if 'ALGORITHMS' not in mt.info:
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                algorithms=['gCNV'],
+                ALGORITHMS=['gCNV'],
             ),
         )
+
+    # update the rest of these attributes if missing
+    for sv_attribute in ('STATUS', 'CHR2', 'END2'):
+        if sv_attribute not in mt.info:
+            mt = mt.annotate_rows(
+                info=mt.info.annotate(
+                    **{sv_attribute: 'CNV'},
+                ),
+            )
 
     mt = mt.annotate_rows(
         info=hl.struct(
