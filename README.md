@@ -7,8 +7,8 @@
 Talos is a Python variant prioritisation tool which finds diagnostically relevant variants within callsets. 
 
 It incorporates consequence annotation, family structures, participant phenotypes, and crowdsourced clinical knowledge 
-to identify variants likely to cause participant phenotypes. It has does so with high sensitivity, whilst retaining 
-maximal specificity to reduce burden on curators.
+to identify variants likely to cause participant phenotypes. It does so with high sensitivity, whilst retaining maximal 
+specificity to reduce burden on curators.
 
 Talos can be run on any sized dataset, and has been used from single-sample panel analysis to multi-thousand sample
 genome callsets. There are benefits to running larger callsets (Talos shows better than linear scaling with increased
