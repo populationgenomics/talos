@@ -13,9 +13,9 @@ https://www.omim.org/search?index=entry&start=1&search={{symbol}}&field=approved
 
 {% macro decipher_url(gene_id, protein_view=True) -%}
 {% if  protein_view -%}
-    https://decipher.sanger.ac.uk/gene/{{gene_id}}/overview/protein-genomic-info
+    https://www.deciphergenomics.org/gene/{{gene_id}}/overview/protein-genomic-info
 {% else %}
-    https://decipher.sanger.ac.uk/gene/{{gene_id}}/overview/clinical-info
+    https://www.deciphergenomics.org/gene/{{gene_id}}/overview/clinical-info
 {%- endif %}
 {%- endmacro %}
 
