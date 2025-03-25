@@ -38,9 +38,9 @@ any other framework. We'd be glad to discuss specific implementations for your u
 
 ### Input Data
 
-A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs as a tiny
-example. In addition to these stub files you'll need some larger files which are not economical to store in this
-repository. For the annotation workflow:
+A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs, and a 
+corresponding pedigree as a toy example. In addition to these stub files you'll need some larger files which are not 
+economical to store in this repository. For the annotation workflow:
 
 1. A reference genome matching your input data, in FASTA format
 2. An echtvar reference file - we have a pre-generated file we are able to share, please get in touch

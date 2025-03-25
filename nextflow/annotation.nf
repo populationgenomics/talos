@@ -91,12 +91,4 @@ workflow {
         ReformatAnnotatedVcfIntoHailTable.out,
         MergeVcfsWithBcftools.out,
     )
-//
-//     // now what
-//     ReformatVcfToMt(
-//         AnnotateCsqWithBcftools.out,
-//         ch_alphamissense_table,
-//         CreateRoiFromGff3.out.bed,
-//         ParseManeIntoJson.out.json
-//     )
 }
