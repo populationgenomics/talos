@@ -37,7 +37,7 @@ annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly ap
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker buildx build --target talos_none -t talos:7.0.1 .
+docker buildx build -t talos:7.0.1 .
 ```
 
 > **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
