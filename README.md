@@ -4,10 +4,10 @@
 
 ## Overview
 
-Talos is a Python variant prioritisation tool which finds diagnostically relevant variants within callsets. 
+Talos is a Python variant prioritisation tool which finds diagnostically relevant variants within callsets.
 
-It incorporates consequence annotation, family structures, participant phenotypes, and crowdsourced clinical knowledge 
-to identify variants likely to cause participant phenotypes. It does so with high sensitivity, whilst retaining maximal 
+It incorporates consequence annotation, family structures, participant phenotypes, and crowdsourced clinical knowledge
+to identify variants likely to cause participant phenotypes. It does so with high sensitivity, whilst retaining maximal
 specificity to reduce burden on curators.
 
 Talos can be run on any sized dataset, and has been used from single-sample panel analysis to multi-thousand sample
@@ -16,30 +16,30 @@ sample counts), but analysis is per-family unit, so cohort size doesn't affect r
 
 ## Performance
 
-Talos has been benchmarked on a range of clinical and research datasets, with a publication near completion. In brief, 
-Talos returns a mean of one variant per proband per family, and 2 variants per singleton, with approximately 25% of all 
+Talos has been benchmarked on a range of clinical and research datasets, with a publication near completion. In brief,
+Talos returns a mean of one variant per proband per family, and 2 variants per singleton, with approximately 25% of all
 returned variants, and around 40% of variants flagged for special attention deemed clinically relevant.
 
 ### Example Workflows
 
 Included here are two reference workflow implementation using NextFlow:
 
-- [Annotation](nextflow/annotation.nf): Starting from single or multisample VCFs, this workflow annotates and reformats 
+- [Annotation](nextflow/annotation.nf): Starting from single or multisample VCFs, this workflow annotates and reformats
     the variant data into a Talos-ready starting point.
 - [Talos](nextflow/talos.nf): A full Talos analysis, starting from the annotated data in MatrixTable form, and running
     through to report generation.
 
-These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this 
+These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this
 repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and consequence
-annotation) and [Echtvar](https://github.com/brentp/echtvar) used to rapidly apply population frequencies.
+annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
 
-The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in 
+The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
 any other framework. We'd be glad to discuss specific implementations for your use case.
 
 ### Input Data
 
 A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs as a tiny
-example. In addition to these stub files you'll need some larger files which are not economical to store in this 
+example. In addition to these stub files you'll need some larger files which are not economical to store in this
 repository. For the annotation workflow:
 
 1. A reference genome matching your input data, in FASTA format
@@ -59,12 +59,12 @@ with:
 ```commandline
 nextflow -c nextflow/annotation.config run nextflow/annotation.nf
 
-and 
+and
 
 nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_tar nextflow/cohort_outputs/cohort.mt.tar
 ```
 
-The first time the annotation workflow runs will be slower - large AlphaMissense data is downloaded from zenodo, but 
+The first time the annotation workflow runs will be slower - large AlphaMissense data is downloaded from zenodo, but
 this only needs to be done on the first run, and a couple of ancillary files are generated to use in annotation.
 
 ### Real Data
@@ -94,7 +94,7 @@ Talos analysis consists of a few main phases:
 5. [optional] HPO Term Matching
    * If phenotypes are provided, we flag any variants which seem well matched to their families to prioritise analysis
 6. Report Generation
-   * An HTML report is generated for the cohort as a whole, and separately for each family, detailing the variants which 
+   * An HTML report is generated for the cohort as a whole, and separately for each family, detailing the variants which
        passed all filtering criteria
 
 ## Installation
