@@ -31,7 +31,14 @@ Included here are two reference workflow implementation using NextFlow:
 
 These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this
 repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and consequence
-annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
+annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies). 
+
+> **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config 
+> setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
+
+```commandline
+docker buildx build --target talos_none -t talos:7.0.1 .
+```
 
 > **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
