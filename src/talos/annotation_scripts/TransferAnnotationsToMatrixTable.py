@@ -71,6 +71,7 @@ def main(
 
     # a couple of lines commented of to make this as easy as possible to adopt
     # talos doesn't make use of these annotations yet
+    # ruff: noqa: ERA001
     mt = mt.annotate_rows(
         gnomad=hl.struct(
             gnomad_AC=matched_annotations.info.gnomad_AC_joint,

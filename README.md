@@ -31,9 +31,9 @@ Included here are two reference workflow implementation using NextFlow:
 
 These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this
 repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and consequence
-annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies). 
+annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
 
-> **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config 
+> **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
@@ -45,8 +45,8 @@ any other framework. We'd be glad to discuss specific implementations for your u
 
 ### Input Data
 
-A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs, and a 
-corresponding pedigree as a toy example. In addition to these stub files you'll need some larger files which are not 
+A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs, and a
+corresponding pedigree as a toy example. In addition to these stub files you'll need some larger files which are not
 economical to store in this repository. For the annotation workflow:
 
 1. A reference genome matching your input data, in FASTA format

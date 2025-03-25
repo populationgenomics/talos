@@ -52,7 +52,7 @@ ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echt
 
 RUN chmod +x /bin/echtvar
 
-COPY echtvar_config.json /echtvar_config.json
+COPY nextflow/inputs/echtvar_config.json /echtvar_config.json
 
 ENV ECHTVAR_CONFIG="/echtvar_config.json"
 
