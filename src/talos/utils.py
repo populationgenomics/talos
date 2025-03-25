@@ -44,7 +44,6 @@ from talos.static_values import get_granular_date, get_logger
 
 
 if TYPE_CHECKING:
-    # I'm pretty sure this is a real thing
     import cyvcf2
 
 
