@@ -69,14 +69,16 @@ def main(
     # syntax sweeter for later on
     matched_annotations = ht[mt.row_key]
 
+    # a couple of lines commented of to make this as easy as possible to adopt
+    # talos doesn't make use of these annotations yet
     mt = mt.annotate_rows(
         gnomad=hl.struct(
             gnomad_AC=matched_annotations.info.gnomad_AC_joint,
             gnomad_AF=matched_annotations.info.gnomad_AF_joint,
-            gnomad_AN=matched_annotations.info.gnomad_AN_joint,
+            # gnomad_AN=matched_annotations.info.gnomad_AN_joint,
             gnomad_AC_XY=matched_annotations.info.gnomad_AC_joint_XY,
-            gnomad_AF_XY=matched_annotations.info.gnomad_AF_joint_XY,
-            gnomad_FAF=matched_annotations.info.gnomad_faf_95_joint,
+            # gnomad_AF_XY=matched_annotations.info.gnomad_AF_joint_XY,
+            # gnomad_FAF=matched_annotations.info.gnomad_faf_95_joint,
             gnomad_HomAlt=matched_annotations.info.gnomad_HomAlt_joint,
         ),
         transcript_consequences=matched_annotations.transcript_consequences,

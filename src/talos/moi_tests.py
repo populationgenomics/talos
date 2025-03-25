@@ -9,10 +9,7 @@ Expected available gnomad annotations:
 'gnomad': struct {
     gnomad_AC: int32,
     gnomad_AF: float64,
-    gnomad_AN: int32,
     gnomad_AC_XY: int32,
-    gnomad_AF_XY: float64,
-    gnomad_FAF: float64,
     gnomad_HomAlt: int32
 }
 """
