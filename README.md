@@ -31,7 +31,14 @@ Included here are two reference workflow implementation using NextFlow:
 
 These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this
 repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and consequence
-annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
+annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies). 
+
+> **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config 
+> setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
+
+```commandline
+docker buildx build --target talos_none -t talos:7.0.1 .
+```
 
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
 any other framework. We'd be glad to discuss specific implementations for your use case.
@@ -97,31 +104,6 @@ Talos analysis consists of a few main phases:
    * An HTML report is generated for the cohort as a whole, and separately for each family, detailing the variants which
        passed all filtering criteria
 
-## Installation
-
-At this time the recommended way to use this tool is via Docker, building using the Dockerfile in this repository.
-
-```bash
-DOCKERBUILDKIT=1 docker build -t talos:7.0.1  .
-```
-
-## Workflow Demonstration with Nextflow
-
-A Nextflow pipeline is provided to demonstrate how to run Talos. This pipeline is designed to be run on a local machine, and requires that you have nextflow installed locally, and a docker daemon running. First, as described above, build the docker image:
-
-```bash
-docker build -t talos:7.0.1 .
-```
-
-Then, run the pipeline:
-
-```bash
-nextflow -c nf_test_inputs/nextflow.config run talos.nf -with-report
-```
-
-This will run the pipeline on the test data provided in `nf_test_inputs`. The output will be written to `talos_nf_results`.
-
-`-with-report` is an optional argument here, which generates a detailed run report in the current directory.
 
 ## Input Data
 
