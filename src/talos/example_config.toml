@@ -81,6 +81,9 @@ min_callset_ac_to_filter = 5
 # if applied, this is the threshold for the callset AF filter
 callset_af_threshold = 0.01
 
+# set to False if you want population/callset frequency filters to apply to ClinVar pathogenic variants
+allow_common_clinvar = true
+
 [RunHailFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]

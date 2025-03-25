@@ -1,26 +1,101 @@
 # Talos
 
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) ![test](https://github.com/populationgenomics/automated-interpretation-pipeline/actions/workflows/test.yaml/badge.svg) ![black](https://img.shields.io/badge/code%20style-black-000000.svg)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) ![test](https://github.com/populationgenomics/automated-interpretation-pipeline/actions/workflows/test.yaml/badge.svg)
 
 ## Overview
 
-Talos is a Python variant prioritisation tool which finds variants with diagnostic relevance within large callsets. It incorporates consequence annotation, family structures, participant phenotypes, and existing clinical knowledge to identify variants likely to be relevant to participant phenotypes. It has been configured to do this with high specificity whilst retaining maximal sensitivity to reduce burden on curators.
+Talos is a Python variant prioritisation tool which finds diagnostically relevant variants within callsets. 
 
-Analysis consists of three main phases:
+It incorporates consequence annotation, family structures, participant phenotypes, and crowdsourced clinical knowledge 
+to identify variants likely to cause participant phenotypes. It has does so with high sensitivity, whilst retaining 
+maximal specificity to reduce burden on curators.
 
-1. Selection of Gene Panel for the analysis
-   * To ensure a highly specific analysis, we base the analysis on known Mendelian disease genes (with their corresponding Mode of Inheritance, MOI)
-   * If phenotypic data is provided for participants, we create a personalised gene panel for each participant. This is done by matching between the HPO terms assigned to the participant, and disease-specific panels in PanelApp which are tagged with relevant HPO terms.
-   * If no phenotypic data is provided, we use the default Mendeliome for all participants.
-2. Variant Categorisation
-   * We have created a number of `categories`, each represents a decision tree of criteria.
+Talos can be run on any sized dataset, and has been used from single-sample panel analysis to multi-thousand sample
+genome callsets. There are benefits to running larger callsets (Talos shows better than linear scaling with increased
+sample counts), but analysis is per-family unit, so cohort size doesn't affect results.
+
+## Performance
+
+Talos has been benchmarked on a range of clinical and research datasets, with a publication near completion. In brief, 
+Talos returns a mean of one variant per proband per family, and 2 variants per singleton, with approximately 25% of all 
+returned variants, and around 40% of variants flagged for special attention deemed clinically relevant.
+
+### Example Workflows
+
+Included here are two reference workflow implementation using NextFlow:
+
+- [Annotation](nextflow/annotation.nf): Starting from single or multisample VCFs, this workflow annotates and reformats 
+    the variant data into a Talos-ready starting point.
+- [Talos](nextflow/talos.nf): A full Talos analysis, starting from the annotated data in MatrixTable form, and running
+    through to report generation.
+
+These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this 
+repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and consequence
+annotation) and [Echtvar](https://github.com/brentp/echtvar) used to rapidly apply population frequencies.
+
+The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in 
+any other framework. We'd be glad to discuss specific implementations for your use case.
+
+### Input Data
+
+A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs as a tiny
+example. In addition to these stub files you'll need some larger files which are not economical to store in this 
+repository. For the annotation workflow:
+
+1. A reference genome matching your input data, in FASTA format
+2. An echtvar reference file - we have a pre-generated file we are able to share, please get in touch
+
+For the Talos workflow:
+
+1. `genes_to_phenotypes.txt` from https://hpo.jax.org/data/annotations
+2. `hp.obo` from https://hpo.jax.org/data/ontology
+3. `phenio.db.gz` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
+
+These are expected in the [large_files](large_files) directory at the root of this repository.
+
+Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows
+with:
+
+```commandline
+nextflow -c nextflow/annotation.config run nextflow/annotation.nf
+
+and 
+
+nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_tar nextflow/cohort_outputs/cohort.mt.tar
+```
+
+The first time the annotation workflow runs will be slower - large AlphaMissense data is downloaded from zenodo, but 
+this only needs to be done on the first run, and a couple of ancillary files are generated to use in annotation.
+
+### Real Data
+
+For real data, you'll need to provide your own VCFs, and a pedigree file. Optionally you can supply a Phenopackets file,
+used to supply additional phenotypic information for participants. This is used to generate a personalised gene panel
+for each family in the analysis.
+
+---
+
+Talos analysis consists of a few main phases:
+
+1. [optional] Using HPO terms in metadata to identify phenotype-matched gene panels of interest
+    * If no phenotype terms were provided, analysis will just default to the base (Mendeliome) gene panel
+2. Querying PanelApp to find the genes of interest for this analysis run
+   * Using any phenotype-matched panels overlaid on a base Mendelian gene panel
+3. Variant Filtering & Categorisation
+   * Talos applies several filtering criteria to remove common or benign variants, then applies a number of filtering
+        categories to select variants which pass a decision tree of criteria.
    * If a variant passes all criteria of a category, it is labelled with that category.
    * If a variant passes multiple categories, it is labelled with all applicable categories.
    * Once all categories have been applied, any un-categorised variants are removed.
-3. Mode of Inheritance (MOI) Checking
-   * For each remaining variant, we check if the variant's presence in members of the family is consistent with the MOI associated with the gene it is found in.
-     * This includes checking for individual variants and compound-heterozygotes between multiple different variants.
+4. Mode of Inheritance (MOI) Checking
+   * For each remaining variant, we check if the variant's presence in members of the family is consistent with its MOI
+     * This includes both individual variants and compound-heterozygotes between multiple different variants.
    * If the variant is consistent with the MOI, the variant is retained for a final report.
+5. [optional] HPO Term Matching
+   * If phenotypes are provided, we flag any variants which seem well matched to their families to prioritise analysis
+6. Report Generation
+   * An HTML report is generated for the cohort as a whole, and separately for each family, detailing the variants which 
+       passed all filtering criteria
 
 ## Installation
 
@@ -72,14 +147,13 @@ To run Talos you will need:
 
 Talos consists of the following components:
 
-- `VcfToMt` - An adapter step for converting an annotated VCF to a MatrixTable.
 - `MakePhenopackets` - This is a CPG-specific implementation for generating a Cohort/Phenopacket file. It can serve as a template for generating a compliant Phenopackets input file.
 - `GeneratePanelData` - [optional] Phenopacket file, and generates a per-participant list of panels to be used for this analysis, writing the result as a JSON. This also requires a local copy of the HPO ontology, downloadable from [here](http://purl.obolibrary.org/obo/hp.obo).
 - `QueryPanelapp` - Takes the output of `GeneratePanelData`, or None if no PhenoPacket file was provided, Queries PanelApp for the panels selected for the cohort, and writes the result as a JSON.
 - `FindGeneSymbolMap` - Uses the output of `QueryPanelapp` to find the gene symbol for each gene ID via Ensembl's REST API.
 - `RunHailFiltering` - Takes the MatrixTable of Variants, the Pedigree file, the panel data from `QueryPanelapp`, and
   both ClinVar tables, filters the variants in the MatrixTable, and labels them with categories of interest. This is the most resource-intensive step of the pipeline, but even on 400+GB datasets it has been run successfully on a 8-core, 16GB RAM VM.
-- `RunHailFilteringSV` - Takes a MatrixTable of Structural Variants, the Pedigree file, the panel data
+- `RunHailFilteringSv` - Takes a MatrixTable of Structural Variants, the Pedigree file, the panel data
   from `QueryPanelapp`, filters the variants in the MatrixTable, and labels them with categories of interest.
 - `ValidateMOI` - Takes the result of `RunHailFiltering`, optionally one or more SV result from `RunHailFilteringSV`,
   the Pedigree, and panel data from `QueryPanelapp`. Checks each categorised variant to determine whether the MOI
@@ -88,8 +162,6 @@ Talos consists of the following components:
 - `HPOFlagging` - Takes the results of `ValidateMOI`, and uses semsimian to test whether the HPO term(s) associated with the gene matches the HPO term(s) associated with the participant.
 - `CreateTalosHTML` - Generates a report from the results of the `ValidateMOI`.
 - `MinimiseOutputForSeqr` - Parses the result of `ValidateMOI`, generates a file for ingestion by Seqr.
-
-[example_usage.sh](example_usage.sh) demonstrates a full execution of Talos. This should be worked up into a workflow language script, but this bash script should suffice as guidance.
 
 ## Categories
 
