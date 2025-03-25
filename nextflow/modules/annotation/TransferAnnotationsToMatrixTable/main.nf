@@ -22,8 +22,6 @@ process TransferAnnotationsToMatrixTable {
 
         # cut down on work folder space
         rm -r ${params.cohort}_annotations.ht
-
 		tar --no-xattrs --remove-files -cf ${params.cohort}.mt.tar ${params.cohort}.mt
-		rm -r ${params.cohort}.mt
         """
 }

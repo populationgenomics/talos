@@ -11,9 +11,8 @@ process ReformatAnnotatedVcfIntoHailTable {
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        path("${params.cohort}_annotations.ht.tar.gz")
+        path("${params.cohort}_annotations.ht.tar")
 
-    // TODO write this script...
     script:
         """
         set -ex
@@ -25,11 +24,9 @@ process ReformatAnnotatedVcfIntoHailTable {
             --output ${params.cohort}_annotations.ht \
             --mane ${mane}
 
+        tar --remove-files -cf ${params.cohort}_annotations.ht.tar ${params.cohort}_annotations.ht
+
         # cut down on work folder space
         rm -r alphamissense_38.ht
-
-        tar --no-xattrs -cf ${params.cohort}_annotations.ht.tar ${params.cohort}_annotations.ht
-
-        rm -r ${params.cohort}_annotations.ht
         """
 }
