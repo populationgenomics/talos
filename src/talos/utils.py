@@ -546,7 +546,7 @@ def create_small_variant(
     """
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
-    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'seqr_link': coordinates.string_format}
+    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': coordinates.string_format}
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
@@ -634,7 +634,8 @@ def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]):
         samples ():
     """
 
-    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO}
+    # variant link for SVs is the RSID value
+    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': var.ID}
 
     # valid processing of inter-chromosomal SVs
     if all(attribute in info for attribute in ('chr2', 'end2')):
