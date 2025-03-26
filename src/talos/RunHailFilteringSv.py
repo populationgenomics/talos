@@ -68,7 +68,6 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             AF=mt.info.AF,
             AN=mt.info.AN,
             algorithms=mt.info.ALGORITHMS,
-            seqr_link=mt.rsid,
             gnomad_sv_ID=mt.info['gnomad_v2.1_sv_SVID'],
             gnomad_sv_AF=mt.info['gnomad_v2.1_sv_AF'],
             lof=hl.set(mt.info['PREDICTED_LOF']),

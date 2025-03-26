@@ -90,62 +90,6 @@ def split_data_into_sub_reports(all_results: ResultData) -> list[tuple[ResultDat
     return return_results
 
 
-def cli_main():
-    get_logger(__file__).info('Running HTML builder')
-    parser = ArgumentParser()
-    parser.add_argument('--input', help='Path to analysis results', required=True)
-    parser.add_argument('--panelapp', help='PanelApp data', required=True)
-    parser.add_argument('--output', help='Final HTML filename', required=True)
-    parser.add_argument('--latest', help='Not in use')
-    parser.add_argument('--split_samples', help='Not in use')
-    args = parser.parse_args()
-
-    if args.latest:
-        get_logger(__file__).warning('"--latest" argument is not in use')
-
-    if args.split_samples:
-        get_logger(__file__).warning('"--split_samples" argument is not in use')
-
-    main(results=args.input, panelapp=args.panelapp, output=args.output)
-
-
-def main(results: str, panelapp: str, output: str):
-    """
-
-    Args:
-        results (str): path to the MOI-tested results file
-        panelapp (str): path to the panelapp data
-        output (str): where to write the HTML file
-    """
-
-    report_output_dir = Path(output).parent
-
-    results_object = read_json_from_path(results, return_model=ResultData)
-
-    # we always make this main page - we need a reliable output path to generate analysis entries [CPG]
-    html = HTMLBuilder(results_dict=results_object, panelapp_path=panelapp)
-    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
-    # catch this, but fail gracefully so that the process overall is a success
-    try:
-        get_logger().debug(f'Writing whole-cohort categorised variants to {output}')
-        # find the path to the output directory, and make an individual directory
-        makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
-        html.write_html(output_filepath=output)
-    except NoVariantsFoundError:
-        get_logger().warning('No Categorised variants found in this whole cohort')
-
-    # we only need to do sub-reports if we can delineate by year
-    for data, report, prefix in split_data_into_sub_reports(results_object):
-        html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
-        try:
-            output_filepath = join(report_output_dir, report)
-            get_logger().debug(f'Attempting to create {report} at {output_filepath}')
-            makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
-            html.write_html(output_filepath=output_filepath)
-        except NoVariantsFoundError:
-            get_logger().info('No variants in that report, skipping')
-
-
 class NoVariantsFoundError(Exception):
     """raise if a report subset contains no data"""
 
@@ -183,12 +127,19 @@ class HTMLBuilder:
     Takes the input, makes the output
     """
 
-    def __init__(self, results_dict: ResultData, panelapp_path: str, subset_id: str | None = None):
+    def __init__(
+        self,
+        results_dict: ResultData,
+        panelapp_path: str,
+        subset_id: str | None = None,
+        link_engine: 'LinkEngine | None' = None,
+    ):
         """
         Args:
             results_dict (ResultData): the results object
             panelapp_path (str): where to read panelapp data from
             subset_id (str, optional): the subset ID to use for this report
+            link_engine (LinkEngine, optional): the link engine to generate hyperlinks with
         """
         # ID to use if this is a subset report
         self.subset_id = subset_id
@@ -204,16 +155,8 @@ class HTMLBuilder:
         assert isinstance(self.forbidden_genes, list)
         get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
-        # Use config to find CPG-to-Seqr ID JSON; allow to fail
-        self.seqr: dict[str, str] = {}
-
-        if seqr_path := config_retrieve(['CreateTalosHTML', 'seqr_lookup'], ''):
-            self.seqr = read_json_from_path(seqr_path, default=self.seqr)
-            assert isinstance(self.seqr, dict)
-
-            # Force user to correct config file if seqr URL/project are missing
-            for seqr_key in ['seqr_instance', 'seqr_project']:
-                assert config_retrieve(['CreateTalosHTML', seqr_key], False), f'Seqr key absent: {seqr_key}'
+        # take the link-generating instance (can be None)
+        self.link_engine = link_engine
 
         # Optionally read in the labels file
         # This file should be a nested dictionary of sample IDs and variant identifiers
@@ -264,7 +207,11 @@ class HTMLBuilder:
         samples_with_no_variants: list[str] = []
         ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
 
+        sample_to_ext: dict[str, str] = {}
+
         for sample in self.samples:
+            sample_to_ext[sample.name] = sample.ext_id
+
             if len(sample.variants) == 0:
                 samples_with_no_variants.append(sample.ext_id)
 
@@ -294,7 +241,7 @@ class HTMLBuilder:
         unused_ext_labels = [
             {
                 'sample': sample_id,
-                'sample_ext': self.seqr.get(sample_id, sample_id),
+                'sample_ext': sample_to_ext.get(sample_id, sample_id),
                 'variant': var_id,
                 'labels': labels,
             }
@@ -364,15 +311,13 @@ class HTMLBuilder:
 
         # if no variants were found, this can fail with a NoVariantsFoundException error
         # we ignore that here, and catch it in the outer scope
-        (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
+        # (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
         template_context = {
             # 'metadata': self.metadata,
             'index_path': f'../{Path(output_filepath).name}',
             'run_datetime': self.metadata.run_datetime,
             'samples': self.samples,
-            'seqr_url': config_retrieve(['CreateTalosHTML', 'seqr_instance'], ''),
-            'seqr_project': config_retrieve(['CreateTalosHTML', 'seqr_project'], ''),
             # 'meta_tables': {},
             # 'forbidden_genes': sorted(self.forbidden_genes),
             # 'zero_categorised_samples': zero_cat_samples,
@@ -441,7 +386,10 @@ class Sample:
         self.phenotypes = metadata.phenotypes
         self.ext_id = metadata.ext_id
         self.panel_details = metadata.panel_details
-        self.seqr_id = html_builder.seqr.get(name, None)
+
+        # create a url link out to the sample-level data
+        self.sample_link = html_builder.link_engine.generate_sample_link(self) if html_builder.link_engine else None
+
         self.report_url = f'{indi_folder}/{self.name}.html'
 
         # Ingest variants excluding any on the forbidden gene list
@@ -458,6 +406,95 @@ class Sample:
 
     def __str__(self):
         return self.name
+
+
+class LinkEngine:
+    """
+    Generate links to external resources based on configuration settings
+    """
+
+    def __init__(
+        self,
+        template: str,
+        variant_template: str | None,
+        external: bool = True,
+        lookup: str | None = None,
+    ):
+        """
+
+        Args:
+            template (str): mandatory - without this there's no sense generating an instance
+            variant_template (str): optional, if there's a string here, we'll try and generate variant-specific links
+            external (bool): if True, embed/lookup external IDs in the lookup dictionary. Default is sample.name
+            lookup (dict): optional, a path to a JSON dictionary. Can be used to connect sample ID -> arbitrary ID
+        """
+        self.template = template
+        self.variant_template = variant_template
+        self.external = external
+        if lookup:
+            self.lookup = read_json_from_path(lookup)
+        else:
+            self.lookup = None
+
+    def get_string_id(self, sample: Sample) -> str | None:
+        """
+        Get the string ID for the sample to use in links
+        """
+
+        key = sample.ext_id if self.external else sample.name
+
+        if self.lookup:
+            # bail here instead of generating broken links
+            if key not in self.lookup:
+                return None
+
+            return self.lookup[key]
+
+        return key
+
+    def generate_sample_link(self, sample: Sample):
+        """
+        generates a sample/family level link using the template
+
+        Args:
+            sample ():
+
+        Returns:
+            string, with sample component embedded
+        """
+
+        string_id = self.get_string_id(sample)
+
+        # escape here - if we want an ID translated, don't return a hyperlink
+        # feels better than returning a broken hyperlink
+        if string_id is None:
+            return None
+
+        return self.template.format(sample=string_id)
+
+    def generate_variant_link(self, sample: Sample, var_string: str) -> str | None:
+        """
+        generates a Sample & Variant level link using the template
+
+        Args:
+            sample ():
+            var_string (str):
+
+        Returns:
+            string, with sample component embedded
+        """
+
+        if not self.variant_template:
+            return self.generate_sample_link(sample)
+
+        string_id = self.get_string_id(sample)
+
+        # escape here - if we want an ID translated, don't return a hyperlink
+        # feels better than returning a broken hyperlink
+        if string_id is None:
+            return None
+
+        return self.variant_template.format(sample=self.get_string_id(sample), variant=var_string)
 
 
 class Variant:
@@ -569,6 +606,9 @@ class Variant:
         ):
             self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]  # type: ignore[union-attr]
 
+        # get the variant-level hyperlink
+        self.var_link = html_builder.link_engine.generate_variant_link(sample, self.var_data.info.get('var_link'))
+
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
@@ -608,6 +648,69 @@ class Variant:
         mane_hgvsps = ', '.join(mane_hgvsps)
 
         return mane_consequences, mane_hgvsps
+
+
+def cli_main():
+    get_logger(__file__).info('Running HTML builder')
+    parser = ArgumentParser()
+    parser.add_argument('--input', help='Path to analysis results', required=True)
+    parser.add_argument('--panelapp', help='PanelApp data', required=True)
+    parser.add_argument('--output', help='Final HTML filename', required=True)
+    parser.add_argument('--latest', help='Not in use')
+    parser.add_argument('--split_samples', help='Not in use')
+    args = parser.parse_args()
+
+    if args.latest:
+        get_logger(__file__).warning('"--latest" argument is not in use')
+
+    if args.split_samples:
+        get_logger(__file__).warning('"--split_samples" argument is not in use')
+
+    main(results=args.input, panelapp=args.panelapp, output=args.output)
+
+
+def main(results: str, panelapp: str, output: str):
+    """
+
+    Args:
+        results (str): path to the MOI-tested results file
+        panelapp (str): path to the panelapp data
+        output (str): where to write the HTML file
+    """
+
+    report_output_dir = Path(output).parent
+
+    results_object = read_json_from_path(results, return_model=ResultData)
+
+    # set up the link builder, or None
+    if link_section := config_retrieve(['CreateTalosHTML', 'hyperlinks'], None):
+        link_builder = LinkEngine(**link_section)
+    else:
+        link_builder = None
+
+    # we always make this main page - we need a reliable output path to generate analysis entries [CPG]
+    html = HTMLBuilder(results_dict=results_object, panelapp_path=panelapp, link_engine=link_builder)
+
+    # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
+    # catch this, but fail gracefully so that the process overall is a success
+    try:
+        get_logger().debug(f'Writing whole-cohort categorised variants to {output}')
+        # find the path to the output directory, and make an individual directory
+        makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
+        html.write_html(output_filepath=output)
+    except NoVariantsFoundError:
+        get_logger().warning('No Categorised variants found in this whole cohort')
+
+    # we only need to do sub-reports if we can delineate by year
+    for data, report, prefix in split_data_into_sub_reports(results_object):
+        html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
+        try:
+            output_filepath = join(report_output_dir, report)
+            get_logger().debug(f'Attempting to create {report} at {output_filepath}')
+            makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
+            html.write_html(output_filepath=output_filepath)
+        except NoVariantsFoundError:
+            get_logger().info('No variants in that report, skipping')
 
 
 if __name__ == '__main__':
