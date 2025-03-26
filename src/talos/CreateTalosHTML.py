@@ -346,6 +346,7 @@ class HTMLBuilder:
         outpath_name = Path(output_filepath).name
 
         for sample in template_context['samples']:
+            assert isinstance(sample, Sample)
             if not sample.variants:
                 continue
 
@@ -388,7 +389,10 @@ class Sample:
         self.panel_details = metadata.panel_details
 
         # create a url link out to the sample-level data
-        self.sample_link = html_builder.link_engine.generate_sample_link(self) if html_builder.link_engine else None
+        if html_builder.link_engine:
+            self.sample_link = html_builder.link_engine.generate_sample_link(self) if html_builder.link_engine else None
+        else:
+            self.sample_link = None
 
         self.report_url = f'{indi_folder}/{self.name}.html'
 
@@ -417,7 +421,7 @@ class LinkEngine:
         self,
         template: str,
         variant_template: str | None,
-        external: bool = True,
+        external: bool = False,
         lookup: str | None = None,
     ):
         """
@@ -607,7 +611,11 @@ class Variant:
             self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]  # type: ignore[union-attr]
 
         # get the variant-level hyperlink
-        self.var_link = html_builder.link_engine.generate_variant_link(sample, self.var_data.info.get('var_link'))
+        if html_builder.link_engine:
+            var_string = str(self.var_data.info.get('var_link'))
+            self.var_link = html_builder.link_engine.generate_variant_link(sample, var_string)
+        else:
+            self.var_link = None
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
