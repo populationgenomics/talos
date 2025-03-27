@@ -119,9 +119,11 @@ exomiser = 'Variant prioritised by Exomiser'
 
 [CreateTalosHTML]
 external_labels = "path to labels file"
-seqr_lookup = "e.g. gs://cpg-COHORT-test/reanalysis/parsed_seqr.json"
-seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
-seqr_project = "e.g. COHORT_project_id"
+
+[CreateTalosHTML.hyperlinks]
+lookup = "e.g. gs://cpg-COHORT-test/reanalysis/parsed_seqr.json"
+template = "e.g. https://seqr.populationgenomics.org.au/COHORT_project_id/.../{sample}"
+variant_template = "e.g. https://seqr.populationgenomics.org.au/variant/{variant}/family/{sample}"
 
 [HPOFlagging]
 # this section relates to phenotype-matching the final variant set
