@@ -66,7 +66,7 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
             var_data = variant.var_data
             if pheno_match and not variant.panels.matched:
                 continue
-            lil_data.results[indi_id][var_data.info['seqr_link']] = MiniVariant(
+            lil_data.results[indi_id][var_data.info['var_link']] = MiniVariant(
                 categories=variant.categories,
                 support_vars=variant.support_vars,
             )

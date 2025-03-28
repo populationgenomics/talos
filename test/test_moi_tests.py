@@ -219,7 +219,7 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -229,7 +229,7 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -252,7 +252,7 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
         support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -263,7 +263,7 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
         depths={'male': 50},
         boolean_categories=['categoryboolean6'],
         support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {
@@ -292,7 +292,7 @@ def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
         depths={'male': 50},
         boolean_categories=['categoryboolean6'],
         support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -303,7 +303,7 @@ def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
         depths={'male': 50},
         boolean_categories=['categoryboolean6'],
         support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {
@@ -330,7 +330,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -340,7 +340,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         alt_depths={'male': 25},
         depths={'male': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -363,7 +363,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         alt_depths={'female': 50},
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -373,7 +373,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         alt_depths={'female': 50},
         depths={'female': 50},
         boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -626,7 +626,7 @@ def test_x_recessive_female_het_passes(pedigree_path):
         alt_depths={'female': 25},
         depths={'female': 50},
         sample_categories=['categorysample4'],
-        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant_2 = SmallVariant(
@@ -636,7 +636,7 @@ def test_x_recessive_female_het_passes(pedigree_path):
         alt_depths={'female': 50},
         depths={'female': 50},
         sample_categories=['categorysample4'],
-        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {'female': {'X-1-G-T': [passing_variant_2]}}
@@ -656,7 +656,7 @@ def test_x_recessive_female_het_passes_one_support(pedigree_path):
         depths={'female': 50},
         sample_categories=['categorysample4'],
         support_categories={'4'},
-        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant_2 = SmallVariant(
@@ -667,7 +667,7 @@ def test_x_recessive_female_het_passes_one_support(pedigree_path):
         depths={'female': 50},
         sample_categories=['categorysample4'],
         support_categories=set(),
-        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {
@@ -693,7 +693,7 @@ def test_x_recessive_female_het_fails_both_support(pedigree_path):
         depths={'female': 50},
         sample_categories=['categorysample4'],
         support_categories={'4'},
-        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing1'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': 'passing1'},
         transcript_consequences=[],
     )
     passing_variant_2 = SmallVariant(
@@ -704,7 +704,7 @@ def test_x_recessive_female_het_fails_both_support(pedigree_path):
         depths={'female': 50},
         sample_categories=['categorysample4'],
         support_categories={'4'},
-        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'seqr_link': 'passing2'},
+        info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'var_link': 'passing2'},
         transcript_consequences=[],
     )
     comp_hets = {
