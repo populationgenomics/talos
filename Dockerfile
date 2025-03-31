@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bookworm AS base
+FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -16,12 +16,11 @@ RUN apt update && apt install -y --no-install-recommends \
         zip \
         zlib1g && \
     rm -r /var/lib/apt/lists/* && \
-    rm -r /var/cache/apt/* && \
-    pip install --no-cache-dir --upgrade pip
+    rm -r /var/cache/apt/*
 
 FROM base AS bcftools_compiler
 
-ARG BCFTOOLS_VERSION=${BCFTOOLS_VERSION:-1.21}
+ARG BCFTOOLS_VERSION=1.21
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         gcc \
@@ -46,7 +45,7 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /us
 
 FROM base_bcftools AS base_bcftools_echtvar
 
-ARG ECHTVAR_VERSION=${ECHTVAR_VERSION:-v0.2.1}
+ARG ECHTVAR_VERSION=v0.2.1
 
 ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" /bin/echtvar
 
@@ -58,9 +57,25 @@ ENV ECHTVAR_CONFIG="/echtvar_config.json"
 
 FROM base_bcftools_echtvar AS talos
 
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
+
+# Copy from the cache instead of linking since it's a mounted volume
+ENV UV_LINK_MODE=copy
+
+WORKDIR /talos
+
+# Install the project's dependencies using the lockfile and settings
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev
+
 # Add in the additional requirements that are most likely to change.
-WORKDIR talos
-COPY LICENSE pyproject.toml README.md .
+COPY LICENSE pyproject.toml uv.lock README.md .
 COPY src src/
-RUN pip install --no-cache-dir talos
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .[cpg]
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install -e ".[cpg]"
+
+# Place executables in the environment at the front of the path
+ENV PATH="/talos/.venv/bin:$PATH"
