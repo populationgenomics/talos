@@ -36,6 +36,7 @@ dependencies=[
     'pydantic>=2.5.2',
     'python-dateutil>=2',
     'semsimian',
+    'setuptools',
     'tabulate>=0.8.9',
     'tenacity>=9.0.0',
     'toml==0.10.2',
