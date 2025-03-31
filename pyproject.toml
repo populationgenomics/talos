@@ -13,8 +13,6 @@ classifiers=[
     'Environment :: Console',
     'Intended Audience :: Science/Research',
     'Natural Language :: English',
-    'Operating System :: MacOS :: MacOS X',
-    'Operating System :: POSIX',
     'Operating System :: Unix',
     'Programming Language :: Python',
     'Topic :: Scientific/Engineering',
@@ -36,6 +34,7 @@ dependencies=[
     'pydantic>=2.5.2',
     'python-dateutil>=2',
     'semsimian',
+    # peds has an explicit dependency on pkg_resources, so cannot be installed without setuptools
     'setuptools',
     'tabulate>=0.8.9',
     'tenacity>=9.0.0',
