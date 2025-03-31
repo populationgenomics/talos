@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version='7.0.2'
+version='7.0.3'
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
