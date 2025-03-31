@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm AS base
+FROM python:3.10-slim-bookworm AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -59,7 +59,8 @@ ENV ECHTVAR_CONFIG="/echtvar_config.json"
 FROM base_bcftools_echtvar AS talos
 
 # Add in the additional requirements that are most likely to change.
-COPY requirements*.txt README.md setup.py ./
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR talos
+COPY LICENSE pyproject.toml README.md .
 COPY src src/
+RUN pip install --no-cache-dir talos
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .[cpg]
