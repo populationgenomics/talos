@@ -37,14 +37,14 @@ annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly ap
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker buildx build -t talos:7.0.2 .
+docker buildx build -t talos:7.0.3 .
 ```
 
 > **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker buildx build -t talos:7.0.2 .
+docker buildx build -t talos:7.0.3 .
 ```
 
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
@@ -57,7 +57,7 @@ corresponding pedigree as a toy example. In addition to these stub files you'll 
 economical to store in this repository. For the annotation workflow:
 
 1. A reference genome matching your input data, in FASTA format
-2. An echtvar reference file - we have a pre-generated file we are able to share, please get in touch
+2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file.
 
 For the Talos workflow:
 

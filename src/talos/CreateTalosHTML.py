@@ -420,7 +420,7 @@ class LinkEngine:
     def __init__(
         self,
         template: str,
-        variant_template: str | None,
+        variant_template: str | None = None,
         external: bool = False,
         lookup: str | None = None,
     ):
@@ -489,7 +489,7 @@ class LinkEngine:
         """
 
         if not self.variant_template:
-            return self.generate_sample_link(sample)
+            return None
 
         string_id = self.get_string_id(sample)
 
@@ -664,16 +664,7 @@ def cli_main():
     parser.add_argument('--input', help='Path to analysis results', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
-    parser.add_argument('--latest', help='Not in use')
-    parser.add_argument('--split_samples', help='Not in use')
     args = parser.parse_args()
-
-    if args.latest:
-        get_logger(__file__).warning('"--latest" argument is not in use')
-
-    if args.split_samples:
-        get_logger(__file__).warning('"--split_samples" argument is not in use')
-
     main(results=args.input, panelapp=args.panelapp, output=args.output)
 
 

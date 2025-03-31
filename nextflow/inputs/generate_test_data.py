@@ -23,16 +23,21 @@ t = TXFields('a', 'ensga')
 # and for each of these Sample entries take the default schema
 sample_schema = {k: v.get_schema_entry() for k, v in comp_het.items()}
 
-# cat 1, recessive, HFE - not retained by the filtering logic
+# cat 1, recessive, HFE - not retained by the filtering logic when HFE is a phenotype-match only gene
 v5 = VepVariant(BaseFields('chr6:26090951', ['C', 'G']), [t], sample_data=comp_het)
+
 # cat pm5, dominant, PKHD1
 v4 = VepVariant(BaseFields('chr6:51659900', ['T', 'C']), [t], sample_data=de_novo)
-# cat 6, dominant, DAAM2
+
+# cat 6, dominant, DAAM2 - will be filtered out
 v2 = VepVariant(BaseFields('chr6:39887558', ['C', 'T']), [t], sample_data=de_novo)
+
 # Cat 1, 3, dominant, WT1
 v1 = VepVariant(BaseFields('chr11:32392032', ['G', 'A']), [t], sample_data=de_novo)
+
 # cats 1 5 3, POC1B, AR
 v3 = VepVariant(BaseFields('chr12:89470359', ['A', 'C']), [t], sample_data=comp_het)
+
 # cat 1, hemi/bi in females, IL2RG
 v6 = VepVariant(BaseFields('chrX:71108336', ['G', 'A']), [t], sample_data=mat_inherited_hemi)
 

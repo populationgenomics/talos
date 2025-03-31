@@ -53,10 +53,11 @@ spliceai = 0.5
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
 
 [ValidateMOI]
+allow_common_clinvar = true
 gnomad_dominant = 0.001
 gnomad_max_homs_dominant = 0
 gnomad_max_homs_recessive = 1
-gnomad_max_ac_dominant = 10
+gnomad_max_ac_dominant = 20
 gnomad_max_hemi = 1
 max_callset_ac_dominant = 10
 callset_af_sv_dominant = 0.01
