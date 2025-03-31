@@ -37,14 +37,14 @@ annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly ap
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker buildx build -t talos:7.0.2 .
+docker buildx build -t talos:7.0.3 .
 ```
 
 > **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker buildx build -t talos:7.0.2 .
+docker buildx build -t talos:7.0.3 .
 ```
 
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
