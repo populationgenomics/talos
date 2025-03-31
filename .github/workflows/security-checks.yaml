@@ -12,5 +12,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pypa/gh-action-pip-audit@v1.1.0
         with:
-          inputs: pyptoject.toml
+          inputs: .
           summary: true
