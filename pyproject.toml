@@ -54,6 +54,7 @@ test = [
     'black',
     'pre-commit',
     'pytest',
+    'pytest-httpx',
     'pytest-xdist>=3.6.0',
 ]
 
