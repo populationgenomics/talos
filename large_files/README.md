@@ -3,7 +3,7 @@
 For the Stub workflows, the Nextflow configuration expects to find a few files in this folder:
 
 1. A reference genome matching your input data, in FASTA format
-2. An echtvar reference file - we have a pre-generated file we are able to share, please get in touch
+2. An echtvar reference file https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file.
 3. `genes_to_phenotypes.txt` from https://hpo.jax.org/data/annotations
 4. `hp.obo` from https://hpo.jax.org/data/ontology
 5. `phenio.db.gz` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz

@@ -57,7 +57,7 @@ corresponding pedigree as a toy example. In addition to these stub files you'll 
 economical to store in this repository. For the annotation workflow:
 
 1. A reference genome matching your input data, in FASTA format
-2. An echtvar reference file - we have a pre-generated file we are able to share, please get in touch
+2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file.
 
 For the Talos workflow:
 
