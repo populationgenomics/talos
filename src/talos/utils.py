@@ -618,6 +618,9 @@ def create_small_variant(
     }
     transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
+    if transcript_consequences and not any(x['mane_id'] for x in transcript_consequences):
+        return None
+
     return SmallVariant(
         coordinates=coordinates,
         info=info,
@@ -739,6 +742,9 @@ def gather_gene_dict_from_contig(
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
         small_variant = create_small_variant(var=variant, samples=variant_source.samples)
+
+        if small_variant is None:
+            continue
 
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
