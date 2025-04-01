@@ -366,6 +366,20 @@ class BaseMoi:
 
         return True
 
+    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
+        """
+        Check if a variant is too common in the population or callset
+
+        Args:
+            variant (VARIANT_MODELS): the variant to check
+
+        Returns:
+            bool: True if the variant is too common
+        """
+        if variant.info.get('categoryboolean1'):
+            return self.clinvar_filter.too_common(variant=variant)
+        return self.global_filter.too_common(variant)
+
     def get_family_genotypes(self, variant: VARIANT_MODELS, sample_id: str) -> dict[str, str]:
         """
 
@@ -459,24 +473,9 @@ class DominantAutosomal(BaseMoi):
         Simplest: AD MOI
         """
 
-        self.global_filter = GlobalFilter()
-        self.dominant_filter = DominantFilter()
+        self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant=variant)
-        return self.dominant_filter.too_common(variant)
 
     def run(
         self,
@@ -551,20 +550,6 @@ class RecessiveAutosomalCH(BaseMoi):
         self.global_filter = GlobalFilter()
         self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant)
-        return self.global_filter.too_common(variant)
 
     def run(
         self,
@@ -664,20 +649,6 @@ class RecessiveAutosomalHomo(BaseMoi):
         self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant)
-        return self.global_filter.too_common(variant)
-
     def run(
         self,
         principal: VARIANT_MODELS,
@@ -697,9 +668,6 @@ class RecessiveAutosomalHomo(BaseMoi):
         """
 
         classifications = []
-
-        if principal.coordinates.pos == 65580260:
-            pass
 
         # remove if too many homs are present in population databases
         if self.variant_too_common(principal):
@@ -762,23 +730,9 @@ class XDominant(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.dominant_filter = DominantFilter()
+        self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant=variant)
-        return self.dominant_filter.too_common(variant)
 
     def run(
         self,
@@ -860,23 +814,9 @@ class XPseudoDominantFemale(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.dominant_filter = DominantFilter()
+        self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant=variant)
-        return self.dominant_filter.too_common(variant)
 
     def run(
         self,
@@ -967,23 +907,9 @@ class XRecessiveMale(BaseMoi):
             applied_moi ():
         """
 
-        self.dominant_filter = DominantFilter()
+        self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant=variant)
-        return self.dominant_filter.too_common(variant)
 
     def run(
         self,
@@ -1064,20 +990,6 @@ class XRecessiveFemaleHom(BaseMoi):
         self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant=variant)
-        return self.global_filter.too_common(variant)
-
     def run(
         self,
         principal: VARIANT_MODELS,
@@ -1153,20 +1065,6 @@ class XRecessiveFemaleCH(BaseMoi):
         self.global_filter = GlobalFilter()
         self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-
-    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
-        """
-        Check if a variant is too common in the population or callset
-
-        Args:
-            variant (VARIANT_MODELS): the variant to check
-
-        Returns:
-            bool: True if the variant is too common
-        """
-        if variant.info.get('categoryboolean1'):
-            return self.clinvar_filter.too_common(variant=variant)
-        return self.global_filter.too_common(variant)
 
     def run(
         self,
