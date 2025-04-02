@@ -29,12 +29,12 @@ workflow {
     // populate input channels - VCFs, reference genome
     ch_vcfs = channel.fromPath(params.input_vcfs)
     ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
-    ch_ref_genome = channel.fromPath(params.ref_genome)
+    ch_ref_genome = channel.fromPath(params.ref_genome, )
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     // read in as a channel if this was already generated
     if (file(params.alphamissense_tar).exists()) {
-        ch_alphamissense_table = channel.fromPath(params.alphamissense_tar)
+        ch_alphamissense_table = channel.fromPath(params.alphamissense_tar, checkIfExists: true)
     }
     else {
     	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
@@ -67,7 +67,7 @@ workflow {
     )
 
     // read the whole-genome Zip file as an input channel
-    ch_gnomad_zip = channel.fromPath(params.gnomad_zip)
+    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
 
     // and apply the annotation using echtvar
     AnnotateGnomadAfWithEchtvar(
