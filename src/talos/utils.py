@@ -740,6 +740,9 @@ def gather_gene_dict_from_contig(
     for variant in variant_source(contig):
         small_variant = create_small_variant(var=variant, samples=variant_source.samples)
 
+        if small_variant is None:
+            continue
+
         if small_variant.coordinates.string_format in blacklist:
             get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
             continue

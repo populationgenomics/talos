@@ -36,24 +36,47 @@ symbol = 'AGENE'
 chrom = '1'
 
 [ValidateMOI]
-# thresholds for different filters during the MOI checks
-gnomad_dominant = 0.001
 
-# by default common in callset/gnomAD filters aren't applied to ClinVar pathogenics
-# set this flag to false to apply apply these filters
-# in testing this created a drastic reduction in candidates, at the expense of a few causative variants
-allow_common_clinvar = true
+# callset AF filtering will only be applied to variants with this AC or higher
+min_callset_ac_to_filter = 10
+
+# Global frequency filter
+# Applied to all variants regardless of MOI. Variants reported in ClinVar as P/LP are exempt from these filters
+gnomad_max_af = 0.01
+gnomad_sv_max_af = 0.03
+
+# callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
+callset_max_af = 0.01
+callset_sv_max_af = 0.03
+
+gnomad_max_homozygotes = 5
+gnomad_max_hemizygotes = 5
+
+# Dominant frequency filters - only applied to variants being considered for a dominant MOI.
+# Variants reported in ClinVar as P/LP are exempt from these filters
+dominant_gnomad_max_af = 0.00001
+dominant_gnomad_sv_max_af = 0.01
+dominant_gnomad_max_ac = 10
+dominant_gnomad_max_homozygotes = 0
+
+# callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
+dominant_callset_max_af = 0.01
+dominant_callset_sv_max_af = 0.01
+dominant_callset_max_ac = 10
+
+# Clinvar frequency filters
+# Applied to variants reported as P/LP in clinvar
+clinvar_gnomad_max_af = 0.05
+clinvar_dominant_gnomad_max_af = 0.00005
+
+# callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
+clinvar_callset_max_af = 0.05
+clinvar_dominant_callset_max_af = 0.05
+
+ignore_categories = [ "exomiser", "svdb"]
 
 # we dismiss variants where the proband doesn't have at least this much alt support
 min_alt_depth = 5
-
-# if the population frequency annotations contain allele count, and hemi-count, these are used
-# if absent, these additional tests are skipped
-gnomad_max_homs_dominant = 0
-gnomad_max_homs_recessive = 1
-gnomad_max_ac_dominant = 10
-gnomad_max_hemi = 1
-callset_af_sv_dominant = 0.01
 
 # by default, only consider the top two exomiser results
 exomiser_rank_threshold = 2
@@ -66,7 +89,6 @@ exomiser_rank_threshold = 2
 
 # for these categories, require a phenotype-gene match
 # this is the final part of the Category name, e.g. categorydetailspm5 is "pm5", and categorybooleansv1 is "sv1"
-# apologies for the inconsistency
 phenotype_match = ['6']
 
 # all categories in this list are treated as support
@@ -74,15 +96,6 @@ phenotype_match = ['6']
 # comp-het formations of two support variants are also removed
 # all categories not in this list are treated as fully important
 support_categories = ['5', '6']
-
-# These two attributes relate to the filters applied specifically to Dominant MOI tests
-# if the total number of occurences in the callset is lower than this, don't apply an AF filter
-min_callset_ac_to_filter = 5
-# if applied, this is the threshold for the callset AF filter
-callset_af_threshold = 0.01
-
-# set to False if you want population/callset frequency filters to apply to ClinVar pathogenic variants
-allow_common_clinvar = true
 
 [RunHailFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
