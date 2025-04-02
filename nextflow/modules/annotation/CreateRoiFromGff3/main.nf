@@ -3,7 +3,7 @@ process CreateRoiFromGff3 {
     container params.container
 
     // generate the ROI file
-    publishDir params.generic_output_dir, mode: 'copy'
+    publishDir params.processed_annotations, mode: 'copy'
 
     // this file is not downloaded at runtime - that presents issues for execution environments
     // disconnected from the internet

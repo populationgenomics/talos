@@ -2,7 +2,7 @@
 process ParseManeIntoJson {
     container params.container
 
-    publishDir params.generic_output_dir, mode: 'copy'
+    publishDir params.processed_annotations, mode: 'copy'
 
     input:
     	path mane_summary

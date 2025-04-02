@@ -50,7 +50,7 @@ corresponding pedigree as a toy example. In addition to these stub files you'll 
 economical to store in this repository. For the annotation workflow:
 
 1. A reference genome matching your input data, in FASTA format.
-2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file.
+2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file. This file does not need to be unzipped! 
 3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.113.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens)
 4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.4.summary.txt.gz` from the  [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4)
 
@@ -60,10 +60,9 @@ For the Talos workflow:
 2. `hp.obo` from https://hpo.jax.org/data/ontology
 3. `phenio.db.gz` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
 
-These are expected in the [large_files](large_files) directory at the root of this repository.
+The input files are expected in the [large_files](large_files) directory at the root of this repository. For the AlphaMissense, MANE, and Ensembl GFF file, the annotation workflow procesess the raw data into a format expected in the workflow. This only needs to be done once, and subsequent runs of the workflow will detect and reuse the prior outputs. All nextflow configuration parameters can be overridden at runtime - to supply an alternate location for the 'large_files' directory use `--large_files XXX` as a CLI parameter when starting the workflow. To alter the output location for the processed annotation files, alter the `--processed_annotations YYY` parameter.
 
-Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows
-with:
+Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows with:
 
 ```commandline
 nextflow -c nextflow/annotation.config run nextflow/annotation.nf
@@ -72,9 +71,6 @@ and
 
 nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_tar nextflow/cohort_outputs/cohort.mt.tar
 ```
-
-The first time the annotation workflow runs will be slower - large AlphaMissense data is downloaded from zenodo, but
-this only needs to be done on the first run, and a couple of ancillary files are generated to use in annotation.
 
 ### Real Data
 
