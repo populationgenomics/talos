@@ -17,5 +17,8 @@ jobs:
     - name: Install packages
       run: pip install ".[test]"
 
+    - name: Install types
+      run: pip install types-protobuf types-python-dateutil types-toml
+
     - name: pre-commit
       run: pre-commit run --all-files
