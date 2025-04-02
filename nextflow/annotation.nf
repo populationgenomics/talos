@@ -17,7 +17,6 @@ nextflow.enable.dsl=2
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
 include { AnnotateGnomadAfWithEchtvar } from './modules/annotation/AnnotateGnomadAfWithEchtvar/main'
 include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
-include { LocaliseAlphamissenseWithWget } from './modules/annotation/LocaliseAlphamissenseWithWget/main'
 include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnlyVcfWithBcftools/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
 include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
@@ -34,24 +33,32 @@ workflow {
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     // read in as a channel if this was already generated
-    if (file(params.alphamissense_output).exists()) {
-        ch_alphamissense_table = channel.fromPath(params.alphamissense_output)
+    if (file(params.alphamissense_tar).exists()) {
+        ch_alphamissense_table = channel.fromPath(params.alphamissense_tar)
     }
     else {
-        LocaliseAlphamissenseWithWget()
-        ParseAlphaMissenseIntoHt(LocaliseAlphamissenseWithWget.out)
+    	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists=true)
+        ParseAlphaMissenseIntoHt(ch_alphamissense_tsv)
         ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
 
     // generate the Region-of-interest BED file from Ensembl GFF3
     // generates a per-gene BED file with ID annotations
     // and a overlap-merged version of the same for more efficient region filtering
-    CreateRoiFromGff3()
-
+    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists=true)
+    if (file(params.ensembl_bed).exists() && file(params.ensembl_merged_bed).exists()) {
+    	ch_bed = channel.fromPath(params.ensembl_bed)
+    	ch_merged_bed = channel.fromPath(params.ensembl_merged_bed)
+    }
+    else {
+    	CreateRoiFromGff3(ch_gff)
+    	ch_bed = CreateRoiFromGff3.out.bed
+    	ch_merged_bed = CreateRoiFromGff3.out.merged_bed
+	}
     MergeVcfsWithBcftools(
         ch_vcfs.collect(),
         ch_tbis.collect(),
-        CreateRoiFromGff3.out.merged_bed,
+        ch_merged_bed,
     )
 
     // create a sites-only version of this VCF, just to pass less data around when annotating
@@ -71,19 +78,26 @@ workflow {
     // annotate transcript consequences with bcftools csq
     AnnotateCsqWithBcftools(
         AnnotateGnomadAfWithEchtvar.out,
-        CreateRoiFromGff3.out.gff3,
-        ch_ref_genome
+        ch_gff,
+        ch_ref_genome,
     )
 
     // pull and parse the MANE data into a Hail Table
-    ParseManeIntoJson()
+    if (file(params.mane_json).exists()) {
+    	ch_mane = channel.fromPath(params.mane_json)
+    }
+    else {
+    	ch_mane_summary = channel.fromPath(params.mane, checkIfExists=true)
+    	ParseManeIntoJson(ch_mane_summary)
+    	ch_mane = ParseManeIntoJson.out.json
+    }
 
     // reformat the annotations in the VCF, retain as a Hail Table
     ReformatAnnotatedVcfIntoHailTable(
         AnnotateCsqWithBcftools.out,
         ch_alphamissense_table,
-        CreateRoiFromGff3.out.bed,
-        ParseManeIntoJson.out.json
+        ch_bed,
+        ch_mane,
     )
 
     // combine the join-VCF and annotations as a HailTable

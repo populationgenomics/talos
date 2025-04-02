@@ -4,13 +4,14 @@ process ParseManeIntoJson {
 
     publishDir params.generic_output_dir, mode: 'copy'
 
+    input:
+    	path mane_summary
+
     output:
-        path "mane_summary.txt.gz", emit: summary
         path "mane.json", emit: json
 
     script:
     """
-    wget ${params.mane} -O mane_summary.txt.gz
-    ParseManeIntoJson --input mane_summary.txt.gz --output mane.json --format json
+    ParseManeIntoJson --input ${mane_summary} --output mane.json --format json
     """
 }

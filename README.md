@@ -37,14 +37,7 @@ annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly ap
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker buildx build -t talos:7.0.4 .
-```
-
-> **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
-> setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
-
-```commandline
-docker buildx build -t talos:7.0.4 .
+docker build -t talos:7.0.4 .
 ```
 
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
@@ -56,8 +49,10 @@ A range of stub files have been provided to demonstrate each workflow. This incl
 corresponding pedigree as a toy example. In addition to these stub files you'll need some larger files which are not
 economical to store in this repository. For the annotation workflow:
 
-1. A reference genome matching your input data, in FASTA format
+1. A reference genome matching your input data, in FASTA format.
 2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file.
+3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.113.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens)
+4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.4.summary.txt.gz` from the  [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4)
 
 For the Talos workflow:
 
