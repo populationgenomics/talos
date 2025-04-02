@@ -32,6 +32,9 @@ workflow {
     ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
     ch_ref_genome = channel.fromPath(params.ref_genome)
 
+    // pull and parse the MANE data into a Hail Table
+    ParseManeIntoJson()
+
     // generate the AlphaMissense HT - long running, stored in a separate folder
     // read in as a channel if this was already generated
     if (file(params.alphamissense_output).exists()) {
@@ -39,7 +42,10 @@ workflow {
     }
     else {
         LocaliseAlphamissenseWithWget()
-        ParseAlphaMissenseIntoHt(LocaliseAlphamissenseWithWget.out)
+        ParseAlphaMissenseIntoHt(
+        	LocaliseAlphamissenseWithWget.out,
+        	ParseManeIntoJson.out.json
+        )
         ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
 
@@ -74,9 +80,6 @@ workflow {
         CreateRoiFromGff3.out.gff3,
         ch_ref_genome
     )
-
-    // pull and parse the MANE data into a Hail Table
-    ParseManeIntoJson()
 
     // reformat the annotations in the VCF, retain as a Hail Table
     ReformatAnnotatedVcfIntoHailTable(
