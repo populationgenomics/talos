@@ -16,7 +16,7 @@ jobs:
         cache: 'pip'
 
     - name: Install packages
-      run: pip install ".[test]"
+      run: pip install ".[test]" && pip install types-protobuf types-python-dateutil types-toml
 
     - name: pre-commit
       run: pre-commit run --all-files
