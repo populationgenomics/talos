@@ -307,6 +307,8 @@ class BaseMoi:
         self.applied_moi = applied_moi
         self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'], 5)
         self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
+        self.global_filter = GlobalFilter()
+        self.clinvar_filter = ClinVarFilter()
 
     @abstractmethod
     def run(
@@ -472,9 +474,9 @@ class DominantAutosomal(BaseMoi):
         Simplest: AD MOI
         """
 
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
         self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -545,9 +547,6 @@ class RecessiveAutosomalCH(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Comp-Het'):
         """ """
-
-        self.global_filter = GlobalFilter()
-        self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -644,8 +643,6 @@ class RecessiveAutosomalHomo(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Homozygous'):
         """ """
-        self.global_filter = GlobalFilter()
-        self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -729,9 +726,9 @@ class XDominant(BaseMoi):
             pedigree ():
             applied_moi ():
         """
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
         self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -813,9 +810,9 @@ class XPseudoDominantFemale(BaseMoi):
             pedigree ():
             applied_moi ():
         """
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
         self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -905,10 +902,9 @@ class XRecessiveMale(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
         self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
         self,
@@ -985,8 +981,6 @@ class XRecessiveFemaleHom(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.global_filter = GlobalFilter()
-        self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -1061,8 +1055,6 @@ class XRecessiveFemaleCH(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.global_filter = GlobalFilter()
-        self.clinvar_filter = ClinVarFilter()
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
