@@ -37,7 +37,7 @@ workflow {
         ch_alphamissense_table = channel.fromPath(params.alphamissense_tar)
     }
     else {
-    	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists=true)
+    	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
         ParseAlphaMissenseIntoHt(ch_alphamissense_tsv)
         ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
@@ -45,7 +45,7 @@ workflow {
     // generate the Region-of-interest BED file from Ensembl GFF3
     // generates a per-gene BED file with ID annotations
     // and a overlap-merged version of the same for more efficient region filtering
-    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists=true)
+    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
     if (file(params.ensembl_bed).exists() && file(params.ensembl_merged_bed).exists()) {
     	ch_bed = channel.fromPath(params.ensembl_bed)
     	ch_merged_bed = channel.fromPath(params.ensembl_merged_bed)
@@ -87,7 +87,7 @@ workflow {
     	ch_mane = channel.fromPath(params.mane_json)
     }
     else {
-    	ch_mane_summary = channel.fromPath(params.mane, checkIfExists=true)
+    	ch_mane_summary = channel.fromPath(params.mane, checkIfExists: true)
     	ParseManeIntoJson(ch_mane_summary)
     	ch_mane = ParseManeIntoJson.out.json
     }
