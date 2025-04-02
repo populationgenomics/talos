@@ -17,6 +17,7 @@ Expected available gnomad annotations:
 # mypy: ignore-errors
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import ClassVar
 
 from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
@@ -37,21 +38,21 @@ class GlobalFilter:
     """
 
     # minimum variant AC to run callset frequency filters
-    ac_threshold = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-    small_af = config_retrieve(['ValidateMOI', 'callset_max_af'])
-    sv_af = config_retrieve(['ValidateMOI', 'callset_sv_max_af'])
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_max_af'])
+    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_sv_max_af'])
 
     # a lookup of the attribute name vs. the corresponding configurable filter to be used on small variants
-    small_dict = {
+    small_dict: ClassVar[dict[str, float | int]] = {
         'gnomad_af': config_retrieve(['ValidateMOI', 'gnomad_max_af']),
         'gnomad_homalt': config_retrieve(['ValidateMOI', 'gnomad_max_homozygotes']),
     }
 
     # only to be applied on chrX/Y
-    small_gnomad_hemi = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
+    small_gnomad_hemi: ClassVar[int] = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
 
     # filters specific to SVs
-    sv_dict = {
+    sv_dict: ClassVar[dict[str, float]] = {
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
     }
 
@@ -104,20 +105,20 @@ class DominantFilter:
     """
 
     # minimum variant AC to run callset frequency filters
-    ac_min = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-    ac_threshold = config_retrieve(['ValidateMOI', 'dominant_callset_max_ac'])
-    small_af = config_retrieve(['ValidateMOI', 'dominant_callset_max_af'])
-    sv_af = config_retrieve(['ValidateMOI', 'dominant_callset_sv_max_af'])
+    ac_min: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'dominant_callset_max_ac'])
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_max_af'])
+    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_sv_max_af'])
 
     # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict = {
+    small_dict: ClassVar[dict[str, float | int]] = {
         'gnomad_af': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_af']),
         'gnomad_ac': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_ac']),
         'gnomad_homalt': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_homozygotes']),
     }
 
     # specific to SVs
-    sv_dict = {
+    sv_dict: ClassVar[dict[str, float]] = {
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'dominant_gnomad_sv_max_af']),
     }
 
@@ -162,13 +163,13 @@ class ClinVarFilter:
     """
 
     # minimum variant AC to run callset frequency filters
-    ac_threshold = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
 
     # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict = {
+    small_dict: ClassVar[dict[str, float]] = {
         'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_gnomad_max_af']),
     }
-    small_af = config_retrieve(['ValidateMOI', 'clinvar_callset_max_af'])
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_callset_max_af'])
 
     def too_common(self, variant: SmallVariant) -> bool:
         """
@@ -198,13 +199,13 @@ class ClinVarDominantFilter:
     """
 
     # minimum variant AC to run callset frequency filters
-    ac_threshold = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
 
     # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict = {
+    small_dict: ClassVar[dict[str, float]] = {
         'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_dominant_gnomad_max_af']),
     }
-    small_af = config_retrieve(['ValidateMOI', 'clinvar_dominant_callset_max_af'])
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_dominant_callset_max_af'])
 
     def too_common(self, variant: SmallVariant) -> bool:
         """
