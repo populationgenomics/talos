@@ -1,4 +1,4 @@
 pre-commit>=3.5.0
-types-protobuf>5
+types-protobuf
 types-python-dateutil
 types-toml
