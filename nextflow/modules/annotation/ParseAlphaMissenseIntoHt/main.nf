@@ -7,16 +7,19 @@ process ParseAlphaMissenseIntoHt {
 
     input:
         path(am_tsv)
+        path(mane_json)
 
     output:
-        path("alphamissense_38.ht.tar")
+        path("alphamissense_isoforms_38.ht.tar")
 
     script:
         """
         ParseAlphaMissenseIntoHt \
             --am_tsv ${am_tsv} \
-            --ht_out alphamissense_38.ht
-        tar --no-xattrs -cf alphamissense_38.ht.tar alphamissense_38.ht
-        rm -r alphamissense_38.ht
+            --ht_out alphamissense_isoforms_38.ht \
+            --mane_json ${mane_json}
+
+        tar --no-xattrs -cf alphamissense_isoforms_38.ht.tar alphamissense_isoforms_38.ht
+        rm -r alphamissense_isoforms_38.ht
         """
 }

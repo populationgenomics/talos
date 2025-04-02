@@ -29,6 +29,8 @@ from argparse import ArgumentParser
 
 import hail as hl
 
+from talos.utils import read_json_from_path
+
 
 def process_header(final_header_line: str) -> dict[str, int]:
     """
@@ -53,13 +55,14 @@ def process_header(final_header_line: str) -> dict[str, int]:
     }
 
 
-def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
+def filter_for_pathogenic_am(input_file: str, intermediate_file: str, mane_transcripts: set[str] | None = None):
     """
     read the tsv file, skim for pathogenic entries, then write out to a new file
 
     Args:
         input_file ():
         intermediate_file ():
+        mane_transcripts (set[str]): a set of transcripts to filter for
     """
 
     headers = ['chrom', 'pos', 'ref', 'alt', 'transcript', 'am_pathogenicity', 'am_class']
@@ -89,6 +92,9 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
 
             # trim transcripts
             content_dict['transcript'] = str(content_dict['transcript']).split('.')[0]
+
+            if mane_transcripts and content_dict['transcript'] not in mane_transcripts:
+                continue
 
             # convert the AM score to a float, and pos to an int
             content_dict['pos'] = int(content_dict['pos'])
@@ -126,29 +132,33 @@ def json_to_hail_table(json_file: str, new_ht: str):
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--am_tsv', help='path to the AM tsv.gz file')
+    parser.add_argument('--mane_json', help='path to a JSON containing MANE transcript details')
     parser.add_argument('--ht_out', help='path to write a new Hail Table')
-    args, unknown = parser.parse_known_args()
-
-    if unknown:
-        raise ValueError(unknown)
-    main(alpha_m_file=args.am_tsv, ht_path=args.ht_out)
+    args = parser.parse_args()
+    main(alpha_m_file=args.am_tsv, ht_path=args.ht_out, mane_json=args.mane_json)
 
 
-def main(alpha_m_file: str, ht_path: str):
+def main(alpha_m_file: str, ht_path: str, mane_json: str | None = None):
     """
     takes the path to an AlphaMissense TSV, reorganises it into a Hail Table
 
     Args:
         alpha_m_file ():
         ht_path ():
+        mane_json (str, optional): A JSON file containing MANE transcript details
     """
 
     # generate a random file name so that we don't overwrite anything consistently
     random_intermediate_file: str = 'temp.json'
 
-    # generate a new tsv of just pathogenic entries
-    filter_for_pathogenic_am(alpha_m_file, random_intermediate_file)
-
+    # generate a new tsv of just pathogenic entries, optionally filtering down to MANE transcripts only
+    if mane_json:
+        # read the MANE JSON file
+        mane_data = read_json_from_path(mane_json)
+        mane_transcripts = set(mane_data.keys())
+        filter_for_pathogenic_am(alpha_m_file, random_intermediate_file, mane_transcripts=mane_transcripts)
+    else:
+        filter_for_pathogenic_am(alpha_m_file, random_intermediate_file)
     hl.default_reference('GRCh38')
 
     # now ingest as HT and re-jig some fields
