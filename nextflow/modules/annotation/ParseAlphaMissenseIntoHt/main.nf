@@ -18,5 +18,6 @@ process ParseAlphaMissenseIntoHt {
             --ht_out alphamissense_38.ht
         tar --no-xattrs -cf alphamissense_38.ht.tar alphamissense_38.ht
         rm -r alphamissense_38.ht
+        rm temp.json
         """
 }
