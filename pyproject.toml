@@ -56,6 +56,9 @@ test = [
     'pytest',
     'pytest-httpx',
     'pytest-xdist>=3.6.0',
+    'types-protobuf',
+    'types-python-dateutil',
+    'types-toml',
 ]
 
 [project.urls]
