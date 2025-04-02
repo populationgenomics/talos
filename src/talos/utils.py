@@ -618,9 +618,6 @@ def create_small_variant(
     }
     transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
-    if transcript_consequences and not any(x['mane_id'] for x in transcript_consequences):
-        return None
-
     return SmallVariant(
         coordinates=coordinates,
         info=info,

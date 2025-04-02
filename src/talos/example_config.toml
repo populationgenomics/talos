@@ -38,7 +38,7 @@ chrom = '1'
 [ValidateMOI]
 
 # callset AF filtering will only be applied to variants with this AC or higher
-min_callset_ac_to_filter = 10
+min_callset_ac_to_filter = 5
 
 # Global frequency filter
 # Applied to all variants regardless of MOI. Variants reported in ClinVar as P/LP are exempt from these filters
@@ -67,10 +67,8 @@ dominant_callset_max_ac = 10
 # Clinvar frequency filters
 # Applied to variants reported as P/LP in clinvar
 clinvar_gnomad_max_af = 0.05
-clinvar_gnomad_max_ac = 1000
-
+clinvar_gnomad_max_ac = 5000
 clinvar_dominant_gnomad_max_af = 0.01
-clinvar_dominant_gnomad_max_ac = 100
 
 # callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
 clinvar_callset_max_af = 0.05

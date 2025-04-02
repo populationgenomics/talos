@@ -204,7 +204,6 @@ class ClinVarDominantFilter:
     # a lookup of the attribute name vs. the corresponding configurable filter
     small_dict = {
         'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_dominant_gnomad_max_af']),
-        'gnomad_ac': config_retrieve(['ValidateMOI', 'clinvar_dominant_gnomad_max_ac']),
     }
     small_af = config_retrieve(['ValidateMOI', 'clinvar_dominant_callset_max_af'])
 
