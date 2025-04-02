@@ -53,15 +53,46 @@ spliceai = 0.5
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
 
 [ValidateMOI]
-allow_common_clinvar = true
-gnomad_dominant = 0.001
-gnomad_max_homs_dominant = 0
-gnomad_max_homs_recessive = 1
-gnomad_max_ac_dominant = 20
-gnomad_max_hemi = 1
-max_callset_ac_dominant = 10
-callset_af_sv_dominant = 0.01
-phenotype_match = [ "6",]
+
+# callset AF filtering will only be applied to variants with this AC or higher
+min_callset_ac_to_filter = 10
+
+# Global frequency filter
+# Applied to all variants regardless of MOI. Variants reported in ClinVar as P/LP are exempt from these filters
+gnomad_max_af = 0.01
+gnomad_sv_max_af = 0.03
+
+# callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
+callset_max_af = 0.01
+callset_sv_max_af = 0.03
+
+gnomad_max_homozygotes = 5
+gnomad_max_hemizygotes = 5
+
+# Dominant frequency filters - only applied to variants being considered for a dominant MOI.
+# Variants reported in ClinVar as P/LP are exempt from these filters
+dominant_gnomad_max_af = 0.00001
+dominant_gnomad_sv_max_af = 0.01
+dominant_gnomad_max_ac = 10
+dominant_gnomad_max_homozygotes = 0
+
+# callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
+dominant_callset_max_af = 0.01
+dominant_callset_sv_max_af = 0.01
+dominant_callset_max_ac = 10
+
+# Clinvar frequency filters
+# Applied to variants reported as P/LP in clinvar
+clinvar_gnomad_max_af = 0.05
+clinvar_dominant_gnomad_max_af = 0.00005
+
+# callset_* filters only apply to variants with a callset AC > min_callset_ac_to_filter.
+clinvar_callset_max_af = 0.05
+clinvar_dominant_callset_max_af = 0.05
+
+ignore_categories = [ "exomiser", "svdb"]
+phenotype_match = ["6"]
+support_categories = ["6"]
 
 [HPOFlagging]
 semantic_match = true

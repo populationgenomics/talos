@@ -16,76 +16,215 @@ Expected available gnomad annotations:
 
 # mypy: ignore-errors
 from abc import abstractmethod
+from dataclasses import dataclass
+from typing import ClassVar
 
 from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
 from talos.utils import X_CHROMOSOME, CompHetDict
 
-# config keys to use for dominant MOI tests
-CALLSET_AF_SV_DOMINANT = 'callset_af_sv_dominant'
-CALLSET_AC_DOMINANT = 'max_callset_ac_dominant'
-GNOMAD_RARE_THRESHOLD = 'gnomad_dominant'
-GNOMAD_AD_AC_THRESHOLD = 'gnomad_max_ac_dominant'
-GNOMAD_DOM_HOM_THRESHOLD = 'gnomad_max_homs_dominant'
-GNOMAD_REC_HOM_THRESHOLD = 'gnomad_max_homs_recessive'
-GNOMAD_HEMI_THRESHOLD = 'gnomad_max_hemi'
-SV_AF_KEY = 'gnomad_v2.1_sv_AF'
+
+HEMI_CHROMS = {'chrX, chrY'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
-def too_common_in_population(
-    info: dict,
-    thresholds: dict[str, int | float],
-) -> bool:
+@dataclass
+class GlobalFilter:
     """
-    Method to check multiple info keys against a single threshold
-    This just reduces the line count, as this is called a bunch of times
-    By default we always let clinvar pathogenic variants pass
-
-    Args:
-        info (): the dict of values for this dict
-        thresholds (): the dict of keys - thresholds to test against
-
-    Returns:
-        True if any of the info attributes is above the threshold
+    A Filter class, used to apply to any non-ClinVar Pathogenic Variants
+    This pulls in a number of thresholds from the config file, and contains a 'too_common' method
+    A variant run through this method will return true based on the thresholds if it's 'too_common'
     """
-    if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
+
+    # minimum variant AC to run callset frequency filters
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_max_af'])
+    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_sv_max_af'])
+
+    # a lookup of the attribute name vs. the corresponding configurable filter to be used on small variants
+    small_dict: ClassVar[dict[str, float | int]] = {
+        'gnomad_af': config_retrieve(['ValidateMOI', 'gnomad_max_af']),
+        'gnomad_homalt': config_retrieve(['ValidateMOI', 'gnomad_max_homozygotes']),
+    }
+
+    # only to be applied on chrX/Y
+    small_gnomad_hemi: ClassVar[int] = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
+
+    # filters specific to SVs
+    sv_dict: ClassVar[dict[str, float]] = {
+        'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
+    }
+
+    def too_common(self, variant: SmallVariant | StructuralVariant) -> bool:
+        """
+        Check if a variant is too common in the population
+
+        Args:
+            variant (SmallVariant | StructuralVariant): the variant to check
+
+        Returns:
+            bool: True if the variant is too common
+        """
+
+        # check against each small-variant filter
+        if isinstance(variant, SmallVariant):
+            for key, threshold in self.small_dict.items():
+                if key in variant.info and variant.info[key] > threshold:
+                    return True
+
+            # if there are sufficient instances, check for frequency in the callset
+            if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
+                return True
+
+            # on sex chroms, apply hemi-count filter
+            if variant.coordinates.chrom in HEMI_CHROMS:
+                return variant.info('gnomad_ac_xy', 0) > self.small_gnomad_hemi
+
+        # check against the SV filters
+        elif isinstance(variant, StructuralVariant):
+            for key, threshold in self.sv_dict.items():
+                if key in variant.info and variant.info[key] > threshold:
+                    return True
+
+            # if there are sufficient instances, check for frequency in the callset
+            if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.sv_af:
+                return True
+
+        else:
+            raise ValueError('Variant type not recognised')
+
         return False
-    return any(info.get(key, 0) > test for key, test in thresholds.items())
 
 
-def too_common_in_callset(
-    info: dict,
-    callset_ac_threshold: int | None = 10,
-) -> bool:
+@dataclass
+class DominantFilter:
     """
-    if the callset is large enough, apply this filter
-    this is predicated on info containing both ac and af
-    previously we've permitted < 5 instances in the callset through (callset too small to filter)
-    This doesn't care about a variant being in ClinVar
-
-    Args:
-        info (dict): info dict for this variant
-        callset_ac_threshold (int): maximum AC
-    Returns:
-        True if this variant is above the filtering threshold
+    Similar to the GlobalFilter, but with stricter thresholds
+    This is designed to run on variants being considered for Dominant inheritance
     """
-    if config_retrieve(['ValidateMOI', 'allow_common_clinvar'], False) and info.get('categoryboolean1'):
+
+    # minimum variant AC to run callset frequency filters
+    ac_min: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'dominant_callset_max_ac'])
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_max_af'])
+    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_sv_max_af'])
+
+    # a lookup of the attribute name vs. the corresponding configurable filter
+    small_dict: ClassVar[dict[str, float | int]] = {
+        'gnomad_af': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_af']),
+        'gnomad_ac': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_ac']),
+        'gnomad_homalt': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_homozygotes']),
+    }
+
+    # specific to SVs
+    sv_dict: ClassVar[dict[str, float]] = {
+        'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'dominant_gnomad_sv_max_af']),
+    }
+
+    def too_common(self, variant: SmallVariant | StructuralVariant) -> bool:
+        """
+        Check if a variant is too common in the population
+
+        Args:
+            variant (SmallVariant | StructuralVariant): the variant to check
+
+        Returns:
+            bool: True if the variant is too common
+        """
+
+        # check against each small-variant filter
+        if isinstance(variant, SmallVariant):
+            for key, threshold in self.small_dict.items():
+                if key in variant.info and variant.info[key] > threshold:
+                    return True
+            if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
+                return True
+
+        elif isinstance(variant, StructuralVariant):
+            for key, threshold in self.sv_dict.items():
+                if key in variant.info and variant.info[key] > threshold:
+                    return True
+            if variant.info['ac'] > self.ac_min and (
+                (variant.info['af'] > self.sv_af) or (variant.info['ac'] > self.ac_threshold)
+            ):
+                return True
+
+        else:
+            raise ValueError('Variant type not recognised')
+
         return False
 
-    min_ac = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'], 10)
-    if info.get('ac', 0) < min_ac:
+
+@dataclass
+class ClinVarFilter:
+    """
+    This will apply more lenient filters to ClinVar Pathogenic variants
+    """
+
+    # minimum variant AC to run callset frequency filters
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+
+    # a lookup of the attribute name vs. the corresponding configurable filter
+    small_dict: ClassVar[dict[str, float]] = {
+        'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_gnomad_max_af']),
+    }
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_callset_max_af'])
+
+    def too_common(self, variant: SmallVariant) -> bool:
+        """
+        Check if a variant is too common in the population
+
+        Args:
+            variant (SmallVariant): the variant to check
+
+        Returns:
+            bool: True if the variant is too common
+        """
+        for key, threshold in self.small_dict.items():
+            if key in variant.info and variant.info[key] > threshold:
+                return True
+
+        if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
+            return True
+
         return False
 
-    callset_af_threshold = config_retrieve(['ValidateMOI', 'callset_af_threshold'], 0.01)
-    if info.get('af', 0.0) >= callset_af_threshold:
-        return True
 
-    # if an AC threshold was given, use it to filter
-    if callset_ac_threshold is not None and info.get('ac', 0) >= callset_ac_threshold:
-        return True
-    return False
+@dataclass
+class ClinVarDominantFilter:
+    """
+    This will apply more lenient filters to ClinVar Pathogenic variants
+    Designed to run on Dominant variants
+    """
+
+    # minimum variant AC to run callset frequency filters
+    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
+
+    # a lookup of the attribute name vs. the corresponding configurable filter
+    small_dict: ClassVar[dict[str, float]] = {
+        'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_dominant_gnomad_max_af']),
+    }
+    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_dominant_callset_max_af'])
+
+    def too_common(self, variant: SmallVariant) -> bool:
+        """
+        Check if a variant is too common in the population
+
+        Args:
+            variant (SmallVariant): the variant to check
+
+        Returns:
+            bool: True if the variant is too common
+        """
+        for key, threshold in self.small_dict.items():
+            if key in variant.info and variant.info[key] > threshold:
+                return True
+
+        if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
+            return True
+
+        return False
 
 
 class MOIRunner:
@@ -168,6 +307,8 @@ class BaseMoi:
         self.applied_moi = applied_moi
         self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'], 5)
         self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
+        self.global_filter = GlobalFilter()
+        self.clinvar_filter = ClinVarFilter()
 
     @abstractmethod
     def run(
@@ -225,6 +366,20 @@ class BaseMoi:
                 return False
 
         return True
+
+    def variant_too_common(self, variant: VARIANT_MODELS) -> bool:
+        """
+        Check if a variant is too common in the population or callset
+
+        Args:
+            variant (VARIANT_MODELS): the variant to check
+
+        Returns:
+            bool: True if the variant is too common
+        """
+        if variant.info.get('categoryboolean1'):
+            return self.clinvar_filter.too_common(variant=variant)
+        return self.global_filter.too_common(variant)
 
     def get_family_genotypes(self, variant: VARIANT_MODELS, sample_id: str) -> dict[str, str]:
         """
@@ -319,23 +474,9 @@ class DominantAutosomal(BaseMoi):
         Simplest: AD MOI
         """
 
-        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
-        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
-        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
-        self.sv_af_threshold = config_retrieve(['ValidateMOI', CALLSET_AF_SV_DOMINANT])
-
-        self.callset_ac_threshold = config_retrieve(['ValidateMOI', CALLSET_AC_DOMINANT])
-
-        # prepare the AF test dicts
-        self.freq_tests = {
-            SmallVariant.__name__: {
-                'gnomad_homalt': self.hom_threshold,
-                'gnomad_ac': self.ac_threshold,
-                'gnomad_af': self.ad_threshold,
-            },
-            StructuralVariant.__name__: {'af': self.sv_af_threshold, SV_AF_KEY: self.sv_af_threshold},
-        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        self.global_filter = DominantFilter()
+        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -353,11 +494,7 @@ class DominantAutosomal(BaseMoi):
 
         classifications = []
 
-        # reject support for dominant MOI, apply checks based on var type
-        if too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ) or too_common_in_callset(principal.info, callset_ac_threshold=self.callset_ac_threshold):
+        if self.variant_too_common(principal):
             return classifications
 
         # autosomal dominant doesn't require support, but consider het and hom
@@ -410,11 +547,6 @@ class RecessiveAutosomalCH(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Comp-Het'):
         """ """
-        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
-        self.freq_tests = {
-            SmallVariant.__name__: {'gnomad_homalt': self.hom_threshold},
-            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
-        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -441,11 +573,8 @@ class RecessiveAutosomalCH(BaseMoi):
 
         classifications = []
 
-        # remove if too many homs are present in population databases
-        if too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ):
+        # reject support for dominant MOI, apply checks based on var type
+        if self.variant_too_common(principal):
             return classifications
 
         # if hets are present, try and find support
@@ -471,10 +600,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         self.minimum_depth,
                         partner.info.get('categoryboolean1'),
                     )
-                    or too_common_in_population(
-                        partner.info,
-                        self.freq_tests[partner.__class__.__name__],
-                    )
+                    or self.variant_too_common(partner)
                     or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
                     or not any(
                         [
@@ -517,11 +643,6 @@ class RecessiveAutosomalHomo(BaseMoi):
 
     def __init__(self, pedigree: Pedigree, applied_moi: str = 'Autosomal Recessive Homozygous'):
         """ """
-        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
-        self.freq_tests = {
-            SmallVariant.__name__: {'gnomad_homalt': self.hom_threshold},
-            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
-        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -545,7 +666,7 @@ class RecessiveAutosomalHomo(BaseMoi):
         classifications = []
 
         # remove if too many homs are present in population databases
-        if too_common_in_population(principal.info, self.freq_tests[principal.__class__.__name__]):
+        if self.variant_too_common(principal):
             return classifications
 
         for sample_id in principal.hom_samples:
@@ -605,23 +726,9 @@ class XDominant(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
-        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
-        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
-        self.hemi_threshold = config_retrieve(['ValidateMOI', GNOMAD_HEMI_THRESHOLD])
-
-        self.freq_tests = {
-            SmallVariant.__name__: {
-                'gnomad_homalt': self.hom_threshold,
-                'gnomad_ac_xy': self.hemi_threshold,
-                'gnomad_ac': self.ac_threshold,
-                'gnomad_af': self.ad_threshold,
-            },
-            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS}
-            | {key: self.hemi_threshold for key in SV_HEMI},
-        }
-
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        self.global_filter = DominantFilter()
+        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -642,10 +749,7 @@ class XDominant(BaseMoi):
         classifications = []
 
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ) or too_common_in_callset(principal.info):
+        if self.variant_too_common(principal):
             return classifications
 
         # all samples which have a variant call
@@ -706,20 +810,9 @@ class XPseudoDominantFemale(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-        self.ad_threshold = config_retrieve(['ValidateMOI', GNOMAD_RARE_THRESHOLD])
-        self.ac_threshold = config_retrieve(['ValidateMOI', GNOMAD_AD_AC_THRESHOLD])
-        self.hom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
-
-        self.freq_tests = {
-            SmallVariant.__name__: {
-                'gnomad_homalt': self.hom_threshold,
-                'gnomad_ac': self.ac_threshold,
-                'gnomad_af': self.ad_threshold,
-            },
-            StructuralVariant.__name__: {key: self.hom_threshold for key in SV_HOMS},
-        }
-
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        self.global_filter = DominantFilter()
+        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -742,12 +835,8 @@ class XPseudoDominantFemale(BaseMoi):
 
         classifications = []
 
-        # never apply dominant MOI to support variants
         # more stringent Pop.Freq checks for dominant - hemi restriction
-        if too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ) or too_common_in_callset(principal.info):
+        if self.variant_too_common(principal):
             return classifications
 
         # all females which have a variant call
@@ -813,20 +902,9 @@ class XRecessiveMale(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-
-        self.hom_dom_threshold = config_retrieve(['ValidateMOI', GNOMAD_DOM_HOM_THRESHOLD])
-        self.hemi_threshold = config_retrieve(['ValidateMOI', GNOMAD_HEMI_THRESHOLD])
-
-        self.freq_tests = {
-            SmallVariant.__name__: {
-                'gnomad_homalt': self.hom_dom_threshold,
-                'gnomad_ac_xy': self.hemi_threshold,
-            },
-            StructuralVariant.__name__: {key: self.hom_dom_threshold for key in SV_HOMS}
-            | {key: self.hemi_threshold for key in SV_HEMI},
-        }
-
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        self.global_filter = DominantFilter()
+        self.clinvar_filter = ClinVarDominantFilter()
 
     def run(
         self,
@@ -844,7 +922,7 @@ class XRecessiveMale(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if too_common_in_population(principal.info, self.freq_tests[principal.__class__.__name__]):
+        if self.variant_too_common(principal):
             return classifications
 
         # combine het and hom here, we don't trust the variant callers
@@ -903,12 +981,6 @@ class XRecessiveFemaleHom(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-
-        self.hom_rec_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
-        self.freq_tests = {
-            SmallVariant.__name__: {'gnomad_homalt': self.hom_rec_threshold},
-            StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
-        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -928,10 +1000,7 @@ class XRecessiveFemaleHom(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ):
+        if self.variant_too_common(principal):
             return classifications
 
         # never consider support homs
@@ -986,12 +1055,6 @@ class XRecessiveFemaleCH(BaseMoi):
             pedigree ():
             applied_moi ():
         """
-
-        self.hom_rec_threshold = config_retrieve(['ValidateMOI', GNOMAD_REC_HOM_THRESHOLD])
-        self.freq_tests = {
-            SmallVariant.__name__: {'gnomad_homalt': self.hom_rec_threshold},
-            StructuralVariant.__name__: {key: self.hom_rec_threshold for key in SV_HOMS},
-        }
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
 
     def run(
@@ -1014,10 +1077,7 @@ class XRecessiveFemaleCH(BaseMoi):
         classifications = []
 
         # remove from analysis if too many homs are present in population databases
-        if too_common_in_population(
-            principal.info,
-            self.freq_tests[principal.__class__.__name__],
-        ):
+        if self.variant_too_common(principal):
             return classifications
         het_females = {sam for sam in principal.het_samples if self.pedigree.by_id[sam].sex == '2'}
 
@@ -1041,10 +1101,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 # allow for de novo check - also screen out high-AF partners
                 # check for minimum depth and alt support in partner
                 if (
-                    too_common_in_population(
-                        partner.info,
-                        self.freq_tests[partner.__class__.__name__],
-                    )
+                    self.variant_too_common(partner)
                     or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
                     or partner.insufficient_read_depth(
                         sample_id,
