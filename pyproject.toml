@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version='7.0.3'
+version='7.0.4'
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
