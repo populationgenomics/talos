@@ -62,10 +62,10 @@ For the Talos workflow:
 
 The input files are expected in the `large_files` directory, which in the [default annotation config](nextflow/annotation.config) is at the root of this repository. All nextflow configuration parameters can be overridden at runtime - to supply an alternate location for the 'large_files' directory use `--large_files XXX` as a CLI parameter when starting the workflow. To alter the output location for the processed annotation files, alter the `--processed_annotations YYY` parameter.
 
-Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows with:
+Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows with these commands (optional parameters in square brackets):
 
 ```commandline
-nextflow -c nextflow/annotation.config run nextflow/annotation.nf
+nextflow -c nextflow/annotation.config run nextflow/annotation.nf [--large_files XXX] [--processed_annotations YYY]
 
 and
 
