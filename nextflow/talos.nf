@@ -18,13 +18,13 @@ workflow {
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
     // pedigree_channel = Channel.fromPath(params.pedigree)
-    ch_hpo_pedigree = channel.fromPath(params.hpo_pedigree)
-    ch_hpo_file = channel.fromPath(params.hpo)
-    ch_runtime_config = channel.fromPath(params.runtime_config)
-    ch_clinvar_tar = channel.fromPath(params.clinvar)
-    ch_gen2phen = channel.fromPath(params.gen2phen)
-    ch_phenio_gz = channel.fromPath(params.phenio_db)
-    ch_mane = channel.fromPath(params.parsed_mane)
+    ch_hpo_pedigree = channel.fromPath(params.hpo_pedigree, checkIfExists: true)
+    ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true)
+    ch_runtime_config = channel.fromPath(params.runtime_config, checkIfExists: true)
+    ch_clinvar_tar = channel.fromPath(params.clinvar, checkIfExists: true)
+    ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true)
+    ch_phenio_gz = channel.fromPath(params.phenio_db, checkIfExists: true)
+    ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
 
     // make a phenopackets file (CPG-specific)
     // commenting this call out as authenticating inside the container is more effort than it's worth right now

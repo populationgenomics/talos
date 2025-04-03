@@ -29,7 +29,7 @@ workflow {
     // populate input channels - VCFs, reference genome
     ch_vcfs = channel.fromPath(params.input_vcfs)
     ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
-    ch_ref_genome = channel.fromPath(params.ref_genome, )
+    ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true)
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     // read in as a channel if this was already generated
@@ -47,8 +47,8 @@ workflow {
     // and a overlap-merged version of the same for more efficient region filtering
     ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
     if (file(params.ensembl_bed).exists() && file(params.ensembl_merged_bed).exists()) {
-    	ch_bed = channel.fromPath(params.ensembl_bed)
-    	ch_merged_bed = channel.fromPath(params.ensembl_merged_bed)
+    	ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
+    	ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
     }
     else {
     	CreateRoiFromGff3(ch_gff)
@@ -84,7 +84,7 @@ workflow {
 
     // pull and parse the MANE data into a Hail Table
     if (file(params.mane_json).exists()) {
-    	ch_mane = channel.fromPath(params.mane_json)
+    	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
     }
     else {
     	ch_mane_summary = channel.fromPath(params.mane, checkIfExists: true)
