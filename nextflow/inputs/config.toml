@@ -90,9 +90,18 @@ clinvar_dominant_gnomad_max_af = 0.00005
 clinvar_callset_max_af = 0.05
 clinvar_dominant_callset_max_af = 0.05
 
+# any categories in this list will be ignored. For exomiser and svdb the annotations will never be annotated in
 ignore_categories = [ "exomiser", "svdb"]
-phenotype_match = ["6"]
+
+# categories where a variant can 'support' another variant, e.g. Comp-Het, but a variant which only has categories in
+# this list will not feature as a homozygous variant or dominant single hit
 support_categories = ["6"]
+
+# variants where all applied categories are in this list are removed from the report unless the gene or variant is
+# flagged as being a good phenotypic fit for the specific case
+# This default value "6" (AlphaMissense) is redundant with the "support" category - variants which were only flagged by
+# AlphaMissense will be removed from consideration completely
+phenotype_match = ["6"]
 
 [HPOFlagging]
 semantic_match = true
