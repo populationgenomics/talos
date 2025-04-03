@@ -60,7 +60,7 @@ For the Talos workflow:
 2. `hp.obo` from https://hpo.jax.org/data/ontology
 3. `phenio.db.gz` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
 
-The input files are expected in the [large_files](large_files) directory at the root of this repository. For the AlphaMissense, MANE, and Ensembl GFF file, the annotation workflow procesess the raw data into a format expected in the workflow. This only needs to be done once, and subsequent runs of the workflow will detect and reuse the prior outputs. All nextflow configuration parameters can be overridden at runtime - to supply an alternate location for the 'large_files' directory use `--large_files XXX` as a CLI parameter when starting the workflow. To alter the output location for the processed annotation files, alter the `--processed_annotations YYY` parameter.
+The input files are expected in the `large_files` directory, which in the [default annotation config](nextflow/annotation.config) is at the root of this repository. All nextflow configuration parameters can be overridden at runtime - to supply an alternate location for the 'large_files' directory use `--large_files XXX` as a CLI parameter when starting the workflow. To alter the output location for the processed annotation files, alter the `--processed_annotations YYY` parameter.
 
 Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows with:
 
@@ -71,6 +71,8 @@ and
 
 nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_tar nextflow/cohort_outputs/cohort.mt.tar
 ```
+
+For the AlphaMissense, MANE, and Ensembl GFF file, the annotation workflow procesess the raw data into a format expected in the workflow. This only needs to be done once, and subsequent runs of the workflow will detect and reuse the prior outputs, with faster runtimes. 
 
 ### Real Data
 
