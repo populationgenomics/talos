@@ -13,6 +13,7 @@ from collections import defaultdict
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import ParseDict
 from networkx import dfs_successors
+from networkx.exception import NetworkXError
 from obonet import read_obo
 
 from talos.config import config_retrieve
@@ -107,11 +108,15 @@ def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], hpo_file: str, all_
     hpo_to_panels = defaultdict(set)
     for hpo in all_hpos:
         # identify all HPO terms back to the ontology root
-        successor_hpo_terms = set(dfs_successors(hpo_graph, hpo))
+        try:
+            successor_hpo_terms = set(dfs_successors(hpo_graph, hpo))
 
-        for hpo_term in successor_hpo_terms:
-            if hpo_term in hpo_panel_map:
-                hpo_to_panels[hpo].update(hpo_panel_map[hpo_term])
+            for hpo_term in successor_hpo_terms:
+                if hpo_term in hpo_panel_map:
+                    hpo_to_panels[hpo].update(hpo_panel_map[hpo_term])
+        except (KeyError, NetworkXError):
+            # if the HPO term is not in the graph, skip it
+            get_logger(__file__).warning(f'HPO term {hpo} not found in HPO graph')
 
     return hpo_to_panels
 
