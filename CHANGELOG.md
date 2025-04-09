@@ -14,6 +14,92 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[7.0.5] - 2025-04-09
+
+### Changed
+
+The GeneratePanelData module now skips over any HPO terms which were not found in the ontology. This is an escape for 
+deprecated terms which are present in the metadata, previously these were causing a crash in the pipeline. This means
+that some outdated HPO terms will not have a chance at a gene panel match, with logging to indicate which terms were 
+causing problems.
+
+### Removed
+
+setup.py has been deleted, in favour of a fully pyproject-based setup. This is a more modern approach to packaging, and 
+was in use as-of 7.0.0... I just forgot to remove the old setup.py file.
+
+[7.0.4] - 2025-04-03
+
+What happened to 7.0.3? Who knows!
+
+### Changed
+
+The way hyperlinks are generated out to external resources has been changed to be less Seqr-specific and more flexible.
+Package is now limited to Python 3.10.X, due to a restriction in CPG-Flow.
+
+Extensive renovation of how population filters are applied to different types of variant/MOI. This new approach 
+separates Dominant/non-Dominant filters, and ClinVar/Non-ClinVar filters. Each MOI model implents one of these 4 models,
+each populating its filters from a specific block in config. As well as resulting in a more transparent and extensible
+filtering process, this also removes a number of noisy variants we were retaining due to overly lax/absent filtering of
+ClinVar Pathogenic variants.
+
+### Added
+
+A CPG-Flow workflow to run this pipeline internally at CPG. This is a wrapper process migrated from the CPG's internal
+production-piplines workflow, with a few bits of updated syntax.
+
+
+
+
+[7.0.2] - 2025-03-25
+
+### Fixed
+
+Correction to some of the NF modules - MatrixTables are no longer being re-compressed, so updating the expected file
+extension to `.tar` instead of `.tar.gz` in the workflow.
+
+[7.0.1] - 2025-03-24
+
+### Fixed 
+
+Patched some SV VCF parsing - I was expecting the same schema to be present in CNV and GATK-SV VCFs, but some fields 
+need to be optional for both to pass through the parser.
+
+### Added 
+
+A new block of functionality allows for genes and corresponding MOIs to be added from configuration, rather than only
+pulling from PanelApp. This is useful for genes which are not in PanelApp, or for genes which are in PanelApp but not
+expected to be found through the existing phenotype-matching process. It's also able to apply more lenient MOIs for 
+genes which were found in PanelApp, e.g. to trigger a more exploratory analysis.
+
+[7.0.0] - 2025-03-20
+
+### Origin
+
+This is the starting point for Talos as an easily redistributable tool. Prior to this point Talos was reliant on 
+external annotations in a fixed format, making redeployment a challenge. This version is the first to own all annotation
+processes, implementing an annotation pipeline which is minimal and quick to run. 
+
+The aim starting from this version is to ensure all Talos developments can be rolled out easily to external users with
+no breaking changes, and no dependencies on external data formats or privately configured workflows.
+
+### Added
+
+Two nextflow workflows in the `nextflow` directory:
+
+1. annotation.nf - a workflow to run the annotation pipeline, from raw VCF to annotated MT
+2. talos.nf - a workflow to run the Talos pipeline, from annotated MT to report
+
+These may not scale fantastically, but they are a good starting point for running Talos in a reproducible way, and they
+can be used as a functional demo using test data distributed with the repository.
+
+This annotation workflow is solely for SNV/Indels, but the SV analysis now runs from VCF instead of from the MT format
+we hold internally. The annotations we expect are still in the exact format applied by GATK-SV's AnnotateVcf module, but
+this is a good foundation for allowing SV VCFs annotated from other tools (e.g VEP to be used).
+
+This annotation pipeline makes use of gnomAD V4.1 data, which is the latest version of gnomAD at the time of writing. 
+This is a far larger dataset than the previous gnomAD 2/3, and is expected to provide stronger filtering power.
+
 [6.0.0] - 2024-10-21
 
 ### Added
