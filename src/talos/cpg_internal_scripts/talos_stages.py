@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from cpg_flow.stage import DatasetStage, stage
 from cpg_flow.utils import get_logger
 from cpg_utils import Path
-from cpg_utils.config import ConfigError, config_retrieve
+from cpg_utils.config import ConfigError, config_retrieve, image_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
 
 from metamist.graphql import gql, query
@@ -667,9 +667,7 @@ class UploadTalosHtml(DatasetStage):
 
     def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
         job = get_batch().new_job(f'UploadTalosHtml: {dataset.name}')
-
-        # TODO this needs a basic gcloud image
-        job.image(config_retrieve(['workflow', 'driver_image']))
+        job.image(image_path('cpg_hail_gcloud'))
         job.memory('standard')
         job.cpu(1.0)
 
