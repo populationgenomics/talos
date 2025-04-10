@@ -27,18 +27,25 @@ include { TransferAnnotationsToMatrixTable } from './modules/annotation/Transfer
 
 workflow {
 
-    // populate input channels - VCFs, reference genome
-    ch_vcfs = channel.fromPath(params.input_vcfs)
-    ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
-    ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true)
+    // populate ref genome input channel
+    ch_ref_genome = channel.fromPath(
+    	params.ref_genome,
+    	checkIfExists: true,
+	)
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     // read in as a channel if this was already generated
     if (file(params.alphamissense_tar).exists()) {
-        ch_alphamissense_table = channel.fromPath(params.alphamissense_tar, checkIfExists: true)
+        ch_alphamissense_table = channel.fromPath(
+        	params.alphamissense_tar,
+        	checkIfExists: true
+		)
     }
     else {
-    	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
+    	ch_alphamissense_tsv = channel.fromPath(
+    		params.alphamissense_tsv,
+    		checkIfExists: true
+		)
         ParseAlphaMissenseIntoHt(ch_alphamissense_tsv)
         ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
     }
@@ -48,8 +55,14 @@ workflow {
     // and a overlap-merged version of the same for more efficient region filtering
     ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
     if (file(params.ensembl_bed).exists() && file(params.ensembl_merged_bed).exists()) {
-    	ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
-    	ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
+    	ch_bed = channel.fromPath(
+    		params.ensembl_bed,
+    		checkIfExists: true,
+		)
+    	ch_merged_bed = channel.fromPath(
+    		params.ensembl_merged_bed,
+    		checkIfExists: true,
+		)
     }
     else {
     	CreateRoiFromGff3(ch_gff)
@@ -58,29 +71,36 @@ workflow {
 	}
 
 	// if a merged VCF is provided, don't implement a manual merge - start from an externally completed dataset
-	if(file(params.merged_vcf).exists()) {
+	if (file(params.merged_vcf).exists()) {
 		ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
 		ch_merged_index = channel.fromPath("${params.merged_vcf}.tbi", checkIfExists: true)
 
 		// does this file need region filtering?
-		if params.region_filter {
+		if (params.region_filter) {
 		    FilterVcfToBedWithBcftools(
-				tuple(ch_merged_vcf, ch_merged_index)
+				ch_merged_vcf,
+				ch_merged_index,
 				ch_merged_bed,
 		    )
 		    ch_merged_tuple = FilterVcfToBedWithBcftools.out
 		}
 		else {
-		    ch_merged_tuple = tuple(ch_merged_vcf, ch_merged_index)
+		    ch_merged_tuple = tuple(
+		    	ch_merged_vcf,
+		    	ch_merged_index,
+			)
 		}
 	}
-	else:
+	else {
+		ch_vcfs = channel.fromPath(params.input_vcfs)
+		ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
 		MergeVcfsWithBcftools(
-			ch_vcfs.collect(),
-			ch_tbis.collect(),
+			ch_vcfs.toList(),
+			ch_tbis.toList(),
 			ch_merged_bed,
 		)
 		ch_merged_tuple = MergeVcfsWithBcftools.out
+	}
 
     // create a sites-only version of this VCF, just to pass less data around when annotating
     MakeSitesOnlyVcfWithBcftools(
@@ -88,7 +108,10 @@ workflow {
     )
 
     // read the whole-genome Zip file as an input channel
-    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
+    ch_gnomad_zip = channel.fromPath(
+		params.gnomad_zip,
+		checkIfExists: true
+    )
 
     // and apply the annotation using echtvar
     AnnotateGnomadAfWithEchtvar(
@@ -105,10 +128,16 @@ workflow {
 
     // pull and parse the MANE data into a Hail Table
     if (file(params.mane_json).exists()) {
-    	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
+    	ch_mane = channel.fromPath(
+			params.mane_json,
+			checkIfExists: true
+		)
     }
     else {
-    	ch_mane_summary = channel.fromPath(params.mane, checkIfExists: true)
+    	ch_mane_summary = channel.fromPath(
+    		params.mane,
+    		checkIfExists: true
+		)
     	ParseManeIntoJson(ch_mane_summary)
     	ch_mane = ParseManeIntoJson.out.json
     }

@@ -4,7 +4,8 @@ process FilterVcfToBedWithBcftools {
 
     // take the merged VCF and index
     input:
-        tuple path(vcf), path(tbi)
+        path(vcf)
+        path(tbi)
         path (bed_file)
 
     // strip this VCF down to sites-only
