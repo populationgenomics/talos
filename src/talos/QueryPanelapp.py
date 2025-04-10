@@ -10,12 +10,13 @@ from datetime import datetime
 from dateutil.parser import parse
 from dateutil.utils import today
 
+from loguru import logger
+
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, PanelShort, PhenotypeMatchedPanels
 from talos.utils import (
     ORDERED_MOIS,
     get_json_response,
-    get_logger,
     get_simple_moi,
     read_json_from_path,
     parse_mane_json_to_dict,
@@ -31,7 +32,7 @@ try:
     PANELAPP_BASE = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
     DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], PANELAPP_HARD_CODED_BASE_PANEL)
 except (FileNotFoundError, KeyError):
-    get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
+    logger.warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     PANELAPP_BASE = PANELAPP_HARD_CODED_DEFAULT
     DEFAULT_PANEL = PANELAPP_HARD_CODED_BASE_PANEL
 
@@ -60,7 +61,7 @@ def request_panel_data(url: str) -> tuple[str, str, list]:
     panel_genes = panel_json.get('genes')
 
     # log name and version
-    get_logger().info(f'{panel_name} version: {panel_version}')
+    logger.info(f'{panel_name} version: {panel_version}')
 
     return panel_name, panel_version, panel_genes
 
@@ -171,11 +172,11 @@ def get_panel(
                 chrom = ensembl_data['location'].split(':')[0]
 
         if chrom is None:
-            get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name} for lack of chrom annotation')
+            logger.info(f'Gene {symbol}/{ensg} removed from {panel_name} for lack of chrom annotation')
             continue
 
         if ensg is None or ensg in blacklist or symbol in blacklist or ensg in forbidden_genes:
-            get_logger().info(f'Gene {symbol}/{ensg} removed from {panel_name}')
+            logger.info(f'Gene {symbol}/{ensg} removed from {panel_name}')
             continue
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
@@ -244,7 +245,7 @@ def update_moi_from_config(
         gene_json (str | None): path to the symbol: ensg dictionary in JSON form
     """
 
-    get_logger().info(f'Overriding MOI for specific genes: {add_genes}')
+    logger.info(f'Overriding MOI for specific genes: {add_genes}')
 
     # read the MANE file into a dictionary
     mane_lookup = parse_mane_json_to_dict(gene_json) if gene_json else {}
@@ -268,9 +269,9 @@ def update_moi_from_config(
         if ensg in gene_dict.genes:
             current_moi = gene_dict.genes[ensg].moi
             if current_moi == moi:
-                get_logger().info(f'{ensg} MOI was already {moi}, no change made')
+                logger.info(f'{ensg} MOI was already {moi}, no change made')
             else:
-                get_logger().info(f'{ensg} MOI was updated from {current_moi} to {moi}')
+                logger.info(f'{ensg} MOI was updated from {current_moi} to {moi}')
                 gene_dict.genes[ensg].moi = moi
             gene_dict.genes[ensg].panels.add(DEFAULT_PANEL_ID)
 
@@ -306,40 +307,40 @@ def main(panels: str | None, out_path: str, gene_json_path: str | None = None):
         gene_json_path (): path to gene symbol JSON, used to obtain a lookup of symbol to ENSG ID
     """
 
-    get_logger().info('Starting PanelApp Query Stage')
+    logger.info('Starting PanelApp Query Stage')
 
     # set the Forbidden genes (defaulting to an empty set)
     forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], set())
 
     # are there any genes to skip from the Mendeliome? i.e. only report if in a specifically phenotype-matched panel
     remove_from_core: list[str] = config_retrieve(['GeneratePanelData', 'require_pheno_match'], [])
-    get_logger().info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
+    logger.info(f'Genes to remove from Mendeliome: {",".join(remove_from_core)!r}')
 
     # set up the gene dict
     gene_dict = PanelApp(genes={})
 
     # first add the base content
-    get_logger().info('Getting Base Panel')
+    logger.info('Getting Base Panel')
     get_panel(gene_dict, blacklist=remove_from_core, forbidden_genes=forbidden_genes)
 
     # if participant panels were provided, add each of those to the gene data
     panel_list: set[int] = set()
     if panels is not None:
-        get_logger().info('Reading participant panels')
+        logger.info('Reading participant panels')
         hpo_panel_object = read_json_from_path(panels, return_model=PhenotypeMatchedPanels)
         panel_list = hpo_panel_object.all_panels
-        get_logger().info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
+        logger.info(f'Phenotype matched panels: {", ".join(map(str, panel_list))}')
 
     # now check if there are cohort-wide override panels
     if extra_panels := config_retrieve(['GeneratePanelData', 'forced_panels'], False):
-        get_logger().info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
+        logger.info(f'Cohort-specific panels: {", ".join(map(str, extra_panels))}')
         panel_list.update(extra_panels)
 
     for panel in panel_list:
         # skip mendeliome - we already queried for it
         if panel == DEFAULT_PANEL:
             continue
-        get_logger().info(f'Getting Panel {panel}')
+        logger.info(f'Getting Panel {panel}')
         get_panel(gene_dict=gene_dict, panel_id=panel, forbidden_genes=forbidden_genes)
 
     # now get the best MOI, and update the entities in place

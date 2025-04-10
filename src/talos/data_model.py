@@ -29,8 +29,7 @@ from os.path import join
 
 import hail as hl
 from hail.utils.java import FatalError
-
-from talos.static_values import get_logger
+from loguru import logger
 
 
 class CustomEncoder(json.JSONEncoder):
@@ -271,7 +270,7 @@ class SneakyTable:
             hl.init(idempotent=True)
             hl.default_reference('GRCh38')
         except FatalError as fe:
-            get_logger().info(f'Hail already initialised: {fe}')
+            logger.info(f'Hail already initialised: {fe}')
 
     def modify_schema(self) -> str:
         """

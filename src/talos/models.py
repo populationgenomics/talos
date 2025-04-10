@@ -6,6 +6,7 @@ from enum import Enum
 from itertools import pairwise
 from typing import Any
 
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
@@ -15,7 +16,7 @@ from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
-from talos.static_values import get_granular_date, get_logger
+from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
@@ -558,7 +559,7 @@ def lift_up_model_version(
         raise ValueError(f'Unknown {model.__name__} version: {from_version}')
 
     if from_version != CURRENT_VERSION and not LIFTOVER_METHODS.get(model):
-        get_logger().info(f'No liftover methods for {model.__name__}')
+        logger.info(f'No liftover methods for {model.__name__}')
 
     # now pairwise iterate over ALL_VERSIONS, and find liftovers between each
     from_version_index = ALL_VERSIONS.index(from_version)

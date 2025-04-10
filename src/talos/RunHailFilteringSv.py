@@ -11,11 +11,11 @@ CategoryBooleanSV1:
 from argparse import ArgumentParser
 
 import hail as hl
+from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
-from talos.static_values import get_logger
 from talos.utils import read_json_from_path
 
 
@@ -207,7 +207,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         pedigree ():
         vcf_out (str): where to write VCF out
     """
-    get_logger(__file__).info(
+    logger.info(
         r"""Welcome To
  ███████████   █████████   █████          ███████     █████████
  █   ███   █  ███     ███   ███         ███     ███  ███     ███
@@ -223,7 +223,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     gene_id_mapping = read_and_filter_mane_json(mane_json)
 
     # read the parsed panelapp data
-    get_logger().info(f'Reading PanelApp data from {panelapp_path!r}')
+    logger.info(f'Reading PanelApp data from {panelapp_path!r}')
     panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)
     if not isinstance(panelapp, PanelApp):
         raise TypeError(f'PanelApp was not a PanelApp object: {panelapp}')
@@ -234,7 +234,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
 
     # initiate Hail in local cluster mode
     number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'sv'], 4)
-    get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
+    logger.info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
     hl.context.init_spark(master=f'local[{number_of_cores}]')
     hl.default_reference('GRCh38')
 
@@ -256,7 +256,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     # remove filtered variants
     mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
 
-    get_logger().info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
+    logger.info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
 
     # drop rows with no LOF consequences
     mt = mt.filter_rows(hl.len(mt.info.PREDICTED_LOF) > 0)
