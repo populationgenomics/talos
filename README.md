@@ -80,6 +80,9 @@ For real data, you'll need to provide your own VCFs, and a pedigree file. Option
 used to supply additional phenotypic information for participants. This is used to generate a personalised gene panel
 for each family in the analysis.
 
+A newly supported argument to the annotation workflow is `--merged_vcf`. This can be used to provide a single merged VCF
+file as input, instead of merging individual VCFs. This will be beneficial if you already have merged data.
+
 ---
 
 Talos analysis consists of a few main phases:
