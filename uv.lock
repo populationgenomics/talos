@@ -480,7 +480,7 @@ wheels = [
 
 [[package]]
 name = "cpg-flow"
-version = "0.1.3"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "coloredlogs" },
@@ -495,9 +495,9 @@ dependencies = [
     { name = "pre-commit" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/6d/57d11f581136209dc9dcf3dfa56767daf447b91732117a533ace2817babe/cpg_flow-0.1.3.tar.gz", hash = "sha256:51533657155d6efb143d8730a7a1c6b8b4faa96bc66ad892a0c09217ab740c79", size = 1882233 }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/fc/913205702c56d13cf18a5249dae0225193b6daa374eb6480369919fd0ee4/cpg_flow-0.2.0.tar.gz", hash = "sha256:dfa6e67c3b3b965d6e9ab76c75ad5b678371a6bb71945d458226202dbfd5187a", size = 1887207 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/21/ba/3bee79541ebbfad234f9a8b8f79d4250e4da7761832ddc99e217b33a883b/cpg_flow-0.1.3-py3-none-any.whl", hash = "sha256:d25b51865e3e8e617d1854b2d5aa9e869a0a736855a9a2967247f8bfa415af22", size = 69954 },
+    { url = "https://files.pythonhosted.org/packages/3e/ae/3e46f42ab44487dd93c0cba6af2857a407e142d28c9e0e085fb211337450/cpg_flow-0.2.0-py3-none-any.whl", hash = "sha256:fa8e0c4fffe311cd18e02e30138f861d784e16cc486b2d0a34c0f34f9144715f", size = 70792 },
 ]
 
 [[package]]
@@ -925,7 +925,7 @@ wheels = [
 
 [[package]]
 name = "hail"
-version = "0.2.133"
+version = "0.2.134"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiodns" },
@@ -965,7 +965,7 @@ dependencies = [
     { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/5e/65310e232d383b387cdfd8314d341f8f3508525d739198ddfc33ec75fe02/hail-0.2.133-py3-none-any.whl", hash = "sha256:b5269b0b2d9ade147279a9b8157c301a705922459deb144c8d5c543ce28d1bbb", size = 144749210 },
+    { url = "https://files.pythonhosted.org/packages/cb/6c/eae99ba9422f90a2b86f1f309099e3504c19ee76f7401625fb47bd49f228/hail-0.2.134-py3-none-any.whl", hash = "sha256:75289519fa79d3eede93aa1de9b1ef29307e01eeb3ac99bcc5d5d94f949c2e81", size = 144929795 },
 ]
 
 [[package]]
@@ -1787,6 +1787,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-httpx"
+version = "0.35.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1f/89/5b12b7b29e3d0af3a4b9c071ee92fa25a9017453731a38f08ba01c280f4c/pytest_httpx-0.35.0.tar.gz", hash = "sha256:d619ad5d2e67734abfbb224c3d9025d64795d4b8711116b1a13f72a251ae511f", size = 54146 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/ed/026d467c1853dd83102411a78126b4842618e86c895f93528b0528c7a620/pytest_httpx-0.35.0-py3-none-any.whl", hash = "sha256:ee11a00ffcea94a5cbff47af2114d34c5b231c326902458deed73f9c459fd744", size = 19442 },
+]
+
+[[package]]
 name = "pytest-xdist"
 version = "3.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2048,7 +2061,7 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "7.0.2"
+version = "7.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpathlib", extra = ["all"] },
@@ -2083,6 +2096,7 @@ test = [
     { name = "bump2version" },
     { name = "pre-commit" },
     { name = "pytest" },
+    { name = "pytest-httpx" },
     { name = "pytest-xdist" },
 ]
 
@@ -2091,12 +2105,12 @@ requires-dist = [
     { name = "black", marker = "extra == 'test'" },
     { name = "bump2version", marker = "extra == 'test'" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
-    { name = "cpg-flow", marker = "extra == 'cpg'", specifier = ">=0.1.2" },
+    { name = "cpg-flow", marker = "extra == 'cpg'", specifier = ">=0.2.0" },
     { name = "cyvcf2", specifier = ">=0.30.18" },
     { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },
     { name = "gql", marker = "extra == 'cpg'" },
     { name = "grpcio-status", specifier = ">=1.48,<1.50" },
-    { name = "hail", specifier = ">=0.2.133" },
+    { name = "hail", specifier = ">=0.2.134" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.3" },
     { name = "metamist", marker = "extra == 'cpg'", specifier = ">=7.4.0" },
@@ -2108,6 +2122,7 @@ requires-dist = [
     { name = "protobuf", specifier = "==3.20.2" },
     { name = "pydantic", specifier = ">=2.5.2" },
     { name = "pytest", marker = "extra == 'test'" },
+    { name = "pytest-httpx", marker = "extra == 'test'" },
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.6.0" },
     { name = "python-dateutil", specifier = ">=2" },
     { name = "semsimian" },

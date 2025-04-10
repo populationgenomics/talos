@@ -20,7 +20,7 @@ classifiers=[
 ]
 
 dependencies=[
-    'hail>=0.2.133',
+    'hail>=0.2.134',
     'cloudpathlib[all]>=0.16.0',
     'cyvcf2>=0.30.18',
     'grpcio-status>=1.48,<1.50',
@@ -44,10 +44,10 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=v0.1.2',
+    'cpg-flow>=v0.2.0',
     'google-cloud-storage==2.14.0',
     'gql',
-    'metamist>=7.4.0'
+    'metamist>=7.4.0',
 ]
 test = [
     'bump2version',

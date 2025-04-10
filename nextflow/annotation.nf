@@ -17,6 +17,7 @@ nextflow.enable.dsl=2
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
 include { AnnotateGnomadAfWithEchtvar } from './modules/annotation/AnnotateGnomadAfWithEchtvar/main'
 include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
+include { FilterVcfToBedWithBcftools } from './modules/annotation/FilterVcfToBedWithBcftools/main'
 include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnlyVcfWithBcftools/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
 include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
@@ -55,15 +56,35 @@ workflow {
     	ch_bed = CreateRoiFromGff3.out.bed
     	ch_merged_bed = CreateRoiFromGff3.out.merged_bed
 	}
-    MergeVcfsWithBcftools(
-        ch_vcfs.collect(),
-        ch_tbis.collect(),
-        ch_merged_bed,
-    )
+
+	// if a merged VCF is provided, don't implement a manual merge - start from an externally completed dataset
+	if(file(params.merged_vcf).exists()) {
+		ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
+		ch_merged_index = channel.fromPath("${params.merged_vcf}.tbi", checkIfExists: true)
+
+		// does this file need region filtering?
+		if params.region_filter {
+		    FilterVcfToBedWithBcftools(
+				tuple(ch_merged_vcf, ch_merged_index)
+				ch_merged_bed,
+		    )
+		    ch_merged_tuple = FilterVcfToBedWithBcftools.out
+		}
+		else {
+		    ch_merged_tuple = tuple(ch_merged_vcf, ch_merged_index)
+		}
+	}
+	else:
+		MergeVcfsWithBcftools(
+			ch_vcfs.collect(),
+			ch_tbis.collect(),
+			ch_merged_bed,
+		)
+		ch_merged_tuple = MergeVcfsWithBcftools.out
 
     // create a sites-only version of this VCF, just to pass less data around when annotating
     MakeSitesOnlyVcfWithBcftools(
-        MergeVcfsWithBcftools.out
+        ch_merged_tuple
     )
 
     // read the whole-genome Zip file as an input channel
@@ -103,6 +124,6 @@ workflow {
     // combine the join-VCF and annotations as a HailTable
     TransferAnnotationsToMatrixTable(
         ReformatAnnotatedVcfIntoHailTable.out,
-        MergeVcfsWithBcftools.out,
+        ch_merged_tuple,
     )
 }
