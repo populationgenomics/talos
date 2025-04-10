@@ -702,7 +702,7 @@ def main(results: str, panelapp: str, output: str):
 
     # we only need to do sub-reports if we can delineate by year
     for data, report, prefix in split_data_into_sub_reports(results_object):
-        html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix)
+        html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix, link_engine=link_builder)
         try:
             output_filepath = join(report_output_dir, report)
             get_logger().debug(f'Attempting to create {report} at {output_filepath}')
