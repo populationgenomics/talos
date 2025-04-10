@@ -75,20 +75,12 @@ workflow {
 		ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
 		ch_merged_index = channel.fromPath("${params.merged_vcf}.tbi", checkIfExists: true)
 
-		// does this file need region filtering?
-		if (params.region_filter) {
-		    FilterVcfToBedWithBcftools(
-				ch_merged_vcf,
-				ch_merged_index,
-				ch_merged_bed,
-		    )
-		    ch_merged_tuple = FilterVcfToBedWithBcftools.out
-		}
-		else {
-			ch_merged_vcf.view()
-			ch_merged_index.view()
-		    ch_merged_tuple = tuple(ch_merged_vcf, ch_merged_index)
-		}
+		FilterVcfToBedWithBcftools(
+			ch_merged_vcf,
+			ch_merged_index,
+			ch_merged_bed,
+		)
+		ch_merged_tuple = FilterVcfToBedWithBcftools.out
 	}
 	else {
 		ch_vcfs = channel.fromPath(params.input_vcfs)
