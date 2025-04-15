@@ -18,9 +18,10 @@ process FilterVcfToBedWithBcftools {
 
     script:
     """
-    bcftools view \
+    bcftools norm \
+    	-m -any \
         --write-index=tbi \
-         -R ${bed_file} \
+        -R ${bed_file} \
         -Oz -o "${params.cohort}_merged_filtered.vcf.bgz" \
         ${vcf}
     """

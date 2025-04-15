@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version='7.0.6'
+version='7.0.7'
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -39,12 +39,13 @@ dependencies=[
     'tabulate>=0.8.9',
     'tenacity>=9.0.0',
     'toml==0.10.2',
+    "loguru>=0.7.3",
 ]
 
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=v0.2.0',
+    'cpg-flow>=v0.2.1',
     'google-cloud-storage==2.14.0',
     'gql',
     'metamist>=7.4.0',
@@ -114,14 +115,14 @@ CreateTalosHTML = 'talos.CreateTalosHTML:cli_main'
 # Generate a brief summary of an existing report (variant count, family size, etc.)
 SummariseReport = 'talos.SummariseReport:cli_main'
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[tool.hatch.build.targets.wheel]
+packages = ["src/talos"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
 
 [options]
 include_package_data = true
-
-#[options.package_data]
-#'talos'=  ['config_template.toml']
 
 [tool.black]
 line-length = 120
