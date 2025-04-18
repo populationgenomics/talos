@@ -360,6 +360,38 @@ class PanelApp(BaseModel):
     version: str = CURRENT_VERSION
 
 
+class StolenPanelAppGenePanelDetail(BaseModel):
+    """ """
+
+    date: str = Field(default_factory=str)
+    moi: str = None
+
+
+class StolenPanelAppGene(BaseModel):
+    """ """
+
+    symbol: str
+    mane_symbol: str = Field(default_factory=str)
+    ensg: str = Field(default_factory=str)
+    panels: dict[int, StolenPanelAppGenePanelDetail] = Field(default_factory=dict)
+
+
+class StolenPanelAppHpo(BaseModel):
+    """ """
+
+    hpo_terms: set[str] = Field(default_factory=set)
+    disease_group: str
+
+
+class StolenPanelApp(BaseModel):
+    """ """
+
+    versions: list[PanelShort] = Field(default_factory=list)
+    genes: dict[str, StolenPanelAppGene] = Field(default_factory=dict)
+    hpos: dict[int, StolenPanelAppHpo] = Field(default_factory=dict)
+    version: str = CURRENT_VERSION
+
+
 class CategoryMeta(BaseModel):
     """
     The mapping of category names to their display names
