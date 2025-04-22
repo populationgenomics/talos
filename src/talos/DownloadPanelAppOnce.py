@@ -67,6 +67,7 @@ try:
 except (ConfigError, KeyError):
     logger.warning('Config environment variable TALOS_CONFIG not set, or keys missing, falling back to Aussie PanelApp')
 
+# if this is a massive result, it returns over a number of pages
 GREEN_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/genes/?confidence_level=3'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
 
@@ -104,11 +105,13 @@ def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[
         dict: {panel_ID: [HPO term, HPO term]}
     """
 
-    panels_by_hpo: dict[int, list[PhenoPacketHpo]] = defaultdict(list)
+    panels_by_hpo: dict[int, list[PhenoPacketHpo]] = {}
 
     while True:
         endpoint_data = get_json_response(endpoint)
         for panel in endpoint_data['results']:
+            panels_by_hpo[int(panel['id'])] = []
+
             # can be split over multiple strings, so join then search
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
@@ -160,7 +163,7 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, str]:
 
 
 def parse_panel(
-    panel_data: dict,
+    panel_data: list[dict],
     panel_activities: list[dict],
     ensg_dict: dict[str, str] | None = None,
     symbol_dict: dict[str, str] | None = None,
@@ -182,7 +185,7 @@ def parse_panel(
 
     green_dates = parse_panel_activity(panel_activities)
     # iterate over the genes in this panel result
-    for gene in panel_data['results']:
+    for gene in panel_data:
         if gene['entity_type'] != 'gene':
             continue
 
@@ -223,7 +226,7 @@ def parse_panel(
     return panel_gene_content
 
 
-async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict:
+async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, list[dict]]:
     """
 
     Args:
@@ -233,10 +236,20 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
     Returns:
 
     """
+    panel_url = GREEN_TEMPLATE.format(id=panel_id)
+    panel_results: list[dict] = []
 
-    async with session.get(GREEN_TEMPLATE.format(id=panel_id)) as resp:
-        reponse = await resp.json()
-        return {panel_id: reponse}
+    while True:
+        async with session.get(panel_url) as resp:
+            response = await resp.json()
+            panel_results.extend(response['results'])
+
+            if response['next']:
+                panel_url = response['next']
+            else:
+                break
+
+    return {panel_id: panel_results}
 
 
 async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: int) -> dict:
@@ -335,7 +348,7 @@ def main(output: str, mane_path: str | None = None):
 
     all_panels = set(collected_panel_data.hpos.keys())
 
-    all_panel_data: dict[int, dict] = asyncio.run(get_all_known_panels(all_panels))
+    all_panel_data: dict[int, list[dict]] = asyncio.run(get_all_known_panels(all_panels))
 
     all_panel_activities: dict[int, list] = asyncio.run(get_all_known_panels(all_panels, activities=True))
 
@@ -346,7 +359,7 @@ def main(output: str, mane_path: str | None = None):
 
     # iterate over the gathered panels
     for panel_id, panel_data in all_panel_data.items():
-        if not panel_data['results']:
+        if not panel_data:
             logger.warning(f'No Green Genes on panel {panel_id}')
             continue
 
@@ -363,7 +376,7 @@ def main(output: str, mane_path: str | None = None):
             symbol_dict=symbol_dict,
         )
 
-        one_panel_detail = panel_data['results'][0]['panel']
+        one_panel_detail = panel_data[0]['panel']
 
         collected_panel_data.versions.append(
             PanelShort(
