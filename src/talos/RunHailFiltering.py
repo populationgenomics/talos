@@ -525,16 +525,26 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     pedigree = hl.Pedigree.read(ped_file_path)
 
+    # allow for depth to be missing, rebuild from other attributes if required, or use a default
+    if 'DP' in de_novo_matrix.entry:
+        depth = mde_novo_matrixt.DP
+    elif 'AD' in de_novo_matrix.entry:
+        depth = hl.sum(de_novo_matrix.AD)
+    else:
+        get_logger().info('DP and AD both absent, chucking in a default value')
+        get_logger().info('Input variant data should really have either DP or AD present for various QC purposes')
+        depth = min_depth + 1
+
     # do some rational variant filtering
     de_novo_matrix = de_novo_matrix.filter_entries(
-        (min_depth > de_novo_matrix.DP)
-        | (max_depth < de_novo_matrix.DP)
+        (min_depth > depth)
+        | (max_depth < depth)
         # kyles test implements the stricter GQ filter later, so use it unconditionally here
         | (min_gq > de_novo_matrix.GQ)
         | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < min_gq))
         | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < min_gq))
         # single added condition here
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))),
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))),
         keep=False,
     )
 
