@@ -26,19 +26,38 @@ workflow {
     ch_phenio_gz = channel.fromPath(params.phenio_db, checkIfExists: true)
     ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
 
-    // make a phenopackets file (CPG-specific)
-    // commenting this call out as authenticating inside the container is more effort than it's worth right now
-    // the validation cohort doesn't have any phenotypes, so we gain nothing from this
-    // MakePhenopackets(params.cohort, params.sequencing_type, ch_hpo_file, params.sequencing_tech)
+    // if phenopackets file is available, read it in
+    if (file(params.phenopackets).exists() && file(params.pedigree).exists()) {
+    	ch_phenopackets = channel.fromPath(params.phenopackets)
+		ch_pedigree = channel.fromPath(params.pedigree)
+    }
 
-    // instead... make a phenopackets file from pedigree (CPG-specific)
-    ConvertPedToPhenopackets(
-        ch_hpo_pedigree
-    )
+    // otherwise check if there's a pedigree with HPOs - use that
+    else if(file(params.hpo_pedigree).exists()) {
+		ch_hpo_pedigree = channel.fromPath(params.hpo_pedigree)
+		ConvertPedToPhenopackets(
+			ch_hpo_pedigree,
+		)
+		ch_pedigree = ConvertPedToPhenopackets.out.ped
+		ch_phenopackets = ConvertPedToPhenopackets.out.phenopackets
+    }
+    
+    // fallback, read the plain pedigree in, which will generate a plain phenopacket file
+    else {
+    	ch_maybe_pedigree = channel.fromPath(
+			params.pedigree,
+			checkIfExists: true,
+		)
+		ConvertPedToPhenopackets(
+			ch_maybe_pedigree,
+		)
+		ch_pedigree = ConvertPedToPhenopackets.out.ped
+		ch_phenopackets = ConvertPedToPhenopackets.out.phenopackets
+    }
 
     // we can do this by saving as an object, or inside the method call
     GeneratePanelData(
-        ConvertPedToPhenopackets.out[1],
+        ch_phenopackets,
         ch_hpo_file
     )
 
@@ -52,7 +71,7 @@ workflow {
     RunHailFiltering(
         ch_mt_tar,
         QueryPanelapp.out,
-        ConvertPedToPhenopackets.out[0],
+        ch_pedigree,
         ch_clinvar_tar,
         ch_runtime_config,
     )
@@ -61,7 +80,7 @@ workflow {
     ValidateMOI(
         RunHailFiltering.out,
         QueryPanelapp.out,
-        ConvertPedToPhenopackets.out[0],
+        ch_pedigree,
         GeneratePanelData.out,
         ch_runtime_config,
     )
