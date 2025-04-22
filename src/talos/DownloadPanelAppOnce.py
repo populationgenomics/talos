@@ -33,7 +33,6 @@ import aiohttp
 import asyncio
 import re
 from argparse import ArgumentParser
-from collections import defaultdict
 from dateutil.parser import parse
 
 from loguru import logger
@@ -183,16 +182,17 @@ def parse_panel(
     # this will contain a range of bits, indexed on ENSG
     panel_gene_content: dict = {}
 
-    green_dates = parse_panel_activity(panel_activities)
+    green_dates: dict[str, str] = parse_panel_activity(panel_activities)
+
     # iterate over the genes in this panel result
     for gene in panel_data:
         if gene['entity_type'] != 'gene':
             continue
 
-        symbol = gene.get('entity_name')
+        symbol: str = gene['entity_name']
 
         chrom = ''
-        ensg = None
+        ensg: str | None = None
         mane_ensg = symbol_dict.get(symbol, '') if symbol_dict else ''
 
         # for some reason the build is capitalised oddly in panelapp, so lower it
@@ -210,7 +210,7 @@ def parse_panel(
 
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
-        for each_ensg in {ensg, mane_ensg}:
+        for each_ensg in [ensg, mane_ensg]:
             if not each_ensg:
                 continue
 

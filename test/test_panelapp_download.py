@@ -1,6 +1,5 @@
 from talos.models import PhenoPacketHpo
 from talos.DownloadPanelAppOnce import (
-    get_all_known_panels,
     get_panels_and_hpo_terms,
     parse_panel,
     parse_panel_activity,
