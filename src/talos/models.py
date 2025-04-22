@@ -330,6 +330,21 @@ class ReportVariant(BaseModel):
         return self.var_data.coordinates < other.var_data.coordinates
 
 
+class ParticipantHPOPanels(BaseModel):
+    external_id: str = Field(default_factory=str)
+    family_id: str = Field(default_factory=str)
+    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    panels: set[int] = Field(default_factory=set)
+    matched_genes: set[str] = Field(default_factory=set)
+    matched_phenotypes: set[str] = Field(default_factory=set)
+
+
+class PhenotypeMatchedPanels(BaseModel):
+    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
+    all_panels: set[int] = Field(default_factory=set)
+    version: str = CURRENT_VERSION
+
+
 class PanelDetail(BaseModel):
     """
     A gene from PanelApp, combining all MOI and panel IDs
@@ -338,7 +353,6 @@ class PanelDetail(BaseModel):
 
     symbol: str
     chrom: str = Field(default_factory=str)
-    all_moi: set[str] = Field(default_factory=set)
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
     panels: set[int] = Field(default_factory=set)
@@ -356,7 +370,8 @@ class PanelShort(BaseModel):
 
 class PanelApp(BaseModel):
     metadata: list[PanelShort] = Field(default_factory=list)
-    genes: dict[str, PanelDetail]
+    genes: dict[str, PanelDetail] = Field(default_factory=dict)
+    participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
 
 
@@ -487,21 +502,6 @@ class ModelVariant(BaseModel):
     """
     might be required for the VCF generator
     """
-
-
-class ParticipantHPOPanels(BaseModel):
-    external_id: str = Field(default_factory=str)
-    family_id: str = Field(default_factory=str)
-    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
-    panels: set[int] = Field(default_factory=set)
-    matched_genes: set[str] = Field(default_factory=set)
-    matched_phenotypes: set[str] = Field(default_factory=set)
-
-
-class PhenotypeMatchedPanels(BaseModel):
-    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
-    all_panels: set[int] = Field(default_factory=set)
-    version: str = CURRENT_VERSION
 
 
 class MiniVariant(BaseModel):
