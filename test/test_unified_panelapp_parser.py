@@ -1,4 +1,9 @@
-from talos.UnifiedPanelAppParser import match_hpos_to_panels, match_participants_to_panels
+import pytest
+from talos.UnifiedPanelAppParser import (
+    get_simple_moi,
+    match_hpos_to_panels,
+    match_participants_to_panels,
+)
 from talos.models import PanelApp, PhenoPacketHpo, ParticipantHPOPanels, DownloadedPanelApp, PanelShort, CURRENT_VERSION
 
 
@@ -34,7 +39,7 @@ def test_match_participants_to_panels():
             PanelShort(id=1, version='2'),
             PanelShort(id=3, version='4'),
             PanelShort(id=5, version='6'),
-        ]
+        ],
     )
 
     papp = PanelApp(
@@ -43,14 +48,14 @@ def test_match_participants_to_panels():
                 hpo_terms=[
                     PhenoPacketHpo(id='HP:1', label='1'),
                     PhenoPacketHpo(id='HP:2', label='2'),
-                ]
+                ],
             ),
             'sam2': ParticipantHPOPanels(
                 hpo_terms=[
                     PhenoPacketHpo(id='HP:1', label='1'),
-                ]
+                ],
             ),
-        }
+        },
     )
 
     hpo_panels = {'HP:1': {1, 3}, 'HP:2': {1, 5}}
@@ -88,3 +93,27 @@ def test_match_participants_to_panels():
         },
         'version': CURRENT_VERSION,
     }
+
+
+@pytest.mark.parametrize(
+    'strings,expected,chrom',
+    [
+        (set(), 'Biallelic', '1'),
+        (set(), 'Hemi_Bi_In_Female', 'X'),
+        ({'blag'}, 'Biallelic', '1'),
+        ({'blag'}, 'Hemi_Bi_In_Female', 'X'),
+        ({'biallelic ANY'}, 'Biallelic', '1'),
+        ({'both something', 'something'}, 'Mono_And_Biallelic', '1'),
+        ({'monoallelic', 'something'}, 'Monoallelic', '1'),
+        ({'monoallelic', 'something'}, 'Hemi_Mono_In_Female', 'X'),
+        ({'monoallelic', 'biallelic'}, 'Mono_And_Biallelic', '1'),
+        ({'monoallelic', 'biallelic'}, 'Hemi_Mono_In_Female', 'X'),
+        ({'x-linked'}, 'Hemi_Mono_In_Female', 'X'),
+        ({'x-linked biallelic'}, 'Hemi_Bi_In_Female', 'X'),
+    ],
+)
+def test_get_simple_moi(strings: set[str], expected: str, chrom: str):
+    """
+    Tests the string parsing down to simple representation
+    """
+    assert get_simple_moi(strings, chrom) == expected

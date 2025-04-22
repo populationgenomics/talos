@@ -112,8 +112,8 @@ def match_hpos_to_panels(
     # re-index the HPO terms to the panel IDs
     panel_per_hpo = defaultdict(set)
     for panel_id, hpo_terms in hpo_panel_map.items():
-        for hpo in hpo_terms:
-            panel_per_hpo[hpo.id].add(panel_id)
+        for phenopacket_hpo in hpo_terms:
+            panel_per_hpo[phenopacket_hpo.id].add(panel_id)
 
     # create a fresh object to hold all matched hpos to panels
     hpo_to_panels = defaultdict(set)
@@ -121,17 +121,17 @@ def match_hpos_to_panels(
     # cycle through all HPO terms in the cohort
     # for each term chase it back to the HPO ontology root
     # if there are any hits between the HPO chain and a panel HPO, retain that connection
-    for hpo in all_hpos:
+    for hpo_string in all_hpos:
         # identify all HPO terms back to the ontology root
         try:
-            successor_hpo_terms = set(dfs_successors(hpo_graph, hpo))
+            successor_hpo_terms = set(dfs_successors(hpo_graph, hpo_string))
 
             for hpo_term in successor_hpo_terms:
                 if hpo_term in panel_per_hpo:
-                    hpo_to_panels[hpo].update(panel_per_hpo[hpo_term])
+                    hpo_to_panels[hpo_string].update(panel_per_hpo[hpo_term])
         except (KeyError, NetworkXError):
             # if the HPO term is not in the graph, skip it
-            logger.warning(f'HPO term {hpo} not found in HPO graph')
+            logger.warning(f'HPO term {hpo_string} not found in HPO graph')
 
     return dict(hpo_to_panels)
 
@@ -219,6 +219,9 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
     # force a combined MOI here
     if 'Biallelic' in simplified_mois and 'Monoallelic' in simplified_mois:
         return 'Mono_And_Biallelic'
+
+    if all(x in simplified_mois for x in ['Hemi_Bi_In_Female', 'Hemi_Mono_In_Female']):
+        return 'Hemi_Mono_In_Female'
 
     # take the more lenient of the gene MOI options
     return sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
