@@ -40,7 +40,7 @@ workflow {
 		ch_pedigree = ConvertPedToPhenopackets.out.ped
 		ch_phenopackets = ConvertPedToPhenopackets.out.phenopackets
     }
-    
+
     // fallback, read the plain pedigree in, which will generate a plain phenopacket file
     else {
     	ch_maybe_pedigree = channel.fromPath(
