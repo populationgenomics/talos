@@ -17,8 +17,7 @@ include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
 workflow {
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    // pedigree_channel = Channel.fromPath(params.pedigree)
-    ch_hpo_pedigree = channel.fromPath(params.hpo_pedigree, checkIfExists: true)
+    // pedigree_channel = channel.fromPath(params.pedigree)
     ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true)
     ch_runtime_config = channel.fromPath(params.runtime_config, checkIfExists: true)
     ch_clinvar_tar = channel.fromPath(params.clinvar, checkIfExists: true)
