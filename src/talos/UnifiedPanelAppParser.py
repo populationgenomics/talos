@@ -128,12 +128,12 @@ def match_hpos_to_panels(
 
             for hpo_term in successor_hpo_terms:
                 if hpo_term in panel_per_hpo:
-                    hpo_to_panels[hpo_term].update(panel_per_hpo[hpo_term])
+                    hpo_to_panels[hpo].update(panel_per_hpo[hpo_term])
         except (KeyError, NetworkXError):
             # if the HPO term is not in the graph, skip it
             logger.warning(f'HPO term {hpo} not found in HPO graph')
 
-    return hpo_to_panels
+    return dict(hpo_to_panels)
 
 
 def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cached_panelapp: DownloadedPanelApp):
@@ -167,7 +167,7 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
         # check if the panel is in the analysis (i.e. matched to a family)
         if panel.id in all_panels_in_this_analysis:
             # add to the list of panels for this analysis
-            panelapp_data.panel_versions.append(panel)
+            panelapp_data.metadata.append(panel)
 
 
 def get_simple_moi(input_mois: set[str], chrom: str) -> str:
@@ -284,9 +284,6 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
         output_file ():
         cohort_file ():
         hpo_file ():
-
-    Returns:
-
     """
 
     cached_panelapp: DownloadedPanelApp = read_json_from_path(panel_data, return_model=DownloadedPanelApp)
