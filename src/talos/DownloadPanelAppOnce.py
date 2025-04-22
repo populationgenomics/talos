@@ -208,13 +208,12 @@ def parse_panel(
             logger.info(f'Gene {symbol}/{ensg} removed for lack of chrom or ENSG annotation')
             continue
 
-        # swap up if ensg was empty
-        if not ensg:
-            ensg = mane_ensg
-
         exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
-        for each_ensg in (ensg, mane_ensg):
+        for each_ensg in {ensg, mane_ensg}:
+            if not each_ensg:
+                continue
+
             panel_gene_content[each_ensg] = {
                 'symbol': symbol,
                 'chrom': chrom,

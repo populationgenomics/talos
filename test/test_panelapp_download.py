@@ -47,11 +47,64 @@ def test_activity_parser(panel_activities):
     assert activity_dict['GENE3'] == '2023-08-15'
 
 
-def test_panel_query(latest_mendeliome, panel_activities):
-    """check that the default parsing delivers correct data"""
-
+def test_parse_panel(latest_mendeliome, panel_activities):
     result = parse_panel(panel_data=latest_mendeliome, panel_activities=panel_activities)
+    assert result == {
+        'ENSG00ABCD': {
+            'symbol': 'ABCD',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'biallelic',
+            'green_date': '1970-01-01',
+        },
+        'ENSG00EFGH': {
+            'symbol': 'EFGH',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'monoallelic',
+            'green_date': '1970-01-01',
+        },
+        'ENSG00IJKL': {
+            'symbol': 'IJKL',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'both',
+            'green_date': '1970-01-01',
+        },
+    }
 
-    print(result)
 
-    assert result == {}
+def test_parse_panel_with_mane(latest_mendeliome, panel_activities):
+    """check that the default parsing delivers correct data"""
+    fake_mane_symbols = {'ABCD': 'EasyAs123D'}
+    result = parse_panel(panel_data=latest_mendeliome, panel_activities=panel_activities, symbol_dict=fake_mane_symbols)
+    assert result == {
+        'EasyAs123D': {
+            'symbol': 'ABCD',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'biallelic',
+            'green_date': '1970-01-01',
+        },
+        'ENSG00ABCD': {
+            'symbol': 'ABCD',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'biallelic',
+            'green_date': '1970-01-01',
+        },
+        'ENSG00EFGH': {
+            'symbol': 'EFGH',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'monoallelic',
+            'green_date': '1970-01-01',
+        },
+        'ENSG00IJKL': {
+            'symbol': 'IJKL',
+            'chrom': '1',
+            'mane_symbol': '',
+            'moi': 'both',
+            'green_date': '1970-01-01',
+        },
+    }
