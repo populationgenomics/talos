@@ -360,6 +360,34 @@ class PanelApp(BaseModel):
     version: str = CURRENT_VERSION
 
 
+class DownloadedPanelAppGenePanelDetail(BaseModel):
+    """ """
+
+    moi: str
+    date: str = Field(default_factory=str)
+
+
+class DownloadedPanelAppGene(BaseModel):
+    """ """
+
+    symbol: str
+    chrom: str = Field(default_factory=str)
+    mane_symbol: str = Field(default_factory=str)
+    ensg: str = Field(default_factory=str)
+    # for every panel this gene has featured in, when did it become Green, and what was the MOI
+    panels: dict[int, DownloadedPanelAppGenePanelDetail] = Field(default_factory=dict)
+
+
+class DownloadedPanelApp(BaseModel):
+    """ """
+
+    # all panels and versions
+    versions: list[PanelShort] = Field(default_factory=list)
+    genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
+    hpos: dict[int, list[PhenoPacketHpo]] = Field(default_factory=dict)
+    version: str = CURRENT_VERSION
+
+
 class CategoryMeta(BaseModel):
     """
     The mapping of category names to their display names
