@@ -150,7 +150,7 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
         cached_panelapp (DownloadedPanelApp): pre-downloaded PanelApp data, steal versions from here
     """
 
-    all_panels_in_this_analysis: set[int] = set()
+    all_panels_in_this_analysis: set[int] = {DEFAULT_PANEL}
 
     for party_data in panelapp_data.participants.values():
         for hpo_term in party_data.hpo_terms:
@@ -161,13 +161,10 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
                 all_panels_in_this_analysis.update(panel_list)
 
     for panel in cached_panelapp.versions:
-        if panel.id == DEFAULT_PANEL:
-            continue
-
         # check if the panel is in the analysis (i.e. matched to a family)
         if panel.id in all_panels_in_this_analysis:
             # add to the list of panels for this analysis
-            panelapp_data.metadata.append(panel)
+            panelapp_data.metadata[panel.id] = panel
 
 
 def get_simple_moi(input_mois: set[str], chrom: str) -> str:

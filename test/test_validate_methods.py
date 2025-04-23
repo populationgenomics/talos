@@ -7,7 +7,6 @@ from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXP
 from talos.models import (
     Coordinates,
     PanelApp,
-    PhenotypeMatchedPanels,
     ReportVariant,
     ResultData,
     ResultMeta,
@@ -25,22 +24,6 @@ REP_SAM3_1 = ReportVariant(sample='sam3', var_data=VAR_1, categories={'1'}, gene
 REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2'}, gene='ENSG5')
 
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
-panel_genes = PanelApp(
-    metadata=[
-        {'id': 137, 'version': '137'},
-        {'id': 1, 'version': '1', 'name': '1'},
-        {'id': 2, 'version': '2', 'name': '2'},
-        {'id': 3, 'version': '3', 'name': '3'},
-        {'id': 4, 'version': '4', 'name': '4'},
-    ],
-    genes={
-        'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
-        'ENSG2': {'symbol': 'G2'},
-        'ENSG3': {'panels': {2}, 'symbol': 'G3'},
-        'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
-        'ENSG5': {'panels': {4}, 'symbol': 'G5'},
-    },
-)
 
 
 def test_results_shell(pedigree_path: str):
@@ -49,8 +32,10 @@ def test_results_shell(pedigree_path: str):
     Returns:
 
     """
-    sample_panels = PhenotypeMatchedPanels(
-        samples={
+    panelapp = PanelApp(
+        metadata={1: {'id': 1, 'name': 'lorem'}, 2: {'id': 2, 'name': 'ipsum'}, 3: {'id': 3, 'name': 'etc'}},
+        genes={'ENSG1': {'symbol': 'G1'}},
+        participants={
             'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
             'father_1': {'external_id': 'father_1', 'hpo_terms': []},
             'mother_1': {'external_id': 'mother_1', 'hpo_terms': []},
@@ -62,18 +47,12 @@ def test_results_shell(pedigree_path: str):
             'father_2': {'external_id': 'father_2', 'hpo_terms': []},
             'mother_2': {'external_id': 'mother_2', 'hpo_terms': []},
         },
-        all_panels={1, 2, 3},
-    )
-    panelapp = PanelApp(
-        metadata=[{'id': 1, 'name': 'lorem'}, {'id': 2, 'name': 'ipsum'}, {'id': 3, 'name': 'etc'}],
-        genes={'ENSG1': {'symbol': 'G1'}},
     )
     shell = prepare_results_shell(
         results_meta=ResultMeta(),
         small_samples={'male'},
         sv_samples={'female'},
-        pedigree=make_flexible_pedigree(pedigree=pedigree_path, pheno_panels=sample_panels),
-        panel_data=sample_panels,
+        pedigree=make_flexible_pedigree(pedigree=pedigree_path, panelapp=panelapp),
         panelapp=panelapp,
     )
 
@@ -90,7 +69,7 @@ def test_results_shell(pedigree_path: str):
                         'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
                     },
                     'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
-                    'panel_details': {1: 'lorem', 3: 'etc'},
+                    'panel_details': {1: {'id': 1, 'name': 'lorem'}, 3: {'id': 3, 'name': 'etc'}},
                     'present_in_small': True,
                 },
             },
@@ -104,7 +83,7 @@ def test_results_shell(pedigree_path: str):
                         'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
                     },
                     'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
-                    'panel_details': {1: 'lorem', 2: 'ipsum'},
+                    'panel_details': {1: {'id': 1, 'name': 'lorem'}, 2: {'id': 2, 'name': 'ipsum'}},
                     'solved': True,
                     'present_in_sv': True,
                 },
@@ -128,7 +107,24 @@ def test_gene_clean_results_no_personal():
         },
     )
 
-    clean = clean_and_filter(results_holder=results_holder, result_list=dirty_data, panelapp_data=panel_genes)
+    panelapp = PanelApp(
+        metadata={
+            137: {'id': 137, 'version': '137'},
+            1: {'id': 1, 'version': '1', 'name': '1'},
+            2: {'id': 2, 'version': '2', 'name': '2'},
+            3: {'id': 3, 'version': '3', 'name': '3'},
+            4: {'id': 4, 'version': '4', 'name': '4'},
+        },
+        genes={
+            'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
+            'ENSG2': {'symbol': 'G2'},
+            'ENSG3': {'panels': {2}, 'symbol': 'G3'},
+            'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
+            'ENSG5': {'panels': {4}, 'symbol': 'G5'},
+        },
+    )
+
+    clean = clean_and_filter(results_holder=results_holder, result_list=dirty_data, panelapp=panelapp)
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert clean.results['sam1'].variants[0].flags == set()
@@ -149,15 +145,29 @@ def test_gene_clean_results_personal():
             'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3', 'panel_ids': {1}}},
         },
     )
-    personal_panels = PhenotypeMatchedPanels(
-        samples={
+    panelapp = PanelApp(
+        metadata={
+            137: {'id': 137, 'version': '137'},
+            1: {'id': 1, 'version': '1', 'name': '1'},
+            2: {'id': 2, 'version': '2', 'name': '2'},
+            3: {'id': 3, 'version': '3', 'name': '3'},
+            4: {'id': 4, 'version': '4', 'name': '4'},
+        },
+        genes={
+            'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
+            'ENSG2': {'symbol': 'G2'},
+            'ENSG3': {'panels': {2}, 'symbol': 'G3'},
+            'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
+            'ENSG5': {'panels': {4}, 'symbol': 'G5'},
+        },
+        participants={
             'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'HP1'}]},
             'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'HP2'}]},
             'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'HP3'}]},
         },
     )
 
-    clean = clean_and_filter(results_holder, dirty_data, panel_genes, personal_panels)
+    clean = clean_and_filter(results_holder, dirty_data, panelapp=panelapp)
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert not clean.results['sam1'].variants[0].flags
@@ -178,7 +188,7 @@ def test_update_results_meta(pedigree_path: str):
 
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
+    assert count_families(pedigree=make_flexible_pedigree(pedigree_path, PanelApp()), samples=ped_samples) == {
         'affected': TWO_EXPECTED,
         'male': THREE_EXPECTED,
         'female': THREE_EXPECTED,
@@ -193,7 +203,7 @@ def test_count_families_missing_father(pedigree_path: str):
 
     ped_samples = {'male', 'female', 'father_1', 'mother_1', 'mother_2', 'father_2'}
 
-    assert count_families(pedigree=make_flexible_pedigree(pedigree_path), samples=ped_samples) == {
+    assert count_families(pedigree=make_flexible_pedigree(pedigree_path, PanelApp()), samples=ped_samples) == {
         'affected': TWO_EXPECTED,
         'male': THREE_EXPECTED,
         'female': THREE_EXPECTED,
@@ -210,5 +220,5 @@ def test_count_families_quad(quad_ped: str):
     """
 
     ped_samples = {'PROBAND', 'SIBLING', 'FATHER', 'MOTHER'}
-    ped = make_flexible_pedigree(quad_ped)
+    ped = make_flexible_pedigree(quad_ped, PanelApp())
     assert count_families(pedigree=ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}
