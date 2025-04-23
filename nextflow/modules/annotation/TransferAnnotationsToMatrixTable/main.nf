@@ -14,7 +14,7 @@ process TransferAnnotationsToMatrixTable {
     script:
         """
         set -ex
-        tar -xf ${compressed_ht}
+        tar --no-same-owner -xf ${compressed_ht}
         TransferAnnotationsToMatrixTable \
             --input ${vcf} \
             --annotations ${params.cohort}_annotations.ht \

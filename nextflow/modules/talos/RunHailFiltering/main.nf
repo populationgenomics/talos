@@ -21,8 +21,8 @@ process RunHailFiltering {
     """
     export TALOS_CONFIG=${talos_config}
 
-    tar -zxf ${clinvar}
-    tar -xf ${mt_tar}
+    tar --no-same-owner -zxf ${clinvar}
+    tar --no-same-owner -xf ${mt_tar}
 
     RunHailFiltering \
         --input ${params.cohort}.mt \
