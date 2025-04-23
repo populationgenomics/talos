@@ -1,5 +1,5 @@
 """
-code for lifting over models from 1.0.3 to 1.1.0
+code for lifting over models from 1.1.0 to 1.2.0
 """
 
 from talos.config import config_retrieve
