@@ -16,14 +16,15 @@ from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
+from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.2.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0']
+CURRENT_VERSION = '2.0.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -541,7 +542,9 @@ LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {
         'None_1.0.0': pmp_none_to_1_0_0,
     },
-    PanelApp: {},
+    PanelApp: {
+        '1.2.0_2.0.0': pa_120_to_200,
+    },
     HistoricVariants: {
         '1.0.0_1.0.1': hv_100_to_101,
     },
