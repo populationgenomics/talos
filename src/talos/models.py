@@ -362,6 +362,7 @@ class PanelDetail(BaseModel):
 class PanelShort(BaseModel):
     """
     Short panel summary, used in the metadata section
+    This object contains the coarse panel details
     """
 
     id: int
@@ -370,7 +371,9 @@ class PanelShort(BaseModel):
 
 
 class PanelApp(BaseModel):
-    metadata: list[PanelShort] = Field(default_factory=list)
+    # the PanelShort object contains id, but we use this in a few places to search for the name/version of a panel by id
+    # having this as a dictionary of {id: {id: X, name: Y}} looks a bit wasteful, but simplifies code in a few places
+    metadata: dict[int, PanelShort] = Field(default_factory=dict)
     genes: dict[str, PanelDetail] = Field(default_factory=dict)
     participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
@@ -452,7 +455,7 @@ class ResultMeta(BaseModel):
     version: str = Field(default_factory=str)
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     input_file: str = Field(default_factory=str)
-    panels: list[PanelShort] = Field(default_factory=list)
+    panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
     projects: list[str] = Field(default_factory=list)
 
@@ -474,7 +477,7 @@ class ParticipantMeta(BaseModel):
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
-    panel_details: dict[int, str] = Field(default_factory=dict)
+    panel_details: dict[int, PanelShort] = Field(default_factory=dict)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
     present_in_sv: bool = Field(default=False)

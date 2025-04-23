@@ -109,14 +109,14 @@ def get_random_string(length: int = 6) -> str:
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:
+def make_flexible_pedigree(pedigree: str, panelapp: PanelApp) -> Pedigree:
     """
     takes the representation offered by peds and reshapes it to be searchable
     this is really just one short step from writing my own implementation...
 
     Args:
         pedigree (str): path to a pedigree file
-        pheno_panels (PhenotypeMatchedPanels | None, optional): a PhenotypeMatchedPanels object. Defaults to None.
+        panelapp (PanelApp): a PanelApp object
 
     Returns:
         a searchable representation of the ped file
@@ -135,11 +135,9 @@ def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels |
             )
 
             # populate this info if we have it from the GeneratePanelData step/output
-            if pheno_panels:
-                pheno_participant = pheno_panels.samples.get(member.id)
-                if pheno_participant:
-                    me.ext_id = pheno_participant.external_id
-                    me.hpo_terms = pheno_participant.hpo_terms
+            if pheno_participant := panelapp.participants.get(member.id):
+                me.ext_id = pheno_participant.external_id
+                me.hpo_terms = pheno_participant.hpo_terms
 
             # add as a member
             new_ped.members.append(me)
