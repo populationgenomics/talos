@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 * remove the FindGeneSymbolMap file, not used any more
+* remove the get_logger (named logger instance) method, replace with universal `loguru.logger`
 
 [7.0.6] - 2025-04-10
 
