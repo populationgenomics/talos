@@ -109,7 +109,7 @@ def get_random_string(length: int = 6) -> str:
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def make_flexible_pedigree(pedigree: str, panelapp: PanelApp) -> Pedigree:
+def make_flexible_pedigree(pedigree: str, panelapp: PanelApp | None = None) -> Pedigree:
     """
     takes the representation offered by peds and reshapes it to be searchable
     this is really just one short step from writing my own implementation...
@@ -121,6 +121,9 @@ def make_flexible_pedigree(pedigree: str, panelapp: PanelApp) -> Pedigree:
     Returns:
         a searchable representation of the ped file
     """
+    if panelapp is None:
+        panelapp = PanelApp()
+
     new_ped = Pedigree()
     ped_data = open_ped(pedigree)
     for family in ped_data:
