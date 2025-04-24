@@ -23,6 +23,7 @@ from obonet import read_obo
 from talos.config import config_retrieve
 from talos.models import (
     PanelApp,
+    PanelShort,
     DownloadedPanelApp,
     PanelDetail,
     ParticipantHPOPanels,
@@ -49,6 +50,9 @@ except KeyError:
 
 # create a datetime threshold
 NEW_THRESHOLD = pendulum.now().subtract(months=WITHIN_X_MONTHS)
+
+MOI_FOR_CUSTOM_GENES = 'Mono_And_Biallelic'
+CUSTOM_PANEL_ID = 0
 
 
 def cli_main():
@@ -271,6 +275,50 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
         )
 
 
+def update_moi_from_config(
+    panelapp_data: PanelApp,
+    add_genes: list[dict[str, str]],
+):
+    """
+    Add additional genes from config
+    Update the MOI for a gene or genes based on a dictionary of gene: moi
+
+    Args:
+        panelapp_data (PanelApp): the gene data to update
+        add_genes (list[dict]): entities to add
+    """
+
+    logger.info(f'Updating with custom gene content: {add_genes}')
+
+    panelapp_data.metadata[0] = PanelShort(id=0, name='Custom data from Config')
+
+    for gene_data in add_genes:
+        # this field is mandatory
+        ensg = gene_data['ensg']
+
+        # this field is optional, falling back to a lenient default
+        moi = gene_data.get('moi', MOI_FOR_CUSTOM_GENES)
+
+        if moi not in ORDERED_MOIS:
+            raise ValueError(f'{moi} for {ensg} is not a valid MOI, choose from {", ".join(ORDERED_MOIS)}')
+
+        # if this is a gene we already know about, update the MOI and add the custom panel ID to associated panels
+        if ensg in panelapp_data.genes:
+            logger.info(f'From custom data: setting {ensg} MOI to {moi}')
+            panelapp_data.genes[ensg].moi = moi
+            panelapp_data.genes[ensg].panels.add(CUSTOM_PANEL_ID)
+
+        else:
+            # if this is a new gene, add it to the dictionary
+            # if we have a symbol use it, if it wasn't provided, use ENSG
+            panelapp_data.genes[ensg] = PanelDetail(
+                symbol=gene_data.get('symbol', f'Custom: {ensg}'),
+                moi=moi,
+                panels={CUSTOM_PANEL_ID},
+                chrom=gene_data.get('chrom', 'chrUnknown'),
+            )
+
+
 def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_file: str | None = None):
     """
     Loads the pre-downloaded PanelApp content
@@ -315,6 +363,10 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
 
     # now that we have the panels to use, go get them, and assign a single MOI to each gene
     fetch_genes_for_panels(panelapp_data=panelapp_data, cached_panelapp=cached_panelapp)
+
+    # optionally shove in some extra gene content from configuration as a custom panel
+    if custom_content := config_retrieve(['PanelApp', 'manual_overrides'], []):
+        update_moi_from_config(panelapp_data, custom_content)
 
     # validate and write using pydantic
     valid_cohort_details = PanelApp.model_validate(panelapp_data)
