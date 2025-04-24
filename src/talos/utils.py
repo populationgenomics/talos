@@ -18,8 +18,9 @@ from random import choices
 from string import punctuation
 from typing import Any, TYPE_CHECKING
 
-from cloudpathlib.anypath import to_anypath
 import hail as hl
+from cloudpathlib.anypath import to_anypath
+from loguru import logger
 from peds import open_ped
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
@@ -40,7 +41,7 @@ from talos.models import (
     StructuralVariant,
     lift_up_model_version,
 )
-from talos.static_values import get_granular_date, get_logger
+from talos.static_values import get_granular_date
 
 
 if TYPE_CHECKING:
@@ -357,7 +358,7 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
                     phased_dict[sample][phase] = gt
 
         elif all(attr_name in var.FORMAT for attr_name in ['PGT', 'PID']):
-            get_logger().info('Failed to find PS phase attributes')
+            logger.info('Failed to find PS phase attributes')
             try:
                 # retry using PGT & PID
                 for sample, phase_gt, phase_id in zip(
@@ -370,16 +371,16 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
                         phased_dict[sample][phase_id] = phase_gt
 
             except KeyError as ke2:
-                get_logger().info('Failed to determine phase information using PID and PGT')
+                logger.info('Failed to determine phase information using PID and PGT')
                 raise ke2
         elif not PHASE_BROKEN:
-            get_logger().info('Found no PS phase attributes (known formats are PS, PGT/PID)')
+            logger.info('Found no PS phase attributes (known formats are PS, PGT/PID)')
             PHASE_BROKEN = True
 
     except (KeyError, ValueError):
         if not PHASE_BROKEN:
-            get_logger().info('Failed to correctly parse known phase attributes using existing methods')
-            get_logger().info(
+            logger.info('Failed to correctly parse known phase attributes using existing methods')
+            logger.info(
                 'Please post an issue on the Talos GitHub Repo with the VCF FORMAT lines and descriptions',
             )
         PHASE_BROKEN = True
@@ -744,7 +745,7 @@ def gather_gene_dict_from_contig(
             continue
 
         if small_variant.coordinates.string_format in blacklist:
-            get_logger().info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
+            logger.info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
             continue
 
         # update the variant count
@@ -765,9 +766,9 @@ def gather_gene_dict_from_contig(
             # update the gene index dictionary
             contig_dict[structural_variant.info.get('gene_id')].append(structural_variant)
 
-        get_logger().info(f'Contig {contig} contained {structural_variants} SVs')
+        logger.info(f'Contig {contig} contained {structural_variants} SVs')
 
-    get_logger().info(f'Contig {contig} contained {contig_variants} variants, in {len(contig_dict)} genes')
+    logger.info(f'Contig {contig} contained {contig_variants} variants, in {len(contig_dict)} genes')
 
     return contig_dict
 
@@ -788,14 +789,14 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
     """
 
     if read_path is None:
-        get_logger().error('read_json_from_path was passed the path "None"')
+        logger.error('read_json_from_path was passed the path "None"')
         return default
 
     assert isinstance(read_path, str)
     read_anypath = to_anypath(read_path)
 
     if not read_anypath.exists():
-        get_logger().error(f'{read_path} did not exist')
+        logger.error(f'{read_path} did not exist')
         return default
 
     with read_anypath.open() as handle:
@@ -991,16 +992,16 @@ def phenotype_label_history(results: ResultData):
     """
     # are there any history results?
     if (historic_folder := config_retrieve('result_history', None)) is None:
-        get_logger().info('No historic data folder, no labelling')
+        logger.info('No historic data folder, no labelling')
         return
 
     latest_results_path = find_latest_file(results_folder=historic_folder)
-    get_logger().info(f'latest results: {latest_results_path}')
+    logger.info(f'latest results: {latest_results_path}')
 
     # get latest results as a HistoricVariants object, or fail - on fail, return
     if (latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)) is None:
         # this HPO-flagging stage shouldn't make its own historic data
-        get_logger().info(f"Historic data {latest_results_path} doesn't really exist, quitting")
+        logger.info(f"Historic data {latest_results_path} doesn't really exist, quitting")
         return
 
     for sample, content in results.results.items():
@@ -1048,7 +1049,7 @@ def filter_results(results: ResultData):
     """
 
     if (_historic_folder := config_retrieve('result_history', None)) is None:
-        get_logger().info('No historic data folder, no filtering')
+        logger.info('No historic data folder, no filtering')
         # update all the evidence_last_updated
         for content in results.results.values():
             for var in content.variants:
@@ -1058,7 +1059,7 @@ def filter_results(results: ResultData):
     # If there;s a historic data folder, find the most recent entry in it
     latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None))
 
-    get_logger().info(f'latest results: {latest_results_path}')
+    logger.info(f'latest results: {latest_results_path}')
 
     # get latest results as a HistoricVariants object, or fail - on fail, return
     if latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants):
@@ -1081,7 +1082,7 @@ def save_new_historic(results: HistoricVariants):
     """
 
     if (directory := config_retrieve('result_history', None)) is None:
-        get_logger().info('No historic data folder, no saving')
+        logger.info('No historic data folder, no saving')
         return
 
     # we're using cloud paths here
@@ -1089,7 +1090,7 @@ def save_new_historic(results: HistoricVariants):
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
-    get_logger().info(f'Wrote new data to {new_file}')
+    logger.info(f'Wrote new data to {new_file}')
 
 
 def date_from_string(string: str) -> str:
@@ -1117,7 +1118,7 @@ def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
     Returns: most recent file path, or None
     """
 
-    get_logger().info(f'Using results from {results_folder}')
+    logger.info(f'Using results from {results_folder}')
 
     # this is currently a CloudPath to access globbing for files in cloud or local settings
     date_files = {date_from_string(filename.name): filename for filename in to_anypath(results_folder).glob(f'*.{ext}')}
