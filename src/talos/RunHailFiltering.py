@@ -527,7 +527,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
 
     # allow for depth to be missing, rebuild from other attributes if required, or use a default
     if 'DP' in de_novo_matrix.entry:
-        depth = mde_novo_matrixt.DP
+        depth = de_novo_matrix.DP
     elif 'AD' in de_novo_matrix.entry:
         depth = hl.sum(de_novo_matrix.AD)
     else:
