@@ -59,8 +59,8 @@ def cli_main():
     logger.info('Starting HPO~Panel matching')
     parser = ArgumentParser()
     parser.add_argument('--input', help='Pre-Downloaded PanelApp data', required=True)
-    parser.add_argument('--output', help='Path to write JSON output to')
-    parser.add_argument('--cohort', help='GA4GH Cohort/PhenoPacket File', required=False)
+    parser.add_argument('--output', help='Path to write JSON output to', required=True)
+    parser.add_argument('--cohort', help='GA4GH Cohort/PhenoPacket File', required=True)
     parser.add_argument('--hpo', help='Localised copy of HPO obo file', required=False)
     args = parser.parse_args()
     main(panel_data=args.input, output_file=args.output, cohort_file=args.cohort, hpo_file=args.hpo)
@@ -343,9 +343,7 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
     panelapp_data, all_hpos = extract_participant_data_from_cohort(cohort=cohort)
 
     # chuck in the default Mendeliome metadata
-    panelapp_data.panel_versions = [
-        version_block for version_block in cached_panelapp.versions if version_block.id == DEFAULT_PANEL
-    ]
+    panelapp_data.metadata = {DEFAULT_PANEL: cached_panelapp.versions[DEFAULT_PANEL]}
 
     if hpo_file:
         logger.info('HPO file present, running panel matching algorithm')

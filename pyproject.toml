@@ -100,6 +100,10 @@ MinimiseOutputForSeqr = 'talos.cpg_internal_scripts.MinimiseOutputForSeqr:cli_ma
 ConvertSpliceVarDb = 'talos.ConvertSpliceVarDb:cli_main'
 # Builds cohort phenopackets from a pedigree with HPO terms
 ConvertPedToPhenopackets = 'talos.ConvertPedToPhenopackets:cli_main'
+# Download and format all current PanelApp data
+DownloadPanelApp = 'talos.DownloadPanelApp:cli_main'
+# Parse the Downloaded PanelApp data, generating a run-specific PanelApp subset
+UnifiedPanelAppParser = 'talos.UnifiedPanelAppParser:cli_main'
 # use the HPO terms to select panels for this analysis
 GeneratePanelData = 'talos.GeneratePanelData:cli_main'
 # query PanelApp for those selected panels
