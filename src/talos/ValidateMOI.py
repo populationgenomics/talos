@@ -15,6 +15,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from cyvcf2 import VCFReader
+from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -33,7 +34,6 @@ from talos.models import (
     ResultMeta,
 )
 from talos.moi_tests import MOIRunner
-from talos.static_values import get_logger
 from talos.utils import (
     GeneDict,
     canonical_contigs_from_vcf,
@@ -128,7 +128,7 @@ def apply_moi_to_variants(
 
         # variant appears to be in a red gene
         if panel_gene_data is None:
-            get_logger().error(f'How did this gene creep in? {gene}')
+            logger.error(f'How did this gene creep in? {gene}')
             continue
 
         for variant in variants:
@@ -438,7 +438,7 @@ def main(
         pedigree (str): location of PED file
         participant_panels (str): json of panels per participant
     """
-    get_logger(__file__).info(
+    logger.info(
         r"""Welcome To
     ███████████   █████████   █████          ███████     █████████
     █   ███   █  ███     ███   ███         ███     ███  ███     ███

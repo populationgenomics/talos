@@ -20,7 +20,7 @@ from talos.utils import get_granular_date
 if TYPE_CHECKING:
     from cpg_flow.stage import StageInput, StageOutput
     from cpg_flow.targets.dataset import Dataset
-    from hailtop.batch.job import Job
+    from hailtop.batch.job import BashJob
 
 
 METAMIST_ANALYSIS_QUERY = gql(
@@ -55,7 +55,7 @@ def set_up_job_with_resources(
     cpu: float | None = None,
     storage: str = '10Gi',
     image: str | None = None,
-) -> 'Job':
+) -> 'BashJob':
     """
     Wrapper to create a job with all elements set up
     Name is mandatory, the rest is optional
@@ -147,6 +147,10 @@ def query_for_latest_analysis(
     Returns:
         str, the path to the latest object for the given type, or log a warning and return None
     """
+
+    # one particular project doesn't have permission to query the fewgenomes project, so we need an override mechanism
+    if config_clinvar := config_retrieve(['workflow', 'clinvar_data']):
+        return config_clinvar
 
     # swapping to a string we can freely modify
     query_dataset = dataset

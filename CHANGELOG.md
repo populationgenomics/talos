@@ -14,6 +14,25 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[7.0.8] - 2025-04-22
+
+### Changed
+
+* Default NextFlow workflow is updated to allow for a pre-existing phenopacket file to be used. Also adds 3 options:
+
+1. if phenopackets are provided, use that
+2. if a pedigree with hpo terms is provided, use that to generate a phenopacket file
+3. if neither is provided, use the pedigree to generate an empty phenopacket file
+
+* the zenodo link and filename for the gnomAD reference file has been updated (same file, with `.zip` removed)
+
+* internal workflow allows for a specific clinvar path to be provided - now all projects have permission to query fewgenomes
+
+### Deprecated
+
+* remove the FindGeneSymbolMap file, not used any more
+* remove the get_logger (named logger instance) method, replace with universal `loguru.logger`
+
 [7.0.6] - 2025-04-10
 
 ### Fixed
