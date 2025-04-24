@@ -137,7 +137,7 @@ def get_panel(
     recent_months = config_retrieve(['GeneratePanelData', 'within_x_months'], 6)
 
     # add metadata for this panel & version
-    gene_dict.metadata.append(PanelShort(name=panel_name, version=panel_version, id=panel_id))
+    gene_dict.metadata[panel_id] = PanelShort(name=panel_name, version=panel_version, id=panel_id)
 
     # iterate over the genes in this panel result
     for gene in panel_genes:

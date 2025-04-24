@@ -27,7 +27,6 @@ from talos.models import (
     ParticipantMeta,
     ParticipantResults,
     Pedigree,
-    PhenotypeMatchedPanels,
     ReportPanel,
     ReportVariant,
     ResultData,
