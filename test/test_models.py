@@ -5,7 +5,7 @@ any methods for testing model functionality
 from os.path import join
 from test.test_utils import FIVE_EXPECTED, ONE_EXPECTED, THREE_EXPECTED
 
-from talos.models import PanelApp, PhenotypeMatchedPanels
+from talos.models import PanelApp
 from talos.utils import make_flexible_pedigree
 
 
