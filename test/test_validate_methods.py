@@ -94,7 +94,7 @@ def test_results_shell(pedigree_path: str):
     assert shell.results == expected.results
 
 
-def test_gene_clean_results_no_personal():
+def test_gene_clean_results_no_personal(caplog):
     """
     tests the per-participant gene-filtering of results
     messy test, write and pass file paths
@@ -124,13 +124,15 @@ def test_gene_clean_results_no_personal():
         },
     )
 
-    clean = filter_results_to_panels(results_holder=results_holder, result_list=dirty_data, panelapp=panelapp)
-    assert len(clean.results['sam1'].variants) == ONE_EXPECTED
-    assert clean.results['sam1'].variants[0].gene == 'ENSG1'
-    assert clean.results['sam1'].variants[0].flags == set()
-    assert len(clean.results['sam2'].variants) == ZERO_EXPECTED
-    assert len(clean.results['sam3'].variants) == TWO_EXPECTED
-    assert {x.gene for x in clean.results['sam3'].variants} == {'ENSG4', 'ENSG5'}
+    filter_results_to_panels(results_holder=results_holder, result_list=dirty_data, panelapp=panelapp)
+
+    for sample_id in ['sam1', 'sam3']:
+        assert f'Participant {sample_id} not found in panelapp participants' in caplog.text
+
+    assert len(results_holder.results['sam1'].variants) == ONE_EXPECTED
+    assert results_holder.results['sam1'].variants[0].gene == 'ENSG1'
+    assert results_holder.results['sam1'].variants[0].flags == set()
+    assert len(results_holder.results['sam2'].variants) == ZERO_EXPECTED
 
 
 def test_gene_clean_results_personal():
@@ -167,14 +169,14 @@ def test_gene_clean_results_personal():
         },
     )
 
-    clean = filter_results_to_panels(results_holder, dirty_data, panelapp=panelapp)
-    assert len(clean.results['sam1'].variants) == ONE_EXPECTED
-    assert clean.results['sam1'].variants[0].gene == 'ENSG1'
-    assert not clean.results['sam1'].variants[0].flags
-    assert clean.results['sam1'].variants[0].panels.matched == {1: '1'}
-    assert not clean.results['sam2'].variants
-    assert len(clean.results['sam3'].variants) == TWO_EXPECTED
-    for event in clean.results['sam3'].variants:
+    filter_results_to_panels(results_holder, dirty_data, panelapp=panelapp)
+    assert len(results_holder.results['sam1'].variants) == ONE_EXPECTED
+    assert results_holder.results['sam1'].variants[0].gene == 'ENSG1'
+    assert not results_holder.results['sam1'].variants[0].flags
+    assert results_holder.results['sam1'].variants[0].panels.matched == {1: '1'}
+    assert not results_holder.results['sam2'].variants
+    assert len(results_holder.results['sam3'].variants) == TWO_EXPECTED
+    for event in results_holder.results['sam3'].variants:
         if event.gene == 'ENSG4':
             assert event.panels.matched == {3: '3'}
         if event.gene == 'ENSG5':

@@ -21,8 +21,6 @@ def test_rd_from_none(test_input_models_path):
     # lift it
     lifted = lift_up_model_version(data, model=ResultData)
 
-    print(lifted)
-
     # check the version
     assert lifted['version'] == CURRENT_VERSION
 
@@ -54,8 +52,6 @@ def test_rd_from_1_0_0(test_input_models_path):
 
     # lift it
     lifted = lift_up_model_version(data, model=ResultData)
-
-    print(lifted)
 
     # check the version
     assert lifted['version'] == CURRENT_VERSION

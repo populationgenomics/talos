@@ -14,10 +14,8 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
 from random import choices
-from string import punctuation
 from typing import Any, TYPE_CHECKING
 
-import hail as hl
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from peds import open_ped

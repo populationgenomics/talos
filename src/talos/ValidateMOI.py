@@ -175,17 +175,17 @@ def filter_results_to_panels(
     results_holder: ResultData,
     result_list: list[ReportVariant],
     panelapp: PanelApp,
-) -> ResultData:
+) -> None:
     """
     It's possible 1 variant can be classified multiple ways
     e.g. different MOIs (dominant and comp het)
     e.g. the same variant with annotation from two genes
 
-    This cleans those to unique for final report
-    stores panel names within the 'panels' attribute, either
-    as matched (phenotype matched)
-    as forced (cohort-wide applied panel)
-    or neither
+    Here we keep these all in parallel - some but not all annotations would be the same (locus, gnomAD, but not TX csq)
+
+    stores names of panels specifically matched between the variant gene and participant:
+    - as matched (phenotype matched)
+    - as forced (cohort-wide applied panel)/custom panel
 
     Args:
         results_holder (): container for all results data
@@ -193,7 +193,7 @@ def filter_results_to_panels(
         panelapp (PanelApp):
 
     Returns:
-        results with the phenotype/forced panel matches annotated
+        None, object updated in-place
     """
 
     default_panel = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
@@ -210,10 +210,13 @@ def filter_results_to_panels(
         forced_panels_for_this_gene: set[int] = forced_panel_ids.intersection(gene_panels)
 
         # all panels assigned to this participant
-        participant_panel_ids = set(results_holder.results[each_event.sample].metadata.panel_details.keys())
-
-        # get union of naturally and forcibly matched panels for this gene, ignoring the default panel
-        natural_matches_for_this_gene = participant_panel_ids.intersection(gene_panels) - {default_panel}
+        if each_event.sample in panelapp.participants:
+            participant_panel_ids = set(panelapp.participants[each_event.sample].panels)
+            # get union of naturally and forcibly matched panels for this gene, ignoring the default panel
+            natural_matches_for_this_gene = participant_panel_ids.intersection(gene_panels) - {default_panel}
+        else:
+            logger.warning(f'Participant {each_event.sample} not found in panelapp participants')
+            natural_matches_for_this_gene = set()
 
         # if this gene is not on a forced or naturally matched panel for this participant, skip
         if not (forced_panels_for_this_gene or natural_matches_for_this_gene or (default_panel in gene_panels)):
@@ -227,8 +230,6 @@ def filter_results_to_panels(
 
         # add this event to the list for this participant
         results_holder.results[each_event.sample].variants.append(each_event)
-
-    return results_holder
 
 
 def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
@@ -456,7 +457,7 @@ def main(
     )
 
     # remove duplicate and invalid variants
-    results_model = filter_results_to_panels(results_model, result_list, panelapp)
+    filter_results_to_panels(results_model, result_list, panelapp)
 
     # need some extra filtering here to tidy up exomiser categorisation
     polish_exomiser_results(results_model)

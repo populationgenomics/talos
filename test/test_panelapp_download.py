@@ -13,7 +13,6 @@ def test_panel_hpo_query(httpx_mock, panels_and_hpos):
     httpx_mock.add_response(url=PANELS_ENDPOINT, json=panels_and_hpos)
 
     parsed_response = get_panels_and_hpo_terms()
-    print(parsed_response)
 
     assert parsed_response == {
         3149: [PhenoPacketHpo(id='HP:0011516', label='')],
