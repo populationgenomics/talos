@@ -171,7 +171,7 @@ def apply_moi_to_variants(
     return results
 
 
-def clean_and_filter(
+def filter_results_to_panels(
     results_holder: ResultData,
     result_list: list[ReportVariant],
     panelapp: PanelApp,
@@ -456,7 +456,7 @@ def main(
     )
 
     # remove duplicate and invalid variants
-    results_model = clean_and_filter(results_model, result_list, panelapp)
+    results_model = filter_results_to_panels(results_model, result_list, panelapp)
 
     # need some extra filtering here to tidy up exomiser categorisation
     polish_exomiser_results(results_model)

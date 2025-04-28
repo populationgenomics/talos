@@ -9,19 +9,13 @@ from cyvcf2 import VCFReader
 
 from talos.models import (
     Coordinates,
-    FileTypes,
-    PanelApp,
-    PhenotypeMatchedPanels,
     ReportVariant,
     SmallVariant,
 )
-from talos.utils import get_simple_moi
 from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
-    get_new_gene_map,
     get_non_ref_samples,
-    identify_file_type,
     make_flexible_pedigree,
 )
 
@@ -87,53 +81,6 @@ def test_reported_variant_ordering(trio_abs_variant: SmallVariant):
     report_1.var_data.coordinates.chrom = '1'
     report_2.var_data.coordinates.chrom = '11'
     assert report_1 < report_2
-
-
-def test_file_types():
-    """
-    check 'em
-    """
-    assert identify_file_type('this/is/my/matrixtable.mt') == FileTypes.MATRIX_TABLE
-    assert identify_file_type('this/is/my/hailtable.ht') == FileTypes.HAIL_TABLE
-    assert identify_file_type('this/is/a/varfile.vcf') == FileTypes.VCF
-    assert identify_file_type('this/is/a/varfile.vcf.gz') == FileTypes.VCF_GZ
-    assert identify_file_type('this/is/a/varfile.vcf.bgz') == FileTypes.VCF_BGZ
-
-
-def test_file_types_assert_error():
-    """
-    check 'em
-    """
-    with pytest.raises(ValueError):
-        identify_file_type('no/extensions')
-
-
-def test_file_types_exception():
-    """
-    check 'em
-    :return:
-    """
-    with pytest.raises(TypeError):
-        identify_file_type('i/am/a/mystery.file.type')
-
-
-@pytest.mark.parametrize(
-    'string,expected,chrom',
-    [
-        ('blag', 'Biallelic', '1'),
-        ('blag', 'Hemi_Bi_In_Female', 'X'),
-        ('biallelic ANY', 'Biallelic', '1'),
-        ('both something,something', 'Mono_And_Biallelic', '1'),
-        ('monoallelic, something', 'Monoallelic', '1'),
-        ('x-linked', 'Hemi_Mono_In_Female', 'X'),
-        ('x-linked biallelic', 'Hemi_Bi_In_Female', 'X'),
-    ],
-)
-def test_get_simple_moi(string: str, expected: str, chrom: str):
-    """
-    Tests the string parsing down to simple representation
-    """
-    assert get_simple_moi({string}, chrom) == {expected}
 
 
 def test_get_non_ref_samples(cyvcf_example_variant):
@@ -238,78 +185,3 @@ def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path: st
     """
     ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(pedigree_path))
     assert len(ch_dict) == ZERO_EXPECTED
-
-
-def test_new_gene_map_null():
-    """
-    with no specific pheno data, new at all is new for all
-    """
-
-    panel_data = PanelApp(genes={'ENSG1': {'new': {1, 2}, 'symbol': 'ensg1'}})
-    result = get_new_gene_map(panel_data)
-    assert result == {'ENSG1': {'all'}}
-
-
-def test_new_gene_map_core():
-    """
-    for a core panel this should also be new
-    even if the core panel isn't assigned to individuals
-    """
-
-    panel_data = PanelApp(genes={'ENSG1': {'new': {137}, 'symbol': 'ensg1'}})
-    personal_panels = PhenotypeMatchedPanels()
-    result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': {'all'}}
-
-
-def test_new_gene_map_cohort_level():
-    """
-    check that new for the cohort-matched panel is new for all
-    """
-
-    panel_data = PanelApp(genes={'ENSG1': {'new': {99}, 'symbol': 'ensg1'}})
-    personal_panels = PhenotypeMatchedPanels()
-    result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': {'all'}}
-
-
-def test_new_gene_map_mix_n_match():
-    """
-    now test the pheno-matched new
-    """
-    panel_data = PanelApp(genes={'ENSG1': {'new': {1}, 'symbol': 'ensg1'}})
-    personal_panels = PhenotypeMatchedPanels(samples={'sam': {'panels': {1, 2}}})
-    result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {'ENSG1': {'sam'}}
-
-
-def test_new_gene_map_fail_handled():
-    """
-    What if we find a panel that wasn't assigned to anyone
-    """
-    panel_data = PanelApp(genes={'ENSG1': {'new': {2}, 'symbol': 'ensg1'}})
-    personal_panels = PhenotypeMatchedPanels(samples={'sam': {'panels': {1}}})
-    with pytest.raises(AssertionError):
-        get_new_gene_map(panel_data, personal_panels)
-
-
-def test_new_gene_map_complex():
-    """
-    ENSG2 is new for everyone
-    """
-    panel_data = PanelApp(
-        genes={
-            'ENSG1': {'new': {1}, 'symbol': 'ensg1'},
-            'ENSG2': {'new': {137}, 'symbol': 'ensg2'},
-            'ENSG3': {'new': {4}, 'symbol': 'ensg3'},
-            'ENSG4': {'new': {2}, 'symbol': 'ensg4'},
-        },
-    )
-    personal_panels = PhenotypeMatchedPanels(samples={'sam': {'panels': {1, 2}}, 'sam2': {'panels': {4, 2}}})
-    result = get_new_gene_map(panel_data, personal_panels)
-    assert result == {
-        'ENSG1': {'sam'},
-        'ENSG2': {'all'},
-        'ENSG3': {'sam2'},
-        'ENSG4': {'sam', 'sam2'},
-    }

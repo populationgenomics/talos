@@ -13,7 +13,7 @@ from talos.models import (
     SmallVariant,
 )
 from talos.utils import make_flexible_pedigree
-from talos.ValidateMOI import clean_and_filter, count_families, prepare_results_shell
+from talos.ValidateMOI import filter_results_to_panels, count_families, prepare_results_shell
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
@@ -124,7 +124,7 @@ def test_gene_clean_results_no_personal():
         },
     )
 
-    clean = clean_and_filter(results_holder=results_holder, result_list=dirty_data, panelapp=panelapp)
+    clean = filter_results_to_panels(results_holder=results_holder, result_list=dirty_data, panelapp=panelapp)
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert clean.results['sam1'].variants[0].flags == set()
@@ -167,7 +167,7 @@ def test_gene_clean_results_personal():
         },
     )
 
-    clean = clean_and_filter(results_holder, dirty_data, panelapp=panelapp)
+    clean = filter_results_to_panels(results_holder, dirty_data, panelapp=panelapp)
     assert len(clean.results['sam1'].variants) == ONE_EXPECTED
     assert clean.results['sam1'].variants[0].gene == 'ENSG1'
     assert not clean.results['sam1'].variants[0].flags
