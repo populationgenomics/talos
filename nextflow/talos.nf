@@ -8,8 +8,6 @@ include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopack
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
 include { DownloadPanelApp } from './modules/talos/DownloadPanelApp/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
-include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
-include { QueryPanelapp } from './modules/talos/QueryPanelapp/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
