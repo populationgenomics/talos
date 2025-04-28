@@ -39,6 +39,8 @@ def test_match_participants_to_panels():
             PanelShort(id=1, version='2'),
             PanelShort(id=3, version='4'),
             PanelShort(id=5, version='6'),
+            # 99 is a forced panel in the test config
+            PanelShort(id=99, version='99'),
         ],
     )
 
@@ -67,18 +69,19 @@ def test_match_participants_to_panels():
     )
 
     assert dict(papp) == {
-        'metadata': [
-            PanelShort(id=1, name='', version='2'),
-            PanelShort(id=3, name='', version='4'),
-            PanelShort(id=5, name='', version='6'),
-        ],
+        'metadata': {
+            1: PanelShort(id=1, name='', version='2'),
+            3: PanelShort(id=3, name='', version='4'),
+            5: PanelShort(id=5, name='', version='6'),
+            99: PanelShort(id=99, name='', version='99'),
+        },
         'genes': {},
         'participants': {
             'sam1': ParticipantHPOPanels(
                 external_id='',
                 family_id='',
                 hpo_terms=[PhenoPacketHpo(id='HP:1', label='1'), PhenoPacketHpo(id='HP:2', label='2')],
-                panels={1, 3, 5},
+                panels={99, 1, 3, 5},
                 matched_genes=set(),
                 matched_phenotypes=set(),
             ),
@@ -86,7 +89,7 @@ def test_match_participants_to_panels():
                 external_id='',
                 family_id='',
                 hpo_terms=[PhenoPacketHpo(id='HP:1', label='1')],
-                panels={1, 3},
+                panels={99, 1, 3},
                 matched_genes=set(),
                 matched_phenotypes=set(),
             ),

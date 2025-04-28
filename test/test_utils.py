@@ -4,7 +4,6 @@ test class for the utils collection
 
 from copy import deepcopy
 
-import pytest
 from cyvcf2 import VCFReader
 
 from talos.models import (
