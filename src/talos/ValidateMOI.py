@@ -216,7 +216,7 @@ def clean_and_filter(
         natural_matches_for_this_gene = participant_panel_ids.intersection(gene_panels) - {default_panel}
 
         # if this gene is not on a forced or naturally matched panel for this participant, skip
-        if not forced_panels_for_this_gene or natural_matches_for_this_gene:
+        if not (forced_panels_for_this_gene or natural_matches_for_this_gene or (default_panel in gene_panels)):
             continue
 
         # don't remove variants here, we do that in the pheno-matching stage
@@ -438,15 +438,11 @@ def main(
             ),
         )
 
-    # do we have seqr projects?
-    seqr_project = config_retrieve(['CreateTalosHTML', 'seqr_project'], None)
-
     # create the full final output file
     results_meta = ResultMeta(
         family_breakdown=count_families(ped, samples=all_samples),
         panels=panelapp.metadata,
         version=__version__,
-        projects=[seqr_project] if seqr_project else [],
         categories=config_retrieve('categories'),
     )
 
