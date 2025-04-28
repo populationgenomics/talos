@@ -79,7 +79,7 @@ class GlobalFilter:
 
             # on sex chroms, apply hemi-count filter
             if variant.coordinates.chrom in HEMI_CHROMS:
-                return variant.info('gnomad_ac_xy', 0) > self.small_gnomad_hemi
+                return variant.info.get('gnomad_ac_xy', 0) > self.small_gnomad_hemi
 
         # check against the SV filters
         elif isinstance(variant, StructuralVariant):
