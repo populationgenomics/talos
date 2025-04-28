@@ -154,7 +154,7 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
         cached_panelapp (DownloadedPanelApp): pre-downloaded PanelApp data, steal versions from here
     """
 
-    forced_panels: set[int] = config_retrieve(['GeneratePanelData', 'forced_panels'], set())
+    forced_panels: set[int] = set(config_retrieve(['GeneratePanelData', 'forced_panels'], []))
 
     all_panels_in_this_analysis: set[int] = {DEFAULT_PANEL} | forced_panels
 
