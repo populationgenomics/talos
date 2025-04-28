@@ -457,7 +457,8 @@ class ResultMeta(BaseModel):
     input_file: str = Field(default_factory=str)
     panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
-    projects: list[str] = Field(default_factory=list)
+    # todo fix this in liftover
+    # projects: list[str] = Field(default_factory=list)
 
 
 class MemberSex(Enum):
