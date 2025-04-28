@@ -154,7 +154,9 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
         cached_panelapp (DownloadedPanelApp): pre-downloaded PanelApp data, steal versions from here
     """
 
-    all_panels_in_this_analysis: set[int] = {DEFAULT_PANEL}
+    forced_panels: set[int] = config_retrieve(['GeneratePanelData', 'forced_panels'], set())
+
+    all_panels_in_this_analysis: set[int] = {DEFAULT_PANEL} | forced_panels
 
     for party_data in panelapp_data.participants.values():
         for hpo_term in party_data.hpo_terms:
@@ -163,6 +165,10 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
                 party_data.panels.update(panel_list)
                 # and add to the collection of all panels
                 all_panels_in_this_analysis.update(panel_list)
+
+        if forced_panels:
+            # add the forced panels to the participant
+            party_data.panels.update(forced_panels)
 
     for panel in cached_panelapp.versions:
         # check if the panel is in the analysis (i.e. matched to a family)
@@ -319,6 +325,20 @@ def update_moi_from_config(
             )
 
 
+def remove_blacklisted_genes(panelapp_data: PanelApp):
+    """
+    remove any genes which are blacklisted in the config
+    Args:
+        panelapp_data ():
+    """
+
+    # if any genes are blacklisted in config, remove them here
+    if forbidden_genes := config_retrieve(['GeneratePanelData', 'forbidden_genes'], set()):
+        genes_to_remove = set(forbidden_genes).intersection(set(panelapp_data.genes.keys()))
+        for gene in genes_to_remove:
+            del panelapp_data.genes[gene]
+
+
 def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_file: str | None = None):
     """
     Loads the pre-downloaded PanelApp content
@@ -365,6 +385,9 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
     # optionally shove in some extra gene content from configuration as a custom panel
     if custom_content := config_retrieve(['PanelApp', 'manual_overrides'], []):
         update_moi_from_config(panelapp_data, custom_content)
+
+    # if any genes are blacklisted in config, remove them here
+    remove_blacklisted_genes(panelapp_data)
 
     # validate and write using pydantic
     valid_cohort_details = PanelApp.model_validate(panelapp_data)
