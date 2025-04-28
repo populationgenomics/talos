@@ -17,6 +17,7 @@ from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
+from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
@@ -457,8 +458,6 @@ class ResultMeta(BaseModel):
     input_file: str = Field(default_factory=str)
     panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
-    # todo fix this in liftover
-    # projects: list[str] = Field(default_factory=list)
 
 
 class MemberSex(Enum):
@@ -558,6 +557,7 @@ LIFTOVER_METHODS: dict = {
         '1.0.2_1.0.3': rd_102_to_103,
         '1.0.3_1.1.0': rd_103_to_110,
         '1.1.0_1.2.0': rd_110_to_120,
+        '1.2.0_2.0.0': rd_120_to_200,
     },
 }
 

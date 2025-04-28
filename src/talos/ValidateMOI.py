@@ -221,8 +221,8 @@ def clean_and_filter(
 
         # don't remove variants here, we do that in the pheno-matching stage
         each_event.panels = ReportPanel(
-            matched={pid: panelapp.metadata for pid in natural_matches_for_this_gene},
-            forced={pid: panelapp.metadata for pid in forced_panels_for_this_gene},
+            matched={pid: panelapp.metadata[pid].name for pid in natural_matches_for_this_gene},
+            forced={pid: panelapp.metadata[pid].name for pid in forced_panels_for_this_gene},
         )
 
         # add this event to the list for this participant
