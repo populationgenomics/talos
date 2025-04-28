@@ -21,5 +21,8 @@ def resultdata(data_dict: dict) -> dict:
     # stop using seqr project(s) as a core value in the data
     _projects = data_dict['metadata'].pop('projects')
 
+    # remove the projects key from the metadata
+    data_dict['metadata']['panels'] = {panel['id']: panel for panel in data_dict['metadata']['panels']}
+
     data_dict['version'] = '2.0.0'
     return data_dict

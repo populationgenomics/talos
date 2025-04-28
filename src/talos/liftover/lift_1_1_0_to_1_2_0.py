@@ -7,7 +7,7 @@ from talos.config import config_retrieve
 
 def resultdata(data_dict: dict) -> dict:
     """
-    Lift over ResultData from 1.1.3 to 1.2.0
+    Lift over ResultData from 1.1.0 to 1.2.0
     Requires the adjustment of ResultData.results.ParticipantResults.metadata.ParticipantMeta.panel_*
     """
     # check we're upgrading the right version
