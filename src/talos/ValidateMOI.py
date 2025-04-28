@@ -36,7 +36,7 @@ from talos.moi_tests import MOIRunner
 from talos.utils import (
     GeneDict,
     canonical_contigs_from_vcf,
-    filter_results,
+    annotate_variant_dates_using_prior_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
     polish_exomiser_results,
@@ -462,7 +462,7 @@ def main(
     polish_exomiser_results(results_model)
 
     # annotate previously seen results using cumulative data file(s)
-    filter_results(results_model)
+    annotate_variant_dates_using_prior_results(results_model)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful

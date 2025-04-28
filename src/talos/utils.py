@@ -919,6 +919,43 @@ def save_new_historic(results: HistoricVariants):
     logger.info(f'Wrote new data to {new_file}')
 
 
+def annotate_variant_dates_using_prior_results(results: ResultData):
+    """
+    loads the most recent prior result set (if it exists)
+    annotates previously seen variants with the most recent date seen
+    write two files (total, and latest - previous)
+
+    Args:
+        results (ResultData): the results produced during this run
+
+    Returns: same results annotated with date-first-seen
+    """
+
+    if (_historic_folder := config_retrieve('result_history', None)) is None:
+        logger.info('No historic data folder, no filtering')
+        # update all the evidence_last_updated
+        for content in results.results.values():
+            for var in content.variants:
+                var.evidence_last_updated = get_granular_date()
+        return
+
+    # If there;s a historic data folder, find the most recent entry in it
+    latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None))
+
+    logger.info(f'latest results: {latest_results_path}')
+
+    # get latest results as a HistoricVariants object, or fail - on fail, return
+    if latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants):
+        # this is just to please the type checker
+        assert isinstance(latest_results, HistoricVariants)
+
+        date_annotate_results(results, latest_results)
+        save_new_historic(results=latest_results)
+    else:
+        # generate and write some new latest data
+        generate_fresh_latest_results(current_results=results)
+
+
 def date_from_string(string: str) -> str:
     """
     takes a string, finds the date. Simples
