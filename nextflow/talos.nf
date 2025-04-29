@@ -4,11 +4,10 @@ nextflow.enable.dsl=2
 
 // deactivated for now
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
-
 include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
 include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
-include { GeneratePanelData } from './modules/talos/GeneratePanelData/main'
-include { QueryPanelapp } from './modules/talos/QueryPanelapp/main'
+include { DownloadPanelApp } from './modules/talos/DownloadPanelApp/main'
+include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
@@ -54,22 +53,30 @@ workflow {
 		ch_phenopackets = ConvertPedToPhenopackets.out.phenopackets
     }
 
-    // we can do this by saving as an object, or inside the method call
-    GeneratePanelData(
-        ch_phenopackets,
-        ch_hpo_file
-    )
+    // download everything in PanelApp - unless it exists from a previous download
+    if(file(params.panelapp).exists()) {
+		ch_panelapp = channel.fromPath(params.panelapp)
+	}
+	else {
+		DownloadPanelApp(
+			ch_mane
+		)
+		ch_panelapp = DownloadPanelApp.out
+	}
 
-    QueryPanelapp(
-        GeneratePanelData.out,
-        ch_runtime_config
+    // UnifiedPanelAppParser
+    UnifiedPanelAppParser(
+        ch_runtime_config,
+    	ch_panelapp,
+    	ch_phenopackets,
+    	ch_hpo_file
     )
 
     // run the hail filtering, using a Tarball'd MT path provided in config
     ch_mt_tar = channel.fromPath(params.matrix_tar, checkIfExists: true)
     RunHailFiltering(
         ch_mt_tar,
-        QueryPanelapp.out,
+        UnifiedPanelAppParser.out,
         ch_pedigree,
         ch_clinvar_tar,
         ch_runtime_config,
@@ -78,9 +85,8 @@ workflow {
     // Validate MOI of all variants
     ValidateMOI(
         RunHailFiltering.out,
-        QueryPanelapp.out,
+        UnifiedPanelAppParser.out,
         ch_pedigree,
-        GeneratePanelData.out,
         ch_runtime_config,
     )
 
@@ -96,7 +102,7 @@ workflow {
     // Generate HTML report - only suited to single-report runs
     CreateTalosHTML(
         HPOFlagging.out.pheno_annotated,
-        QueryPanelapp.out,
+        UnifiedPanelAppParser.out,
         ch_runtime_config,
     )
 }

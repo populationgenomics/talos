@@ -5,14 +5,14 @@ any methods for testing model functionality
 from os.path import join
 from test.test_utils import FIVE_EXPECTED, ONE_EXPECTED, THREE_EXPECTED
 
-from talos.models import PhenotypeMatchedPanels
+from talos.models import PanelApp
 from talos.utils import make_flexible_pedigree
 
 
 def test_flexi_pedigree(test_input_path):
     # build the phenotype matched panels object
-    sample_panels = PhenotypeMatchedPanels(
-        samples={
+    sample_panels = PanelApp(
+        participants={
             'CPGABC1': {'panels': {1, 3}, 'external_id': 'EXT1', 'hpo_terms': [{'id': 'HPO:1', 'label': 'Boneitis!'}]},
             'female': {
                 'panels': {1, 2},
@@ -20,7 +20,6 @@ def test_flexi_pedigree(test_input_path):
                 'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
             },
         },
-        all_panels={1, 2, 3},
     )
 
     input_ped = join(test_input_path, 'peds.ped')

@@ -37,6 +37,7 @@ SUB_STUB = join(INPUT, 'tiny_summary.txt.gz')
 # panelapp testing paths
 PANEL_ACTIVITIES = join(INPUT, 'panelapp_activities.json')
 PANELAPP_LATEST = join(INPUT, 'panelapp_current_137.json')
+PANELAPP_ALL_PANELS = join(INPUT, 'panelapp_all_panels.json')
 PANELAPP_INCIDENTALOME = join(INPUT, 'incidentalome.json')
 FAKE_PANELAPP_OVERVIEW = join(INPUT, 'panel_overview.json')
 
@@ -136,6 +137,11 @@ def fixture_panel_activities() -> Any:
 def fixture_latest_mendeliome() -> Any:
     """path to incidentalome json"""
     return read_json_from_path(PANELAPP_LATEST)
+
+
+@pytest.fixture(name='panels_and_hpos', scope='session')
+def fixture_panels_and_hpo() -> Any:
+    return read_json_from_path(PANELAPP_ALL_PANELS)
 
 
 @pytest.fixture(name='latest_incidentalome', scope='session')

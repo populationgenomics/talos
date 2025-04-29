@@ -545,7 +545,6 @@ def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
         alt_depths={'male': 100},
         depths={'male': 100},
     )
-    print(passing_variant)
     x_dom = XDominant(pedigree=make_flexible_pedigree(pedigree_path))
     assert len(x_dom.run(passing_variant)) == wins
 

@@ -75,7 +75,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY LICENSE pyproject.toml uv.lock README.md .
 COPY src src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install -e ".[cpg]"
+    uv pip install ".[cpg]"
 
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"

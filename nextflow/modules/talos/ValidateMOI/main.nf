@@ -10,7 +10,6 @@ process ValidateMOI {
         tuple path(labelled_vcf), path(labelled_vcf_index)
         path panelapp
         path pedigree
-        path hpo_panel_matches
         path talos_config
 
     output:
@@ -23,7 +22,6 @@ process ValidateMOI {
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \
         --pedigree ${pedigree} \
-        --participant_panels ${hpo_panel_matches} \
         --output ${params.cohort}_results.json
     """
 }

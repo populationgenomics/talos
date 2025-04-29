@@ -4,12 +4,12 @@ This is a central script for the Talos process, implemented at the CPG, using th
 
 import toml
 from functools import cache, lru_cache
+from loguru import logger
 from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
 from cpg_flow.stage import DatasetStage, stage
-from cpg_flow.utils import get_logger
 from cpg_utils import Path
 from cpg_utils.config import ConfigError, config_retrieve, image_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
@@ -157,7 +157,7 @@ def query_for_latest_analysis(
     if config_retrieve(['workflow', 'access_level']) == 'test' and 'test' not in query_dataset:
         query_dataset += '-test'
 
-    get_logger().info(f'Querying for {analysis_type} in {query_dataset}')
+    logger.info(f'Querying for {analysis_type} in {query_dataset}')
 
     result = query(METAMIST_ANALYSIS_QUERY, variables={'dataset': query_dataset, 'type': analysis_type})
 
@@ -168,7 +168,7 @@ def query_for_latest_analysis(
             analysis_by_date[analysis['timestampCompleted']] = analysis['output']
 
     if not analysis_by_date:
-        get_logger().warning(f'No Analysis Entries found for dataset {query_dataset}')
+        logger.warning(f'No Analysis Entries found for dataset {query_dataset}')
         return None
 
     # return the latest, determined by a sort on timestamp
@@ -188,7 +188,7 @@ class GeneratePED(DatasetStage):
     def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
         expected_out = self.expected_outputs(dataset)
         pedigree = dataset.write_ped_file(out_path=expected_out)
-        get_logger().info(f'PED file for {dataset.name} written to {pedigree}')
+        logger.info(f'PED file for {dataset.name} written to {pedigree}')
 
         return self.make_outputs(dataset, data=expected_out)
 
@@ -285,7 +285,7 @@ class MakePhenopackets(DatasetStage):
             f'MakePhenopackets --dataset {query_dataset} --output {job.output} --type {seq_type} --hpo {hpo_file}',
         )
         get_batch().write_output(job.output, expected_out)
-        get_logger().info(f'Phenopacket file for {dataset.name} going to {expected_out}')
+        logger.info(f'Phenopacket file for {dataset.name} going to {expected_out}')
 
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
@@ -465,7 +465,7 @@ class RunHailFilteringSV(DatasetStage):
                 analysis_type=SV_ANALYSIS_TYPES[config_retrieve(['workflow', 'sequencing_type'])],
             )
         ) is None:
-            get_logger().info(f'No SV MT found for {dataset.name}, skipping')
+            logger.info(f'No SV MT found for {dataset.name}, skipping')
             return self.make_outputs(dataset, data=expected_out)
 
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
@@ -715,7 +715,7 @@ class MinimiseOutputForSeqr(DatasetStage):
         try:
             seqr_lookup = config_retrieve(['cohorts', dataset.name, seq_type, 'seqr_lookup'])
         except ConfigError:
-            get_logger().warning(f'No Seqr lookup file for {dataset.name} {seq_type}')
+            logger.warning(f'No Seqr lookup file for {dataset.name} {seq_type}')
             return self.make_outputs(dataset, skipped=True)
 
         input_localised = get_batch().read_input(inputs.as_path(dataset, ValidateMOI))

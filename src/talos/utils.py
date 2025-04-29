@@ -13,12 +13,9 @@ import zoneinfo
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
-from pathlib import Path
 from random import choices
-from string import punctuation
 from typing import Any, TYPE_CHECKING
 
-import hail as hl
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from peds import open_ped
@@ -29,13 +26,11 @@ from talos.models import (
     VARIANT_MODELS,
     CategoryMeta,
     Coordinates,
-    FileTypes,
     HistoricSampleVariant,
     HistoricVariants,
     PanelApp,
     Pedigree,
     PedigreeMember,
-    PhenotypeMatchedPanels,
     ResultData,
     SmallVariant,
     StructuralVariant,
@@ -109,18 +104,21 @@ def get_random_string(length: int = 6) -> str:
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels | None = None) -> Pedigree:
+def make_flexible_pedigree(pedigree: str, panelapp: PanelApp | None = None) -> Pedigree:
     """
     takes the representation offered by peds and reshapes it to be searchable
     this is really just one short step from writing my own implementation...
 
     Args:
         pedigree (str): path to a pedigree file
-        pheno_panels (PhenotypeMatchedPanels | None, optional): a PhenotypeMatchedPanels object. Defaults to None.
+        panelapp (PanelApp): a PanelApp object
 
     Returns:
         a searchable representation of the ped file
     """
+    if panelapp is None:
+        panelapp = PanelApp()
+
     new_ped = Pedigree()
     ped_data = open_ped(pedigree)
     for family in ped_data:
@@ -135,11 +133,9 @@ def make_flexible_pedigree(pedigree: str, pheno_panels: PhenotypeMatchedPanels |
             )
 
             # populate this info if we have it from the GeneratePanelData step/output
-            if pheno_panels:
-                pheno_participant = pheno_panels.samples.get(member.id)
-                if pheno_participant:
-                    me.ext_id = pheno_participant.external_id
-                    me.hpo_terms = pheno_participant.hpo_terms
+            if pheno_participant := panelapp.participants.get(member.id):
+                me.ext_id = pheno_participant.external_id
+                me.hpo_terms = pheno_participant.hpo_terms
 
             # add as a member
             new_ped.members.append(me)
@@ -187,35 +183,6 @@ def generator_chunks(generator, size):
         yield list(chain([first], islice(iterator, size - 1)))
 
 
-def identify_file_type(file_path: str) -> FileTypes | Exception:
-    """
-    return type of the file, if present in FileTypes enum
-
-    Args:
-        file_path (str):
-
-    Returns:
-        A matching file type, or die
-    """
-    pl_filepath = Path(file_path)
-
-    # pull all extensions (e.g. vcf.bgz will be split into [vcf, .bgz]
-    if not (extensions := pl_filepath.suffixes):
-        raise ValueError('cannot identify input type from extensions')
-
-    if extensions[-1] == '.ht':
-        return FileTypes.HAIL_TABLE
-    if extensions[-1] == '.mt':
-        return FileTypes.MATRIX_TABLE
-    if extensions == ['.vcf']:
-        return FileTypes.VCF
-    if extensions == ['.vcf', '.gz']:
-        return FileTypes.VCF_GZ
-    if extensions == ['.vcf', '.bgz']:
-        return FileTypes.VCF_BGZ
-    raise TypeError(f'File cannot be definitively typed: {extensions}')
-
-
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
@@ -247,65 +214,6 @@ def get_json_response(url):
     if response.is_success:
         return response.json()
     raise ValueError('The JSON response could not be parsed successfully')
-
-
-def get_new_gene_map(
-    panelapp_data: PanelApp,
-    pheno_panels: PhenotypeMatchedPanels | None = None,
-) -> dict[str, set[str]]:
-    """
-    The aim here is to generate a list of all the samples for whom
-    a given gene should be treated as new during this analysis. This
-    prevents the need for back-filtering results at the end of
-    classification.
-
-    Generate a map of
-    {gene: [samples, where, this, is, 'new']}
-
-    Args:
-        panelapp_data ():
-        pheno_panels (PhenotypeMatchedPanels):
-    """
-
-    # any dataset-specific panel data, + 'core' panel
-    cohort_panels = [
-        *config_retrieve(['GeneratePanelData', 'forced_panels'], []),
-        config_retrieve(['GeneratePanelData', 'default_panel']),
-    ]
-
-    # collect all genes new in at least one panel
-    new_genes: dict[str, set[int]] = {ensg: content.new for ensg, content in panelapp_data.genes.items() if content.new}
-
-    # if there's no panel matching, new applies to everyone
-    if pheno_panels is None:
-        return {ensg: {'all'} for ensg in new_genes}
-
-    # if we have pheno-matched participants, more complex
-    panel_samples: dict[int, set[str]] = defaultdict(set)
-
-    # double layered iteration, but only on a small object
-    for sample, data in pheno_panels.samples.items():
-        for panel in data.panels:
-            panel_samples[panel].add(sample)
-
-    pheno_matched_new = {}
-
-    # iterate over the new genes and find out who they are new for
-    for gene, panels in new_genes.items():
-        if any(panel in cohort_panels for panel in panels):
-            pheno_matched_new[gene] = {'all'}
-            continue
-
-        # else, find the specific samples
-        samples = set()
-        for panel_id in panels:
-            # this line causes problems running mismatched pheno/panel data
-            if panel_id not in panel_samples:
-                raise AssertionError(f'PanelID {panel_id} not attached to any samples')
-            samples.update(panel_samples[panel_id])
-        pheno_matched_new[gene] = samples
-
-    return pheno_matched_new
 
 
 def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[int, str]]:
@@ -808,53 +716,6 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
         return json_data
 
 
-def get_simple_moi(input_mois: set[str], chrom: str) -> set[str]:
-    """
-    takes the vast range of PanelApp MOIs, and reduces to a
-    range of cases which can be easily implemented in RD analysis
-
-    Args:
-        input_mois (set[str]): all the MOIs for this gene
-        chrom ():
-    """
-
-    default = 'Hemi_Bi_In_Female' if chrom in X_CHROMOSOME else 'Biallelic'
-
-    return_mois: set[str] = set()
-
-    for input_moi in input_mois:
-        # skip over ignore-able MOIs
-        if input_moi in IRRELEVANT_MOI:
-            continue
-
-        # split each PanelApp MOI into a list of strings
-        input_list = input_moi.translate(str.maketrans('', '', punctuation)).split()
-
-        # run a match: case to classify it
-        match input_list:
-            case ['biallelic', *_additional]:
-                return_mois.add('Biallelic')
-            case ['both', *_additional]:
-                return_mois.add('Mono_And_Biallelic')
-            case ['monoallelic', *_additional]:
-                if chrom in X_CHROMOSOME:
-                    return_mois.add('Hemi_Mono_In_Female')
-                else:
-                    return_mois.add('Monoallelic')
-            case ['xlinked', *additional] if 'biallelic' in additional:
-                return_mois.add('Hemi_Bi_In_Female')
-            case ['xlinked', *_additional]:
-                return_mois.add('Hemi_Mono_In_Female')
-            case _:
-                continue
-
-    # adda default - solves the all-irrelevant or empty-input cases
-    if not return_mois:
-        return_mois.add(default)
-
-    return return_mois
-
-
 def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[set[str], set[str]]:
     """
     for this variant, find all samples with a call
@@ -1036,7 +897,27 @@ def phenotype_label_history(results: ResultData):
     save_new_historic(results=latest_results)
 
 
-def filter_results(results: ResultData):
+def save_new_historic(results: HistoricVariants):
+    """
+    save the new results in the historic results dir
+
+    Args:
+        results (HistoricVariants): object to save as JSON
+    """
+
+    if (directory := config_retrieve('result_history', None)) is None:
+        logger.info('No historic data folder, no saving')
+        return
+
+    # we're using cloud paths here
+    new_file = to_anypath(directory) / f'{TODAY}.json'
+    with new_file.open('w') as handle:
+        handle.write(results.model_dump_json(indent=4))
+
+    logger.info(f'Wrote new data to {new_file}')
+
+
+def annotate_variant_dates_using_prior_results(results: ResultData):
     """
     loads the most recent prior result set (if it exists)
     annotates previously seen variants with the most recent date seen
@@ -1071,26 +952,6 @@ def filter_results(results: ResultData):
     else:
         # generate and write some new latest data
         generate_fresh_latest_results(current_results=results)
-
-
-def save_new_historic(results: HistoricVariants):
-    """
-    save the new results in the historic results dir
-
-    Args:
-        results (HistoricVariants): object to save as JSON
-    """
-
-    if (directory := config_retrieve('result_history', None)) is None:
-        logger.info('No historic data folder, no saving')
-        return
-
-    # we're using cloud paths here
-    new_file = to_anypath(directory) / f'{TODAY}.json'
-    with new_file.open('w') as handle:
-        handle.write(results.model_dump_json(indent=4))
-
-    logger.info(f'Wrote new data to {new_file}')
 
 
 def date_from_string(string: str) -> str:
@@ -1209,28 +1070,3 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     first_tagged=get_granular_date(),
                     clinvar_stars=clinvar_stars,
                 )
-
-
-def hail_table_from_tsv(tsv_file: str, new_ht: str, types: dict[str, hl.tstr] | None = None):
-    """
-    take a previously created TSV file and ingest it as a Hail Table
-    requires an initiated Hail context
-
-    Args:
-        tsv_file ():
-        new_ht ():
-        types (dict[str, hl.tstr]): optional, a dictionary of column names and their types
-    """
-
-    if types is None:
-        types = {}
-
-    # import as a hail table, force=True as this isn't Block-Zipped so all read on one core
-    # We also provide some data types for non-string columns
-    ht = hl.import_table(tsv_file, types=types, force=True)
-
-    # combine the two alleles into a single list
-    ht = ht.transmute(locus=hl.locus(contig=ht.chrom, pos=ht.pos), alleles=[ht.ref, ht.alt])
-    ht = ht.key_by('locus', 'alleles')
-    ht.write(new_ht)
-    ht.describe()

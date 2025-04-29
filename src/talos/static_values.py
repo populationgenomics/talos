@@ -7,7 +7,6 @@ from datetime import datetime
 
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 _GRANULAR_DATE: str | None = None
-LOGGER = None
 
 
 def get_granular_date():
