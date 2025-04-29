@@ -148,10 +148,6 @@ def query_for_latest_analysis(
         str, the path to the latest object for the given type, or log a warning and return None
     """
 
-    # one particular project doesn't have permission to query the fewgenomes project, so we need an override mechanism
-    if config_clinvar := config_retrieve(['workflow', 'clinvar_data']):
-        return config_clinvar
-
     # swapping to a string we can freely modify
     query_dataset = dataset
     if config_retrieve(['workflow', 'access_level']) == 'test' and 'test' not in query_dataset:
@@ -408,13 +404,13 @@ class RunHailFiltering(DatasetStage):
         )
 
         # find the clinvar table, localise, and expand
-        clinvar_tar = query_for_latest_analysis(
-            dataset=CLINVARBITRATION_PROJECT,
-            analysis_type=CLINVARBITRATION_TYPE,
-        )
-
-        if clinvar_tar is None:
-            raise ValueError('No ClinVar data found')
+        if not (clinvar_tar := config_retrieve(['workflow', 'clinvar_data'], None)):
+            clinvar_tar = query_for_latest_analysis(
+                dataset=CLINVARBITRATION_PROJECT,
+                analysis_type=CLINVARBITRATION_TYPE,
+            )
+            if clinvar_tar is None:
+                raise ValueError('No ClinVar data found')
 
         job.command(f'tar -xzf {get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
 
