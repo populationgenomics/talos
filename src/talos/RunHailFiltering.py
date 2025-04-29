@@ -535,6 +535,14 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         logger.info('Input variant data should really have either DP or AD present for various QC purposes')
         depth = min_depth + 1
 
+    # allow for PL to be missing
+    de_novo_matrix = de_novo_matrix.annotate_entries(
+        PL=hl.case()
+        .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
+        .when((de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)), hl.missing('array<int32>'))
+        .default([0, de_novo_matrix.GQ, 1000]),
+    )
+
     # do some rational variant filtering
     de_novo_matrix = de_novo_matrix.filter_entries(
         (min_depth > depth)
