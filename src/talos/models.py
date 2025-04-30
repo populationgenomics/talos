@@ -378,6 +378,7 @@ class PanelApp(BaseModel):
     genes: dict[str, PanelDetail] = Field(default_factory=dict)
     participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
+    creation_date: str = Field(default=get_granular_date())
 
 
 class DownloadedPanelAppGenePanelDetail(BaseModel):
