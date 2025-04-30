@@ -540,6 +540,8 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         (min_depth > depth)
         | (max_depth < depth)
         # kyles test implements the stricter GQ filter later, so use it unconditionally here
+        # I am using the GQ filter exclusively, instead of also spot checking GT vs. the PL array
+        # The delta between lowest and second-lowest elements in the PL array, and the GQ represent the same quality
         | (min_gq > de_novo_matrix.GQ)
         # single added condition here
         | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))),
