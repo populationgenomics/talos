@@ -535,22 +535,14 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         logger.info('Input variant data should really have either DP or AD present for various QC purposes')
         depth = min_depth + 1
 
-    # allow for PL to be missing
-    de_novo_matrix = de_novo_matrix.annotate_entries(
-        PL=hl.case()
-        .when(~hl.is_missing(de_novo_matrix.PL), de_novo_matrix.PL)
-        .when((de_novo_matrix.GT.is_non_ref()) | (hl.is_missing(de_novo_matrix.GQ)), hl.missing('array<int32>'))
-        .default([0, de_novo_matrix.GQ, 1000]),
-    )
-
     # do some rational variant filtering
     de_novo_matrix = de_novo_matrix.filter_entries(
         (min_depth > depth)
         | (max_depth < depth)
         # kyles test implements the stricter GQ filter later, so use it unconditionally here
+        # I am using the GQ filter exclusively, instead of also spot checking GT vs. the PL array
+        # The delta between lowest and second-lowest elements in the PL array, and the GQ represent the same quality
         | (min_gq > de_novo_matrix.GQ)
-        | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < min_gq))
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < min_gq))
         # single added condition here
         | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))),
         keep=False,
