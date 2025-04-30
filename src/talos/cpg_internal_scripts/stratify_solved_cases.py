@@ -92,5 +92,5 @@ for project in all_projects_of_interest:
     # write this to a dict
     project_dict[project] = get_data_for_project(project)
 
-with open('../../../helpers/output_solves.toml', 'w') as handle:
+with open('output_solves.toml', 'w') as handle:
     toml.dump(project_dict, handle)
