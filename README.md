@@ -20,6 +20,15 @@ Talos has been benchmarked on a range of clinical and research datasets, with a 
 Talos returns a mean of one variant per proband per family, and 2 variants per singleton, with approximately 25% of all
 returned variants, and around 40% of variants flagged for special attention deemed clinically relevant.
 
+In terms of hardware consumption, the demonstration workflow using toy data embedded in this repository takes roughly
+2 minutes to run the annotation workflow, and 5 minutes to run Talos. This is all using 2 cpu cores and 8GB memory.
+
+Real world usage will vary wildly depending on the size of the input data, whether merging of VCFs is done within or
+prior to the workflow, and whether you're using Exomes or Genomes. I appreciate that this is not very useful, but we
+would love to get better usage information to improve this. If you run Talos, please use the `-with-report` command line
+parameter, and let us know some details about your run. Sharing this file with us (via GitHub) would be fantastic
+information to help us understand and improve the performance of Talos.
+
 ### Example Workflows
 
 Included here are two reference workflow implementation using NextFlow. To run these, NextFlow will have to be installed
