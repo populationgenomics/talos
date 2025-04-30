@@ -26,7 +26,7 @@ In terms of hardware consumption, the demonstration workflow using toy data embe
 Real world usage will vary wildly depending on the size of the input data, whether merging of VCFs is done within or
 prior to the workflow, and whether you're using Exomes or Genomes. I appreciate that this is not very useful, but we
 would love to get better usage information to improve this. If you run Talos, please use the `-with-report` command line
-parameter, and let us know some details about your run. Sharing this file with us (via GitHub) would be fantastic
+parameter, and let us know some details about your run. Sharing this file with us (via email) would be fantastic
 information to help us understand and improve the performance of Talos.
 
 ### Example Workflows
