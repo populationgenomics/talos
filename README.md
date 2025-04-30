@@ -23,7 +23,7 @@ returned variants, and around 40% of variants flagged for special attention deem
 ### Example Workflows
 
 Included here are two reference workflow implementation using NextFlow. To run these, NextFlow will have to be installed
-on the machine operating the workflow, see [here](https://www.nextflow.io/docs/latest/install.html) for instructions. 
+on the machine operating the workflow, see [here](https://www.nextflow.io/docs/latest/install.html) for instructions.
 The workflow itself runs in a containerised manner using a Docker image built on the [Dockerfile](Dockerfile) at the root
 of this repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and
 consequence annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
