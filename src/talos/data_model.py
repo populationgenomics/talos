@@ -109,7 +109,7 @@ class AFGeneric:
     """
 
     AF: float = field(default=0.001)
-    AN: int = field(default=1)
+    AN: int = field(default=1000)
     AC: int = field(default=1)
     Hom: int = field(default=0)
 
