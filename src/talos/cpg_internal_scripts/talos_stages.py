@@ -201,7 +201,7 @@ class DownloadPanelAppData(MultiCohortStage):
         # get the MANE json file - used to map gene Symbols <-> IDs
         mane_json = get_batch().read_input(config_retrieve(['references', 'mane_1.4', 'json']))
         job = set_up_job_with_resources(name='DownloadPanelAppData', cpu=1)
-        job.command(f'DownloadPanelApp --output {job.output} --mane ${mane_json}')
+        job.command(f'DownloadPanelApp --output {job.output} --mane {mane_json}')
 
         get_batch().write_output(job.output, output)
 
