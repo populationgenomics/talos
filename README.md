@@ -20,18 +20,27 @@ Talos has been benchmarked on a range of clinical and research datasets, with a 
 Talos returns a mean of one variant per proband per family, and 2 variants per singleton, with approximately 25% of all
 returned variants, and around 40% of variants flagged for special attention deemed clinically relevant.
 
+In terms of hardware consumption, the demonstration workflow using toy data embedded in this repository takes roughly
+2 minutes to run the annotation workflow, and 5 minutes to run Talos. This is all using 2 cpu cores and 8GB memory.
+
+Real world usage will vary wildly depending on the size of the input data, whether merging of VCFs is done within or
+prior to the workflow, and whether you're using Exomes or Genomes. I appreciate that this is not very useful, but we
+would love to get better usage information to improve this. If you run Talos, please use the `-with-report` command line
+parameter, and let us know some details about your run. Sharing this file with us (via email) would be fantastic
+information to help us understand and improve the performance of Talos.
+
 ### Example Workflows
 
-Included here are two reference workflow implementation using NextFlow:
+Included here are two reference workflow implementation using NextFlow. To run these, NextFlow will have to be installed
+on the machine operating the workflow, see [here](https://www.nextflow.io/docs/latest/install.html) for instructions.
+The workflow itself runs in a containerised manner using a Docker image built on the [Dockerfile](Dockerfile) at the root
+of this repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and
+consequence annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
 
 - [Annotation](nextflow/annotation.nf): Starting from single or multisample VCFs, this workflow annotates and reformats
     the variant data into a Talos-ready starting point.
 - [Talos](nextflow/talos.nf): A full Talos analysis, starting from the annotated data in MatrixTable form, and running
     through to report generation.
-
-These workflows can be executed in full using a Docker image built on the [Dockerfile](Dockerfile) at the root of this
-repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and consequence
-annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
 
 > **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
@@ -53,6 +62,7 @@ economical to store in this repository. For the annotation workflow:
 2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file. This file does not need to be unzipped!
 3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.113.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens)
 4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.4.summary.txt.gz` from the  [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4)
+5. The AlphaMissense summary data, `AlphaMissense_hg38.tsv.gz` from [Zenodo](https://zenodo.org/records/8208688)
 
 For the Talos workflow:
 
@@ -65,7 +75,7 @@ The input files are expected in the `large_files` directory, which in the [defau
 Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows with these commands (optional parameters in square brackets):
 
 ```commandline
-nextflow -c nextflow/annotation.config run nextflow/annotation.nf [--large_files XXX] [--processed_annotations YYY]
+nextflow -c nextflow/annotation.config run nextflow/annotation.nf [--large_files XXX] [--processed_annotations YYY] [--merged_vcf ZZZ]
 
 and
 
@@ -116,10 +126,9 @@ To run Talos you will need:
 
     * Talos uses Hail Query, a PySpark-based query engine, to perform highly parallelised analysis. This requires variants to be stored using the Hail MatrixTable format. If your current workflow uses hail, a MatrixTable can be provided directly as an input.
     * Alternatively a VEP-annotated multi-sample VCF can be provided as input. An additional pre-processing step will convert the VCF to a MatrixTable at run time.
-    * Talos is intended to run once per-cohort, not once per cohort. Variant calls from all families/individuals in a cohort should be merged into a single multi-sample file prior to processing with Talos.
+    * Talos is capable of running per-callset, not once per sample/family, and doing so can generate cost and runtime savings. Variant calls from all families/individuals in a cohort should be merged into a single multi-sample callset file prior to processing with Talos. The reference annotation NextFlow workflow begins with a merge of individual VCF files, but if you already have a merged VCF, you can use the `--merged_vcf` parameter when starting the workflow to skip this step.
 
-2. ClinVar data as generated by ClinvArbitration, both the `clinvar_decisions` and `clinvar_pm5` Hail Tables. This is
-   available from the [ClinvArbitration Release Page](https://github.com/populationgenomics/ClinvArbitration/releases), or can be generated using the code and process described in the [ClinvArbitration repository](https://github.com/populationgenomics/ClinvArbitration).
+2. ClinVar data as generated by ClinvArbitration. This is available from the [ClinvArbitration Release Page](https://github.com/populationgenomics/ClinvArbitration/releases), or can be generated using the code and process described in the [ClinvArbitration repository](https://github.com/populationgenomics/ClinvArbitration).
 3. A pedigree file, describing the pedigree of the participants in the study ([Pedigree Reference](https://gatk.broadinstitute.org/hc/en-us/articles/360035531972-PED-Pedigree-format))
 4. A TOML file containing the configuration for the analysis. [example_config.toml](src/talos/example_config.toml) is a
    good starting point, with comments explaining each modifiable parameter. Changes you may wish to make to tailor

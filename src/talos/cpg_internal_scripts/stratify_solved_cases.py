@@ -8,6 +8,7 @@ to be digested down to a per-project object
 
 from sys import argv
 
+from tenacity import retry
 import toml
 from metamist.graphql import gql, query
 
@@ -38,6 +39,30 @@ ID_QUERY = gql(
 )
 
 
+@retry()
+def get_data_for_project(project: str):
+    # find all the samples in each project
+    response = query(ID_QUERY, variables={'project': project})
+
+    # find affected individuals
+    aff_dict = get_affected_per_family(response['project']['pedigree'])
+
+    # create a mapping of sample ID to participant ID
+    sample_map = {sg['sample']['participant']['externalId']: sg['id'] for sg in response['project']['sequencingGroups']}
+
+    solves_project_ids = []
+
+    for solve in solved_fams:
+        if solve in aff_dict:
+            for ext_id in aff_dict[solve]:
+                if ext_id in sample_map:
+                    solves_project_ids.append(sample_map[ext_id])
+                elif ext_id.replace('_proband', '') in sample_map:
+                    solves_project_ids.append(sample_map[ext_id.replace('_proband', '')])
+
+    return sorted(solves_project_ids)
+
+
 def get_affected_per_family(pedigree: list[dict]):
     """
     given a pedigree, return a dict of family ID to affected individuals
@@ -64,27 +89,8 @@ with open(argv[1], encoding='utf-8') as handle:
     solved_fams: set[str] = {x.strip() for x in handle.readlines()}
 
 for project in all_projects_of_interest:
-    # find all the samples in each project
-    response = query(ID_QUERY, variables={'project': project})
-
-    # find affected individuals
-    aff_dict = get_affected_per_family(response['project']['pedigree'])
-
-    # create a mapping of sample ID to participant ID
-    sample_map = {sg['sample']['participant']['externalId']: sg['id'] for sg in response['project']['sequencingGroups']}
-
-    solves_project_ids = []
-
-    for solve in solved_fams:
-        if solve in aff_dict:
-            for ext_id in aff_dict[solve]:
-                if ext_id in sample_map:
-                    solves_project_ids.append(sample_map[ext_id])
-                elif ext_id.replace('_proband', '') in sample_map:
-                    solves_project_ids.append(sample_map[ext_id.replace('_proband', '')])
-
     # write this to a dict
-    project_dict[project] = sorted(solves_project_ids)
+    project_dict[project] = get_data_for_project(project)
 
 with open('output_solves.toml', 'w') as handle:
     toml.dump(project_dict, handle)
