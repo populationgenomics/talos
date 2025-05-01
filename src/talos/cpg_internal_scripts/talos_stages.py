@@ -205,7 +205,7 @@ class DownloadPanelAppData(MultiCohortStage):
 
         get_batch().write_output(job.output, output)
 
-        return self.make_outputs(target=multicohort, data=output)
+        return self.make_outputs(target=multicohort, data=output, jobs=job)
 
 
 @stage
