@@ -3,14 +3,16 @@ This is a central script for the Talos process, implemented at the CPG, using th
 """
 
 import toml
+from datetime import datetime
 from functools import cache, lru_cache
+
 from loguru import logger
 from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
-from cpg_flow.stage import DatasetStage, stage
-from cpg_utils import Path
+from cpg_flow.stage import DatasetStage, MultiCohortStage, stage
+from cpg_utils import Path, to_path
 from cpg_utils.config import ConfigError, config_retrieve, image_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
 
@@ -20,6 +22,7 @@ from talos.utils import get_granular_date
 if TYPE_CHECKING:
     from cpg_flow.stage import StageInput, StageOutput
     from cpg_flow.targets.dataset import Dataset
+    from cpg_flow.targets.multicohort import MultiCohort
     from hailtop.batch.job import BashJob
 
 
@@ -172,6 +175,38 @@ def query_for_latest_analysis(
     return analysis_by_date[sorted(analysis_by_date)[-1]]
 
 
+@stage(analysis_type='panelapp')
+class DownloadPanelAppData(MultiCohortStage):
+    """
+    runs a single instance of the stage which downloads the whole of PanelApp into a cached file
+    """
+
+    def expected_outputs(self, multicohort: 'MultiCohort') -> 'Path':
+        return to_path(
+            join(
+                config_retrieve(['storage', 'common', 'analysis']),
+                'panelapp_monthly',
+                f'panelapp_data_{datetime.now().strftime("%y-%m")}.json',  # noqa: DTZ005
+            ),
+        )
+
+    def queue_jobs(
+        self,
+        multicohort: 'MultiCohort',
+        inputs: 'StageInput',
+    ) -> 'StageOutput':
+        output = self.expected_outputs(multicohort)
+
+        # get the MANE json file - used to map gene Symbols <-> IDs
+        mane_json = get_batch().read_input(config_retrieve(['references', 'mane_1.4', 'json']))
+        job = set_up_job_with_resources(name='DownloadPanelAppData', cpu=1)
+        job.command(f'DownloadPanelApp --output {job.output} --mane ${mane_json}')
+
+        get_batch().write_output(job.output, output)
+
+        return self.make_outputs(target=multicohort, data=output)
+
+
 @stage
 class GeneratePED(DatasetStage):
     """
@@ -286,71 +321,46 @@ class MakePhenopackets(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(required_stages=[MakePhenopackets, MakeRuntimeConfig])
-class GeneratePanelData(DatasetStage):
+@stage(required_stages=[DownloadPanelAppData, MakeRuntimeConfig, MakePhenopackets])
+class UnifiedPanelAppParser(DatasetStage):
     """
-    PythonJob to find HPO-matched panels
+    Job to parse the PanelApp data, output specific to this Dataset
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
-        """
-        only one output, the panel data
-        """
-        return dataset.prefix() / get_date_folder() / 'hpo_panel_data.json'
+    def expected_outputs(self, dataset: 'Dataset') -> 'Path':
+        return dataset.prefix() / get_date_folder() / 'panelapp_data.json'
 
     def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
         # create and resource a new job
-        job = set_up_job_with_resources(name=f'GeneratePanelData: {dataset.name}', cpu=1)
+        job = set_up_job_with_resources(name=f'UnifiedPanelAppParser: {dataset.name}', cpu=1)
 
         # read in the config made in MakeRuntimeConfig
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
 
-        expected_out = self.expected_outputs(dataset)
+        # read in the output from DownloadPanelAppData
+        panelapp_download = get_batch().read_input(inputs.as_path(target=dataset, stage=DownloadPanelAppData))
 
-        # read in a HPO file
+        local_phenopackets = get_batch().read_input(inputs.as_path(target=dataset, stage=MakePhenopackets))
+
         hpo_file = get_batch().read_input(config_retrieve(['GeneratePanelData', 'obo_file']))
 
-        # read in the output from MakePhenopackets
-        local_phenopacket = get_batch().read_input(inputs.as_path(target=dataset, stage=MakePhenopackets))
-
-        job.command(f'export TALOS_CONFIG={runtime_config}')
-
-        # insert a little stagger so PanelApp isn't completely swamped
-        job.command(f'sleep {randint(0, 30)}')
-        job.command(f'GeneratePanelData --input {local_phenopacket} --output {job.output} --hpo {hpo_file}')
-        get_batch().write_output(job.output, expected_out)
-
-        return self.make_outputs(dataset, data=expected_out, jobs=job)
-
-
-@stage(required_stages=[GeneratePanelData, MakeRuntimeConfig])
-class QueryPanelapp(DatasetStage):
-    """
-    query PanelApp for up-to-date gene lists
-    """
-
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
-        return dataset.prefix() / get_date_folder() / 'panelapp_data.json'
-
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
-        job = set_up_job_with_resources(name=f'QueryPanelApp: {dataset.name}', cpu=1)
-
-        # use the new config file
-        runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
-
-        hpo_panel_json = get_batch().read_input(inputs.as_path(target=dataset, stage=GeneratePanelData))
         expected_out = self.expected_outputs(dataset)
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
-        # insert a little stagger so PanelApp isn't completely swamped
-        job.command(f'sleep {randint(20, 300)}')
-        job.command(f'QueryPanelapp --input {hpo_panel_json} --output {job.output}')
+        job.command(f"""
+        UnifiedPanelAppParser \
+            --input {panelapp_download} \
+            --output {job.output} \
+            --cohort {local_phenopackets} \
+            --hpo {hpo_file}
+        """)
+
         get_batch().write_output(job.output, expected_out)
 
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(required_stages=[QueryPanelapp, GeneratePED, MakeRuntimeConfig])
+@stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
 class RunHailFiltering(DatasetStage):
     """
     hail job to filter & label the MT
@@ -389,7 +399,7 @@ class RunHailFiltering(DatasetStage):
         )
         job.command('set -eux pipefail')
 
-        panelapp_json = get_batch().read_input(inputs.as_path(target=dataset, stage=QueryPanelapp))
+        panelapp_json = get_batch().read_input(inputs.as_path(target=dataset, stage=UnifiedPanelAppParser))
 
         # peds can't read cloud paths
         pedigree = get_batch().read_input(inputs.as_path(target=dataset, stage=GeneratePED))
@@ -435,13 +445,13 @@ class RunHailFiltering(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(required_stages=[QueryPanelapp, GeneratePED, MakeRuntimeConfig])
+@stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
 class RunHailFilteringSV(DatasetStage):
     """
     hail job to filter & label the SV MT
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: 'Dataset') -> 'Path':
         if (
             query_for_latest_analysis(
                 dataset=dataset.name,
@@ -465,7 +475,7 @@ class RunHailFilteringSV(DatasetStage):
             return self.make_outputs(dataset, data=expected_out)
 
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
-        panelapp_json = get_batch().read_input(inputs.as_path(target=dataset, stage=QueryPanelapp))
+        panelapp_json = get_batch().read_input(inputs.as_path(target=dataset, stage=UnifiedPanelAppParser))
         pedigree = get_batch().read_input(inputs.as_path(target=dataset, stage=GeneratePED))
 
         cpu: int = config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
@@ -510,8 +520,7 @@ class RunHailFilteringSV(DatasetStage):
 @stage(
     required_stages=[
         GeneratePED,
-        GeneratePanelData,
-        QueryPanelapp,
+        UnifiedPanelAppParser,
         RunHailFiltering,
         RunHailFilteringSV,
         MakeRuntimeConfig,
@@ -532,7 +541,8 @@ class ValidateMOI(DatasetStage):
         # use the new config file
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
 
-        hpo_panels = get_batch().read_input(inputs.as_path(dataset, GeneratePanelData))
+        panelapp_data = get_batch().read_input(inputs.as_path(dataset, UnifiedPanelAppParser))
+
         pedigree = get_batch().read_input(inputs.as_path(target=dataset, stage=GeneratePED))
         hail_inputs = inputs.as_path(dataset, RunHailFiltering)
 
@@ -552,7 +562,6 @@ class ValidateMOI(DatasetStage):
         else:
             sv_vcf_arg = ''
 
-        panel_input = get_batch().read_input(inputs.as_path(dataset, QueryPanelapp))
         labelled_vcf = get_batch().read_input_group(
             **{
                 'vcf.bgz': hail_inputs,
@@ -565,9 +574,8 @@ class ValidateMOI(DatasetStage):
             'ValidateMOI '
             f'--labelled_vcf {labelled_vcf} '
             f'--output {job.output} '
-            f'--panelapp {panel_input} '
+            f'--panelapp {panelapp_data} '
             f'--pedigree {pedigree} '
-            f'--participant_panels {hpo_panels} '
             f'{sv_vcf_arg}',
         )
         expected_out = self.expected_outputs(dataset)
@@ -581,7 +589,7 @@ class ValidateMOI(DatasetStage):
     analysis_keys=['pheno_annotated', 'pheno_filtered'],
 )
 class HPOFlagging(DatasetStage):
-    def expected_outputs(self, dataset: 'Dataset') -> dict[str, Path]:
+    def expected_outputs(self, dataset: 'Dataset') -> 'dict[str, Path]':
         date_prefix = dataset.prefix() / get_date_folder()
         return {
             'pheno_annotated': date_prefix / 'pheno_annotated_report.json',
@@ -620,9 +628,9 @@ class HPOFlagging(DatasetStage):
         return self.make_outputs(target=dataset, jobs=job, data=outputs)
 
 
-@stage(required_stages=[HPOFlagging, QueryPanelapp, MakeRuntimeConfig])
+@stage(required_stages=[HPOFlagging, UnifiedPanelAppParser, MakeRuntimeConfig])
 class CreateTalosHtml(DatasetStage):
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: 'Dataset') -> 'Path':
         return dataset.prefix() / get_date_folder() / 'reports.tar.gz'
 
     def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
@@ -632,7 +640,7 @@ class CreateTalosHtml(DatasetStage):
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
 
         results_json = get_batch().read_input(inputs.as_dict(dataset, HPOFlagging)['pheno_annotated'])
-        panel_input = get_batch().read_input(inputs.as_path(dataset, QueryPanelapp))
+        panelapp_data = get_batch().read_input(inputs.as_path(dataset, UnifiedPanelAppParser))
         expected_out = self.expected_outputs(dataset)
 
         # this will write output files directly to GCP
@@ -641,7 +649,7 @@ class CreateTalosHtml(DatasetStage):
         # create a new directory for the results
         job.command('mkdir html_outputs')
         job.command('cd html_outputs')
-        job.command(f'CreateTalosHTML --input {results_json} --panelapp {panel_input} --output summary_output.html')
+        job.command(f'CreateTalosHTML --input {results_json} --panelapp {panelapp_data} --output summary_output.html')
 
         # Create a tar'chive here, then use an image with GCloud to copy it up in a bit
         job.command(f'tar -czf {job.output} *')
@@ -658,7 +666,7 @@ class CreateTalosHtml(DatasetStage):
     tolerate_missing_output=True,
 )
 class UploadTalosHtml(DatasetStage):
-    def expected_outputs(self, dataset: 'Dataset') -> dict[str, str | Path]:
+    def expected_outputs(self, dataset: 'Dataset') -> 'dict[str, str | Path]':
         date_folder_prefix = dataset.prefix(category='web') / get_date_folder()
         return {
             'results_html': date_folder_prefix / 'summary_output.html',
@@ -697,7 +705,7 @@ class MinimiseOutputForSeqr(DatasetStage):
     takes the results file from Seqr and produces a minimised form for Seqr ingestion
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> dict[str, Path]:
+    def expected_outputs(self, dataset: 'Dataset') -> 'dict[str, Path]':
         analysis_folder_prefix = dataset.prefix(category='analysis') / 'seqr_files'
         return {
             'seqr_file': analysis_folder_prefix / f'{get_date_folder()}_seqr.json',
