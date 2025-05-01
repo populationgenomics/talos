@@ -41,11 +41,13 @@ def test_full_freq_replacement(make_a_mt, caplog):
     )
     matrix_out = populate_callset_frequencies(matrix)
     assert 'Adding AC/AN/AF annotations to MT based on this callset alone' in caplog.text, caplog.text
-    assert 'This is unlikely to provide meaningful variant filtering unless this is a huge callset' in caplog.text, caplog.text
+    assert (
+        'This is unlikely to provide meaningful variant filtering unless this is a huge callset' in caplog.text
+    ), caplog.text
 
     assert matrix_out.info.AF.collect()[0] == [0.5]
     assert matrix_out.info.AC.collect()[0] == [1]
-    assert matrix_out.info.AN.collect()[0] == 2
+    assert matrix_out.info.AN.collect()[0] == 2  # noqa: PLR2004
 
 
 @pytest.mark.parametrize(  # needs clinvar

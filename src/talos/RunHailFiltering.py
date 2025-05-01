@@ -78,9 +78,7 @@ def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
             AF=mt.variant_qc.AF[-1:],
         ),
     )
-    mt = mt.drop('variant_qc')
-    return mt
-
+    return mt.drop('variant_qc')
 
 
 def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
