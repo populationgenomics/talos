@@ -5,6 +5,7 @@ from talos.UnifiedPanelAppParser import (
     match_participants_to_panels,
 )
 from talos.models import PanelApp, PhenoPacketHpo, ParticipantHPOPanels, DownloadedPanelApp, PanelShort, CURRENT_VERSION
+from talos.static_values import get_granular_date
 
 
 def test_match_hpos_to_panels(fake_obo_path):
@@ -69,6 +70,7 @@ def test_match_participants_to_panels():
     )
 
     assert dict(papp) == {
+        'creation_date': get_granular_date(),
         'metadata': {
             1: PanelShort(id=1, name='', version='2'),
             3: PanelShort(id=3, name='', version='4'),
