@@ -19,10 +19,11 @@ from typing import Any
 
 import jinja2
 import pandas as pd
+from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
-from talos.utils import get_logger, read_json_from_path
+from talos.utils import read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
 MIN_REPORT_SIZE: int = 10
@@ -54,10 +55,10 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
         if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
             known_prefixes[match.group()[0:2]] += 1
         else:
-            get_logger().info('There is no consistent sample ID prefix')
+            logger.info('There is no consistent sample ID prefix')
             return []
 
-    get_logger().info(f'Sample distribution by prefix: {dict(known_prefixes)}')
+    logger.info(f'Sample distribution by prefix: {dict(known_prefixes)}')
     return sorted(known_prefixes.keys())
 
 
@@ -85,7 +86,7 @@ def split_data_into_sub_reports(all_results: ResultData) -> list[tuple[ResultDat
                 },
                 version=all_results.version,
             )
-            get_logger().info(f'Found {len(this_rd.results)} with prefix {prefix}')
+            logger.info(f'Found {len(this_rd.results)} with prefix {prefix}')
             return_results.append((this_rd, f'subset_{prefix}.html', prefix))
     return return_results
 
@@ -153,7 +154,7 @@ class HTMLBuilder:
         # If it exists, read the forbidden genes as a list
         self.forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], [])
         assert isinstance(self.forbidden_genes, list)
-        get_logger().warning(f'There are {len(self.forbidden_genes)} forbidden genes')
+        logger.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # take the link-generating instance (can be None)
         self.link_engine = link_engine
@@ -341,7 +342,7 @@ class HTMLBuilder:
         with open(output_filepath, 'w') as handle:
             handle.writelines(content)
 
-        get_logger().info(f'Wrote {output_filepath}')
+        logger.info(f'Wrote {output_filepath}')
 
         outpath_name = Path(output_filepath).name
 
@@ -352,7 +353,7 @@ class HTMLBuilder:
 
             report_address = output_filepath.replace(outpath_name, sample.report_url)
 
-            get_logger().debug(f'Writing {report_address}')
+            logger.debug(f'Writing {report_address}')
 
             new_context = template_context | {
                 'samples': [sample],
@@ -659,7 +660,7 @@ class Variant:
 
 
 def cli_main():
-    get_logger(__file__).info('Running HTML builder')
+    logger.info('Running HTML builder')
     parser = ArgumentParser()
     parser.add_argument('--input', help='Path to analysis results', required=True)
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
@@ -693,23 +694,23 @@ def main(results: str, panelapp: str, output: str):
     # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
     # catch this, but fail gracefully so that the process overall is a success
     try:
-        get_logger().debug(f'Writing whole-cohort categorised variants to {output}')
+        logger.debug(f'Writing whole-cohort categorised variants to {output}')
         # find the path to the output directory, and make an individual directory
         makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
         html.write_html(output_filepath=output)
     except NoVariantsFoundError:
-        get_logger().warning('No Categorised variants found in this whole cohort')
+        logger.warning('No Categorised variants found in this whole cohort')
 
     # we only need to do sub-reports if we can delineate by year
     for data, report, prefix in split_data_into_sub_reports(results_object):
         html = HTMLBuilder(results_dict=data, panelapp_path=panelapp, subset_id=prefix, link_engine=link_builder)
         try:
             output_filepath = join(report_output_dir, report)
-            get_logger().debug(f'Attempting to create {report} at {output_filepath}')
+            logger.debug(f'Attempting to create {report} at {output_filepath}')
             makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
-            get_logger().info('No variants in that report, skipping')
+            logger.info('No variants in that report, skipping')
 
 
 if __name__ == '__main__':

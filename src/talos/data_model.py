@@ -27,10 +27,10 @@ from dataclasses import dataclass, field, is_dataclass
 from enum import Enum
 from os.path import join
 
+from loguru import logger
+
 import hail as hl
 from hail.utils.java import FatalError
-
-from talos.static_values import get_logger
 
 
 class CustomEncoder(json.JSONEncoder):
@@ -109,7 +109,7 @@ class AFGeneric:
     """
 
     AF: float = field(default=0.001)
-    AN: int = field(default=1)
+    AN: int = field(default=1000)
     AC: int = field(default=1)
     Hom: int = field(default=0)
 
@@ -271,7 +271,7 @@ class SneakyTable:
             hl.init(idempotent=True)
             hl.default_reference('GRCh38')
         except FatalError as fe:
-            get_logger().info(f'Hail already initialised: {fe}')
+            logger.info(f'Hail already initialised: {fe}')
 
     def modify_schema(self) -> str:
         """

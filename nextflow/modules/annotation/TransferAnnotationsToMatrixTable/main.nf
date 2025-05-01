@@ -6,10 +6,10 @@ process TransferAnnotationsToMatrixTable {
         path(compressed_ht)
         tuple path(vcf), path(tbi)
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir, mode: 'link'
 
     output:
-        path("${params.cohort}.mt.tar")
+        path("${params.cohort}.mt")
 
     script:
         """
@@ -22,6 +22,5 @@ process TransferAnnotationsToMatrixTable {
 
         # cut down on work folder space
         rm -r ${params.cohort}_annotations.ht
-		tar --no-xattrs --remove-files -cf ${params.cohort}.mt.tar ${params.cohort}.mt
         """
 }

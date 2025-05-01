@@ -14,11 +14,11 @@ Read, filter, annotate, classify, and write Genetic data
 from argparse import ArgumentParser
 
 import hail as hl
+from loguru import logger
 from peds import open_ped
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.static_values import get_logger
 from talos.utils import read_json_from_path
 
 
@@ -46,6 +46,41 @@ MISSENSE = hl.str('missense')
 MAX_PARTITIONS = 10000
 
 
+def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Annotate the MatrixTable with the callset frequencies
+    If these attributes are already present, do nothing
+    If AF is the only mising attribute, derive it from AC & AN
+    If all are missing, populate using hl.variant_qc
+    Returns:
+        the original MT, with AC/AF/AN populated
+    """
+
+    if all(attribute in mt.info for attribute in ['AC', 'AN', 'AF']):
+        logger.info('AC, AN, AF already present, skipping annotation')
+        return mt
+    if all(attribute in mt.info for attribute in ['AC', 'AN']):
+        logger.info('AC, AN present, deriving AF from existing annotations')
+        return mt.annotate_rows(
+            info=mt.info.annotate(
+                AF=hl.map(lambda x: x / mt.info.AN, mt.info.AC),
+            ),
+        )
+    logger.warning('Adding AC/AN/AF annotations to MT based on this callset alone')
+    logger.warning('This is unlikely to provide meaningful variant filtering unless this is a huge callset')
+    mt = hl.variant_qc(mt, name='variant_qc')
+    # per VCF spec, AC and AF should be per alt allele, Hail QC delivers one per allele, including the reference
+    # we already mandate that data is normalised/de-duplicated, so we can safely take the last element
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            AC=mt.variant_qc.AC[-1:],
+            AN=mt.variant_qc.AN,
+            AF=mt.variant_qc.AF[-1:],
+        ),
+    )
+    return mt.drop('variant_qc')
+
+
 def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
     Don't allow these annotations to be missing
@@ -64,7 +99,7 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
         The same MatrixTable but with additional annotations
     """
 
-    get_logger().info(f'loading private clinvar annotations from {clinvar}')
+    logger.info(f'loading private clinvar annotations from {clinvar}')
     ht = hl.read_table(clinvar)
     mt = mt.annotate_rows(
         info=mt.info.annotate(
@@ -112,10 +147,10 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None, ignored: 
         The same MatrixTable but with additional annotations
     """
     if not exomiser or ignored:
-        get_logger().info(f'Exomiser not required or requested, skipping annotation (table path: {exomiser})')
+        logger.info(f'Exomiser not required or requested, skipping annotation (table path: {exomiser})')
         return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
 
-    get_logger().info(f'loading exomiser variants from {exomiser}')
+    logger.info(f'loading exomiser variants from {exomiser}')
     exomiser_ht = hl.read_table(exomiser)
     return mt.annotate_rows(
         info=mt.info.annotate(
@@ -123,7 +158,7 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None, ignored: 
         ),
     )
 
-    get_logger().info('No exomiser table found, skipping annotation')
+    logger.info('No exomiser table found, skipping annotation')
     return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
 
 
@@ -169,11 +204,11 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     """
 
     if pm5_path is None:
-        get_logger().info(f'PM5 not required or requested, skipping annotation. Table path: {pm5_path}')
+        logger.info(f'PM5 not required or requested, skipping annotation. Table path: {pm5_path}')
         return mt.annotate_rows(info=mt.info.annotate(categorydetailspm5=MISSING_STRING))
 
     # read in the codon table
-    get_logger().info(f'Reading clinvar alleles by codon from {pm5_path}')
+    logger.info(f'Reading clinvar alleles by codon from {pm5_path}')
     codon_clinvar = hl.read_table(pm5_path)
 
     # boom those variants out by consequence
@@ -252,7 +287,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None, ignored: boo
         Same MT with an extra category label
     """
     if svdb_path is None or ignored:
-        get_logger().info(f'SVDB not required or requested, skipping annotation. (table path: {svdb_path})')
+        logger.info(f'SVDB not required or requested, skipping annotation. (table path: {svdb_path})')
         return mt.annotate_rows(
             info=mt.info.annotate(
                 categorybooleansvdb=MISSING_INT,
@@ -263,7 +298,7 @@ def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None, ignored: boo
         )
 
     # read in the codon table
-    get_logger().info(f'Reading SpliceVarDB data from {svdb_path}')
+    logger.info(f'Reading SpliceVarDB data from {svdb_path}')
     svdb_ht = hl.read_table(svdb_path)
 
     # annotate relevant variants with the SVDB results
@@ -519,22 +554,32 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
     min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
 
-    get_logger().info('Running de novo search')
+    logger.info('Running de novo search')
 
     de_novo_matrix = filter_by_consequence(mt)
 
     pedigree = hl.Pedigree.read(ped_file_path)
 
+    # allow for depth to be missing, rebuild from other attributes if required, or use a default
+    if 'DP' in de_novo_matrix.entry:
+        depth = de_novo_matrix.DP
+    elif 'AD' in de_novo_matrix.entry:
+        depth = hl.sum(de_novo_matrix.AD)
+    else:
+        logger.info('DP and AD both absent, chucking in a default value')
+        logger.info('Input variant data should really have either DP or AD present for various QC purposes')
+        depth = min_depth + 1
+
     # do some rational variant filtering
     de_novo_matrix = de_novo_matrix.filter_entries(
-        (min_depth > de_novo_matrix.DP)
-        | (max_depth < de_novo_matrix.DP)
+        (min_depth > depth)
+        | (max_depth < depth)
         # kyles test implements the stricter GQ filter later, so use it unconditionally here
+        # I am using the GQ filter exclusively, instead of also spot checking GT vs. the PL array
+        # The delta between lowest and second-lowest elements in the PL array, and the GQ represent the same quality
         | (min_gq > de_novo_matrix.GQ)
-        | ((de_novo_matrix.GT.is_hom_var()) & (de_novo_matrix.PL[0] < min_gq))
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.PL[0] < min_gq))
         # single added condition here
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))),
+        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))),
         keep=False,
     )
 
@@ -591,7 +636,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     dn_table = dn_table.annotate(dn_ids=hl.delimit(hl.map(lambda x: x.id, dn_table.values), ','))
 
     # log the number of variants found this way
-    get_logger().info(f'{dn_table.count()} variants showed de novo inheritance')
+    logger.info(f'{dn_table.count()} variants showed de novo inheritance')
 
     # annotate those values as a flag if relevant, else 'missing'
     return mt.annotate_rows(
@@ -675,7 +720,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
     # write this custom header locally
     with open(header_path, 'w') as handle:
         handle.write(f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Format: {csq_contents}">')
-    get_logger().info(f'Writing categorised variants out to {vcf_out}')
+    logger.info(f'Writing categorised variants out to {vcf_out}')
     hl.export_vcf(mt, vcf_out, append_to_header=header_path, tabix=True)
 
 
@@ -692,7 +737,7 @@ def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
 
     # take all the green genes, remove the metadata
     green_genes = set(panel_data.genes.keys())
-    get_logger().info(f'Extracted {len(green_genes)} green genes')
+    logger.info(f'Extracted {len(green_genes)} green genes')
     return hl.literal(green_genes)
 
 
@@ -720,7 +765,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
     # find overlapping samples
     common_samples: set[str] = ped_samples.intersection(matrix_samples)
 
-    get_logger().info(
+    logger.info(
         f"""
     Samples in Pedigree: {len(ped_samples)}
     Samples in MatrixTable: {len(matrix_samples)}
@@ -737,7 +782,7 @@ def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTabl
 
     # reduce to those common samples
     mt = mt.filter_cols(hl.literal(common_samples).contains(mt.s))
-    get_logger().info(f'Remaining MatrixTable columns: {mt.count_cols()}')
+    logger.info(f'Remaining MatrixTable columns: {mt.count_cols()}')
 
     return mt
 
@@ -749,14 +794,14 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
         mt ():
         checkpoint_path (str): where to write the checkpoint
     """
-    get_logger().info(f'Checkpointing to {checkpoint_path} after filtering out a ton of variants')
+    logger.info(f'Checkpointing to {checkpoint_path} after filtering out a ton of variants')
     mt = mt.checkpoint(checkpoint_path, overwrite=True)
 
     # die if there are no variants remaining. Only ever count rows after a checkpoint
     if not (current_rows := mt.count_rows()):
         raise ValueError('No remaining rows to process!')
 
-    get_logger().info(f'Local checkpoint written, {current_rows} rows remain')
+    logger.info(f'Local checkpoint written, {current_rows} rows remain')
     return mt
 
 
@@ -814,7 +859,7 @@ def main(
         svdb (str): path to a SpliceVarDB HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
-    get_logger(__file__).info(
+    logger.info(
         r"""Welcome To
 ███████████   █████████   █████          ███████     █████████
 █   ███   █  ███     ███   ███         ███     ███  ███     ███
@@ -827,12 +872,12 @@ def main(
 
     # initiate Hail as a local cluster
     number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
-    get_logger().info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
+    logger.info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
 
     hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', quiet=True)
 
     # read the parsed panelapp data
-    get_logger().info(f'Reading PanelApp data from {panel_data!r}')
+    logger.info(f'Reading PanelApp data from {panel_data!r}')
     panelapp = read_json_from_path(panel_data, return_model=PanelApp)
     assert isinstance(panelapp, PanelApp)
 
@@ -841,15 +886,18 @@ def main(
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
-    get_logger().info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
+    logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
+
+    # insert AC/AN/AF if missing
+    mt = populate_callset_frequencies(mt)
 
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
-        get_logger().info('Shrinking partitions way down with an unshuffled repartition')
+        logger.info('Shrinking partitions way down with an unshuffled repartition')
         mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
         if checkpoint:
-            get_logger().info('Trying to write the result locally, might need more space on disk...')
+            logger.info('Trying to write the result locally, might need more space on disk...')
             mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
 
     # swap out the default clinvar annotations with private clinvar
@@ -895,7 +943,7 @@ def main(
     # current logic is to apply 1, 6, 3, then 4 (de novo)
     # 1 was applied earlier during the integration of clinvar data
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
-    get_logger().info('Applying categories')
+    logger.info('Applying categories')
     mt = annotate_category_6(mt=mt)
     mt = annotate_category_3(mt=mt)
 

@@ -20,7 +20,7 @@ from talos.utils import get_granular_date
 if TYPE_CHECKING:
     from cpg_flow.stage import StageInput, StageOutput
     from cpg_flow.targets.dataset import Dataset
-    from hailtop.batch.job import Job
+    from hailtop.batch.job import BashJob
 
 
 METAMIST_ANALYSIS_QUERY = gql(
@@ -55,7 +55,7 @@ def set_up_job_with_resources(
     cpu: float | None = None,
     storage: str = '10Gi',
     image: str | None = None,
-) -> 'Job':
+) -> 'BashJob':
     """
     Wrapper to create a job with all elements set up
     Name is mandatory, the rest is optional
@@ -404,13 +404,13 @@ class RunHailFiltering(DatasetStage):
         )
 
         # find the clinvar table, localise, and expand
-        clinvar_tar = query_for_latest_analysis(
-            dataset=CLINVARBITRATION_PROJECT,
-            analysis_type=CLINVARBITRATION_TYPE,
-        )
-
-        if clinvar_tar is None:
-            raise ValueError('No ClinVar data found')
+        if not (clinvar_tar := config_retrieve(['workflow', 'clinvar_data'], None)):
+            clinvar_tar = query_for_latest_analysis(
+                dataset=CLINVARBITRATION_PROJECT,
+                analysis_type=CLINVARBITRATION_TYPE,
+            )
+            if clinvar_tar is None:
+                raise ValueError('No ClinVar data found')
 
         job.command(f'tar -xzf {get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
 

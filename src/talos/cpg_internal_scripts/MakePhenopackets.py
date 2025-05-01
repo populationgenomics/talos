@@ -19,10 +19,10 @@ from argparse import ArgumentParser
 import networkx as nx
 import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
+from loguru import logger
 from obonet import read_obo
 
 from metamist.graphql import gql, query
-from talos.static_values import get_logger
 
 HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:\d+')
@@ -98,7 +98,7 @@ def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[st
     hpo_to_text: dict[str, str] = {}
     for hpo in all_hpos:
         if not hpo_graph.has_node(hpo):
-            get_logger(__file__).error(f'HPO term was absent from the tree: {hpo}')
+            logger.error(f'HPO term was absent from the tree: {hpo}')
             hpo_to_text[hpo] = 'Unknown'
         else:
             hpo_to_text[hpo] = hpo_graph.nodes[hpo]['name']

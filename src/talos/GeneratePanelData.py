@@ -16,9 +16,10 @@ from networkx import dfs_successors
 from networkx.exception import NetworkXError
 from obonet import read_obo
 
+from loguru import logger
+
 from talos.config import config_retrieve
 from talos.models import ParticipantHPOPanels, PhenoPacketHpo, PhenotypeMatchedPanels
-from talos.static_values import get_logger
 from talos.utils import get_json_response, read_json_from_path
 
 HPO_RE = re.compile(r'HP:\d+')
@@ -30,7 +31,7 @@ try:
     PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELAPP_HARD_CODED_DEFAULT)
     DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
 except KeyError:
-    get_logger(__file__).warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
+    logger.warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     PANELS_ENDPOINT = PANELAPP_HARD_CODED_DEFAULT
     DEFAULT_PANEL = PANELAPP_HARD_CODED_BASE_PANEL
 
@@ -116,7 +117,7 @@ def match_hpos_to_panels(hpo_panel_map: dict[str, set[int]], hpo_file: str, all_
                     hpo_to_panels[hpo].update(hpo_panel_map[hpo_term])
         except (KeyError, NetworkXError):
             # if the HPO term is not in the graph, skip it
-            get_logger(__file__).warning(f'HPO term {hpo} not found in HPO graph')
+            logger.warning(f'HPO term {hpo} not found in HPO graph')
 
     return hpo_to_panels
 
@@ -144,7 +145,7 @@ def match_participants_to_panels(participant_hpos: PhenotypeMatchedPanels, hpo_p
 
 
 def cli_main():
-    get_logger(__file__).info('Starting HPO~Panel matching')
+    logger.info('Starting HPO~Panel matching')
     parser = ArgumentParser()
     parser.add_argument('--input', help='GA4GH Cohort/PhenoPacket File')
     parser.add_argument('--output', help='Path to write PhenotypeMatchedPanels to (JSON)')
