@@ -46,6 +46,41 @@ MISSENSE = hl.str('missense')
 MAX_PARTITIONS = 10000
 
 
+def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Annotate the MatrixTable with the callset frequencies
+    If these attributes are already present, do nothing
+    If AF is the only mising attribute, derive it from AC & AN
+    If all are missing, populate using hl.variant_qc
+    Returns:
+        the original MT, with AC/AF/AN populated
+    """
+
+    if all(attribute in mt.info for attribute in ['AC', 'AN', 'AF']):
+        logger.info('AC, AN, AF already present, skipping annotation')
+        return mt
+    if all(attribute in mt.info for attribute in ['AC', 'AN']):
+        logger.info('AC, AN present, deriving AF from existing annotations')
+        return mt.annotate_rows(
+            info=mt.info.annotate(
+                AF=hl.map(lambda x: x / mt.info.AN, mt.info.AC),
+            ),
+        )
+    logger.warning('Adding AC/AN/AF annotations to MT based on this callset alone')
+    logger.warning('This is unlikely to provide meaningful variant filtering unless this is a huge callset')
+    mt = hl.variant_qc(mt, name='variant_qc')
+    # per VCF spec, AC and AF should be per alt allele, Hail QC delivers one per allele, including the reference
+    # we already mandate that data is normalised/de-duplicated, so we can safely take the last element
+    mt = mt.annotate_rows(
+        info=mt.info.annotate(
+            AC=mt.variant_qc.AC[-1:],
+            AN=mt.variant_qc.AN,
+            AF=mt.variant_qc.AF[-1:],
+        ),
+    )
+    return mt.drop('variant_qc')
+
+
 def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
     """
     Don't allow these annotations to be missing
@@ -852,6 +887,9 @@ def main(
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
     logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
+
+    # insert AC/AN/AF if missing
+    mt = populate_callset_frequencies(mt)
 
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
