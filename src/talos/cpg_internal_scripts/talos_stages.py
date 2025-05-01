@@ -12,6 +12,7 @@ from random import randint
 from typing import TYPE_CHECKING
 
 from cpg_flow.stage import DatasetStage, MultiCohortStage, stage
+from cpg_flow.workflow import get_multicohort
 from cpg_utils import Path, to_path
 from cpg_utils.config import ConfigError, config_retrieve, image_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
@@ -338,7 +339,7 @@ class UnifiedPanelAppParser(DatasetStage):
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
 
         # read in the output from DownloadPanelAppData
-        panelapp_download = get_batch().read_input(inputs.as_path(target=dataset, stage=DownloadPanelAppData))
+        panelapp_download = get_batch().read_input(inputs.as_path(target=get_multicohort(), stage=DownloadPanelAppData))
 
         local_phenopackets = get_batch().read_input(inputs.as_path(target=dataset, stage=MakePhenopackets))
 
