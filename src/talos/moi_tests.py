@@ -79,7 +79,7 @@ class GlobalFilter:
 
             # on sex chroms, apply hemi-count filter
             if variant.coordinates.chrom in HEMI_CHROMS:
-                return variant.info('gnomad_ac_xy', 0) > self.small_gnomad_hemi
+                return variant.info.get('gnomad_ac_xy', 0) > self.small_gnomad_hemi
 
         # check against the SV filters
         elif isinstance(variant, StructuralVariant):
@@ -185,10 +185,7 @@ class ClinVarFilter:
             if key in variant.info and variant.info[key] > threshold:
                 return True
 
-        if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
-            return True
-
-        return False
+        return variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af
 
 
 @dataclass
@@ -221,10 +218,7 @@ class ClinVarDominantFilter:
             if key in variant.info and variant.info[key] > threshold:
                 return True
 
-        if variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af:
-            return True
-
-        return False
+        return variant.info['ac'] > self.ac_threshold and variant.info['af'] > self.small_af
 
 
 class MOIRunner:

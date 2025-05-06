@@ -173,7 +173,7 @@ class HTMLBuilder:
         assert isinstance(self.ext_labels, dict)
 
         self.metadata = results_dict.metadata
-        self.panel_names = {panel.name for panel in self.metadata.panels}
+        self.panel_names = {panel.name for panel in self.metadata.panels.values()}
 
         # Process samples and variants
         self.samples: list[Sample] = []
@@ -284,7 +284,8 @@ class HTMLBuilder:
 
         return {
             'Panels': pd.DataFrame(
-                {'ID': panel.id, 'Version': panel.version, 'Name': panel.name} for panel in self.metadata.panels
+                {'ID': panel.id, 'Version': panel.version, 'Name': panel.name}
+                for panel in self.metadata.panels.values()
             ),
             'Meta': pd.DataFrame(
                 {

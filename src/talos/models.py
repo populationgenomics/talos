@@ -16,14 +16,16 @@ from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
+from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
+from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '1.2.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0']
+CURRENT_VERSION = '2.0.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -330,6 +332,21 @@ class ReportVariant(BaseModel):
         return self.var_data.coordinates < other.var_data.coordinates
 
 
+class ParticipantHPOPanels(BaseModel):
+    external_id: str = Field(default_factory=str)
+    family_id: str = Field(default_factory=str)
+    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    panels: set[int] = Field(default_factory=set)
+    matched_genes: set[str] = Field(default_factory=set)
+    matched_phenotypes: set[str] = Field(default_factory=set)
+
+
+class PhenotypeMatchedPanels(BaseModel):
+    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
+    all_panels: set[int] = Field(default_factory=set)
+    version: str = CURRENT_VERSION
+
+
 class PanelDetail(BaseModel):
     """
     A gene from PanelApp, combining all MOI and panel IDs
@@ -338,7 +355,6 @@ class PanelDetail(BaseModel):
 
     symbol: str
     chrom: str = Field(default_factory=str)
-    all_moi: set[str] = Field(default_factory=set)
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
     panels: set[int] = Field(default_factory=set)
@@ -347,6 +363,7 @@ class PanelDetail(BaseModel):
 class PanelShort(BaseModel):
     """
     Short panel summary, used in the metadata section
+    This object contains the coarse panel details
     """
 
     id: int
@@ -355,8 +372,40 @@ class PanelShort(BaseModel):
 
 
 class PanelApp(BaseModel):
-    metadata: list[PanelShort] = Field(default_factory=list)
-    genes: dict[str, PanelDetail]
+    # the PanelShort object contains id, but we use this in a few places to search for the name/version of a panel by id
+    # having this as a dictionary of {id: {id: X, name: Y}} looks a bit wasteful, but simplifies code in a few places
+    metadata: dict[int, PanelShort] = Field(default_factory=dict)
+    genes: dict[str, PanelDetail] = Field(default_factory=dict)
+    participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
+    version: str = CURRENT_VERSION
+    creation_date: str = Field(default=get_granular_date())
+
+
+class DownloadedPanelAppGenePanelDetail(BaseModel):
+    """ """
+
+    moi: str
+    date: str = Field(default_factory=str)
+
+
+class DownloadedPanelAppGene(BaseModel):
+    """ """
+
+    symbol: str
+    chrom: str = Field(default_factory=str)
+    mane_symbol: str = Field(default_factory=str)
+    ensg: str = Field(default_factory=str)
+    # for every panel this gene has featured in, when did it become Green, and what was the MOI
+    panels: dict[int, DownloadedPanelAppGenePanelDetail] = Field(default_factory=dict)
+
+
+class DownloadedPanelApp(BaseModel):
+    """ """
+
+    # all panels and versions
+    versions: list[PanelShort] = Field(default_factory=list)
+    genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
+    hpos: dict[int, list[PhenoPacketHpo]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
 
 
@@ -408,9 +457,8 @@ class ResultMeta(BaseModel):
     version: str = Field(default_factory=str)
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     input_file: str = Field(default_factory=str)
-    panels: list[PanelShort] = Field(default_factory=list)
+    panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
-    projects: list[str] = Field(default_factory=list)
 
 
 class MemberSex(Enum):
@@ -430,7 +478,7 @@ class ParticipantMeta(BaseModel):
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
-    panel_details: dict[int, str] = Field(default_factory=dict)
+    panel_details: dict[int, PanelShort] = Field(default_factory=dict)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
     present_in_sv: bool = Field(default=False)
@@ -459,21 +507,6 @@ class ModelVariant(BaseModel):
     """
     might be required for the VCF generator
     """
-
-
-class ParticipantHPOPanels(BaseModel):
-    external_id: str = Field(default_factory=str)
-    family_id: str = Field(default_factory=str)
-    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
-    panels: set[int] = Field(default_factory=set)
-    matched_genes: set[str] = Field(default_factory=set)
-    matched_phenotypes: set[str] = Field(default_factory=set)
-
-
-class PhenotypeMatchedPanels(BaseModel):
-    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
-    all_panels: set[int] = Field(default_factory=set)
-    version: str = CURRENT_VERSION
 
 
 class MiniVariant(BaseModel):
@@ -513,7 +546,9 @@ LIFTOVER_METHODS: dict = {
     PhenotypeMatchedPanels: {
         'None_1.0.0': pmp_none_to_1_0_0,
     },
-    PanelApp: {},
+    PanelApp: {
+        '1.2.0_2.0.0': pa_120_to_200,
+    },
     HistoricVariants: {
         '1.0.0_1.0.1': hv_100_to_101,
     },
@@ -523,6 +558,7 @@ LIFTOVER_METHODS: dict = {
         '1.0.2_1.0.3': rd_102_to_103,
         '1.0.3_1.1.0': rd_103_to_110,
         '1.1.0_1.2.0': rd_110_to_120,
+        '1.2.0_2.0.0': rd_120_to_200,
     },
 }
 

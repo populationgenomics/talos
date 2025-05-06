@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version='7.0.12'
+version='7.1.0'
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -24,12 +24,14 @@ dependencies=[
     'cloudpathlib[all]>=0.16.0',
     'cyvcf2>=0.30.18',
     'grpcio-status>=1.48,<1.50',
+    "hatchling>=1.27.0",
     'httpx>=0.27.0',
     'Jinja2>=3.1.3',
-    "loguru>=0.7.3",
+    'loguru>=0.7.3',
     'networkx>=3',
     'obonet>=1',
     'peds>=1.2.0',
+    'pendulum>=3.1.0',
     'phenopackets>=2',
     'protobuf==3.20.2',
     'pydantic>=2.5.2',
@@ -45,7 +47,7 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=v0.2.1',
+    'cpg-flow>=v0.2.2',
     'google-cloud-storage==2.14.0',
     'gql',
     'metamist>=7.4.0',
@@ -98,10 +100,10 @@ MinimiseOutputForSeqr = 'talos.cpg_internal_scripts.MinimiseOutputForSeqr:cli_ma
 ConvertSpliceVarDb = 'talos.ConvertSpliceVarDb:cli_main'
 # Builds cohort phenopackets from a pedigree with HPO terms
 ConvertPedToPhenopackets = 'talos.ConvertPedToPhenopackets:cli_main'
-# use the HPO terms to select panels for this analysis
-GeneratePanelData = 'talos.GeneratePanelData:cli_main'
-# query PanelApp for those selected panels
-QueryPanelapp = 'talos.QueryPanelapp:cli_main'
+# Download and format all current PanelApp data
+DownloadPanelApp = 'talos.DownloadPanelApp:cli_main'
+# Parse the Downloaded PanelApp data, generating a run-specific PanelApp subset
+UnifiedPanelAppParser = 'talos.UnifiedPanelAppParser:cli_main'
 # Filter and label a small-variant MatrixTable
 RunHailFiltering = 'talos.RunHailFiltering:cli_main'
 # Filter and label a SV MatrixTable
