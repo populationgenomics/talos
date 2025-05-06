@@ -27,7 +27,7 @@ dependencies=[
     "hatchling>=1.27.0",
     'httpx>=0.27.0',
     'Jinja2>=3.1.3',
-    "loguru>=0.7.3",
+    'loguru>=0.7.3',
     'networkx>=3',
     'obonet>=1',
     'peds>=1.2.0',
@@ -47,7 +47,7 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=v0.2.1',
+    'cpg-flow>=v0.2.2',
     'google-cloud-storage==2.14.0',
     'gql',
     'metamist>=7.4.0',

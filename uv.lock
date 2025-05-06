@@ -480,24 +480,24 @@ wheels = [
 
 [[package]]
 name = "cpg-flow"
-version = "0.2.1"
+version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "coloredlogs" },
     { name = "cpg-utils" },
     { name = "grpcio" },
     { name = "grpcio-status" },
     { name = "hail" },
     { name = "ipywidgets" },
+    { name = "loguru" },
     { name = "metamist" },
     { name = "networkx" },
     { name = "plotly" },
     { name = "pre-commit" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/e3/75c441ad37b5a9d739e7c4c9bd5e2a2aa440ddca300ea26a649af287f9f9/cpg_flow-0.2.1.tar.gz", hash = "sha256:d1ee741f2825073f04d970845163a5a642cdb22603572bc6876812b871460db3", size = 1887623 }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/e4/8dca760c708beacf92663db09701a1885e547fcd498a2ed4df97341fd61c/cpg_flow-0.2.2.tar.gz", hash = "sha256:5f25632d04d733254480e2728510e65574cccc13dc193cdd4eb51ed7b7e8ef37", size = 1888483 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/fc/4abe62348dc7bdc2d6a74443495610002ed0ae2b3d8fd33df8fa7cca6aa0/cpg_flow-0.2.1-py3-none-any.whl", hash = "sha256:b690e1d62df557297a712012fdef75957adab1f5885d21cca1c517c0f6f875af", size = 70791 },
+    { url = "https://files.pythonhosted.org/packages/8e/9e/6b0320e166236be084270a7449c11cacdccf4a728b7e57bd68ab5d0daaaa/cpg_flow-0.2.2-py3-none-any.whl", hash = "sha256:22f9cc2da502759eaea01301492121bae24a88e2d64295a10a61a3afd50bcd67", size = 71105 },
 ]
 
 [[package]]
@@ -2121,7 +2121,7 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "7.0.7"
+version = "7.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpathlib", extra = ["all"] },
@@ -2168,7 +2168,7 @@ requires-dist = [
     { name = "black", marker = "extra == 'test'" },
     { name = "bump2version", marker = "extra == 'test'" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
-    { name = "cpg-flow", marker = "extra == 'cpg'", specifier = ">=0.2.1" },
+    { name = "cpg-flow", marker = "extra == 'cpg'", specifier = ">=0.2.2" },
     { name = "cyvcf2", specifier = ">=0.30.18" },
     { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },
     { name = "gql", marker = "extra == 'cpg'" },
