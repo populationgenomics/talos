@@ -29,18 +29,18 @@ would love to get better usage information to improve this. If you run Talos, pl
 parameter, and let us know some details about your run. Sharing this file with us (via email) would be fantastic
 information to help us understand and improve the performance of Talos.
 
-### Example Workflows
+### Workflows
 
-Included here are two reference workflow implementation using NextFlow. To run these, NextFlow will have to be installed
+Included here are two reference workflow implementations using NextFlow. To run these, NextFlow will have to be installed
 on the machine operating the workflow, see [here](https://www.nextflow.io/docs/latest/install.html) for instructions.
 The workflow itself runs in a containerised manner using a Docker image built on the [Dockerfile](Dockerfile) at the root
 of this repository. This Docker image contains Talos and all its dependencies, plus BCFtools (used for merging and
 consequence annotation) and [Echtvar](https://github.com/brentp/echtvar) (used to rapidly apply population frequencies).
 
 - [Annotation](nextflow/annotation.nf): Starting from single or multisample VCFs, this workflow annotates and reformats
-    the variant data into a Talos-ready starting point.
+  the variant data into a Talos-ready starting point.
 - [Talos](nextflow/talos.nf): A full Talos analysis, starting from the annotated data in MatrixTable form, and running
-    through to report generation.
+  through to report generation.
 
 > **_NOTE:_**  Note the tag of the dockerfile in this command is kept in sync with the package version and config
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
@@ -52,25 +52,14 @@ docker build -t talos:7.1.0 .
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
 any other framework. We'd be glad to discuss specific implementations for your use case.
 
-### Input Data
+### Example Inputs
 
 A range of stub files have been provided to demonstrate each workflow. This includes a trio of individual VCFs, and a
 corresponding pedigree as a toy example. In addition to these stub files you'll need some larger files which are not
-economical to store in this repository. For the annotation workflow:
+economical to store in this repository.
+These input files are expected in the `large_files` directory, which in the [default annotation config](nextflow/annotation.config) is at the root of this repository. The corresponding [`README.md`](large_files/README.md) file contains a list of files that need to be downloaded.
 
-1. A reference genome matching your input data, in FASTA format.
-2. An echtvar reference file from https://zenodo.org/records/15110230. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file. This file does not need to be unzipped!
-3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.113.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens)
-4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.4.summary.txt.gz` from the  [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4)
-5. The AlphaMissense summary data, `AlphaMissense_hg38.tsv.gz` from [Zenodo](https://zenodo.org/records/8208688)
-
-For the Talos workflow:
-
-1. `genes_to_phenotypes.txt` from https://hpo.jax.org/data/annotations
-2. `hp.obo` from https://hpo.jax.org/data/ontology
-3. `phenio.db.gz` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
-
-The input files are expected in the `large_files` directory, which in the [default annotation config](nextflow/annotation.config) is at the root of this repository. All nextflow configuration parameters can be overridden at runtime - to supply an alternate location for the 'large_files' directory use `--large_files XXX` as a CLI parameter when starting the workflow. To alter the output location for the processed annotation files, alter the `--processed_annotations YYY` parameter.
+All nextflow configuration parameters can be overridden at runtime - to supply an alternate location for the 'large_files' directory use `--large_files XXX` as a CLI parameter when starting the workflow. To alter the output location for the processed annotation files, alter the `--processed_annotations YYY` parameter.
 
 Once these files are downloaded, and a Docker file is built from the root of this repository, you can run the workflows with these commands (optional parameters in square brackets):
 
@@ -84,76 +73,64 @@ nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_tar nextflow/co
 
 For the AlphaMissense, MANE, and Ensembl GFF file, the annotation workflow procesess the raw data into a format expected in the workflow. This only needs to be done once, and subsequent runs of the workflow will detect and reuse the prior outputs, with faster runtimes.
 
-### Real Data
+## Real Data
 
-For real data, you'll need to provide your own VCFs, and a pedigree file. Optionally you can supply a Phenopackets file,
-used to supply additional phenotypic information for participants. This is used to generate a personalised gene panel
-for each family in the analysis.
+For real data, you'll need to provide your own VCFs, and a pedigree file. Optionally you can supply a Phenopackets file, used to supply additional phenotypic information for participants. This is used to generate a personalised gene panel for each family in the analysis. If this is not provided, an empty phenopacket 
+object will be generated from the pedigree, and can be updated for subsequent analysis if and when phenotypic information becomes available.
 
 A newly supported argument to the annotation workflow is `--merged_vcf`. This can be used to provide a single merged VCF
-file as input, instead of merging individual VCFs. This will be beneficial if you already have merged data.
+file as input, instead of merging individual VCFs. This will be beneficial if you already have merged data. To ensure uniformity the 
+merged VCF will be passed through a variant normalisation and region filtering step, which can take some time depending on its size.
 
 ---
 
 Talos analysis consists of a few main phases:
 
 1. [optional] Using HPO terms in metadata to identify phenotype-matched gene panels of interest
-    * If no phenotype terms were provided, analysis will just default to the base (Mendeliome) gene panel
+   - If no phenotype terms were provided, analysis will just default to the base (Mendeliome) gene panel
 2. Querying PanelApp to find the genes of interest for this analysis run
-   * Using any phenotype-matched panels overlaid on a base Mendelian gene panel
+   - Using any phenotype-matched panels overlaid on a base Mendelian gene panel
 3. Variant Filtering & Categorisation
-   * Talos applies several filtering criteria to remove common or benign variants, then applies a number of filtering
-        categories to select variants which pass a decision tree of criteria.
-   * If a variant passes all criteria of a category, it is labelled with that category.
-   * If a variant passes multiple categories, it is labelled with all applicable categories.
-   * Once all categories have been applied, any un-categorised variants are removed.
+   - Talos applies several filtering criteria to remove common or benign variants, then applies a number of filtering
+     categories to select variants which pass a decision tree of criteria.
+   - If a variant passes all criteria of a category, it is labelled with that category.
+   - If a variant passes multiple categories, it is labelled with all applicable categories.
+   - Once all categories have been applied, any un-categorised variants are removed.
 4. Mode of Inheritance (MOI) Checking
-   * For each remaining variant, we check if the variant's presence in members of the family is consistent with its MOI
-     * This includes both individual variants and compound-heterozygotes between multiple different variants.
-   * If the variant is consistent with the MOI, the variant is retained for a final report.
+   - For each remaining variant, we check if the variant's presence in members of the family is consistent with its MOI
+     - This includes both individual variants and compound-heterozygotes between multiple different variants.
+   - If the variant is consistent with the MOI, the variant is retained for a final report.
 5. [optional] HPO Term Matching
-   * If phenotypes are provided, we flag any variants which seem well matched to their families to prioritise analysis
+   - If phenotypes are provided, we flag any variants which seem well matched to their families to prioritise analysis
 6. Report Generation
-   * An HTML report is generated for the cohort as a whole, and separately for each family, detailing the variants which
-       passed all filtering criteria
+   - An HTML report is generated for the cohort as a whole, and separately for each family, detailing the variants which
+     passed all filtering criteria
 
-
-## Input Data
+### Input Data
 
 To run Talos you will need:
 
-1. Variant data, annotated with VEP. The input can be provided as a Hail MatrixTable or as a multisample VCF
-
-    * Talos uses Hail Query, a PySpark-based query engine, to perform highly parallelised analysis. This requires variants to be stored using the Hail MatrixTable format. If your current workflow uses hail, a MatrixTable can be provided directly as an input.
-    * Alternatively a VEP-annotated multi-sample VCF can be provided as input. An additional pre-processing step will convert the VCF to a MatrixTable at run time.
-    * Talos is capable of running per-callset, not once per sample/family, and doing so can generate cost and runtime savings. Variant calls from all families/individuals in a cohort should be merged into a single multi-sample callset file prior to processing with Talos. The reference annotation NextFlow workflow begins with a merge of individual VCF files, but if you already have a merged VCF, you can use the `--merged_vcf` parameter when starting the workflow to skip this step.
-
+1. Variant data, annotated and formatted by the enclosed annotation process. To use alternative entrypoints (e.g. an existing MatrixTable or annotated VCF, please get in touch - we can help with adapting the data, but it's unlikely to be in the expected format)
 2. ClinVar data as generated by ClinvArbitration. This is available from the [ClinvArbitration Release Page](https://github.com/populationgenomics/ClinvArbitration/releases), or can be generated using the code and process described in the [ClinvArbitration repository](https://github.com/populationgenomics/ClinvArbitration).
 3. A pedigree file, describing the pedigree of the participants in the study ([Pedigree Reference](https://gatk.broadinstitute.org/hc/en-us/articles/360035531972-PED-Pedigree-format))
-4. A TOML file containing the configuration for the analysis. [example_config.toml](src/talos/example_config.toml) is a
-   good starting point, with comments explaining each modifiable parameter. Changes you may wish to make to tailor
-   analysis to the cohort under test are using `forced_panels` to involve additional gene panels in the analysis,
-   removing or extending the `require_pheno_match` list, which would mask noisy variants from the base panel, and
-   `forbidden_genes` to remove genes from the analysis completely.
-5. [Optional] A JSON file detailing a GA4GH compliant Cohort ([see reference](https://phenopacket-schema.readthedocs.io/en/latest/cohort.html)). This should contain Phenotypic Features for all relevant participants using HPO terms. If provided this improves matching of panels to participants. If you previously generated the 'extended PED' file in place of the phenopackets file, there is a conversion script [here: convert_ePED_to_phenopackets.py](src/talos/ConvertPedToPhenopackets.py) which will convert the extended PED file to a Phenopackets file and regular pedigree.
+4. A TOML file containing the configuration for the analysis. [example_config.toml](src/talos/example_config.toml) is a good starting point, with comments explaining each modifiable parameter. Changes you may wish to make to tailor analysis to the cohort under test are using `forced_panels` to involve additional gene panels
+   in the analysis, removing or extending the `require_pheno_match` list, which would mask noisy variants from the base panel, and `forbidden_genes` to remove genes from the analysis completely.
+6. [Optional] A JSON file detailing a GA4GH compliant Cohort ([see reference](https://phenopacket-schema.readthedocs.io/en/latest/cohort.html)). This should contain Phenotypic Features for all relevant participants using HPO terms. If provided this improves matching of panels to participants. If you previously generated the
+   'extended PED' file in place of the phenopackets file, there is a conversion script [here: convert_ePED_to_phenopackets.py](src/talos/ConvertPedToPhenopackets.py) which will convert the extended PED file to a Phenopackets file and regular pedigree. If this is not provided at all, an empty phenopacket file will be derived
+   from the pedigree.
 
 ## Usage
 
 Talos consists of the following components:
 
 - `MakePhenopackets` - This is a CPG-specific implementation for generating a Cohort/Phenopacket file. It can serve as a template for generating a compliant Phenopackets input file.
-- `GeneratePanelData` - [optional] Phenopacket file, and generates a per-participant list of panels to be used for this analysis, writing the result as a JSON. This also requires a local copy of the HPO ontology, downloadable from [here](http://purl.obolibrary.org/obo/hp.obo).
-- `QueryPanelapp` - Takes the output of `GeneratePanelData`, or None if no PhenoPacket file was provided, Queries PanelApp for the panels selected for the cohort, and writes the result as a JSON.
-- `FindGeneSymbolMap` - Uses the output of `QueryPanelapp` to find the gene symbol for each gene ID via Ensembl's REST API.
-- `RunHailFiltering` - Takes the MatrixTable of Variants, the Pedigree file, the panel data from `QueryPanelapp`, and
-  both ClinVar tables, filters the variants in the MatrixTable, and labels them with categories of interest. This is the most resource-intensive step of the pipeline, but even on 400+GB datasets it has been run successfully on a 8-core, 16GB RAM VM.
-- `RunHailFilteringSv` - Takes a MatrixTable of Structural Variants, the Pedigree file, the panel data
-  from `QueryPanelapp`, filters the variants in the MatrixTable, and labels them with categories of interest.
-- `ValidateMOI` - Takes the result of `RunHailFiltering`, optionally one or more SV result from `RunHailFilteringSV`,
-  the Pedigree, and panel data from `QueryPanelapp`. Checks each categorised variant to determine whether the MOI
-  associated with the relevant gene fits within the family structure where it occurs. Generates a JSON file from all
-  variants which pass the MOI tests.
-- `HPOFlagging` - Takes the results of `ValidateMOI`, and uses semsimian to test whether the HPO term(s) associated with the gene matches the HPO term(s) associated with the participant.
+- `DownloadPanelApp` - intended to run once per month, this process downloads a simplified representation of the whole of panelapp at a given timepoint. This can be run outside of the main workflow if you are deploying to an offline compute environment.
+- `UnifiedPanelAppParser` - Takes the Downloaded panelapp data and the phenopacket file, and generates the region of interest for the analysis. If a HPO ontology file is provided (see [large_files](large_files/README.md)) it will run phenotypic matching to tailor the region of interest to each proband.
+- `RunHailFiltering` - Takes the MatrixTable of Variants, the Pedigree file, the panel data from `UnifiedPanelAppParser`, and both ClinVar tables, filters the variants in the MatrixTable, and labels them with categories of interest.
+  This is the most resource-intensive step of the pipeline, but even on 400+GB datasets it has been run successfully on a 8-core, 16GB RAM VM.
+- `RunHailFilteringSv` - Takes a MatrixTable of Structural Variants, the Pedigree file, the panel data from `UnifiedPanelAppParser`, filters the variants in the MatrixTable, and labels them with categories of interest.
+- `ValidateMOI` - Takes the result of `RunHailFiltering`, optionally an SV result from `RunHailFilteringSV`, the Pedigree, and panel data from `UnifiedPanelAppParser`. Checks each categorised variant to determine whether the MOI associated with the relevant gene fits within the family structure where it occurs.
+- `HPOFlagging` - Takes the results of `ValidateMOI`, and uses semsimian to test whether the HPO term(s) associated with the gene matches the HPO term(s) associated with the participant. Used in escalated variant prioritisation by flagging where a phenotypic match has been detected.
 - `CreateTalosHTML` - Generates a report from the results of the `ValidateMOI`.
 - `MinimiseOutputForSeqr` - Parses the result of `ValidateMOI`, generates a file for ingestion by Seqr.
 
