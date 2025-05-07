@@ -6,7 +6,7 @@ process RunHailFiltering {
     publishDir params.output_dir, mode: 'copy'
 
     input:
-        path mt_tar
+        path mt
         path panelapp_data
         path pedigree
         path clinvar
@@ -21,11 +21,10 @@ process RunHailFiltering {
     """
     export TALOS_CONFIG=${talos_config}
 
-    tar -zxf ${clinvar}
-    tar -xf ${mt_tar}
+    tar --no-same-owner -zxf ${clinvar}
 
     RunHailFiltering \
-        --input ${params.cohort}.mt \
+        --input ${mt} \
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \
         --output ${params.cohort}_small_variants_labelled.vcf.bgz \

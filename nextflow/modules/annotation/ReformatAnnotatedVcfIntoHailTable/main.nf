@@ -16,7 +16,7 @@ process ReformatAnnotatedVcfIntoHailTable {
     script:
         """
         set -ex
-        tar -xf ${alphamissense}
+        tar --no-same-owner -xf ${alphamissense}
         ReformatAnnotatedVcfIntoHailTable \
             --input ${vcf} \
             --am alphamissense_38.ht \

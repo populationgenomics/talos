@@ -17,8 +17,9 @@ Also produce a second version of the same, limited to phenotype-matches
 import json
 from argparse import ArgumentParser
 
+from loguru import logger
+
 from talos.models import MiniForSeqr, MiniVariant, ResultData
-from talos.static_values import get_logger
 
 
 def cli_main():
@@ -46,7 +47,7 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
     """
 
     if pheno_match:
-        get_logger().info('Limiting to phenotype-matching variants')
+        logger.info('Limiting to phenotype-matching variants')
 
     with open(input_file, encoding='utf-8') as f:
         data = ResultData.model_validate(json.load(f))
@@ -72,13 +73,13 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
             )
 
     if not any(lil_data.results.values()):
-        get_logger().info('No results found')
+        logger.info('No results found')
 
     # write anyway, so as not to break the pipeline
     with open(output, 'w', encoding='utf-8') as f:
         f.write(MiniForSeqr.model_validate(lil_data).model_dump_json(indent=4))
 
-    get_logger().info(f'Wrote output to {output}')
+    logger.info(f'Wrote output to {output}')
 
 
 if __name__ == '__main__':

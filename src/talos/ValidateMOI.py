@@ -15,6 +15,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 from cyvcf2 import VCFReader
+from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -26,18 +27,16 @@ from talos.models import (
     ParticipantMeta,
     ParticipantResults,
     Pedigree,
-    PhenotypeMatchedPanels,
     ReportPanel,
     ReportVariant,
     ResultData,
     ResultMeta,
 )
 from talos.moi_tests import MOIRunner
-from talos.static_values import get_logger
 from talos.utils import (
     GeneDict,
     canonical_contigs_from_vcf,
-    filter_results,
+    annotate_variant_dates_using_prior_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
     polish_exomiser_results,
@@ -128,7 +127,7 @@ def apply_moi_to_variants(
 
         # variant appears to be in a red gene
         if panel_gene_data is None:
-            get_logger().error(f'How did this gene creep in? {gene}')
+            logger.error(f'How did this gene creep in? {gene}')
             continue
 
         for variant in variants:
@@ -172,117 +171,65 @@ def apply_moi_to_variants(
     return results
 
 
-def clean_and_filter(
+def filter_results_to_panels(
     results_holder: ResultData,
     result_list: list[ReportVariant],
-    panelapp_data: PanelApp,
-    participant_panels: PhenotypeMatchedPanels | None = None,
-) -> ResultData:
+    panelapp: PanelApp,
+) -> None:
     """
     It's possible 1 variant can be classified multiple ways
     e.g. different MOIs (dominant and comp het)
     e.g. the same variant with annotation from two genes
 
-    This cleans those to unique for final report
-    stores panel names within the 'panels' attribute, either
-    as matched (phenotype matched)
-    as forced (cohort-wide applied panel)
-    or neither
+    Here we keep these all in parallel - some but not all annotations would be the same (locus, gnomAD, but not TX csq)
+
+    stores names of panels specifically matched between the variant gene and participant:
+    - as matched (phenotype matched)
+    - as forced (cohort-wide applied panel)/custom panel
 
     Args:
         results_holder (): container for all results data
         result_list (): list of all ReportVariant events
-        panelapp_data ():
-        participant_panels ():
+        panelapp (PanelApp):
 
     Returns:
-        results with the phenotype/forced panel matches annotated
+        None, object updated in-place
     """
 
-    cohort_panels = set(config_retrieve(['GeneratePanelData', 'forced_panels'], []))
+    default_panel = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
 
-    # add the custom gene panel ID as a forced panel
-    # any gene added manually, either to override MOI, or to add the gene completely, will be applied to every family
-    cohort_panels.add(0)
+    # get the forced panel IDs from config, and add 0, the 'custom panel'
+    forced_panel_ids = set(config_retrieve(['GeneratePanelData', 'forced_panels'], [])) | {0}
 
-    panel_meta: dict[int, str] = {content.id: content.name for content in panelapp_data.metadata}
-
-    gene_details: dict[str, set[int]] = {}
-
+    # iterate over each separate reportable event
     for each_event in result_list:
-        # shouldn't be possible, here as a precaution
-        if not each_event.categories:
-            raise AssertionError(f'No categories for {each_event.var_data.coordinates.string_format}')
-
-        # find all panels for this gene
-        if each_event.gene in gene_details:
-            all_panels = gene_details[each_event.gene]
-
-        else:
-            # don't re-cast sets for every single variant
-            all_panels = set(panelapp_data.genes[each_event.gene].panels)
-            gene_details[each_event.gene] = all_panels
+        # find all panels featuring this gene
+        gene_panels = panelapp.genes[each_event.gene].panels
 
         # get all forced panels this gene intersects with
-        cohort_intersection: set[int] = cohort_panels.intersection(all_panels)
+        forced_panels_for_this_gene: set[int] = forced_panel_ids.intersection(gene_panels)
 
-        # establish the object dictionaries
-        matched_panels = {}
-        forced_panels = {pid: panel_meta[pid] for pid in cohort_intersection}
+        # all panels assigned to this participant
+        if each_event.sample in panelapp.participants:
+            participant_panel_ids = set(panelapp.participants[each_event.sample].panels)
+            # get union of naturally and forcibly matched panels for this gene, ignoring the default panel
+            natural_matches_for_this_gene = participant_panel_ids.intersection(gene_panels) - {default_panel}
+        else:
+            logger.warning(f'Participant {each_event.sample} not found in panelapp participants')
+            natural_matches_for_this_gene = set()
 
-        # check that the gene is in a panel of interest, and confirm new
-        # neither step is required if no custom panel data is supplied
-        if participant_panels is not None:
-            # intersection to find participant phenotype-matched panels
-            phenotype_intersection = participant_panels.samples[each_event.sample].panels.intersection(all_panels)
-
-            # is this gene relevant for this participant?
-            # this test includes matched, cohort-level, and core panel
-            if not phenotype_intersection.union(cohort_intersection):
-                continue
-
-            matched_panels = {
-                pid: panel_meta[pid]
-                for pid in phenotype_intersection
-                if pid != config_retrieve(['GeneratePanelData', 'default_panel'], 137)
-            }
+        # if this gene is not on a forced or naturally matched panel for this participant, skip
+        if not (forced_panels_for_this_gene or natural_matches_for_this_gene or (default_panel in gene_panels)):
+            continue
 
         # don't remove variants here, we do that in the pheno-matching stage
-        each_event.panels = ReportPanel(matched=matched_panels, forced=forced_panels)
+        each_event.panels = ReportPanel(
+            matched={pid: panelapp.metadata[pid].name for pid in natural_matches_for_this_gene},
+            forced={pid: panelapp.metadata[pid].name for pid in forced_panels_for_this_gene},
+        )
 
-        # equivalence logic might need a small change here -
-        # If this variant and that variant have same sample/pos, equivalent
-        # If either was independent, set that flag to True
-        # Add a union of all Support Variants from both events
-        if each_event not in results_holder.results[each_event.sample].variants:
-            results_holder.results[each_event.sample].variants.append(each_event)
-
-        else:
-            prev_event = results_holder.results[each_event.sample].variants[
-                results_holder.results[each_event.sample].variants.index(each_event)
-            ]
-
-            # if this is independent, set independent to True
-            if each_event.independent:
-                prev_event.independent = True
-
-            # take the union of all supporting variants for both
-            prev_event.support_vars.update(each_event.support_vars)
-
-            prev_event.reasons.update(each_event.reasons)
-            prev_event.gene = ','.join({*prev_event.gene.split(','), each_event.gene})
-
-            # combine flags across variants, and remove Ambiguous marking if it's no longer appropriate
-            both_flags = {*prev_event.flags, *each_event.flags}
-            if prev_event.reasons != {'Autosomal Dominant'} and AMBIGUOUS_FLAG in both_flags:
-                both_flags.remove(AMBIGUOUS_FLAG)
-            prev_event.flags = both_flags
-
-    # organise the variants by chromosomal location... why?
-    for sample in results_holder.results:
-        results_holder.results[sample].variants.sort()
-
-    return results_holder
+        # add this event to the list for this participant
+        results_holder.results[each_event.sample].variants.append(each_event)
 
 
 def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
@@ -341,7 +288,6 @@ def prepare_results_shell(
     sv_samples: set[str],
     pedigree: Pedigree,
     panelapp: PanelApp,
-    panel_data: PhenotypeMatchedPanels,
 ) -> ResultData:
     """
     Creates a ResultData object, with participant metadata filled out
@@ -352,7 +298,6 @@ def prepare_results_shell(
         sv_samples (): samples in the SV VCFs
         pedigree (): the Pedigree object
         panelapp (): dictionary of gene data
-        panel_data (): dictionary of per-participant panels, may be empty
 
     Returns:
         ResultData with sample metadata filled in
@@ -363,7 +308,6 @@ def prepare_results_shell(
 
     # find the solved cases in this project
     solved_cases = config_retrieve(['ValidateMOI', 'solved_cases'], [])
-    panel_meta = {content.id: content.name for content in panelapp.metadata}
 
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
     all_samples: set[str] = small_samples | sv_samples
@@ -377,7 +321,7 @@ def prepare_results_shell(
             )
             for member in pedigree.by_family[sample.family]
         }
-        sample_panel_data = panel_data.samples.get(sample.id, ParticipantHPOPanels())
+        sample_panel_data = panelapp.participants.get(sample.id, ParticipantHPOPanels())
         results_shell.results[sample.id] = ParticipantResults(
             variants=[],
             metadata=ParticipantMeta(
@@ -385,7 +329,7 @@ def prepare_results_shell(
                 family_id=sample_panel_data.family_id or sample.family,
                 members=family_members,
                 phenotypes=sample_panel_data.hpo_terms,
-                panel_details={panel_id: panel_meta[panel_id] for panel_id in sample_panel_data.panels},
+                panel_details={panel_id: panelapp.metadata[panel_id] for panel_id in sample_panel_data.panels},
                 solved=bool(sample.id in solved_cases or sample.family in solved_cases),
                 present_in_small=sample.id in small_samples,
                 present_in_sv=sample.id in sv_samples,
@@ -402,26 +346,23 @@ def cli_main():
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
-    parser.add_argument('--participant_panels', help='GeneratePanelData JSON', default=None)
     args = parser.parse_args()
 
     main(
         labelled_vcf=args.labelled_vcf,
         output=args.output,
-        panelapp=args.panelapp,
+        panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
-        participant_panels=args.participant_panels,
     )
 
 
 def main(
     labelled_vcf: str,
     output: str,
-    panelapp: str,
+    panelapp_path: str,
     pedigree: str,
     labelled_sv: list[str] | None = None,
-    participant_panels: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -434,11 +375,10 @@ def main(
         labelled_vcf (str): VCF output from Hail Labelling stage
         labelled_sv (str | None): optional second VCF (SV)
         output (str): location to write output file
-        panelapp (str): location of PanelApp data JSON
+        panelapp_path (str): location of PanelApp data JSON
         pedigree (str): location of PED file
-        participant_panels (str): json of panels per participant
     """
-    get_logger(__file__).info(
+    logger.info(
         r"""Welcome To
     ███████████   █████████   █████          ███████     █████████
     █   ███   █  ███     ███   ███         ███     ███  ███     ███
@@ -453,20 +393,16 @@ def main(
     if labelled_sv is None:
         labelled_sv = []
 
-    pheno_panels: PhenotypeMatchedPanels = read_json_from_path(
-        participant_panels,
-        return_model=PhenotypeMatchedPanels,
-        default=PhenotypeMatchedPanels(),
+    panelapp: PanelApp = read_json_from_path(
+        panelapp_path,
+        return_model=PanelApp,
     )
 
     # parse the pedigree from the file
-    ped = make_flexible_pedigree(pedigree, pheno_panels)
-
-    # parse panelapp data from dict
-    panelapp_data: PanelApp = read_json_from_path(panelapp, return_model=PanelApp)
+    ped = make_flexible_pedigree(pedigree, panelapp)
 
     # set up the inheritance checks
-    moi_lookup = set_up_moi_filters(panelapp_data=panelapp_data, pedigree=ped)
+    moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
 
     result_list: list[ReportVariant] = []
 
@@ -498,20 +434,16 @@ def main(
             apply_moi_to_variants(
                 variant_dict=contig_dict,
                 moi_lookup=moi_lookup,
-                panelapp_data=panelapp_data.genes,
+                panelapp_data=panelapp.genes,
                 pedigree=ped,
             ),
         )
 
-    # do we have seqr projects?
-    seqr_project = config_retrieve(['CreateTalosHTML', 'seqr_project'], None)
-
     # create the full final output file
     results_meta = ResultMeta(
         family_breakdown=count_families(ped, samples=all_samples),
-        panels=panelapp_data.metadata,
+        panels=panelapp.metadata,
         version=__version__,
-        projects=[seqr_project] if seqr_project else [],
         categories=config_retrieve('categories'),
     )
 
@@ -521,18 +453,17 @@ def main(
         small_samples=small_vcf_samples,
         sv_samples=sv_vcf_samples,
         pedigree=ped,
-        panel_data=pheno_panels,
-        panelapp=panelapp_data,
+        panelapp=panelapp,
     )
 
     # remove duplicate and invalid variants
-    results_model = clean_and_filter(results_model, result_list, panelapp_data, pheno_panels)
+    filter_results_to_panels(results_model, result_list, panelapp)
 
     # need some extra filtering here to tidy up exomiser categorisation
     polish_exomiser_results(results_model)
 
     # annotate previously seen results using cumulative data file(s)
-    filter_results(results_model)
+    annotate_variant_dates_using_prior_results(results_model)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful

@@ -9,11 +9,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 import jinja2
 from cloudpathlib.anypath import to_anypath
 from metamist.graphql import gql, query
-
-from talos.static_values import get_logger
 
 
 DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
@@ -47,9 +47,6 @@ WEB_URL_BASE = 'https://main-web.populationgenomics.org.au/{}'
 INDEX_HOME = 'gs://cpg-common-test-web/reanalysis/{}'
 
 
-script_logger = get_logger(logger_name=__file__)
-
-
 @dataclass
 class Report:
     """
@@ -71,7 +68,7 @@ def get_my_projects() -> set[str]:
     """
     response: dict[str, Any] = query(PROJECT_QUERY)
     all_projects = {dataset['dataset'] for dataset in response['myProjects']}
-    script_logger.info(f'Running for projects: {", ".join(sorted(all_projects))}')
+    logger.info(f'Running for projects: {", ".join(sorted(all_projects))}')
     return all_projects
 
 
@@ -151,10 +148,10 @@ def html_from_reports(reports: list[Report], title: str):
 
     # write to common web bucket - either attached to a single dataset, or communal
     write_index_to = to_anypath(INDEX_HOME.format(title))
-    get_logger().info(f'Writing {title} to {write_index_to}')
+    logger.info(f'Writing {title} to {write_index_to}')
     write_index_to.write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
 if __name__ == '__main__':
-    get_logger(__file__).info('Fetching all reports')
+    logger.info('Fetching all reports')
     main()

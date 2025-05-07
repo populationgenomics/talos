@@ -1,5 +1,29 @@
 """
 script for converting the 'extended PED format' to a regular PED file and Phenopackets file
+
+this process accepts either a standard 6-column pedigree file, or a pedigree with extra columns.
+The standard columns:
+    - Family ID
+    - Individual ID
+    - Father ID
+    - Mother ID
+    - Sex
+    - Phenotype/Affected
+
+Additional columns:
+    - External ID
+    - HPO terms +
+
+If any additional columns are present, the first (External ID) is mandatory. This can be a repetition of the Individual
+ID, or a different ID (e.g. to connect the pseudonymised sample ID in the callset to a sample/individual ID).
+
+Columns 8+ can be HPO terms, with an arbitrary number of terms per line. These HPO terms will be added to row sample in
+the Phenopacket/cohort file
+
+e.g.
+1	proband	father	mother	1	2	proband1	HP:0002779	HP:0004322	HP:0009145
+1	father	0	0	1	1	father1
+1	mother	0	0	2	1	mother1
 """
 
 from argparse import ArgumentParser
@@ -66,7 +90,7 @@ def main(ped_file: str, output: str) -> None:
                         # ID is the Family ID; Cohort model doesn't explicitly accommodate Family ID, but we need it
                         id=participant.family,
                         # alternate_ids captures the external ID, and is optional
-                        alternate_ids=[participant.data[0]] if participant.data else None,
+                        alternate_ids=[participant.data[0]] if participant.data else participant.id,
                         sex=reported_sex_map.get(participant.sex, pps2.Sex.UNKNOWN_SEX),
                     ),
                     # if HPO terms were provided, add them
