@@ -4,7 +4,7 @@ This is a central script for the Talos process, implemented at the CPG, using th
 
 import toml
 from datetime import datetime
-from functools import cache, lru_cache
+from functools import cache
 
 from loguru import logger
 from os.path import join
@@ -122,7 +122,7 @@ def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> int:
     return 250
 
 
-@lru_cache(maxsize=1)
+@cache
 def get_date_string() -> str:
     """
     allows override of the date folder to continue/re-run previous analyses
@@ -133,7 +133,7 @@ def get_date_string() -> str:
     return config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-@lru_cache(1)
+@cache
 def get_date_folder() -> str:
     """
     allows override of the date folder to continue/re-run previous analyses
