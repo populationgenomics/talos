@@ -57,10 +57,6 @@ METAMIST_ANALYSIS_QUERY_NO_SEQ_TYPE = gql(
 
 TALOS_PREP_TYPE = 'talos_prep'
 
-# these are the values used in the metamist query
-CLINVARBITRATION_PROJECT = 'fewgenomes'
-CLINVARBITRATION_TYPE = 'clinvarbitration'
-
 SV_ANALYSIS_TYPES = {
     'exome': 'single_dataset_cnv_annotated',
     'genome': 'single_dataset_sv_annotated',
@@ -435,8 +431,8 @@ class RunHailFiltering(DatasetStage):
         # find the clinvar table, localise, and expand
         if not (clinvar_tar := config_retrieve(['workflow', 'clinvar_data'], None)):
             clinvar_tar = query_for_latest_analysis(
-                dataset=CLINVARBITRATION_PROJECT,
-                analysis_type=CLINVARBITRATION_TYPE,
+                dataset=config_retrieve(['workflow', 'dataset']),
+                analysis_type='clinvarbitration',
             )
             if clinvar_tar is None:
                 raise ValueError('No ClinVar data found')
