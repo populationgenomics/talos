@@ -41,6 +41,20 @@ METAMIST_ANALYSIS_QUERY = gql(
 """,
 )
 
+METAMIST_ANALYSIS_QUERY_NO_SEQ_TYPE = gql(
+    """
+    query MyQuery($dataset: String!) {
+        project(name: $dataset) {
+            analyses(active: {eq: true}, status: {eq: COMPLETED}) {
+                output
+                timestampCompleted
+                meta
+            }
+        }
+    }
+""",
+)
+
 TALOS_PREP_TYPE = 'talos_prep'
 
 # these are the values used in the metamist query
@@ -137,7 +151,7 @@ def get_date_folder() -> str:
 def query_for_latest_analysis(
     dataset: str,
     analysis_type: str,
-    sequencing_type: str = 'any',
+    sequencing_type: str | None = None,
 ) -> str | None:
     """
     Query for the latest analysis object of a given type in the requested project
@@ -159,7 +173,10 @@ def query_for_latest_analysis(
 
     logger.info(f'Querying for {analysis_type} in {query_dataset}')
 
-    result = query(METAMIST_ANALYSIS_QUERY, variables={'dataset': query_dataset, 'type': analysis_type})
+    if sequencing_type:
+        result = query(METAMIST_ANALYSIS_QUERY, variables={'dataset': query_dataset, 'type': analysis_type})
+    else:
+        result = query(METAMIST_ANALYSIS_QUERY_NO_SEQ_TYPE, variables={'dataset': query_dataset})
 
     # get all the relevant entries, and bin by date
     analysis_by_date = {}
@@ -376,6 +393,7 @@ class RunHailFiltering(DatasetStage):
             input_mt = query_for_latest_analysis(
                 dataset=dataset.name,
                 analysis_type=TALOS_PREP_TYPE,
+                sequencing_type=config_retrieve(['workflow', 'sequencing_type']),
             )
 
         # use the new config file
