@@ -24,5 +24,12 @@ def resultdata(data_dict: dict) -> dict:
     # remove the projects key from the metadata
     data_dict['metadata']['panels'] = {panel['id']: panel for panel in data_dict['metadata']['panels']}
 
+    # also upgrade the participant panel details
+    for participant_data in data_dict['results'].values():
+        details = participant_data['metadata']['panel_details']
+        participant_data['metadata']['panel_details'] = {
+            panel_id: {'id': panel_id, 'name': name} for panel_id, name in details.items()
+        }
+
     data_dict['version'] = '2.0.0'
     return data_dict
