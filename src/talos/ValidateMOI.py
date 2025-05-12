@@ -329,7 +329,11 @@ def prepare_results_shell(
                 family_id=sample_panel_data.family_id or sample.family,
                 members=family_members,
                 phenotypes=sample_panel_data.hpo_terms,
-                panel_details={panel_id: panelapp.metadata[panel_id] for panel_id in sample_panel_data.panels},
+                panel_details={
+                    panel_id: panelapp.metadata[panel_id]
+                    for panel_id in sample_panel_data.panels
+                    if panel_id in panelapp.metadata
+                },
                 solved=bool(sample.id in solved_cases or sample.family in solved_cases),
                 present_in_small=sample.id in small_samples,
                 present_in_sv=sample.id in sv_samples,
