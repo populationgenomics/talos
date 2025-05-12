@@ -4,7 +4,7 @@ This is a central script for the Talos process, implemented at the CPG, using th
 
 import toml
 from datetime import datetime
-from functools import cache, lru_cache
+from functools import cache
 
 from loguru import logger
 from os.path import join
@@ -41,11 +41,8 @@ METAMIST_ANALYSIS_QUERY = gql(
 """,
 )
 
-TALOS_PREP_TYPE = 'talos_prep'
 
-# these are the values used in the metamist query
-CLINVARBITRATION_PROJECT = 'fewgenomes'
-CLINVARBITRATION_TYPE = 'clinvarbitration'
+TALOS_PREP_TYPE = 'talos_prep'
 
 SV_ANALYSIS_TYPES = {
     'exome': 'single_dataset_cnv_annotated',
@@ -112,7 +109,7 @@ def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> int:
     return 250
 
 
-@lru_cache(maxsize=1)
+@cache
 def get_date_string() -> str:
     """
     allows override of the date folder to continue/re-run previous analyses
@@ -123,7 +120,7 @@ def get_date_string() -> str:
     return config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-@lru_cache(1)
+@cache
 def get_date_folder() -> str:
     """
     allows override of the date folder to continue/re-run previous analyses
@@ -137,7 +134,7 @@ def get_date_folder() -> str:
 def query_for_latest_analysis(
     dataset: str,
     analysis_type: str,
-    sequencing_type: str = 'any',
+    sequencing_type: str = 'all',
 ) -> str | None:
     """
     Query for the latest analysis object of a given type in the requested project
@@ -376,6 +373,7 @@ class RunHailFiltering(DatasetStage):
             input_mt = query_for_latest_analysis(
                 dataset=dataset.name,
                 analysis_type=TALOS_PREP_TYPE,
+                sequencing_type=config_retrieve(['workflow', 'sequencing_type']),
             )
 
         # use the new config file
@@ -417,8 +415,8 @@ class RunHailFiltering(DatasetStage):
         # find the clinvar table, localise, and expand
         if not (clinvar_tar := config_retrieve(['workflow', 'clinvar_data'], None)):
             clinvar_tar = query_for_latest_analysis(
-                dataset=CLINVARBITRATION_PROJECT,
-                analysis_type=CLINVARBITRATION_TYPE,
+                dataset=config_retrieve(['workflow', 'dataset']),
+                analysis_type='clinvarbitration',
             )
             if clinvar_tar is None:
                 raise ValueError('No ClinVar data found')

@@ -46,7 +46,7 @@ consequence annotation) and [Echtvar](https://github.com/brentp/echtvar) (used t
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker build -t talos:7.1.0 .
+docker build -t talos:7.1.1 .
 ```
 
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
@@ -75,11 +75,11 @@ For the AlphaMissense, MANE, and Ensembl GFF file, the annotation workflow proce
 
 ## Real Data
 
-For real data, you'll need to provide your own VCFs, and a pedigree file. Optionally you can supply a Phenopackets file, used to supply additional phenotypic information for participants. This is used to generate a personalised gene panel for each family in the analysis. If this is not provided, an empty phenopacket 
+For real data, you'll need to provide your own VCFs, and a pedigree file. Optionally you can supply a Phenopackets file, used to supply additional phenotypic information for participants. This is used to generate a personalised gene panel for each family in the analysis. If this is not provided, an empty phenopacket
 object will be generated from the pedigree, and can be updated for subsequent analysis if and when phenotypic information becomes available.
 
 A newly supported argument to the annotation workflow is `--merged_vcf`. This can be used to provide a single merged VCF
-file as input, instead of merging individual VCFs. This will be beneficial if you already have merged data. To ensure uniformity the 
+file as input, instead of merging individual VCFs. This will be beneficial if you already have merged data. To ensure uniformity the
 merged VCF will be passed through a variant normalisation and region filtering step, which can take some time depending on its size.
 
 ---
