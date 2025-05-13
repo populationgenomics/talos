@@ -378,6 +378,7 @@ def main(output: str, mane_path: str | None = None):
             symbol_dict=symbol_dict,
         )
 
+        # pop the first element's panel data, this will be the same for every gene given the nature of the query
         one_panel_detail = panel_data[0]['panel']
 
         collected_panel_data.versions.append(
@@ -414,6 +415,7 @@ def main(output: str, mane_path: str | None = None):
 
     # strip out any panels with no green genes on, so they're not considered for HPO matches
     for panel_id in zero_green_panels:
+        logger.info(f'Removing panel {panel_id} from hpo matching - no green genes')
         del collected_panel_data.hpos[panel_id]
 
     with open(output, 'w') as output_file:
