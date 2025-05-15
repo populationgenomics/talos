@@ -17,7 +17,7 @@ process RunHailFiltering {
             path("${params.cohort}_small_variants_labelled.vcf.bgz"), \
             path("${params.cohort}_small_variants_labelled.vcf.bgz.tbi")
 
-    // unzip the ClinvArbitration data directory and MatrixTable
+    // untar the ClinvArbitration data directory
     """
     export TALOS_CONFIG=${talos_config}
 

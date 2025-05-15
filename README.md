@@ -68,7 +68,7 @@ nextflow -c nextflow/annotation.config run nextflow/annotation.nf [--large_files
 
 and
 
-nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_tar nextflow/cohort_outputs/cohort.mt.tar
+nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_table nextflow/cohort_outputs/cohort.mt
 ```
 
 For the AlphaMissense, MANE, and Ensembl GFF file, the annotation workflow procesess the raw data into a format expected in the workflow. This only needs to be done once, and subsequent runs of the workflow will detect and reuse the prior outputs, with faster runtimes.
