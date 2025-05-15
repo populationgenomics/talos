@@ -72,10 +72,10 @@ workflow {
     	ch_hpo_file
     )
 
-    // run the hail filtering, using a Tarball'd MT path provided in config
-    ch_mt_tar = channel.fromPath(params.matrix_tar, checkIfExists: true)
+    // run the hail filtering, using an MT path provided in config
+    ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
     RunHailFiltering(
-        ch_mt_tar,
+        ch_mt,
         UnifiedPanelAppParser.out,
         ch_pedigree,
         ch_clinvar_tar,
