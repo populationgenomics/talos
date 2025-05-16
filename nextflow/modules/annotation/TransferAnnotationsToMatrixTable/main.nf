@@ -1,20 +1,21 @@
-
 process TransferAnnotationsToMatrixTable {
     container params.container
 
     input:
-        path(compressed_ht)
+        path annotations
         tuple path(vcf), path(tbi)
 
-    publishDir params.cohort_output_dir, mode: 'link'
+    publishDir params.cohort_output_dir, mode: 'move'
 
     output:
-        path("${params.cohort}.mt")
+        path "${params.cohort}.mt"
 
     script:
         """
         set -ex
-        tar --no-same-owner -xf ${compressed_ht}
+
+        tar --no-same-owner -xf ${annotations}
+
         TransferAnnotationsToMatrixTable \
             --input ${vcf} \
             --annotations ${params.cohort}_annotations.ht \
