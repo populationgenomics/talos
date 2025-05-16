@@ -3,15 +3,15 @@ process ReformatAnnotatedVcfIntoHailTable {
     container params.container
 
     input:
-        path(vcf)
-        path(alphamissense)
-        path(gene_bed)
-        path(mane)
+        path vcf
+        path alphamissense
+        path gene_bed
+        path mane
 
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        path("${params.cohort}_annotations.ht.tar")
+        path "${params.cohort}_annotations.ht.tar"
 
     script:
         """
