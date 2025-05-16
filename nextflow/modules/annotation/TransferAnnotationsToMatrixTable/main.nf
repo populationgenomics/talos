@@ -1,4 +1,3 @@
-
 process TransferAnnotationsToMatrixTable {
     container params.container
 
@@ -15,9 +14,14 @@ process TransferAnnotationsToMatrixTable {
         """
         set -ex
 
+        tar --no-same-owner -xf ${annotations}
+
         TransferAnnotationsToMatrixTable \
             --input ${vcf} \
-            --annotations ${annotations} \
+            --annotations ${params.cohort}_annotations.ht \
             --output ${params.cohort}.mt
+
+        # cut down on work folder space
+        rm -r ${params.cohort}_annotations.ht
         """
 }

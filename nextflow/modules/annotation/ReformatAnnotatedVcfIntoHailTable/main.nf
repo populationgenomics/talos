@@ -8,10 +8,10 @@ process ReformatAnnotatedVcfIntoHailTable {
         path gene_bed
         path mane
 
-    publishDir params.cohort_output_dir, mode: 'link'
+    publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        path "${params.cohort}_annotations.ht"
+        path "${params.cohort}_annotations.ht.tar"
 
     script:
         """
@@ -23,6 +23,8 @@ process ReformatAnnotatedVcfIntoHailTable {
             --gene_bed ${gene_bed} \
             --output ${params.cohort}_annotations.ht \
             --mane ${mane}
+
+		tar --remove-files -cf ${params.cohort}_annotations.ht.tar ${params.cohort}_annotations.ht
 
         # cut down on work folder space
         rm -r alphamissense_38.ht
