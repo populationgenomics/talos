@@ -3,16 +3,15 @@ This is a central script for the Talos process, implemented at the CPG, using th
 """
 
 import toml
-from datetime import datetime
-from functools import cache
+import datetime
+import functools
 
 from loguru import logger
 from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
-from cpg_flow.stage import DatasetStage, MultiCohortStage, stage
-from cpg_flow.workflow import get_multicohort
+from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, to_path
 from cpg_utils.config import ConfigError, config_retrieve, image_path
 from cpg_utils.hail_batch import authenticate_cloud_credentials_in_job, get_batch
@@ -21,9 +20,6 @@ from metamist.graphql import gql, query
 from talos.utils import get_granular_date
 
 if TYPE_CHECKING:
-    from cpg_flow.stage import StageInput, StageOutput
-    from cpg_flow.targets.dataset import Dataset
-    from cpg_flow.targets.multicohort import MultiCohort
     from hailtop.batch.job import BashJob
 
 
@@ -109,7 +105,7 @@ def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> int:
     return 250
 
 
-@cache
+@functools.cache
 def get_date_string() -> str:
     """
     allows override of the date folder to continue/re-run previous analyses
@@ -120,7 +116,7 @@ def get_date_string() -> str:
     return config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-@cache
+@functools.cache
 def get_date_folder() -> str:
     """
     allows override of the date folder to continue/re-run previous analyses
@@ -130,7 +126,7 @@ def get_date_folder() -> str:
     return join('reanalysis', get_date_string())
 
 
-@cache
+@functools.cache
 def query_for_latest_analysis(
     dataset: str,
     analysis_type: str,
@@ -156,7 +152,7 @@ def query_for_latest_analysis(
 
     logger.info(f'Querying for {analysis_type} in {query_dataset}')
 
-    result = query(METAMIST_ANALYSIS_QUERY, variables={'dataset': query_dataset, 'type': analysis_type})
+    result = query(METAMIST_ANALYSIS_QUERY, variables={targets.Dataset: query_dataset, 'type': analysis_type})
 
     # get all the relevant entries, and bin by date
     analysis_by_date = {}
@@ -173,26 +169,26 @@ def query_for_latest_analysis(
     return analysis_by_date[sorted(analysis_by_date)[-1]]
 
 
-@stage(analysis_type='panelapp')
-class DownloadPanelAppData(MultiCohortStage):
+@stage.stage(analysis_type='panelapp')
+class DownloadPanelAppData(stage.MultiCohortStage):
     """
     runs a single instance of the stage which downloads the whole of PanelApp into a cached file
     """
 
-    def expected_outputs(self, multicohort: 'MultiCohort') -> 'Path':
+    def expected_outputs(self, multicohort: targets.MultiCohort) -> Path:
         return to_path(
             join(
                 config_retrieve(['storage', 'common', 'analysis']),
                 'panelapp_monthly',
-                f'panelapp_data_{datetime.now().strftime("%y-%m")}.json',  # noqa: DTZ005
+                f'panelapp_data_{datetime.datetime.now().strftime("%y-%m")}.json',  # noqa: DTZ005
             ),
         )
 
     def queue_jobs(
         self,
-        multicohort: 'MultiCohort',
-        inputs: 'StageInput',
-    ) -> 'StageOutput':
+        multicohort: targets.MultiCohort,
+        inputs: stage.StageInput,
+    ) -> stage.StageOutput:
         output = self.expected_outputs(multicohort)
 
         # get the MANE json file - used to map gene Symbols <-> IDs
@@ -205,16 +201,16 @@ class DownloadPanelAppData(MultiCohortStage):
         return self.make_outputs(target=multicohort, data=output, jobs=job)
 
 
-@stage
-class GeneratePED(DatasetStage):
+@stage.stage
+class GeneratePED(stage.DatasetStage):
     """
     revert to just using the metamist/CPG-flow Pedigree generation
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'pedigree.ped'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         expected_out = self.expected_outputs(dataset)
         pedigree = dataset.write_ped_file(out_path=expected_out)
         logger.info(f'PED file for {dataset.name} written to {pedigree}')
@@ -222,18 +218,18 @@ class GeneratePED(DatasetStage):
         return self.make_outputs(dataset, data=expected_out)
 
 
-@stage
-class MakeRuntimeConfig(DatasetStage):
+@stage.stage
+class MakeRuntimeConfig(stage.DatasetStage):
     """
     create a config file for this run,
     this new config should include all elements specific to this Project and sequencing_type
     this new unambiguous config file should be used in all jobs
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'config.toml'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         # start off with a fresh config dictionary, including generic content
         new_config: dict = {
             'categories': config_retrieve(['categories']),
@@ -280,17 +276,17 @@ class MakeRuntimeConfig(DatasetStage):
         return self.make_outputs(target=dataset, data=expected_outputs)
 
 
-@stage
-class MakePhenopackets(DatasetStage):
+@stage.stage
+class MakePhenopackets(stage.DatasetStage):
     """
     this calls the script which reads phenotype data from metamist
     and generates a phenopacket file (GA4GH compliant)
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'phenopackets.json'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         """
         generate a pedigree from metamist
         script to generate an extended pedigree format - additional columns for Ext. ID and HPO terms
@@ -319,16 +315,16 @@ class MakePhenopackets(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(required_stages=[DownloadPanelAppData, MakeRuntimeConfig, MakePhenopackets])
-class UnifiedPanelAppParser(DatasetStage):
+@stage.stage(required_stages=[DownloadPanelAppData, MakeRuntimeConfig, MakePhenopackets])
+class UnifiedPanelAppParser(stage.DatasetStage):
     """
     Job to parse the PanelApp data, output specific to this Dataset
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> 'Path':
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'panelapp_data.json'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         # create and resource a new job
         job = set_up_job_with_resources(name=f'UnifiedPanelAppParser: {dataset.name}', cpu=1)
 
@@ -336,7 +332,7 @@ class UnifiedPanelAppParser(DatasetStage):
         runtime_config = get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
 
         # read in the output from DownloadPanelAppData
-        panelapp_download = get_batch().read_input(inputs.as_path(target=get_multicohort(), stage=DownloadPanelAppData))
+        panelapp_download = get_batch().read_input(inputs.as_path(target=workflow.get_multicohort(), stage=DownloadPanelAppData))
 
         local_phenopackets = get_batch().read_input(inputs.as_path(target=dataset, stage=MakePhenopackets))
 
@@ -358,16 +354,16 @@ class UnifiedPanelAppParser(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
-class RunHailFiltering(DatasetStage):
+@stage.stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
+class RunHailFiltering(stage.DatasetStage):
     """
     hail job to filter & label the MT
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'hail_labelled.vcf.bgz'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         # if it's not set in config, try and get it through metamist
         if not (input_mt := config_retrieve(['workflow', 'matrix_table'], None)):
             input_mt = query_for_latest_analysis(
@@ -415,7 +411,7 @@ class RunHailFiltering(DatasetStage):
         # find the clinvar table, localise, and expand
         if not (clinvar_tar := config_retrieve(['workflow', 'clinvar_data'], None)):
             clinvar_tar = query_for_latest_analysis(
-                dataset=config_retrieve(['workflow', 'dataset']),
+                dataset=config_retrieve(['workflow', targets.Dataset]),
                 analysis_type='clinvarbitration',
             )
             if clinvar_tar is None:
@@ -444,13 +440,13 @@ class RunHailFiltering(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
-class RunHailFilteringSV(DatasetStage):
+@stage.stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
+class RunHailFilteringSV(stage.DatasetStage):
     """
     hail job to filter & label the SV MT
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> 'Path':
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         if (
             query_for_latest_analysis(
                 dataset=dataset.name,
@@ -461,7 +457,7 @@ class RunHailFilteringSV(DatasetStage):
             return dataset.prefix() / get_date_folder() / 'labelled_SVs.vcf.bgz'
         return {}
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         # early skip if the stage has nothing to run on
         expected_out = self.expected_outputs(dataset)
         if (
@@ -516,7 +512,7 @@ class RunHailFilteringSV(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(
+@stage.stage(
     required_stages=[
         GeneratePED,
         UnifiedPanelAppParser,
@@ -525,15 +521,15 @@ class RunHailFilteringSV(DatasetStage):
         MakeRuntimeConfig,
     ],
 )
-class ValidateMOI(DatasetStage):
+class ValidateMOI(stage.DatasetStage):
     """
     run the labelled VCF -> results JSON stage
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> Path:
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'summary_output.json'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         # resource consumption here has dropped hugely
         job = set_up_job_with_resources(name=f'ValidateMOI: {dataset.name}', cpu=2.0)
 
@@ -582,20 +578,20 @@ class ValidateMOI(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(
+@stage.stage(
     required_stages=[MakeRuntimeConfig, ValidateMOI],
     analysis_type='aip-results',
     analysis_keys=['pheno_annotated', 'pheno_filtered'],
 )
-class HPOFlagging(DatasetStage):
-    def expected_outputs(self, dataset: 'Dataset') -> 'dict[str, Path]':
+class HPOFlagging(stage.DatasetStage):
+    def expected_outputs(self, dataset: targets.Dataset) -> 'dict[str, Path]':
         date_prefix = dataset.prefix() / get_date_folder()
         return {
             'pheno_annotated': date_prefix / 'pheno_annotated_report.json',
             'pheno_filtered': date_prefix / 'pheno_filtered_report.json',
         }
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         outputs = self.expected_outputs(dataset)
 
         phenio_db = get_batch().read_input(config_retrieve(['HPOFlagging', 'phenio_db']))
@@ -627,12 +623,12 @@ class HPOFlagging(DatasetStage):
         return self.make_outputs(target=dataset, jobs=job, data=outputs)
 
 
-@stage(required_stages=[HPOFlagging, UnifiedPanelAppParser, MakeRuntimeConfig])
-class CreateTalosHtml(DatasetStage):
-    def expected_outputs(self, dataset: 'Dataset') -> 'Path':
+@stage.stage(required_stages=[HPOFlagging, UnifiedPanelAppParser, MakeRuntimeConfig])
+class CreateTalosHtml(stage.DatasetStage):
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return dataset.prefix() / get_date_folder() / 'reports.tar.gz'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         job = set_up_job_with_resources(name=f'CreateTalosHtml: {dataset.name}')
 
         # use the new config file
@@ -658,21 +654,17 @@ class CreateTalosHtml(DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(
+@stage.stage(
     required_stages=[CreateTalosHtml],
     analysis_type='aip-report',
     analysis_keys=['results_html'],
     tolerate_missing_output=True,
 )
-class UploadTalosHtml(DatasetStage):
-    def expected_outputs(self, dataset: 'Dataset') -> 'dict[str, str | Path]':
-        date_folder_prefix = dataset.prefix(category='web') / get_date_folder()
-        return {
-            'results_html': date_folder_prefix / 'summary_output.html',
-            'folder': str(date_folder_prefix),
-        }
+class UploadTalosHtml(stage.DatasetStage):
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        return dataset.prefix(category='web') / get_date_folder() / 'summary_output.html'
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         job = get_batch().new_job(f'UploadTalosHtml: {dataset.name}')
         job.image(image_path('cpg_hail_gcloud'))
         job.memory('standard')
@@ -685,33 +677,66 @@ class UploadTalosHtml(DatasetStage):
         authenticate_cloud_credentials_in_job(job)
 
         # create a new directory for the results
+        output_folder = str(dataset.prefix(category='web') / get_date_folder())
         job.command('mkdir html_outputs')
         job.command(f'tar -xf {input_tarchive} -C html_outputs')
         job.command('cd html_outputs')
-        job.command(f'gcloud storage cp -r * {expected_out["folder"]}')
+        job.command(f'gcloud storage cp -r * {output_folder}')
 
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage(
+@stage.stage(
+    required_stages=[CreateTalosHtml],
+    tolerate_missing_output=True,
+    forced=True,
+)
+class UploadGenericTalosHtml(stage.DatasetStage):
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        return dataset.prefix(category='web') / 'talos_static' / 'summary_output.html'
+
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+        job = get_batch().new_job(f'UploadGenericTalosHtml: {dataset.name}')
+        job.image(image_path('cpg_hail_gcloud'))
+        job.memory('standard')
+        job.cpu(1.0)
+
+        input_tarchive = get_batch().read_input(inputs.as_path(dataset, CreateTalosHtml))
+
+        output = self.expected_outputs(dataset)
+
+        authenticate_cloud_credentials_in_job(job)
+
+        # unpack results into a local directory, then copy to GCP using gcloud rsync
+        output_folder = dataset.prefix(category='web') / 'talos_static'
+        job.command('mkdir html_outputs')
+        job.command(f'tar -xf {input_tarchive} -C html_outputs')
+        job.command(
+            f'gcloud storage rsync --recursive html_outputs --delete-unmatched-destination-objects {output_folder!s}',
+        )
+
+        return self.make_outputs(dataset, data=output, jobs=job)
+
+
+@stage.stage(
     required_stages=[ValidateMOI, MakeRuntimeConfig],
     analysis_keys=['seqr_file', 'seqr_pheno_file'],
     analysis_type='custom',
     tolerate_missing_output=True,
 )
-class MinimiseOutputForSeqr(DatasetStage):
+class MinimiseOutputForSeqr(stage.DatasetStage):
     """
     takes the results file from Seqr and produces a minimised form for Seqr ingestion
     """
 
-    def expected_outputs(self, dataset: 'Dataset') -> 'dict[str, Path]':
+    def expected_outputs(self, dataset: targets.Dataset) -> 'dict[str, Path]':
         analysis_folder_prefix = dataset.prefix(category='analysis') / 'seqr_files'
         return {
             'seqr_file': analysis_folder_prefix / f'{get_date_folder()}_seqr.json',
             'seqr_pheno_file': analysis_folder_prefix / f'{get_date_folder()}_seqr_pheno.json',
         }
 
-    def queue_jobs(self, dataset: 'Dataset', inputs: 'StageInput') -> 'StageOutput':
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
         # pull out the config section relevant to this datatype & cohort
         # if it doesn't exist for this sequencing type, fail gracefully
         seq_type = config_retrieve(['workflow', 'sequencing_type'])
