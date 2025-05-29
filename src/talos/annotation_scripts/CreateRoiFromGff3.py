@@ -146,8 +146,8 @@ def merge_output(
             # far enough apart, write the previous block and reset
             else:
                 handle.write(f'{contig}\t{start}\t{end}\n')
-                start = min(start, this_start)
-                end = max(end, this_end)
+                start = this_start
+                end = this_end
 
         # and write the final line
         handle.write(f'{contig}\t{start}\t{end}\n')
