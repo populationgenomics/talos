@@ -657,7 +657,6 @@ class CreateTalosHtml(stage.DatasetStage):
 @stage.stage(
     required_stages=[CreateTalosHtml],
     analysis_type='aip-report',
-    analysis_keys=['results_html'],
     tolerate_missing_output=True,
 )
 class UploadTalosHtml(stage.DatasetStage):
