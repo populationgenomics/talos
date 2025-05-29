@@ -46,7 +46,7 @@ consequence annotation) and [Echtvar](https://github.com/brentp/echtvar) (used t
 > setting. If you apply another tag you'll have to make the corresponding change in the nextflow config files.
 
 ```commandline
-docker build -t talos:7.1.3 .
+docker build -t talos:7.1.4 .
 ```
 
 The [individual Nextflow Modules](nextflow/modules) describe each step of the pipeline, and could be reimplemented in
