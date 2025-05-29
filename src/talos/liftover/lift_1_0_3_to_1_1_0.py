@@ -26,8 +26,8 @@ def resultdata(data_dict: dict) -> dict:
 
         for variant in content['variants']:
             panels = variant['panels']
-            panels['forced'] = {pid: 'UNKNOWN' for pid in panels.get('forced', [])}
-            panels['matched'] = {pid: 'UNKNOWN' for pid in panels['matched']}
+            panels['forced'] = dict.fromkeys(panels.get('forced', []), 'UNKNOWN')
+            panels['matched'] = dict.fromkeys(panels['matched'], 'UNKNOWN')
 
     data_dict['version'] = '1.1.0'
     return data_dict

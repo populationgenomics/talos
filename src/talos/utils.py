@@ -834,7 +834,7 @@ def generate_fresh_latest_results(current_results: ResultData):
                 clinvar_stars = None
 
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
-                categories={cat: var.first_tagged for cat in var.categories},
+                categories=dict.fromkeys(var.categories, var.first_tagged),
                 support_vars=var.support_vars,
                 independent=var.independent,
                 first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
