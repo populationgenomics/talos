@@ -9,6 +9,7 @@ This script also takes a BED file as input; output contains only the variants th
 
 All existing INFO fields are dropped, and replaced with just the callset AC / AN / AF
 """
+
 import argparse
 
 import loguru
@@ -20,29 +21,29 @@ from cpg_utils import config, hail_batch
 # Update the VQSR header elements so 3rd party tools can read the VCF reliably
 VQSR_FILTERS = {
     'filter': {
-        "VQSRTrancheINDEL99.00to99.50": {
-            "Description": "Truth sensitivity tranche level for INDEL model at VQS Lod: -1.4652 <= x < -0.6489",
+        'VQSRTrancheINDEL99.00to99.50': {
+            'Description': 'Truth sensitivity tranche level for INDEL model at VQS Lod: -1.4652 <= x < -0.6489',
         },
-        "VQSRTrancheINDEL99.50to99.90": {
-            "Description": "Truth sensitivity tranche level for INDEL model at VQS Lod: -8.3914 <= x < -1.4652",
+        'VQSRTrancheINDEL99.50to99.90': {
+            'Description': 'Truth sensitivity tranche level for INDEL model at VQS Lod: -8.3914 <= x < -1.4652',
         },
-        "VQSRTrancheINDEL99.90to99.95": {
-            "Description": "Truth sensitivity tranche level for INDEL model at VQS Lod: -20.9224 <= x < -8.3914",
+        'VQSRTrancheINDEL99.90to99.95': {
+            'Description': 'Truth sensitivity tranche level for INDEL model at VQS Lod: -20.9224 <= x < -8.3914',
         },
-        "VQSRTrancheINDEL99.95to100.00": {
-            "Description": "Truth sensitivity tranche level for INDEL model at VQS Lod: -39995.8675 <= x < -20.9224",
+        'VQSRTrancheINDEL99.95to100.00': {
+            'Description': 'Truth sensitivity tranche level for INDEL model at VQS Lod: -39995.8675 <= x < -20.9224',
         },
-        "VQSRTrancheINDEL99.95to100.00+": {
-            "Description": "Truth sensitivity tranche level for INDEL model at VQS Lod < -39995.8675",
+        'VQSRTrancheINDEL99.95to100.00+': {
+            'Description': 'Truth sensitivity tranche level for INDEL model at VQS Lod < -39995.8675',
         },
-        "VQSRTrancheSNP99.00to99.90+": {
-            "Description": "Truth sensitivity tranche level for SNP model at VQS Lod < -10.0",
+        'VQSRTrancheSNP99.00to99.90+': {
+            'Description': 'Truth sensitivity tranche level for SNP model at VQS Lod < -10.0',
         },
-        "VQSRTrancheSNP99.90to100.00": {
-            "Description": "Truth sensitivity tranche level for SNP model at VQS Lod: -10.0 <= x < -4.37",
+        'VQSRTrancheSNP99.90to100.00': {
+            'Description': 'Truth sensitivity tranche level for SNP model at VQS Lod: -10.0 <= x < -4.37',
         },
-        "VQSRTrancheSNP99.90to100.00+": {
-            "Description": "Truth sensitivity tranche level for SNP model at VQS Lod < -10.0",
+        'VQSRTrancheSNP99.90to100.00+': {
+            'Description': 'Truth sensitivity tranche level for SNP model at VQS Lod < -10.0',
         },
     },
 }
@@ -102,11 +103,16 @@ def main(
     sites_only_ht = hl.read_matrix_table(output_mt).rows()
 
     loguru.logger.info('Writing sites-only VCF in fragments, header-per-shard')
-    hl.export_vcf(sites_only_ht, output_sites_only, tabix=True, parallel='separate_header', metadata=VQSR_FILTERS,)
+    hl.export_vcf(
+        sites_only_ht,
+        output_sites_only,
+        tabix=True,
+        parallel='separate_header',
+        metadata=VQSR_FILTERS,
+    )
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--input',

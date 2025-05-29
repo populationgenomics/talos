@@ -81,7 +81,6 @@ class ExtractVcfFromDatasetMtWithHail(stage.DatasetStage):
     """
 
     def expected_outputs(self, dataset: targets.Dataset) -> dict[str, Path]:
-
         return {
             # write path for the full (region-limited) MatrixTable, stripped of info fields
             'mt': self.tmp_prefix / f'{dataset.name}.mt',
@@ -105,7 +104,7 @@ class ExtractVcfFromDatasetMtWithHail(stage.DatasetStage):
             dataset=dataset,
             output_mt=outputs['mt'],
             output_sitesonly=outputs['sites_only_vcf_dir'],
-            job_attrs=self.get_job_attrs(dataset)
+            job_attrs=self.get_job_attrs(dataset),
         )
 
         return self.make_outputs(dataset, outputs, jobs=job)
@@ -129,6 +128,6 @@ class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
             dataset=dataset,
             manifest_file=sites_manifest,
             output=output,
-            job_attrs=self.get_job_attrs(dataset)
+            job_attrs=self.get_job_attrs(dataset),
         )
         return self.make_outputs(dataset, data=output, jobs=jobs)

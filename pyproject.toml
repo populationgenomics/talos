@@ -190,6 +190,7 @@ hail = ["hail"]
 [tool.ruff.lint.per-file-ignores]
 # suppress the ARG002 "Unused method argument" warning in the stages.py file
 ## - we don't need generic cpg-flow arguments for every Stage, but need to fit the required method signature
+"src/talos/cpg_internal_scripts/prep_stages.py" = ["ARG002"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
 
 [tool.bumpversion]

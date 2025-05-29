@@ -1,9 +1,6 @@
-
-"""
-"""
+""" """
 
 import argparse
-import os
 
 import loguru
 

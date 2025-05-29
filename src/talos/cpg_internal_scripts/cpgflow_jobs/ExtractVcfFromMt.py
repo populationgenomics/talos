@@ -31,11 +31,11 @@ def make_vcf_extraction_job(
 
     # either get a mt from metamist, or take one from config
     if not (
-            input_mt := query_for_latest_analysis(
-                dataset=dataset.name,
-                analysis_type='matrixtable',
-                object_suffix='.mt',
-            )
+        input_mt := query_for_latest_analysis(
+            dataset=dataset.name,
+            analysis_type='matrixtable',
+            object_suffix='.mt',
+        )
     ):
         raise ValueError(f'No MatrixTable found in Metamist for {dataset.name}')
 

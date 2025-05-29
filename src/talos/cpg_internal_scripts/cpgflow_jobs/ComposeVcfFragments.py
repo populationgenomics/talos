@@ -14,7 +14,6 @@ def make_condense_jobs(
     output: Path,
     job_attrs: dict,
 ) -> list['BashJob']:
-
     local_manifest = hail_batch.get_batch().read_input(manifest_file)
 
     # generate a bash script to do the composition
@@ -27,7 +26,7 @@ def make_condense_jobs(
         --output {output!s} \\
         --script {job_1.output} \\
         --tmp
-        """
+        """,
     )
 
     job_2 = hail_batch.get_batch().new_bash_job(f'Run GCloud Compose: {dataset.name}', attributes=job_attrs)
