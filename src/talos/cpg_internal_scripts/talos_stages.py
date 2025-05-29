@@ -330,7 +330,9 @@ class UnifiedPanelAppParser(stage.DatasetStage):
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
 
         # read in the output from DownloadPanelAppData
-        panelapp_download = hail_batch.get_batch().read_input(inputs.as_path(target=workflow.get_multicohort(), stage=DownloadPanelAppData))
+        panelapp_download = hail_batch.get_batch().read_input(
+            inputs.as_path(target=workflow.get_multicohort(), stage=DownloadPanelAppData),
+        )
 
         local_phenopackets = hail_batch.get_batch().read_input(inputs.as_path(target=dataset, stage=MakePhenopackets))
 
@@ -593,7 +595,9 @@ class HPOFlagging(stage.DatasetStage):
         outputs = self.expected_outputs(dataset)
 
         phenio_db = hail_batch.get_batch().read_input(config.config_retrieve(['HPOFlagging', 'phenio_db']))
-        gene_to_phenotype = hail_batch.get_batch().read_input(config.config_retrieve(['HPOFlagging', 'gene_to_phenotype']))
+        gene_to_phenotype = hail_batch.get_batch().read_input(
+            config.config_retrieve(['HPOFlagging', 'gene_to_phenotype']),
+        )
 
         job = set_up_job_with_resources(name=f'HPOFlagging: {dataset.name}', cpu=2, memory='highmem', storage='20Gi')
 
