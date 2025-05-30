@@ -9,10 +9,10 @@ if TYPE_CHECKING:
 
 
 def make_bcftools_anno_job(
-        dataset: targets.Dataset,
-        gnomad_vcf: str,
-        output: Path,
-        job_attrs: dict,
+    dataset: targets.Dataset,
+    gnomad_vcf: str,
+    output: Path,
+    job_attrs: dict,
 ) -> 'BashJob':
     """
 
@@ -36,8 +36,8 @@ def make_bcftools_anno_job(
     fasta = hail_batch.get_batch().read_input(config.reference_path('broad/ref_fasta'))
 
     job = hail_batch.get_batch().new_bash_job(
-        f'AnnotateConsequenceWithBcftools: {dataset.name}',
-        attributes=job_attrs | {'tool': 'bcftools'}
+        name=f'AnnotateConsequenceWithBcftools: {dataset.name}',
+        attributes=job_attrs | {'tool': 'bcftools'},
     )
     job.image(config.config_retrieve(['images', 'bcftools_120']))
     job.cpu(4).storage('20G')

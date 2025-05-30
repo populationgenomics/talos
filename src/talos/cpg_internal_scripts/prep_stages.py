@@ -47,7 +47,15 @@ from cpg_utils import Path
 
 from cpg_flow import workflow, stage, targets, utils
 
-from talos.cpg_internal_scripts.cpgflow_jobs import ExtractVcfFromMt, ComposeVcfFragments, AnnotateGnomadUsingEchtvar, AnnotateConsequenceUsingBcftools, ProcessAnnotatedSitesOnlyVcfIntoHt
+from talos.cpg_internal_scripts.cpgflow_jobs import (
+    ExtractVcfFromMt,
+    ComposeVcfFragments,
+    AnnotateGnomadUsingEchtvar,
+    AnnotateConsequenceUsingBcftools,
+    SitesOnlyVcfIntoHt,
+    JumpAnnotationsFromHtToFinalMt,
+    SquashMtIntoTarball,
+)
 
 
 SHARD_MANIFEST = 'shard-manifest.txt'
@@ -191,7 +199,7 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.DatasetStage):
 
 
 @stage.stage(required_stages=AnnotateConsequenceUsingBcftoolsStage)
-class ProcessAnnotatedSitesOnlyVcfIntoHt(stage.DatasetStage):
+class SitesOnlyVcfIntoAnnotationsHt(stage.DatasetStage):
     """
     Join the annotated sites-only VCF, with AlphaMissense, and with gene/transcript information
     exporting as a HailTable
@@ -202,7 +210,6 @@ class ProcessAnnotatedSitesOnlyVcfIntoHt(stage.DatasetStage):
         return self.tmp_prefix / f'{dataset.name}_annotations.ht'
 
     def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-
         output = self.expected_outputs(dataset)
 
         if does_final_file_path_exist(dataset):
@@ -211,14 +218,75 @@ class ProcessAnnotatedSitesOnlyVcfIntoHt(stage.DatasetStage):
 
         bcftools_vcf = inputs.as_str(dataset, AnnotateConsequenceUsingBcftoolsStage)
 
-        job = ProcessAnnotatedSitesOnlyVcfIntoHt.make_vcf_to_ht_job(
+        job = SitesOnlyVcfIntoHt.make_vcf_to_ht_job(
             dataset=dataset,
             bcftools_vcf=bcftools_vcf,
             output_ht=output,
-            tmp_dir=self.tmp_prefix / f"{dataset.name}_annotation_checkpoint",
+            tmp_dir=self.tmp_prefix / f'{dataset.name}_annotation_checkpoint',
             job_attrs=self.get_job_attrs(dataset),
         )
 
         return self.make_outputs(dataset, data=output, jobs=job)
 
 
+@stage.stage(required_stages=[SitesOnlyVcfIntoAnnotationsHt, ExtractVcfFromDatasetMtWithHail])
+class JumpAnnotationsFromHtToFinalMtStage(stage.DatasetStage):
+    """
+    Join the annotated sites-only VCF, with AlphaMissense, and with gene/transcript information
+    exporting as a HailTable
+    """
+
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        return self.tmp_prefix / f'{dataset.name}.mt'
+
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(dataset)
+
+        if does_final_file_path_exist(dataset):
+            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
+            return self.make_outputs(dataset, output, jobs=[])
+
+        # get the region-limited MT
+        mt = inputs.as_str(dataset, ExtractVcfFromDatasetMtWithHail, 'mt')
+
+        # get the table of compressed annotations
+        annotations = inputs.as_str(dataset, SitesOnlyVcfIntoAnnotationsHt)
+
+        job = JumpAnnotationsFromHtToFinalMt.make_vcf_to_ht_job(
+            dataset=dataset,
+            annotations_ht=annotations,
+            input_mt=mt,
+            output_mt=output,
+            job_attrs=self.get_job_attrs(dataset),
+        )
+
+        return self.make_outputs(dataset, data=output, jobs=job)
+
+
+@stage.stage(
+    analysis_type='talos_prep',
+    required_stages=[JumpAnnotationsFromHtToFinalMtStage],
+)
+class SquashMtIntoTarballStage(stage.DatasetStage):
+    """
+    Localise the MatrixTable, and create a tarball
+    Don't attempt additional compression - it's
+    Means that Talos downstream of this won't need GCloud installed
+    """
+
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        return self.prefix / f'{dataset.name}.mt.tar'
+
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(dataset)
+
+        input_mt = inputs.as_str(dataset, JumpAnnotationsFromHtToFinalMtStage)
+
+        job = SquashMtIntoTarball.make_tarball_squash_job(
+            dataset=dataset,
+            input_mt=input_mt,
+            output_tar=output,
+            job_attrs=self.get_job_attrs(dataset),
+        )
+
+        return self.make_outputs(dataset, data=output, jobs=job)

@@ -9,10 +9,10 @@ if TYPE_CHECKING:
 
 
 def make_echtvar_job(
-        dataset: targets.Dataset,
-        sites_only_vcf: str,
-        output: Path,
-        job_attrs: dict,
+    dataset: targets.Dataset,
+    sites_only_vcf: str,
+    output: Path,
+    job_attrs: dict,
 ) -> 'BashJob':
     # localise the input VCF
     sites_vcf = hail_batch.get_batch().read_input(sites_only_vcf)

@@ -1,0 +1,35 @@
+from typing import TYPE_CHECKING
+
+from cpg_utils import config, hail_batch, Path
+from cpg_flow import targets
+
+
+if TYPE_CHECKING:
+    from hailtop.batch.job import BashJob
+
+
+def make_vcf_to_ht_job(
+    dataset: targets.Dataset,
+    annotations_ht: str,
+    input_mt: str,
+    output_mt: Path,
+    job_attrs: dict,
+) -> 'BashJob':
+    """
+    mixes the annotations HT with the variant MT, writing a final annotated MT.
+    """
+
+    job = hail_batch.get_batch().new_job(
+        name=f'JumpAnnotationsFromHtToFinalMt: {dataset.name}',
+        attributes=job_attrs | {'tool': 'hail'},
+    )
+    job.image(config.config_retrieve(['workflow', 'driver_image']))
+    job.cpu(16).memory('highmem').storage('250Gi')
+    job.command(
+        f'transfer_annotations_to_vcf '
+        f'--input_path {input_mt} '
+        f'--annotations {annotations_ht} '
+        f'--output {output_mt!s}',
+    )
+
+    return job

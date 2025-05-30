@@ -9,12 +9,12 @@ if TYPE_CHECKING:
 
 
 def make_vcf_to_ht_job(
-        dataset: targets.Dataset,
-        bcftools_vcf: str,
-        output_ht: Path,
-        tmp_dir: Path,
-        job_attrs: dict,
-):
+    dataset: targets.Dataset,
+    bcftools_vcf: str,
+    output_ht: Path,
+    tmp_dir: Path,
+    job_attrs: dict,
+) -> 'BashJob':
     """
 
     Args:
