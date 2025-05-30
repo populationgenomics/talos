@@ -47,7 +47,7 @@ from cpg_utils import Path
 
 from cpg_flow import workflow, stage, targets, utils
 
-from talos.cpg_internal_scripts.cpgflow_jobs import ExtractVcfFromMt, ComposeVcfFragments, AnnotateGnomadUsingEchtvar
+from talos.cpg_internal_scripts.cpgflow_jobs import ExtractVcfFromMt, ComposeVcfFragments, AnnotateGnomadUsingEchtvar, AnnotateConsequenceUsingBcftools, ProcessAnnotatedSitesOnlyVcfIntoHt
 
 
 SHARD_MANIFEST = 'shard-manifest.txt'
@@ -159,4 +159,66 @@ class AnnotateGnomadUsingEchtvarStage(stage.DatasetStage):
         )
 
         return self.make_outputs(dataset, data=output, jobs=job)
+
+
+@stage.stage(required_stages=AnnotateGnomadUsingEchtvarStage)
+class AnnotateConsequenceUsingBcftoolsStage(stage.DatasetStage):
+    """
+    Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools
+    Writes into a cohort-specific permanent folder
+    """
+
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        return self.tmp_prefix / f'{dataset.name}_consequence_annotated.vcf.bgz'
+
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(dataset)
+
+        if does_final_file_path_exist(dataset):
+            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
+            return self.make_outputs(dataset, output, jobs=[])
+
+        gnomad_annotated_vcf = inputs.as_path(dataset, AnnotateGnomadUsingEchtvarStage)
+
+        job = AnnotateConsequenceUsingBcftools.make_bcftools_anno_job(
+            dataset=dataset,
+            gnomad_vcf=gnomad_annotated_vcf,
+            output=output,
+            job_attrs=self.get_job_attrs(dataset),
+        )
+
+        return self.make_outputs(dataset, data=output, jobs=job)
+
+
+@stage.stage(required_stages=AnnotateConsequenceUsingBcftoolsStage)
+class ProcessAnnotatedSitesOnlyVcfIntoHt(stage.DatasetStage):
+    """
+    Join the annotated sites-only VCF, with AlphaMissense, and with gene/transcript information
+    exporting as a HailTable
+    """
+
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        # output will be a tarball, containing the {dataset.name}_annotations.ht directory
+        return self.tmp_prefix / f'{dataset.name}_annotations.ht'
+
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+
+        output = self.expected_outputs(dataset)
+
+        if does_final_file_path_exist(dataset):
+            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
+            return self.make_outputs(dataset, output, jobs=[])
+
+        bcftools_vcf = inputs.as_str(dataset, AnnotateConsequenceUsingBcftoolsStage)
+
+        job = ProcessAnnotatedSitesOnlyVcfIntoHt.make_vcf_to_ht_job(
+            dataset=dataset,
+            bcftools_vcf=bcftools_vcf,
+            output_ht=output,
+            tmp_dir=self.tmp_prefix / f"{dataset.name}_annotation_checkpoint",
+            job_attrs=self.get_job_attrs(dataset),
+        )
+
+        return self.make_outputs(dataset, data=output, jobs=job)
+
 
