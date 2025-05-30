@@ -51,7 +51,7 @@ jobs:
 
       - name: build
         run: |
-          docker build . -f Dockerfile --tag $IMAGE_NAME:${{ github.sha }}
+          docker build . -f src/talos/cpg_internal_scripts/CPG_Dockerfile --tag $IMAGE_NAME:${{ github.sha }}
 
       - name: push main branch build
         if: ${{ github.ref_name == 'main' }}

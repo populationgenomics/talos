@@ -8,10 +8,11 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 """
 
 import json
-import logging
 from argparse import ArgumentParser
 from collections import defaultdict
 from pathlib import Path
+
+import loguru
 
 import hail as hl
 
@@ -153,7 +154,7 @@ def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
         am_table (str): path to the Hail Table containing AlphaMissense annotations
     """
 
-    logging.info(f'Reading AM annotations from {am_table} and applying to MT')
+    loguru.logger.info(f'Reading AM annotations from {am_table} and applying to MT')
 
     # read in the hail table containing alpha missense annotations
     am_ht = hl.read_table(am_table)
@@ -191,7 +192,7 @@ def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Tab
     """
 
     if mane_path is None:
-        logging.info('No MANE table found, skipping annotation - dummy values will be entered instead')
+        loguru.logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
         return ht.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
@@ -273,7 +274,7 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
         mane (str | None): path to a MANE Hail Table for enhanced annotation
     """
 
-    hl.default_reference('GRCh38')
+    hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
@@ -307,5 +308,4 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     cli_main()

@@ -49,7 +49,6 @@ dependencies=[
 cpg = [
     'cpg-flow>=v0.2.4',
     'google-cloud-storage==2.14.0',
-    'gql',
     'metamist>=7.4.0',
 ]
 test = [

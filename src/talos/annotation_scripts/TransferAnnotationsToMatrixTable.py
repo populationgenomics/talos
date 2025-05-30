@@ -6,7 +6,6 @@ A HailTable of the formatted annotations,
 Integrates the two, writing a MatrixTable representation of the fully annotated VCF
 """
 
-import logging
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -54,7 +53,7 @@ def main(
         annotations (str): path to a Hail Table containing annotations
     """
 
-    hl.default_reference('GRCh38')
+    hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
 
     # read the VCF into a MatrixTable
     mt = hl.import_vcf(
@@ -92,5 +91,4 @@ def main(
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     cli_main()
