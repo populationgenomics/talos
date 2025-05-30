@@ -16,6 +16,7 @@ from cpg_utils import Path, to_path, config, hail_batch
 
 from metamist.graphql import gql, query
 from talos.utils import get_granular_date
+from talos.cpg_internal_scripts.prep_stages import SquashMtIntoTarballStage
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -354,7 +355,14 @@ class UnifiedPanelAppParser(stage.DatasetStage):
         return self.make_outputs(dataset, data=expected_out, jobs=job)
 
 
-@stage.stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
+@stage.stage(
+    required_stages=[
+        UnifiedPanelAppParser,
+        GeneratePED,
+        MakeRuntimeConfig,
+        SquashMtIntoTarballStage,
+    ]
+)
 class RunHailFiltering(stage.DatasetStage):
     """
     hail job to filter & label the MT
@@ -364,13 +372,8 @@ class RunHailFiltering(stage.DatasetStage):
         return dataset.prefix() / get_date_folder() / 'hail_labelled.vcf.bgz'
 
     def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        # if it's not set in config, try and get it through metamist
-        if not (input_mt := config.config_retrieve(['workflow', 'matrix_table'], None)):
-            input_mt = query_for_latest_analysis(
-                dataset=dataset.name,
-                analysis_type=TALOS_PREP_TYPE,
-                sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
-            )
+        # integrate this into the earlier workflow
+        input_mt = inputs.as_str(dataset, SquashMtIntoTarballStage)
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(dataset, MakeRuntimeConfig))
