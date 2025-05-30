@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from cpg_utils import config, hail_batch, Path
 from cpg_flow import targets
 
-from talos.cpg_internal_scripts.talos_stages import query_for_latest_analysis
+from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
 
 
 if TYPE_CHECKING:
@@ -18,15 +18,6 @@ def make_vcf_extraction_job(
 ) -> 'BashJob':
     """
     Create a Hail Batch job to extract VCF from a dataset MatrixTable.
-
-    Args:
-        dataset ():
-        output_mt ():
-        output_sitesonly ():
-        job_attrs ():
-
-    Returns:
-
     """
 
     # either get a mt from metamist, or take one from config
