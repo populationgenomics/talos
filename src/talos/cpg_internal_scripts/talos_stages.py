@@ -361,7 +361,7 @@ class UnifiedPanelAppParser(stage.DatasetStage):
         GeneratePED,
         MakeRuntimeConfig,
         SquashMtIntoTarballStage,
-    ]
+    ],
 )
 class RunHailFiltering(stage.DatasetStage):
     """

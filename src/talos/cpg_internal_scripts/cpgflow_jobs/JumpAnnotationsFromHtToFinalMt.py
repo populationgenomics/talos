@@ -26,10 +26,7 @@ def make_vcf_to_ht_job(
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.cpu(16).memory('highmem').storage('250Gi')
     job.command(
-        f'transfer_annotations_to_vcf '
-        f'--input_path {input_mt} '
-        f'--annotations {annotations_ht} '
-        f'--output {output_mt!s}',
+        f'transfer_annotations_to_vcf --input_path {input_mt} --annotations {annotations_ht} --output {output_mt!s}',
     )
 
     return job

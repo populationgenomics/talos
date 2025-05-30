@@ -57,7 +57,7 @@ def make_bcftools_anno_job(
             --threads 4 \
             -g {gff3_file} \
             -B 10 \
-            -Oz -o {job.output["vcf.bgz"]} \
+            -Oz -o {job.output['vcf.bgz']} \
             -W=tbi \
             {gnomad_annotated_vcf}
         """,
