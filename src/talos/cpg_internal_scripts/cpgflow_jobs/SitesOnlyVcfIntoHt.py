@@ -47,13 +47,15 @@ def make_vcf_to_ht_job(
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.cpu(4).storage('20Gi').memory('highmem')
     job.command(
-        f'convert_annotated_vcf_to_ht '
-        f'--input {bcftools_vcf} '
-        f'--output {output_ht!s} '
-        f'--gene_bed {gene_roi} '
-        f'--am {alphamissense} '
-        f'--mane {mane_json} '
-        f'--checkpoint_dir {tmp_dir!s} ',
+        f"""
+        convert_annotated_vcf_to_ht \\
+            --input {bcftools_vcf} \\
+            --output {output_ht!s} \\
+            --gene_bed {gene_roi} \\
+            --am {alphamissense} \\
+            --mane {mane_json} \\
+            --checkpoint_dir {tmp_dir!s}
+        """
     )
 
     return job

@@ -52,13 +52,13 @@ def make_bcftools_anno_job(
     job.command(
         f"""
         bcftools index -t {gnomad_annotated_vcf}
-        bcftools csq --force -f {fasta} \
-            --local-csq \
-            --threads 4 \
-            -g {gff3_file} \
-            -B 10 \
-            -Oz -o {job.output['vcf.bgz']} \
-            -W=tbi \
+        bcftools csq --force -f {fasta} \\
+            --local-csq \\
+            --threads 4 \\
+            -g {gff3_file} \\
+            -B 10 \\
+            -Oz -o {job.output['vcf.bgz']} \\
+            -W=tbi \\
             {gnomad_annotated_vcf}
         """,
     )

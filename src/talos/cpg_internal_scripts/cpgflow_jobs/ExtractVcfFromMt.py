@@ -25,7 +25,6 @@ def make_vcf_extraction_job(
         input_mt := query_for_latest_analysis(
             dataset=dataset.name,
             analysis_type='matrixtable',
-            object_suffix='.mt',
         )
     ):
         raise ValueError(f'No MatrixTable found in Metamist for {dataset.name}')
@@ -38,10 +37,10 @@ def make_vcf_extraction_job(
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.command(
         f"""
-        python -m talos.cpg_internal_scripts.extract_fragmented_vcf_from_mt \
-        --input {input_mt} \
-        --output_mt {output_mt!s} \
-        --output_sites_only {output_sitesonly!s} \
+        python -m talos.cpg_internal_scripts.extract_fragmented_vcf_from_mt \\
+        --input {input_mt} \\
+        --output_mt {output_mt!s} \\
+        --output_sites_only {output_sitesonly!s} \\
         --bed {bed}
         """,
     )
