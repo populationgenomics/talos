@@ -47,7 +47,7 @@ from cpg_utils import Path
 
 from cpg_flow import workflow, stage, targets, utils
 
-from talos.cpg_internal_scripts.cpgflow_jobs import ExtractVcfFromMt, ComposeVcfFragments
+from talos.cpg_internal_scripts.cpgflow_jobs import ExtractVcfFromMt, ComposeVcfFragments, AnnotateGnomadUsingEchtvar
 
 
 SHARD_MANIFEST = 'shard-manifest.txt'
@@ -131,3 +131,32 @@ class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
             job_attrs=self.get_job_attrs(dataset),
         )
         return self.make_outputs(dataset, data=output, jobs=jobs)
+
+
+@stage.stage(required_stages=ConcatenateSitesOnlyVcfFragments)
+class AnnotateGnomadUsingEchtvarStage(stage.DatasetStage):
+    """
+    Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage
+    """
+
+    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+        return self.tmp_prefix / f'{dataset.name}_gnomad_frequency_annotated.vcf.bgz'
+
+    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(dataset)
+
+        site_only_vcf = inputs.as_str(dataset, ConcatenateSitesOnlyVcfFragments)
+
+        if does_final_file_path_exist(dataset):
+            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
+            return self.make_outputs(dataset, output, jobs=[])
+
+        job = AnnotateGnomadUsingEchtvar.make_echtvar_job(
+            dataset=dataset,
+            sites_only_vcf=site_only_vcf,
+            output=output,
+            job_attrs=self.get_job_attrs(dataset),
+        )
+
+        return self.make_outputs(dataset, data=output, jobs=job)
+
