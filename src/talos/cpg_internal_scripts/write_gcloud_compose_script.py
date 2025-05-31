@@ -1,6 +1,7 @@
 """ """
 
 import argparse
+import os
 
 import loguru
 
@@ -25,12 +26,13 @@ def make_compose_string(fragment_list: list[str], output: str) -> str:
     return f'{COMPOSE_COMMAND} {" ".join(fragment_list)} {output}'
 
 
-def main(input_manifest: str, output_vcf: str, output_script: str, tempdir: str) -> None:
+def main(input_manifest: str, vcf_dir: str, output_vcf: str, output_script: str, tempdir: str) -> None:
     """
     Generate a script to run gcloud compose commands based on the input manifest.
 
     Args:
         input_manifest (str): Path to the input manifest file containing VCF fragments.
+        vcf_dir (str): directory containing VCF fragments
         output_vcf (str): Path to the final composition product.
         output_script (str): Path to the output script file to be generated.
         tempdir (str): Temporary GCP directory for intermediate files.
@@ -39,7 +41,7 @@ def main(input_manifest: str, output_vcf: str, output_script: str, tempdir: str)
     # please the linter
     vcf_fragments = []
     with open(input_manifest) as read_handle:
-        vcf_fragments = [line.strip() for line in read_handle if line.strip()]
+        vcf_fragments = [os.path.join(vcf_dir, line.strip()) for line in read_handle if line.strip()]
 
     if not vcf_fragments:
         raise ValueError('Input manifest is empty or contains no valid VCF fragments.')
@@ -74,7 +76,15 @@ def main(input_manifest: str, output_vcf: str, output_script: str, tempdir: str)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate a script to run gcloud compose commands.')
     parser.add_argument('--input', required=True, help='Path to fragments and fragment manifest file.')
+    parser.add_argument('--vcf_dir', required=True, help='Directory containing manifest/fragments.')
     parser.add_argument('--output', required=True, help='Output path for the final VCF.')
     parser.add_argument('--script', required=True, help='Output filename for the generated script.')
     parser.add_argument('--tmp', required=True, help='tmp directory for intermediate files.')
     args = parser.parse_args()
+    main(
+        input_manifest=args.input,
+        vcf_dir=args.vcf_dir,
+        output_vcf=args.output,
+        output_script=args.script,
+        tempdir=args.tmp,
+    )

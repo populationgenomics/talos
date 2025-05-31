@@ -131,10 +131,12 @@ class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
         output = self.expected_outputs(dataset)
 
         sites_manifest = inputs.as_str(dataset, ExtractVcfFromDatasetMtWithHail, 'sites_only_vcf_manifest')
+        manifest_dir = inputs.as_str(dataset, ExtractVcfFromDatasetMtWithHail, 'sites_only_vcf_dir')
 
         jobs = ComposeVcfFragments.make_condense_jobs(
             dataset=dataset,
             manifest_file=sites_manifest,
+            manifest_dir=manifest_dir,
             output=output,
             job_attrs=self.get_job_attrs(dataset),
         )

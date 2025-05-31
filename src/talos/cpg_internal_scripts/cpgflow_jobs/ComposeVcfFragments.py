@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 def make_condense_jobs(
     dataset: targets.Dataset,
     manifest_file: str,
+    manifest_dir: str,
     output: Path,
     job_attrs: dict,
 ) -> list['BashJob']:
@@ -23,6 +24,7 @@ def make_condense_jobs(
         f"""
         python -m talos.cpg_internal_scripts.write_gcloud_compose_script \\
         --input {local_manifest} \\
+        --vcf_dir {manifest_dir} \\
         --output {output!s} \\
         --script {job_1.output} \\
         --tmp
