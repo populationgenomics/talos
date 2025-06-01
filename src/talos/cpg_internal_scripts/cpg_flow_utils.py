@@ -48,7 +48,7 @@ def query_for_latest_analysis(
 
     loguru.logger.info(f'Querying for {analysis_type} in {query_dataset}')
 
-    result = graphql.query(METAMIST_ANALYSIS_QUERY, variables={targets.Dataset: query_dataset, 'type': analysis_type})
+    result = graphql.query(METAMIST_ANALYSIS_QUERY, variables={'dataset': query_dataset, 'type': analysis_type})
 
     # get all the relevant entries, and bin by date
     analysis_by_date = {}
