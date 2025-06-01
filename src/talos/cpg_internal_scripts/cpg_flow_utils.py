@@ -4,7 +4,6 @@ import loguru
 
 from cpg_utils import config
 from metamist import graphql
-from cpg_flow import targets
 
 
 METAMIST_ANALYSIS_QUERY = graphql.gql(
