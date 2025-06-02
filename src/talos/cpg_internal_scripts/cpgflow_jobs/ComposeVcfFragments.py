@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from cpg_utils import config, hail_batch, Path
-from cpg_flow import targets
+from cpg_flow import targets, workflow
 
 
 if TYPE_CHECKING:
@@ -13,6 +13,7 @@ def make_condense_jobs(
     manifest_file: str,
     manifest_dir: str,
     output: Path,
+    tmp_dir: Path,
     job_attrs: dict,
 ) -> list['BashJob']:
     local_manifest = hail_batch.get_batch().read_input(manifest_file)
@@ -27,7 +28,7 @@ def make_condense_jobs(
         --vcf_dir {manifest_dir} \\
         --output {output!s} \\
         --script {job_1.output} \\
-        --tmp
+        --tmp {tmp_dir / 'compose_intermediates' / dataset.name!s}
         """,
     )
 

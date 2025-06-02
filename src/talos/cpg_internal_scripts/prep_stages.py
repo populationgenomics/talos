@@ -138,6 +138,7 @@ class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
             manifest_file=sites_manifest,
             manifest_dir=manifest_dir,
             output=output,
+            tmp_dir=self.tmp_prefix,
             job_attrs=self.get_job_attrs(dataset),
         )
         return self.make_outputs(dataset, data=output, jobs=jobs)
