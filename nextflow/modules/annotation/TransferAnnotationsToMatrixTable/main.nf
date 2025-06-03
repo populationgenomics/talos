@@ -5,7 +5,7 @@ process TransferAnnotationsToMatrixTable {
         path annotations
         tuple path(vcf), path(tbi)
 
-    publishDir params.cohort_output_dir, mode: 'move'
+    publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
         path "${params.cohort}.mt"
