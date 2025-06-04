@@ -61,7 +61,7 @@ def main(input_manifest: str, vcf_dir: str, output_vcf: str, output_script: str,
         for merge_chunk, fragment_list in enumerate(utils.chunks(vcf_fragments, chunk_size)):
             output = f'{tempdir}/{merge_round}/temp_chunk_{merge_chunk}.vcf.gz'
             condense_strings.append(make_compose_string(fragment_list=fragment_list, output=output))
-            new_fragments.append(output_script)
+            new_fragments.append(output)
 
         vcf_fragments = new_fragments
         merge_round += 1
