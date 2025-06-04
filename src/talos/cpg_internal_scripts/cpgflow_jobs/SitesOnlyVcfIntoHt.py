@@ -54,7 +54,7 @@ def make_vcf_to_ht_job(
             --gene_bed {gene_roi} \\
             --am {alphamissense} \\
             --mane {mane_json} \\
-            --checkpoint_dir {tmp_dir!s}
+            --checkpoint {tmp_dir!s}
         """
     )
 

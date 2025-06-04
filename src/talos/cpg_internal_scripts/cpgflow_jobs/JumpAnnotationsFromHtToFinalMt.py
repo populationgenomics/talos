@@ -26,7 +26,13 @@ def make_vcf_to_ht_job(
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.cpu(16).memory('highmem').storage('250Gi')
     job.command(
-        f'transfer_annotations_to_vcf --input_path {input_mt} --annotations {annotations_ht} --output {output_mt!s}',
+        f"""
+        python -m talos.annotation_scripts.TransferAnnotationsToMatrixTable \\
+        --input_path {input_mt} \\
+        --annotations {annotations_ht} \\
+        --output {output_mt!s} \\
+        --backend batch
+        """
     )
 
     return job

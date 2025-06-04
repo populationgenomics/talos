@@ -22,18 +22,14 @@ def cli_main():
     parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--annotations', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
+    parser.add_argument('--backend', help='type of backend to use', default='local')
     args = parser.parse_args()
-
-    assert args.output.endswith('.mt'), 'Output path must end in .mt'
-
-    # check specifically for a SUCCESS file, marking a completed hail write
-    # will fail if we accidentally pass the compressed Tarball path
-    assert (Path(args.annotations) / '_SUCCESS').exists(), 'Annotations Table does not exist'
 
     main(
         vcf_path=args.input,
         output_path=args.output,
         annotations=args.annotations,
+        backend=backend,
     )
 
 
@@ -41,6 +37,7 @@ def main(
     vcf_path: str,
     output_path: str,
     annotations: str,
+    backend: str,
 ):
     """
     Takes a Hail-Table of annotations, a joint-called VCF, reads the VCF as a MatrixTable and hops the annotations over
@@ -51,9 +48,15 @@ def main(
         vcf_path (str): path to the full callset VCF
         output_path (str): path to write the resulting MatrixTable to
         annotations (str): path to a Hail Table containing annotations
+        backend (str): which backend type to use
     """
 
-    hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+    if backend == 'local':
+        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+    else:
+        from cpg_utils.hail_batch import init_batch
+
+        init_batch()
 
     # read the VCF into a MatrixTable
     mt = hl.import_vcf(
