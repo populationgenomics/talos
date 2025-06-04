@@ -53,10 +53,6 @@ def main(input_manifest: str, vcf_dir: str, output_vcf: str, output_script: str,
         new_fragments = []
         loguru.logger.info(f'Processing round {merge_round} with {len(vcf_fragments)} fragments.')
 
-        if len(vcf_fragments) <= chunk_size:
-            condense_strings.append(make_compose_string(fragment_list=vcf_fragments, output=output_vcf))
-            break
-
         # If we have more fragments than the chunk size, we need to merge them in chunks
         for merge_chunk, fragment_list in enumerate(utils.chunks(vcf_fragments, chunk_size)):
             output = f'{tempdir}/{merge_round}/temp_chunk_{merge_chunk}.vcf.gz'
@@ -66,6 +62,9 @@ def main(input_manifest: str, vcf_dir: str, output_vcf: str, output_script: str,
         vcf_fragments = new_fragments
         merge_round += 1
 
+    # one left, _move_ it to the non-tmp bucket
+    # inter-bucket condense operations aren't valid, so we can't 'compose' from tmp to main
+    condense_strings.append(f'gcloud storage mv {vcf_fragments[0]} {output_vcf}')
     # Write the final script to the output file
     with open(output_script, 'w') as script_file:
         script_file.write('#!/bin/bash\n\n')
