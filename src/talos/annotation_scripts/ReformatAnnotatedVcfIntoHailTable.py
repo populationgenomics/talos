@@ -8,10 +8,11 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 """
 
 import json
-import logging
 from argparse import ArgumentParser
 from collections import defaultdict
 from pathlib import Path
+
+import loguru
 
 import hail as hl
 
@@ -153,7 +154,7 @@ def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
         am_table (str): path to the Hail Table containing AlphaMissense annotations
     """
 
-    logging.info(f'Reading AM annotations from {am_table} and applying to MT')
+    loguru.logger.info(f'Reading AM annotations from {am_table} and applying to MT')
 
     # read in the hail table containing alpha missense annotations
     am_ht = hl.read_table(am_table)
@@ -191,7 +192,7 @@ def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Tab
     """
 
     if mane_path is None:
-        logging.info('No MANE table found, skipping annotation - dummy values will be entered instead')
+        loguru.logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
         return ht.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
@@ -249,18 +250,19 @@ def cli_main():
     parser.add_argument('--gene_bed', help='BED file containing gene mapping')
     parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', required=True)
     parser.add_argument('--mane', help='Hail Table containing MANE annotations', default=None)
+    parser.add_argument(
+        '--checkpoint',
+        help='Whether to use a remote checkpoint. This is an implicit trigger for the batch backend',
+        default=None,
+    )
     args = parser.parse_args()
-
-    assert args.output.endswith('.ht'), 'Output path must end in .ht'
-
-    # check specifically for a SUCCESS file, marking a completed hail write
-    # will fail if we accidentally pass the compressed Tarball path
-    assert (Path(args.am) / '_SUCCESS').exists(), 'AlphaMissense Table does not exist'
 
     main(vcf_path=args.input, output_path=args.output, gene_bed=args.gene_bed, alpha_m=args.am, mane=args.mane)
 
 
-def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str | None = None):
+def main(
+    vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str | None = None, checkpoint: str | None = None
+):
     """
     Takes a VEP-annotated VCF, reorganises into a Talos-compatible MatrixTable
     Will annotate at runtime with AlphaMissense annotations
@@ -271,9 +273,15 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
         gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
         alpha_m (str): path to the AlphaMissense Hail Table, required
         mane (str | None): path to a MANE Hail Table for enhanced annotation
+        checkpoint (str): which hail backend to use. Defaults to
     """
 
-    hl.default_reference('GRCh38')
+    if checkpoint:
+        from cpg_utils.hail_batch import init_batch
+
+        init_batch()
+    else:
+        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
@@ -282,7 +290,7 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
     mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
 
     # checkpoint the rows as a Table locally to make everything downstream faster
-    ht = mt.rows().checkpoint('checkpoint.mt', overwrite=True, _read_if_exists=True)
+    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.mt', overwrite=True, _read_if_exists=True)
 
     # re-shuffle the BCSQ elements
     ht = csq_strings_into_hail_structs(csq_fields, ht)
@@ -307,5 +315,4 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     cli_main()

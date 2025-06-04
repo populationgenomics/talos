@@ -100,7 +100,7 @@ def find_similar_genes(
 
             # Find all phenotype matches that meet the min_score threshold
             matches = {
-                f"{match['object_id']}: {object_termset[match['object_id']]}"
+                f'{match["object_id"]}: {object_termset[match["object_id"]]}'
                 for match in termset_similarity['subject_best_matches']['similarity'].values()
                 if float(match['ancestor_information_content']) > min_similarity
             }
