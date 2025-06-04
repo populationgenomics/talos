@@ -250,18 +250,19 @@ def cli_main():
     parser.add_argument('--gene_bed', help='BED file containing gene mapping')
     parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', required=True)
     parser.add_argument('--mane', help='Hail Table containing MANE annotations', default=None)
+    parser.add_argument(
+        '--checkpoint',
+        help='Whether to use a remote checkpoint. This is an implicit trigger for the batch backend',
+        default=None,
+    )
     args = parser.parse_args()
-
-    assert args.output.endswith('.ht'), 'Output path must end in .ht'
-
-    # check specifically for a SUCCESS file, marking a completed hail write
-    # will fail if we accidentally pass the compressed Tarball path
-    assert (Path(args.am) / '_SUCCESS').exists(), 'AlphaMissense Table does not exist'
 
     main(vcf_path=args.input, output_path=args.output, gene_bed=args.gene_bed, alpha_m=args.am, mane=args.mane)
 
 
-def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str | None = None):
+def main(
+    vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str | None = None, checkpoint: str | None = None
+):
     """
     Takes a VEP-annotated VCF, reorganises into a Talos-compatible MatrixTable
     Will annotate at runtime with AlphaMissense annotations
@@ -272,9 +273,15 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
         gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
         alpha_m (str): path to the AlphaMissense Hail Table, required
         mane (str | None): path to a MANE Hail Table for enhanced annotation
+        checkpoint (str): which hail backend to use. Defaults to
     """
 
-    hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+    if checkpoint:
+        from cpg_utils.hail_batch import init_batch
+
+        init_batch()
+    else:
+        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
@@ -283,7 +290,7 @@ def main(vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str
     mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
 
     # checkpoint the rows as a Table locally to make everything downstream faster
-    ht = mt.rows().checkpoint('checkpoint.mt', overwrite=True, _read_if_exists=True)
+    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.mt', overwrite=True, _read_if_exists=True)
 
     # re-shuffle the BCSQ elements
     ht = csq_strings_into_hail_structs(csq_fields, ht)

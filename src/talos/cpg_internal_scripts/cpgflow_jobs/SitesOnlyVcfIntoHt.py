@@ -48,7 +48,7 @@ def make_vcf_to_ht_job(
     job.cpu(4).storage('20Gi').memory('highmem')
     job.command(
         f"""
-        convert_annotated_vcf_to_ht \\
+        python -m talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable \\
             --input {bcftools_vcf} \\
             --output {output_ht!s} \\
             --gene_bed {gene_roi} \\
