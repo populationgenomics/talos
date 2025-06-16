@@ -84,7 +84,7 @@ def does_final_file_path_exist(dataset: targets.Dataset) -> bool:
 @stage.stage
 class ExtractVcfFromDatasetMtWithHail(stage.DatasetStage):
     """
-    extract some plain calls from a joint-callset
+    Extract some plain calls from a joint-callset.
     these calls are a region-filtered subset, limited to genic regions
     """
 
@@ -99,9 +99,6 @@ class ExtractVcfFromDatasetMtWithHail(stage.DatasetStage):
         }
 
     def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        """
-        script is called extract_vcf_from_mt
-        """
         outputs = self.expected_outputs(dataset)
 
         if does_final_file_path_exist(dataset):
@@ -124,9 +121,7 @@ class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
         return self.prefix / f'{dataset.name}_sites_only_reassembled.vcf.bgz'
 
     def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        """
-        trigger a rolling merge using gcloud compose, gluing all the individual files together
-        """
+        """Trigger a rolling merge using gcloud compose, gluing all the individual files together."""
 
         output = self.expected_outputs(dataset)
 
@@ -146,9 +141,7 @@ class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
 
 @stage.stage(required_stages=ConcatenateSitesOnlyVcfFragments)
 class AnnotateGnomadUsingEchtvarStage(stage.DatasetStage):
-    """
-    Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage
-    """
+    """Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage."""
 
     def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return self.tmp_prefix / f'{dataset.name}_gnomad_frequency_annotated.vcf.bgz'
@@ -174,10 +167,7 @@ class AnnotateGnomadUsingEchtvarStage(stage.DatasetStage):
 
 @stage.stage(required_stages=AnnotateGnomadUsingEchtvarStage)
 class AnnotateConsequenceUsingBcftoolsStage(stage.DatasetStage):
-    """
-    Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools
-    Writes into a cohort-specific permanent folder
-    """
+    """Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools."""
 
     def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return self.tmp_prefix / f'{dataset.name}_consequence_annotated.vcf.bgz'
@@ -203,10 +193,7 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.DatasetStage):
 
 @stage.stage(required_stages=AnnotateConsequenceUsingBcftoolsStage)
 class SitesOnlyVcfIntoAnnotationsHt(stage.DatasetStage):
-    """
-    Join the annotated sites-only VCF, with AlphaMissense, and with gene/transcript information
-    exporting as a HailTable
-    """
+    """Join the annotated sites-only VCF with AlphaMissense, and with gene/transcript information."""
 
     def expected_outputs(self, dataset: targets.Dataset) -> Path:
         # output will be a tarball, containing the {dataset.name}_annotations.ht directory
@@ -234,10 +221,7 @@ class SitesOnlyVcfIntoAnnotationsHt(stage.DatasetStage):
 
 @stage.stage(required_stages=[SitesOnlyVcfIntoAnnotationsHt, ExtractVcfFromDatasetMtWithHail])
 class JumpAnnotationsFromHtToFinalMtStage(stage.DatasetStage):
-    """
-    Join the annotated sites-only VCF, with AlphaMissense, and with gene/transcript information
-    exporting as a HailTable
-    """
+    """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
 
     def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return self.tmp_prefix / f'{dataset.name}.mt'
@@ -271,11 +255,7 @@ class JumpAnnotationsFromHtToFinalMtStage(stage.DatasetStage):
     required_stages=[JumpAnnotationsFromHtToFinalMtStage],
 )
 class SquashMtIntoTarballStage(stage.DatasetStage):
-    """
-    Localise the MatrixTable, and create a tarball
-    Don't attempt additional compression - it's
-    Means that Talos downstream of this won't need GCloud installed
-    """
+    """Localise the MatrixTable, and create a tarball. Compression is not beneficial here."""
 
     def expected_outputs(self, dataset: targets.Dataset) -> Path:
         return self.prefix / f'{dataset.name}.mt.tar'
