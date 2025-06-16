@@ -23,6 +23,9 @@ t = TXFields('a', 'ensga')
 # and for each of these Sample entries take the default schema
 sample_schema = {k: v.get_schema_entry() for k, v in comp_het.items()}
 
+# cat 3, no canonical consequences, here to check normalisation
+vnorm = VepVariant(BaseFields('chr1:21706892', ['GA', 'GAA']), [t], sample_data=comp_het)
+
 # cat 1, recessive, HFE - not retained by the filtering logic when HFE is a phenotype-match only gene
 v5 = VepVariant(BaseFields('chr6:26090951', ['C', 'G']), [t], sample_data=comp_het)
 
@@ -41,17 +44,8 @@ v3 = VepVariant(BaseFields('chr12:89470359', ['A', 'C']), [t], sample_data=comp_
 # cat 1, hemi/bi in females, IL2RG
 v6 = VepVariant(BaseFields('chrX:71108336', ['G', 'A']), [t], sample_data=mat_inherited_hemi)
 
-loci = [
-    hl.Locus('chr11', 32392032),
-    hl.Locus('chr6', 39887558),
-    hl.Locus('chr12', 89470359),
-    hl.Locus('chr6', 51659900),
-    hl.Locus('chr6', 26090951),
-    hl.Locus('chrX', 71108336),
-]
-
 # create a SneakyTable object, which will take a list of VepVariant objects
-sn = SneakyTable([v1, v2, v3, v4, v5, v6], '', sample_schema)
+sn = SneakyTable([vnorm, v1, v2, v3, v4, v5, v6], '', sample_schema)
 
 # once the table is parsed using the JSON schema, convert to a Hail MatrixTable
 # using the row_major functionality - this takes the list of sample IDs, converts those
@@ -61,3 +55,8 @@ mt.describe()
 
 # this is a valid VCF, so we can export it (drops all 'VEP' annotations)
 hl.export_vcf(mt, 'test_1.vcf.bgz', tabix=True)
+
+for sample_id in ['mother', 'father', 'proband']:
+    sample_mt = mt.filter_cols(mt.s == sample_id)
+    # this will create a VCF with the sample IDs as the column names
+    hl.export_vcf(sample_mt, f'{sample_id}.vcf.bgz', tabix=True)

@@ -26,10 +26,15 @@ process MergeVcfsWithBcftools {
         	--force-single \
         	-m none \
         	-R ${regions} \
+        	-Ou \
         	$input | \
         bcftools norm \
 			-m -any \
-			-f ${ref_genome} | \
-        bcftools +fill-tags -Oz -o "${params.cohort}_merged.vcf.bgz" --write-index=tbi -- -t AF
+			-Ov \
+			-f ${ref_genome} \
+			-o temp.vcf \
+			-
+        bcftools +fill-tags temp.vcf -Oz -o "${params.cohort}_merged.vcf.bgz" -W=tbi -- -t AF
+        rm temp.vcf
         """
 }
