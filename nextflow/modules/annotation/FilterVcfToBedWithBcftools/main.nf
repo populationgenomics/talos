@@ -3,12 +3,14 @@ process FilterVcfToBedWithBcftools {
     container params.container
 
     // take the merged VCF and index
+    // also take a BED file of regions to focus analysis on/filter VCF to
+    // ref_genome here is used to create parsimonious representations
     input:
-        path(vcf)
-        path(tbi)
-        path (bed_file)
+        path vcf
+        path tbi
+        path bed_file
+        path ref_genome
 
-    // strip this VCF down to sites-only
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
@@ -20,6 +22,7 @@ process FilterVcfToBedWithBcftools {
     """
     bcftools norm \
     	-m -any \
+    	-f ${ref_genome} \
         --write-index=tbi \
         -R ${bed_file} \
         -Oz -o "${params.cohort}_merged_filtered.vcf.bgz" \

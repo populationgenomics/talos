@@ -79,16 +79,18 @@ workflow {
 			ch_merged_vcf,
 			ch_merged_index,
 			ch_merged_bed,
+			ch_ref_genome,
 		)
 		ch_merged_tuple = FilterVcfToBedWithBcftools.out
 	}
 	else {
-		ch_vcfs = channel.fromPath(params.input_vcfs)
-		ch_tbis = channel.fromPath(params.input_vcfs).map{ it -> file("${it}.tbi") }
+		ch_vcfs = channel.fromPath("${params.input_vcf_dir}/*.vcf.bgz")
+		ch_tbis = channel.fromPath("${params.input_vcf_dir}/*.vcf.bgz").map{ it -> file("${it}.tbi") }
 		MergeVcfsWithBcftools(
 			ch_vcfs.collect(),
 			ch_tbis.collect(),
 			ch_merged_bed,
+			ch_ref_genome,
 		)
 		ch_merged_tuple = MergeVcfsWithBcftools.out
 	}
