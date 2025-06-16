@@ -28,7 +28,8 @@ def query_for_latest_analysis(
     sequencing_type: str = 'all',
 ) -> str | None:
     """
-    Query for the latest analysis object of a given type in the requested project
+    Query for the latest analysis object of a given type in the requested project.
+
     Analysis entries for Talos all have unique types, so we can use this generic query method
 
     Args:

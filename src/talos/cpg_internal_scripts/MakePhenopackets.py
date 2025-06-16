@@ -56,20 +56,13 @@ reported_sex_map = {1: pps2.Sex.MALE, 2: pps2.Sex.FEMALE}
 
 def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[str, list[dict[str, str]]]:
     """
-    match HPO terms to their plaintext names
+    Match HPO terms to their plaintext names.
 
     NB. we are making a decision here to strip out any participant HPO terms which are descendants of the term
     'Mode of Inheritance' (HP...5). Some clinicians may use this term to describe the suspected inheritance patterns
     for a familial disease, which can enable better variant curation. Downstream, we can discover associations between
     disease genes and their MOI terms directly, which messes with what we are trying to do:
         associate patient _phenotypes_ with variant _genes_.
-
-    Args:
-        metamist_data ():
-        hpo_file ():
-
-    Returns:
-        dict, participant IDs to HPO:labels
     """
     all_hpos: set[str] = set()
     per_sg_hpos: dict[str, set[str]] = {}
@@ -107,17 +100,7 @@ def find_hpo_labels(metamist_data: dict, hpo_file: str | None = None) -> dict[st
 
 
 def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[str, list[dict[str, str]]]):
-    """
-    Assemble a cohort phenopacket from the metamist data
-
-    Args:
-        dataset (str): the dataset to query for
-        metamist_data (dict): the data from metamist
-        hpo_lookup (dict): a lookup of HPO terms to plaintext labels
-
-    Returns:
-        a cohort phenopacket
-    """
+    """Assemble a cohort phenopacket from the metamist data."""
 
     # create a cohort shell
     cohort = pps2.Cohort(
@@ -174,7 +157,8 @@ def assemble_phenopackets(dataset: str, metamist_data: dict, hpo_lookup: dict[st
 
 def main(output: str, dataset: str, seq_type: str, tech: str = 'short-read', hpo_file: str | None = None):
     """
-    Assemble a cohort phenopacket from the metamist data
+    Assemble a cohort phenopacket from the metamist data.
+
     Args:
         output (str): where to write the phenopacket
         dataset (str): the dataset to query for
