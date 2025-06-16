@@ -79,6 +79,7 @@ workflow {
 			ch_merged_vcf,
 			ch_merged_index,
 			ch_merged_bed,
+			ch_ref_genome,
 		)
 		ch_merged_tuple = FilterVcfToBedWithBcftools.out
 	}
@@ -89,6 +90,7 @@ workflow {
 			ch_vcfs.collect(),
 			ch_tbis.collect(),
 			ch_merged_bed,
+			ch_ref_genome,
 		)
 		ch_merged_tuple = MergeVcfsWithBcftools.out
 	}

@@ -3,9 +3,10 @@ process MergeVcfsWithBcftools {
     container params.container
 
     input:
-        path(vcfs)
-        path(tbis)
-        path(regions)
+        path vcfs
+        path tbis
+        path regions
+        path ref_genome
 
     // merge the VCFs into a single VCF
     publishDir params.cohort_output_dir, mode: 'copy'
@@ -21,7 +22,14 @@ process MergeVcfsWithBcftools {
         """
         # https://github.com/samtools/bcftools/issues/1189
         # -m none means don't merge multi-allelic sites, keep everything atomic
-        bcftools merge --force-single -m none -O z -o temp.vcf.gz --write-index=tbi -R ${regions} $input
-        bcftools +fill-tags temp.vcf.gz -Oz -o "${params.cohort}_merged.vcf.bgz" --write-index=tbi -- -t AF
+        bcftools merge \
+        	--force-single \
+        	-m none \
+        	-R ${regions} \
+        	$input | \
+        bcftools norm \
+			-m -any \
+			-f ${ref_genome} | \
+        bcftools +fill-tags -Oz -o "${params.cohort}_merged.vcf.bgz" --write-index=tbi -- -t AF
         """
 }
