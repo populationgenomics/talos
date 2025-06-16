@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from cpg_utils import config, hail_batch, Path
-from cpg_flow import targets, workflow
+from cpg_flow import targets
 
 
 if TYPE_CHECKING:

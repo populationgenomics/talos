@@ -32,7 +32,7 @@ def make_vcf_to_ht_job(
         --annotations {annotations_ht} \\
         --output {output_mt!s} \\
         --backend batch
-        """
+        """,
     )
 
     return job

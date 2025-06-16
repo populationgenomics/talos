@@ -55,7 +55,7 @@ def make_vcf_to_ht_job(
             --am {alphamissense} \\
             --mane {mane_json} \\
             --checkpoint {tmp_dir!s}
-        """
+        """,
     )
 
     return job

@@ -10,7 +10,6 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 import json
 from argparse import ArgumentParser
 from collections import defaultdict
-from pathlib import Path
 
 import loguru
 
@@ -261,7 +260,12 @@ def cli_main():
 
 
 def main(
-    vcf_path: str, output_path: str, gene_bed: str, alpha_m: str, mane: str | None = None, checkpoint: str | None = None
+    vcf_path: str,
+    output_path: str,
+    gene_bed: str,
+    alpha_m: str,
+    mane: str | None = None,
+    checkpoint: str | None = None,
 ):
     """
     Takes a VEP-annotated VCF, reorganises into a Talos-compatible MatrixTable

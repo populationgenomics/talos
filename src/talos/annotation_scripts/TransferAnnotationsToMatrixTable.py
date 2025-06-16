@@ -7,7 +7,6 @@ Integrates the two, writing a MatrixTable representation of the fully annotated 
 """
 
 from argparse import ArgumentParser
-from pathlib import Path
 
 import hail as hl
 
@@ -29,7 +28,7 @@ def cli_main():
         vcf_path=args.input,
         output_path=args.output,
         annotations=args.annotations,
-        backend=backend,
+        backend=args.backend,
     )
 
 
