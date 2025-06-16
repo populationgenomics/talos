@@ -32,12 +32,10 @@ import hail as hl
 
 def process_header(final_header_line: str) -> dict[str, int]:
     """
-    the TSV format is a little different in the all-isoforms vs. main transcript only
-    this method determines the column indexes to use based on the header content
-    we could determine preset columns by filename/flag, but... that's more burden on operator
+    Use this file to detect the correct column indexes for the TSV file.
 
-    Args:
-        final_header_line (str): the header line from the TSV file
+    the TSV format is a little different in the all-isoforms vs. main transcript only
+    this method determines the column indexes to use based on the header content.
     """
     # remove newline and hash, lowercase, split into a list
     broken_line = final_header_line.rstrip().replace('#', '').lower().split()
@@ -55,11 +53,7 @@ def process_header(final_header_line: str) -> dict[str, int]:
 
 def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
     """
-    read the tsv file, skim for pathogenic entries, then write out to a new file
-
-    Args:
-        input_file ():
-        intermediate_file ():
+    Read the tsv file, skim for pathogenic entries, then write out to a new file
     """
 
     headers = ['chrom', 'pos', 'ref', 'alt', 'transcript', 'am_pathogenicity', 'am_class']
@@ -98,12 +92,7 @@ def filter_for_pathogenic_am(input_file: str, intermediate_file: str):
 
 def json_to_hail_table(json_file: str, new_ht: str):
     """
-    take a previously created JSON file and ingest it as a Hail Table
-    requires an initiated Hail context
-
-    Args:
-        json_file ():
-        new_ht ():
+    Take a previously created JSON file and ingest it as a Hail Table - requires an initiated Hail context.
     """
 
     # define the schema for each written line
@@ -136,11 +125,7 @@ def cli_main():
 
 def main(alpha_m_file: str, ht_path: str):
     """
-    takes the path to an AlphaMissense TSV, reorganises it into a Hail Table
-
-    Args:
-        alpha_m_file ():
-        ht_path ():
+    Takes the path to an AlphaMissense TSV, reorganises it into a Hail Table.
     """
 
     # generate a random file name so that we don't overwrite anything consistently

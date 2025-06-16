@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
 
 
-def make_vcf_to_ht_job(
+def make_annotation_transfer_job(
     dataset: targets.Dataset,
     annotations_ht: str,
     input_mt: str,

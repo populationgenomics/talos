@@ -109,12 +109,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table) -> hl.Ta
 
 def annotate_gene_ids(ht: hl.Table, bed_file: str) -> hl.Table:
     """
-    The BED file contains the gene IDs, but not all is applied by BCFtool csq
-    This method will add the gene IDs to the Table
-
-    Args:
-        ht ():
-        bed_file (str): path to a bed file containing gene IDs
+    Using a BED file to generate lookup, annotate each transcript consequence with the Ensembl gene ID(s).
     """
 
     # indexed on contig, then gene symbol: ID
@@ -133,7 +128,7 @@ def annotate_gene_ids(ht: hl.Table, bed_file: str) -> hl.Table:
     id_hl_dict = hl.literal(id_dict)
 
     # take the ENSG value from the dict for the contig (correctly matches PAR region genes)
-    # deafult to the gene symbol (which can be the ENSG, depending on transcript consequence)
+    # default to the gene symbol (which can be the ENSG, depending on transcript consequence)
     return ht.annotate(
         transcript_consequences=hl.map(
             lambda x: x.annotate(
@@ -146,11 +141,7 @@ def annotate_gene_ids(ht: hl.Table, bed_file: str) -> hl.Table:
 
 def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
     """
-    Load up a Hail Table of AlphaMissense annotations, and annotate this data unless the AM annotations already exist
-
-    Args:
-        ht ():
-        am_table (str): path to the Hail Table containing AlphaMissense annotations
+    Load up a Hail Table of AlphaMissense annotations, and annotate this data unless the AM annotations already exist.
     """
 
     loguru.logger.info(f'Reading AM annotations from {am_table} and applying to MT')
@@ -180,14 +171,9 @@ def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
 
 def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Table:
     """
-    Apply MANE annotations to the VCF
+    Apply MANE annotations to the VCF.
 
-    Args:
-        ht ():
-        mane_path (str | None): path to a Hail Table containing MANE annotations
-
-    Returns:
-        The same Table but with additional annotations
+    If a MANE json file is provided, it will annotate the transcript consequences with the MANE status/ID
     """
 
     if mane_path is None:

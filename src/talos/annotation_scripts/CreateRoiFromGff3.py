@@ -52,7 +52,7 @@ def generate_bed_lines(
     flanking: int = FLANKING_REGION,
 ) -> list[tuple[str, int, int]]:
     """
-    generate the new BED file, and return the lines as a list of lists for merging
+    Generate the new BED file, and return the lines as a list of lists for merging.
     """
     output_lines: list[tuple[str, int, int]] = []
     # open and iterate over the GFF3 file
@@ -110,15 +110,7 @@ def merge_output(
     flanking: int = FLANKING_REGION,
 ):
     """
-    take the lines, resolve overlapping regions, and write out to a new file
-
-    Args:
-        unmerged_lines (list): input of region-per-gene lines
-        output (str): filepath to generate
-        flanking (int): merge regions within this distance
-
-    Returns:
-
+    Take each line, resolve overlapping regions, and write out to a new file.
     """
     contig = None
     start = None

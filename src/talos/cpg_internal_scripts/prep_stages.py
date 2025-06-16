@@ -255,7 +255,7 @@ class JumpAnnotationsFromHtToFinalMtStage(stage.DatasetStage):
         # get the table of compressed annotations
         annotations = inputs.as_str(dataset, SitesOnlyVcfIntoAnnotationsHt)
 
-        job = JumpAnnotationsFromHtToFinalMt.make_vcf_to_ht_job(
+        job = JumpAnnotationsFromHtToFinalMt.make_annotation_transfer_job(
             dataset=dataset,
             annotations_ht=annotations,
             input_mt=mt,
