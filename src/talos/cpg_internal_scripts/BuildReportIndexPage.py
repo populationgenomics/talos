@@ -63,8 +63,7 @@ class Report:
 @lru_cache(1)
 def get_my_projects() -> set[str]:
     """
-    queries metamist for projects I have access to,
-    returns the dataset names
+    Queries metamist for projects I have access to, returns the dataset names.
     """
     response: dict[str, Any] = query(PROJECT_QUERY)
     all_projects = {dataset['dataset'] for dataset in response['myProjects']}
@@ -74,11 +73,7 @@ def get_my_projects() -> set[str]:
 
 def get_project_analyses(project: str) -> dict[str, str]:
     """
-    find all the active analysis entries for this project
-    we only want one regular report, the latest
-
-    Args:
-        project (str): project to query for
+    Find all the active analysis entries for this project - we only want one regular report, the latest.
     """
 
     # we no longer generate 'latest' reports - HTML limitations have been removed
@@ -99,7 +94,7 @@ def get_project_analyses(project: str) -> dict[str, str]:
 
 def main() -> None:
     """
-    finds all existing reports, generates an HTML file
+    Finds all existing reports, generates an HTML file.
     """
 
     parsed_reports = {cohort: get_project_analyses(cohort) for cohort in get_my_projects()}
@@ -132,10 +127,7 @@ def main() -> None:
 
 def html_from_reports(reports: list[Report], title: str):
     """
-    build some HTML
-    Args:
-        reports (list[Report]): list of reports to build HTML for
-        title (str): title of the page
+    Build some HTML from the collection of reports we found from Metamist.
     """
 
     # smoosh into a list for the report context - all reports sortable by date
