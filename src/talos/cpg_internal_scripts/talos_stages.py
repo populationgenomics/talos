@@ -411,7 +411,7 @@ class RunHailFiltering(stage.DatasetStage):
         # find the clinvar table, localise, and expand
         if not (clinvar_tar := config.config_retrieve(['workflow', 'clinvar_data'], None)):
             clinvar_tar = query_for_latest_analysis(
-                dataset=config.config_retrieve(['workflow', targets.Dataset]),
+                dataset=config.config_retrieve(['workflow', 'dataset']),
                 analysis_type='clinvarbitration',
             )
             if clinvar_tar is None:
@@ -584,7 +584,7 @@ class ValidateMOI(stage.DatasetStage):
     analysis_keys=['pheno_annotated', 'pheno_filtered'],
 )
 class HPOFlagging(stage.DatasetStage):
-    def expected_outputs(self, dataset: targets.Dataset) -> 'dict[str, Path]':
+    def expected_outputs(self, dataset: targets.Dataset) -> dict[str, Path]:
         date_prefix = dataset.prefix() / get_date_folder()
         return {
             'pheno_annotated': date_prefix / 'pheno_annotated_report.json',
@@ -730,7 +730,7 @@ class MinimiseOutputForSeqr(stage.DatasetStage):
     takes the results file from Seqr and produces a minimised form for Seqr ingestion
     """
 
-    def expected_outputs(self, dataset: targets.Dataset) -> 'dict[str, Path]':
+    def expected_outputs(self, dataset: targets.Dataset) -> dict[str, Path]:
         analysis_folder_prefix = dataset.prefix(category='analysis') / 'seqr_files'
         return {
             'seqr_file': analysis_folder_prefix / f'{get_date_folder()}_seqr.json',
