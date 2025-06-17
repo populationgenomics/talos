@@ -79,13 +79,27 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             svlen=mt.info.SVLEN,
             svtype=mt.info.SVTYPE,
             status=mt.info.STATUS,
-            male_af=mt.info.AF_MALE,
-            female_af=mt.info.AF_FEMALE,
             end=mt.info.END,
             chr2=mt.info.CHR2,
             end2=mt.info.END2,
         ),
     )
+
+    # trying to sustain backwards compatibility with a changing GATK-SV/gCNV pipeline combination
+    if 'AF_MALE' in mt.info:
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                male_af=mt.info.AF_MALE,
+                female_af=mt.info.AF_FEMALE,
+            )
+        )
+    else:
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                male_af=mt.info.MALE_AF,
+                female_af=mt.info.FEMALE_AF,
+            )
+        )
 
     # match the symbols to gene IDs
     return mt.annotate_rows(
