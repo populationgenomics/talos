@@ -143,7 +143,7 @@ class DownloadPanelAppData(stage.MultiCohortStage):
 
 
 @stage.stage
-class GeneratePED(stage.CohortStage):
+class GeneratePed(stage.CohortStage):
     """
     revert to just using the metamist/CPG-flow Pedigree generation
     """
@@ -308,7 +308,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
 @stage.stage(
     required_stages=[
         UnifiedPanelAppParser,
-        GeneratePED,
+        GeneratePed,
         MakeRuntimeConfig,
         SquashMtIntoTarballStage,
     ],
@@ -350,7 +350,7 @@ class RunHailFiltering(stage.CohortStage):
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
 
         # peds can't read cloud paths
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePED))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePed))
         expected_out = self.expected_outputs(cohort)
 
         # copy vcf & index out manually
@@ -395,8 +395,8 @@ class RunHailFiltering(stage.CohortStage):
         return self.make_outputs(cohort, data=expected_out, jobs=job)
 
 
-@stage.stage(required_stages=[UnifiedPanelAppParser, GeneratePED, MakeRuntimeConfig])
-class RunHailFilteringSV(stage.CohortStage):
+@stage.stage(required_stages=[UnifiedPanelAppParser, GeneratePed, MakeRuntimeConfig])
+class RunHailFilteringSv(stage.CohortStage):
     """
     hail job to filter & label the SV MT
     """
@@ -426,7 +426,7 @@ class RunHailFilteringSV(stage.CohortStage):
 
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePED))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePed))
 
         cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
         job = set_up_job_with_resources(
@@ -456,7 +456,7 @@ class RunHailFilteringSV(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.RunHailFilteringSV \\
+            python -m talos.RunHailFilteringSv \\
                 --input {annotated_vcf} \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
@@ -471,14 +471,14 @@ class RunHailFilteringSV(stage.CohortStage):
 
 @stage.stage(
     required_stages=[
-        GeneratePED,
+        GeneratePed,
         UnifiedPanelAppParser,
         RunHailFiltering,
-        RunHailFilteringSV,
+        RunHailFilteringSv,
         MakeRuntimeConfig,
     ],
 )
-class ValidateMOI(stage.CohortStage):
+class ValidateVariantInheritance(stage.CohortStage):
     """
     run the labelled VCF -> results JSON stage
     """
@@ -495,7 +495,7 @@ class ValidateMOI(stage.CohortStage):
 
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
 
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePED))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePed))
         hail_inputs = inputs.as_path(target=cohort, stage=RunHailFiltering)
 
         # either find a SV vcf, or None
@@ -506,7 +506,7 @@ class ValidateMOI(stage.CohortStage):
             )
             is not None
         ):
-            hail_sv_inputs = inputs.as_path(target=cohort, stage=RunHailFilteringSV)
+            hail_sv_inputs = inputs.as_path(target=cohort, stage=RunHailFilteringSv)
             labelled_sv_vcf = hail_batch.get_batch().read_input_group(
                 **{'vcf.bgz': hail_sv_inputs, 'vcf.bgz.tbi': f'{hail_sv_inputs}.tbi'},
             )['vcf.bgz']
@@ -539,11 +539,11 @@ class ValidateMOI(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[MakeRuntimeConfig, ValidateMOI],
+    required_stages=[MakeRuntimeConfig, ValidateVariantInheritance],
     analysis_type='aip-results',
     analysis_keys=['pheno_annotated', 'pheno_filtered'],
 )
-class HPOFlagging(stage.CohortStage):
+class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         date_prefix = cohort.dataset.prefix() / get_date_folder()
         return {
@@ -566,7 +566,9 @@ class HPOFlagging(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
-        results_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=ValidateMOI))
+        results_json = hail_batch.get_batch().read_input(
+            inputs.as_path(target=cohort, stage=ValidateVariantInheritance)
+        )
 
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
 
@@ -590,7 +592,7 @@ class HPOFlagging(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[HPOFlagging, UnifiedPanelAppParser, MakeRuntimeConfig],
+    required_stages=[HpoFlagging, UnifiedPanelAppParser, MakeRuntimeConfig],
     analysis_type='aip-report',
     analysis_keys=['dated'],
     tolerate_missing_output=True,
@@ -610,7 +612,7 @@ class CreateTalosHtml(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
-        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HPOFlagging, 'pheno_annotated'))
+        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'pheno_annotated'))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
         expected_out = self.expected_outputs(cohort)
 
@@ -644,7 +646,7 @@ class CreateTalosHtml(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[ValidateMOI, MakeRuntimeConfig],
+    required_stages=[ValidateVariantInheritance, MakeRuntimeConfig],
     analysis_keys=['seqr_file', 'seqr_pheno_file'],
     analysis_type='custom',
     tolerate_missing_output=True,
@@ -671,7 +673,9 @@ class MinimiseOutputForSeqr(stage.CohortStage):
             logger.warning(f'No Seqr lookup file for {cohort.id} ({cohort.dataset.name}) {seq_type}')
             return self.make_outputs(cohort, skipped=True)
 
-        input_localised = hail_batch.get_batch().read_input(inputs.as_str(target=cohort, stage=ValidateMOI))
+        input_localised = hail_batch.get_batch().read_input(
+            inputs.as_str(target=cohort, stage=ValidateVariantInheritance)
+        )
 
         # create a job to run the minimisation script
         job = set_up_job_with_resources(
