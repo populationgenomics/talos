@@ -254,7 +254,7 @@ class MakePhenopackets(stage.CohortStage):
                 --output {job.output} \\
                 --type {seq_type} \\
                 --hpo {hpo_file}
-            """
+            """,
         )
         hail_batch.get_batch().write_output(job.output, expected_out)
         logger.info(f'Phenopacket file for {cohort.id} ({cohort.dataset.name}) going to {expected_out}')
@@ -297,7 +297,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
                 --output {job.output} \\
                 --cohort {local_phenopackets} \\
                 --hpo {hpo_file}
-            """
+            """,
         )
 
         hail_batch.get_batch().write_output(job.output, expected_out)
@@ -388,7 +388,7 @@ class RunHailFiltering(stage.CohortStage):
                 --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" \\
                 --pm5 "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.pm5.ht" \\
                 --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
-            """
+            """,
         )
         hail_batch.get_batch().write_output(job.output, str(expected_out).removesuffix('.vcf.bgz'))
 
@@ -461,8 +461,8 @@ class RunHailFilteringSv(stage.CohortStage):
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --mane_json {mane_json} \\
-                --output {job.output['vcf.bgz']} 
-            """
+                --output {job.output['vcf.bgz']}
+            """,
         )
         hail_batch.get_batch().write_output(job.output, str(expected_out).removesuffix('.vcf.bgz'))
 
@@ -530,7 +530,7 @@ class ValidateVariantInheritance(stage.CohortStage):
                 --panelapp {panelapp_data} \\
                 --pedigree {pedigree} \\
                 {sv_vcf_arg}
-            """
+            """,
         )
         expected_out = self.expected_outputs(cohort)
         hail_batch.get_batch().write_output(job.output, expected_out)
@@ -560,14 +560,17 @@ class HpoFlagging(stage.CohortStage):
         )
 
         job = set_up_job_with_resources(
-            name=f'HPOFlagging: {cohort.id} ({cohort.dataset.name})', cpu=2, memory='highmem', storage='20Gi'
+            name=f'HPOFlagging: {cohort.id} ({cohort.dataset.name})',
+            cpu=2,
+            memory='highmem',
+            storage='20Gi',
         )
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
         results_json = hail_batch.get_batch().read_input(
-            inputs.as_path(target=cohort, stage=ValidateVariantInheritance)
+            inputs.as_path(target=cohort, stage=ValidateVariantInheritance),
         )
 
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
@@ -582,7 +585,7 @@ class HpoFlagging(stage.CohortStage):
                 --phenio {phenio_db} \\
                 --output {job.output} \\
                 --phenout {job.phenout}
-            """
+            """,
         )
 
         hail_batch.get_batch().write_output(job.output, outputs['pheno_annotated'])
@@ -628,7 +631,7 @@ class CreateTalosHtml(stage.CohortStage):
                 --input {results_json} \\
                 --panelapp {panelapp_data} \\
                 --output summary_output.html
-            """
+            """,
         )
 
         # copy up to a date-specific run folder
@@ -674,7 +677,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
             return self.make_outputs(cohort, skipped=True)
 
         input_localised = hail_batch.get_batch().read_input(
-            inputs.as_str(target=cohort, stage=ValidateVariantInheritance)
+            inputs.as_str(target=cohort, stage=ValidateVariantInheritance),
         )
 
         # create a job to run the minimisation script
@@ -695,7 +698,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
                 --output {job.out_json} \\
                 --pheno {job.pheno_json} \\
                 --external_map {lookup_in_batch}
-            """
+            """,
         )
 
         # write the results out
