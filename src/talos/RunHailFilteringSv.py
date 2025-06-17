@@ -19,6 +19,9 @@ from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, su
 from talos.utils import read_json_from_path
 
 
+GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
+
+
 def read_and_filter_mane_json(mane_json: str) -> hl.dict:
     """
     Read the MANE JSON and filter it to the relevant fields
@@ -68,16 +71,16 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             AF=mt.info.AF,
             AN=mt.info.AN,
             algorithms=mt.info.ALGORITHMS,
-            gnomad_sv_ID=mt.info['gnomad_v2.1_sv_SVID'],
-            gnomad_sv_AF=mt.info['gnomad_v2.1_sv_AF'],
+            gnomad_sv_ID=mt.info[f'{GNOMAD_POP}_sv_SVID'],
+            gnomad_sv_AF=mt.info[f'{GNOMAD_POP}_sv_AF'],
             lof=hl.set(mt.info['PREDICTED_LOF']),
             n_het=mt.info.N_HET,
             n_homalt=mt.info.N_HOMALT,
             svlen=mt.info.SVLEN,
             svtype=mt.info.SVTYPE,
             status=mt.info.STATUS,
-            male_af=mt.info.MALE_AF,
-            female_af=mt.info.FEMALE_AF,
+            male_af=mt.info.AF_MALE,
+            female_af=mt.info.AF_FEMALE,
             end=mt.info.END,
             chr2=mt.info.CHR2,
             end2=mt.info.END2,
@@ -100,7 +103,7 @@ def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.Ma
 
     Args:
         mt (hl.MatrixTable): the input MT
-        af_threshold (float): filtering threshold in gnomad v2.1
+        af_threshold (float): filtering threshold in gnomad v4.1
 
     Returns:
         same MT, with common variants removed
