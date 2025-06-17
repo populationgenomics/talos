@@ -29,8 +29,12 @@ def make_tarball_squash_job(
     # copy the MT into the image, bundle it into a Tar-Ball
     job.command(f'gcloud --no-user-output-enabled storage cp --do-not-decompress -r {input_mt} $BATCH_TMPDIR')
 
+    # rename the MT from cohort to dataset name - better flexibility downstream, probably harmonise this at some point
+    job.command(f'mv $BATCH_TMPDIR/{cohort.id}.mt $BATCH_TMPDIR/{cohort.dataset.name}.mt')
+
     # once the data is copied - cd into the tmpdir, then tar it up
     job.command('cd $BATCH_TMPDIR')
+
     # no compression - the Hail objects are all internally gzipped so not much to gain there
     job.command(f'tar --remove-files -cf {job.output} {cohort.dataset.name}.mt')
 
