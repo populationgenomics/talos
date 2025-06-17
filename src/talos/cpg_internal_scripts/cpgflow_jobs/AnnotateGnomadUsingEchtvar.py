@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from cpg_utils import config, hail_batch, Path
-from cpg_flow import targets
 
 
 if TYPE_CHECKING:
@@ -9,11 +8,12 @@ if TYPE_CHECKING:
 
 
 def make_echtvar_job(
-    dataset: targets.Dataset,
+    cohort_id: str,
     sites_only_vcf: str,
     output: Path,
     job_attrs: dict,
 ) -> 'BashJob':
+    """Create a job to annotate gnomAD frequencies using the Echtvar tool."""
     # localise the input VCF
     sites_vcf = hail_batch.get_batch().read_input(sites_only_vcf)
 
@@ -21,7 +21,7 @@ def make_echtvar_job(
     gnomad_annotations = hail_batch.get_batch().read_input(config.config_retrieve(['annotations', 'echtvar_gnomad']))
 
     job = hail_batch.get_batch().new_job(
-        name=f'AnnotateGnomadFrequenciesWithEchtvar: {dataset.name}',
+        name=f'AnnotateGnomadFrequenciesWithEchtvar: {cohort_id}',
         attributes=job_attrs | {'tool': 'echtvar'},
     )
     job.image(config.config_retrieve(['images', 'echtvar']))

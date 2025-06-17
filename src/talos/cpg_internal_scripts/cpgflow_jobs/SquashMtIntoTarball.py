@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def make_tarball_squash_job(
-    dataset: targets.Dataset,
+    cohort: targets.Cohort,
     input_mt: str,
     output_tar: Path,
     job_attrs: dict,
@@ -19,7 +19,7 @@ def make_tarball_squash_job(
     """
 
     job = hail_batch.get_batch().new_job(
-        name=f'CompressMtIntoTarball: {dataset.name}',
+        name=f'CompressMtIntoTarball: {cohort.id}',
         attributes=job_attrs | {'tool': 'tar'},
     )
     job.image(config.config_retrieve(['workflow', 'driver_image']))
@@ -32,7 +32,7 @@ def make_tarball_squash_job(
     # once the data is copied - cd into the tmpdir, then tar it up
     job.command('cd $BATCH_TMPDIR')
     # no compression - the Hail objects are all internally gzipped so not much to gain there
-    job.command(f'tar --remove-files -cf {job.output} {dataset.name}.mt')
+    job.command(f'tar --remove-files -cf {job.output} {cohort.dataset.name}.mt')
 
     hail_batch.get_batch().write_output(job.output, output_tar)
 

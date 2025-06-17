@@ -62,7 +62,7 @@ SHARD_MANIFEST = 'shard-manifest.txt'
 
 
 @cache
-def does_final_file_path_exist(dataset: targets.Dataset) -> bool:
+def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     """
     This workflow includes the generation of a lot of temporary files and folders
     If I run it again, I don't want to accidentally regenerate all the intermediates, even though the final output
@@ -72,204 +72,203 @@ def does_final_file_path_exist(dataset: targets.Dataset) -> bool:
     If it does, we can skip all other stages
 
     Args:
-        dataset (Dataset):
+        cohort (targets.Cohort): the cohort to check for existence of the final file
 
     Returns:
         bool, whether the final file in the workflow already exists
     """
     # if the name of the SquashMtIntoTarball Stage changes, update this String
-    return utils.exists(workflow.get_workflow().prefix / 'SquashMtIntoTarball' / f'{dataset.name}.mt.tar')
+    return utils.exists(workflow.get_workflow().prefix / 'SquashMtIntoTarball' / f'{cohort.id}.mt.tar')
 
 
 @stage.stage
-class ExtractVcfFromDatasetMtWithHail(stage.DatasetStage):
+class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
     """
     Extract some plain calls from a joint-callset.
     these calls are a region-filtered subset, limited to genic regions
     """
 
-    def expected_outputs(self, dataset: targets.Dataset) -> dict[str, Path]:
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         return {
             # write path for the full (region-limited) MatrixTable, stripped of info fields
-            'mt': self.tmp_prefix / f'{dataset.name}.mt',
+            'mt': self.tmp_prefix / f'{cohort.name}.mt',
             # this will be the write path for fragments of sites-only VCF
-            'sites_only_vcf_dir': str(self.tmp_prefix / f'{dataset.name}_separate.vcf.bgz'),
+            'sites_only_vcf_dir': str(self.tmp_prefix / f'{cohort.id}_separate.vcf.bgz'),
             # this will be the file which contains the name of all fragments
-            'sites_only_vcf_manifest': self.tmp_prefix / f'{dataset.name}_separate.vcf.bgz' / SHARD_MANIFEST,
+            'sites_only_vcf_manifest': self.tmp_prefix / f'{cohort.id}_separate.vcf.bgz' / SHARD_MANIFEST,
         }
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        outputs = self.expected_outputs(dataset)
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        outputs = self.expected_outputs(cohort)
 
-        if does_final_file_path_exist(dataset):
-            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
-            return self.make_outputs(dataset, outputs, jobs=None)
+        if does_final_file_path_exist(cohort):
+            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
+            return self.make_outputs(cohort, outputs, jobs=None)
 
         job = ExtractVcfFromMt.make_vcf_extraction_job(
-            dataset=dataset,
+            cohort=cohort,
             output_mt=outputs['mt'],
             output_sitesonly=outputs['sites_only_vcf_dir'],
-            job_attrs=self.get_job_attrs(dataset),
+            job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(dataset, outputs, jobs=job)
+        return self.make_outputs(cohort, outputs, jobs=job)
 
 
 @stage.stage(required_stages=ExtractVcfFromDatasetMtWithHail)
-class ConcatenateSitesOnlyVcfFragments(stage.DatasetStage):
-    def expected_outputs(self, dataset: targets.Dataset) -> Path:
-        return self.prefix / f'{dataset.name}_sites_only_reassembled.vcf.bgz'
+class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return self.prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         """Trigger a rolling merge using gcloud compose, gluing all the individual files together."""
 
-        output = self.expected_outputs(dataset)
+        output = self.expected_outputs(cohort)
 
-        sites_manifest = inputs.as_str(dataset, ExtractVcfFromDatasetMtWithHail, 'sites_only_vcf_manifest')
-        manifest_dir = inputs.as_str(dataset, ExtractVcfFromDatasetMtWithHail, 'sites_only_vcf_dir')
+        extraction_outputs = inputs.as_dict(cohort, ExtractVcfFromDatasetMtWithHail)
 
         jobs = ComposeVcfFragments.make_condense_jobs(
-            dataset=dataset,
-            manifest_file=sites_manifest,
-            manifest_dir=manifest_dir,
+            cohort_id=cohort.id,
+            manifest_file=extraction_outputs['sites_only_vcf_manifest'],
+            manifest_dir=extraction_outputs['sites_only_vcf_dir'],
             output=output,
             tmp_dir=self.tmp_prefix,
-            job_attrs=self.get_job_attrs(dataset),
+            job_attrs=self.get_job_attrs(cohort),
         )
-        return self.make_outputs(dataset, data=output, jobs=jobs)
+        return self.make_outputs(cohort, data=output, jobs=jobs)
 
 
 @stage.stage(required_stages=ConcatenateSitesOnlyVcfFragments)
-class AnnotateGnomadUsingEchtvarStage(stage.DatasetStage):
+class AnnotateGnomadUsingEchtvarStage(stage.CohortStage):
     """Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage."""
 
-    def expected_outputs(self, dataset: targets.Dataset) -> Path:
-        return self.tmp_prefix / f'{dataset.name}_gnomad_frequency_annotated.vcf.bgz'
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return self.tmp_prefix / f'{cohort.id}_gnomad_frequency_annotated.vcf.bgz'
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(dataset)
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(cohort)
 
-        site_only_vcf = inputs.as_str(dataset, ConcatenateSitesOnlyVcfFragments)
+        site_only_vcf = inputs.as_str(cohort, ConcatenateSitesOnlyVcfFragments)
 
-        if does_final_file_path_exist(dataset):
-            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
-            return self.make_outputs(dataset, output, jobs=[])
+        if does_final_file_path_exist(cohort):
+            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
+            return self.make_outputs(cohort, output, jobs=[])
 
         job = AnnotateGnomadUsingEchtvar.make_echtvar_job(
-            dataset=dataset,
+            cohort_id=cohort.id,
             sites_only_vcf=site_only_vcf,
             output=output,
-            job_attrs=self.get_job_attrs(dataset),
+            job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(dataset, data=output, jobs=job)
+        return self.make_outputs(cohort, data=output, jobs=job)
 
 
 @stage.stage(required_stages=AnnotateGnomadUsingEchtvarStage)
-class AnnotateConsequenceUsingBcftoolsStage(stage.DatasetStage):
+class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
     """Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools."""
 
-    def expected_outputs(self, dataset: targets.Dataset) -> Path:
-        return self.tmp_prefix / f'{dataset.name}_consequence_annotated.vcf.bgz'
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return self.tmp_prefix / f'{cohort.id}_consequence_annotated.vcf.bgz'
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(dataset)
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(cohort)
 
-        if does_final_file_path_exist(dataset):
-            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
-            return self.make_outputs(dataset, output, jobs=[])
+        if does_final_file_path_exist(cohort):
+            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
+            return self.make_outputs(cohort, output, jobs=[])
 
-        gnomad_annotated_vcf = inputs.as_path(dataset, AnnotateGnomadUsingEchtvarStage)
+        gnomad_annotated_vcf = inputs.as_path(cohort, AnnotateGnomadUsingEchtvarStage)
 
         job = AnnotateConsequenceUsingBcftools.make_bcftools_anno_job(
-            dataset=dataset,
+            cohort_id=cohort.id,
             gnomad_vcf=gnomad_annotated_vcf,
             output=output,
-            job_attrs=self.get_job_attrs(dataset),
+            job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(dataset, data=output, jobs=job)
+        return self.make_outputs(cohort, data=output, jobs=job)
 
 
 @stage.stage(required_stages=AnnotateConsequenceUsingBcftoolsStage)
-class SitesOnlyVcfIntoAnnotationsHt(stage.DatasetStage):
+class SitesOnlyVcfIntoAnnotationsHt(stage.CohortStage):
     """Join the annotated sites-only VCF with AlphaMissense, and with gene/transcript information."""
 
-    def expected_outputs(self, dataset: targets.Dataset) -> Path:
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
         # output will be a tarball, containing the {dataset.name}_annotations.ht directory
-        return self.tmp_prefix / f'{dataset.name}_annotations.ht'
+        return self.tmp_prefix / f'{cohort.id}_annotations.ht'
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(dataset)
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(cohort)
 
-        if does_final_file_path_exist(dataset):
-            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
-            return self.make_outputs(dataset, output, jobs=[])
+        if does_final_file_path_exist(cohort):
+            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
+            return self.make_outputs(cohort, output, jobs=[])
 
-        bcftools_vcf = inputs.as_str(dataset, AnnotateConsequenceUsingBcftoolsStage)
+        bcftools_vcf = inputs.as_str(cohort, AnnotateConsequenceUsingBcftoolsStage)
 
         job = SitesOnlyVcfIntoHt.make_vcf_to_ht_job(
-            dataset=dataset,
+            cohort_id=cohort.id,
             bcftools_vcf=bcftools_vcf,
             output_ht=output,
-            tmp_dir=self.tmp_prefix / f'{dataset.name}_annotation_checkpoint',
-            job_attrs=self.get_job_attrs(dataset),
+            tmp_dir=self.tmp_prefix / f'{cohort.id}_annotation_checkpoint',
+            job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(dataset, data=output, jobs=job)
+        return self.make_outputs(cohort, data=output, jobs=job)
 
 
 @stage.stage(required_stages=[SitesOnlyVcfIntoAnnotationsHt, ExtractVcfFromDatasetMtWithHail])
-class JumpAnnotationsFromHtToFinalMtStage(stage.DatasetStage):
+class JumpAnnotationsFromHtToFinalMtStage(stage.CohortStage):
     """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
 
-    def expected_outputs(self, dataset: targets.Dataset) -> Path:
-        return self.tmp_prefix / f'{dataset.name}.mt'
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return self.tmp_prefix / f'{cohort.id}.mt'
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(dataset)
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(cohort)
 
-        if does_final_file_path_exist(dataset):
-            loguru.logger.info(f'Skipping {self.name} for {dataset.name}, final workflow output already exists')
-            return self.make_outputs(dataset, output, jobs=[])
+        if does_final_file_path_exist(cohort):
+            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
+            return self.make_outputs(cohort, output, jobs=[])
 
         # get the region-limited MT
-        mt = inputs.as_str(dataset, ExtractVcfFromDatasetMtWithHail, 'mt')
+        mt = inputs.as_str(cohort, ExtractVcfFromDatasetMtWithHail, 'mt')
 
         # get the table of compressed annotations
-        annotations = inputs.as_str(dataset, SitesOnlyVcfIntoAnnotationsHt)
+        annotations = inputs.as_str(cohort, SitesOnlyVcfIntoAnnotationsHt)
 
         job = JumpAnnotationsFromHtToFinalMt.make_annotation_transfer_job(
-            dataset=dataset,
+            cohort_id=cohort.id,
             annotations_ht=annotations,
             input_mt=mt,
             output_mt=output,
-            job_attrs=self.get_job_attrs(dataset),
+            job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(dataset, data=output, jobs=job)
+        return self.make_outputs(cohort, data=output, jobs=job)
 
 
 @stage.stage(
     analysis_type='talos_prep',
     required_stages=[JumpAnnotationsFromHtToFinalMtStage],
 )
-class SquashMtIntoTarballStage(stage.DatasetStage):
+class SquashMtIntoTarballStage(stage.CohortStage):
     """Localise the MatrixTable, and create a tarball. Compression is not beneficial here."""
 
-    def expected_outputs(self, dataset: targets.Dataset) -> Path:
-        return self.prefix / f'{dataset.name}.mt.tar'
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return self.prefix / f'{cohort.id}.mt.tar'
 
-    def queue_jobs(self, dataset: targets.Dataset, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(dataset)
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(cohort)
 
-        input_mt = inputs.as_str(dataset, JumpAnnotationsFromHtToFinalMtStage)
+        input_mt = inputs.as_str(cohort, JumpAnnotationsFromHtToFinalMtStage)
 
         job = SquashMtIntoTarball.make_tarball_squash_job(
-            dataset=dataset,
+            cohort=cohort,
             input_mt=input_mt,
             output_tar=output,
-            job_attrs=self.get_job_attrs(dataset),
+            job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(dataset, data=output, jobs=job)
+        return self.make_outputs(cohort, data=output, jobs=job)

@@ -20,7 +20,6 @@ def main(dry_run: bool = False):
         stages=[
             talos_stages.MinimiseOutputForSeqr,
             talos_stages.UploadTalosHtml,
-            talos_stages.CreateTalosHtml,
             talos_stages.UploadGenericTalosHtml,
         ],
         dry_run=dry_run,
