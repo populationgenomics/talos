@@ -19,8 +19,7 @@ def main(dry_run: bool = False):
     workflow.run_workflow(
         stages=[
             talos_stages.MinimiseOutputForSeqr,
-            talos_stages.UploadTalosHtml,
-            talos_stages.UploadGenericTalosHtml,
+            talos_stages.CreateTalosHtml,
         ],
         dry_run=dry_run,
     )
