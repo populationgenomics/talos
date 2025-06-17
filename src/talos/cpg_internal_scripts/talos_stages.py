@@ -248,7 +248,13 @@ class MakePhenopackets(stage.CohortStage):
         job.command(f'sleep {randint(0, 30)}')
 
         job.command(
-            f'MakePhenopackets --dataset {query_dataset} --output {job.output} --type {seq_type} --hpo {hpo_file}',
+            f"""
+            python -m talos.cpg_internal_scripts.MakePhenopackets \\
+                --dataset {query_dataset} \\
+                --output {job.output} \\
+                --type {seq_type} \\
+                --hpo {hpo_file}
+            """
         )
         hail_batch.get_batch().write_output(job.output, expected_out)
         logger.info(f'Phenopacket file for {cohort.id} ({cohort.dataset.name}) going to {expected_out}')
@@ -284,13 +290,15 @@ class UnifiedPanelAppParser(stage.CohortStage):
         expected_out = self.expected_outputs(cohort)
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
-        job.command(f"""
-        UnifiedPanelAppParser \
-            --input {panelapp_download} \
-            --output {job.output} \
-            --cohort {local_phenopackets} \
-            --hpo {hpo_file}
-        """)
+        job.command(
+            f"""
+            python -m talos.UnifiedPanelAppParser \\
+                --input {panelapp_download} \\
+                --output {job.output} \\
+                --cohort {local_phenopackets} \\
+                --hpo {hpo_file}
+            """
+        )
 
         hail_batch.get_batch().write_output(job.output, expected_out)
 
@@ -371,14 +379,16 @@ class RunHailFiltering(stage.CohortStage):
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
-            'RunHailFiltering '
-            f'--input "${{BATCH_TMPDIR}}/{cohort.dataset.name}.mt" '
-            f'--panelapp {panelapp_json} '
-            f'--pedigree {pedigree} '
-            f'--output {job.output["vcf.bgz"]} '
-            f'--clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" '
-            f'--pm5 "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.pm5.ht" '
-            f'--checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt" ',
+            f"""
+            python -m talos.RunHailFiltering \\
+                --input "${{BATCH_TMPDIR}}/{cohort.dataset.name}.mt" \\
+                --panelapp {panelapp_json} \\
+                --pedigree {pedigree} \\
+                --output {job.output['vcf.bgz']} \\
+                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" \\
+                --pm5 "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.pm5.ht" \\
+                --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
+            """
         )
         hail_batch.get_batch().write_output(job.output, str(expected_out).removesuffix('.vcf.bgz'))
 
@@ -445,12 +455,14 @@ class RunHailFilteringSV(stage.CohortStage):
         )['vcf.bgz']
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
-            'RunHailFilteringSV '
-            f'--input {annotated_vcf} '
-            f'--panelapp {panelapp_json} '
-            f'--pedigree {pedigree} '
-            f'--mane_json {mane_json} '
-            f'--output {job.output["vcf.bgz"]} ',
+            f"""
+            python -m talos.RunHailFilteringSV \\
+                --input {annotated_vcf} \\
+                --panelapp {panelapp_json} \\
+                --pedigree {pedigree} \\
+                --mane_json {mane_json} \\
+                --output {job.output['vcf.bgz']} 
+            """
         )
         hail_batch.get_batch().write_output(job.output, str(expected_out).removesuffix('.vcf.bgz'))
 
@@ -511,12 +523,14 @@ class ValidateMOI(stage.CohortStage):
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
-            'ValidateMOI '
-            f'--labelled_vcf {labelled_vcf} '
-            f'--output {job.output} '
-            f'--panelapp {panelapp_data} '
-            f'--pedigree {pedigree} '
-            f'{sv_vcf_arg}',
+            f"""
+            python -m talos.ValidateMOI \\
+                --labelled_vcf {labelled_vcf} \\
+                --output {job.output} \\
+                --panelapp {panelapp_data} \\
+                --pedigree {pedigree} \\
+                {sv_vcf_arg}
+            """
         )
         expected_out = self.expected_outputs(cohort)
         hail_batch.get_batch().write_output(job.output, expected_out)
@@ -558,13 +572,15 @@ class HPOFlagging(stage.CohortStage):
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
-            'HPOFlagging '
-            f'--input {results_json} '
-            f'--mane_json {mane_json} '
-            f'--gen2phen {gene_to_phenotype} '
-            f'--phenio {phenio_db} '
-            f'--output {job.output} '
-            f'--phenout {job.phenout} ',
+            f"""
+            python -m talos.HPOFlagging \\
+                --input {results_json} \\
+                --mane_json {mane_json} \\
+                --gen2phen {gene_to_phenotype} \\
+                --phenio {phenio_db} \\
+                --output {job.output} \\
+                --phenout {job.phenout}
+            """
         )
 
         hail_batch.get_batch().write_output(job.output, outputs['pheno_annotated'])
@@ -573,10 +589,20 @@ class HPOFlagging(stage.CohortStage):
         return self.make_outputs(target=cohort, jobs=job, data=outputs)
 
 
-@stage.stage(required_stages=[HPOFlagging, UnifiedPanelAppParser, MakeRuntimeConfig])
+@stage.stage(
+    required_stages=[HPOFlagging, UnifiedPanelAppParser, MakeRuntimeConfig],
+    analysis_type='aip-report',
+    analysis_keys=['dated'],
+    tolerate_missing_output=True,
+    forced=True,
+)
 class CreateTalosHtml(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'reports.tar.gz'
+        return {
+            'tar': cohort.dataset.prefix() / get_date_folder() / 'reports.tar.gz',
+            'dated': cohort.dataset.prefix(category='web') / get_date_folder() / 'summary_output.html',
+            'generic': cohort.dataset.prefix(category='web') / 'talos_static' / 'summary_output.html',
+        }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         job = set_up_job_with_resources(name=f'CreateTalosHtml: {cohort.id} ({cohort.dataset.name})')
@@ -594,77 +620,27 @@ class CreateTalosHtml(stage.CohortStage):
         # create a new directory for the results
         job.command('mkdir html_outputs')
         job.command('cd html_outputs')
-        job.command(f'CreateTalosHTML --input {results_json} --panelapp {panelapp_data} --output summary_output.html')
+        job.command(
+            f"""
+            python -m talos.CreateTalosHTML \\
+                --input {results_json} \\
+                --panelapp {panelapp_data} \\
+                --output summary_output.html
+            """
+        )
+
+        # copy up to a date-specific run folder
+        job.command(f'gcloud storage cp -r * {expected_out["dated"]!s}')
+
+        # copy to a dataset-generic folder
+        job.command(f'gcloud storage cp -r * {expected_out["generic"]!s}')
 
         # Create a tar'chive here, then use an image with GCloud to copy it up in a bit
         job.command(f'tar -czf {job.output} *')
 
-        hail_batch.get_batch().write_output(job.output, expected_out)
+        hail_batch.get_batch().write_output(job.output, expected_out['tar'])
 
         return self.make_outputs(cohort, data=expected_out, jobs=job)
-
-
-@stage.stage(
-    required_stages=[CreateTalosHtml],
-    analysis_type='aip-report',
-    tolerate_missing_output=True,
-)
-class UploadTalosHtml(stage.CohortStage):
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix(category='web') / get_date_folder() / 'summary_output.html'
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        job = hail_batch.get_batch().new_job(f'UploadTalosHtml: {cohort.id} ({cohort.dataset.name})')
-        job.image(config.config_retrieve(['images', 'cpg_hail_gcloud']))
-        job.memory('standard')
-        job.cpu(1.0)
-
-        input_tarchive = hail_batch.get_batch().read_input(inputs.as_str(cohort, CreateTalosHtml))
-
-        expected_out = self.expected_outputs(cohort)
-
-        hail_batch.authenticate_cloud_credentials_in_job(job)
-
-        # create a new directory for the results
-        output_folder = str(cohort.dataset.prefix(category='web') / get_date_folder())
-        job.command('mkdir html_outputs')
-        job.command(f'tar -xf {input_tarchive} -C html_outputs')
-        job.command('cd html_outputs')
-        job.command(f'gcloud storage cp -r * {output_folder}')
-
-        return self.make_outputs(cohort, data=expected_out, jobs=job)
-
-
-@stage.stage(
-    required_stages=[CreateTalosHtml],
-    tolerate_missing_output=True,
-    forced=True,
-)
-class UploadGenericTalosHtml(stage.CohortStage):
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix(category='web') / 'talos_static' / 'summary_output.html'
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        job = hail_batch.get_batch().new_job(f'UploadGenericTalosHtml: {cohort.id} ({cohort.dataset.name})')
-        job.image(config.config_retrieve(['images', 'cpg_hail_gcloud']))
-        job.memory('standard')
-        job.cpu(1.0)
-
-        input_tarchive = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=CreateTalosHtml))
-
-        output = self.expected_outputs(cohort)
-
-        hail_batch.authenticate_cloud_credentials_in_job(job)
-
-        # unpack results into a local directory, then copy to GCP using gcloud rsync
-        output_folder = cohort.dataset.prefix(category='web') / 'talos_static'
-        job.command('mkdir html_outputs')
-        job.command(f'tar -xf {input_tarchive} -C html_outputs')
-        job.command(
-            f'gcloud storage rsync --recursive html_outputs --delete-unmatched-destination-objects {output_folder!s}',
-        )
-
-        return self.make_outputs(cohort, data=output, jobs=job)
 
 
 @stage.stage(
@@ -709,11 +685,13 @@ class MinimiseOutputForSeqr(stage.CohortStage):
         lookup_in_batch = hail_batch.get_batch().read_input(seqr_lookup)
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
-            'MinimiseOutputForSeqr '
-            f'--input {input_localised} '
-            f'--output {job.out_json} '
-            f'--pheno {job.pheno_json} '
-            f'--external_map {lookup_in_batch}',
+            f"""
+            python -m talos.cpg_internal_scripts.MinimiseOutputForSeqr \\
+                --input {input_localised} \\
+                --output {job.out_json} \\
+                --pheno {job.pheno_json} \\
+                --external_map {lookup_in_batch}
+            """
         )
 
         # write the results out

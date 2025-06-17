@@ -27,7 +27,7 @@ def make_annotation_transfer_job(
     job.command(
         f"""
         python -m talos.annotation_scripts.TransferAnnotationsToMatrixTable \\
-        --input_path {input_mt} \\
+        --input {input_mt} \\
         --annotations {annotations_ht} \\
         --output {output_mt!s} \\
         --backend batch
