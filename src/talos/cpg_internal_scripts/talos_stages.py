@@ -15,7 +15,7 @@ from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, to_path, config, hail_batch
 
 from talos.utils import get_granular_date
-from talos.cpg_internal_scripts.prep_stages import SquashMtIntoTarballStage
+from talos.cpg_internal_scripts.annotation_stages import SquashMtIntoTarballStage
 from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
 
 if TYPE_CHECKING:

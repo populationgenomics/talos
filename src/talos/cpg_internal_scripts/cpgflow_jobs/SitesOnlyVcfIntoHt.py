@@ -33,7 +33,7 @@ def make_vcf_to_ht_job(
         attributes=job_attrs | {'tool': 'hail'},
     )
     job.image(config.config_retrieve(['workflow', 'driver_image']))
-    job.cpu(4).storage('20Gi').memory('highmem')
+    job.cpu(2).storage('20Gi').memory('highmem')
     job.command(
         f"""
         python -m talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable \\

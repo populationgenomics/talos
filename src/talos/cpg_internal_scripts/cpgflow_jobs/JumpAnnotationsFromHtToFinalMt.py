@@ -23,7 +23,8 @@ def make_annotation_transfer_job(
         attributes=job_attrs | {'tool': 'hail'},
     )
     job.image(config.config_retrieve(['workflow', 'driver_image']))
-    job.cpu(16).memory('highmem').storage('250Gi')
+    # using QOB, so no need for huge resources
+    job.storage('10Gi')
     job.command(
         f"""
         python -m talos.annotation_scripts.TransferAnnotationsToMatrixTable \\

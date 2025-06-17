@@ -19,14 +19,14 @@ def cli_main():
     """
 
     parser = ArgumentParser(description='Takes a HT of annotations, and a callset VCF, and combines into a MT')
-    parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
+    parser.add_argument('--input', help='Path to the MatrixTable', required=True)
     parser.add_argument('--annotations', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
     parser.add_argument('--backend', help='type of backend to use', default='local')
     args = parser.parse_args()
 
     main(
-        vcf_path=args.input,
+        input_path=args.input,
         output_path=args.output,
         annotations=args.annotations,
         backend=args.backend,
@@ -34,7 +34,7 @@ def cli_main():
 
 
 def main(
-    vcf_path: str,
+    input_path: str,
     output_path: str,
     annotations: str,
     backend: str,
@@ -45,7 +45,7 @@ def main(
     I'm initially trying this without a checkpoint, though I expect that not to scale well
 
     Args:
-        vcf_path (str): path to the full callset VCF
+        input_path (str): path to the full callset VCF, or MT of the same
         output_path (str): path to write the resulting MatrixTable to
         annotations (str): path to a Hail Table containing annotations
         backend (str): which backend type to use
@@ -60,12 +60,22 @@ def main(
 
         init_batch()
 
-    # read the VCF into a MatrixTable
-    mt = hl.import_vcf(
-        vcf_path,
-        array_elements_required=False,
-        force_bgz=True,
-    )
+    # read the VCF into a MatrixTable, or read the existing MatrixTable
+    if input_path.endswith('.mt'):
+        logger.info(f'Reading MatrixTable from {input_path!r}')
+        mt = hl.read_matrix_table(input_path)
+    elif input_path.endswith(('.vcf', '.vcf.gz', '.vcf.bgz')):
+        logger.info(f'Reading VCF from {input_path!r}')
+        # import the VCF, and set the array_elements_required to False
+        # this is because the VCF may not have all fields present in all rows
+        # which is fine for our purposes
+        mt = hl.import_vcf(
+            input_path,
+            array_elements_required=False,
+            force_bgz=True,
+        )
+    else:
+        raise ValueError(f'Input path must be a VCF or MatrixTable, got {input_path!r}')
 
     # read the annotations into a Table
     ht = hl.read_table(annotations)
