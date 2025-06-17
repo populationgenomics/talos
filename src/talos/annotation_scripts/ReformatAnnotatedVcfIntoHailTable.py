@@ -11,8 +11,7 @@ import json
 from argparse import ArgumentParser
 from collections import defaultdict
 
-import loguru
-
+from loguru import logger
 import hail as hl
 
 
@@ -242,7 +241,14 @@ def cli_main():
     )
     args = parser.parse_args()
 
-    main(vcf_path=args.input, output_path=args.output, gene_bed=args.gene_bed, alpha_m=args.am, mane=args.mane)
+    main(
+        vcf_path=args.input,
+        output_path=args.output,
+        gene_bed=args.gene_bed,
+        alpha_m=args.am,
+        mane=args.mane,
+        checkpoint=args.checkpoint,
+    )
 
 
 def main(
@@ -267,10 +273,12 @@ def main(
     """
 
     if checkpoint:
+        logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
         from cpg_utils.hail_batch import init_batch
 
         init_batch()
     else:
+        logger.info('Using Hail Local backend, no checkpoints')
         hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
