@@ -143,7 +143,7 @@ def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
     Load up a Hail Table of AlphaMissense annotations, and annotate this data unless the AM annotations already exist.
     """
 
-    loguru.logger.info(f'Reading AM annotations from {am_table} and applying to MT')
+    logger.info(f'Reading AM annotations from {am_table} and applying to MT')
 
     # read in the hail table containing alpha missense annotations
     am_ht = hl.read_table(am_table)
@@ -176,7 +176,7 @@ def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Tab
     """
 
     if mane_path is None:
-        loguru.logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
+        logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
         return ht.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
