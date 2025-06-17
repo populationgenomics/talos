@@ -11,6 +11,8 @@ from argparse import ArgumentParser
 import hail as hl
 from loguru import logger
 
+from cpg_utils.hail_batch import init_batch
+
 
 def cli_main():
     """
@@ -56,8 +58,6 @@ def main(
         hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
     else:
         logger.info('Using Batch backend for Hail')
-        from cpg_utils.hail_batch import init_batch
-
         init_batch()
 
     # read the VCF into a MatrixTable, or read the existing MatrixTable

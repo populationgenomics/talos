@@ -14,6 +14,8 @@ from collections import defaultdict
 from loguru import logger
 import hail as hl
 
+from cpg_utils.hail_batch import init_batch
+
 
 MISSING_STRING = hl.str('')
 
@@ -274,8 +276,6 @@ def main(
 
     if checkpoint:
         logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
-        from cpg_utils.hail_batch import init_batch
-
         init_batch()
     else:
         logger.info('Using Hail Local backend, no checkpoints')

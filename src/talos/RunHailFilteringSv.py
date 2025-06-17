@@ -71,14 +71,14 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             info=mt.info.annotate(
                 male_af=mt.info.AF_MALE,
                 female_af=mt.info.AF_FEMALE,
-            )
+            ),
         )
     else:
         mt = mt.annotate_rows(
             info=mt.info.annotate(
                 male_af=mt.info.MALE_AF,
                 female_af=mt.info.FEMALE_AF,
-            )
+            ),
         )
 
     mt = mt.annotate_rows(
