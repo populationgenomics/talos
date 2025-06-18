@@ -19,7 +19,8 @@ def make_vcf_extraction_job(
     """Create a Hail Batch job to extract VCF from a dataset MatrixTable."""
 
     # either get a mt from config, from metamist, or fail
-    if not (input_mt := config.config_retrieve(['workflow', 'starting_mt'], None)):
+    if not (input_mt := config.config_retrieve(['workflow', 'starting_mt'], None)):  # noqa: SIM102
+        # grab one from metamist instead
         if not (
             input_mt := query_for_latest_analysis(
                 dataset=cohort.dataset.name,
