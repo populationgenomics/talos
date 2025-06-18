@@ -81,9 +81,9 @@ def main(
         mt = hl.variant_qc(mt)
         mt = mt.annotate_rows(
             info=mt.info.annotate(
-                AF=mt.variant_qc.AF,
+                AF=mt.variant_qc.AF[1],
                 AN=mt.variant_qc.AN,
-                AC=mt.variant_qc.AC,
+                AC=mt.variant_qc.AC[1],
             ),
             filters=hl.empty_set(hl.tstr),
         )
