@@ -635,10 +635,12 @@ class CreateTalosHtml(stage.CohortStage):
         )
 
         # copy up to a date-specific run folder
-        job.command(f'gcloud storage cp -r * {expected_out["dated"]!s}')
+        date_folder = str(expected_out['dated']).removesuffix('/summary_output.html')
+        job.command(f'gcloud storage cp -r * {date_folder!s}')
 
         # copy to a dataset-generic folder
-        job.command(f'gcloud storage cp -r * {expected_out["generic"]!s}')
+        generic_folder = str(expected_out['generic']).removesuffix('/summary_output.html')
+        job.command(f'gcloud storage cp -r * {generic_folder!s}')
 
         # Create a tar'chive here, then use an image with GCloud to copy it up in a bit
         job.command(f'tar -czf {job.output} *')
