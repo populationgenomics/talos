@@ -85,6 +85,7 @@ def main(
                 AN=mt.variant_qc.AN,
                 AC=mt.variant_qc.AC,
             ),
+            filters=[],
         )
         mt = mt.drop('variant_qc')
 
