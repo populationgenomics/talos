@@ -15,7 +15,7 @@ def make_vcf_extraction_job(
     output_mt: Path,
     output_sitesonly: Path,
     job_attrs: dict,
-) -> BashJob:
+) -> 'BashJob':
     """Create a Hail Batch job to extract VCF from a dataset MatrixTable."""
 
     # either get a mt from config, from metamist, or fail
