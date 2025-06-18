@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from cpg_utils import config, hail_batch, Path
-from cpg_flow import targets
 
 
 if TYPE_CHECKING:
@@ -9,22 +8,12 @@ if TYPE_CHECKING:
 
 
 def make_bcftools_anno_job(
-    dataset: targets.Dataset,
+    cohort_id: str,
     gnomad_vcf: str,
     output: Path,
     job_attrs: dict,
 ) -> 'BashJob':
-    """
-
-    Args:
-        dataset ():
-        gnomad_vcf ():
-        output ():
-        job_attrs ():
-
-    Returns:
-
-    """
+    """"""
 
     gnomad_annotated_vcf = hail_batch.get_batch().read_input(gnomad_vcf)
 
@@ -36,7 +25,7 @@ def make_bcftools_anno_job(
     fasta = hail_batch.get_batch().read_input(config.reference_path('broad/ref_fasta'))
 
     job = hail_batch.get_batch().new_bash_job(
-        name=f'AnnotateConsequenceWithBcftools: {dataset.name}',
+        name=f'AnnotateConsequenceWithBcftools: {cohort_id}',
         attributes=job_attrs | {'tool': 'bcftools'},
     )
     job.image(config.config_retrieve(['images', 'bcftools_120']))

@@ -111,6 +111,9 @@ class VariantCommon(BaseModel):
     def __eq__(self, other):
         return self.coordinates == other.coordinates
 
+    def __hash__(self):
+        return hash(self.coordinates)
+
     def category_values(self, sample: str) -> set[str]:
         """
         get all variant categories which apply to this Sample (Boolean and Sample-specific)
@@ -327,6 +330,9 @@ class ReportVariant(BaseModel):
         makes reported variants comparable
         """
         return self.sample == other.sample and self.var_data.coordinates == other.var_data.coordinates
+
+    def __hash__(self):
+        return hash((self.sample, self.var_data.coordinates))
 
     def __lt__(self, other):
         return self.var_data.coordinates < other.var_data.coordinates

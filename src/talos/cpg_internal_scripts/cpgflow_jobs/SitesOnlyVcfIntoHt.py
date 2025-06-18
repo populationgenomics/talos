@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from cpg_utils import config, hail_batch, Path
-from cpg_flow import targets
 
 
 if TYPE_CHECKING:
@@ -9,24 +8,13 @@ if TYPE_CHECKING:
 
 
 def make_vcf_to_ht_job(
-    dataset: targets.Dataset,
+    cohort_id: str,
     bcftools_vcf: str,
     output_ht: Path,
     tmp_dir: Path,
     job_attrs: dict,
 ) -> 'BashJob':
-    """
-
-    Args:
-        dataset ():
-        bcftools_vcf ():
-        output_ht ():
-        tmp_dir ():
-        job_attrs ():
-
-    Returns:
-
-    """
+    """"""
 
     # pull the alphamissense TarBall location from config, and localise it
     alphamissense = config.reference_path('alphamissense/ht')
@@ -41,11 +29,11 @@ def make_vcf_to_ht_job(
     gene_roi = hail_batch.get_batch().read_input(config.reference_path(f'ensembl_{ensembl_version}/bed'))
 
     job = hail_batch.get_batch().new_job(
-        name=f'ProcessAnnotatedSitesOnlyVcfIntoHt: {dataset.name}',
+        name=f'ProcessAnnotatedSitesOnlyVcfIntoHt: {cohort_id}',
         attributes=job_attrs | {'tool': 'hail'},
     )
     job.image(config.config_retrieve(['workflow', 'driver_image']))
-    job.cpu(4).storage('20Gi').memory('highmem')
+    job.cpu(2).storage('20Gi').memory('highmem')
     job.command(
         f"""
         python -m talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable \\

@@ -11,9 +11,10 @@ import json
 from argparse import ArgumentParser
 from collections import defaultdict
 
-import loguru
-
+from loguru import logger
 import hail as hl
+
+from cpg_utils.hail_batch import init_batch
 
 
 MISSING_STRING = hl.str('')
@@ -144,7 +145,7 @@ def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
     Load up a Hail Table of AlphaMissense annotations, and annotate this data unless the AM annotations already exist.
     """
 
-    loguru.logger.info(f'Reading AM annotations from {am_table} and applying to MT')
+    logger.info(f'Reading AM annotations from {am_table} and applying to MT')
 
     # read in the hail table containing alpha missense annotations
     am_ht = hl.read_table(am_table)
@@ -177,7 +178,7 @@ def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Tab
     """
 
     if mane_path is None:
-        loguru.logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
+        logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
         return ht.annotate(
             transcript_consequences=hl.map(
                 lambda x: x.annotate(
@@ -242,7 +243,14 @@ def cli_main():
     )
     args = parser.parse_args()
 
-    main(vcf_path=args.input, output_path=args.output, gene_bed=args.gene_bed, alpha_m=args.am, mane=args.mane)
+    main(
+        vcf_path=args.input,
+        output_path=args.output,
+        gene_bed=args.gene_bed,
+        alpha_m=args.am,
+        mane=args.mane,
+        checkpoint=args.checkpoint,
+    )
 
 
 def main(
@@ -267,10 +275,10 @@ def main(
     """
 
     if checkpoint:
-        from cpg_utils.hail_batch import init_batch
-
+        logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
         init_batch()
     else:
+        logger.info('Using Hail Local backend, no checkpoints')
         hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line

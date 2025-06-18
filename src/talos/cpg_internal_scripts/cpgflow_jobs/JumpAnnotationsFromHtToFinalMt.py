@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from cpg_utils import config, hail_batch, Path
-from cpg_flow import targets
 
 
 if TYPE_CHECKING:
@@ -9,7 +8,7 @@ if TYPE_CHECKING:
 
 
 def make_annotation_transfer_job(
-    dataset: targets.Dataset,
+    cohort_id: str,
     annotations_ht: str,
     input_mt: str,
     output_mt: Path,
@@ -20,15 +19,16 @@ def make_annotation_transfer_job(
     """
 
     job = hail_batch.get_batch().new_job(
-        name=f'JumpAnnotationsFromHtToFinalMt: {dataset.name}',
+        name=f'JumpAnnotationsFromHtToFinalMt: {cohort_id}',
         attributes=job_attrs | {'tool': 'hail'},
     )
     job.image(config.config_retrieve(['workflow', 'driver_image']))
-    job.cpu(16).memory('highmem').storage('250Gi')
+    # using QOB, so no need for huge resources
+    job.storage('10Gi')
     job.command(
         f"""
         python -m talos.annotation_scripts.TransferAnnotationsToMatrixTable \\
-        --input_path {input_mt} \\
+        --input {input_mt} \\
         --annotations {annotations_ht} \\
         --output {output_mt!s} \\
         --backend batch

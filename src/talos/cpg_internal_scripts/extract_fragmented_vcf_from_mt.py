@@ -64,11 +64,7 @@ def main(
         bed (str): Region BED file
     """
 
-    hail_batch.init_batch(
-        worker_memory=config.config_retrieve(['combiner', 'worker_memory'], 'highmem'),
-        driver_memory=config.config_retrieve(['combiner', 'driver_memory'], 'highmem'),
-        driver_cores=config.config_retrieve(['combiner', 'driver_cores'], 2),
-    )
+    hail_batch.init_batch()
 
     # read the dense MT and obtain the sites-only HT
     mt = hl.read_matrix_table(mt_path)
@@ -80,7 +76,19 @@ def main(
         # filter to overlaps with the BED file
         mt = mt.filter_rows(hl.is_defined(limited_region[mt.locus]))
 
-    # replace the existing INFO block to just have AC/AN/AF - no other carry-over
+    # replace the existing INFO block to just have AC/AN/AF - no other carry-over. Allow for this to be missing.
+    if 'AF' not in mt.info:
+        mt = hl.variant_qc(mt)
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                AF=[mt.variant_qc.AF[1]],
+                AN=mt.variant_qc.AN,
+                AC=[mt.variant_qc.AC[1]],
+            ),
+            filters=hl.empty_set(hl.tstr),
+        )
+        mt = mt.drop('variant_qc')
+
     mt = mt.select_rows(
         info=hl.struct(
             AF=mt.info.AF,
@@ -93,10 +101,7 @@ def main(
 
     mt.describe()
 
-    mt.write(
-        output_mt,
-        overwrite=True,
-    )
+    mt.write(output_mt, overwrite=True)
 
     # now read that location for speed, and write the sites-only VCF
     # keep partitions consistent
