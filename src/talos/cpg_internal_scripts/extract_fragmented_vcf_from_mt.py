@@ -76,7 +76,18 @@ def main(
         # filter to overlaps with the BED file
         mt = mt.filter_rows(hl.is_defined(limited_region[mt.locus]))
 
-    # replace the existing INFO block to just have AC/AN/AF - no other carry-over
+    # replace the existing INFO block to just have AC/AN/AF - no other carry-over. Allow for this to be missing.
+    if 'AF' not in mt.info:
+        mt = hl.variant_qc(mt)
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                AF=mt.variant_qc.AF,
+                AN=mt.variant_qc.AN,
+                AC=mt.variant_qc.AC,
+            ),
+        )
+        mt = mt.drop('variant_qc')
+
     mt = mt.select_rows(
         info=hl.struct(
             AF=mt.info.AF,
