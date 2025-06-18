@@ -18,14 +18,15 @@ def make_vcf_extraction_job(
 ) -> BashJob:
     """Create a Hail Batch job to extract VCF from a dataset MatrixTable."""
 
-    # either get a mt from metamist, or take one from config
-    if not (
-        input_mt := query_for_latest_analysis(
-            dataset=cohort.dataset.name,
-            analysis_type='matrixtable',
-        )
-    ):
-        raise ValueError(f'No MatrixTable found in Metamist for {cohort.id}')
+    # either get a mt from config, from metamist, or fail
+    if not (input_mt := config.config_retrieve(['workflow', 'starting_mt'], None)):
+        if not (
+            input_mt := query_for_latest_analysis(
+                dataset=cohort.dataset.name,
+                analysis_type='matrixtable',
+            )
+        ):
+            raise ValueError(f'No MatrixTable found in Metamist for {cohort.id}')
 
     # get the BED file - does not need to be localised
     ensembl_version = config.config_retrieve(['workflow', 'ensembl_version'], 113)
@@ -36,10 +37,10 @@ def make_vcf_extraction_job(
     job.command(
         f"""
         python -m talos.cpg_internal_scripts.extract_fragmented_vcf_from_mt \\
-        --input {input_mt} \\
-        --output_mt {output_mt!s} \\
-        --output_sites_only {output_sitesonly!s} \\
-        --bed {bed}
+            --input {input_mt} \\
+            --output_mt {output_mt!s} \\
+            --output_sites_only {output_sitesonly!s} \\
+            --bed {bed}
         """,
     )
 
