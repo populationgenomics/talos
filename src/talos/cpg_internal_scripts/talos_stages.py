@@ -245,7 +245,7 @@ class MakePhenopackets(stage.CohortStage):
         seq_type = config.config_retrieve(['workflow', 'sequencing_type'])
 
         # insert a little stagger
-        job.command(f'sleep {randint(0, 30)}')
+        job.command(f'sleep {randint(0, 180)}')
 
         job.command(
             f"""
