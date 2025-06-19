@@ -98,7 +98,12 @@ def process_and_sort_variants(all_variants: VAR_DICT) -> list[dict]:
     for variant_key, family_details in all_variants.items():
         chrom, pos, ref, alt = variant_key.split(':')
         all_vars.append(
-            {'contig': chrom, 'position': int(pos), 'alleles': [ref, alt], 'family_details': '::'.join(family_details)},
+            {
+                'contig': chrom,
+                'position': int(pos),
+                'alleles': [ref, alt],
+                'proband_details': '::'.join(family_details),
+            },
         )
 
     # then sort on chr and position
