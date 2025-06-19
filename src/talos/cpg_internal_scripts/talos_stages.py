@@ -528,8 +528,7 @@ class ValidateVariantInheritance(stage.CohortStage):
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
-                {sv_vcf_arg} \\
-                --pedigree {pedigree}
+                --pedigree {pedigree} {sv_vcf_arg}
             """,
         )
         expected_out = self.expected_outputs(cohort)
