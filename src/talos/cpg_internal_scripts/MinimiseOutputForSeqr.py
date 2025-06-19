@@ -19,7 +19,7 @@ from argparse import ArgumentParser
 
 from loguru import logger
 
-from talos.models import MiniForSeqr, MiniVariant, ResultData
+from talos.models import MiniForSeqr, MiniVariant, ResultData, CategoryMeta
 
 
 def cli_main():
@@ -36,15 +36,7 @@ def cli_main():
 
 
 def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: bool = False):
-    """
-    reads in the input file, shrinks it, and writes the output file
-
-    Args:
-        input_file (str):
-        output (str):
-        ext_map (str): optional mapping of internal to external IDs for seqr
-        pheno_match (bool): whether to limit to phenotype-matching variants
-    """
+    """Reads in the Talos results, shrinks it, and writes the output file in a format suitable for Seqr."""
 
     if pheno_match:
         logger.info('Limiting to phenotype-matching variants')
@@ -52,7 +44,7 @@ def main(input_file: str, output: str, ext_map: str | None = None, pheno_match: 
     with open(input_file, encoding='utf-8') as f:
         data = ResultData.model_validate(json.load(f))
 
-    lil_data = MiniForSeqr(metadata={'categories': data.metadata.categories})
+    lil_data = MiniForSeqr(metadata=CategoryMeta(categories=data.metadata.categories))
     ext_map_dict = None
     if ext_map:
         with open(ext_map, encoding='utf-8') as f:
