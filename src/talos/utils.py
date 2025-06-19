@@ -361,7 +361,7 @@ def polish_exomiser_results(results: ResultData) -> None:
         # for each variant
         for var in content.variants:
             # if this sample had exomiser ratings
-            if 'exomiser' in var.categories:
+            if 'exomiser' in var.categories and isinstance(var.var_data.info['exomiser'], defaultdict):
                 # pull out the exomiser section specific to this sample
                 exomiser_section = var.var_data.info['exomiser'][sample]
                 # shove them in a list of strings
