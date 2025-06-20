@@ -102,7 +102,7 @@ def main(
 
     mt.describe()
 
-    mt.write(output_path)
+    mt.write(output_path, overwrite=True)
 
 
 if __name__ == '__main__':
