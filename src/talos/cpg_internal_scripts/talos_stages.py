@@ -176,6 +176,7 @@ class MakeRuntimeConfig(stage.CohortStage):
             'categories': config.config_retrieve(['categories']),
             'GeneratePanelData': config.config_retrieve(['GeneratePanelData']),
             'RunHailFiltering': config.config_retrieve(['RunHailFiltering']),
+            'RunHailFilteringSv': config.config_retrieve(['RunHailFilteringSv']),
             'ValidateMOI': config.config_retrieve(['ValidateMOI']),
             'HPOFlagging': config.config_retrieve(['HPOFlagging']),
             'CreateTalosHTML': {},
