@@ -5,7 +5,6 @@ HTTPX requests are backoff-wrapped using tenacity
 https://tenacity.readthedocs.io/en/latest/
 """
 
-import httpx
 import json
 import re
 import string
@@ -14,12 +13,13 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
 from random import choices
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from peds import open_ped
-from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -37,7 +37,6 @@ from talos.models import (
     lift_up_model_version,
 )
 from talos.static_values import get_granular_date
-
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -700,7 +699,6 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
         logger.error('read_json_from_path was passed the path "None"')
         return default
 
-    assert isinstance(read_path, str)
     read_anypath = to_anypath(read_path)
 
     if not read_anypath.exists():
@@ -789,7 +787,8 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
-        assert var_1.coordinates.chrom == var_2.coordinates.chrom
+        if not var_1.coordinates.chrom == var_2.coordinates.chrom:
+            raise ValueError(f'Compound hets must be on the same chromosome, found {var_1}, {var_2}')
 
         if (var_1.coordinates == var_2.coordinates) or var_1.coordinates.chrom in NON_HOM_CHROM:
             continue
@@ -827,11 +826,7 @@ def generate_fresh_latest_results(current_results: ResultData):
     for sample, content in current_results.results.items():
         for var in content.variants:
             # bank the number of clinvar stars, if any
-            if '1' in var.categories:
-                clinvar_stars = var.var_data.info.get('clinvar_stars')
-                assert isinstance(clinvar_stars, int)
-            else:
-                clinvar_stars = None
+            clinvar_stars = var.var_data.info.get('clinvar_stars') if '1' in var.categories else None
 
             new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
                 categories=dict.fromkeys(var.categories, var.first_tagged),
@@ -944,9 +939,6 @@ def annotate_variant_dates_using_prior_results(results: ResultData):
 
     # get latest results as a HistoricVariants object, or fail - on fail, return
     if latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants):
-        # this is just to please the type checker
-        assert isinstance(latest_results, HistoricVariants)
-
         date_annotate_results(results, latest_results)
         save_new_historic(results=latest_results)
     else:
@@ -1021,7 +1013,8 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
             # get the number of clinvar stars, if appropriate
             if '1' in var.categories:
                 clinvar_stars = var.var_data.info.get('clinvar_stars')
-                assert isinstance(clinvar_stars, int)
+                if not isinstance(clinvar_stars, int):
+                    raise TypeError(f'Expected clinvar_stars to be an int, got {type(clinvar_stars)}: {clinvar_stars}')
             else:
                 clinvar_stars = None
 

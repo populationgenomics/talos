@@ -48,7 +48,7 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=v0.2.4',
+    'cpg-flow==v0.2.4',
     'google-cloud-storage==2.14.0',
 ]
 test = [
@@ -151,9 +151,9 @@ extend-exclude = ["venv", ".mypy_cache", ".venv", "build", "dist"]
 
 [tool.ruff.lint]
 # ignore pydocstyle, flake8-boolean-trap (FBT)
-select = ["A", "B", "C", "E", "F", "G", "I", "N", "Q", "S", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
+select = ["A", "B", "C", "E", "F", "G", "I", "I001", "N", "Q", "S", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
 
-fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "FBT", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
+fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "I001", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "FBT", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
 
 ignore = [
     "ANN001", # Missing type annotation for function argument
@@ -166,12 +166,10 @@ ignore = [
     "G004", # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
     "Q000", # Single quotes found but double quotes preferred
-    "S101", # Use of assert detected
     "PLR0912", # Too many branches (> 12)
     "PLR0913", # Too many arguments in function (> 5)
     "C901", # method is too complex (> 10 conditions)
     "N999", # invalid module name (not lower-case and potholes)
-    "I001", # Import block is un-sorted or un-formatted (to remove soon)
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
 ]
 
@@ -183,7 +181,7 @@ quote-style = "single"
 section-order = ["future", "standard-library", "third-party", "hail", "cpg", "first-party", "local-folder"]
 
 [tool.ruff.lint.isort.sections]
-cpg = ["metamist", "talos"]
+cpg = ["metamist", "cpg", "talos"]
 hail = ["hail"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -191,6 +189,7 @@ hail = ["hail"]
 ## - we don't need generic cpg-flow arguments for every Stage, but need to fit the required method signature
 "src/talos/cpg_internal_scripts/annotation_stages.py" = ["ARG002"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
+"test/*" = ["S101"]
 
 [tool.bumpversion]
 current_version = "7.4.1"

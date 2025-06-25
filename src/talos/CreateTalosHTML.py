@@ -153,7 +153,8 @@ class HTMLBuilder:
 
         # If it exists, read the forbidden genes as a list
         self.forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], [])
-        assert isinstance(self.forbidden_genes, list)
+        if not isinstance(self.forbidden_genes, list):
+            raise TypeError(f'Forbidden genes should be a list, not {type(self.forbidden_genes)}')
         logger.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # take the link-generating instance (can be None)
@@ -170,7 +171,8 @@ class HTMLBuilder:
         #     },
         # }
         self.ext_labels: dict[str, dict] = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
-        assert isinstance(self.ext_labels, dict)
+        if not isinstance(self.ext_labels, dict):
+            raise TypeError(f'External labels should be a dict, not {type(self.ext_labels)}')
 
         self.metadata = results_dict.metadata
         self.panel_names = {panel.name for panel in self.metadata.panels.values()}
@@ -348,7 +350,9 @@ class HTMLBuilder:
         outpath_name = Path(output_filepath).name
 
         for sample in template_context['samples']:
-            assert isinstance(sample, Sample)
+            if not isinstance(sample, Sample):
+                logger.warning(f'Skipping {sample} - not a Sample instance')
+                continue
             if not sample.variants:
                 continue
 

@@ -4,10 +4,9 @@ import argparse
 import os
 
 import loguru
-
 from cpg_utils import config
-from talos import utils
 
+from talos import utils
 
 COMPOSE_COMMAND = 'gcloud storage objects compose'
 

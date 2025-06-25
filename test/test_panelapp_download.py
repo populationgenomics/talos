@@ -1,10 +1,10 @@
-from talos.models import PhenoPacketHpo
 from talos.DownloadPanelApp import (
+    PANELS_ENDPOINT,
     get_panels_and_hpo_terms,
     parse_panel,
     parse_panel_activity,
-    PANELS_ENDPOINT,
 )
+from talos.models import PhenoPacketHpo
 
 
 def test_panel_hpo_query(httpx_mock, panels_and_hpos):

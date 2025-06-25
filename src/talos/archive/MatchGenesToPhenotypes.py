@@ -159,7 +159,6 @@ def main(gen2phen_path: str, gs2id: str, panels_path: str, phenio_db: str, out_p
 
     # read the ParticipantHPOPanels object
     party_panels = read_json_from_path(panels_path, return_model=PhenotypeMatchedPanels)
-    assert isinstance(party_panels, PhenotypeMatchedPanels)
 
     # identify all the unique HPO groups, and the samples that are in each group
     hpo_groups = collect_unique_hpo_groups(party_panels)

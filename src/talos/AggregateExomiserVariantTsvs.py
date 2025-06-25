@@ -13,9 +13,9 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from csv import DictReader
 
-import hail as hl
-
 from cloudpathlib.anypath import to_anypath
+
+import hail as hl
 
 ORDERED_ALLELES: list[str] = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 PROBAND_DICT = dict[str, dict[str, list[dict]]]
@@ -49,8 +49,6 @@ def process_tsv(tsv_path: str) -> tuple[PROBAND_DICT, VAR_DICT]:
     with file_as_path.open() as handle:
         reader = DictReader(handle, delimiter='\t')
         for row in reader:
-            assert isinstance(row, dict)
-
             # Exomiser contains "MT" on all genome builds, which Hail does not accept. Overrule this behaviour.
             contig = row['CONTIG']
             if contig == 'MT':

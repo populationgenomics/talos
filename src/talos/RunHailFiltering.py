@@ -13,14 +13,14 @@ Read, filter, annotate, classify, and write Genetic data
 
 from argparse import ArgumentParser
 
-import hail as hl
 from loguru import logger
 from peds import open_ped
+
+import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
-
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)
@@ -879,7 +879,6 @@ def main(
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panel_data!r}')
     panelapp = read_json_from_path(panel_data, return_model=PanelApp)
-    assert isinstance(panelapp, PanelApp)
 
     # pull green genes from the panelapp data
     green_expression = green_from_panelapp(panelapp)

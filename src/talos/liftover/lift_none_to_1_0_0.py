@@ -25,7 +25,6 @@ def phenotypematchedpanels(data_dict: dict) -> dict:
                 new_data.append({'id': hpo_id, 'label': label})
 
             except IndexError:
-                assert isinstance(term, str)
                 hpo_id = term
                 new_data.append({'id': hpo_id, 'label': ''})
 
@@ -45,9 +44,12 @@ def resultdata(data_dict: dict) -> dict:
     required: [{'id': 'HPO:0000001', 'label': 'Definition'}, ]
     """
     # confirm that we're upgrading the right version
-    assert data_dict.get('version') is None
+    if data_dict.get('version') is not None:
+        raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
+
     for _sample, data in data_dict['results'].items():
-        assert isinstance(data['metadata']['phenotypes'], list)
+        if not isinstance(data['metadata']['phenotypes'], list):
+            raise TypeError(f'HPO terms should be a list: {data["metadata"]["phenotypes"]}')
         new_data: list[dict] = []
         for term in data['metadata']['phenotypes']:
             try:
@@ -56,7 +58,6 @@ def resultdata(data_dict: dict) -> dict:
                 new_data.append({'id': hpo_id, 'label': label})
 
             except ValueError:
-                assert isinstance(term, str)
                 hpo_id = term
                 new_data.append({'id': hpo_id, 'label': ''})
 

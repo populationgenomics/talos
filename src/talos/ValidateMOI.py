@@ -35,12 +35,12 @@ from talos.models import (
 from talos.moi_tests import MOIRunner
 from talos.utils import (
     GeneDict,
-    canonical_contigs_from_vcf,
     annotate_variant_dates_using_prior_results,
+    canonical_contigs_from_vcf,
     find_comp_hets,
     gather_gene_dict_from_contig,
-    polish_exomiser_results,
     make_flexible_pedigree,
+    polish_exomiser_results,
     read_json_from_path,
 )
 from talos.version import __version__

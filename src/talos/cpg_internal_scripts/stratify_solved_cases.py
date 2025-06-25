@@ -8,8 +8,9 @@ to be digested down to a per-project object
 
 from sys import argv
 
-from tenacity import retry
 import toml
+from tenacity import retry
+
 from metamist.graphql import gql, query
 
 PROJECT_QUERY = gql(

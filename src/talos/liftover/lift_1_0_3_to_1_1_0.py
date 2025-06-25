@@ -15,7 +15,10 @@ def resultdata(data_dict: dict) -> dict:
 
     for _sample, content in data_dict['results'].items():
         sample_meta = content['metadata']
-        assert all(key in sample_meta for key in ['panel_ids', 'panel_names'])
+        if not all(key in sample_meta for key in ['panel_ids', 'panel_names']):
+            raise KeyError(
+                f'Missing panel_ids or panel_names in sample metadata for sample {_sample}: {sample_meta}',
+            )
         sample_meta['panel_details'] = dict(
             zip(
                 sample_meta.pop('panel_ids'),

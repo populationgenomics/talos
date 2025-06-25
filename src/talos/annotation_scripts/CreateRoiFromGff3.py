@@ -12,7 +12,6 @@ import gzip
 import re
 from argparse import ArgumentParser
 
-
 CHROM_INDEX = 0
 RESOURCE_INDEX = 1
 TYPE_INDEX = 2
