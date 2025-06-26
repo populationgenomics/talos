@@ -54,6 +54,10 @@ def query_for_latest_analysis(
     analysis_by_date = {}
     for analysis in result['project']['analyses']:
         if analysis['output'] and (sequencing_type in {'all', analysis['meta'].get('sequencing_type')}):
+            # skip over the partial-cohort AnnotateDataset objects
+            if '_families-' in analysis['output']:
+                continue
+
             analysis_by_date[analysis['timestampCompleted']] = analysis['output']
 
     if not analysis_by_date:
