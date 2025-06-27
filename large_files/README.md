@@ -24,3 +24,6 @@ provided it can add the following fields to the VCF `INFO` column:
 1. `genes_to_phenotypes.txt` from https://hpo.jax.org/data/annotations
 2. `hp.obo` from https://hpo.jax.org/data/ontology
 3. `phenio.db.gz` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
+4. `clinvarbitration` data from Zenodo https://zenodo.org/records/15671821
+
+> **NOTE** the ClinvArbitration data is updated and re-uploaded monthly. A Stub has been provided in this repository, matching the dummy test data (`nextflow/inputs/clinvarbitration.tar.gz`) but that is not suitable for real analyses (only contains 4 variants).
