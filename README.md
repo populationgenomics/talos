@@ -37,7 +37,7 @@ Talos contains a demonstration workflow implemented using **Nextflow**, with con
 
 * [Nextflow](https://www.nextflow.io/docs/latest/install.html)
 * Docker
-  
+
 * Build the image:
 
   ```bash
@@ -110,10 +110,10 @@ Uses semantic similarity to compare variant-associated genes to the proband’s 
 <details>
 <summary><strong>6. Report Generation</strong></summary>
 Creates individual and cohort HTML reports, including:
-- Variant categories and flags  
-- Inheritance consistency  
-- Phenotype scores (if applicable)  
-- Evidence sources and provenance  
+- Variant categories and flags
+- Inheritance consistency
+- Phenotype scores (if applicable)
+- Evidence sources and provenance
 </details>
 
 ---
