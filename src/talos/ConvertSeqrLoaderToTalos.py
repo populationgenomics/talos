@@ -102,23 +102,8 @@ def main(input_mt: str, output_mt: str):
     # Load the input MT
     mt = hl.read_matrix_table(input_mt)
 
+    # hl.Dict for mapping VEP terms to their BCFtools CSQ equivalents
     consequence_translation = hl.literal(VEP_TO_CSQ)
-
-    # test, to delete
-    mt = mt.annotate_rows(
-        transcript_consequences=mt.transcript_consequences.map(
-            lambda x: hl.struct(
-                consequence=hl.delimit(
-                    hl.map(
-                        lambda term: consequence_translation.get(term, term),  # translate VEP terms to CSQ terms
-                        x.consequence.split('&'),
-                    ),
-                    '&',
-                )
-            ),
-        ),
-        gene_ids=mt.gene_ids,  # this is already an array of strings
-    )
 
     # region: VEP annotations
     mt = mt.annotate_rows(
