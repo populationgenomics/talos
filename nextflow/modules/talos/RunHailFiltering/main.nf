@@ -29,7 +29,7 @@ process RunHailFiltering {
         --pedigree ${pedigree} \
         --output ${params.cohort}_small_variants_labelled.vcf.bgz \
         --clinvar clinvarbitration_data/clinvar_decisions.ht \
-        --pm5 clinvarbitration_data/clinvar_pm5.ht \
+        --pm5 clinvarbitration_data/clinvar_decisions.pm5.ht \
         --checkpoint checkpoint
     """
 }
