@@ -5,6 +5,8 @@ HTTPX requests are backoff-wrapped using tenacity
 https://tenacity.readthedocs.io/en/latest/
 """
 
+import pathlib
+
 import httpx
 import json
 import re
@@ -373,13 +375,10 @@ def polish_exomiser_results(results: ResultData) -> None:
 
 def organise_pm5(info_dict: dict[str, Any]):
     """
-    method dedicated to handling the new pm5 annotations
+    Method dedicated to handling the ClinvArbitration pm5 annotations
 
-    e.g. categorydetailsPM5=27037::Pathogenic::1+27048::Pathogenic::1;
+    e.g. "categorydetailsPM5=27037::Pathogenic::1+27048::Pathogenic::1;"
     1. break into component allele data
-
-    Returns:
-        None, updates self. attributes
     """
 
     if 'categorydetailspm5' not in info_dict:
@@ -423,13 +422,7 @@ def organise_pm5(info_dict: dict[str, Any]):
 
 
 def organise_svdb_doi(info_dict: dict[str, Any]):
-    """
-    method dedicated to handling the SV DB DOI records
-    edits in place
-
-    Args:
-        info_dict ():
-    """
+    """method dedicated to handling the SpliceVar DB DOI records."""
     if 'svdb_doi' not in info_dict:
         return
 
@@ -450,14 +443,8 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
 def create_small_variant(
     var: 'cyvcf2.Variant',
     samples: list[str],
-):
-    """
-    takes a small variant and creates a Model from it
-
-    Args:
-        var ():
-        samples ():
-    """
+) -> SmallVariant:
+    """Takes a small variant and creates a SmallVariant Model from it."""
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': coordinates.string_format}
@@ -545,14 +532,7 @@ def create_small_variant(
 
 
 def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]):
-    """
-    takes an SV and creates a Model from it
-    far less complicated than the SmallVariant model
-
-    Args:
-        var ():
-        samples ():
-    """
+    """Takes an SV and creates a Model from it."""
 
     # variant link for SVs is the RSID value
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': var.ID}
@@ -588,13 +568,7 @@ GeneDict = dict[str, list[VARIANT_MODELS]]
 
 
 def canonical_contigs_from_vcf(reader) -> set[str]:
-    """
-    read the header fields from the VCF handle
-    return a set of all 'canonical' contigs
-
-    Args:
-        reader (cyvcf2.VCFReader):
-    """
+    """Read the header fields from the VCF handle, return a set of all 'canonical' contigs."""
 
     # contig matching regex - remove all HLA/decoy/unknown
     contig_re = re.compile(r'^(chr)?[0-9XYMT]{1,2}$')
@@ -684,8 +658,7 @@ def gather_gene_dict_from_contig(
 def read_json_from_path(read_path: str | None = None, default: Any = None, return_model: Any = None) -> Any:
     """
     take a path to a JSON file, read into an object
-    if the path doesn't exist - return the default object
-    uses cloudpath to be deployment agnostic
+    if the path doesn't exist - return the default object (deafults to None, instead of errors)
 
     Args:
         read_path (str): where to read from - if None... will return the value "default"
@@ -718,15 +691,8 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
 
 def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[set[str], set[str]]:
     """
-    for this variant, find all samples with a call
-    cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
-
-    Args:
-        variant (cyvcf2.Variant):
-        samples (list[str]):
-
-    Returns:
-        2 sets of strings; het and hom
+    For this variant, find all samples with a call. cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT.
+    Returns 2 sets of strings; het sample ID, hom sample IDs
     """
     het_samples = set()
     hom_samples = set()
@@ -770,18 +736,15 @@ def extract_csq(csq_contents: str) -> list[dict]:
 
 
 def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHetDict:
-    """
-    manual implementation to find compound hets
-    variants provided in the format
+    """Find compound het pairs, variants provided in the format [var1, var2, ...]
 
-    [var1, var2, ..]
+    generates pair content in the form
 
-    generate pair content in the form
-    {sample: {var_as_string: [partner_variant, ...]}}
-
-    Args:
-        var_list (list[VARIANT_MODELS]): all variants in this gene
-        pedigree (): Pedigree
+    {
+        sample: {
+            var_as_string: [partner_variant, ...],
+        }
+    }
     """
 
     # create an empty dictionary
@@ -816,12 +779,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
 
 
 def generate_fresh_latest_results(current_results: ResultData):
-    """
-    This will be called if a cohort has no latest results, but has
-    indicated a place to save them.
-    Args:
-        current_results (ResultData): results from this current run
-    """
+    """Generate a first-time result object for future runs to reference."""
 
     new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
     for sample, content in current_results.results.items():
@@ -845,11 +803,8 @@ def generate_fresh_latest_results(current_results: ResultData):
 
 def phenotype_label_history(results: ResultData):
     """
-    Annotation in-place of the results object
+    Annotation in-place of the results object, incorporating previously seen dates per variant-sample-category combo
     Either pull the 'date of phenotype match' from the historic data, or add 'today' to the historic data
-
-    Args:
-        results (ResultData):
     """
     # are there any history results?
     if (historic_folder := config_retrieve('result_history', None)) is None:
@@ -898,19 +853,20 @@ def phenotype_label_history(results: ResultData):
 
 
 def save_new_historic(results: HistoricVariants):
-    """
-    save the new results in the historic results dir
+    """Save the new results in the historic results dir."""
 
-    Args:
-        results (HistoricVariants): object to save as JSON
-    """
-
-    if (directory := config_retrieve('result_history', None)) is None:
+    if not (directory := config_retrieve('result_history', None)):
         logger.info('No historic data folder, no saving')
         return
 
     # we're using cloud paths here
-    new_file = to_anypath(directory) / f'{TODAY}.json'
+    dir_as_path = to_anypath(directory)
+    new_file = dir_as_path / f'{TODAY}.json'
+
+    # need a check for folder existence, or create
+    if isinstance(dir_as_path, pathlib.Path) and not dir_as_path.exists():
+        dir_as_path.mkdir(parents=True, exist_ok=True)
+
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
@@ -920,7 +876,7 @@ def save_new_historic(results: HistoricVariants):
 def annotate_variant_dates_using_prior_results(results: ResultData):
     """
     loads the most recent prior result set (if it exists)
-    annotates previously seen variants with the most recent date seen
+    annotates current results set using previously seen variant classifications and first-seen datetime
     write two files (total, and latest - previous)
 
     Args:
@@ -954,27 +910,22 @@ def annotate_variant_dates_using_prior_results(results: ResultData):
         generate_fresh_latest_results(current_results=results)
 
 
-def date_from_string(string: str) -> str:
+def date_from_string(filename: str) -> str:
     """
-    takes a string, finds the date. Simples
-    Args:
-        string (a filename):
+    Takes a filename, finds a date. Internally consistent with the way this codebase writes datetimes into file paths.
 
     Returns:
         the String YYYY-MM-DD
     """
-    date_search = re.search(DATE_RE, string)
+    date_search = re.search(DATE_RE, filename)
     if date_search:
         return date_search.group()
-    raise ValueError(f'No date found in {string}')
+    raise ValueError(f'No date found in {filename}')
 
 
 def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
     """
-    takes a directory of files, and finds the latest
-    Args:
-        results_folder (): local or remote folder, or don't call this method
-        ext (): the type of files we're looking for
+    Takes a directory of files, and finds the latest. Uses date built into the file names.
 
     Returns: most recent file path, or None
     """
