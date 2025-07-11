@@ -1,3 +1,5 @@
+result_history = "/Users/mwelland/code/talos/gogogo"
+
 [categories]
 1 = "ClinVar Pathogenic"
 3 = "High Impact Variant"
@@ -12,7 +14,6 @@ exomiser = 'Variant prioritised by Exomiser'
 
 [GeneratePanelData]
 default_panel = 137
-obo_file = "gs://cpg-common-test/references/aip/hpo_terms.obo"
 panelapp = "https://panelapp-aus.org/api/v1/panels"
 require_pheno_match = [ "FLG", "GJB2", "F2", "F5", "HFE"]
 within_x_months = 3
@@ -106,8 +107,6 @@ phenotype_match = ["6"]
 [HPOFlagging]
 semantic_match = true
 min_similarity = 14.0
-phenio_db = "gs://cpg-common-test/references/aip/phenotype.db"
-gene_to_phenotype = "gs://cpg-common-test/references/aip/genes_to_phenotype.txt"
 
 [RunHailFiltering.cores]
 sv = 2
