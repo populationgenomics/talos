@@ -38,7 +38,7 @@ X_CHROMOSOME = {'X'}
 ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic']
 IRRELEVANT_MOI = {'unknown', 'other'}
 
-# we consider a gene new, and worth flagging, if it was made Green in a panel within this time frame
+# we consider a gene new, and worth prioritising, if it was made Green in a panel within this time frame
 WITHIN_X_MONTHS = 6
 
 try:
@@ -67,20 +67,12 @@ def cli_main():
 
 
 def extract_participant_data_from_cohort(cohort: pps2.Cohort) -> tuple[PanelApp, set[str]]:
-    """
-    read the extended pedigree file, pull out family details and HPO terms
-
-    Args:
-        cohort (str): GA4GH Cohort/PhenoPacket file
-
-    Returns:
-        set of all HPO terms
-    """
+    """Read the cohort phenotypic information, pull out family details and HPO terms."""
 
     # generate an empty result holder
     shell = PanelApp()
 
-    all_hpos: set[str] = set()
+    all_hpos = set()
 
     for member in cohort.members:
         shell.participants[member.id] = ParticipantHPOPanels(
@@ -100,7 +92,7 @@ def match_hpos_to_panels(
     all_hpos: set[str],
 ) -> dict[str, set[int]]:
     """
-    take the HPO terms from the participant metadata, and match to panels
+    Take the HPO terms from the participant metadata, and match to panels.
 
     Args:
         hpo_panel_map (dict): dict of panel IDs to hpo details
@@ -235,16 +227,7 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
 
 
 def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedPanelApp):
-    """
-    now that we know which panels will be in the analysis, get the corresponding genes and consensus MOI for each
-
-    Args:
-        panelapp_data ():
-        cached_panelapp ():
-
-    Returns:
-
-    """
+    """given a set of query panels, get the corresponding genes and consensus MOI for each."""
 
     full_set_of_panels: set[int] = set()
 
@@ -326,11 +309,7 @@ def update_moi_from_config(
 
 
 def remove_blacklisted_genes(panelapp_data: PanelApp):
-    """
-    remove any genes which are blacklisted in the config
-    Args:
-        panelapp_data ():
-    """
+    """remove any genes which are blacklisted in the config."""
 
     # if any genes are blacklisted in config, remove them here
     if forbidden_genes := config_retrieve(['GeneratePanelData', 'forbidden_genes'], set()):
@@ -346,12 +325,6 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
     If a Cohort and HPO obo file are present, we attempt matching of panels to phenotypes
 
     Based on all the panels in the analysis, we then fetch the relevant genes and their MOIs
-
-    Args:
-        panel_data ():
-        output_file ():
-        cohort_file ():
-        hpo_file ():
     """
 
     cached_panelapp: DownloadedPanelApp = read_json_from_path(panel_data, return_model=DownloadedPanelApp)
@@ -383,7 +356,7 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
     fetch_genes_for_panels(panelapp_data=panelapp_data, cached_panelapp=cached_panelapp)
 
     # optionally shove in some extra gene content from configuration as a custom panel
-    if custom_content := config_retrieve(['PanelApp', 'manual_overrides'], []):
+    if custom_content := config_retrieve(['GeneratePanelData', 'manual_overrides'], []):
         update_moi_from_config(panelapp_data, custom_content)
 
     # if any genes are blacklisted in config, remove them here
