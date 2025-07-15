@@ -298,8 +298,8 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'])
-        self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'])
+        self.minimum_alt_depth = config_retrieve(['ValidateMOI', 'min_alt_depth'])
+        self.minimum_depth = config_retrieve(['ValidateMOI', 'minimum_depth'])
         self.global_filter = GlobalFilter()
         self.clinvar_filter = ClinVarFilter()
 
