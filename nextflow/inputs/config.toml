@@ -20,13 +20,12 @@ within_x_months = 3
 forbidden_genes = []
 forced_panels = [ 144,]
 
-[GeneratePanelData.manual_overrides]
 # this section permits the manual addition of genes to the panel data
 # each gene here will be folded into the panelapp data after standard API queries have taken place
 # if the gene was already identified for this analysis, the MOI provided here will take precedent
 # if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
 # associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
-[[GeneratePanelData.manual_overrides.genes]]
+[[GeneratePanelData.manual_overrides]]
 # this field is mandatory - the ENSG ID of the gene
 ensg = 'ENSG0000012345'
 
@@ -53,8 +52,14 @@ minimum_depth = 10
 spliceai = 0.5
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
 
-[ValidateMOI]
+[de_novo]
+min_child_ab = 0.2
+min_depth = 5
+max_depth = 1000
+min_gq = 25
+min_alt_depth = 5
 
+[ValidateMOI]
 # callset AF filtering will only be applied to variants with this AC or higher
 min_callset_ac_to_filter = 10
 
@@ -103,6 +108,9 @@ support_categories = ["6"]
 # This default value "6" (AlphaMissense) is redundant with the "support" category - variants which were only flagged by
 # AlphaMissense will be removed from consideration completely
 phenotype_match = ["6"]
+
+min_alt_depth = 5
+minimum_depth = 10
 
 [HPOFlagging]
 semantic_match = true

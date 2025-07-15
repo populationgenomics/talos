@@ -63,6 +63,13 @@ af_semi_rare = 0.01
 critical_csq = ['frameshift', 'splice_acceptor', 'splice_donor', 'start_lost', 'stop_gained', 'stop_lost']
 spliceai = 0.5
 
+[de_novo]
+min_child_ab = 0.2
+min_depth = 5
+max_depth = 1000
+min_gq = 25
+min_alt_depth = 5
+
 [categories]
 1 = 'ClinVar Pathogenic'
 3 = 'High Impact Variant'
