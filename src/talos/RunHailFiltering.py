@@ -534,11 +534,11 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
-    min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
-    max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
-    min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
-    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
+    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'])
+    min_depth: int = config_retrieve(['de_novo', 'min_depth'])
+    max_depth: int = config_retrieve(['de_novo', 'max_depth'])
+    min_gq: int = config_retrieve(['de_novo', 'min_gq'])
+    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'])
 
     logger.info('Running de novo search')
 
@@ -552,8 +552,8 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     elif 'AD' in de_novo_matrix.entry:
         depth = hl.sum(de_novo_matrix.AD)
     else:
-        logger.info('DP and AD both absent, chucking in a default value')
-        logger.info('Input variant data should really have either DP or AD present for various QC purposes')
+        logger.warning('DP and AD both absent, chucking in a default value')
+        logger.warning('Input variant data should really have either DP or AD present for various QC purposes')
         depth = min_depth + 1
 
     # do some rational variant filtering

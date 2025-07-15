@@ -35,15 +35,33 @@ within_x_months = 6
 [[GeneratePanelData.manual_overrides.genes]]
 # this field is mandatory - the ENSG ID of the gene
 ensg = 'ENSG0000012345'
-
-# this field should be supplied, if omitted will default to Mono_And_Biallelic
+# this field should be supplied, if omitted will default to the most lenient: "Mono_And_Biallelic"
 moi = 'Biallelic'
-
 # optional - if ommitted the gene symbol will be looked up in the Ensembl data
 symbol = 'AGENE'
-
 # optional
 chrom = '1'
+
+[RunHailFiltering]
+# variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
+csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
+
+# variables for the hail operations, including CSQ sets and filter thresholds
+critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
+additional_csq = ['missense']
+ac_threshold = 0.01
+af_semi_rare = 0.01
+callset_af_sv_recessive = 0.03
+
+[de_novo]
+min_child_ab = 0.2
+min_depth = 5
+max_depth = 1000
+min_gq = 25
+min_alt_depth = 5
+
+[RunHailFiltering.cores]
+small_variants = 8
 
 [ValidateMOI]
 
@@ -87,6 +105,7 @@ ignore_categories = [ "exomiser", "svdb"]
 
 # we dismiss variants where the proband doesn't have at least this much alt support
 min_alt_depth = 5
+minimum_depth = 10
 
 # by default, only consider the top two exomiser results
 exomiser_rank_threshold = 2
@@ -105,35 +124,12 @@ phenotype_match = ['6']
 # i.e. can appear as the second-hit, but will not independently be reported
 # comp-het formations of two support variants are also removed
 # all categories not in this list are treated as fully important
-support_categories = ['5', '6']
-
-[RunHailFiltering]
-# variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
-csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
-
-# variables for the hail operations, including CSQ sets and filter thresholds
-ac_threshold = 0.01
-additional_csq = ['missense']
-af_semi_rare = 0.01
-callset_af_sv_recessive = 0.03
-critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
-spliceai = 0.5
-
-[de_novo]
-min_child_ab = 0.2
-min_depth = 5
-max_depth = 1000
-min_gq = 25
-min_alt_depth = 5
-
-[RunHailFiltering.cores]
-small_variants = 8
+support_categories = ['6']
 
 [categories]
 1 = 'ClinVar Pathogenic'
 3 = 'High Impact Variant'
 4 = 'de Novo'
-5 = 'High SpliceAI Score'
 6 = 'AlphaMissense P/LP'
 pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
 svdb = 'SpliceVarDB Predicted Splice-Altering'

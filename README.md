@@ -51,7 +51,8 @@ Talos contains a demonstration workflow implemented using **Nextflow**, with con
 ### 3. Run Annotation Workflow
 
 ```bash
-nextflow -c nextflow/annotation.config run nextflow/annotation.nf \
+nextflow -c nextflow/annotation.config \
+  run nextflow/annotation.nf \
   [--large_files <path>] \
   [--processed_annotations <path>] \
   [--merged_vcf <path>]
@@ -60,7 +61,8 @@ nextflow -c nextflow/annotation.config run nextflow/annotation.nf \
 ### 4. Run Talos Workflow
 
 ```bash
-nextflow -c nextflow/talos.config run nextflow/talos.nf \
+nextflow -c nextflow/talos.config \
+  run nextflow/talos.nf \
   --matrix_table nextflow/cohort_outputs/cohort.mt
 ```
 
@@ -74,7 +76,7 @@ You will need:
 2. **Pedigree file** – PED format ([spec](https://gatk.broadinstitute.org/hc/en-us/articles/360035531972-PED-Pedigree-format))
 3. **\[Optional] Phenopackets** – For phenotype-driven gene panel generation
 4. **ClinVar data** – Pre-processed by [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration), see [large_files](large_files/README.md#talos-workflow)
-5. **Config file (TOML)** – See [`example_config.toml`](src/talos/example_config.toml)
+5. **Config file (TOML)** – See [`example_config.toml`](src/talos/example_config.toml) as a baseline example, and [Configuration.md](docs/Configuration.md) for extended details
 
 > **NOTE** the ClinvArbitration data is updated and re-uploaded monthly. A Stub has been provided in this repository, matching the dummy test data (`nextflow/inputs/clinvarbitration.tar.gz`) but that is not suitable for real analyses (only contains 4 variants).
 
@@ -170,7 +172,7 @@ Each Talos run includes historical tracking of variants:
 * `first_seen`: when the variant was first detected
 * `evidence_last_updated`: last classification change
 
-This enables identification of newly updated or reclassified variants over time.
+This enables identification of newly updated or reclassified variants over time. To enable this behaviour, add a `result_history` value into the configuration, pointing to a directory which is accessible at runtime. See [Configuration.md](docs/Configuration.md) for details
 
 ---
 
@@ -181,7 +183,7 @@ Variants are tagged with one or more **Talos categories** based on clinical, com
 <details>
 <summary><strong>View Category Diagram</strong></summary>
 
-![Category Diagram](design_docs/images/Categories.png)
+![Category Diagram](docs/images/Categories.png)
 
 </details>
 
