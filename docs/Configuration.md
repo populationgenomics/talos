@@ -60,15 +60,24 @@ This document explains the configuration options, the default values, and sensib
 
 ## Stage: `ValidateMOI`
   * Config Section: `ValidateMOI`
-  * Description: Controls filtering parameters during per-family MOI testing
+  * Description: Controls all filtering parameters for mode-of-inheritance (MOI) validation during per-family analysis.
 
-Four separate MOI Filter models are used by Talos. The specific model applied to a given variant will depend on the attributes of the variant and the MOI pattern being tested:
+Talos applies four distinct MOI filter models, each tailored to different variant types and inheritance patterns. For each variant, Talos selects the most appropriate model based on both the variant’s attributes and the MOI being evaluated.
+
+**Parameters shared by all models:**
+
+| Field                             | Purpose                                                        | Default |
+|-----------------------------------|----------------------------------------------------------------|---------|
+| `min_callset_ac_to_filter`        | Minimum allele count (AC) in the callset before intra-callset allele frequency (AF) filtering is applied. Intra-callset AF filters are highly effective for removing callset-specific artefacts, but may be too stringent for small cohorts. This parameter prevents the exclusion of rare variants in smaller callsets by only applying AF filtering when a variant reaches the specified AC threshold.  | 10      |
+| `min_alt_depth`  | Min. alt-supporting reads | 5       |
+| `minimum_depth`  | Min. total read depth     | 10      |
+
+**The Four MOI Filter models are:**
 
 1. `ClinVarDominant` - Applied when considering Dominant inheritance, if the variant has a P/LP ClinVar rating. Strict, but less strict than non-ClinVar P/LP Dominant
 
 | Field                             | Purpose                                                        | Default |
 |-----------------------------------|----------------------------------------------------------------|---------|
-| `min_callset_ac_to_filter`        | Min. instances of the variant in the callset before the intra-callset AF filter will be applied | 10      |
 | `clinvar_dominant_gnomad_max_af`  | Max gnomAD 4.1 Combined AF                                     | 0.00005 |
 | `clinvar_dominant_callset_max_af` | Max intra-callset AF                                           | 0.05    |
 
@@ -76,7 +85,6 @@ Four separate MOI Filter models are used by Talos. The specific model applied to
 
 | Field                      | Purpose                                                        | Default |
 |----------------------------|----------------------------------------------------------------|---------|
-| `min_callset_ac_to_filter` | Min. instances of the variant in the callset before the intra-callset AF filter will be applied | 10      |
 | `clinvar_gnomad_max_af`    | Max gnomAD 4.1 Combined AF                                     | 0.05    |
 | `clinvar_callset_max_af`   | Max intra-callset AF                                           | 0.05    |
 
@@ -84,7 +92,6 @@ Four separate MOI Filter models are used by Talos. The specific model applied to
 
 | Field                             | Purpose                                                        | Default |
 |-----------------------------------|----------------------------------------------------------------|---------|
-| `min_callset_ac_to_filter`        | Min. instances in the callset to apply intra-callset AF filter | 10      |
 | `dominant_callset_max_ac`         | Max intra-callset AC                                           | 10      |
 | `dominant_callset_max_af`         | Max intra-callset AF                                           | 0.01    |
 | `dominant_callset_sv_max_af`      | Max intra-callset AC (Structural Variants)                     | 0.01    |
@@ -97,20 +104,12 @@ Four separate MOI Filter models are used by Talos. The specific model applied to
 
 | Field                      | Purpose                                                        | Default |
 |----------------------------|----------------------------------------------------------------|---------|
-| `min_callset_ac_to_filter` | Min. instances in the callset to apply intra-callset AF filter | 10      |
 | `callset_max_af`           | Max intra-callset AF                                           | 0.01    |
 | `callset_sv_max_af`        | Max intra-callset AF (Structural Variants)                     | 0.01    |
 | `gnomad_max_af`            | Max gnomAD 4.1 Combined AF                                     | 0.01    |
 | `gnomad_max_homozygotes`   | Max gnomAD 4.1 Combined Homozygotes                            | 5       |
 | `gnomad_max_hemizygotes`   | Max gnomAD 4.1 Combined Hemizygotes                            | 5       |
 | `gnomad_sv_max_af`         | Max gnomAD 4.1 Combined AF (Structural Variants)               | 5       |
-
-Further filtering is done on all variant types and MOI, controlled by other parameters in the `ValidateMOI` block:
-
-| Field            | Purpose                   | Default |
-|------------------|---------------------------|---------|
-| `min_alt_depth`  | Min. alt-supporting reads | 5       |
-| `minimum_depth`  | Min. total read depth     | 10      |
 
 And finally, there are some further meta-parameters which control the variants being considered. These parameters are used to facilitate inclusion of less confident annotations (e.g. _in silico_ predictions) whilst preventing noise from these tools dominating the overall results:
 
