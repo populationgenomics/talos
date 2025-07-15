@@ -1,27 +1,35 @@
 # Configuration File
 
-The configuration file is a TOML file, containing headed sections for each principal step of Talos.  This config file should be created in full prior to running Talos stages, a template is present at [example_config.toml](../src/talos/example_config.toml). This page goes into more detail about how we arrived at specific default settings, and where possible, describes a reasonable range of alternatives.
+Talos is controlled by a **single TOML** configuration file. A fully commented template lives at  
+[`src/talos/example_config.toml`](../src/talos/example_config.toml).  
+This document explains the configuration options, the default values, and sensible alternatives.
 
-## Stage agnostic
-  * Config Section: `categories`
-  * Description: Maps the minimised category label to a longer description, presented in the final report
+## Global (stage-agnostic) settings
 
-  * Config Section: `result_history`
-  * Description: If provided `result_history` indicates a directory, local or cloud, which contains incremental result history files. With each run the most recent 'history' will be loaded in, and used to annotate the current result set with the earliest date a result was seen/classified. If a novel classification is made, or evidence changes, the date annotated into the report will be shifted to the current run date, assisting in the filtering/prioritisation process.
+| Config section | Purpose |
+|----------------|---------|
+| **`[categories]`** | Maps each short category code to a human-readable label shown in the HTML report. |
+| **`[result_history]`** | Local or cloud path – a directory path that stores prior Talos result-history files (one JSON per run). If defined, at the start of each run Talos loads the most recent result file in that directory. Variants that already appeared in an earlier run retain their original date; variants seen for the first time in the current run get today’s date. Downstream you can simply filter on the current run-date column to review only the newly prioritised variants.
+
+---
 
 ## Stages: `DownloadPanelApp`, `UnifiedPanelAppParser`
   * Config Section: `GeneratePanelData`
-  * Description: Controls which PanelApp deployment to use, which default Panel to use as the base for analysis, which additional genes/panels to include, and which genes to blacklist from the analysis
+  * Description: Talos uses PanelApp as its source of disease-associated genes. Optionally, it can also use it as a source of disease-specific gene associations used for the analysis of disease-specific cohorts.
+    These settings control which PanelApp deployment is used, which default Panel to use as the base for analysis, which additional genes/panels to include, and which genes to blacklist from the analysis.
+* **NOTE**: Although any PanalApp instance may be used, Talos does make use of some specific annotations currently present in the Australian PanelApp instance. We strongly suggest the Australian PanelApp instance used for all Talos analysis.
 
 | Field                 | Purpose                                                                 | Default                                | Alternative                                    |
 |-----------------------|-------------------------------------------------------------------------|----------------------------------------|------------------------------------------------|
 | `panelapp`            | PanelApp server to query                                                | https://panelapp-aus.org/api/v1/panels | https://panelapp.genomicsengland.co.uk/        |
-| `default_panel`       | Base panel for the analysis, applied to app participants                | 137, the PanelApp Aus Mendeliome       |                                                |
-| `require_pheno_match` | Genes to remove from analysis unless phenotype matched to a participant | FLG, GJB2, F2, F5, HFE                 |                                                |
-| `forbidden_genes`     | Genes to remove from analysis                                           | N/A                                    | Late onset/incidental findings                 |
-| `forced_panels`       | Panels to apply to all cohort members                                   | N/A                                    | Phenotype specific panels                      |
-| `within_x_months`     | Integer, genes added to panels within X months are prioritised          | 6                                      |                                                |
+| `default_panel`       | Base panel for the analysis, applied to app participants                | "137" [The "[Mendeliome](https://panelapp-aus.org/panels/137/)"]       |                                                |
+| `require_pheno_match` | List of gene symbols to remove from analysis unless phenotype matched to a participant. This is useful to exclude genes that frequently result in noise.  | FLG, GJB2, F2, F5, HFE                 |                                                |
+| `forbidden_genes`     | List of genes that will be excluded from all results.                                           | N/A                                    | Late onset/incidental findings                 |
+| `forced_panels`       | List of PanelApp panel IDs to apply to all cohort members. Typically used during the analysis of disease-specific cohorts. For example, if analysing a cohort consisting of patients who all have a suspected mitochondrial disorder, you could set this to `203` to highlight any genes associated with the Aus PanelApp [Mitochondrial disease panel](https://panelapp-aus.org/panels/203/).                                   | N/A                                    | Phenotype specific panels                      |
+| `within_x_months`     | Integer, genes added to panels within X months are flagged in the report          | 6                                      |                                                |
 | `manual_overrides`    | A manually defined panel: gene symbols, MOI                             | N/A                                    | Recently discovered genes, not yet in PanelApp |
+
+---
 
 ## Stage: `RunHailFiltering`
   * Config Section: `RunHailFiltering`
@@ -32,11 +40,13 @@ The configuration file is a TOML file, containing headed sections for each princ
 | `csq_string`              | list of named fields to concatenate into the VCF export                                                                                                                                                                                    | see example config                                                            | reduce/extend based on the available annotations                                                   | 
 | `critical_csq`            | High impact Consequence terms                                                                                                                                                                                                              | frameshift, splice_acceptor, splice_donor, start_lost, stop_gained, stop_lost | if using VEP annotations, use altered VEP equivalents (e.g. "frameshift" -> "frameshift_variant")  |
 | `additional_csq`          | During de novo variant filtering, we reduce the variant set to critical consequences + this list                                                                                                                                           | missense                                                                      |                                                                                                    |
-| `af_semi_rare`            | A coarse population frequency filter - variants more frequent than this are removed from consideration. Later in the process more rigorous filters are applied, so this is a 'mild' filter to retain plausible compound-het candidates     | 0.01                                                                          |                                                                                                    |
+| `af_semi_rare`            | A coarse global population frequency filter - variants more frequent than this are hard filtered during initial processing. Later in the process more rigorous filters are applied, so this is a 'mild' filter to retain plausible compound-het candidates     | 0.01                                                                          |                                                                                                    |
 | `callset_af_sv_recessive` | A coarse population and callset frequency filter - if an SV variant is more common than this either within the callset, or in the gnomAD annotations, remove                                                                               | 0.03                                                                          |                                                                                                    |
 
   * Config Section: `de_novo`
   * Description: Controls filtering thresholds and de novo variant detection parameters during the Hail Stage
+
+    TODO: Which of these are applied to parents, which are child-only?
 
 | Field                    | Purpose                                                                                                                                                         | Default | Alternative |
 |--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|-------------|
@@ -46,16 +56,19 @@ The configuration file is a TOML file, containing headed sections for each princ
 | `min_gq`                 | Minumum genotype quality score for all variants considered                                                                                                      | 25      | 40          |
 | `min_alt_depth`          | If all other conditions succeed, at least this many Alt observations to confirm a de Novo call                                                                  | 5       |             |
 
+---
+
 ## Stage: `ValidateMOI`
   * Config Section: `ValidateMOI`
   * Description: Controls filtering parameters during per-family MOI testing
 
-This part of the analysis defines 4 separate Filter models, and the one selected for each variant depends on the attributes and MOI pattern being tested:
+Four separate MOI Filter models are used by Talos. The specific model applied to a given variant will depend on the attributes of the variant and the MOI pattern being tested:
+
 1. `ClinVarDominant` - Applied when considering Dominant inheritance, if the variant has a P/LP ClinVar rating. Strict, but less strict than non-ClinVar P/LP Dominant
 
 | Field                             | Purpose                                                        | Default |
 |-----------------------------------|----------------------------------------------------------------|---------|
-| `min_callset_ac_to_filter`        | Min. instances in the callset to apply intra-callset AF filter | 10      |
+| `min_callset_ac_to_filter`        | Min. instances of the variant in the callset before the intra-callset AF filter will be applied | 10      |
 | `clinvar_dominant_gnomad_max_af`  | Max gnomAD 4.1 Combined AF                                     | 0.00005 |
 | `clinvar_dominant_callset_max_af` | Max intra-callset AF                                           | 0.05    |
 
@@ -63,7 +76,7 @@ This part of the analysis defines 4 separate Filter models, and the one selected
 
 | Field                      | Purpose                                                        | Default |
 |----------------------------|----------------------------------------------------------------|---------|
-| `min_callset_ac_to_filter` | Min. instances in the callset to apply intra-callset AF filter | 10      |
+| `min_callset_ac_to_filter` | Min. instances of the variant in the callset before the intra-callset AF filter will be applied | 10      |
 | `clinvar_gnomad_max_af`    | Max gnomAD 4.1 Combined AF                                     | 0.05    |
 | `clinvar_callset_max_af`   | Max intra-callset AF                                           | 0.05    |
 
