@@ -44,9 +44,12 @@ clinvar_dominant_gnomad_max_af = 0.00005
 clinvar_callset_max_af = 0.05
 clinvar_dominant_callset_max_af = 0.05
 
-phenotype_match = [ '6']
-ignore_categories = [ 'exomiser', 'svdb']
-support_categories = ['6', '5']
+minimum_depth = 10
+min_alt_depth = 5
+
+phenotype_match = ['6']
+ignore_categories = ['exomiser', 'svdb']
+support_categories = ['6']
 exomiser_rank_threshold = 2
 # All IDs for cases to remove from this round of reports - already solved
 solved_cases = ['female']
@@ -58,7 +61,6 @@ ac_threshold = 0.01
 additional_csq = ['missense']
 af_semi_rare = 0.01
 critical_csq = ['frameshift', 'splice_acceptor', 'splice_donor', 'start_lost', 'stop_gained', 'stop_lost']
-minimum_depth = 10
 spliceai = 0.5
 
 [categories]
