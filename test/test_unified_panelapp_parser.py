@@ -1,11 +1,12 @@
 import pytest
+
+from talos.models import CURRENT_VERSION, DownloadedPanelApp, PanelApp, PanelShort, ParticipantHPOPanels, PhenoPacketHpo
+from talos.static_values import get_granular_date
 from talos.UnifiedPanelAppParser import (
     get_simple_moi,
     match_hpos_to_panels,
     match_participants_to_panels,
 )
-from talos.models import PanelApp, PhenoPacketHpo, ParticipantHPOPanels, DownloadedPanelApp, PanelShort, CURRENT_VERSION
-from talos.static_values import get_granular_date
 
 
 def test_match_hpos_to_panels(fake_obo_path):

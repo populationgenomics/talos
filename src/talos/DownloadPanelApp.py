@@ -27,29 +27,27 @@ Optionally takes a MANE JSON file, which is used to map Ensembl IDs to gene symb
 - record all variations
 """
 
-import json
-
-import aiohttp
 import asyncio
+import json
 import re
 from argparse import ArgumentParser
-from dateutil.parser import parse
 
+import aiohttp
+from dateutil.parser import parse
 from loguru import logger
 
-from talos.config import config_retrieve, ConfigError
+from talos.config import ConfigError, config_retrieve
 from talos.models import (
-    PanelShort,
-    PhenoPacketHpo,
     DownloadedPanelApp,
     DownloadedPanelAppGene,
     DownloadedPanelAppGenePanelDetail,
+    PanelShort,
+    PhenoPacketHpo,
 )
 from talos.utils import (
     get_json_response,
     read_json_from_path,
 )
-
 
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'

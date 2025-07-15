@@ -42,21 +42,18 @@ this workflow is designed to be something which could be executed easily off-sit
 from functools import cache
 
 import loguru
-
+from cpg_flow import stage, targets, utils, workflow
 from cpg_utils import Path
 
-from cpg_flow import workflow, stage, targets, utils
-
 from talos.cpg_internal_scripts.cpgflow_jobs import (
-    ExtractVcfFromMt,
-    ComposeVcfFragments,
-    AnnotateGnomadUsingEchtvar,
     AnnotateConsequenceUsingBcftools,
-    SitesOnlyVcfIntoHt,
+    AnnotateGnomadUsingEchtvar,
+    ComposeVcfFragments,
+    ExtractVcfFromMt,
     JumpAnnotationsFromHtToFinalMt,
+    SitesOnlyVcfIntoHt,
     SquashMtIntoTarball,
 )
-
 
 SHARD_MANIFEST = 'shard-manifest.txt'
 

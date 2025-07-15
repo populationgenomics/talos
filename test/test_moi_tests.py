@@ -2,13 +2,12 @@
 tests relating to the MOI filters
 """
 
-from test.test_utils import TWO_EXPECTED
-
 import pytest
 
 from talos.models import Coordinates, SmallVariant
 from talos.moi_tests import (
     BaseMoi,
+    ClinVarFilter,
     DominantAutosomal,
     MOIRunner,
     RecessiveAutosomalCH,
@@ -18,9 +17,10 @@ from talos.moi_tests import (
     XRecessiveFemaleCH,
     XRecessiveFemaleHom,
     XRecessiveMale,
-    ClinVarFilter,
 )
 from talos.utils import make_flexible_pedigree
+
+from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')

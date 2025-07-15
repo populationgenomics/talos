@@ -13,10 +13,9 @@ All existing INFO fields are dropped, and replaced with just the callset AC / AN
 import argparse
 
 import loguru
-import hail as hl
-
 from cpg_utils import config, hail_batch
 
+import hail as hl
 
 # Update the VQSR header elements so 3rd party tools can read the VCF reliably
 VQSR_FILTERS = {

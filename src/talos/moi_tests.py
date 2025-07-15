@@ -23,7 +23,6 @@ from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
 from talos.utils import X_CHROMOSOME, CompHetDict
 
-
 HEMI_CHROMS = {'chrX, chrY'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
