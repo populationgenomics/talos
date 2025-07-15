@@ -11,11 +11,10 @@ import json
 from argparse import ArgumentParser
 from collections import defaultdict
 
-from loguru import logger
-import hail as hl
-
 from cpg_utils.hail_batch import init_batch
+from loguru import logger
 
+import hail as hl
 
 MISSING_STRING = hl.str('')
 

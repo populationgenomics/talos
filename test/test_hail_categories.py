@@ -2,11 +2,10 @@
 unit testing collection for the hail MT methods
 """
 
-from test.test_utils import ONE_EXPECTED, TWO_EXPECTED
-
-import hail as hl
 import pandas as pd
 import pytest
+
+import hail as hl
 
 from talos.models import PanelApp
 from talos.RunHailFiltering import (
@@ -18,6 +17,8 @@ from talos.RunHailFiltering import (
     green_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
+
+from test.test_utils import ONE_EXPECTED, TWO_EXPECTED
 
 category_1_keys = ['locus', 'categoryboolean1']
 category_2_keys = ['locus', 'clinvar_talos', 'cadd', 'revel', 'geneIds', 'consequence_terms']

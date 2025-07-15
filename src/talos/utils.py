@@ -5,10 +5,8 @@ HTTPX requests are backoff-wrapped using tenacity
 https://tenacity.readthedocs.io/en/latest/
 """
 
-import pathlib
-
-import httpx
 import json
+import pathlib
 import re
 import string
 import zoneinfo
@@ -16,12 +14,13 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
 from random import choices
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from peds import open_ped
-from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -39,7 +38,6 @@ from talos.models import (
     lift_up_model_version,
 )
 from talos.static_values import get_granular_date
-
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -616,7 +614,7 @@ def gather_gene_dict_from_contig(
 
     # a dict to allow lookup of variants on this whole chromosome
     contig_variants = 0
-    contig_dict = defaultdict(list)
+    contig_dict: dict[str, list[VARIANT_MODELS]] = defaultdict(list)
 
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
@@ -634,7 +632,8 @@ def gather_gene_dict_from_contig(
         contig_variants += 1
 
         # update the gene index dictionary
-        contig_dict[small_variant.info.get('gene_id')].append(small_variant)
+        gene_id: str = small_variant.info['gene_id']
+        contig_dict[gene_id].append(small_variant)
 
     for sv_source in sv_sources:
         structural_variants = 0

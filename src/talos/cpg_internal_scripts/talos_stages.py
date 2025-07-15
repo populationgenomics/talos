@@ -2,21 +2,20 @@
 This is a central script for the Talos process, implemented at the CPG, using the cpg-flow workflow framework
 """
 
-import toml
 import datetime
 import functools
-
-from loguru import logger
 from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
+import toml
 from cpg_flow import stage, targets, workflow
-from cpg_utils import Path, to_path, config, hail_batch
+from cpg_utils import Path, config, hail_batch, to_path
+from loguru import logger
 
-from talos.utils import get_granular_date
 from talos.cpg_internal_scripts.annotation_stages import SquashMtIntoTarballStage
 from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
+from talos.utils import get_granular_date
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
