@@ -52,4 +52,3 @@ This README documents the parameters used in the two nextflow configuration file
 | `matrix_table`          | This is the output of the previous `annotation.nf` workflow. It has no default value, and the path to the MatrixTable should be passed at runtime using the `--matrix_table` command line argument                                                                                                                           |
 
 ## From test data to real runs
-
