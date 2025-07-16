@@ -7,13 +7,13 @@
 
 **Talos** is a scalable, open-source variant prioritisation tool designed to support automated reanalysis of genomic data in rare disease. It identifies **candidate causative variants in known disease genes** by integrating static annotations (e.g. population frequency, predicted consequence) with dynamic knowledge sources such as ClinVar and PanelApp Australia. Talos applies a set of configurable, rule-based logic modules aligned with ACMG/AMP criteria and prioritises variants consistent with expected mode of inheritance and, optionally, patient phenotype.
 
-  
+
 While Talos can be used for one-off reanalysis of individual families or cohorts, its core design is optimised for **routine, cohort-scale reanalysis**. By comparing current annotations with prior results, Talos highlights **variants that have become reportable due to newly available evidence**—such as new gene–disease or variant–disease relationships—since the last analysis cycle. This enables timely identification of new diagnoses driven by emerging knowledge, while maintaining a low manual review burden.
 
-  
+
 Talos is specifically intended to identify **variants in established disease genes that are likely to explain the participant’s condition**. It is not designed to detect novel candidate genes or to interpret variants of uncertain significance outside the context of existing clinical knowledge. This focus improves specificity and supports use in diagnostic and research reanalysis workflows.
 
-  
+
 A full description of the method and its validation in large clinical and research cohorts is available in our preprint:
 
 [**https://www.medrxiv.org/content/10.1101/2025.05.19.25327921**](https://www.medrxiv.org/content/10.1101/2025.05.19.25327921)
@@ -26,23 +26,23 @@ A full description of the method and its validation in large clinical and resear
 Talos is designed to support **automated reanalysis of rare disease cohorts**, enabling identification of **candidate causative variants in known disease genes** based on the latest available evidence. It is best suited for scenarios where:
 
 - You are performing **routine reanalysis** of undiagnosed individuals (e.g. monthly or quarterly)
-    
-- You want to detect **variants that have become reportable** due to updates in gene–disease or variant–disease knowledge
-    
-- You aim to **minimise the number of variants requiring manual review** without compromising sensitivity
-    
-- You are working with **exome or genome sequencing data** from previously analysed research or clinical cohorts
-    
-- You need a scalable, reproducible pipeline for **family-based or cohort-scale analysis**
-    
 
-  
+- You want to detect **variants that have become reportable** due to updates in gene–disease or variant–disease knowledge
+
+- You aim to **minimise the number of variants requiring manual review** without compromising sensitivity
+
+- You are working with **exome or genome sequencing data** from previously analysed research or clinical cohorts
+
+- You need a scalable, reproducible pipeline for **family-based or cohort-scale analysis**
+
+
+
 Talos is **not currently designed** for:
 
 - Identifying **novel candidate disease genes** or gene discovery
-    
+
 - Analysing **mitochondrial variants, short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
-    
+
 
 > Support for some of these variant types may be added in future releases.
 
@@ -59,9 +59,9 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 ### **1. Install Requirements**
 
 - [Nextflow](https://www.nextflow.io/docs/latest/install.html)
-    
+
 - Docker
-    
+
 To build the Docker image:
 
 ```
@@ -126,21 +126,21 @@ Talos produces structured outputs to support both manual review and downstream i
 ### **Primary Output (per family):**
 
 - *.json file listing candidate variants
-    
+
 - Includes variant-level and gene-level evidence, inheritance checks, and phenotype match tags
 
 
 ### **Optional Outputs:**
 
 - **HTML reports** summarising results for analysts or clinicians
-    
+
 - **Simplified TSV** for Seqr ingestion via MinimiseOutputForSeqr
 
 
 ### **Reanalysis Metadata:**
 
 - first_seen: when the variant was first returned
-    
+
 - evidence_last_updated: when its evidence last changed
 
 Only variants passing configured thresholds and logic modules are returned.
@@ -155,15 +155,15 @@ Talos is designed to support **automated, iterative reanalysis** of undiagnosed 
 ### **How it works:**
 
 1. Run full annotation + prioritisation once
-    
+
 2. In future cycles, update ClinVar / PanelApp only
-    
+
 3. Rerun prioritisation to return **newly supported variants**
 
 By integrating the results of previous analyses with each new run, each variant in the output includes:
 
 - first_seen: original detection date
-    
+
 - evidence_last_updated: last evidence update (ClinVar, PanelApp)
 
 
@@ -173,20 +173,20 @@ By integrating the results of previous analyses with each new run, each variant 
 
 ## **🧬 Phenotype Matching**
 
-  
+
 
 Talos supports phenotype-driven filtering using **HPO terms**.
 
-  
+
 
 ### **Matching Strategies:**
 
 - **Patient-to-Gene**: semantic similarity between HPO terms and gene annotations
-    
+
 - **Patient-to-Panel**: PanelApp panels assigned if patient terms match panel HPO tags
-    
+
 - **Cohort-to-Panel**: manually assign panels to all individuals in config
-    
+
 
 Phenotype data is optional, and can be provided as a [GA4GH Cohort](https://phenopacket-schema.readthedocs.io/en/latest/cohort.html) ([README here](docs/Phenopackets.md)). When enabled, phenotype matching is used to:
 
@@ -204,7 +204,7 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 ### **Module Types**
 
 - **Primary**: sufficient to trigger reporting on their own (e.g. ClinVar_PLP)
-    
+
 - **Supporting**: used only as second hits in recessive genes (e.g. In_silico)
 
 
@@ -224,7 +224,7 @@ Each module can be configured through the `.toml` config file (see [Configuratio
 ---
 
 ## **📓 Citation**
-  
+
 
 If you use Talos in your research or clinical workflow, please cite:
 
