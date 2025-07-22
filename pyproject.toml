@@ -20,9 +20,9 @@ classifiers=[
 ]
 
 dependencies=[
-    'hail>=0.2.134',
+    'hail==0.2.134',
     'cloudpathlib[all]>=0.16.0',
-    'cpg-utils>=5.2.1',
+    'cpg-utils>=5.4.1',
     'cyvcf2>=0.30.18',
     'grpcio-status>=1.48,<1.50',
     'hatchling>=1.27.0',
@@ -31,7 +31,7 @@ dependencies=[
     'loguru>=0.7.3',
     'networkx>=3',
     'obonet>=1',
-    'peds>=1.2.0',
+    'peds==1.3.2',
     'pendulum>=3.1.0',
     'phenopackets>=2',
     'protobuf==3.20.2',
