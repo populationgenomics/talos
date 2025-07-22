@@ -16,6 +16,8 @@ from loguru import logger
 
 import hail as hl
 
+from talos import config
+
 MISSING_STRING = hl.str('')
 
 
@@ -277,8 +279,8 @@ def main(
         logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
         init_batch()
     else:
-        logger.info('Using Hail Local backend, no checkpoints')
-        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+        logger.info(f'Using local backend for Hail, no checkpointing available')
+        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)

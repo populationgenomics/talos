@@ -856,11 +856,7 @@ def main(
    █████    █████   █████ ███████████    ███████     █████████""",
     )
 
-    # initiate Hail as a local cluster
-    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
-    logger.info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
-
-    hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', quiet=True)
+    hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panel_data!r}')

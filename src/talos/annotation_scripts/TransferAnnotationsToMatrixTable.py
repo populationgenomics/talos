@@ -13,6 +13,8 @@ from loguru import logger
 
 import hail as hl
 
+from talos import config
+
 
 def cli_main():
     """
@@ -55,7 +57,7 @@ def main(
 
     if backend == 'local':
         logger.info('Using local backend for Hail')
-        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
     else:
         logger.info('Using Batch backend for Hail')
         init_batch()
