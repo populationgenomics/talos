@@ -19,6 +19,16 @@ else
     echo "${PHENIO_DB} already exists"
 fi
 
+# GRCh38 reference genome
+GRCh38="ref.fa"
+if [ ! -f ${GRCh38} ]; then
+    echo "Downloading GRCh38 reference genome from the Broad Institute public data bucket"
+    echo "n.b. this is a GRCh38 reference genome, and your data must also be aligned to this reference genome for Talos to work correctly"
+    curl https://storage.cloud.google.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta -o "${GRCh38}"
+else
+    echo "${GRCh38} already exists"
+fi
+
 # MANE gene data
 MANE="MANE.GRCh38.v1.4.summary.txt.gz"
 if [ ! -f ${MANE} ]; then

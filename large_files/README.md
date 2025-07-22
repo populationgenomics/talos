@@ -6,6 +6,8 @@ The `gather_files.sh` script will download the files to the local directory, whe
 
 The file names created by the `gather_files.sh` script are the same as the default names in the [annotation.config](../nextflow/annotation.config) and [talos.config](../nextflow/talos.config) files - if file names in the configuration files are altered, the file names should be udpated the match.
 
+> **n.b.** Talos has only been tested on GRCh38, and in that particular reference genome is used in a number of places. The download script fetches a copy of HG38 as part of the setup process, and Talos is not technically supported on other reference genomes, so your variant data will have to be aligned to GRCh38 for the time being. If you have a need to run Talos on a different reference genome, please raise an issue in the GitHub repository.
+
 ## Annotation Workflow
 
 1. A reference genome matching your input data, in FASTA format, e.g. from `gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.{fasta,fasta.fai,dict}`. This is not downloaded by [gather_files.sh](gather_files.sh), as this may be specific to your input data.
