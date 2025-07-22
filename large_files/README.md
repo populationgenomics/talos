@@ -1,11 +1,15 @@
 # Large Files
 
-For the Stub workflows, the Nextflow configuration expects to find a few files in this folder.
+Talos requires a number of large files, for both the minimal test workflow, and real-world analyses. These files are too large to store in GitHub, so they are not included in this repository. Instead, a file [gather_files.sh](gather_files.sh) is provided, which will download the required files from various sources prior to running analyses.
+
+The `gather_files.sh` script will download the files to the local directory, wherever it is run. That can either be this `large_files` directory, or any other directory you choose. When running the [Annotation](../nextflow/annotation.nf) and [Talos](../nextflow/talos.nf) workflows, you can override the default `large_files` directory by setting the `--large_files` parameter when invoking the nextflow run command, indicating the directory where you have downloaded the files.
+
+The file names created by the `gather_files.sh` script are the same as the default names in the [annotation.config](../nextflow/annotation.config) and [talos.config](../nextflow/talos.config) files - if file names in the configuration files are altered, the file names should be udpated the match.
 
 ## Annotation Workflow
 
-1. A reference genome matching your input data, in FASTA format, e.g. from `gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.{fasta,fasta.fai,dict}`.
-2. An Echtvar reference file from https://zenodo.org/records/15222100. Rename this to match the `params.gnomad_zip` entry in the [annotation.config](nextflow/annotation.config) file. This file does not need to be unzipped!
+1. A reference genome matching your input data, in FASTA format, e.g. from `gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.{fasta,fasta.fai,dict}`. This is not downloaded by [gather_files.sh](gather_files.sh), as this may be specific to your input data.
+2. An Echtvar reference file from https://zenodo.org/records/15222100.
 3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.113.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens).
 4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.4.summary.txt.gz` from the [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4).
 5. Predictions for AlphaMissense, e.g. `AlphaMissense_hg38.tsv.gz` from https://zenodo.org/records/8208688.
