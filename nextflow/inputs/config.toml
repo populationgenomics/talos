@@ -16,7 +16,7 @@ exomiser = 'Variant prioritised by Exomiser'
 default_panel = 137
 panelapp = "https://panelapp-aus.org/api/v1/panels"
 require_pheno_match = [ "FLG", "GJB2", "F2", "F5", "HFE"]
-within_x_months = 3
+within_x_months = 6
 forbidden_genes = []
 forced_panels = [ 144,]
 

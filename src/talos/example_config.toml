@@ -1,3 +1,4 @@
+#result_history = "path/to/per-run/results/directory"
 # If this points to a folder (local, or cloud bucket), Talos will record a JSON file of all samples with variants
 # detected, the categories each variant was assigned, and the date of the analysis.
 # each file is named in such a way that the datetime of the analysis is encoded in the filename.
@@ -6,7 +7,6 @@
 # - Where a variant has been previously reported, it will be included in the report, but the date will reflect the first time it was reported
 # - Where a variant has previously been reported, but a never-before-seen category is assigned, the date will be updated to reflect the current date
 # - Each compound heterozygous variant will be reported along with its partner variant IDs. This will
-#result_history = "path/to/per-run/results/directory"
 
 [GeneratePanelData]
 # the panelapp instance to use
