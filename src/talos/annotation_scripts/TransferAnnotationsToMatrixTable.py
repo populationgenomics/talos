@@ -13,8 +13,6 @@ from loguru import logger
 
 import hail as hl
 
-from talos import config
-
 
 def cli_main():
     """

@@ -252,7 +252,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     green_expression = green_from_panelapp(panelapp)
 
     # initiate Hail in local cluster mode
-    logger.info(f'Starting Hail with reference genome GRCh38, as a local cluster')
+    logger.info('Starting Hail with reference genome GRCh38, as a local cluster')
     hl.context.init_spark(master='local[*]')
     hl.default_reference('GRCh38')
 
@@ -262,7 +262,6 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         reference_genome='GRCh38',
         skip_invalid_loci=True,
         force_bgz=True,
-        n_partitions=number_of_cores,
     ).checkpoint(
         output='temporary.mt',
         _read_if_exists=True,
