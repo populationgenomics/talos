@@ -36,7 +36,6 @@ Talos is designed to support **automated reanalysis of rare disease cohorts**, e
 - You need a scalable, reproducible pipeline for **family-based or cohort-scale analysis**
 
 
-
 Talos is **not currently designed** for:
 
 - Identifying **novel candidate disease genes** or gene discovery
@@ -70,7 +69,7 @@ docker build -t talos:7.4.1 .
 
 ### **2. Download Annotation Resources**
 
-Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them.
+Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a script which will handle the initial download of all required resources.
 
 ### **3. Run Annotation Workflow**
 
