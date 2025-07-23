@@ -84,22 +84,20 @@ start_download https://zenodo.org/records/15222100/files/gnomad_4.1_region_merge
 Downloading Echtvar from https://zenodo.org/records/15222100"
 
 # Monarch phenotype DB - another large download
-PHENIO_DB="phenio.db.gz"
-start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz "${PHENIO_DB}"
+start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
 
 # GRCh38 reference genome
-GRCh38="ref.fa"
-GRCh38_URL="https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta?alt=media"
-start_download $GRCh38_URL ${GRCh38} "${MSG}" "\
-Downloading GRCh38 reference genome from the Broad Institute public data bucket
-n.b. this is a GRCh38 reference genome, and your data must also be aligned to this reference genome for Talos to work correctly"
+GRCh38="ref.fa.gz"
+GRCh38_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz"
+start_download ${GRCh38_URL} ${GRCh38} "Downloading compressed GRCh38 reference genome from UCSC
+n.b. this is a GRCh38 reference genome, and your data must also be aligned to this reference genome for Talos to work correctly
+You will need to decompress this with gunzip, and index with samtools faidx before use."
 
 # MANE gene data
 start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4/MANE.GRCh38.v1.4.summary.txt.gz
 
 # Ensembl GFF3 data
-GFF3="Homo_sapiens.GRCh38.113.gff3.gz"
-start_download https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens/Homo_sapiens.GRCh38.113.chr.gff3.gz
+start_download https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens/Homo_sapiens.GRCh38.113.gff3.gz
 
 # Jax lab file for phenotype matching
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2025-05-06/hp.obo
@@ -115,4 +113,3 @@ AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
 
 await
-
