@@ -275,7 +275,8 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
             stat_counter[str(len(family_members))] += 1
 
         for member in filter_members:
-            stat_counter[MALE_FEMALE[member.sex]] += 1
+            # any value not specifically addressed here defaults to unknown
+            stat_counter[MALE_FEMALE.get(member.sex, MemberSex.UNKNOWN.value)] += 1
             if member.affected == '2':
                 stat_counter['affected'] += 1
 
