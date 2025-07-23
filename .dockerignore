@@ -10,6 +10,4 @@ design_docs
 # virtualenv
 talos_3.10
 
-# large files
-genes_to_phenotype.txt
-hpo_terms.obo
+large_files
