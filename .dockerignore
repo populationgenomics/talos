@@ -11,8 +11,5 @@ design_docs
 talos_3.10
 
 # large files
-gnomAD*
-nextflow*
-!nextflow/inputs/echtvar_config.json
 genes_to_phenotype.txt
 hpo_terms.obo
