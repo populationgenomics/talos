@@ -16,7 +16,6 @@ from loguru import logger
 
 import hail as hl
 
-
 MISSING_STRING = hl.str('')
 
 
