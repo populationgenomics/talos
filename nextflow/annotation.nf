@@ -84,8 +84,8 @@ workflow {
 		ch_merged_tuple = FilterVcfToBedWithBcftools.out
 	}
 	else {
-		ch_vcfs = channel.fromPath("${params.input_vcf_dir}/*.vcf.bgz")
-		ch_tbis = channel.fromPath("${params.input_vcf_dir}/*.vcf.bgz").map{ it -> file("${it}.tbi") }
+		ch_vcfs = channel.fromPath("${params.input_vcf_dir}/*.vcf.gz")
+		ch_tbis = channel.fromPath("${params.input_vcf_dir}/*.vcf.gz").map{ it -> file("${it}.tbi") }
 		MergeVcfsWithBcftools(
 			ch_vcfs.collect(),
 			ch_tbis.collect(),
