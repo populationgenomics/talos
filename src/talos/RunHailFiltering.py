@@ -509,7 +509,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # filter out rows with no high impact tx consequences, and no clinvar Pathogenic annotation
     return filtered_mt.filter_rows(
-        (hl.len(filtered_mt.transcript_consequences) == 0) & (mt.clinvar_talos == 0),
+        (hl.len(filtered_mt.transcript_consequences) == 0) & (filtered_mt.info.clinvar_talos == 0)
         keep=False,
     )
 
