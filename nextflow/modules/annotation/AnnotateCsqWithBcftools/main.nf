@@ -18,6 +18,7 @@ process AnnotateCsqWithBcftools {
     bcftools csq --force -f "${reference}" \
         --local-csq \
         -g ${gff3} \
+        -B 20 \
         -Oz -o "${params.cohort}_csq.vcf.bgz" \
         ${vcf}
     """

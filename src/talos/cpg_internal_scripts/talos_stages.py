@@ -599,7 +599,6 @@ class HpoFlagging(stage.CohortStage):
     analysis_type='aip-report',
     analysis_keys=['dated'],
     tolerate_missing_output=True,
-    forced=True,
 )
 class CreateTalosHtml(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
