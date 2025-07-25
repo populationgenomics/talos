@@ -45,7 +45,7 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /us
 
 FROM base_bcftools AS base_bcftools_echtvar
 
-ARG ECHTVAR_VERSION=v0.2.1
+ARG ECHTVAR_VERSION=v0.2.2
 
 ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" /bin/echtvar
 

@@ -90,13 +90,6 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
     See: https://github.com/populationgenomics/ClinvArbitration
 
     We replace any existing ClinVar annotations with our own version, then identify Pathogenic/Benign variants
-
-    Args:
-        mt (): the MatrixTable of all variants
-        clinvar (): the table of private ClinVar annotations to use
-
-    Returns:
-        The same MatrixTable but with additional annotations
     """
 
     logger.info(f'loading private clinvar annotations from {clinvar}')
@@ -498,9 +491,6 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     - reduce the per-row transcript CSQ to a limited group
     - reduce the rows to ones where there are remaining tx consequences
-
-    Args:
-        mt ():
     """
 
     # at time of writing this is VEP HIGH + missense_variant
@@ -517,8 +507,11 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
         ),
     )
 
-    # filter out rows with no tx consequences left, and no splice cat. assignment
-    return filtered_mt.filter_rows(hl.len(filtered_mt.transcript_consequences) == 0, keep=False)
+    # filter out rows with no high impact tx consequences, and no clinvar Pathogenic annotation
+    return filtered_mt.filter_rows(
+        (hl.len(filtered_mt.transcript_consequences) == 0) & (filtered_mt.info.clinvar_talos == 0),
+        keep=False,
+    )
 
 
 def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
@@ -538,13 +531,6 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     a male proband to have a Hom genotype as a Hemizygous event (looking at you, GATK)
 
     If this finds the variants we're looking for, great. If we need to reduce noise later, that's fine.
-
-    Args:
-        mt ():
-        ped_file_path (): path to a pedigree in PLINK format
-
-    Returns:
-        same variants, categorysample4 either 'missing' or sample IDs where de novo inheritance is seen
     """
 
     # modifiable through config
@@ -947,9 +933,11 @@ def main(
     mt = annotate_category_6(mt=mt)
     mt = annotate_category_3(mt=mt)
 
-    # ordering is important - category4 (de novo) makes
-    # use of category 5, so it must follow
-    mt = annotate_category_4(mt=mt, ped_file_path=pedigree)
+    # insert easy ignore of de novo filtering based on config, to overcome some data format issues
+    if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']):
+        mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
+    else:
+        mt = annotate_category_4(mt=mt, ped_file_path=pedigree)
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
