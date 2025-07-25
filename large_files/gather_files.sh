@@ -90,9 +90,15 @@ start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
 # GRCh38 reference genome
 GRCh38="ref.fa"
 GRCh38_URL="https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta?alt=media"
-start_download $GRCh38_URL ${GRCh38} "${MSG}" "\
+start_download $GRCh38_URL ${GRCh38} "\
 Downloading GRCh38 reference genome from the Broad Institute public data bucket
 n.b. this is a GRCh38 reference genome, and your data must also be aligned to this reference genome for Talos to work correctly"
+
+# GRCh38 reference genome
+GRCh38_FAI="ref.fa.fai"
+GRCh38_FAI_URL="https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai?alt=media"
+start_download $GRCh38_FAI_URL ${GRCh38_FAI} "\
+Downloading GRCh38 reference genome index from the Broad Institute public data bucket"
 
 # MANE gene data
 start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4/MANE.GRCh38.v1.4.summary.txt.gz
