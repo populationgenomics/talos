@@ -43,7 +43,7 @@ This document explains the configuration options, the default values, and sensib
 | `af_semi_rare`            | A coarse global population frequency filter - variants more frequent than this are hard filtered during initial processing. Later in the process more rigorous filters are applied, so this is a 'mild' filter to retain plausible compound-het candidates     | 0.01                                                                          |                                                                                                    |
 | `callset_af_sv_recessive` | A coarse population and callset frequency filter - if an SV variant is more common than this either within the callset, or in the gnomAD annotations, remove                                                                               | 0.03                                                                          |                                                                                                    |
 
-  * Config Section: `de_novo`
+  * Config Section: `RunHailFiltering.de_novo`
   * Description: Controls filtering thresholds and de novo variant detection parameters during the Hail Stage
 
     TODO: Which of these are applied to parents, which are child-only?

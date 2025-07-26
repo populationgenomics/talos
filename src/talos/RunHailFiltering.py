@@ -534,11 +534,11 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'])
-    min_depth: int = config_retrieve(['de_novo', 'min_depth'])
-    max_depth: int = config_retrieve(['de_novo', 'max_depth'])
-    min_gq: int = config_retrieve(['de_novo', 'min_gq'])
-    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'])
+    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'])
+    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'])
+    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'])
+    min_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_gq'])
+    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'])
 
     logger.info('Running de novo search')
 
