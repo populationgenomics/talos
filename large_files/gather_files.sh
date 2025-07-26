@@ -83,15 +83,28 @@ ECHTVAR_FILE="gnomad_4.1_region_merged_GRCh38_whole_genome"
 start_download https://zenodo.org/records/15222100/files/gnomad_4.1_region_merged_GRCh38_whole_genome?download=1 "${ECHTVAR_FILE}" "\
 Downloading Echtvar from https://zenodo.org/records/15222100"
 
-# Monarch phenotype DB - another large download
-start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
+# Monarch phenotype DB - another large download. 17GB decompressed
+COMPRESSED="phenio.db.gz"
+DECOMPRESSED="phenio.db"
+# if it doesn't exist, download it
+if [ ! -f "${DECOMPRESSED}" ]; then
+  echo "[INFO] phenio.db not found, downloading..."
+  start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
+else
+  echo "[INFO] phenio.db already exists, skipping download."
+fi
 
 # GRCh38 reference genome
 GRCh38="ref.fa.gz"
-GRCh38_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz"
-start_download ${GRCh38_URL} ${GRCh38} "Downloading compressed GRCh38 reference genome from UCSC
-n.b. this is a GRCh38 reference genome, and your data must also be aligned to this reference genome for Talos to work correctly
-You will need to decompress this with gunzip, and index with samtools faidx before use."
+GRCh38_decompressed="ref.fa"
+# if it doesn't exist, download it
+if [ ! -f "${GRCh38_decompressed}" ]; then
+  echo "[INFO] compressed ref.fa not found, attempting download..."
+    GRCh38_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz"
+    start_download ${GRCh38_URL} ${GRCh38} "Downloading compressed GRCh38 reference genome from UCSC"
+else
+  echo "[INFO] ${GRCh38_decompressed} already exists, skipping download."
+fi
 
 # MANE gene data
 start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4/MANE.GRCh38.v1.4.summary.txt.gz
@@ -113,3 +126,13 @@ AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
 
 await
+
+#if compressed exists, but decompressed doesn't, gunzip it
+if [ ! -f "${GRCh38_decompressed}" ] && [ -f "${GRCh38}" ]; then
+    gunzip ${GRCh38}
+fi
+
+# same for the phenio files
+if [ ! -f "${DECOMPRESSED}" ] && [ -f "${COMPRESSED}" ]; then
+    gunzip ${COMPRESSED}
+fi
