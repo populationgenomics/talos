@@ -1,10 +1,9 @@
 from typing import TYPE_CHECKING
 
-from cpg_utils import config, hail_batch, Path
 from cpg_flow import targets
+from cpg_utils import Path, config, hail_batch
 
 from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
-
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob

@@ -19,7 +19,7 @@ from argparse import ArgumentParser
 
 from loguru import logger
 
-from talos.models import MiniForSeqr, MiniVariant, ResultData, CategoryMeta
+from talos.models import CategoryMeta, MiniForSeqr, MiniVariant, ResultData
 
 
 def cli_main():

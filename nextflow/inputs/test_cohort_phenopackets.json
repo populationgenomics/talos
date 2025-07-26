@@ -1,0 +1,63 @@
+{
+  "id": "unknown",
+  "description": "Phenotypic data from pedigree_with_hpo.ped",
+  "members": [
+    {
+      "id": "proband",
+      "subject": {
+        "id": "1",
+        "alternateIds": [
+          "proband1"
+        ]
+      },
+      "phenotypicFeatures": [
+        {
+          "type": {
+            "id": "HP:0002779"
+          }
+        },
+        {
+          "type": {
+            "id": "HP:0004322"
+          }
+        },
+        {
+          "type": {
+            "id": "HP:0009145"
+          }
+        }
+      ]
+    },
+    {
+      "id": "father",
+      "subject": {
+        "id": "1",
+        "alternateIds": [
+          "father1"
+        ]
+      }
+    },
+    {
+      "id": "mother",
+      "subject": {
+        "id": "1",
+        "alternateIds": [
+          "mother1"
+        ]
+      }
+    }
+  ],
+  "metaData": {
+    "createdBy": "Talos",
+    "resources": [
+      {
+        "id": "hp",
+        "name": "Human Phenotype Ontology",
+        "url": "http://www.human-phenotype-ontology.org",
+        "version": "2024-08-13",
+        "namespacePrefix": "HP",
+        "iriPrefix": "http://purl.obolibrary.org/obo/HP_"
+      }
+    ]
+  }
+}

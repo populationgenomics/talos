@@ -13,14 +13,14 @@ Read, filter, annotate, classify, and write Genetic data
 
 from argparse import ArgumentParser
 
-import hail as hl
 from loguru import logger
 from peds import open_ped
+
+import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
-
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)
@@ -534,11 +534,11 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
-    min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
-    max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
-    min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
-    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
+    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'])
+    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'])
+    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'])
+    min_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_gq'])
+    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'])
 
     logger.info('Running de novo search')
 
@@ -552,8 +552,8 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     elif 'AD' in de_novo_matrix.entry:
         depth = hl.sum(de_novo_matrix.AD)
     else:
-        logger.info('DP and AD both absent, chucking in a default value')
-        logger.info('Input variant data should really have either DP or AD present for various QC purposes')
+        logger.warning('DP and AD both absent, chucking in a default value')
+        logger.warning('Input variant data should really have either DP or AD present for various QC purposes')
         depth = min_depth + 1
 
     # do some rational variant filtering
@@ -856,11 +856,7 @@ def main(
    █████    █████   █████ ███████████    ███████     █████████""",
     )
 
-    # initiate Hail as a local cluster
-    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
-    logger.info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
-
-    hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', quiet=True)
+    hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panel_data!r}')
@@ -879,9 +875,10 @@ def main(
 
     # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
+    # completely arbitrary number of partitions selected, this issue is no longer relevant
     if mt.n_partitions() > MAX_PARTITIONS:
         logger.info('Shrinking partitions way down with an unshuffled repartition')
-        mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
+        mt = mt.repartition(shuffle=False, n_partitions=2000)
         if checkpoint:
             logger.info('Trying to write the result locally, might need more space on disk...')
             mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')

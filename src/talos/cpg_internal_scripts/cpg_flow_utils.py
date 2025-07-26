@@ -1,10 +1,9 @@
 import functools
 
 import loguru
-
 from cpg_utils import config
-from metamist import graphql
 
+from metamist import graphql
 
 METAMIST_ANALYSIS_QUERY = graphql.gql(
     """

@@ -1,7 +1,5 @@
 FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.134.cpg2-1 AS base
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 RUN apt update && apt install -y --no-install-recommends \
         libbz2-1.0 \
         libcurl4 \
@@ -38,11 +36,17 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /us
 
 FROM base_bcftools AS base_bcftools_echtvar
 
-ARG ECHTVAR_VERSION=v0.2.1
+ARG ECHTVAR_VERSION=v0.2.2
 
 ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" /bin/echtvar
 
 RUN chmod +x /bin/echtvar
+
+# install nextflow
+RUN wget get.nextflow.io -O nextflow && \
+	chmod +x nextflow && \
+    mv nextflow /usr/bin && \
+    nextflow self-update
 
 FROM base_bcftools_echtvar
 
@@ -50,5 +54,6 @@ WORKDIR /talos
 
 COPY LICENSE pyproject.toml README.md .
 COPY src src/
+COPY nextflow nextflow/
 
 RUN pip install --no-cache-dir ".[cpg]"

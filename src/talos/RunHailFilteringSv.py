@@ -10,14 +10,14 @@ CategoryBooleanSV1:
 
 from argparse import ArgumentParser
 
-import hail as hl
 from loguru import logger
+
+import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.utils import read_json_from_path
-
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
@@ -252,9 +252,8 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     green_expression = green_from_panelapp(panelapp)
 
     # initiate Hail in local cluster mode
-    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'sv'], 4)
-    logger.info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
-    hl.context.init_spark(master=f'local[{number_of_cores}]')
+    logger.info('Starting Hail with reference genome GRCh38, as a local cluster')
+    hl.context.init_spark(master='local[*]')
     hl.default_reference('GRCh38')
 
     # read the VCF in as a MatrixTable, and checkpoint it locally
@@ -263,7 +262,6 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         reference_genome='GRCh38',
         skip_invalid_loci=True,
         force_bgz=True,
-        n_partitions=number_of_cores,
     ).checkpoint(
         output='temporary.mt',
         _read_if_exists=True,

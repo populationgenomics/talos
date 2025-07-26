@@ -9,12 +9,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
-
 import jinja2
 from cloudpathlib.anypath import to_anypath
-from metamist.graphql import gql, query
+from loguru import logger
 
+from metamist.graphql import gql, query
 
 DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
