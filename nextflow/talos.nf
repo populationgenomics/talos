@@ -58,7 +58,8 @@ workflow {
 	}
 	else {
 		DownloadPanelApp(
-			ch_mane
+			ch_mane,
+        	ch_runtime_config
 		)
 		ch_panelapp = DownloadPanelApp.out
 	}
