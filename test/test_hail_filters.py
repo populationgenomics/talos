@@ -2,8 +2,9 @@
 unit testing collection for the hail MT methods
 """
 
-import hail as hl
 import pytest
+
+import hail as hl
 
 from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, populate_callset_frequencies
 

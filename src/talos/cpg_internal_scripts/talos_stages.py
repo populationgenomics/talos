@@ -2,21 +2,20 @@
 This is a central script for the Talos process, implemented at the CPG, using the cpg-flow workflow framework
 """
 
-import toml
 import datetime
 import functools
-
-from loguru import logger
 from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
+import toml
 from cpg_flow import stage, targets, workflow
-from cpg_utils import Path, to_path, config, hail_batch
+from cpg_utils import Path, config, hail_batch, to_path
+from loguru import logger
 
-from talos.utils import get_granular_date
 from talos.cpg_internal_scripts.annotation_stages import SquashMtIntoTarballStage
 from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
+from talos.utils import get_granular_date
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -541,14 +540,13 @@ class ValidateVariantInheritance(stage.CohortStage):
 @stage.stage(
     required_stages=[MakeRuntimeConfig, ValidateVariantInheritance],
     analysis_type='aip-results',
-    analysis_keys=['pheno_annotated', 'pheno_filtered'],
+    analysis_keys=['report'],
 )
 class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         date_prefix = cohort.dataset.prefix() / get_date_folder()
         return {
-            'pheno_annotated': date_prefix / 'pheno_annotated_report.json',
-            'pheno_filtered': date_prefix / 'pheno_filtered_report.json',
+            'report': date_prefix / 'pheno_annotated_report.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -567,10 +565,18 @@ class HpoFlagging(stage.CohortStage):
         )
 
         # use the new config file
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(
+            inputs.as_path(
+                target=cohort,
+                stage=MakeRuntimeConfig,
+            )
+        )
 
         results_json = hail_batch.get_batch().read_input(
-            inputs.as_path(target=cohort, stage=ValidateVariantInheritance),
+            inputs.as_path(
+                target=cohort,
+                stage=ValidateVariantInheritance,
+            ),
         )
 
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
@@ -583,13 +589,11 @@ class HpoFlagging(stage.CohortStage):
                 --mane_json {mane_json} \\
                 --gen2phen {gene_to_phenotype} \\
                 --phenio {phenio_db} \\
-                --output {job.output} \\
-                --phenout {job.phenout}
+                --output {job.output}
             """,
         )
 
-        hail_batch.get_batch().write_output(job.output, outputs['pheno_annotated'])
-        hail_batch.get_batch().write_output(job.phenout, outputs['pheno_filtered'])
+        hail_batch.get_batch().write_output(job.output, outputs['report'])
 
         return self.make_outputs(target=cohort, jobs=job, data=outputs)
 
@@ -614,7 +618,7 @@ class CreateTalosHtml(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
-        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'pheno_annotated'))
+        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'report'))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
         expected_out = self.expected_outputs(cohort)
 

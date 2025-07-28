@@ -8,10 +8,10 @@ Integrates the two, writing a MatrixTable representation of the fully annotated 
 
 from argparse import ArgumentParser
 
-import hail as hl
+from cpg_utils.hail_batch import init_batch
 from loguru import logger
 
-from cpg_utils.hail_batch import init_batch
+import hail as hl
 
 
 def cli_main():
@@ -55,7 +55,7 @@ def main(
 
     if backend == 'local':
         logger.info('Using local backend for Hail')
-        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
     else:
         logger.info('Using Batch backend for Hail')
         init_batch()

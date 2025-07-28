@@ -13,11 +13,11 @@ from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
 from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
-from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
-from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
+from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
+from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
@@ -466,6 +466,9 @@ class ResultMeta(BaseModel):
     panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
 
+    # todo add this into the model/liftover test
+    variant_breakdown: dict[str, int] = Field(default_factory=dict)
+
 
 class MemberSex(Enum):
     MALE = 'male'
@@ -476,7 +479,8 @@ class MemberSex(Enum):
 class FamilyMembers(BaseModel):
     affected: bool = Field(default=False)
     ext_id: str = Field(default_factory=str)
-    sex: MemberSex = Field(default=MemberSex.UNKNOWN)
+    # todo sex changes from a MemberSex to a str
+    sex: str = Field(default=MemberSex.UNKNOWN.value)
 
 
 class ParticipantMeta(BaseModel):

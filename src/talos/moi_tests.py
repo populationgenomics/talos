@@ -23,7 +23,6 @@ from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, Pedigree, ReportVariant, SmallVariant, StructuralVariant
 from talos.utils import X_CHROMOSOME, CompHetDict
 
-
 HEMI_CHROMS = {'chrX, chrY'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
@@ -299,8 +298,8 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'], 5)
-        self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
+        self.minimum_alt_depth = config_retrieve(['ValidateMOI', 'min_alt_depth'])
+        self.minimum_depth = config_retrieve(['ValidateMOI', 'minimum_depth'])
         self.global_filter = GlobalFilter()
         self.clinvar_filter = ClinVarFilter()
 

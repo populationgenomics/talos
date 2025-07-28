@@ -35,7 +35,6 @@ import phenopackets.schema.v2 as pps2
 from google.protobuf.json_format import MessageToJson
 from peds import open_ped
 
-
 # map the integer reported sex values to the enum
 reported_sex_map = {1: pps2.Sex.MALE, 2: pps2.Sex.FEMALE}
 
@@ -95,7 +94,8 @@ def main(ped_file: str, output: str) -> None:
                     ),
                     # if HPO terms were provided, add them
                     phenotypic_features=[
-                        pps2.PhenotypicFeature(type=pps2.OntologyClass(id=hpo)) for hpo in participant.data[1:]
+                        pps2.PhenotypicFeature(type=pps2.OntologyClass(id=hpo, label=hpo))
+                        for hpo in participant.data[1:]
                     ],
                 ),
             )
