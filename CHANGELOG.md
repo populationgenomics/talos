@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* HPOFlagging step only exports a single output, with the CPG-internal and Nextflow workflows updated accordingly 
+* HPOFlagging step only exports a single output, with the CPG-internal and Nextflow workflows updated accordingly. This decision was taken on the basis that since the HTML report JS library was updated, there is no longer a need to limit the scale of each individual report.
+* 
 
 [7.0.8] - 2025-04-22
 

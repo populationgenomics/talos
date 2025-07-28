@@ -1020,3 +1020,6 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     first_tagged=get_granular_date(),
                     clinvar_stars=clinvar_stars,
                 )
+
+
+def generate_summary_stats_file(): ...

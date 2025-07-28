@@ -234,11 +234,9 @@ def filter_results_to_panels(
 
 def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
     """
-    add metadata to results
-    parsed during generation of the report
+    add metadata to results, counting instances of male, female, and family size
 
     affected, male, female, and family sizes all at the same level
-    maybe re-think this output structure for the report
 
     Args:
         pedigree (Pedigree): the Pedigree object for the family
@@ -266,13 +264,13 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
             if member.affected == '2' and member.mother is not None and member.father is not None
         ]
 
-        # this could be extended, or do more stringent family tests
+        # count famiy size, based only on samples in the variant data
         if len(trios) == 1:
             stat_counter['trios'] += 1
         elif len(trios) == trios_in_a_quad:
             stat_counter['quads'] += 1
         else:
-            stat_counter[str(len(family_members))] += 1
+            stat_counter[str(len(filter_members))] += 1
 
         for member in filter_members:
             # any value not specifically addressed here defaults to unknown
@@ -313,14 +311,17 @@ def prepare_results_shell(
     # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
     all_samples: set[str] = small_samples | sv_samples
 
+    # iterate over all affected members in the pedigree which feature in at least one variant file
     for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
+        # describe the immediate family structure, only retaining samples in at least one VCF
         family_members = {
             member.id: FamilyMembers(
-                sex=MALE_FEMALE[member.sex],
+                sex=MALE_FEMALE.get(member.sex, MemberSex.UNKNOWN.value),
                 affected=member.affected == '2',
                 ext_id=member.ext_id,
             )
             for member in pedigree.by_family[sample.family]
+            if member.id in all_samples
         }
         sample_panel_data = panelapp.participants.get(sample.id, ParticipantHPOPanels())
         results_shell.results[sample.id] = ParticipantResults(

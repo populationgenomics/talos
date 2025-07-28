@@ -476,7 +476,8 @@ class MemberSex(Enum):
 class FamilyMembers(BaseModel):
     affected: bool = Field(default=False)
     ext_id: str = Field(default_factory=str)
-    sex: MemberSex = Field(default=MemberSex.UNKNOWN)
+    # todo sex changes from a MemberSex to a str
+    sex: str = Field(default=MemberSex.UNKNOWN.value)
 
 
 class ParticipantMeta(BaseModel):
