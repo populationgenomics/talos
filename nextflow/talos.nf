@@ -101,7 +101,7 @@ workflow {
 
     // Generate HTML report - only suited to single-report runs
     CreateTalosHTML(
-        HPOFlagging.out.pheno_annotated,
+        HPOFlagging.out,
         UnifiedPanelAppParser.out,
         ch_runtime_config,
     )

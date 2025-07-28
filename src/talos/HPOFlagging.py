@@ -7,7 +7,7 @@ For each reportable result, identify if the variant is a strong phenotype match 
 
 Include something here about where to find the inputs ...
 
-gene_to_phtnotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
+gene_to_phenotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
 phenio.db: Download: https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
 
 The removal of variants where a phenotype match is required but not found it now done here
@@ -185,46 +185,13 @@ def remove_phenotype_required_variants(result_object: ResultData):
         participant.variants = kept_variants
 
 
-def filter_and_write_out(annotated_results: ResultData, out_path: str):
-    """
-    filters the results in the Result model to only those with
-    phenotypically matched variants
-
-    Should update the metadata here, specifically the counting
-
-    Args:
-        annotated_results (ResultData):
-        out_path (str):
-    """
-
-    new_rd = ResultData(version=annotated_results.version, metadata=annotated_results.metadata)
-
-    for sample_id, sample_data in annotated_results.results.items():
-        sample_participant_results = ParticipantResults(metadata=sample_data.metadata)
-
-        for variant in sample_data.variants:
-            if variant.phenotype_labels:
-                sample_participant_results.variants.append(variant)
-
-        if sample_participant_results.variants:
-            new_rd.results[sample_id] = sample_participant_results
-
-        # validate the object
-        validated_results = ResultData.model_validate(new_rd)
-
-        # validate and write using pydantic
-        with open(out_path, 'w', encoding='utf-8') as handle:
-            handle.write(validated_results.model_dump_json(indent=4))
-
-
 def cli_main():
     parser = ArgumentParser(description='')
     parser.add_argument('--input', help='The Result data in JSON form')
     parser.add_argument('--mane_json', help='A map of gene symbol to ENSG for all genes in this analysis')
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
-    parser.add_argument('--output', help='Annotated full output')
-    parser.add_argument('--phenout', help='Annotated phenotype-only output')
+    parser.add_argument('--output', help='Annotated output')
     args = parser.parse_args()
     main(
         result_file=args.input,
@@ -232,7 +199,6 @@ def cli_main():
         gen2phen=args.gen2phen,
         phenio=args.phenio,
         out_path=args.output,
-        phenout=args.phenout,
     )
 
 
@@ -242,7 +208,6 @@ def main(
     gen2phen: str,
     phenio: str,
     out_path: str,
-    phenout: str | None = None,
 ):
     """
 
@@ -252,7 +217,6 @@ def main(
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
         out_path (str): path to write the annotated results
-        phenout (str): optional, path to phenotype filtered outputs
     """
 
     gene_map = parse_mane_json_to_dict(mane_json)
@@ -283,10 +247,6 @@ def main(
     # validate and write using pydantic
     with open(out_path, 'w', encoding='utf-8') as handle:
         handle.write(validated_results.model_dump_json(indent=4))
-
-    # reduce the JSON down to just phenotype matched variants, and the samples they occur in
-    if phenout:
-        filter_and_write_out(validated_results, out_path=phenout)
 
 
 if __name__ == '__main__':

@@ -13,8 +13,7 @@ process HPOFlagging {
         path talos_config
 
     output:
-        path "${params.cohort}_pheno_annotated_report.json", emit: "pheno_annotated"
-        path "${params.cohort}_pheno_filtered_report.json", emit: "pheno_filtered"
+        path "${params.cohort}_pheno_annotated_report.json"
 
     """
     export TALOS_CONFIG=${talos_config}
@@ -23,7 +22,6 @@ process HPOFlagging {
          --mane_json ${gene_symbol_map} \
          --gen2phen ${gene_to_phenotype} \
          --phenio ${phenio_db} \
-         --output ${params.cohort}_pheno_annotated_report.json \
-         --phenout ${params.cohort}_pheno_filtered_report.json
+         --output ${params.cohort}_pheno_annotated_report.json
     """
 }
