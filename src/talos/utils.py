@@ -12,7 +12,7 @@ import string
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
-from itertools import chain, combinations_with_replacement, islice
+from itertools import chain, combinations_with_replacement, islice, combinations
 from random import choices
 from typing import TYPE_CHECKING, Any
 
@@ -75,6 +75,9 @@ DOI_URL = 'https://doi.org/'
 # we've noted some instances where we failed the whole process due to failure to parse phase data
 # don't fail, just suggest that someone raises an issue on github, but only print this message once
 PHASE_BROKEN: bool = False
+
+# a constant for the variant counting stats
+MEAN_SLASH_SAMPLE = 'Mean/sample'
 
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
@@ -1022,4 +1025,71 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                 )
 
 
-def generate_summary_stats_file(): ...
+def generate_summary_stats(result_set: ResultData) -> ResultData:
+    """
+    Reads over the variants present in the result set, and generates some per-sample and per-cohort stats
+
+    TODO returns the same object, with expanded Metadata? Or return a dict of data to shove in the metadata section
+    # TODO write a liftover/model change
+    """
+
+    # make this naive, i.e. not configured specifically based on a list of Categories in configuration
+    category_count: dict[str, list[int]] = defaultdict(list)
+    unique_variants: dict[str, set[str]] = defaultdict(set)
+
+    # record all 'probands' with no detected variants
+    # due to the naive category discovery, we apply these as 0s to every category after the initial discovery
+    # todo maybe just pad-zeros between n and len(results)?
+    samples_with_no_variants: list[str] = []
+    samples_with_variants: list[str] = []
+
+    for sample_id, sample_results in result_set.results.items():
+        if len(sample_results.variants) == 0:
+            samples_with_no_variants.append(sample_id)
+            continue
+
+        samples_with_variants.append(sample_id)
+        sample_variants: dict[str, set[str]] = defaultdict(set)
+
+        # iterate over all identified variants
+        for each_var in sample_results.variants:
+            var_string = each_var.var_data.coordinates.string_format
+
+            # catch all comp-het pairs as a single variant - we are electing to count comp-het events as a single
+            # variant, so we have to adjust our counting for this
+            # do this by identifying all sorted pairwise combinations, sorting them, creating a single String for each,
+            # and counting each unique String once
+            if sups := each_var.support_vars:
+                var_strings = [' '.join(sorted(combo)) for combo in combinations([var_string, *sups], 2)]
+
+            # if the variant is dominant or Hom, count it once - list of length 1
+            else:
+                var_strings = [var_string]
+
+            for unique_var in var_strings:
+                # populate the 'any's
+                unique_variants['any'].add(unique_var)
+                sample_variants['any'].add(unique_var)
+
+                # find all categories associated with this variant. For each category, add to corresponding list and set
+                for category_value in each_var.categories:
+                    sample_variants[category_value].add(unique_var)
+                    unique_variants[category_value].add(unique_var)
+
+        # record that these were the variants seen for this sample,
+        for key, set_of_strings in sample_variants.items():
+            category_count[key].append(len(set_of_strings))
+
+    # todo - pad all the zeros when calculating averages
+    all_seen_categories = list(unique_variants.keys())
+
+    # update the counts-per-sample dictionary
+    number_of_samples = len(result_set.results)
+
+    for count_list in category_count.values():
+        # pad the observed counts to the number of samples under consideration
+        count_list.extend([0] * (number_of_samples - len(count_list)))
+
+    result_set.metadata.variant_breakdown = category_count
+
+    return result_set

@@ -14,12 +14,22 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-[7.2.0] - 2025-07-28
+[7.5.0] - 2025-07-28
+
+### Added
+
+* Substantially added to the documentation and
 
 ### Changed
 
 * HPOFlagging step only exports a single output, with the CPG-internal and Nextflow workflows updated accordingly. This decision was taken on the basis that since the HTML report JS library was updated, there is no longer a need to limit the scale of each individual report.
-* 
+* Stats record (distribution of variants per cohort, per sample, etc.) embedded in main result JSON's metadata
+
+### Planned
+
+* Move to HPO3 instead of Semsimian for ease of deployment reasons
+* Change the table compression/decompression in the CPG private deployment, save tons of time
+* Expand the tiny ID string (e.g. '1', 'sv1') into a meaningful String in the report (e.g. ClinVar_P/LP, PredictedLof_SV)
 
 [7.0.8] - 2025-04-22
 

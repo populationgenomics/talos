@@ -466,6 +466,9 @@ class ResultMeta(BaseModel):
     panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
 
+    # todo add this into the model/liftover test
+    variant_breakdown: dict[str, int] = Field(default_factory=dict)
+
 
 class MemberSex(Enum):
     MALE = 'male'
