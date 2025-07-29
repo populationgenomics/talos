@@ -874,6 +874,14 @@ def main(
     mt = hl.read_matrix_table(mt_path)
     logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
+    # Filter out star alleles, not currently capable of handling them
+    # Will revisit once our internal experience with DRAGEN-generated variant data improves
+    logger.info('Removing any star-allele sites from the dataset, Talos is not currently designed to handle these')
+    mt = mt.filter_rows(
+        mt.alleles.contains('*'),
+        keep=False,
+    )
+
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
 
