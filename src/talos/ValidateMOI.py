@@ -316,7 +316,7 @@ def prepare_results_shell(
     for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
         family_members = {
             member.id: FamilyMembers(
-                sex=MALE_FEMALE[member.sex],
+                sex=MALE_FEMALE.get(member.sex, MemberSex.UNKNOWN.value),
                 affected=member.affected == '2',
                 ext_id=member.ext_id,
             )
