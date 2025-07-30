@@ -855,12 +855,7 @@ def main(
     ███      ███     ███   ███      █  ███     ███  ███     ███
    █████    █████   █████ ███████████    ███████     █████████""",
     )
-
-    # initiate Hail as a local cluster
-    number_of_cores = config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
-    logger.info(f'Starting Hail with reference genome GRCh38, as a {number_of_cores} core local cluster')
-
-    hl.context.init_spark(master=f'local[{number_of_cores}]', default_reference='GRCh38', quiet=True)
+    hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panel_data!r}')
@@ -874,6 +869,14 @@ def main(
     mt = hl.read_matrix_table(mt_path)
     logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
+    # Filter out star alleles, not currently capable of handling them
+    # Will revisit once our internal experience with DRAGEN-generated variant data improves
+    logger.info('Removing any star-allele sites from the dataset, Talos is not currently designed to handle these')
+    mt = mt.filter_rows(
+        mt.alleles.contains('*'),
+        keep=False,
+    )
+
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
 
@@ -881,7 +884,7 @@ def main(
     # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
     if mt.n_partitions() > MAX_PARTITIONS:
         logger.info('Shrinking partitions way down with an unshuffled repartition')
-        mt = mt.repartition(shuffle=False, n_partitions=number_of_cores * 10)
+        mt = mt.repartition(shuffle=False, n_partitions=200)
         if checkpoint:
             logger.info('Trying to write the result locally, might need more space on disk...')
             mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')

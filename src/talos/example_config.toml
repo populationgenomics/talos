@@ -116,9 +116,6 @@ max_depth = 1000
 min_gq = 25
 min_alt_depth = 5
 
-[RunHailFiltering.cores]
-small_variants = 8
-
 [categories]
 1 = 'ClinVar Pathogenic'
 3 = 'High Impact Variant'
