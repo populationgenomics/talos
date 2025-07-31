@@ -58,6 +58,9 @@ def query_for_latest_analysis(
             if '_families-' in analysis['output']:
                 continue
 
+            if 'LongReadSNPsIndels' in analysis['output']:
+                continue
+
             analysis_by_date[analysis['timestampCompleted']] = analysis['output']
 
     if not analysis_by_date:
