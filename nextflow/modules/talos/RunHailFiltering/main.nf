@@ -1,4 +1,3 @@
-
 process RunHailFiltering {
     container params.container
 
@@ -17,7 +16,7 @@ process RunHailFiltering {
             path("${params.cohort}_small_variants_labelled.vcf.bgz"), \
             path("${params.cohort}_small_variants_labelled.vcf.bgz.tbi")
 
-    // untar the ClinvArbitration data directory
+    // untar the ClinvArbitration data directory. Happy to keep doing this, it's much easier to distribute tar'd
     """
     export TALOS_CONFIG=${talos_config}
 
