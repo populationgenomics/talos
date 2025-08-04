@@ -15,15 +15,12 @@ process ReformatAnnotatedVcfIntoHailTable {
     script:
         """
         set -ex
-        tar --no-same-owner -xf ${alphamissense}
+
         ReformatAnnotatedVcfIntoHailTable \
             --input ${vcf} \
-            --am alphamissense_38.ht \
+            --am ${alphamissense} \
             --gene_bed ${gene_bed} \
             --output ${params.cohort}_annotations.ht \
             --mane ${mane}
-
-        # cut down on work folder space
-        rm -r alphamissense_38.ht
         """
 }

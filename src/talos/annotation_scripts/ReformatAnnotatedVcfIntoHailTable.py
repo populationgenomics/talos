@@ -279,7 +279,7 @@ def main(
         init_batch()
     else:
         logger.info('Using Hail Local backend, no checkpoints')
-        hl.context.init_spark(master='local[2]', default_reference='GRCh38', quiet=True)
+        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
