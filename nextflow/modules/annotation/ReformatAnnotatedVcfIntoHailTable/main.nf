@@ -7,7 +7,6 @@ process ReformatAnnotatedVcfIntoHailTable {
         path gene_bed
         path mane
 
-	// todo: this was "mode: 'copy'"", but probably isn't needed as a permanent copy, it's a disposable intermediate
     publishDir params.cohort_output_dir
 
     output:
