@@ -48,7 +48,7 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=v0.2.4',
+    'cpg-flow==v0.3.2',
     'google-cloud-storage==2.14.0',
 ]
 test = [
@@ -183,7 +183,7 @@ quote-style = "single"
 section-order = ["future", "standard-library", "third-party", "hail", "cpg", "first-party", "local-folder"]
 
 [tool.ruff.lint.isort.sections]
-cpg = ["metamist", "talos"]
+cpg = ["metamist", "talos", "cpg-flow", "cpg-utils"]
 hail = ["hail"]
 
 [tool.ruff.lint.per-file-ignores]

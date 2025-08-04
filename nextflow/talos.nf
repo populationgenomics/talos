@@ -5,7 +5,6 @@ nextflow.enable.dsl=2
 // deactivated for now
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
 include { ConvertPedToPhenopackets } from './modules/talos/ConvertPedToPhenopackets/main'
-include { MakePhenopackets } from './modules/talos/MakePhenopackets/main'
 include { DownloadPanelApp } from './modules/talos/DownloadPanelApp/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
@@ -59,7 +58,8 @@ workflow {
 	}
 	else {
 		DownloadPanelApp(
-			ch_mane
+			ch_mane,
+			ch_runtime_config,
 		)
 		ch_panelapp = DownloadPanelApp.out
 	}
@@ -101,7 +101,7 @@ workflow {
 
     // Generate HTML report - only suited to single-report runs
     CreateTalosHTML(
-        HPOFlagging.out.pheno_annotated,
+        HPOFlagging.out,
         UnifiedPanelAppParser.out,
         ch_runtime_config,
     )

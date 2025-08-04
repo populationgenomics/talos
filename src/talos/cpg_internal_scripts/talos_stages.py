@@ -545,8 +545,7 @@ class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         date_prefix = cohort.dataset.prefix() / get_date_folder()
         return {
-            'pheno_annotated': date_prefix / 'pheno_annotated_report.json',
-            'pheno_filtered': date_prefix / 'pheno_filtered_report.json',
+            'report': date_prefix / 'pheno_annotated_report.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -581,13 +580,11 @@ class HpoFlagging(stage.CohortStage):
                 --mane_json {mane_json} \\
                 --gen2phen {gene_to_phenotype} \\
                 --phenio {phenio_db} \\
-                --output {job.output} \\
-                --phenout {job.phenout}
+                --output {job.output}
             """,
         )
 
-        hail_batch.get_batch().write_output(job.output, outputs['pheno_annotated'])
-        hail_batch.get_batch().write_output(job.phenout, outputs['pheno_filtered'])
+        hail_batch.get_batch().write_output(job.output, outputs['report'])
 
         return self.make_outputs(target=cohort, jobs=job, data=outputs)
 
@@ -612,7 +609,7 @@ class CreateTalosHtml(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
-        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'pheno_annotated'))
+        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'report'))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
         expected_out = self.expected_outputs(cohort)
 

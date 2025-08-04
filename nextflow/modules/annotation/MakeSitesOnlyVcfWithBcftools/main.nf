@@ -7,7 +7,7 @@ process MakeSitesOnlyVcfWithBcftools {
         tuple path(vcf), path(tbi)
 
     // strip this VCF down to sites-only
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir
 
     output:
         tuple \

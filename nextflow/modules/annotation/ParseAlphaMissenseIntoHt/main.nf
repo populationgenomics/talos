@@ -3,7 +3,7 @@ process ParseAlphaMissenseIntoHt {
     container params.container
 
     // parse AM data as a Hail Table
-    publishDir params.processed_annotations, mode: 'copy'
+    publishDir params.processed_annotations
 
     input:
         path(am_tsv)

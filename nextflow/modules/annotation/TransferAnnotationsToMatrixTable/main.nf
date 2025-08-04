@@ -18,8 +18,5 @@ process TransferAnnotationsToMatrixTable {
             --input ${vcf} \
             --annotations ${annotations} \
             --output ${params.cohort}.mt
-
-        # cut down on work folder space
-        rm -r ${params.cohort}_annotations.ht
         """
 }
