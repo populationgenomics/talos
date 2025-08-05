@@ -19,8 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 1. The default NextFlow Glob for indidvidual VCFs has been changed from `*vcf.bgz` to `*.vcf.gz`, to match a more commonly used
-   file extension. This could be a breaking change, as it will not match the previous default glob, though I'm not sure
-   how many users were using the default glob. The test data implementation was using it, and file names are updated.
+   file extension The test data file names are updated to reflect the new default. This can be overridden with `--input_vcf_extension vcf.bgz`.
 2. The NextFlow Glob also includes a `checkIfExists` check, so that if no VCFs are found, the workflow will not run and
    will instead throw an error. This is to prevent the workflow running with no input data, which was previously possible
    and would result in a confusing 0-second runtimes.
