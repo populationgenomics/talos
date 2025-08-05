@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. BCFtools merge now inserts WT genotypes for missing genotypes. This is to ensure the AC/AF/AN calculations are across
    the whole sample group under consideration. This is a change from the previous behaviour, which would not insert WT
    genotypes and would result in inflated AF values.
-4. BCFtools no longer writes an uncompressed intermediate file after the merge. Instead it streams directly through the 
+4. BCFtools no longer writes an uncompressed intermediate file after the merge. Instead it streams directly through the
    fill-tags plugin.
 5. NF-workflow: Many stages have been changed from 'copy results to the output folder' to 'symlink to the output folder'.
    This is to reduce the amount of data copied around, and to ensure that the output folder is not bloated with various
