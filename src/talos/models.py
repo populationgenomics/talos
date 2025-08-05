@@ -535,10 +535,14 @@ class PedigreeMember(BaseModel):
     id: str
     mother: str | None = None
     father: str | None = None
-    sex: str
-    affected: str
+    sex: int
+    affected: int
     ext_id: str = 'Missing'
-    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    hpo_terms: set[str] = Field(default_factory=set)
+
+    def __str__(self):
+        """String representation of the participant, used when writing a Pedigree."""
+        return f'{self.family}\t{self.id}\t{self.father}\t{self.mother}\t{self.sex}\t{self.affected}'
 
 
 class Pedigree(BaseModel):
