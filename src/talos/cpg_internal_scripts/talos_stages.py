@@ -545,7 +545,7 @@ class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         date_prefix = cohort.dataset.prefix() / get_date_folder()
         return {
-            'report': date_prefix / 'pheno_annotated_report.json',
+            'report': date_prefix / 'full_report.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
