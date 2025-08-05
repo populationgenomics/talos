@@ -14,6 +14,39 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[7.5.0] - 2025-08-05
+
+### Changed
+
+1. The default NextFlow Glob for indidvidual VCFs has been changed from `*vcf.bgz` to `*.vcf.gz`, to match a more commonly used
+   file extension. This could be a breaking change, as it will not match the previous default glob, though I'm not sure
+   how many users were using the default glob. The test data implementation was using it, and file names are updated.
+2. The NextFlow Glob also includes a `checkIfExists` check, so that if no VCFs are found, the workflow will not run and
+   will instead throw an error. This is to prevent the workflow running with no input data, which was previously possible
+   and would result in a confusing 0-second runtimes.
+3. BCFtools merge now inserts WT genotypes for missing genotypes. This is to ensure the AC/AF/AN calculations are across
+   the whole sample group under consideration. This is a change from the previous behaviour, which would not insert WT
+   genotypes and would result in inflated AF values.
+4. BCFtools no longer writes an uncompressed intermediate file after the merge. Instead it streams directly through the 
+   fill-tags plugin.
+5. NF-workflow: Many stages have been changed from 'copy results to the output folder' to 'symlink to the output folder'.
+   This is to reduce the amount of data copied around, and to ensure that the output folder is not bloated with various
+   intermediate files which have no residual value after the workflow has concluded. This is a change from the previous
+   behaviour, which would copy all results to the output folder. Depending on deployment, this may cause issues, and the
+   copy behaviour may be preferable.
+5. CPG-internal: no HT/MT outputs are tar'd to transmit between Stages; instead we use gcloud to copy the un'tar'd MT/HT.
+   This action alone was adding ~35% to runtimes, and was not necessary for the workflow to run correctly.
+
+### Removed
+
+* The HpoFlaging step no longer writes two separate reports (HPO-matches annotated, and hard filtered to only HPO-matches).
+  Instead it writes only a single output with HPO-matches annotated, and filtering can be applied in the HTML report.
+* The CPG-Flow stage for squashing the MT into a Tarball has been removed.
+
+### Added
+
+* Nextflow has been added to the CPG-internal Dockerfile as standard
+
 [7.0.8] - 2025-04-22
 
 ### Changed
