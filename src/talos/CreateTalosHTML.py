@@ -36,7 +36,10 @@ MAX_INDEL_LEN: int = 10
 KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 MEAN_SLASH_SAMPLE = 'Mean/sample'
-GNOMAD_SV_KEY = 'gnomad_v2.1_sv_svid'
+
+# reactive to different versions of gnomAD
+GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
+GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
 
 
 def known_date_prefix_check(all_results: ResultData) -> list[str]:

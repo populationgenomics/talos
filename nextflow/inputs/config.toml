@@ -15,11 +15,11 @@ default_panel = 137
 obo_file = "gs://cpg-common-test/references/aip/hpo_terms.obo"
 panelapp = "https://panelapp-aus.org/api/v1/panels"
 require_pheno_match = [ "FLG", "GJB2", "F2", "F5", "HFE"]
-within_x_months = 3
+within_x_months = 6
 forbidden_genes = []
 forced_panels = [ 144,]
 
-[GeneratePanelData.manual_overrides]
+[[GeneratePanelData.manual_overrides]]
 # this section permits the manual addition of genes to the panel data
 # each gene here will be folded into the panelapp data after standard API queries have taken place
 # if the gene was already identified for this analysis, the MOI provided here will take precedent
@@ -106,8 +106,6 @@ phenotype_match = ["6"]
 [HPOFlagging]
 semantic_match = true
 min_similarity = 14.0
-phenio_db = "gs://cpg-common-test/references/aip/phenotype.db"
-gene_to_phenotype = "gs://cpg-common-test/references/aip/genes_to_phenotype.txt"
 
 [RunHailFiltering.cores]
 sv = 2

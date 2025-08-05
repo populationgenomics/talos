@@ -10,6 +10,8 @@
 
 ## Checklist
 
+- [ ] ChangeLog Updated
+- [ ] Version Bumped
 - [ ] Related Issue created
 - [ ] Tests covering new change
 - [ ] Linting checks pass

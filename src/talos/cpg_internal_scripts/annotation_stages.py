@@ -54,7 +54,6 @@ from talos.cpg_internal_scripts.cpgflow_jobs import (
     AnnotateConsequenceUsingBcftools,
     SitesOnlyVcfIntoHt,
     JumpAnnotationsFromHtToFinalMt,
-    SquashMtIntoTarball,
 )
 
 
@@ -218,8 +217,11 @@ class SitesOnlyVcfIntoAnnotationsHt(stage.CohortStage):
         return self.make_outputs(cohort, data=output, jobs=job)
 
 
-@stage.stage(required_stages=[SitesOnlyVcfIntoAnnotationsHt, ExtractVcfFromDatasetMtWithHail])
-class JumpAnnotationsFromHtToFinalMtStage(stage.CohortStage):
+@stage.stage(
+    required_stages=[SitesOnlyVcfIntoAnnotationsHt, ExtractVcfFromDatasetMtWithHail],
+    analysis_type='talos_prep',
+)
+class TransferAnnotationsFromHtToFinalMtStage(stage.CohortStage):
     """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
@@ -243,31 +245,6 @@ class JumpAnnotationsFromHtToFinalMtStage(stage.CohortStage):
             annotations_ht=annotations,
             input_mt=mt,
             output_mt=output,
-            job_attrs=self.get_job_attrs(cohort),
-        )
-
-        return self.make_outputs(cohort, data=output, jobs=job)
-
-
-@stage.stage(
-    analysis_type='talos_prep',
-    required_stages=[JumpAnnotationsFromHtToFinalMtStage],
-)
-class SquashMtIntoTarballStage(stage.CohortStage):
-    """Localise the MatrixTable, and create a tarball. Compression is not beneficial here."""
-
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return self.prefix / f'{cohort.id}.mt.tar'
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(cohort)
-
-        input_mt = inputs.as_str(cohort, JumpAnnotationsFromHtToFinalMtStage)
-
-        job = SquashMtIntoTarball.make_tarball_squash_job(
-            cohort=cohort,
-            input_mt=input_mt,
-            output_tar=output,
             job_attrs=self.get_job_attrs(cohort),
         )
 

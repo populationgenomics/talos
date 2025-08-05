@@ -15,7 +15,7 @@ from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, to_path, config, hail_batch
 
 from talos.utils import get_granular_date
-from talos.cpg_internal_scripts.annotation_stages import SquashMtIntoTarballStage
+from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsFromHtToFinalMtStage
 from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
 
 if TYPE_CHECKING:
@@ -311,7 +311,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
         UnifiedPanelAppParser,
         GeneratePed,
         MakeRuntimeConfig,
-        SquashMtIntoTarballStage,
+        TransferAnnotationsFromHtToFinalMtStage,
     ],
 )
 class RunHailFiltering(stage.CohortStage):
@@ -324,7 +324,7 @@ class RunHailFiltering(stage.CohortStage):
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # integrate this into the earlier workflow
-        input_mt = inputs.as_str(cohort, SquashMtIntoTarballStage)
+        input_mt = inputs.as_path(cohort, TransferAnnotationsFromHtToFinalMtStage)
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig))
@@ -373,16 +373,14 @@ class RunHailFiltering(stage.CohortStage):
 
         job.command(f'tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
 
-        # read in the massive MT, and unpack it
-        localised_mt = hail_batch.get_batch().read_input(input_mt)
-
-        job.command(f'tar -xf {localised_mt} -C $BATCH_TMPDIR && rm {localised_mt}')
+        # read in the MT using gcloud, directly into batch tmp
+        job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
             python -m talos.RunHailFiltering \\
-                --input "${{BATCH_TMPDIR}}/{cohort.dataset.name}.mt" \\
+                --input "${{BATCH_TMPDIR}}/{cohort.name}.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --output {job.output['vcf.bgz']} \\
@@ -547,8 +545,7 @@ class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         date_prefix = cohort.dataset.prefix() / get_date_folder()
         return {
-            'pheno_annotated': date_prefix / 'pheno_annotated_report.json',
-            'pheno_filtered': date_prefix / 'pheno_filtered_report.json',
+            'report': date_prefix / 'full_report.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -583,13 +580,11 @@ class HpoFlagging(stage.CohortStage):
                 --mane_json {mane_json} \\
                 --gen2phen {gene_to_phenotype} \\
                 --phenio {phenio_db} \\
-                --output {job.output} \\
-                --phenout {job.phenout}
+                --output {job.output}
             """,
         )
 
-        hail_batch.get_batch().write_output(job.output, outputs['pheno_annotated'])
-        hail_batch.get_batch().write_output(job.phenout, outputs['pheno_filtered'])
+        hail_batch.get_batch().write_output(job.output, outputs['report'])
 
         return self.make_outputs(target=cohort, jobs=job, data=outputs)
 
@@ -614,7 +609,7 @@ class CreateTalosHtml(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
-        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'pheno_annotated'))
+        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'report'))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
         expected_out = self.expected_outputs(cohort)
 

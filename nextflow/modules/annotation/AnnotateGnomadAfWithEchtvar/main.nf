@@ -7,7 +7,7 @@ process AnnotateGnomadAfWithEchtvar {
         path(zip)
 
     // annotate this VCF with gnomAD data
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir
 
     output:
         path("${params.cohort}_gnomad.vcf.bgz")
