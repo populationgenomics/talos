@@ -581,13 +581,8 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         (min_depth > depth)
         | (max_depth < depth)
         # these tests are aimed exclusively at affected participants
-        | (
-            affected_members.contains(de_novo_matrix.s)
-            & (
-                (min_gq > de_novo_matrix.GQ)
-                | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth)))
-            )
-        ),
+        | ((affected_members.contains(de_novo_matrix.s)) & (min_gq > de_novo_matrix.GQ))
+        | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth)),
         keep=False,
     )
 
