@@ -46,6 +46,8 @@ MISSENSE = hl.str('missense')
 # decide whether to repartition the data before processing starts
 MAX_PARTITIONS = 10000
 
+NUM_PED_COLS = 6
+
 
 def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
@@ -523,7 +525,7 @@ def get_affected_from_pedigree(ped_file_path: str) -> hl.SetExpression:
             if not line.rstrip() or line.startswith('#'):
                 continue
             parts = line.rstrip().split()
-            if len(parts) != 6:
+            if len(parts) != NUM_PED_COLS:
                 continue
             if parts[5] == '2':  # affected
                 set_of_affected_ids.add(parts[1])  # sample ID is the second column
