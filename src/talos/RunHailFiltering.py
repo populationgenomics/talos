@@ -14,6 +14,7 @@ Read, filter, annotate, classify, and write Genetic data
 from argparse import ArgumentParser
 
 import hail as hl
+from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from peds import open_ped
 
@@ -517,7 +518,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def get_affected_from_pedigree(ped_file_path: str) -> hl.SetExpression:
     """Pull out a set of affected members from the pedigree."""
     set_of_affected_ids: set[str] = set()
-    with to_path(ped_file_path).open(encoding='utf-8') as handle:
+    with to_anypath(ped_file_path).open(encoding='utf-8') as handle:
         for line in handle:
             if not line.rstrip() or line.startswith('#'):
                 continue
@@ -579,7 +580,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         | (max_depth < depth)
         # these tests are aimed exclusively at affected participants
         | (
-            aff_sams.contains(de_novo_matrix.s)
+            affected_members.contains(de_novo_matrix.s)
             & (
                 (min_gq > de_novo_matrix.GQ)
                 | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth)))
