@@ -539,7 +539,7 @@ class ValidateVariantInheritance(stage.CohortStage):
 @stage.stage(
     required_stages=[MakeRuntimeConfig, ValidateVariantInheritance],
     analysis_type='aip-results',
-    analysis_keys=['pheno_annotated', 'pheno_filtered'],
+    analysis_keys=['report'],
 )
 class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
