@@ -380,7 +380,7 @@ class RunHailFiltering(stage.CohortStage):
         job.command(
             f"""
             python -m talos.RunHailFiltering \\
-                --input "${{BATCH_TMPDIR}}/{cohort.name}.mt" \\
+                --input "${{BATCH_TMPDIR}}/{cohort.id}.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --output {job.output['vcf.bgz']} \\
