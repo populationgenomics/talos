@@ -117,7 +117,7 @@ class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
 @stage.stage(required_stages=ExtractVcfFromDatasetMtWithHail)
 class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return self.prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
+        return self.tmp_prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         """Trigger a rolling merge using gcloud compose, gluing all the individual files together."""

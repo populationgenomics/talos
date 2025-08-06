@@ -514,6 +514,21 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def get_affected_from_pedigree(ped_file_path: str) -> hl.SetExpression:
+    """Pull out a set of affected members from the pedigree."""
+    set_of_affected_ids: set[str] = set()
+    with to_path(ped_file_path).open(encoding='utf-8') as handle:
+        for line in handle:
+            if not line.rstrip() or line.startswith('#'):
+                continue
+            parts = line.rstrip().split()
+            if len(parts) != 6:
+                continue
+            if parts[5] == '2':  # affected
+                set_of_affected_ids.add(parts[1])  # sample ID is the second column
+    return hl.literal(set_of_affected_ids)
+
+
 def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
@@ -556,16 +571,20 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         logger.info('Input variant data should really have either DP or AD present for various QC purposes')
         depth = min_depth + 1
 
-    # do some rational variant filtering
+    # pull out affected members from the pedigree, Hail does not process the phenotype column at all
+    affected_members = get_affected_from_pedigree(ped_file_path)
+
     de_novo_matrix = de_novo_matrix.filter_entries(
         (min_depth > depth)
         | (max_depth < depth)
-        # kyles test implements the stricter GQ filter later, so use it unconditionally here
-        # I am using the GQ filter exclusively, instead of also spot checking GT vs. the PL array
-        # The delta between lowest and second-lowest elements in the PL array, and the GQ represent the same quality
-        | (min_gq > de_novo_matrix.GQ)
-        # single added condition here
-        | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))),
+        # these tests are aimed exclusively at affected participants
+        | (
+            aff_sams.contains(de_novo_matrix.s)
+            & (
+                (min_gq > de_novo_matrix.GQ)
+                | ((de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth)))
+            )
+        ),
         keep=False,
     )
 
