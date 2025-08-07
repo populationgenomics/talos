@@ -555,8 +555,13 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
     min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
     max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
-    min_gq: int = config_retrieve(['de_novo', 'min_gq'], 25)
+    min_proband_gq: int = config_retrieve(['de_novo', 'min_proband_gq'], 25)
     min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
+
+    # this GQ filter will be applied to all samples, not just probands
+    # if the dataset is merged from single-sample VCFs, WT samples for a given allele will have no GQ, so this filter
+    # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
+    min_all_sample_gq: int = config_retrieve(['de_novo', 'min_all_sample_gq'], None)
 
     logger.info('Running de novo search')
 
@@ -582,9 +587,21 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         | (max_depth < depth)
         | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))
         # these tests are aimed exclusively at affected participants
-        | ((affected_members.contains(de_novo_matrix.s)) & (min_gq > de_novo_matrix.GQ)),
+        | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq > de_novo_matrix.GQ)),
         keep=False,
     )
+
+    if min_all_sample_gq:
+        logger.info(
+            'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
+            'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
+            '"de_novo.min_all_sample_gq" from the config file.'
+        )
+        # filter out all samples with GQ below the threshold
+        de_novo_matrix = de_novo_matrix.filter_entries(
+            (hl.is_defined(de_novo_matrix.GQ)) & (de_novo_matrix.GQ >= min_all_sample_gq),
+            keep=False,
+        )
 
     # create a trio matrix (variant rows, trio columns)
     tm = hl.trio_matrix(de_novo_matrix, pedigree, complete_trios=True)
@@ -618,7 +635,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         de_novo_tested=hl.case()
         .when(~has_candidate_gt_configuration, MISSING_INT)
         .when(min_alt_depth > kid.AD[1], MISSING_INT)
-        .when(min_gq > kid.GQ, MISSING_INT)
+        .when(min_proband_gq > kid.GQ, MISSING_INT)
         .when(kid_ab < min_child_ab, MISSING_INT)
         .default(ONE_INT),
     )
