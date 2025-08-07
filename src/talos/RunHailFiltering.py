@@ -587,7 +587,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         | (max_depth < depth)
         | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))
         # these tests are aimed exclusively at affected participants
-        | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq > de_novo_matrix.GQ)),
+        | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
         keep=False,
     )
 
@@ -595,11 +595,11 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         logger.info(
             'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
             'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
-            '"de_novo.min_all_sample_gq" from the config file.'
+            '"de_novo.min_all_sample_gq" from the config file.',
         )
         # filter out all samples with GQ below the threshold
         de_novo_matrix = de_novo_matrix.filter_entries(
-            (hl.is_defined(de_novo_matrix.GQ)) & (de_novo_matrix.GQ >= min_all_sample_gq),
+            (hl.is_defined(de_novo_matrix.GQ)) & (min_all_sample_gq >= de_novo_matrix.GQ),
             keep=False,
         )
 

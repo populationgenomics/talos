@@ -38,10 +38,10 @@ example contains a comment indicating that this option will harm de novo discove
 
 * Large files
 
-Updated NextFlow config and README indicating that the `phenio.db` file is expected to be provided to the workflow 
+Updated NextFlow config and README indicating that the `phenio.db` file is expected to be provided to the workflow
 decompressed. A substantial portion of runtime and disk was spent decompressing this file, and keeping it decompressed
 is a more efficient use of resources. The documentation/download process will have a substantial overhaul in an upcoming
-change. 
+change.
 
 [7.5.0] - 2025-08-05
 
