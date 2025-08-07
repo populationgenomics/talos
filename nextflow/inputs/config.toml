@@ -103,6 +103,17 @@ support_categories = ["6"]
 # AlphaMissense will be removed from consideration completely
 phenotype_match = ["6"]
 
+[de_novo]
+min_child_ab = 0.2
+min_depth = 5
+max_depth = 1000
+min_proband_gq = 25
+min_alt_depth = 5
+
+# un-comment this to apply a minimum GQ to all samples in the trio, including WT. This will reduce de Novo prediciton
+# if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
+#min_all_sample_gq = 15
+
 [HPOFlagging]
 semantic_match = true
 min_similarity = 14.0

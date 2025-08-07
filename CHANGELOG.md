@@ -14,6 +14,35 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[7.5.0] - 2025-08-07
+
+### Changed
+
+* De Novo variant detection/filtering
+
+During the de novo filtering process, GQ requirements have been altered. Instead of a flat "GQ >= 25" test against all
+members of the callset, we now  have two separate configurable parameters:
+
+* `de_novo.min_proband_gq` is filtered against all *affected* members of the pedigree.
+* `de_novo.min_all_sample_gq` is optional, and is levied against every sample in the callset. Default is not to apply.
+
+This altered behaviour means that we can now apply a stricter test against the proband, while still allowing
+for a more relaxed test against other samples. This is useful in cases where the proband has a high GQ, but the parents
+have a lower GQ, and we want to detect the de novo call.
+
+A key situation to be aware of here - when combining single-sample VCFs into a multi-sample callset, as implemented in
+the Nextflow workflow, WT calls with a GQ and AD of 0 are inserted when an individual had no evidence at the locus. This
+means that if the `de_novo.min_all_sample_gq` test is applied, it will fail for all inserted WT calls, which will greatly
+reduce candidate de novo discoverability. A logging message is printed to indicate when this test is run, and the config
+example contains a comment indicating that this option will harm de novo discoverability if WT GQ=0 calls are inserted.
+
+* Large files
+
+Updated NextFlow config and README indicating that the `phenio.db` file is expected to be provided to the workflow
+decompressed. A substantial portion of runtime and disk was spent decompressing this file, and keeping it decompressed
+is a more efficient use of resources. The documentation/download process will have a substantial overhaul in an upcoming
+change.
+
 [7.5.0] - 2025-08-05
 
 ### Changed
