@@ -579,7 +579,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         logger.info('Input variant data should really have either DP or AD present for various QC purposes')
         depth = min_depth + 1
 
-    # pull out affected members from the pedigree, Hail does not process the phenotype column at all
+    # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = get_affected_from_pedigree(ped_file_path)
 
     de_novo_matrix = de_novo_matrix.filter_entries(
@@ -887,7 +887,7 @@ def main(
     ███      ███████████   ███        ███       ███  █████████
     ███      ███     ███   ███        ███       ███         ███
     ███      ███     ███   ███      █  ███     ███  ███     ███
-   █████    █████   █████ ███████████    ███████     █████████""",
+   █████    █████   █████ ███████████    ███████     █████████ """,
     )
     hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 

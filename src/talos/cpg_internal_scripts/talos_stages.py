@@ -174,6 +174,7 @@ class MakeRuntimeConfig(stage.CohortStage):
         # start off with a fresh config dictionary, including generic content
         new_config = {
             'categories': config.config_retrieve(['categories']),
+            'de_novo': config.config_retrieve(['de_novo'], {}),
             'GeneratePanelData': config.config_retrieve(['GeneratePanelData']),
             'RunHailFiltering': config.config_retrieve(['RunHailFiltering']),
             'RunHailFilteringSv': config.config_retrieve(['RunHailFilteringSv']),
