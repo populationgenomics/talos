@@ -53,7 +53,6 @@ cpg = [
 ]
 test = [
     'bump-my-version',
-    'black',
     'pre-commit',
     'pytest',
     'pytest-httpx',
@@ -124,20 +123,6 @@ packages = ["src/talos"]
 
 [options]
 include_package_data = true
-
-[tool.black]
-line-length = 120
-skip-string-normalization = true
-exclude = '''
-/(
-  venv
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
 
 [tool.mypy]
 ignore_missing_imports = true
