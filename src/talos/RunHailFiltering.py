@@ -972,6 +972,7 @@ def main(
 
     # insert easy ignore of de novo filtering based on config, to overcome some data format issues
     if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']):
+        logger.info('Skipping de novo annotation, category 4 will not be used during this analysis')
         mt = mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
     else:
         mt = annotate_category_4(mt=mt, ped_file_path=pedigree)
