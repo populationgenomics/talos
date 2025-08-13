@@ -26,13 +26,12 @@ from metamist.graphql import gql, query
 
 HPO_KEY = 'HPO Terms (present)'
 HPO_RE = re.compile(r'HP:\d+')
+
+# TODO react to this query change
 PARTICIPANT_QUERY = gql(
     """
 query MyQuery($project: String!, $sequencing_type: String!, $technology: String!) {
   project(name: $project) {
-    pedigree(
-      replaceWithFamilyExternalIds: false
-    )
     sequencingGroups(technology: {eq: $technology}, type:  {eq: $sequencing_type}) {
       id
       sample {
@@ -46,6 +45,16 @@ query MyQuery($project: String!, $sequencing_type: String!, $technology: String!
         }
       }
     }
+  }
+}""",
+)
+PEDIGREE_QUERY = gql(
+    """
+query MyQuery($project: String!) {
+  project(name: $project) {
+    pedigree(
+      replaceWithFamilyExternalIds: true
+    )
   }
 }""",
 )
