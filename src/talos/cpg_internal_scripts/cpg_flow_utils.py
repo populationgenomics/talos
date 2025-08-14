@@ -25,7 +25,9 @@ METAMIST_ANALYSIS_QUERY = graphql.gql(
 
 
 @functools.cache
-def generate_dataset_prefix(dataset: str, category: str | None = None, stage_name: str | None = None) -> Path:
+def generate_dataset_prefix(
+    dataset: str, category: str | None = None, stage_name: str | None = None, hash_value: str | None = None
+) -> Path:
     """
     Generate a dictionary of prefixes for the current workflow and Stage.
     Needed because CPG-Flow currently lacks the granularity we need for both exome/genome and short/long read
@@ -36,7 +38,8 @@ def generate_dataset_prefix(dataset: str, category: str | None = None, stage_nam
     workflow_name = config.config_retrieve(['workflow', 'name'])
 
     # generated from the included samples in the workflow
-    hash_element = workflow.get_workflow().output_version
+    # or passed directly if provided, e.g. to target outputs to a date-specific folder, not a callset-specific one
+    hash_element = hash_value or workflow.get_workflow().output_version
 
     # allow subdivision by short/long read, and exome/genome
     # the current protocol here is to treat short read and genome as standard, and insert clarifying elements if needed

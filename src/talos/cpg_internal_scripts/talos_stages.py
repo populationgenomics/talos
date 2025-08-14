@@ -100,16 +100,6 @@ def get_date_string() -> str:
     return config.config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-@functools.cache
-def get_date_folder() -> str:
-    """
-    allows override of the date folder to continue/re-run previous analyses
-    Returns:
-        either an override in config, or the default "reanalysis/(today, YYYY-MM-DD)"
-    """
-    return join('reanalysis', get_date_string())
-
-
 @stage.stage(analysis_type='panelapp')
 class DownloadPanelAppData(stage.MultiCohortStage):
     """
@@ -153,8 +143,8 @@ class GeneratePed(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'pedigree.ped'
         )
 
@@ -179,8 +169,8 @@ class MakeRuntimeConfig(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'config.toml'
         )
 
@@ -245,8 +235,8 @@ class MakePhenopackets(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'phenopackets.json'
         )
 
@@ -296,8 +286,8 @@ class UnifiedPanelAppParser(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'panelapp_data.json'
         )
 
@@ -353,8 +343,8 @@ class RunHailFiltering(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'hail_labelled.vcf.bgz'
         )
 
@@ -449,8 +439,8 @@ class RunHailFilteringSv(stage.CohortStage):
                 generate_dataset_prefix(
                     dataset=cohort.dataset.name,
                     stage_name=self.name,
+                    hash_value=get_date_string(),
                 )
-                / get_date_string()
                 / 'labelled_SVs.vcf.bgz'
             )
         return {}
@@ -532,8 +522,8 @@ class ValidateVariantInheritance(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'summary_output.json'
         )
 
@@ -600,8 +590,8 @@ class HpoFlagging(stage.CohortStage):
             generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            / get_date_string()
             / 'full_report.json'
         )
 
@@ -657,17 +647,25 @@ class CreateTalosHtml(stage.CohortStage):
         std_prefix = generate_dataset_prefix(
             dataset=cohort.dataset.name,
             stage_name=self.name,
+            hash_value=get_date_string(),
         )
         web_prefix = generate_dataset_prefix(
             dataset=cohort.dataset.name,
             category='web',
             stage_name=self.name,
+            hash_value=get_date_string(),
+        )
+        static_web_prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='web',
+            stage_name=self.name,
+            hash_value='talos_static',
         )
 
         return {
-            'tar': std_prefix / get_date_folder() / 'reports.tar.gz',
-            'dated': web_prefix / get_date_folder() / 'summary_output.html',
-            'generic': web_prefix / 'talos_static' / 'summary_output.html',
+            'tar': std_prefix / 'reports.tar.gz',
+            'dated': web_prefix / 'summary_output.html',
+            'generic': static_web_prefix / 'summary_output.html',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -728,12 +726,13 @@ class MinimiseOutputForSeqr(stage.CohortStage):
                 dataset=cohort.dataset.name,
                 category='analysis',
                 stage_name=self.name,
+                hash_value=get_date_string(),
             )
             / 'seqr_files'
         )
         return {
-            'seqr_file': analysis_prefix / f'{get_date_folder()}_seqr.json',
-            'seqr_pheno_file': analysis_prefix / f'{get_date_folder()}_seqr_pheno.json',
+            'seqr_file': analysis_prefix / f'{get_date_string()}_seqr.json',
+            'seqr_pheno_file': analysis_prefix / f'{get_date_string()}_seqr_pheno.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
