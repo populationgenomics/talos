@@ -363,14 +363,12 @@ class RunHailFiltering(stage.CohortStage):
         )
 
         storage = config.config_retrieve(['RunHailFiltering', 'storage', 'small_variants'], storage_estimate)
-        cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
-        mem: str = config.config_retrieve(['RunHailFiltering', 'memory', 'small_variants'], 'highmem')
 
         job = set_up_job_with_resources(
             name=f'RunHailFiltering: {cohort.id} ({cohort.dataset.name})',
             storage=f'{storage * 2}Gi',
-            cpu=cpu,
-            memory=mem,
+            cpu=16,
+            memory='highmem',
         )
         job.command('set -eux pipefail')
 
