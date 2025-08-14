@@ -141,7 +141,12 @@ class ConcatenateVcfFragments(stage.CohortStage):
             manifest_file=extraction_outputs['sites_only_vcf_manifest'],
             manifest_dir=extraction_outputs['sites_only_vcf_dir'],
             output=output,
-            tmp_dir=self.tmp_prefix,
+            tmp_dir=cpg_flow_utils.generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                category='tmp',
+                stage_name=self.name,
+                hash_value=cohort.id,
+            ),
             job_attrs=self.get_job_attrs(cohort),
         )
         return self.make_outputs(cohort, data=output, jobs=jobs)
@@ -237,7 +242,13 @@ class AnnotatedVcfIntoHt(stage.CohortStage):
             cohort_id=cohort.id,
             bcftools_vcf=bcftools_vcf,
             output_ht=output,
-            tmp_dir=self.tmp_prefix / f'{cohort.id}_annotation_checkpoint',
+            tmp_dir=cpg_flow_utils.generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                category='tmp',
+                stage_name=self.name,
+                hash_value=cohort.id,
+            )
+            / f'{cohort.id}_annotation_checkpoint',
             job_attrs=self.get_job_attrs(cohort),
         )
 
