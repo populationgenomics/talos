@@ -143,23 +143,6 @@ class DownloadPanelAppData(stage.MultiCohortStage):
 
 
 @stage.stage
-class GeneratePed(stage.CohortStage):
-    """
-    revert to just using the metamist/CPG-flow Pedigree generation
-    """
-
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'pedigree.ped'
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        expected_out = self.expected_outputs(cohort)
-        pedigree = cohort.write_ped_file(out_path=expected_out)
-        logger.info(f'PED file for {cohort.id} ({cohort.dataset.name}) written to {pedigree}')
-
-        return self.make_outputs(cohort, data=expected_out)
-
-
-@stage.stage
 class MakeRuntimeConfig(stage.CohortStage):
     """
     create a config file for this run,
@@ -220,28 +203,19 @@ class MakeRuntimeConfig(stage.CohortStage):
 
 
 @stage.stage
-class MakePhenopackets(stage.CohortStage):
-    """
-    this calls the script which reads phenotype data from metamist
-    and generates a phenopacket file (GA4GH compliant)
-    """
+class MakeHpoPedigree(stage.CohortStage):
+    """Generate a pedigree from metamist - additional column for HPO terms"""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'phenopackets.json'
+        return cohort.dataset.prefix() / get_date_folder() / 'pedigree.ped'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        """
-        generate a pedigree from metamist
-        script to generate an extended pedigree format - additional columns for Ext. ID and HPO terms
-        """
-        job = set_up_job_with_resources(name=f'MakePhenopackets: {cohort.id} ({cohort.dataset.name})', cpu=1)
+        job = set_up_job_with_resources(name=f'MakeHpoPedigree: {cohort.id} ({cohort.dataset.name})', cpu=1)
 
         expected_out = self.expected_outputs(cohort)
         query_dataset = cohort.dataset.name
         if config.config_retrieve(['workflow', 'access_level']) == 'test' and 'test' not in query_dataset:
             query_dataset += '-test'
-
-        hpo_file = hail_batch.get_batch().read_input(config.config_retrieve(['GeneratePanelData', 'obo_file']))
 
         # mandatory argument
         seq_type = config.config_retrieve(['workflow', 'sequencing_type'])
@@ -251,20 +225,19 @@ class MakePhenopackets(stage.CohortStage):
 
         job.command(
             f"""
-            python -m talos.cpg_internal_scripts.MakePhenopackets \\
+            python -m talos.cpg_internal_scripts.MakeHpoPedigree \\
                 --dataset {query_dataset} \\
                 --output {job.output} \\
-                --type {seq_type} \\
-                --hpo {hpo_file}
+                --type {seq_type}
             """,
         )
         hail_batch.get_batch().write_output(job.output, expected_out)
-        logger.info(f'Phenopacket file for {cohort.id} ({cohort.dataset.name}) going to {expected_out}')
+        logger.info(f'Pedigree file for {cohort.id} ({cohort.dataset.name}) going to {expected_out!s}')
 
         return self.make_outputs(cohort, data=expected_out, jobs=job)
 
 
-@stage.stage(required_stages=[DownloadPanelAppData, MakeRuntimeConfig, MakePhenopackets])
+@stage.stage(required_stages=[DownloadPanelAppData, MakeRuntimeConfig, MakeHpoPedigree])
 class UnifiedPanelAppParser(stage.CohortStage):
     """
     Job to parse the PanelApp data, output specific to this Dataset
@@ -285,7 +258,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
             inputs.as_path(target=workflow.get_multicohort(), stage=DownloadPanelAppData),
         )
 
-        local_phenopackets = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakePhenopackets))
+        local_phenopackets = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
 
         hpo_file = hail_batch.get_batch().read_input(config.config_retrieve(['GeneratePanelData', 'obo_file']))
 
@@ -310,7 +283,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
 @stage.stage(
     required_stages=[
         UnifiedPanelAppParser,
-        GeneratePed,
+        MakeHpoPedigree,
         MakeRuntimeConfig,
         TransferAnnotationsFromHtToFinalMtStage,
     ],
@@ -352,7 +325,7 @@ class RunHailFiltering(stage.CohortStage):
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
 
         # peds can't read cloud paths
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePed))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
         expected_out = self.expected_outputs(cohort)
 
         # copy vcf & index out manually
@@ -395,7 +368,7 @@ class RunHailFiltering(stage.CohortStage):
         return self.make_outputs(cohort, data=expected_out, jobs=job)
 
 
-@stage.stage(required_stages=[UnifiedPanelAppParser, GeneratePed, MakeRuntimeConfig])
+@stage.stage(required_stages=[UnifiedPanelAppParser, MakeHpoPedigree, MakeRuntimeConfig])
 class RunHailFilteringSv(stage.CohortStage):
     """
     hail job to filter & label the SV MT
@@ -426,7 +399,7 @@ class RunHailFilteringSv(stage.CohortStage):
 
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePed))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
 
         cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
         job = set_up_job_with_resources(
@@ -471,7 +444,7 @@ class RunHailFilteringSv(stage.CohortStage):
 
 @stage.stage(
     required_stages=[
-        GeneratePed,
+        MakeHpoPedigree,
         UnifiedPanelAppParser,
         RunHailFiltering,
         RunHailFilteringSv,
@@ -495,7 +468,7 @@ class ValidateVariantInheritance(stage.CohortStage):
 
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
 
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=GeneratePed))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
         hail_inputs = inputs.as_path(target=cohort, stage=RunHailFiltering)
 
         # either find a SV vcf, or None
