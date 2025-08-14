@@ -1,5 +1,4 @@
 import functools
-import os
 
 import loguru
 
@@ -50,7 +49,7 @@ def generate_dataset_prefix(
     long_read_element = 'long_read' if config.config_retrieve(['workflow', 'long_read'], False) else None
 
     # line up all the elements into an ordered list, and then join the non-None elements
-    suffix = os.path.join(
+    suffix = '/'.join(
         [x for x in [long_read_element, exome_element, workflow_name, hash_element, stage_name] if isinstance(x, str)],
     )
 
