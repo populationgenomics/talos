@@ -67,8 +67,14 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     This method builds the path to the final object, and checks if it exists in GCP
     If it does, we can skip all other stages
     """
+
     return utils.exists(
-        workflow.get_workflow().tmp_prefix / 'TransferAnnotationsFromHtToFinalMtStage' / f'{cohort.id}.mt'
+        cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name='TransferAnnotationsFromHtToFinalMtStage',
+            hash_value=cohort.id,
+        )
+        / f'{cohort.id}.mt'
     )
 
 
@@ -84,6 +90,7 @@ class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
+            hash_value=cohort.id,
         )
         return {
             # write path for the full (region-limited) MatrixTable, stripped of info fields
@@ -118,6 +125,7 @@ class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
+            hash_value=cohort.id,
         )
         return temp_prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
 
@@ -148,6 +156,7 @@ class AnnotateGnomadUsingEchtvarStage(stage.CohortStage):
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
+            hash_value=cohort.id,
         )
         return temp_prefix / f'{cohort.id}_gnomad_frequency_annotated.vcf.bgz'
 
@@ -179,6 +188,7 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
+            hash_value=cohort.id,
         )
         return temp_prefix / f'{cohort.id}_consequence_annotated.vcf.bgz'
 
@@ -210,6 +220,7 @@ class SitesOnlyVcfIntoAnnotationsHt(stage.CohortStage):
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
+            hash_value=cohort.id,
         )
         return temp_prefix / f'{cohort.id}_annotations.ht'
 
@@ -243,8 +254,8 @@ class TransferAnnotationsFromHtToFinalMtStage(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
-            category='tmp',
             stage_name=self.name,
+            hash_value=cohort.id,
         )
         return temp_prefix / f'{cohort.id}.mt'
 

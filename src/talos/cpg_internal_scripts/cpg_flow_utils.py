@@ -35,7 +35,7 @@ def generate_dataset_prefix(
     """
 
     # mandatory value in a cpg-flow config
-    workflow_name = config.config_retrieve(['workflow', 'name'])
+    workflow_name = config.config_retrieve(['workflow', 'name'], 'talos')
 
     # generated from the included samples in the workflow
     # or passed directly if provided, e.g. to target outputs to a date-specific folder, not a callset-specific one
