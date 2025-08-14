@@ -45,6 +45,9 @@ VQSR_FILTERS = {
         'VQSRTrancheSNP99.90to100.00+': {
             'Description': 'Truth sensitivity tranche level for SNP model at VQS Lod < -10.0',
         },
+        'MONOALLELIC': {
+            'Description': 'Variant is monoallelic?',
+        },
     },
 }
 

@@ -19,7 +19,7 @@ def make_annotation_transfer_job(
     """
 
     job = hail_batch.get_batch().new_job(
-        name=f'JumpAnnotationsFromHtToFinalMt: {cohort_id}',
+        name=f'TransferAnnotationsFromHtToFinalMtStage: {cohort_id}',
         attributes=job_attrs | {'tool': 'hail'},
     )
     job.image(config.config_retrieve(['workflow', 'driver_image']))

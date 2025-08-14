@@ -15,8 +15,8 @@ from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, to_path, config, hail_batch
 
 from talos.utils import get_granular_date
-from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsFromHtToFinalMtStage
-from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
+from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
+from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis, generate_dataset_prefix
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -100,16 +100,6 @@ def get_date_string() -> str:
     return config.config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-@functools.cache
-def get_date_folder() -> str:
-    """
-    allows override of the date folder to continue/re-run previous analyses
-    Returns:
-        either an override in config, or the default "reanalysis/(today, YYYY-MM-DD)"
-    """
-    return join('reanalysis', get_date_string())
-
-
 @stage.stage(analysis_type='panelapp')
 class DownloadPanelAppData(stage.MultiCohortStage):
     """
@@ -149,7 +139,14 @@ class GeneratePed(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'pedigree.ped'
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'pedigree.ped'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         expected_out = self.expected_outputs(cohort)
@@ -168,7 +165,14 @@ class MakeRuntimeConfig(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'config.toml'
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'config.toml'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # start off with a fresh config dictionary, including generic content
@@ -227,7 +231,14 @@ class MakePhenopackets(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'phenopackets.json'
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'phenopackets.json'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         """
@@ -271,7 +282,14 @@ class UnifiedPanelAppParser(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'panelapp_data.json'
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'panelapp_data.json'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # create and resource a new job
@@ -312,7 +330,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
         UnifiedPanelAppParser,
         GeneratePed,
         MakeRuntimeConfig,
-        TransferAnnotationsFromHtToFinalMtStage,
+        TransferAnnotationsToMt,
     ],
 )
 class RunHailFiltering(stage.CohortStage):
@@ -321,11 +339,18 @@ class RunHailFiltering(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'hail_labelled.vcf.bgz'
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'hail_labelled.vcf.bgz'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # integrate this into the earlier workflow
-        input_mt = inputs.as_path(cohort, TransferAnnotationsFromHtToFinalMtStage)
+        input_mt = inputs.as_path(cohort, TransferAnnotationsToMt)
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig))
@@ -338,14 +363,12 @@ class RunHailFiltering(stage.CohortStage):
         )
 
         storage = config.config_retrieve(['RunHailFiltering', 'storage', 'small_variants'], storage_estimate)
-        cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
-        mem: str = config.config_retrieve(['RunHailFiltering', 'memory', 'small_variants'], 'highmem')
 
         job = set_up_job_with_resources(
             name=f'RunHailFiltering: {cohort.id} ({cohort.dataset.name})',
             storage=f'{storage * 2}Gi',
-            cpu=cpu,
-            memory=mem,
+            cpu=16,
+            memory='highmem',
         )
         job.command('set -eux pipefail')
 
@@ -406,10 +429,18 @@ class RunHailFilteringSv(stage.CohortStage):
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
             is not None
         ):
-            return cohort.dataset.prefix() / get_date_folder() / 'labelled_SVs.vcf.bgz'
+            return (
+                generate_dataset_prefix(
+                    dataset=cohort.dataset.name,
+                    stage_name=self.name,
+                    hash_value=get_date_string(),
+                )
+                / 'labelled_SVs.vcf.bgz'
+            )
         return {}
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -419,6 +450,7 @@ class RunHailFilteringSv(stage.CohortStage):
             path_or_none := query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
         ) is None:
             logger.info(f'No SV MT found for {cohort.id} ({cohort.dataset.name}), skipping')
@@ -484,7 +516,14 @@ class ValidateVariantInheritance(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return cohort.dataset.prefix() / get_date_folder() / 'summary_output.json'
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'summary_output.json'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # resource consumption here has dropped hugely
@@ -503,6 +542,7 @@ class ValidateVariantInheritance(stage.CohortStage):
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
             is not None
         ):
@@ -543,11 +583,15 @@ class ValidateVariantInheritance(stage.CohortStage):
     analysis_keys=['report'],
 )
 class HpoFlagging(stage.CohortStage):
-    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
-        date_prefix = cohort.dataset.prefix() / get_date_folder()
-        return {
-            'report': date_prefix / 'full_report.json',
-        }
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'full_report.json'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         outputs = self.expected_outputs(cohort)
@@ -585,7 +629,7 @@ class HpoFlagging(stage.CohortStage):
             """,
         )
 
-        hail_batch.get_batch().write_output(job.output, outputs['report'])
+        hail_batch.get_batch().write_output(job.output, outputs)
 
         return self.make_outputs(target=cohort, jobs=job, data=outputs)
 
@@ -598,10 +642,28 @@ class HpoFlagging(stage.CohortStage):
 )
 class CreateTalosHtml(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        std_prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name=self.name,
+            hash_value=get_date_string(),
+        )
+        web_prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='web',
+            stage_name=self.name,
+            hash_value=get_date_string(),
+        )
+        static_web_prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='web',
+            stage_name=self.name,
+            hash_value='talos_static',
+        )
+
         return {
-            'tar': cohort.dataset.prefix() / get_date_folder() / 'reports.tar.gz',
-            'dated': cohort.dataset.prefix(category='web') / get_date_folder() / 'summary_output.html',
-            'generic': cohort.dataset.prefix(category='web') / 'talos_static' / 'summary_output.html',
+            'tar': std_prefix / 'reports.tar.gz',
+            'dated': web_prefix / 'summary_output.html',
+            'generic': static_web_prefix / 'summary_output.html',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -610,7 +672,7 @@ class CreateTalosHtml(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
-        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'report'))
+        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
         expected_out = self.expected_outputs(cohort)
 
@@ -646,7 +708,7 @@ class CreateTalosHtml(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[ValidateVariantInheritance, MakeRuntimeConfig],
+    required_stages=[HpoFlagging, MakeRuntimeConfig],
     analysis_keys=['seqr_file', 'seqr_pheno_file'],
     analysis_type='custom',
     tolerate_missing_output=True,
@@ -657,10 +719,18 @@ class MinimiseOutputForSeqr(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
-        analysis_folder_prefix = cohort.dataset.prefix(category='analysis') / 'seqr_files'
+        analysis_prefix = (
+            generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                category='analysis',
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'seqr_files'
+        )
         return {
-            'seqr_file': analysis_folder_prefix / f'{get_date_folder()}_seqr.json',
-            'seqr_pheno_file': analysis_folder_prefix / f'{get_date_folder()}_seqr_pheno.json',
+            'seqr_file': analysis_prefix / f'{get_date_string()}_seqr.json',
+            'seqr_pheno_file': analysis_prefix / f'{get_date_string()}_seqr_pheno.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -674,7 +744,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
             return self.make_outputs(cohort, skipped=True)
 
         input_localised = hail_batch.get_batch().read_input(
-            inputs.as_str(target=cohort, stage=ValidateVariantInheritance),
+            inputs.as_str(target=cohort, stage=HpoFlagging),
         )
 
         # create a job to run the minimisation script
