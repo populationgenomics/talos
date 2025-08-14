@@ -26,6 +26,7 @@ def make_vcf_extraction_job(
                 dataset=cohort.dataset.name,
                 analysis_type='matrixtable',
                 sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
         ):
             raise ValueError(f'No MatrixTable found in Metamist for {cohort.id}')

@@ -441,6 +441,7 @@ class RunHailFilteringSv(stage.CohortStage):
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
             is not None
         ):
@@ -461,6 +462,7 @@ class RunHailFilteringSv(stage.CohortStage):
             path_or_none := query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
         ) is None:
             logger.info(f'No SV MT found for {cohort.id} ({cohort.dataset.name}), skipping')
@@ -552,6 +554,7 @@ class ValidateVariantInheritance(stage.CohortStage):
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
             is not None
         ):
