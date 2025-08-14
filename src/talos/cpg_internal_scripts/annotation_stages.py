@@ -41,7 +41,7 @@ import loguru
 
 from cpg_utils import Path
 
-from cpg_flow import workflow, stage, targets, utils
+from cpg_flow import stage, targets, utils
 
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     ExtractVcfFromMt,
@@ -74,7 +74,7 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
             stage_name='TransferAnnotationsFromHtToFinalMtStage',
             hash_value=cohort.id,
         )
-        / f'{cohort.id}.mt'
+        / f'{cohort.id}.mt',
     )
 
 

@@ -26,7 +26,10 @@ METAMIST_ANALYSIS_QUERY = graphql.gql(
 
 @functools.cache
 def generate_dataset_prefix(
-    dataset: str, category: str | None = None, stage_name: str | None = None, hash_value: str | None = None
+    dataset: str,
+    category: str | None = None,
+    stage_name: str | None = None,
+    hash_value: str | None = None,
 ) -> Path:
     """
     Generate a dictionary of prefixes for the current workflow and Stage.
@@ -47,7 +50,9 @@ def generate_dataset_prefix(
     long_read_element = 'long_read' if config.config_retrieve(['workflow', 'long_read'], False) else None
 
     # line up all the elements into an ordered list, and then join the non-None elements
-    suffix = os.path.join([x for x in [long_read_element, exome_element, workflow_name, hash_element, stage_name] if x])
+    suffix = os.path.join(
+        [x for x in [long_read_element, exome_element, workflow_name, hash_element, stage_name] if isinstance(x, str)],
+    )
 
     return to_path(config.dataset_path(suffix=suffix, dataset=dataset, category=category))
 
