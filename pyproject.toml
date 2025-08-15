@@ -173,6 +173,7 @@ ignore = [
     "N999", # invalid module name (not lower-case and potholes)
     "I001", # Import block is un-sorted or un-formatted (to remove soon)
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "PLR2004" #  Magic value used in comparison, consider replacing `X` with a constant variable. I don't rate this
 ]
 
 [tool.ruff.format]

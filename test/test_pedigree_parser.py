@@ -62,7 +62,7 @@ def test_validate_sex_invalid(mock_to_anypath):
     mock_to_anypath.return_value.open = m
     parser = PedigreeParser('dummy_path')
     assert parser.validate_sex('not_a_sex', 'S7') == 0
-    assert f'Invalid Sex provided! Sample S7: not_a_sex' in parser.parsing_issues
+    assert 'Invalid Sex provided! Sample S7: not_a_sex' in parser.parsing_issues
 
 
 @patch('src.talos.pedigree_parser.to_anypath')
@@ -90,12 +90,12 @@ def test_validate_affected_grudgingly_valid(mock_to_anypath, caplog):
 
 
 @patch('src.talos.pedigree_parser.to_anypath')
-def test_validate_affected_invalid(mock_to_anypath, caplog):
+def test_validate_affected_invalid(mock_to_anypath):
     m = mock_open(read_data=PED_CONTENT)
     mock_to_anypath.return_value.open = m
     parser = PedigreeParser('dummy_path')
     assert parser.validate_affected('not_status', 'S7') == 0
-    assert f'Invalid Affected status provided! Sample S7: not_status' in parser.parsing_issues
+    assert 'Invalid Affected status provided! Sample S7: not_status' in parser.parsing_issues
 
 
 @patch('src.talos.pedigree_parser.to_anypath')
@@ -113,7 +113,7 @@ def test_read_write(tmp_path):
     parser = PedigreeParser(real_ped)
     output_path = str(tmp_path / 'output.ped')
     parser.write_pedigree(output_path)
-    with open(output_path, 'r') as f:
+    with open(output_path) as f:
         content = f.read().strip()
     expected = 'FAM1\tS1\t0\t0\t1\t2\nFAM1\tS2\t0\t0\t2\t1'
     assert content == expected, f'Expected: {expected}, but got: {content}'

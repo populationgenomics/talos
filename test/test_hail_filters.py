@@ -47,7 +47,7 @@ def test_full_freq_replacement(make_a_mt, caplog):
 
     assert matrix_out.info.AF.collect()[0] == [0.5]
     assert matrix_out.info.AC.collect()[0] == [1]
-    assert matrix_out.info.AN.collect()[0] == 2  # noqa: PLR2004
+    assert matrix_out.info.AN.collect()[0] == 2
 
 
 @pytest.mark.parametrize(  # needs clinvar

@@ -14,13 +14,12 @@ Read, filter, annotate, classify, and write Genetic data
 from argparse import ArgumentParser
 
 import hail as hl
-from cloudpathlib.anypath import to_anypath
 from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
-from talos.pedigree_parser import PedigreeParser
+from talos.pedigree_parser import PedigreeParser, PEDIGREE_DATA
 
 
 # set some Hail constants

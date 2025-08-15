@@ -160,8 +160,8 @@ class PedigreeParser:
         """
         Read a PED file and return a dictionary of Participant objects.
 
-        The default validation action here is to strip off any mother/father IDs if the mother/father are not present in the
-        pedigree file. If prune_missing_parents is set to False, this will instead cause a failure.
+        The default validation action here is to strip off any mother/father IDs if the mother/father are not present in
+        the pedigree file. If prune_missing_parents is set to False, this will instead cause a failure.
         """
 
         participants = {}
@@ -285,7 +285,7 @@ class PedigreeParser:
         if lower_aff in GRUDGINGLY_VALID_AFFECTED:
             # this is a warning, but we still return 1 to indicate affected status
             logger.warning(
-                f'Grudgingly valid Affected status provided, please correct data! Sample {sample_id}: {aff_str}'
+                f'Grudgingly valid Affected status provided, please correct data! Sample {sample_id}: {aff_str}',
             )
             return 2
 

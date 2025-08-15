@@ -67,7 +67,7 @@ def set_up_job_with_resources(
     return job
 
 
-def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> int:
+def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> str:
     """
     Some way of taking the details we have (#SGs, sequencing type)
     and producing an estimate (with padding) of the MT size on disk
@@ -76,17 +76,12 @@ def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> int:
     This method is being copied here and modified - Talos is using minimised MTs, so the size is much smaller
     The current calculation method in cpg-workflows/flow is still useful in the Seqr pipeline
 
-    Args:
-        sequencing_type (str): exome or genome
-        cohort_size (int): number of samples
-
-    Returns:
-        str, the value for job.storage(X)
+    Returns a String, the value for job.storage(X)
     """
 
-    if (sequencing_type == 'genome' and cohort_size < 400) or (sequencing_type == 'exome' and cohort_size < 3000):  # noqa: PLR2004
-        return 50
-    return 250
+    if (sequencing_type == 'genome' and cohort_size < 400) or (sequencing_type == 'exome' and cohort_size < 3000):
+        return '50Gi'
+    return '250Gi'
 
 
 @functools.cache
@@ -310,13 +305,12 @@ class RunHailFiltering(stage.CohortStage):
             cohort_size=len(cohort.get_sequencing_group_ids()),
         )
 
-        storage = config.config_retrieve(['RunHailFiltering', 'storage', 'small_variants'], storage_estimate)
         cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'small_variants'], 8)
         mem: str = config.config_retrieve(['RunHailFiltering', 'memory', 'small_variants'], 'highmem')
 
         job = set_up_job_with_resources(
             name=f'RunHailFiltering: {cohort.id} ({cohort.dataset.name})',
-            storage=f'{storage * 2}Gi',
+            storage=config.config_retrieve(['RunHailFiltering', 'storage', 'small_variants'], storage_estimate),
             cpu=cpu,
             memory=mem,
         )
