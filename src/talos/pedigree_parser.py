@@ -67,7 +67,7 @@ PEDIGREE_DATA = dict[str, Participant]
 class PedigreeParser:
     def __init__(self, pedigree_path: str):
         """
-        A Pedigree object, becuase the world needs another Pedigree-parsing class.
+        A Pedigree object, because the world needs another Pedigree-parsing class.
 
         Args:
             pedigree_path (str): Path to the pedigree file, which is expected to be a 6/7-column tab-separated file
@@ -122,8 +122,8 @@ class PedigreeParser:
 
     def write_pedigree(
         self,
-        participants: PEDIGREE_DATA | None,
         output_path: str,
+        participants: PEDIGREE_DATA | None = None,
         only_participants: list[str] | None = None,
     ) -> None:
         """
@@ -139,7 +139,6 @@ class PedigreeParser:
 
         the only_participants parameter can be used to limit the output to a specific set of participants.
         """
-        output_path = to_anypath(output_path)
 
         logger.info(f'Writing PED file to: {output_path}')
 
@@ -147,7 +146,7 @@ class PedigreeParser:
         if participants is None:
             participants = self.participants
 
-        with output_path.open('w') as filehandle:
+        with to_anypath(output_path).open('w') as filehandle:
             for sample_id, participant in participants.items():
                 if only_participants and sample_id not in only_participants:
                     continue  # skip participants not in the only_participants list
@@ -171,7 +170,6 @@ class PedigreeParser:
 
         with to_anypath(self.pedigree_path).open() as filehandle:
             for line in filehandle:
-                print(line)
                 if line.startswith('#') or not line.strip():
                     continue  # Skip comments and empty lines
 

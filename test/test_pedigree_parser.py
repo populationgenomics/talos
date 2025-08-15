@@ -1,9 +1,7 @@
 import pytest
 from unittest.mock import patch, mock_open
-from src.talos.pedigree_parser import (
-    PedigreeParser,
-    Participant,
-)
+from src.talos.pedigree_parser import PedigreeParser
+
 
 PED_CONTENT = 'FAM1\tS1\t0\t0\t1\t2\tHP:0000118,HP:0001250\nFAM1\tS2\t0\t0\t2\t1\t\nFAM1\tS3\tS1\tS2\t1\t1\t\n'
 
@@ -98,3 +96,24 @@ def test_validate_affected_invalid(mock_to_anypath, caplog):
     parser = PedigreeParser('dummy_path')
     assert parser.validate_affected('not_status', 'S7') == 0
     assert f'Invalid Affected status provided! Sample S7: not_status' in parser.parsing_issues
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def parsing_failure(mock_to_anypath):
+    m = mock_open(read_data='FAM1\tS1\t0\t0\t1\tIDK')
+    mock_to_anypath.return_value.open = m
+    with pytest.raises(ValueError, match='Errors found during pedigree parsing, see log for details'):
+        PedigreeParser('dummy_path')
+
+
+def test_read_write(tmp_path):
+    real_ped = str(tmp_path / 'test.ped')
+    with open(real_ped, 'w') as f:
+        f.write('FAM1\tS1\t0\t0\t1\t2\tHP:0000118,HP:0001250\nFAM1\tS2\t0\t0\t2\t1')
+    parser = PedigreeParser(real_ped)
+    output_path = str(tmp_path / 'output.ped')
+    parser.write_pedigree(output_path)
+    with open(output_path, 'r') as f:
+        content = f.read().strip()
+    expected = 'FAM1\tS1\t0\t0\t1\t2\nFAM1\tS2\t0\t0\t2\t1'
+    assert content == expected, f'Expected: {expected}, but got: {content}'
