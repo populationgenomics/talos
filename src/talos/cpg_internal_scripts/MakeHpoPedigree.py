@@ -25,8 +25,8 @@ PARTICIPANT_QUERY = gql(
 query Participants($project: String!, $sequencing_type: String!, $technology: String!) {
   project(name: $project) {
     sequencingGroups(
-        technology: {eq: $technology}, 
-        type:  {eq: $sequencing_type}, 
+        technology: {eq: $technology},
+        type:  {eq: $sequencing_type},
         activeOnly: {eq: true}
     ) {
       id

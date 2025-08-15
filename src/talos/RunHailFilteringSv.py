@@ -15,8 +15,9 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree, extract_ped_data
+from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.utils import read_json_from_path
+from talos.pedigree_parser import PedigreeParser
 
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
@@ -267,11 +268,11 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         _read_if_exists=True,
     )
 
-    # parse the pedigree, and extract sample IDs. Other elements are only used for small-variant analysis
-    all_sample_ids, _affected_sample_ids, _new_ped_path = extract_ped_data(pedigree)
+    # parse the pedigree into an object
+    pedigree_data = PedigreeParser(pedigree)
 
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, ped_samples=all_sample_ids)
+    mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove filtered variants
     mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))

@@ -16,11 +16,11 @@ from argparse import ArgumentParser
 import hail as hl
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
-from peds import open_ped
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
+from talos.pedigree_parser import PedigreeParser
 
 
 # set some Hail constants
@@ -517,40 +517,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def extract_ped_data(ped_file_path: str) -> tuple(set[str], set[str], str):
-    """
-    instead of readin the PED file 3 separate times, we read it once, and extract the relevant data
-
-    What we want:
-      - All Sample IDs in the pedigree, to filter the MatrixTable to only those samples
-      - All affected IDs in the pedigree, to apply stricter Genotype Quality filters to them
-      - A 6-column PED file, to use as a pedigree for Hail's Trio-MatrixTable generation
-    """
-    set_of_all_ids: set[str] = set()
-    set_of_affected_ids: set[str] = set()
-    new_ped_path: str = 'temp_ped.ped'
-
-    with (
-        to_anypath(ped_file_path).open(encoding='utf-8') as handle,
-        open(new_ped_path, 'w', encoding='utf-8') as new_ped_handle,
-    ):
-        for line in handle:
-            if not line.rstrip() or line.startswith('#'):
-                continue
-            parts = line.rstrip().split()
-            if len(parts) < NUM_PED_COLS:
-                logger.error(f'PED line has fewer than {NUM_PED_COLS} columns: {line}')
-                continue
-            set_of_all_ids.add(parts[1])  # sample ID is the second column
-            if parts[5] == '2':  # affected is 6th column
-                set_of_affected_ids.add(parts[1])  # sample ID is the second column
-
-            new_ped_handle.write('\t'.join(parts[:NUM_PED_COLS]) + '\n')
-
-    return set_of_all_ids, set_of_affected_ids, new_ped_path
-
-
-def annotate_category_4(mt: hl.MatrixTable, affected_samples: set[str], ped_file_path: str) -> hl.MatrixTable:
+def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
     The Hail builtin method has limitations around Hemizygous regions
@@ -585,7 +552,10 @@ def annotate_category_4(mt: hl.MatrixTable, affected_samples: set[str], ped_file
 
     de_novo_matrix = filter_by_consequence(mt)
 
-    pedigree = hl.Pedigree.read(ped_file_path)
+    # takes the parsed pedigree data, writes it to a temporary file as a Strict 6-column format
+    temp_ped_path = 'temp.ped'
+    pedigree_data.write_pedigree(output_path=temp_ped_path)
+    pedigree = hl.Pedigree.read(temp_ped_path)
 
     # allow for depth to be missing, rebuild from other attributes if required, or use a default
     if 'DP' in de_novo_matrix.entry:
@@ -598,7 +568,7 @@ def annotate_category_4(mt: hl.MatrixTable, affected_samples: set[str], ped_file
         depth = min_depth + 1
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
-    affected_members = hl.literal(affected_samples)
+    affected_members = hl.literal(pedigree_data.get_affected_member_ids())
 
     de_novo_matrix = de_novo_matrix.filter_entries(
         (min_depth > depth)
@@ -774,7 +744,7 @@ def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
     """
 
     # take all the green genes, remove the metadata
-    green_genes = set(panel_data.genes.keys())
+    green_genes = set(panel_data.genes)
     logger.info(f'Extracted {len(green_genes)} green genes')
     return hl.literal(green_genes)
 
@@ -901,7 +871,8 @@ def main(
     # pull green genes from the panelapp data
     green_expression = green_from_panelapp(panelapp)
 
-    all_sample_ids, affected_sample_ids, new_ped_path = extract_ped_data(pedigree)
+    # read the pedigree data
+    pedigree_data: PEDIGREE_DATA = PedigreeParser(pedigree)
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
@@ -934,7 +905,7 @@ def main(
     mt = filter_to_population_rare(mt=mt)
 
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, ped_samples=all_sample_ids)
+    mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
@@ -978,7 +949,7 @@ def main(
     if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']):
         mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
     else:
-        mt = annotate_category_4(mt=mt, affected_samples=affected_sample_ids, ped_file_path=new_ped_path)
+        mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data)
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
