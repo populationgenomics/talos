@@ -447,7 +447,7 @@ class BaseMoi:
         sample_ped_entry = self.pedigree.by_id[sample_id]
         for parent in [sample_ped_entry.mother, sample_ped_entry.father]:
             # skip to prevent crashing on !trios
-            if parent is None:
+            if parent is None or (parent not in self.pedigree.by_id):
                 continue
 
             if ((parent in variant_1.het_samples) and (parent in variant_2.het_samples)) or self.pedigree.by_id[
