@@ -1,0 +1,100 @@
+import pytest
+from unittest.mock import patch, mock_open
+from src.talos.pedigree_parser import (
+    PedigreeParser,
+    Participant,
+)
+
+PED_CONTENT = 'FAM1\tS1\t0\t0\t1\t2\tHP:0000118,HP:0001250\nFAM1\tS2\t0\t0\t2\t1\t\nFAM1\tS3\tS1\tS2\t1\t1\t\n'
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_read_pedigree(mock_to_anypath):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    participants = parser.participants
+    assert 'S1' in participants
+    assert participants['S1'].affected == 2
+    assert participants['S1'].hpo_terms == {'HP:0000118', 'HP:0001250'}
+    assert participants['S2'].sex == 2
+    assert participants['S3'].father_id == 'S1'
+    assert participants['S3'].mother_id == 'S2'
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_get_affected_members(mock_to_anypath):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    affected = parser.get_affected_members()
+    assert 'S1' in affected
+    assert affected['S1'].affected == 2
+    assert 'S2' not in affected
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_as_singletons(mock_to_anypath):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    singletons = parser.as_singletons()
+    for p in singletons.values():
+        assert p.father_id == '0'
+        assert p.mother_id == '0'
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_validate_sex_valid(mock_to_anypath):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    assert parser.validate_sex('1', 'S1') == 1
+    assert parser.validate_sex('2', 'S2') == 2
+    assert parser.validate_sex('0', 'S3') == 0
+    assert parser.validate_sex('male', 'S4') == 1
+    assert parser.validate_sex('female', 'S5') == 2
+    assert parser.validate_sex('unknown', 'S6') == 0
+    assert len(parser.parsing_issues) == 0
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_validate_sex_invalid(mock_to_anypath):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    assert parser.validate_sex('not_a_sex', 'S7') == 0
+    assert f'Invalid Sex provided! Sample S7: not_a_sex' in parser.parsing_issues
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_validate_affected_valid(mock_to_anypath):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    assert parser.validate_affected('0', 'S1') == 0
+    assert parser.validate_affected('1', 'S2') == 1
+    assert parser.validate_affected('2', 'S3') == 2
+    assert parser.validate_affected('unaffected', 'S4') == 1
+    assert len(parser.parsing_issues) == 0
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_validate_affected_grudgingly_valid(mock_to_anypath, caplog):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    assert parser.validate_affected('affected', 'S5') == 2
+    assert parser.validate_affected('true', 'S6') == 2
+    assert len(parser.parsing_issues) == 0
+    assert 'Grudgingly valid Affected status provided, please correct data! Sample S5: affected' in caplog.text
+    assert 'Grudgingly valid Affected status provided, please correct data! Sample S6: true' in caplog.text
+
+
+@patch('src.talos.pedigree_parser.to_anypath')
+def test_validate_affected_invalid(mock_to_anypath, caplog):
+    m = mock_open(read_data=PED_CONTENT)
+    mock_to_anypath.return_value.open = m
+    parser = PedigreeParser('dummy_path')
+    assert parser.validate_affected('not_status', 'S7') == 0
+    assert f'Invalid Affected status provided! Sample S7: not_status' in parser.parsing_issues

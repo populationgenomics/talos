@@ -21,7 +21,6 @@ This is modelled on a classic 6-column Pedigree file format, with the following 
 """
 
 import re
-import sys
 from dataclasses import dataclass
 
 from cloudpathlib.anypath import to_anypath
@@ -40,8 +39,6 @@ NULL_VALUES = {'0', 0, 'other', '-', '', 'unaffected'}
 VALID_AFFECTED = {'0', '1', '2'}
 GRUDGINGLY_VALID_AFFECTED = {'affected', 'true'}
 
-# contain all issues found during parsing, print once, and comprehensively
-ISSUES: list[str] = []
 EXPECTED_NUM_COLUMNS = 7
 AFFECTED_NUM = 2
 
@@ -67,52 +64,6 @@ class Participant:
 PEDIGREE_DATA = dict[str, Participant]
 
 
-def validate_sex(sex_str: str, sample_id: str) -> int:
-    """Validate the provided value for Sex."""
-
-    if sex_str in VALID_SEX:
-        return int(sex_str)
-
-    lower_sex = sex_str.lower()
-    if lower_sex in MALE_SEX:
-        return 1
-    if lower_sex in FEMALE_SEX:
-        return 2
-    if lower_sex in UNKNOWN_SEX:
-        return 0
-
-    ISSUES.append(f'Invalid Sex provided! Sample {sample_id}: {sex_str}')
-
-    # a value is returned here to prevent the model validation from failing, but this will be caught and reported
-    return 0
-
-
-def validate_affected(aff_str: str, sample_id: str) -> int:
-    """
-    Validate the provided value for Affected status.
-    Return values are 0, 1, or 2, where:
-    - 0 means invalid Affected status or unknown
-    - 1 means Unaffected
-    - 2 means Affected
-    """
-
-    if aff_str in VALID_AFFECTED:
-        return int(aff_str)
-
-    lower_aff = aff_str.lower()
-    # happy to parse these
-    if lower_aff in NULL_VALUES:
-        return 1
-
-    if lower_aff in GRUDGINGLY_VALID_AFFECTED:
-        # this is a warning, but we still return 1 to indicate affected status
-        logger.warning(f'Grudgingly valid Affected status provided, please correct data! Sample {sample_id}: {aff_str}')
-        return 2
-
-    ISSUES.append(f'Invalid Affected status provided! Sample {sample_id}: {aff_str}')
-    return 0
-
-
 class PedigreeParser:
     def __init__(self, pedigree_path: str):
         """
@@ -122,7 +73,17 @@ class PedigreeParser:
             pedigree_path (str): Path to the pedigree file, which is expected to be a 6/7-column tab-separated file
         """
         self.pedigree_path = pedigree_path
+        self.parsing_issues: list[str] = []
         self.participants: PEDIGREE_DATA = self.read_pedigree()
+
+        if self.parsing_issues:
+            logger.warning('Issues found during pedigree parsing:')
+            for issue in self.parsing_issues:
+                logger.warning(issue)
+            raise ValueError('Errors found during pedigree parsing, see log for details')
+
+        if len(self.participants) == 0:
+            raise ValueError('No valid participants found in the pedigree file!')
 
     def get_affected_members(
         self,
@@ -210,6 +171,7 @@ class PedigreeParser:
 
         with to_anypath(self.pedigree_path).open() as filehandle:
             for line in filehandle:
+                print(line)
                 if line.startswith('#') or not line.strip():
                     continue  # Skip comments and empty lines
 
@@ -251,8 +213,8 @@ class PedigreeParser:
                         else:
                             logger.warning(f'Invalid HPO term found: {each_hpo} in line: {line.strip()}')
 
-                sex_int = validate_sex(sex_str=sex, sample_id=sample_id)
-                affected_int = validate_sex(sex_str=sex, sample_id=sample_id)
+                sex_int = self.validate_sex(sex_str=sex, sample_id=sample_id)
+                affected_int = self.validate_affected(aff_str=affected, sample_id=sample_id)
 
                 # Create a Participant object, even if it contained some validation issues
                 participants[sample_id] = Participant(
@@ -268,27 +230,66 @@ class PedigreeParser:
         # Now validate parents, and validate that all listed IDs are present in the participants
         # we're making this valus a String consistently, but we allow '0' as a valid value for missing parents
         for each_id, each_participant in participants.items():
-            if each_participant.father not in participants and each_participant.father != '0':
-                message = f'Participant {each_id} has an invalid father ID: {each_participant.father}'
+            if each_participant.father_id not in participants and each_participant.father_id != '0':
+                message = f'Participant {each_id} has an invalid father ID: {each_participant.father_id}'
                 if prune_missing_parents:
                     logger.info(message)
-                    each_participant.father = '0'
+                    each_participant.father_id = '0'
                 else:
-                    ISSUES.append(message)
+                    self.parsing_issues.append(message)
 
             # same check on the mother
-            if each_participant.mother not in participants and each_participant.mother != '0':
-                message = f'Participant {each_id} has an invalid mother ID: {each_participant.mother}'
+            if each_participant.mother_id not in participants and each_participant.mother_id != '0':
+                message = f'Participant {each_id} has an invalid mother ID: {each_participant.mother_id}'
                 if prune_missing_parents:
                     logger.info(message)
-                    each_participant.mother = '0'
+                    each_participant.mother_id = '0'
                 else:
-                    ISSUES.append(message)
-
-        if ISSUES:
-            logger.warning('Issues found during pedigree parsing:')
-            for issue in ISSUES:
-                logger.warning(issue)
-                sys.exit(1)
+                    self.parsing_issues.append(message)
 
         return participants
+
+    def validate_sex(self, sex_str: str, sample_id: str) -> int:
+        """Validate the provided value for Sex."""
+
+        if sex_str in VALID_SEX:
+            return int(sex_str)
+
+        lower_sex = sex_str.lower()
+        if lower_sex in MALE_SEX:
+            return 1
+        if lower_sex in FEMALE_SEX:
+            return 2
+        if lower_sex in UNKNOWN_SEX:
+            return 0
+
+        # a value is returned here to prevent the model validation from failing, but this will be caught and reported
+        self.parsing_issues.append(f'Invalid Sex provided! Sample {sample_id}: {sex_str}')
+        return 0
+
+    def validate_affected(self, aff_str: str, sample_id: str) -> int:
+        """
+        Validate the provided value for Affected status.
+        Return values are 0, 1, or 2, where:
+        - 0 means invalid Affected status or unknown
+        - 1 means Unaffected
+        - 2 means Affected
+        """
+
+        if aff_str in VALID_AFFECTED:
+            return int(aff_str)
+
+        lower_aff = aff_str.lower()
+        # happy to parse these
+        if lower_aff in NULL_VALUES:
+            return 1
+
+        if lower_aff in GRUDGINGLY_VALID_AFFECTED:
+            # this is a warning, but we still return 1 to indicate affected status
+            logger.warning(
+                f'Grudgingly valid Affected status provided, please correct data! Sample {sample_id}: {aff_str}'
+            )
+            return 2
+
+        self.parsing_issues.append(f'Invalid Affected status provided! Sample {sample_id}: {aff_str}')
+        return 0
