@@ -1,28 +1,28 @@
-import pytest
-
-from obonet import read_obo
 from unittest.mock import MagicMock
 
+import pytest
+from obonet import read_obo
+
+from talos.models import (
+    CURRENT_VERSION,
+    DownloadedPanelApp,
+    PanelApp,
+    PanelDetail,
+    PanelShort,
+    ParticipantHPOPanels,
+    PhenoPacketHpo,
+)
+from talos.static_values import get_granular_date
 from talos.UnifiedPanelAppParser import (
+    CUSTOM_PANEL_ID,
+    ORDERED_MOIS,
     extract_participant_data_from_pedigree,
     get_simple_moi,
     match_hpos_to_panels,
     match_participants_to_panels,
     remove_blacklisted_genes,
     update_moi_from_config,
-    ORDERED_MOIS,
-    CUSTOM_PANEL_ID,
 )
-from talos.models import (
-    PanelApp,
-    PhenoPacketHpo,
-    ParticipantHPOPanels,
-    DownloadedPanelApp,
-    PanelShort,
-    CURRENT_VERSION,
-    PanelDetail,
-)
-from talos.static_values import get_granular_date
 
 
 def test_match_hpos_to_panels(fake_obo_path):

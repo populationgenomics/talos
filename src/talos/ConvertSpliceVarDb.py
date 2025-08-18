@@ -17,7 +17,6 @@ import hail as hl
 
 from talos.utils import get_random_string
 
-
 """
 Expecting the header fields:
 variant_id	hg19	hg38	gene	hgvs	method	classification	location	doi

@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import patch, mock_open
-from talos.pedigree_parser import PedigreeParser
+from unittest.mock import mock_open, patch
 
+import pytest
+
+from talos.pedigree_parser import PedigreeParser
 
 PED_CONTENT = 'FAM1\tS1\t0\t0\t1\t2\tHP:0000118,HP:0001250\nFAM1\tS2\t0\t0\t2\t1\t\nFAM1\tS3\tS1\tS2\t1\t1\t\n'
 

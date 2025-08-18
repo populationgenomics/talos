@@ -32,30 +32,22 @@ this workflow is designed to be something which could be executed easily off-sit
 
 * Step 6: Load the HailTable into the final MatrixTable
     - Reads the minimised MatrixTable and the HailTable of annotations
-
-* Step 7: Compress the final MatrixTable into a tarball
-    - Localise the MatrixTable inside the container using gcloud
-    - Compress the MatrixTable into a tarball using zstd
-    - Data is written into permanent storage, and registered into Metamist
 """
 
 from functools import cache
 
 import loguru
-
+from cpg_flow import stage, targets, utils, workflow
 from cpg_utils import Path
 
-from cpg_flow import workflow, stage, targets, utils
-
 from talos.cpg_internal_scripts.cpgflow_jobs import (
-    ExtractVcfFromMt,
-    ComposeVcfFragments,
-    AnnotateGnomadUsingEchtvar,
     AnnotateConsequenceUsingBcftools,
-    SitesOnlyVcfIntoHt,
+    AnnotateGnomadUsingEchtvar,
+    ComposeVcfFragments,
+    ExtractVcfFromMt,
     JumpAnnotationsFromHtToFinalMt,
+    SitesOnlyVcfIntoHt,
 )
-
 
 SHARD_MANIFEST = 'shard-manifest.txt'
 

@@ -21,10 +21,10 @@ from obonet import read_obo
 
 from talos.config import config_retrieve
 from talos.models import (
-    PanelApp,
-    PanelShort,
     DownloadedPanelApp,
+    PanelApp,
     PanelDetail,
+    PanelShort,
     ParticipantHPOPanels,
     PhenoPacketHpo,
 )

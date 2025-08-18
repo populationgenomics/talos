@@ -8,8 +8,8 @@ https://ftp.ncbi.nlm.nih.gov/refseq/MANE/README.txt
 import gzip
 import json
 from argparse import ArgumentParser
-from csv import DictReader
 from collections import defaultdict
+from csv import DictReader
 
 import hail as hl
 

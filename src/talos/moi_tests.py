@@ -24,7 +24,6 @@ from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, Structural
 from talos.pedigree_parser import PedigreeParser
 from talos.utils import X_CHROMOSOME, CompHetDict
 
-
 HEMI_CHROMS = {'chrX, chrY'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}

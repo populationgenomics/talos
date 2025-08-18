@@ -5,7 +5,6 @@ HTTPX requests are backoff-wrapped using tenacity
 https://tenacity.readthedocs.io/en/latest/
 """
 
-import httpx
 import json
 import re
 import string
@@ -14,12 +13,13 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain, combinations_with_replacement, islice
 from random import choices
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cyvcf2
+import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -35,7 +35,6 @@ from talos.models import (
 )
 from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
-
 
 if TYPE_CHECKING:
     import cyvcf2

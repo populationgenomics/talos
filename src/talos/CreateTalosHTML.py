@@ -43,17 +43,18 @@ GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnoma
 GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
 
 
-def parse_external_ids(ext_id_file: str | None) -> dict[str, str]:
+def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
     """
     Reads a file containing external IDs and returns a dictionary mapping
     this can be headerless TSV, CSV, in which case the two columns are Sample ID (in VCF/MT) and an external ID
     If provided in JSON format, this must be a dictionary of Sample ID -> External ID
     """
-    id_mapping: dict[str, str] = {}
 
     # escape if there was nothing provided
     if ext_id_file is None:
-        return id_mapping
+        return None
+
+    id_mapping: dict[str, str] = {}
 
     file_as_path = to_anypath(ext_id_file)
     if (suffix := file_as_path.suffix) == '.json':
@@ -79,20 +80,12 @@ def parse_external_ids(ext_id_file: str | None) -> dict[str, str]:
     return id_mapping
 
 
-def known_date_prefix_check(all_results: ResultData) -> list[str]:
-    """
-    Check for known date prefixes in the results
-
-    Args:
-        all_results (): the whole summary dataset
-
-    Returns:
-        a list of all found prefixes, or empty list
-    """
+def known_date_prefix_check(all_results: ResultData, external_id_map: dict[str, str]) -> list[str]:
+    """Check for known date prefixes in the results. This acts on the external IDs, and fits a CPG use-case."""
 
     known_prefixes: dict[str, int] = defaultdict(int)
-    for content in all_results.results.values():
-        if match := KNOWN_YEAR_PREFIX.match(content.metadata.ext_id):
+    for sample_id in all_results.results:
+        if sample_id in external_id_map and (match := KNOWN_YEAR_PREFIX.match(external_id_map[sample_id])):
             known_prefixes[match.group()[0:2]] += 1
         else:
             logger.info('There is no consistent sample ID prefix')
@@ -102,27 +95,27 @@ def known_date_prefix_check(all_results: ResultData) -> list[str]:
     return sorted(known_prefixes.keys())
 
 
-def split_data_into_sub_reports(all_results: ResultData) -> list[tuple[ResultData, str, str]]:
+def split_data_into_sub_reports(
+    all_results: ResultData,
+    external_id_map: dict[str, str],
+) -> list[tuple[ResultData, str, str]]:
     """
     Split the data into sub-reports, only if there's a common prefix (e.g. by year)
     Return a list of the ResultData subsets, output base path, and a subset identifier
-
-    Args:
-        all_results ():
 
     Returns:
         tuple: a list of tuples, each containing a ResultData object, the output base path, and a subset identifier
     """
     return_results: list[tuple[ResultData, str, str]] = []
 
-    if prefixes := known_date_prefix_check(all_results):
+    if prefixes := known_date_prefix_check(all_results, external_id_map=external_id_map):
         for prefix in prefixes:
             this_rd = ResultData(
                 metadata=all_results.metadata,
                 results={
                     sample: content
                     for sample, content in all_results.results.items()
-                    if content.metadata.ext_id.startswith(prefix)
+                    if external_id_map.get(sample, sample).startswith(prefix)
                 },
                 version=all_results.version,
             )
@@ -186,7 +179,7 @@ class HTMLBuilder:
         """
 
         if ext_id_map is None:
-            logger.info(f'No External IDs were provided, using Sample names as IDs')
+            logger.info('No External IDs were provided, using Sample names as IDs')
 
         self.ext_id_map = ext_id_map or {}
 
@@ -485,10 +478,7 @@ class LinkEngine:
         self.template = template
         self.variant_template = variant_template
         self.external = external
-        if lookup:
-            self.lookup = read_json_from_path(lookup)
-        else:
-            self.lookup = None
+        self.lookup = parse_ids_from_file(lookup)
 
     def get_string_id(self, sample: Sample) -> str | None:
         """Get the string ID for the sample to use in links."""
@@ -715,7 +705,7 @@ def main(results: str, panelapp: str, output: str, ext_id_file: str | None = Non
     results_object = read_json_from_path(results, return_model=ResultData)
 
     # can be None if absent, or is a lookup of sample ID in VCF ~ an external ID
-    external_id_map = parse_external_ids(ext_id_file)
+    external_id_map = parse_ids_from_file(ext_id_file)
 
     # set up the link builder, or None
     if link_section := config_retrieve(['CreateTalosHTML', 'hyperlinks'], None):
@@ -741,8 +731,11 @@ def main(results: str, panelapp: str, output: str, ext_id_file: str | None = Non
     except NoVariantsFoundError:
         logger.warning('No Categorised variants found in this whole cohort')
 
+    if external_id_map is None:
+        return
+
     # we only need to do sub-reports if we can delineate by year
-    for data, report, prefix in split_data_into_sub_reports(results_object):
+    for data, report, prefix in split_data_into_sub_reports(results_object, external_id_map):
         html = HTMLBuilder(
             results_dict=data,
             panelapp_path=panelapp,

@@ -11,12 +11,12 @@ from talos.models import (
     ReportVariant,
     SmallVariant,
 )
+from talos.pedigree_parser import PedigreeParser
 from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_non_ref_samples,
 )
-from talos.pedigree_parser import PedigreeParser
 
 ZERO_EXPECTED = 0
 ONE_EXPECTED = 1
