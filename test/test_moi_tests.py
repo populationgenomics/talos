@@ -110,7 +110,7 @@ def test_dominant_autosomal_passes(pedigree_path):
     )
     results = dom.run(principal=passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Dominant'}
+    assert results[0].reasons == 'Autosomal Dominant'
 
     # also passes with homozygous
     passing_variant = SmallVariant(
@@ -124,7 +124,7 @@ def test_dominant_autosomal_passes(pedigree_path):
     )
     results = dom.run(principal=passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Dominant'}
+    assert results[0].reasons == 'Autosomal Dominant'
 
     # no results if no samples
     passing_variant = SmallVariant(
@@ -175,7 +175,7 @@ def test_recessive_autosomal_hom_passes(pedigree_path):
     rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
     results = rec.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Homozygous'}
+    assert results[0].reasons == 'Autosomal Recessive Homozygous'
 
 
 def test_recessive_autosomal_hom_fails_alt_reads(pedigree_path):
@@ -217,7 +217,7 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path):
     rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
     results = rec.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Homozygous'}
+    assert results[0].reasons == 'Autosomal Recessive Homozygous'
     assert passing_variant.get_sample_flags('male') == {'AB Ratio'}
 
 
@@ -252,7 +252,7 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
     rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+    assert results[0].reasons == 'Autosomal Recessive Comp-Het'
 
 
 def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
@@ -292,7 +292,7 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
     results = rec.run(passing_variant, comp_het=comp_hets)
     results.extend(rec.run(passing_variant2, comp_het=comp_hets))
     assert len(results) == TWO_RESULTS
-    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+    assert results[0].reasons == 'Autosomal Recessive Comp-Het'
 
 
 def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
@@ -363,7 +363,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
     rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+    assert results[0].reasons == 'Autosomal Recessive Comp-Het'
     assert results[0].flags == {'AB Ratio'}
     assert results[0].support_vars == {'passing2'}
 
@@ -396,7 +396,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
     rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Recessive Comp-Het'}
+    assert results[0].reasons == 'Autosomal Recessive Comp-Het'
     assert not results[0].flags
     assert results[0].support_vars == {'passing2'}
 
@@ -481,8 +481,7 @@ def test_x_dominant_female_and_male_het_passes(pedigree_path):
     results = x_dom.run(passing_variant)
 
     assert len(results) == TWO_EXPECTED
-    reasons = {result.reasons.pop() for result in results}
-    assert reasons == {'X_Dominant'}
+    assert results[0].reasons == 'X_Dominant'
 
 
 def test_x_dominant_female_hom_passes(pedigree_path):
@@ -502,7 +501,7 @@ def test_x_dominant_female_hom_passes(pedigree_path):
     x_dom = XDominant(pedigree=PedigreeParser(pedigree_path))
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant'}
+    assert results[0].reasons == 'X_Dominant'
 
 
 def test_x_dominant_male_hom_passes(pedigree_path):
@@ -521,7 +520,7 @@ def test_x_dominant_male_hom_passes(pedigree_path):
     x_dom = XDominant(pedigree=PedigreeParser(pedigree_path))
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Dominant'}
+    assert results[0].reasons == 'X_Dominant'
 
 
 @pytest.mark.parametrize(
@@ -576,7 +575,7 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
     x_dom = XPseudoDominantFemale(pedigree=PedigreeParser(pedigree_path))
     results = x_dom.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_PseudoDominant'}
+    assert results[0].reasons == 'X_PseudoDominant'
     assert 'Affected female with heterozygous variant in XLR gene' in results[0].flags
 
 
@@ -594,7 +593,7 @@ def test_x_recessive_male_hom_passes(pedigree_path):
     x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path))
     results = x_rec.run(passing_variant, comp_het={})
     assert len(results) == 1
-    assert results[0].reasons == {'X_Male'}
+    assert results[0].reasons == 'X_Male'
 
 
 def test_x_recessive_female_hom_passes(pedigree_path):
@@ -615,7 +614,7 @@ def test_x_recessive_female_hom_passes(pedigree_path):
     x_rec = XRecessiveFemaleHom(pedigree=PedigreeParser(pedigree_path))
     results = x_rec.run(passing_variant, comp_het={})
     assert len(results) == 1
-    assert results[0].reasons == {'X_Recessive HOM Female'}
+    assert results[0].reasons == 'X_Recessive HOM Female'
 
 
 def test_x_recessive_male_het_passes(pedigree_path):
@@ -632,7 +631,7 @@ def test_x_recessive_male_het_passes(pedigree_path):
     x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path))
     results = x_rec.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'X_Male'}
+    assert results[0].reasons == 'X_Male'
 
 
 def test_x_recessive_female_het_passes(pedigree_path):
@@ -660,7 +659,7 @@ def test_x_recessive_female_het_passes(pedigree_path):
     x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path))
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
-    assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
+    assert results[0].reasons == 'X_RecessiveFemaleCompHet'
     assert results[0].support_vars == {'passing2'}
 
 
@@ -697,7 +696,7 @@ def test_x_recessive_female_het_passes_one_support(pedigree_path):
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
     assert len(results) == TWO_RESULTS
-    assert results[0].reasons == {'X_RecessiveFemaleCompHet'}
+    assert results[0].reasons == 'X_RecessiveFemaleCompHet'
     assert results[0].support_vars == {'passing2'}
 
 
@@ -750,7 +749,7 @@ def test_het_de_novo_passes(pedigree_path):
     dom_a = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
     results = dom_a.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Dominant'}
+    assert results[0].reasons == 'Autosomal Dominant'
     assert not results[0].flags
 
 
@@ -768,7 +767,7 @@ def test_het_de_novo_het_passes_flagged(pedigree_path):
     dom_a = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
     results = dom_a.run(passing_variant)
     assert len(results) == 1
-    assert results[0].reasons == {'Autosomal Dominant'}
+    assert results[0].reasons == 'Autosomal Dominant'
 
 
 def test_x_recessive_female_het_fails(pedigree_path):

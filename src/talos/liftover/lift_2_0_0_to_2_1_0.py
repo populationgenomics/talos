@@ -9,3 +9,11 @@ def panelapp(data_dict: dict) -> dict:
 
     data_dict['version'] = '2.1.0'
     return data_dict
+
+
+def resultdata(data_dict: dict) -> dict:
+    for result in data_dict['results'].values():
+        for variant in result['variants']:
+            variant['reasons'] = variant['reasons'].pop()
+    data_dict['version'] = '2.1.0'
+    return data_dict

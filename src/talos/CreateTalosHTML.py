@@ -430,6 +430,11 @@ class Sample:
         self.phenotypes = metadata.phenotypes
         self.ext_id = html_builder.ext_id_map.get(name, name)
         self.panel_details = metadata.panel_details
+        self.family_display: dict[str, str] = {}
+
+        for member_id in metadata.members:
+            report_ext = f'({ext_labels[member_id]})' if member_id in ext_labels else ''
+            self.family_display[member_id] = f'{member_id} {report_ext}'
 
         # create a url link out to the sample-level data
         if html_builder.link_engine:

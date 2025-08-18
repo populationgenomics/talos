@@ -161,7 +161,7 @@ def apply_moi_to_variants(
                     if '4' in each_result.categories:
                         continue
 
-                    if each_result.reasons == {'Autosomal Dominant'}:
+                    if each_result.reasons == 'Autosomal Dominant':
                         each_result.flags.add(AMBIGUOUS_FLAG)
 
             results.extend(variant_results)

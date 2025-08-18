@@ -50,13 +50,9 @@
             data-bs-title="Gene new in: {{ variant.new_panels|join(', ') }} "></i>
         {% endif %}
         <br>
-        {% set pipe = joiner(", ") %}
-        ({% for moi in variant.reasons -%}
-        {{pipe()}}{{ moi|replace("Autosomal Recessive Homozygous","AR-Hom")
+        {{ variant.reasons|replace("Autosomal Recessive Homozygous","AR-Hom")
         |replace("Autosomal Recessive Compound-Het","AR-CH")
-        |replace("Autosomal Dominant","AD")
-        }}
-        {% endfor %})
+        |replace("Autosomal Dominant","AD")}}
     </td>
     <td>
         {# Pheno Match #}
@@ -124,27 +120,6 @@
                     {{allele}}
                 </a>
             {% endfor %}
-        {% endif %}
-    </td>
-    <td>
-        {# Exomiser #}
-        {% if 'exomiser' in variant.categories %}
-            {% for exomiser_entry in variant.var_data.info.exomiser %}
-                {{exomiser_entry}}
-            {% endfor %}
-        {% endif %}
-    </td>
-    <td>
-        {# SpliceVarDB #}
-        {% if 'svdb' in variant.categories %}
-            {{ variant.var_data.info.svdb_classification }} ({{ variant.var_data.info.svdb_method }})
-
-            {% for doi in variant.var_data.info.svdb_doi %}
-                <a href="{{doi}}" target="_blank">
-                    {{doi}}
-                </a>
-            {% endfor %}
-
         {% endif %}
     </td>
     <td>

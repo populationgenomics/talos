@@ -38,9 +38,6 @@ symbol = 'AGENE'
 # optional
 chrom = '1'
 
-[FindGeneSymbolMap]
-chunk_size = 800
-
 [RunHailFiltering]
 ac_threshold = 0.01
 additional_csq = [ "missense",]

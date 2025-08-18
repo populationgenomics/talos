@@ -17,6 +17,7 @@ from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
 from talos.liftover.lift_2_0_0_to_2_1_0 import panelapp as pa_200_to_210
+from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -318,7 +319,7 @@ class ReportVariant(BaseModel):
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
     phenotypes: list[HpoTerm] = Field(default_factory=list)
-    reasons: set[str] = Field(default_factory=set)
+    reasons: str = Field(default_factory=str)
     support_vars: set[str] = Field(default_factory=set)
     # log whether there was an increase in ClinVar star rating since the last run
     clinvar_increase: bool = Field(default=False)
@@ -532,6 +533,7 @@ class PedigreeMember(BaseModel):
 
 # methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
+    DownloadedPanelApp: {},
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
@@ -546,13 +548,14 @@ LIFTOVER_METHODS: dict = {
         '1.0.3_1.1.0': rd_103_to_110,
         '1.1.0_1.2.0': rd_110_to_120,
         '1.2.0_2.0.0': rd_120_to_200,
+        '2.0.0_2.1.0': rd_200_to_210,
     },
 }
 
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | ResultData | PanelApp,
+    model: HistoricVariants | ResultData | PanelApp | DownloadedPanelApp,
 ) -> dict:
     """
     lift over data from one version to another
