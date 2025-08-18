@@ -1,10 +1,27 @@
 import pytest
+
+from obonet import read_obo
+from unittest.mock import MagicMock
+
 from talos.UnifiedPanelAppParser import (
+    extract_participant_data_from_pedigree,
     get_simple_moi,
     match_hpos_to_panels,
     match_participants_to_panels,
+    remove_blacklisted_genes,
+    update_moi_from_config,
+    ORDERED_MOIS,
+    CUSTOM_PANEL_ID,
 )
-from talos.models import PanelApp, PhenoPacketHpo, ParticipantHPOPanels, DownloadedPanelApp, PanelShort, CURRENT_VERSION
+from talos.models import (
+    PanelApp,
+    PhenoPacketHpo,
+    ParticipantHPOPanels,
+    DownloadedPanelApp,
+    PanelShort,
+    CURRENT_VERSION,
+    PanelDetail,
+)
 from talos.static_values import get_granular_date
 
 
@@ -19,8 +36,9 @@ def test_match_hpos_to_panels(fake_obo_path):
         5: [PhenoPacketHpo(id='HP:5', label='')],
     }
 
+    hpo_graph = read_obo(fake_obo_path)
     # full depth from the terminal node should capture all panels
-    result = match_hpos_to_panels(hpo_panel_map, fake_obo_path, all_hpos={'HP:4', 'HP:7a'})
+    result = match_hpos_to_panels(hpo_panel_map, hpo_graph=hpo_graph, all_hpos={'HP:4', 'HP:7a'})
 
     assert result == {
         'HP:4': {1, 2},
@@ -122,3 +140,48 @@ def test_get_simple_moi(strings: set[str], expected: str, chrom: str):
     Tests the string parsing down to simple representation
     """
     assert get_simple_moi(strings, chrom) == expected
+
+
+def test_extract_participant_data_from_pedigree():
+    pedigree = MagicMock()
+    pedigree.participants = {
+        'S1': MagicMock(sample_id='S1', family_id='F1', hpo_terms={'HP:1', 'HP:2'}),
+        'S2': MagicMock(sample_id='S2', family_id='F1', hpo_terms={'HP:2'}),
+    }
+    hpo_lookup = {'HP:1': 'foo', 'HP:2': 'bar'}
+    shell, all_hpos = extract_participant_data_from_pedigree(pedigree, hpo_lookup)
+    assert isinstance(shell, PanelApp)
+    assert all_hpos == {'HP:1', 'HP:2'}
+    assert shell.participants['S1'].hpo_terms[0].label in {'foo', 'bar'}
+
+
+def test_match_hpos_to_panels_no_graph():
+    hpo_panel_map = {1: [PhenoPacketHpo(id='HP:1', label='foo')]}
+    all_hpos = {'HP:1'}
+    result = match_hpos_to_panels(hpo_panel_map, all_hpos, None)
+    assert result == {}
+
+
+def test_update_moi_from_config_add_new_gene():
+    panelapp_data = PanelApp()
+    add_genes = [{'ensg': 'ENSG1', 'symbol': 'GENE1', 'moi': ORDERED_MOIS[0], 'chrom': '1'}]
+    update_moi_from_config(panelapp_data, add_genes)
+    assert 'ENSG1' in panelapp_data.genes
+    assert panelapp_data.genes['ENSG1'].moi == ORDERED_MOIS[0]
+    assert CUSTOM_PANEL_ID in panelapp_data.genes['ENSG1'].panels
+
+
+def test_update_moi_from_config_update_existing_gene():
+    panelapp_data = PanelApp()
+    panelapp_data.genes['ENSG2'] = PanelDetail(symbol='GENE2', moi=ORDERED_MOIS[1], panels={1}, chrom='2')
+    add_genes = [{'ensg': 'ENSG2', 'moi': ORDERED_MOIS[2]}]
+    update_moi_from_config(panelapp_data, add_genes)
+    assert panelapp_data.genes['ENSG2'].moi == ORDERED_MOIS[2]
+    assert CUSTOM_PANEL_ID in panelapp_data.genes['ENSG2'].panels
+
+
+def test_remove_blacklisted_genes():
+    panelapp_data = PanelApp()
+    panelapp_data.genes = {'ENSG1': PanelDetail(symbol='GENE1', moi='Monoallelic', panels={1}, chrom='1')}
+    remove_blacklisted_genes(panelapp_data, {'ENSG1'})
+    assert 'ENSG1' not in panelapp_data.genes

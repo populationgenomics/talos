@@ -16,9 +16,9 @@ from itertools import chain, combinations_with_replacement, islice
 from random import choices
 from typing import Any, TYPE_CHECKING
 
+import cyvcf2
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
-from peds import open_ped
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
 from talos.config import config_retrieve
@@ -28,14 +28,12 @@ from talos.models import (
     Coordinates,
     HistoricSampleVariant,
     HistoricVariants,
-    PanelApp,
-    Pedigree,
-    PedigreeMember,
     ResultData,
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
 )
+from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
 
 
@@ -102,50 +100,6 @@ def get_random_string(length: int = 6) -> str:
         A random string comprised of upper-case letters and numbers
     """
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
-
-
-def make_flexible_pedigree(pedigree: str, panelapp: PanelApp | None = None) -> Pedigree:
-    """
-    takes the representation offered by peds and reshapes it to be searchable
-    this is really just one short step from writing my own implementation...
-
-    Args:
-        pedigree (str): path to a pedigree file
-        panelapp (PanelApp): a PanelApp object
-
-    Returns:
-        a searchable representation of the ped file
-    """
-    if panelapp is None:
-        panelapp = PanelApp()
-
-    new_ped = Pedigree()
-    ped_data = open_ped(pedigree)
-    for family in ped_data:
-        for member in family:
-            me = PedigreeMember(
-                family=member.family,
-                id=member.id,
-                mother=MEMBER_LOOKUP_DICT.get(member.mom, member.mom),
-                father=MEMBER_LOOKUP_DICT.get(member.dad, member.dad),
-                sex=member.sex,
-                affected=member.phenotype,
-            )
-
-            # populate this info if we have it from the GeneratePanelData step/output
-            if pheno_participant := panelapp.participants.get(member.id):
-                me.ext_id = pheno_participant.external_id
-                me.hpo_terms = pheno_participant.hpo_terms
-
-            # add as a member
-            new_ped.members.append(me)
-
-            # add to a lookup
-            new_ped.by_id[me.id] = me
-
-            # add to a list of members in this family
-            new_ped.by_family.setdefault(me.family, []).append(me)
-    return new_ped
 
 
 def chunks(iterable, chunk_size):
@@ -608,8 +562,8 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str,
-    variant_source,
-    sv_sources: list | None = None,
+    variant_source: 'cyvcf2.VCFReader',
+    sv_source: 'cyvcf2.VCFReader | None' = None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -620,7 +574,7 @@ def gather_gene_dict_from_contig(
     Args:
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
-        sv_sources (): an optional list of SV VCFs
+        sv_source (): an optional list of SV VCFs
 
     Returns:
         A lookup in the form
@@ -630,8 +584,7 @@ def gather_gene_dict_from_contig(
             ...
         }
     """
-    if sv_sources is None:
-        sv_sources = []
+
     if bl_file := config_retrieve(['GeneratePanelData', 'blacklist'], ''):
         blacklist = read_json_from_path(bl_file, default=[])
     else:
@@ -662,7 +615,8 @@ def gather_gene_dict_from_contig(
         # update the gene index dictionary
         contig_dict[small_variant.info.get('gene_id')].append(small_variant)
 
-    for sv_source in sv_sources:
+    # parse the SV VCF if provided, but not a necessary part of processing
+    if sv_source:
         structural_variants = 0
         for variant in sv_source(contig):
             # create an abstract SV variant
@@ -769,7 +723,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
     return txc_dict
 
 
-def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHetDict:
+def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> CompHetDict:
     """
     manual implementation to find compound hets
     variants provided in the format
@@ -781,7 +735,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
 
     Args:
         var_list (list[VARIANT_MODELS]): all variants in this gene
-        pedigree (): Pedigree
+        pedigree (PedigreeParser): Pedigree represetation model
     """
 
     # create an empty dictionary
@@ -799,7 +753,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
             phased = False
 
             # don't assess male compound hets on sex chromosomes
-            if pedigree.by_id[sample].sex == '1' and var_1.coordinates.chrom in X_CHROMOSOME:
+            if pedigree.participants[sample].sex == 1 and var_1.coordinates.chrom in X_CHROMOSOME:
                 continue
 
             # check for both variants being in the same phase set

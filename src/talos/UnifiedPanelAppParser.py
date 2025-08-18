@@ -12,9 +12,8 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from string import punctuation
 
+import networkx as nx
 import pendulum
-import phenopackets.schema.v2 as pps2
-from google.protobuf.json_format import ParseDict
 from loguru import logger
 from networkx import dfs_successors
 from networkx.exception import NetworkXError
@@ -29,6 +28,7 @@ from talos.models import (
     ParticipantHPOPanels,
     PhenoPacketHpo,
 )
+from talos.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path
 
 PANELAPP_BASE_PANEL = 137
@@ -60,21 +60,25 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--input', help='Pre-Downloaded PanelApp data', required=True)
     parser.add_argument('--output', help='Path to write JSON output to', required=True)
-    parser.add_argument('--cohort', help='GA4GH Cohort/PhenoPacket File', required=True)
+    parser.add_argument('--pedigree', help='Pedigree file, optionally including HPO terms', required=True)
     parser.add_argument('--hpo', help='Localised copy of HPO obo file', required=False)
     args = parser.parse_args()
-    main(panel_data=args.input, output_file=args.output, cohort_file=args.cohort, hpo_file=args.hpo)
+    main(panel_data=args.input, output_file=args.output, pedigree_path=args.pedigree, hpo_file=args.hpo)
 
 
-def extract_participant_data_from_cohort(cohort: pps2.Cohort) -> tuple[PanelApp, set[str]]:
+def extract_participant_data_from_pedigree(
+    pedigree: PedigreeParser,
+    hpo_lookup: dict[str, str],
+) -> tuple[PanelApp, set[str]]:
     """
     read the extended pedigree file, pull out family details and HPO terms
 
     Args:
-        cohort (str): GA4GH Cohort/PhenoPacket file
+        pedigree (str): PedigreeParser object, optionally including HPO terms
+        hpo_lookup (dict): lookup of all HPO terms in the currently loaded ontology
 
     Returns:
-        set of all HPO terms
+        a PanelApp shell, and a set of all HPO terms
     """
 
     # generate an empty result holder
@@ -82,45 +86,48 @@ def extract_participant_data_from_cohort(cohort: pps2.Cohort) -> tuple[PanelApp,
 
     all_hpos: set[str] = set()
 
-    for member in cohort.members:
-        shell.participants[member.id] = ParticipantHPOPanels(
-            external_id=member.subject.alternate_ids[0] if member.subject.alternate_ids else member.id,
-            family_id=member.subject.id,
-            hpo_terms=[PhenoPacketHpo(id=hpo.type.id, label=hpo.type.label) for hpo in member.phenotypic_features],
+    for participant in pedigree.participants.values():
+        shell.participants[participant.sample_id] = ParticipantHPOPanels(
+            family_id=participant.family_id,
+            hpo_terms=[
+                PhenoPacketHpo(id=hpo_term, label=hpo_lookup.get(hpo_term, hpo_term))
+                for hpo_term in participant.hpo_terms
+            ],
             panels={DEFAULT_PANEL},
         )
-        all_hpos.update({hpo.type.id for hpo in member.phenotypic_features})
+        all_hpos.update(participant.hpo_terms)
 
     return shell, all_hpos
 
 
 def match_hpos_to_panels(
     hpo_panel_map: dict[int, list[PhenoPacketHpo]],
-    hpo_file: str,
     all_hpos: set[str],
+    hpo_graph: nx.MultiDiGraph | None = None,
 ) -> dict[str, set[int]]:
     """
     take the HPO terms from the participant metadata, and match to panels
 
     Args:
         hpo_panel_map (dict): dict of panel IDs to hpo details
-        hpo_file (str): path to an obo file containing HPO tree
+        hpo_graph (networkx.MultiDiGraph): an opened HPO graph, or None if absent
         all_hpos (set[str]): collection of all unique HPO terms
 
     Returns:
         a dictionary linking all HPO terms to a corresponding set of Panel IDs
     """
 
-    hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
+    # create a fresh object to hold all matched hpos to panels
+    hpo_to_panels: dict[str, set[int]] = defaultdict(set)
+
+    if hpo_graph is None:
+        return dict(hpo_to_panels)
 
     # re-index the HPO terms to the panel IDs
     panel_per_hpo = defaultdict(set)
     for panel_id, hpo_terms in hpo_panel_map.items():
         for phenopacket_hpo in hpo_terms:
             panel_per_hpo[phenopacket_hpo.id].add(panel_id)
-
-    # create a fresh object to hold all matched hpos to panels
-    hpo_to_panels = defaultdict(set)
 
     # cycle through all HPO terms in the cohort
     # for each term chase it back to the HPO ontology root
@@ -325,21 +332,22 @@ def update_moi_from_config(
             )
 
 
-def remove_blacklisted_genes(panelapp_data: PanelApp):
+def remove_blacklisted_genes(panelapp_data: PanelApp, forbidden_genes: set[str] | None = None):
     """
     remove any genes which are blacklisted in the config
     Args:
         panelapp_data ():
     """
+    if not forbidden_genes:
+        return
 
     # if any genes are blacklisted in config, remove them here
-    if forbidden_genes := config_retrieve(['GeneratePanelData', 'forbidden_genes'], set()):
-        genes_to_remove = set(forbidden_genes).intersection(set(panelapp_data.genes.keys()))
-        for gene in genes_to_remove:
-            del panelapp_data.genes[gene]
+    genes_to_remove = set(forbidden_genes).intersection(set(panelapp_data.genes.keys()))
+    for gene in genes_to_remove:
+        del panelapp_data.genes[gene]
 
 
-def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_file: str | None = None):
+def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | None = None):
     """
     Loads the pre-downloaded PanelApp content
 
@@ -348,32 +356,36 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
     Based on all the panels in the analysis, we then fetch the relevant genes and their MOIs
 
     Args:
-        panel_data ():
-        output_file ():
-        cohort_file ():
-        hpo_file ():
+        panel_data (str): Path to a monthly cache of PanelApp data, acquired by DownloadPanelApp.py
+        output_file (str): Where to write the output file
+        pedigree_path (str): Path to a Pedigree, optionally including HPO terms
+        hpo_file (str): path to a networkx OBO file containing an HPO ontology tree... or None if you're not using one
     """
 
     cached_panelapp: DownloadedPanelApp = read_json_from_path(panel_data, return_model=DownloadedPanelApp)
 
-    # catch all the HPO terms in the cohort, and grab the participant metadata
-    cohort = ParseDict(read_json_from_path(cohort_file), pps2.Cohort())
+    pedigree = PedigreeParser(pedigree_path)
+
+    hpo_graph = None
+    hpo_label_lookup = {}
+    if hpo_file:
+        logger.info('HPO file present, running panel matching algorithm')
+        hpo_graph = read_obo(hpo_file, ignore_obsolete=False)
+        hpo_label_lookup = {id_: data.get('name') for id_, data in hpo_graph.nodes(data=True)}
 
     # extract participant metadata from the Cohort, and collect each unique HPO term
-    panelapp_data, all_hpos = extract_participant_data_from_cohort(cohort=cohort)
+    panelapp_data, all_hpos = extract_participant_data_from_pedigree(pedigree=pedigree, hpo_lookup=hpo_label_lookup)
 
     # chuck in the default Mendeliome metadata
     panelapp_data.metadata = {DEFAULT_PANEL: cached_panelapp.versions[DEFAULT_PANEL]}
 
-    if hpo_file:
-        logger.info('HPO file present, running panel matching algorithm')
-
+    if hpo_graph is not None:
         # match HPO terms to panel IDs
         # returns a lookup of each HPO term in the cohort, and panels it is associated with
         hpo_to_panels = match_hpos_to_panels(
             hpo_panel_map=cached_panelapp.hpos,
             all_hpos=all_hpos,
-            hpo_file=hpo_file,
+            hpo_graph=hpo_graph,
         )
 
         # associate those panels with participants in the cohort
@@ -387,7 +399,8 @@ def main(panel_data: str, output_file: str, cohort_file: str | None = None, hpo_
         update_moi_from_config(panelapp_data, custom_content)
 
     # if any genes are blacklisted in config, remove them here
-    remove_blacklisted_genes(panelapp_data)
+    if forbidden_genes := config_retrieve(['GeneratePanelData', 'forbidden_genes'], None):
+        remove_blacklisted_genes(panelapp_data, forbidden_genes)
 
     # validate and write using pydantic
     valid_cohort_details = PanelApp.model_validate(panelapp_data)

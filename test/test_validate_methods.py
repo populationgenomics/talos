@@ -12,7 +12,7 @@ from talos.models import (
     ResultMeta,
     SmallVariant,
 )
-from talos.utils import make_flexible_pedigree
+from talos.pedigree_parser import PedigreeParser
 from talos.ValidateMOI import filter_results_to_panels, count_families, prepare_results_shell
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -52,7 +52,7 @@ def test_results_shell(pedigree_path: str):
         results_meta=ResultMeta(),
         small_samples={'male'},
         sv_samples={'female'},
-        pedigree=make_flexible_pedigree(pedigree=pedigree_path, panelapp=panelapp),
+        pedigree=PedigreeParser(pedigree_path=pedigree_path),
         panelapp=panelapp,
     )
 
@@ -64,9 +64,9 @@ def test_results_shell(pedigree_path: str):
                     'ext_id': 'male',
                     'family_id': 'family_1',
                     'members': {
-                        'male': {'sex': 'male', 'affected': True, 'ext_id': 'male'},
-                        'father_1': {'sex': 'male', 'affected': False, 'ext_id': 'father_1'},
-                        'mother_1': {'sex': 'female', 'affected': False, 'ext_id': 'mother_1'},
+                        'male': {'sex': 'male', 'affected': True},
+                        'father_1': {'sex': 'male', 'affected': False},
+                        'mother_1': {'sex': 'female', 'affected': False},
                     },
                     'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
                     'panel_details': {1: {'id': 1, 'name': 'lorem'}, 3: {'id': 3, 'name': 'etc'}},
@@ -187,10 +187,11 @@ def test_update_results_meta(pedigree_path: str):
     """
     testing the dict update
     """
-
+    pedigree = PedigreeParser(pedigree_path)
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
+    pedigree.strip_pedigree_to_samples(ped_samples)
 
-    assert count_families(pedigree=make_flexible_pedigree(pedigree_path, PanelApp()), samples=ped_samples) == {
+    assert count_families(pedigree=pedigree) == {
         'affected': TWO_EXPECTED,
         'male': THREE_EXPECTED,
         'female': THREE_EXPECTED,
@@ -203,9 +204,7 @@ def test_count_families_missing_father(pedigree_path: str):
     testing the dict update
     """
 
-    ped_samples = {'male', 'female', 'father_1', 'mother_1', 'mother_2', 'father_2'}
-
-    assert count_families(pedigree=make_flexible_pedigree(pedigree_path, PanelApp()), samples=ped_samples) == {
+    assert count_families(pedigree=PedigreeParser(pedigree_path)) == {
         'affected': TWO_EXPECTED,
         'male': THREE_EXPECTED,
         'female': THREE_EXPECTED,
@@ -222,5 +221,6 @@ def test_count_families_quad(quad_ped: str):
     """
 
     ped_samples = {'PROBAND', 'SIBLING', 'FATHER', 'MOTHER'}
-    ped = make_flexible_pedigree(quad_ped, PanelApp())
-    assert count_families(pedigree=ped, samples=ped_samples) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}
+    ped = PedigreeParser(quad_ped)
+    ped.strip_pedigree_to_samples(ped_samples)
+    assert count_families(pedigree=ped) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}

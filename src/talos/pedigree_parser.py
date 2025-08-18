@@ -29,6 +29,7 @@ from loguru import logger
 
 HPO_RE = re.compile(r'HP:\d{7}')
 
+NULL_INT = 0
 NULL_PARTICIPANT = '0'
 MISSING_ID = {'0', 0}
 VALID_SEX = {'1', '2', '0'}
@@ -40,7 +41,8 @@ VALID_AFFECTED = {'0', '1', '2'}
 GRUDGINGLY_VALID_AFFECTED = {'affected', 'true'}
 
 EXPECTED_NUM_COLUMNS = 7
-AFFECTED_NUM = 2
+AFFECTED_NUM = FEMALE_SEX_INT = 2
+UNAFFECTED_NUM = MALE_SEX_INT = 1
 
 
 @dataclass
@@ -53,11 +55,29 @@ class Participant:
     mother_id: str | None
     sex: int
     affected: int
-    hpo_terms: set[str] | None = None
+    hpo_terms: set[str]
 
     def __str__(self):
         """String representation of the participant, used when writing a Pedigree."""
         return f'{self.family_id}\t{self.sample_id}\t{self.father_id}\t{self.mother_id}\t{self.sex}\t{self.affected}'
+
+    @property
+    def is_affected(self):
+        """Quick property to simplify logic"""
+        return self.affected == AFFECTED_NUM
+
+    @property
+    def is_not_affected(self):
+        """Quick property to simplify logic. Could easily be an inversion of the previous property but this is fine."""
+        return self.affected != AFFECTED_NUM
+
+    @property
+    def is_male(self):
+        return self.sex == MALE_SEX_INT
+
+    @property
+    def is_female(self):
+        return self.sex == FEMALE_SEX_INT
 
 
 # a type for hinting
@@ -75,6 +95,7 @@ class PedigreeParser:
         self.pedigree_path = pedigree_path
         self.parsing_issues: list[str] = []
         self.participants: PEDIGREE_DATA = self.read_pedigree()
+        self.by_family: dict[str, list[Participant]] = self.get_participants_by_family()
 
         if self.parsing_issues:
             logger.warning('Issues found during pedigree parsing:')
@@ -85,6 +106,13 @@ class PedigreeParser:
         if len(self.participants) == 0:
             raise ValueError('No valid participants found in the pedigree file!')
 
+    def get_participants_by_family(self) -> dict[str, list[Participant]]:
+        """Index the pre-collected participants by family ID."""
+        by_family: dict[str, list[Participant]] = {}
+        for participant in self.participants.values():
+            by_family.setdefault(participant.family_id, []).append(participant)
+        return by_family
+
     def get_affected_members(
         self,
     ) -> PEDIGREE_DATA:
@@ -94,9 +122,7 @@ class PedigreeParser:
         This will return all participants with an affected status of 1
         """
         return {
-            sample_id: participant
-            for sample_id, participant in self.participants.items()
-            if participant.affected == AFFECTED_NUM
+            sample_id: participant for sample_id, participant in self.participants.items() if participant.is_affected
         }
 
     def get_affected_member_ids(self) -> set[str]:
@@ -119,6 +145,15 @@ class PedigreeParser:
             participant.mother_id = NULL_PARTICIPANT
             return_participants[sample_id] = participant
         return return_participants
+
+    def strip_pedigree_to_samples(self, only_participants: list[str] | set[str]):
+        """
+        Takes the Pedigree data, and strips it back to only samples in the `only_participants` object
+        A situation for this is when a provided pedigree is a superset of the participants we have variant data for. By
+        stripping the pedigree down to only the samples we've really seen, we can use all pedigree participants with no
+        need to constantly re-check.
+        """
+        self.participants = {key: value for key, value in self.participants.items() if key in only_participants}
 
     def write_pedigree(
         self,
@@ -255,15 +290,15 @@ class PedigreeParser:
 
         lower_sex = sex_str.lower()
         if lower_sex in MALE_SEX:
-            return 1
+            return MALE_SEX_INT
         if lower_sex in FEMALE_SEX:
-            return 2
+            return FEMALE_SEX_INT
         if lower_sex in UNKNOWN_SEX:
-            return 0
+            return NULL_INT
 
         # a value is returned here to prevent the model validation from failing, but this will be caught and reported
         self.parsing_issues.append(f'Invalid Sex provided! Sample {sample_id}: {sex_str}')
-        return 0
+        return NULL_INT
 
     def validate_affected(self, aff_str: str, sample_id: str) -> int:
         """
@@ -280,14 +315,14 @@ class PedigreeParser:
         lower_aff = aff_str.lower()
         # happy to parse these
         if lower_aff in NULL_VALUES:
-            return 1
+            return UNAFFECTED_NUM
 
         if lower_aff in GRUDGINGLY_VALID_AFFECTED:
             # this is a warning, but we still return 1 to indicate affected status
             logger.warning(
                 f'Grudgingly valid Affected status provided, please correct data! Sample {sample_id}: {aff_str}',
             )
-            return 2
+            return AFFECTED_NUM
 
         self.parsing_issues.append(f'Invalid Affected status provided! Sample {sample_id}: {aff_str}')
-        return 0
+        return NULL_INT

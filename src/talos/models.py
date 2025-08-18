@@ -339,7 +339,6 @@ class ReportVariant(BaseModel):
 
 
 class ParticipantHPOPanels(BaseModel):
-    external_id: str = Field(default_factory=str)
     family_id: str = Field(default_factory=str)
     hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
@@ -468,19 +467,17 @@ class ResultMeta(BaseModel):
 
 
 class MemberSex(Enum):
+    UNKNOWN = 'unknown'
     MALE = 'male'
     FEMALE = 'female'
-    UNKNOWN = 'unknown'
 
 
 class FamilyMembers(BaseModel):
     affected: bool = Field(default=False)
-    ext_id: str = Field(default_factory=str)
     sex: str = Field(default=MemberSex.UNKNOWN.value)
 
 
 class ParticipantMeta(BaseModel):
-    ext_id: str
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
     phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)

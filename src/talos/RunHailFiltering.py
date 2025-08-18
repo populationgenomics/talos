@@ -19,7 +19,7 @@ from loguru import logger
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
-from talos.pedigree_parser import PedigreeParser, PEDIGREE_DATA
+from talos.pedigree_parser import PedigreeParser
 
 
 # set some Hail constants
@@ -871,7 +871,7 @@ def main(
     green_expression = green_from_panelapp(panelapp)
 
     # read the pedigree data
-    pedigree_data: PEDIGREE_DATA = PedigreeParser(pedigree)
+    pedigree_data: PedigreeParser = PedigreeParser(pedigree)
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
