@@ -10,7 +10,7 @@ from talos.models import (
     PanelDetail,
     PanelShort,
     ParticipantHPOPanels,
-    PhenoPacketHpo,
+    HpoTerm,
 )
 from talos.static_values import get_granular_date
 from talos.UnifiedPanelAppParser import (
@@ -31,9 +31,9 @@ def test_match_hpos_to_panels(fake_obo_path):
     this has now been adjusted to account for the full leaf-to-root traversal, instead of stopping at 3 layers
     """
     hpo_panel_map = {
-        1: [PhenoPacketHpo(id='HP:2', label='')],
-        2: [PhenoPacketHpo(id='HP:2', label='')],
-        5: [PhenoPacketHpo(id='HP:5', label='')],
+        1: [HpoTerm(id='HP:2', label='')],
+        2: [HpoTerm(id='HP:2', label='')],
+        5: [HpoTerm(id='HP:5', label='')],
     }
 
     hpo_graph = read_obo(fake_obo_path)
@@ -67,13 +67,13 @@ def test_match_participants_to_panels():
         participants={
             'sam1': ParticipantHPOPanels(
                 hpo_terms=[
-                    PhenoPacketHpo(id='HP:1', label='1'),
-                    PhenoPacketHpo(id='HP:2', label='2'),
+                    HpoTerm(id='HP:1', label='1'),
+                    HpoTerm(id='HP:2', label='2'),
                 ],
             ),
             'sam2': ParticipantHPOPanels(
                 hpo_terms=[
-                    PhenoPacketHpo(id='HP:1', label='1'),
+                    HpoTerm(id='HP:1', label='1'),
                 ],
             ),
         },
@@ -100,7 +100,7 @@ def test_match_participants_to_panels():
             'sam1': ParticipantHPOPanels(
                 external_id='',
                 family_id='',
-                hpo_terms=[PhenoPacketHpo(id='HP:1', label='1'), PhenoPacketHpo(id='HP:2', label='2')],
+                hpo_terms=[HpoTerm(id='HP:1', label='1'), HpoTerm(id='HP:2', label='2')],
                 panels={99, 1, 3, 5},
                 matched_genes=set(),
                 matched_phenotypes=set(),
@@ -108,7 +108,7 @@ def test_match_participants_to_panels():
             'sam2': ParticipantHPOPanels(
                 external_id='',
                 family_id='',
-                hpo_terms=[PhenoPacketHpo(id='HP:1', label='1')],
+                hpo_terms=[HpoTerm(id='HP:1', label='1')],
                 panels={99, 1, 3},
                 matched_genes=set(),
                 matched_phenotypes=set(),
@@ -156,7 +156,7 @@ def test_extract_participant_data_from_pedigree():
 
 
 def test_match_hpos_to_panels_no_graph():
-    hpo_panel_map = {1: [PhenoPacketHpo(id='HP:1', label='foo')]}
+    hpo_panel_map = {1: [HpoTerm(id='HP:1', label='foo')]}
     all_hpos = {'HP:1'}
     result = match_hpos_to_panels(hpo_panel_map, all_hpos, None)
     assert result == {}

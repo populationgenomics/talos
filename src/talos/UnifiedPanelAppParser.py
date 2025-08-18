@@ -26,7 +26,7 @@ from talos.models import (
     PanelDetail,
     PanelShort,
     ParticipantHPOPanels,
-    PhenoPacketHpo,
+    HpoTerm,
 )
 from talos.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path
@@ -90,8 +90,7 @@ def extract_participant_data_from_pedigree(
         shell.participants[participant.sample_id] = ParticipantHPOPanels(
             family_id=participant.family_id,
             hpo_terms=[
-                PhenoPacketHpo(id=hpo_term, label=hpo_lookup.get(hpo_term, hpo_term))
-                for hpo_term in participant.hpo_terms
+                HpoTerm(id=hpo_term, label=hpo_lookup.get(hpo_term, hpo_term)) for hpo_term in participant.hpo_terms
             ],
             panels={DEFAULT_PANEL},
         )
@@ -101,7 +100,7 @@ def extract_participant_data_from_pedigree(
 
 
 def match_hpos_to_panels(
-    hpo_panel_map: dict[int, list[PhenoPacketHpo]],
+    hpo_panel_map: dict[int, list[HpoTerm]],
     all_hpos: set[str],
     hpo_graph: nx.MultiDiGraph | None = None,
 ) -> dict[str, set[int]]:

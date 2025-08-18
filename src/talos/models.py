@@ -16,7 +16,7 @@ from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
-from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
+from talos.liftover.lift_2_0_0_to_2_1_0 import panelapp as pa_200_to_210
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -24,8 +24,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.0.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0']
+CURRENT_VERSION = '2.1.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -47,7 +47,7 @@ class FileTypes(Enum):
     VCF_BGZ = '.vcf.bgz'
 
 
-class PhenoPacketHpo(BaseModel):
+class HpoTerm(BaseModel):
     """
     A representation of a HPO term
     """
@@ -317,7 +317,7 @@ class ReportVariant(BaseModel):
     independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
-    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
+    phenotypes: list[HpoTerm] = Field(default_factory=list)
     reasons: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
     # log whether there was an increase in ClinVar star rating since the last run
@@ -340,16 +340,10 @@ class ReportVariant(BaseModel):
 
 class ParticipantHPOPanels(BaseModel):
     family_id: str = Field(default_factory=str)
-    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    hpo_terms: list[HpoTerm] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
     matched_genes: set[str] = Field(default_factory=set)
     matched_phenotypes: set[str] = Field(default_factory=set)
-
-
-class PhenotypeMatchedPanels(BaseModel):
-    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
-    all_panels: set[int] = Field(default_factory=set)
-    version: str = CURRENT_VERSION
 
 
 class PanelDetail(BaseModel):
@@ -410,7 +404,7 @@ class DownloadedPanelApp(BaseModel):
     # all panels and versions
     versions: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
-    hpos: dict[int, list[PhenoPacketHpo]] = Field(default_factory=dict)
+    hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
 
 
@@ -480,7 +474,7 @@ class FamilyMembers(BaseModel):
 class ParticipantMeta(BaseModel):
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
-    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
+    phenotypes: list[HpoTerm] = Field(default_factory=list)
     panel_details: dict[int, PanelShort] = Field(default_factory=dict)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
@@ -504,12 +498,6 @@ class ResultData(BaseModel):
     results: dict[str, ParticipantResults] = Field(default_factory=dict)
     metadata: ResultMeta = Field(default_factory=ResultMeta)
     version: str = CURRENT_VERSION
-
-
-class ModelVariant(BaseModel):
-    """
-    might be required for the VCF generator
-    """
 
 
 class MiniVariant(BaseModel):
@@ -542,19 +530,11 @@ class PedigreeMember(BaseModel):
         return f'{self.family}\t{self.id}\t{self.father}\t{self.mother}\t{self.sex}\t{self.affected}'
 
 
-class Pedigree(BaseModel):
-    members: list[PedigreeMember] = Field(default_factory=list)
-    by_family: dict[str, list[PedigreeMember]] = Field(default_factory=dict)
-    by_id: dict[str, PedigreeMember] = Field(default_factory=dict)
-
-
 # methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
-    PhenotypeMatchedPanels: {
-        'None_1.0.0': pmp_none_to_1_0_0,
-    },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
+        '2.0.0_2.1.0': pa_200_to_210,
     },
     HistoricVariants: {
         '1.0.0_1.0.1': hv_100_to_101,
@@ -572,7 +552,7 @@ LIFTOVER_METHODS: dict = {
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | ResultData | PanelApp | PhenotypeMatchedPanels,
+    model: HistoricVariants | ResultData | PanelApp,
 ) -> dict:
     """
     lift over data from one version to another

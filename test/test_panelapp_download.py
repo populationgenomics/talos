@@ -4,7 +4,7 @@ from talos.DownloadPanelApp import (
     parse_panel,
     parse_panel_activity,
 )
-from talos.models import PhenoPacketHpo
+from talos.models import HpoTerm
 
 
 def test_panel_hpo_query(httpx_mock, panels_and_hpos):
@@ -15,11 +15,11 @@ def test_panel_hpo_query(httpx_mock, panels_and_hpos):
     parsed_response = get_panels_and_hpo_terms()
 
     assert parsed_response == {
-        3149: [PhenoPacketHpo(id='HP:0011516', label='')],
+        3149: [HpoTerm(id='HP:0011516', label='')],
         4059: [
-            PhenoPacketHpo(id='HP:0001638', label=''),
-            PhenoPacketHpo(id='HP:0001637', label=''),
-            PhenoPacketHpo(id='HP:0011675', label=''),
+            HpoTerm(id='HP:0001638', label=''),
+            HpoTerm(id='HP:0001637', label=''),
+            HpoTerm(id='HP:0011675', label=''),
         ],
         3302: [],
     }

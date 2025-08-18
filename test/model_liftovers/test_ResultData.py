@@ -6,7 +6,7 @@ test that model liftover works
 import json
 from os.path import join
 
-from talos.models import CURRENT_VERSION, PhenoPacketHpo, ResultData, lift_up_model_version
+from talos.models import CURRENT_VERSION, HpoTerm, ResultData, lift_up_model_version
 
 
 def test_rd_from_none(test_input_models_path):
@@ -31,7 +31,7 @@ def test_rd_from_none(test_input_models_path):
     # check the HPO terms
     for _sample, results in parsed.results.items():
         for term in results.metadata.phenotypes:
-            assert isinstance(term, PhenoPacketHpo)
+            assert isinstance(term, HpoTerm)
             assert isinstance(term.id, str)
             assert isinstance(term.label, str)
             if term.id == 'HP:0000001':
