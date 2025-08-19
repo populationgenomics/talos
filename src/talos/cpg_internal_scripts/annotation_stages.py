@@ -40,6 +40,7 @@ import loguru
 from cpg_flow import stage, targets, utils
 from cpg_utils import Path
 
+from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     AnnotateConsequenceUsingBcftools,
     AnnotateGnomadUsingEchtvar,
@@ -48,7 +49,6 @@ from talos.cpg_internal_scripts.cpgflow_jobs import (
     JumpAnnotationsFromHtToFinalMt,
     SitesOnlyVcfIntoHt,
 )
-from talos.cpg_internal_scripts import cpg_flow_utils
 
 SHARD_MANIFEST = 'shard-manifest.txt'
 
