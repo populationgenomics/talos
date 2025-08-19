@@ -61,7 +61,7 @@ def test_reported_variant_ordering(trio_abs_variant: SmallVariant):
         family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
-        reasons={'test'},
+        reasons='test',
         genotypes={},
     )
     report_2 = ReportVariant(
@@ -69,7 +69,7 @@ def test_reported_variant_ordering(trio_abs_variant: SmallVariant):
         family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
-        reasons={'test'},
+        reasons='test',
         genotypes={},
     )
     assert report_1 == report_2

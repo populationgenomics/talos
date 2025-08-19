@@ -7,7 +7,7 @@ from talos.pedigree_parser import PedigreeParser
 PED_CONTENT = 'FAM1\tS1\t0\t0\t1\t2\tHP:0000118,HP:0001250\nFAM1\tS2\t0\t0\t2\t1\t\nFAM1\tS3\tS1\tS2\t1\t1\t\n'
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_read_pedigree(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -22,20 +22,18 @@ def test_read_pedigree(mock_to_anypath):
     assert participants['S3'].mother_id == 'S2'
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_read_pedigree_and_strip(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
-
     parser.strip_pedigree_to_samples(['S1'])
-
     participants = parser.participants
     assert 'S1' in participants
     assert 'S2' not in participants
     assert {'S1'} == set(participants.keys())
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_get_affected_members(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -46,7 +44,7 @@ def test_get_affected_members(mock_to_anypath):
     assert 'S2' not in affected
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_as_singletons(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -56,7 +54,7 @@ def test_as_singletons(mock_to_anypath):
         assert p.mother_id == '0'
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_validate_sex_valid(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -69,7 +67,7 @@ def test_validate_sex_valid(mock_to_anypath):
     assert len(parser.parsing_issues) == 0
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_validate_sex_invalid(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -77,7 +75,7 @@ def test_validate_sex_invalid(mock_to_anypath):
     assert 'Invalid Sex provided! Sample S7: not_a_sex' in parser.parsing_issues
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_validate_affected_valid(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -88,7 +86,7 @@ def test_validate_affected_valid(mock_to_anypath):
     assert len(parser.parsing_issues) == 0
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_validate_affected_grudgingly_valid(mock_to_anypath, caplog):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -99,7 +97,7 @@ def test_validate_affected_grudgingly_valid(mock_to_anypath, caplog):
     assert 'Grudgingly valid Affected status provided, please correct data! Sample S6: true' in caplog.text
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def test_validate_affected_invalid(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
@@ -107,7 +105,7 @@ def test_validate_affected_invalid(mock_to_anypath):
     assert 'Invalid Affected status provided! Sample S7: not_status' in parser.parsing_issues
 
 
-@patch('src.talos.pedigree_parser.to_anypath')
+@patch('talos.pedigree_parser.to_anypath')
 def parsing_failure(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data='FAM1\tS1\t0\t0\t1\tIDK')
     with pytest.raises(ValueError, match='Errors found during pedigree parsing, see log for details'):

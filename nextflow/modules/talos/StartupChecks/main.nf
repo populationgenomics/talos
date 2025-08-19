@@ -12,19 +12,20 @@ process StartupChecks {
     output:
         path "${params.cohort}_checked"
 
-    // untar the ClinvArbitration data directory. Happy to keep doing this, it's much easier to distribute tar'd
+    // untar the ClinvArbitration data directory so we can check its contents
     """
     set -e
     export TALOS_CONFIG=${talos_config}
 
     tar --no-same-owner -zxf ${clinvar}
 
-	python -m talos.StartupChecks
-        --mt ${mt} \
-        --pedigree ${pedigree} \
-        --clinvar clinvarbitration_data/clinvar_decisions.ht \
+	python -m talos.StartupChecks \\
+        --mt ${mt} \\
+        --pedigree ${pedigree} \\
+        --clinvar clinvarbitration_data/clinvar_decisions.ht \\
                   clinvarbitration_data/clinvar_decisions.pm5.ht
 
     echo "success" > "${params.cohort}_checked"
+    rm -r clinvarbitration_data
     """
 }

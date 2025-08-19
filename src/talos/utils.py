@@ -22,8 +22,8 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from talos.config import config_retrieve
 from talos.models import (
+    CATEGORY_TRANSLATOR,
     VARIANT_MODELS,
-    CategoryMeta,
     Coordinates,
     HistoricSampleVariant,
     HistoricVariants,
@@ -31,7 +31,6 @@ from talos.models import (
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
-    CATEGORY_TRANSLATOR,
 )
 from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
@@ -776,7 +775,7 @@ def generate_fresh_latest_results(current_results: ResultData):
         current_results (ResultData): results from this current run
     """
 
-    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
+    new_history = HistoricVariants()
     for sample, content in current_results.results.items():
         for var in content.variants:
             # bank the number of clinvar stars, if any
@@ -962,9 +961,6 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
         updated/instantiated cumulative data
     """
 
-    # update to latest category descriptions
-    historic.metadata.categories.update(config_retrieve('categories'))
-
     for sample, content in current.results.items():
         # get the historical record for this sample
         sample_historic = historic.results.get(sample, {})
@@ -972,7 +968,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
         # check each variant found in this round
         for var in content.variants:
             # get the number of clinvar stars, if appropriate
-            if '1' in var.categories:
+            if CATEGORY_TRANSLATOR['1'] in var.categories:
                 clinvar_stars = var.var_data.info.get('clinvar_stars')
                 assert isinstance(clinvar_stars, int)
             else:

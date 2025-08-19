@@ -6,11 +6,11 @@ from obonet import read_obo
 from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
+    HpoTerm,
     PanelApp,
     PanelDetail,
     PanelShort,
     ParticipantHPOPanels,
-    HpoTerm,
 )
 from talos.static_values import get_granular_date
 from talos.UnifiedPanelAppParser import (

@@ -4,16 +4,17 @@ This is a startup checker module
 Takes the inputs (mandatory and optional) and checks if they are valid.
 """
 
+import sys
 from argparse import ArgumentParser
 from os import getenv
 
-import hail as hl
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 
-from talos.config import config_retrieve, config_check
-from talos.pedigree_parser import PedigreeParser
+import hail as hl
 
+from talos.config import config_check, config_retrieve
+from talos.pedigree_parser import PedigreeParser
 
 # collect all parsing errors as strings, print before crashing (unless everything passes...)
 LOG_ERRORS: list[str] = []
@@ -163,7 +164,7 @@ def check_mt(mt_path: str | None):
                 if annotation in fields_and_types:
                     if not isinstance(fields_and_types[annotation], datatype):
                         LOG_ERRORS.append(
-                            f'{field_group}.{annotation}: {datatype}/{type(fields_and_types[annotation])}'
+                            f'{field_group}.{annotation}: {datatype}/{type(fields_and_types[annotation])}',
                         )
                 else:
                     LOG_ERRORS.append(f'{annotation}:missing')
@@ -180,9 +181,8 @@ def validate_types(config, schema, path=''):
         elif isinstance(expected_type, list):
             if not isinstance(value, list):
                 errors.append(f'{path}{key}: expected list, got {type(value).__name__}')
-        else:
-            if not isinstance(value, expected_type):
-                errors.append(f'{path}{key}: expected {expected_type.__name__}, got {type(value).__name__}')
+        elif not isinstance(value, expected_type):
+            errors.append(f'{path}{key}: expected {expected_type.__name__}, got {type(value).__name__}')
     return errors
 
 
@@ -192,6 +192,7 @@ def validate_pedigree(pedigree_path: str | None):
     """
     if pedigree_path is None:
         LOG_ERRORS.append('Pedigree path is not provided.')
+        return
 
     logger.info(f'Checking pedigree at {pedigree_path}')
 
@@ -226,12 +227,17 @@ def recursive_schema_validation(schema: dict, lead: list[str] | None = None, opt
         lead = []
 
     for key, value in schema.items():
+        if key not in config_retrieve(lead):
+            if not optional:
+                LOG_ERRORS.append(f'Missing required config key: {".".join([*lead, key])}')
+            continue
         if isinstance(value, dict):
             # if the value is a dict, we need to recurse into it
-            recursive_schema_validation(schema=value, lead=lead + [key], optional=optional)
+            recursive_schema_validation(schema=value, lead=[*lead, key], optional=optional)
             continue
 
-        key_path = lead + [key]
+        key_path = [*lead, key]
+
         CONFIG_ERRORS.extend(config_check(key=key_path, expected_type=value, optional=optional))
 
 
@@ -268,7 +274,7 @@ def check_clinvar(clinvar_paths: list[str] | None):
             LOG_ERRORS.append(f'ClinVar Success file does not exist: {clinvar_path}')
             continue
 
-        # boot it up and check the contents - we're basically looking for a non-empty table, much larger than the test-data
+        # boot it up and check the contents - we're looking for a non-empty table, much larger than the test-data
         clinvar_ht = hl.read_table(clinvar_path)
         if clinvar_ht.count() < 100:
             LOG_ERRORS.append(f'ClinVar HailTable has fewer than 100 entries: {clinvar_path}')
@@ -277,7 +283,7 @@ def check_clinvar(clinvar_paths: list[str] | None):
 def main(
     pedigree_path: str | None,
     mt_path: str | None,
-    clinvar_paths: str | None,
+    clinvar_paths: list[str] | None,
 ) -> None:
     """
     Main function to run all startup checks.
@@ -297,15 +303,15 @@ def main(
         logger.info('One or more startup checks failed:')
         for error in LOG_ERRORS:
             logger.info(f' - {error}')
-        raise RuntimeError('Startup checks failed. Please resolve the issues above.')
+        sys.exit(1)
 
     print('All startup checks passed successfully.')
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Startup checks for Talos pipeline')
-    parser.add_argument('--ped', help='Path to the pedigree file.', default=None)
+    parser.add_argument('--pedigree', help='Path to the pedigree file.', default=None)
     parser.add_argument('--mt', help='Path to the MatrixTable.', default=None)
     parser.add_argument('--clinvar', help='Path to the ClinVar HailTable.', default=None, nargs='+')
     args = parser.parse_args()
-    main(pedigree_path=args.ped, mt_path=args.mt, clinvar_paths=args.clinvar)
+    main(pedigree_path=args.pedigree, mt_path=args.mt, clinvar_paths=args.clinvar)

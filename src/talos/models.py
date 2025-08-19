@@ -17,9 +17,13 @@ from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
 from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    panelapp as pa_200_to_210,
-    resultdata as rd_200_to_210,
     historicvariants as hv_200_to_210,
+)
+from talos.liftover.lift_2_0_0_to_2_1_0 import (
+    panelapp as pa_200_to_210,
+)
+from talos.liftover.lift_2_0_0_to_2_1_0 import (
+    resultdata as rd_200_to_210,
 )
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
@@ -177,7 +181,11 @@ class VariantCommon(BaseModel):
 
         # if we don't want to allow support variants, remove any from the list of applied categories
         if not allow_support:
-            categories_applied -= self.support_categories
+            # add the longer names to the support_categories - this is a workaround for the fact that the support
+            # categories entry in the config file can now be the numberical/short IDs, or longer names
+            remove_support = self.support_categories
+            remove_support.update({CATEGORY_TRANSLATOR[x] for x in self.support_categories if x in CATEGORY_TRANSLATOR})
+            categories_applied -= remove_support
 
         return len(categories_applied) > 0
 
@@ -425,14 +433,6 @@ class DownloadedPanelApp(BaseModel):
     version: str = CURRENT_VERSION
 
 
-class CategoryMeta(BaseModel):
-    """
-    The mapping of category names to their display names
-    """
-
-    categories: dict[str, str] = Field(default=dict)
-
-
 class HistoricSampleVariant(BaseModel):
     """ """
 
@@ -458,7 +458,6 @@ class HistoricVariants(BaseModel):
     they have been assigned, date first seen, and supporting variants
     """
 
-    metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     # dict - participant ID -> variant -> variant data
     results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
@@ -524,7 +523,6 @@ class MiniVariant(BaseModel):
 
 
 class MiniForSeqr(BaseModel):
-    metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     results: dict[str, dict[str, MiniVariant]] = Field(default_factory=dict)
 
 

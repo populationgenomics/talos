@@ -22,11 +22,11 @@ from obonet import read_obo
 from talos.config import config_retrieve
 from talos.models import (
     DownloadedPanelApp,
+    HpoTerm,
     PanelApp,
     PanelDetail,
     PanelShort,
     ParticipantHPOPanels,
-    HpoTerm,
 )
 from talos.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path

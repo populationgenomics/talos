@@ -41,8 +41,8 @@ from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
     DownloadedPanelAppGenePanelDetail,
-    PanelShort,
     HpoTerm,
+    PanelShort,
 )
 from talos.utils import (
     get_json_response,

@@ -12,9 +12,11 @@ def panelapp(data_dict: dict) -> dict:
 
 
 def resultdata(data_dict: dict) -> dict:
+    print(data_dict)
     for result in data_dict['results'].values():
         for variant in result['variants']:
             variant['reasons'] = variant['reasons'].pop()
+    _categories = data_dict['metadata'].pop('categories')
     data_dict['version'] = '2.1.0'
     return data_dict
 
@@ -43,6 +45,8 @@ def historicvariants(data_dict: dict) -> dict:
             details['categories'] = {
                 category_translator.get(cat_id, cat_id): date for cat_id, date in details['categories'].items()
             }
+
+    _cat_dict = data_dict.pop('metadata')
 
     data_dict['version'] = '2.1.0'
     return data_dict

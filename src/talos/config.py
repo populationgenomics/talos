@@ -56,9 +56,6 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
     if isinstance(key, str):
         key = [key]
 
-    if not key:
-        raise ValueError('Key cannot be empty')
-
     d = _config
     for idx, k in enumerate(key):
         if k not in d:

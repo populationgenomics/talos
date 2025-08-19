@@ -19,6 +19,7 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
+    CATEGORY_TRANSLATOR,
     FamilyMembers,
     MemberSex,
     PanelApp,
@@ -30,7 +31,6 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
-    CATEGORY_TRANSLATOR,
 )
 from talos.moi_tests import MOIRunner
 from talos.pedigree_parser import PedigreeParser

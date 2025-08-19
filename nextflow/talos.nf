@@ -23,13 +23,14 @@ workflow {
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true)
     ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
     ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
+    ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
 
     // run pre-Talos startup checks
-    StartupChecks
+    StartupChecks(
         ch_mt,
         ch_pedigree,
         ch_clinvar_tar,
-        ch_runåtime_config,
+        ch_runtime_config,
     )
 
     // download everything in PanelApp - unless it exists from a previous download
@@ -52,8 +53,6 @@ workflow {
     	ch_hpo_file
     )
 
-    // run the hail filtering, using an MT path provided in config
-    ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
     RunHailFiltering(
         ch_mt,
         UnifiedPanelAppParser.out,
