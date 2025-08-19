@@ -18,10 +18,7 @@ def cli_main():
 
 def main(dry_run: bool = False):
     workflow.run_workflow(
-        stages=[
-            talos_stages.MinimiseOutputForSeqr,
-            talos_stages.CreateTalosHtml,
-        ],
+        stages=[talos_stages.MinimiseOutputForSeqr, talos_stages.UpdateIndexFile],
         dry_run=dry_run,
     )
 

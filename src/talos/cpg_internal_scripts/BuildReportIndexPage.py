@@ -16,7 +16,6 @@ from loguru import logger
 
 from metamist.graphql import gql, query
 
-
 DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent.parent / 'templates'

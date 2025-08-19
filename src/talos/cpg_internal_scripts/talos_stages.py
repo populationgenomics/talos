@@ -153,6 +153,9 @@ class MakeRuntimeConfig(stage.CohortStage):
             'ValidateMOI': config.config_retrieve(['ValidateMOI']),
             'HPOFlagging': config.config_retrieve(['HPOFlagging']),
             'CreateTalosHTML': {},  # populate from a separate part of config
+            'dataset': cohort.dataset.name,
+            'sequencing_type': config.config_retrieve(['workflow', 'sequencing_type']),
+            'long_read': config.config_retrieve(['workflow', 'long_read'], False),
         }
 
         # pull the content relevant to this cohort + sequencing type (mandatory in CPG)
@@ -736,4 +739,31 @@ class MinimiseOutputForSeqr(stage.CohortStage):
         expected_out = self.expected_outputs(cohort)
         hail_batch.get_batch().write_output(job.out_json, expected_out['seqr_file'])
         hail_batch.get_batch().write_output(job.pheno_json, expected_out['seqr_pheno_file'])
+        return self.make_outputs(cohort, data=expected_out, jobs=job)
+
+
+@stage.stage(required_stages=[CreateTalosHtml])
+class UpdateIndexFile(stage.MultiCohortStage):
+    """Update the index.html with all the latest reports."""
+
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        return (
+            generate_dataset_prefix(
+                dataset=config.config_retrieve(['workflow', 'dataset']),
+                stage_name=self.name,
+                hash_value=get_date_string(),
+            )
+            / 'index_created.txt'
+        )
+
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        job = hail_batch.get_batch().new_bash_job('Create Index page')
+        job.image(config.config_retrieve(['workflow', 'driver_image'])).memory('lowmem').cpu(1)
+
+        # write out the index file
+        expected_out = self.expected_outputs(cohort)
+
+        dataset = config.config_retrieve(['workflow', 'dataset'])
+        job.command(f'python -m talos.cpg_internal_scripts.BuildReportIndexPage --dataset {dataset}')
+
         return self.make_outputs(cohort, data=expected_out, jobs=job)
