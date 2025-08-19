@@ -633,7 +633,7 @@ class CreateTalosHtml(stage.CohortStage):
         # generate an internal~external ID map for labelling the HTML file
         with expected_out['id_map'].open('w') as id_map_handle:
             for sg in cohort.get_sequencing_groups():
-                id_map_handle.write(f'{sg.id}\t{sg.external_id}\n')
+                id_map_handle.write(f'{sg.id}\t{sg.participant_id}\n')
 
         localised_ids = hail_batch.get_batch().read_input(expected_out['id_map'])
         results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging))
