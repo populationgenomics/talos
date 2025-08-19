@@ -48,7 +48,6 @@ cpg = [
 ]
 test = [
     'bump-my-version',
-    'black',
     'pre-commit',
     'pytest',
     'pytest-httpx',
