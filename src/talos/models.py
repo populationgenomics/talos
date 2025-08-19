@@ -468,12 +468,14 @@ class ResultMeta(BaseModel):
     metadata for a result set
     """
 
-    categories: dict[str, str] = Field(default=dict)
     version: str = Field(default_factory=str)
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     input_file: str = Field(default_factory=str)
     panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
+
+    # a count of variants per category, used for the report
+    variant_breakdown: dict[str, int] = Field(default_factory=dict)
 
 
 class MemberSex(Enum):

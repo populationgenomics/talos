@@ -150,13 +150,12 @@ class MakeRuntimeConfig(stage.CohortStage):
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # start off with a fresh config dictionary, including generic content
         new_config = {
-            'de_novo': config.config_retrieve(['de_novo'], {}),
             'GeneratePanelData': config.config_retrieve(['GeneratePanelData']),
             'RunHailFiltering': config.config_retrieve(['RunHailFiltering']),
             'RunHailFilteringSv': config.config_retrieve(['RunHailFilteringSv']),
             'ValidateMOI': config.config_retrieve(['ValidateMOI']),
             'HPOFlagging': config.config_retrieve(['HPOFlagging']),
-            'CreateTalosHTML': {},
+            'CreateTalosHTML': {},  # populate from a separate part of config
         }
 
         # pull the content relevant to this cohort + sequencing type (mandatory in CPG)
@@ -251,7 +250,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
             inputs.as_path(target=workflow.get_multicohort(), stage=DownloadPanelAppData),
         )
 
-        local_phenopackets = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
+        local_ped = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
 
         hpo_file = hail_batch.get_batch().read_input(config.config_retrieve(['GeneratePanelData', 'obo_file']))
 
@@ -263,7 +262,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
             python -m talos.UnifiedPanelAppParser \\
                 --input {panelapp_download} \\
                 --output {job.output} \\
-                --cohort {local_phenopackets} \\
+                --pedigree {local_ped} \\
                 --hpo {hpo_file}
             """,
         )
@@ -565,6 +564,7 @@ class CreateTalosHtml(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return {
             'tar': cohort.dataset.prefix() / get_date_folder() / 'reports.tar.gz',
+            'id_map': cohort.dataset.prefix() / get_date_folder() / 'int_ext_id_map.tsv',
             'dated': cohort.dataset.prefix(category='web') / get_date_folder() / 'summary_output.html',
             'generic': cohort.dataset.prefix(category='web') / 'talos_static' / 'summary_output.html',
         }
@@ -575,9 +575,16 @@ class CreateTalosHtml(stage.CohortStage):
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
 
+        expected_out = self.expected_outputs(cohort)
+
+        # generate an internal~external ID map for labelling the HTML file
+        with expected_out['id_map'].open('w') as id_map_handle:
+            for sg in cohort.get_sequencing_groups():
+                id_map_handle.write(f'{sg.id}\t{sg.external_id}\n')
+
+        localised_ids = hail_batch.get_batch().read_input(expected_out['id_map'])
         results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'report'))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
-        expected_out = self.expected_outputs(cohort)
 
         # this will write output files directly to GCP
         job.command(f'export TALOS_CONFIG={runtime_config}')
@@ -590,7 +597,8 @@ class CreateTalosHtml(stage.CohortStage):
             python -m talos.CreateTalosHTML \\
                 --input {results_json} \\
                 --panelapp {panelapp_data} \\
-                --output summary_output.html
+                --output summary_output.html \\
+                --ext_ids {localised_ids}
             """,
         )
 

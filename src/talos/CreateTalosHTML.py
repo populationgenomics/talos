@@ -188,7 +188,7 @@ class HTMLBuilder:
 
         # get a hold of the base panel ID we're using
         # this is used to differentiate between new in base and new in other
-        self.base_panel: int = config_retrieve(['GeneratePanelData', 'default_panel'], 137)
+        self.base_panel: int = config_retrieve(['GeneratePanelData', 'default_panel'])
 
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
@@ -210,7 +210,9 @@ class HTMLBuilder:
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        self.ext_labels: dict[str, dict] = config_retrieve(['CreateTalosHTML', 'external_labels'], {})
+        self.ext_labels: dict[str, dict] = read_json_from_path(
+            config_retrieve(['CreateTalosHTML', 'external_labels'], None), {}
+        )
         assert isinstance(self.ext_labels, dict)
 
         self.metadata = results_dict.metadata

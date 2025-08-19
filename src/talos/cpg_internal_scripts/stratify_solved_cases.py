@@ -90,6 +90,9 @@ with open(argv[1], encoding='utf-8') as handle:
     solved_fams: set[str] = {x.strip() for x in handle.readlines()}
 
 for project in all_projects_of_interest:
+    if 'test' in project or 'training' in project:
+        continue
+
     # write this to a dict
     project_dict[project] = get_data_for_project(project)
 

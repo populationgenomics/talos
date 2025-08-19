@@ -1,9 +1,5 @@
 """
-Pedigree parsing in Talos has a limited scope, so a simple parsing class is implemented here
-
-- Each affected participant will be considered separately, i.e. two affected siblings are considered as two trios
-- For each Proband, we want to connect to parents to apply MOI testing to the immediate nuclear family
-
+A general purpose Pedigree parser, developed for Talos to facilitate validation of an extended-format Pedigree file.
 This is modelled on a classic 6-column Pedigree file format, with the following specification:
 
 - Columns are Tab-separated
@@ -62,24 +58,25 @@ class Participant:
 
     @property
     def is_affected(self):
-        """Quick property to simplify logic"""
+        """Boolean property to check if the participant is affected."""
         return self.affected == AFFECTED_NUM
 
     @property
     def is_not_affected(self):
-        """Quick property to simplify logic. Could easily be an inversion of the previous property but this is fine."""
+        """Boolean property to check if the participant is not affected."""
         return self.affected != AFFECTED_NUM
 
     @property
     def is_male(self):
+        """Boolean property to check if the participant is male."""
         return self.sex == MALE_SEX_INT
 
     @property
     def is_female(self):
+        """Boolean property to check if the participant is female."""
         return self.sex == FEMALE_SEX_INT
 
 
-# a type for hinting
 PEDIGREE_DATA = dict[str, Participant]
 
 
@@ -87,6 +84,21 @@ class PedigreeParser:
     def __init__(self, pedigree_path: str):
         """
         A Pedigree object, because the world needs another Pedigree-parsing class.
+        This takes a single argument, a path to a pedigree file, and parses it into a dictionary of Participant objects.
+
+        This module attempts to do a very lenient validation of the pedigree file, allowing some common substitutions.
+        If there are errors in the pedigree file, they will be logged, and a ValueError will be raised.
+
+        If no errors are found, a PedigreeParser instance will have two main attributes:
+          - self.participants: a dictionary of sample IDs: Participants, representing all participants in the pedigree
+          - self.by_family: a dictionary of family IDs: list of Participants, grouping all participants by family
+
+        class methods can be used to retrieve select data:
+          - get_affected_members: returns an {ID: Participant} dictionary of only affected participants
+          - get_affected_member_ids: returns a set of sample IDs of affected participants
+          - as_singletons: returns a dictionary of participants as singletons, stripping parental information
+          - strip_pedigree_to_samples: reduces self.participants to only the requested sample IDs
+          - write_pedigree: writes the participants to a PLINK format 6-column PED file
 
         Args:
             pedigree_path (str): Path to the pedigree file, which is expected to be a 6/7-column tab-separated file
@@ -112,9 +124,7 @@ class PedigreeParser:
             by_family.setdefault(participant.family_id, []).append(participant)
         return by_family
 
-    def get_affected_members(
-        self,
-    ) -> PEDIGREE_DATA:
+    def get_affected_members(self) -> PEDIGREE_DATA:
         """
         Return only the affected participants from the provided dictionary of participants.
 
@@ -161,7 +171,7 @@ class PedigreeParser:
         only_participants: list[str] | None = None,
     ) -> None:
         """
-        Write the participants to a PED file.
+        Write the participants to a PLINK-format Fam/PED file at `output_path`.
 
         The output will be a 6-column PED file, with the following columns:
         - Family ID

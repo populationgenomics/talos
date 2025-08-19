@@ -5,3 +5,5 @@ build
 .coverage*
 .nextflow
 design_docs
+
+large_files

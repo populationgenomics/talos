@@ -42,6 +42,7 @@ from talos.utils import (
     gather_gene_dict_from_contig,
     polish_exomiser_results,
     read_json_from_path,
+    generate_summary_stats,
 )
 from talos.version import __version__
 
@@ -260,7 +261,7 @@ def count_families(pedigree: PedigreeParser) -> dict:
             if member.is_affected and member.mother_id is not None and member.father_id is not None
         ]
 
-        # this could be extended, or do more stringent family tests
+        # count famiy size, based only on samples in the variant data
         if len(trios) == 1:
             stat_counter['trios'] += 1
         elif len(trios) == trios_in_a_quad:
@@ -291,7 +292,7 @@ def prepare_results_shell(
         results_meta (): metadata for the results
         small_samples (): samples in the Small VCF
         sv_samples (): samples in the SV VCFs
-        pedigree (): the Pedigree object
+        pedigree (): the Pedigree object, already reduced to samples in the callset
         panelapp (): dictionary of gene data
 
     Returns:
@@ -442,7 +443,6 @@ def main(
         family_breakdown=count_families(ped),
         panels=panelapp.metadata,
         version=__version__,
-        categories=config_retrieve('categories'),
     )
 
     # create a shell to store results in, adds participant metadata
@@ -462,6 +462,8 @@ def main(
 
     # annotate previously seen results using cumulative data file(s)
     annotate_variant_dates_using_prior_results(results_model)
+
+    generate_summary_stats(results_model)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful

@@ -4,8 +4,8 @@ Combines the two behaviours of
 - QueryPanelApp: Use the PanelApp API to get all genes and panels relevant to the analysis
 
 Takes as input:
-- The downloaded PanelApp data
-- Optionally a HPO obo file & participant phenopackets. These last two should be coupled - both either absent or present
+- The downloadeded PanelApp data
+- Optionally a Pedigree file which can contain HPO terms, these would be used to match panels to families
 """
 
 from argparse import ArgumentParser
@@ -242,14 +242,7 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
 
 def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedPanelApp):
     """
-    now that we know which panels will be in the analysis, get the corresponding genes and consensus MOI for each
-
-    Args:
-        panelapp_data ():
-        cached_panelapp ():
-
-    Returns:
-
+    Now that we know which panels will be in the analysis, get the corresponding genes and consensus MOI for each
     """
 
     full_set_of_panels: set[int] = set()
@@ -332,11 +325,7 @@ def update_moi_from_config(
 
 
 def remove_blacklisted_genes(panelapp_data: PanelApp, forbidden_genes: set[str] | None = None):
-    """
-    remove any genes which are blacklisted in the config
-    Args:
-        panelapp_data ():
-    """
+    """Remove any genes blacklisted in the config."""
     if not forbidden_genes:
         return
 
