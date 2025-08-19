@@ -340,7 +340,7 @@ def prepare_results_shell(
 def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
+    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=None)
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
