@@ -1044,6 +1044,7 @@ def generate_summary_stats(result_set: ResultData):
         count_list.extend([0] * (number_of_samples - len(count_list)))
 
         stats_count[category_type] = {
+            'total': sum(count_list),
             'mean': sum(count_list) / number_of_samples,
             'min': min(count_list),
             'max': max(count_list),
