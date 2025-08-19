@@ -362,7 +362,10 @@ class HTMLBuilder:
         # if these attributes are in the config we'll end up with a more descriptive report title
         dataset = config_retrieve(['dataset', None])
         seq_type = config_retrieve(['sequencing_type'], None)
-        long_read = 'long_read' if config_retrieve(['long_read'], None) else 'short-read'
+        if 'long_read' in config_retrieve([]):
+            long_read = 'long_read' if config_retrieve('long_read') else 'short-read'
+        else:
+            long_read = None
 
         extra_detail = ', '.join((x for x in [dataset, seq_type, long_read] if x))
 
