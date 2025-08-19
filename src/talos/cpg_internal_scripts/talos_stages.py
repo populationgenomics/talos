@@ -156,6 +156,7 @@ class MakeRuntimeConfig(stage.CohortStage):
             'dataset': cohort.dataset.name,
             'sequencing_type': config.config_retrieve(['workflow', 'sequencing_type']),
             'long_read': config.config_retrieve(['workflow', 'long_read'], False),
+            'singletons': config.config_retrieve(['workflow', 'singletons'], False),
         }
 
         # pull the content relevant to this cohort + sequencing type (mandatory in CPG)

@@ -189,7 +189,7 @@ def test_update_results_meta(pedigree_path: str):
     """
     pedigree = PedigreeParser(pedigree_path)
     ped_samples = {'male', 'female', 'mother_1', 'father_1', 'mother_2', 'father_2'}
-    pedigree.strip_pedigree_to_samples(ped_samples)
+    pedigree.set_participants(pedigree.strip_pedigree_to_samples(ped_samples))
 
     assert count_families(pedigree=pedigree) == {
         'affected': TWO_EXPECTED,
@@ -222,5 +222,5 @@ def test_count_families_quad(quad_ped: str):
 
     ped_samples = {'PROBAND', 'SIBLING', 'FATHER', 'MOTHER'}
     ped = PedigreeParser(quad_ped)
-    ped.strip_pedigree_to_samples(ped_samples)
+    ped.set_participants(ped.strip_pedigree_to_samples(ped_samples))
     assert count_families(pedigree=ped) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}

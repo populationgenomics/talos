@@ -9,18 +9,19 @@ Broadly this file is based on the [PLINK `.fam` file format](https://www.cog-gen
 * There are 6 mandatory columns, and 1 optional column.
 * The file is a TSV format (each column is separated by a tab character).
 * The file should not contain any header lines.
-* All participants should have a separate row in the file, e.g. a mother-father-child trio would have three rows, one for each individual.
+* Each row represents a single participant in the pedigree, and contains their relationship to other participants in the immediate family, sex, and affection status (the disease relevant to the analysis of this family is present/absent)
+* All participants should have a separate row in the file, e.g. a mother-father-child trio would have three rows, one for each individual. We tolerate parent IDs only defined on their child's row, but they will be removed, as Talos requires a specific affection status for each participant to make use of them.
 * Generally a value of zero (`0`) is used to indicate where data is missing, i.e. parental IDs for samples without parents, or parents with unknown affection status. "-" or an empty string are also accepted, but the parser will issue a warning.
 * The parser has a fixed range of possible values for each column, and will fail if invalid values are used, with a descriptive error message.
 
 | Column      | Description                                                                                                                                                                                                                                                                                                               |
 |-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Family ID` | A unique identifier for each family. This can be any string, but should be consistent across all samples in the family. "0" is not permitted.                                                                                                                                                                             |
-| `Sample ID` | A unique identifier for each Sample/participant. This must match the Sample ID used in the VCF/Variant data.                                                                                                                                                                                                              |
+| `Family ID` | A unique identifier for each family. This can be any string, but should be consistent across all samples in the family. `0` is not permitted.                                                                                                                                                                             |
+| `Sample ID` | A unique identifier for each Sample/participant. This must match the Sample ID used in the VCF/Variant data. `0` is not permitted.                                                                                                                                                                                        |
 | `Father ID` | The Sample ID of the father of this participant. If unknown, use `0`.                                                                                                                                                                                                                                                     |
 | `Mother ID` | The Sample ID of the mother of this participant. If unknown, use `0`.                                                                                                                                                                                                                                                     |
-| `Sex`       | The sex of this row's participant. 1 is Male, 2 is Female, 0 is Unknown. "male" and "female" are accepted as 1 and 2 respectively.                                                                                                                                                                                        |
-| `Affected`  | The affection status of this participant. 1 is unaffected, 2 is affected, 0 is unknown. "affected" and "unaffected" are accepted as 1 and 2 respectively.                                                                                                                                                                 |
+| `Sex`       | The sex of this row's participant. `1` is Male, `2` is Female, `0` is Unknown. "male" and "female" are accepted as `1` and `2` respectively.                                                                                                                                                                              |
+| `Affected`  | The affection status of this participant. `1` is unaffected, `2` is affected, `0` is unknown. "affected" and "unaffected" are accepted as `1` and `2` respectively.                                                                                                                                                       |
 | `HPO`       | Optional. A comma- or semicolon-separated list of HPO terms (e.g. `HP:0000118,HP:0001250`). This is used to provide additional phenotypic information for the participant. This column can be completely absent if phenotypic data is not available; the parser will handle column 7 being present for only some samples. |
 
 ## Pedigree Module
@@ -59,7 +60,7 @@ for sample_id, participant in pedigree.participants.items():
         print(f"HPO Terms: {', '.join(participant.hpo_terms)}")
 
 # You can also access participants grouped by family
-for family, participant_list in pedigree.families.items():
+for family, participant_list in pedigree.by_family.items():
     print(f"Family ID: {family}")
     for participant in participant_list:
         print(f"  Sample ID: {participant.sample_id}")
@@ -72,18 +73,21 @@ affected_participants = pedigree.get_affected_members()
 affected_ids = pedigree.get_affected_member_ids()
 
 # If you want to reduce the pedigree content to only a subset of participants (by sample ID)
-pedigree.strip_pedigree_to_samples(['sam1', 'sam2', 'sam3'])
+subset_data = pedigree.strip_pedigree_to_samples(['sam1', 'sam2', 'sam3'])
 
 # If you want the parsed pedigree content, but as singletons (no relationships between samples)
-# this returns an object, instead of replacing the class's participants dictionary
 singleton_data = pedigree.as_singletons()
 
 # And the data can be written back out to a clean 6-column pedigree file
 pedigree.write_pedigree("path/to/output.ped")
 
-# this method can take a new dictionary and will write that instead
-pedigree.write_pedigree("path/to/singletons.ped", participants=pedigree.as_singletons())
+# if you want to permanently update the original pedigree data to singleton/subset data, you can use set_participants
+pedigree.set_participants(singleton_data)
 
-# or to only write a subset of the data to the file
+# this method can take a dictionary of participants and will write that instead
+pedigree.write_pedigree("path/to/singletons.ped", participants=singleton_data)
+
+# or to only write the subset of the data to the file
+pedigree.set_participants(subset_data)
 pedigree.write_pedigree("path/to/subset.ped", only_participants=['sam1', 'sam2', 'sam3'])
 ```

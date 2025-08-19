@@ -26,8 +26,7 @@ def test_read_pedigree(mock_to_anypath):
 def test_read_pedigree_and_strip(mock_to_anypath):
     mock_to_anypath.return_value.open = mock_open(read_data=PED_CONTENT)
     parser = PedigreeParser('dummy_path')
-    parser.strip_pedigree_to_samples(['S1'])
-    participants = parser.participants
+    participants = parser.strip_pedigree_to_samples(['S1'])
     assert 'S1' in participants
     assert 'S2' not in participants
     assert {'S1'} == set(participants.keys())

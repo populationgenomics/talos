@@ -415,7 +415,13 @@ def main(
     ped = PedigreeParser(pedigree)
 
     # slim down the pedigree to only samples we have in the pedigrees
-    ped.strip_pedigree_to_samples(all_samples)
+    ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
+
+    # reduce cohort to singletons, if the config say so
+    if config_retrieve('singletons', False):
+        logger.info('Reducing pedigree to affected singletons only')
+        ped.set_participants(ped.as_singletons())
+        ped.set_participants(ped.get_affected_members())
 
     # set up the inheritance checks
     moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)

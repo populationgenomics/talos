@@ -146,23 +146,39 @@ class PedigreeParser:
         """
         Return a dictionary of participants as singletons, i.e. each participant is a separate entry in the dictionary.
 
-        This will return all affected participants, stripped of parental information
+        This will return all participants, stripped of parental information
         """
         return_participants = {}
         for sample_id, participant in self.participants.items():
-            participant.father_id = NULL_PARTICIPANT
-            participant.mother_id = NULL_PARTICIPANT
-            return_participants[sample_id] = participant
+            # create a new instance from the original details, don't risk overwriting the original Participant
+            return_participants[sample_id] = Participant(
+                family_id=participant.family_id,
+                sample_id=participant.sample_id,
+                father_id=NULL_PARTICIPANT,
+                mother_id=NULL_PARTICIPANT,
+                sex=participant.sex,
+                affected=participant.affected,
+                hpo_terms=participant.hpo_terms,
+            )
         return return_participants
 
-    def strip_pedigree_to_samples(self, only_participants: list[str] | set[str]):
+    def set_participants(self, participants: PEDIGREE_DATA) -> None:
+        """
+        Set the participants attribute to a new dictionary of participants.
+        This is used to replace the participants with a new dictionary, e.g. after subsetting or creating singletons.
+        """
+        self.participants = participants
+        self.by_family = self.get_participants_by_family()
+
+    def strip_pedigree_to_samples(self, only_participants: list[str] | set[str]) -> PEDIGREE_DATA:
         """
         Takes the Pedigree data, and strips it back to only samples in the `only_participants` object
+        Returns this as a new object. If required this can overwrite the main data using self.set_participants().
         A situation for this is when a provided pedigree is a superset of the participants we have variant data for. By
         stripping the pedigree down to only the samples we've really seen, we can use all pedigree participants with no
         need to constantly re-check.
         """
-        self.participants = {key: value for key, value in self.participants.items() if key in only_participants}
+        return {key: value for key, value in self.participants.items() if key in only_participants}
 
     def write_pedigree(
         self,
