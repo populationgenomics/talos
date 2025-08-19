@@ -280,15 +280,14 @@ def check_clinvar(clinvar_paths: list[str] | None):
         if clinvar_ht.count() < 100:
             LOG_ERRORS.append(f'ClinVar HailTable has fewer than 100 entries: {clinvar_path}')
         if 'creation_date' not in clinvar_ht.globals:
-            LOG_ERRORS.append(f'ClinVar HailTable lacks a creation date')
+            LOG_ERRORS.append('ClinVar HailTable lacks a creation date')
             continue
         created = pendulum.from_format(hl.eval(clinvar_ht.globals.creation_date), 'YYYY-MM-DD')
-        if created < pendulum.now().subtract(months=2):
-            if config_retrieve(['clinvar_check_age'], True):
-                LOG_ERRORS.append(
-                    f'ClinVar HailTable {clinvar_path} is > 2 months old: {created.to_date_string()}, get a new one.'
-                    f'Alternatively, disable this check by setting the config key "clinvar_check_age" to False.',
-                )
+        if created < pendulum.now().subtract(months=2) and config_retrieve(['clinvar_check_age'], True):
+            LOG_ERRORS.append(
+                f'ClinVar HailTable {clinvar_path} is > 2 months old: {created.to_date_string()}, get a new one.'
+                f'Alternatively, disable this check by setting the config key "clinvar_check_age" to False.',
+            )
 
 
 def main(

@@ -114,7 +114,7 @@ The first step of the Talos workflow is a module called StartupChecks, which run
 1. Checks a config file is present, and checks all required entries are present and have the correct type
 2. Opens the Matrix Table and checks the schema and data types
 3. Parses the Pedigree file and checks that it's well formatted and affected participants are present
-4. Checks the ClinVar data, ensuring it is recent and has sufficient entries 
+4. Checks the ClinVar data, ensuring it is recent and has sufficient entries
 
 This module will either run and complete, or run and fail, printing a collection of all encountered errors. If it fails, you will need to fix the errors before restarting the workflow.
 

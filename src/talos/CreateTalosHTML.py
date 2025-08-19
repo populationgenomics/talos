@@ -211,7 +211,8 @@ class HTMLBuilder:
         #     },
         # }
         self.ext_labels: dict[str, dict] = read_json_from_path(
-            config_retrieve(['CreateTalosHTML', 'external_labels'], None), {}
+            config_retrieve(['CreateTalosHTML', 'external_labels'], None),
+            {},
         )
         assert isinstance(self.ext_labels, dict)
 

@@ -16,10 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [7.6.0] - 2025-08-19
 
-### Changed 
+### Changed
 
 * No more phenopackets, instead we're using a single TSV file to contain the pedigree data, and optionally HPO terms. See the docs/Pedigree.md file for details on the new format and corresponding parser.
-* The Report now presents the variant Categories as a short phrase (e.g. "ClinVarP/LP, HighImpact", instead of "1, 3") 
+* The Report now presents the variant Categories as a short phrase (e.g. "ClinVarP/LP, HighImpact", instead of "1, 3")
+
+### Added
+
+* Added a Startup validation module to the Nextflow Talos-workflow. This checks the provided files/data should give successful results
+* Added a pedigree parser module, and uses it internally all over
 
 [7.5.0] - 2025-08-07
 

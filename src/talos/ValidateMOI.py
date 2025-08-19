@@ -40,9 +40,9 @@ from talos.utils import (
     canonical_contigs_from_vcf,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    generate_summary_stats,
     polish_exomiser_results,
     read_json_from_path,
-    generate_summary_stats,
 )
 from talos.version import __version__
 

@@ -13,7 +13,7 @@ import string
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
-from itertools import chain, combinations_with_replacement, islice, combinations
+from itertools import chain, combinations, combinations_with_replacement, islice
 from random import choices
 from typing import TYPE_CHECKING, Any
 
@@ -1002,7 +1002,7 @@ def generate_summary_stats(result_set: ResultData):
     # make this naive, i.e. not configured specifically based on a list of Categories in configuration
     category_count: dict[str, list[int]] = defaultdict(list)
 
-    for sample_id, sample_results in result_set.results.items():
+    for sample_results in result_set.results.values():
         if len(sample_results.variants) == 0:
             continue
 
