@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="7.6.0"
+version="8.0.0"
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -185,11 +185,6 @@ replace = 'version="{new_version}"'
 filename = ".github/workflows/docker.yaml"
 search = "VERSION: {current_version}"
 replace = "VERSION: {new_version}"
-
-[[tool.bumpversion.files]]
-filename = "README.md"
-search = "{current_version}"
-replace = "{new_version}"
 
 [[tool.bumpversion.files]]
 filename = "nextflow/talos.config"
