@@ -15,7 +15,6 @@ from itertools import chain, combinations_with_replacement, islice
 from random import choices
 from typing import TYPE_CHECKING, Any
 
-import cyvcf2
 import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
@@ -32,6 +31,7 @@ from talos.models import (
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
+    CATEGORY_TRANSLATOR,
 )
 from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
@@ -780,7 +780,7 @@ def generate_fresh_latest_results(current_results: ResultData):
     for sample, content in current_results.results.items():
         for var in content.variants:
             # bank the number of clinvar stars, if any
-            if '1' in var.categories:
+            if CATEGORY_TRANSLATOR['1'] in var.categories:
                 clinvar_stars = var.var_data.info.get('clinvar_stars')
                 assert isinstance(clinvar_stars, int)
             else:

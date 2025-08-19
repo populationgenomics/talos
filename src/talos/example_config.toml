@@ -22,7 +22,7 @@ within_x_months = 6
 # if the gene was already identified for this analysis, the MOI provided here will take precedent
 # if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
 # associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
-[[GeneratePanelData.manual_overrides.genes]]
+[[GeneratePanelData.manual_overrides]]
 # this field is mandatory - the ENSG ID of the gene
 ensg = 'ENSG0000012345'
 

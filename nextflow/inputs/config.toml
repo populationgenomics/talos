@@ -1,18 +1,5 @@
-[categories]
-1 = "ClinVar Pathogenic"
-3 = "High Impact Variant"
-4 = "de Novo"
-5 = "High SpliceAI Score"
-6 = "AlphaMissense P/LP"
-pm5 = "ACMG PM5 - missense in same residue as known pathogenic"
-support = "High in Silico Scores"
-sv1 = "Predicted LOF SV"
-svdb = 'SpliceVarDB Predicted Splice-Altering'
-exomiser = 'Variant prioritised by Exomiser'
-
 [GeneratePanelData]
 default_panel = 137
-obo_file = "gs://cpg-common-test/references/aip/hpo_terms.obo"
 panelapp = "https://panelapp-aus.org/api/v1/panels"
 require_pheno_match = [ "FLG", "GJB2", "F2", "F5", "HFE"]
 within_x_months = 6
@@ -98,7 +85,7 @@ support_categories = ["6"]
 # flagged as being a good phenotypic fit for the specific case
 # This default value "6" (AlphaMissense) is redundant with the "support" category - variants which were only flagged by
 # AlphaMissense will be removed from consideration completely
-phenotype_match = ["6"]
+phenotype_match = ["AlphaMissense"]
 
 [de_novo]
 min_child_ab = 0.2

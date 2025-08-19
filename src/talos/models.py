@@ -16,8 +16,11 @@ from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
-from talos.liftover.lift_2_0_0_to_2_1_0 import panelapp as pa_200_to_210
-from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
+from talos.liftover.lift_2_0_0_to_2_1_0 import (
+    panelapp as pa_200_to_210,
+    resultdata as rd_200_to_210,
+    historicvariants as hv_200_to_210,
+)
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -33,6 +36,18 @@ MAX_WT = 0.15
 MIN_HET = 0.25
 MAX_HET = 0.75
 MIN_HOM = 0.85
+
+CATEGORY_TRANSLATOR: dict[str, str] = {
+    '1': 'ClinVarP/LP',
+    '3': 'HighImpact',
+    '4': 'DeNovo',
+    '5': 'SpliceAI',
+    '6': 'AlphaMissense',
+    'pm5': 'PM5',
+    'sv1': 'LofSv',
+    'svdb': 'SpliceVarDB',
+    'exomiser': 'Exomiser',
+}
 
 
 class FileTypes(Enum):
@@ -124,7 +139,7 @@ class VariantCommon(BaseModel):
             sample (str): sample id
 
         Returns:
-            set of all categories applied to this variant
+            set of all categories applied to this variant, using an enhanced labelling String for reporting purposes.
         """
 
         # step down all category flags to boolean flags
@@ -141,7 +156,8 @@ class VariantCommon(BaseModel):
             {bool_cat.replace('categoryboolean', '') for bool_cat in self.boolean_categories if self.info[bool_cat]},
         )
 
-        return categories
+        # upgrade all the category labels for the report
+        return {CATEGORY_TRANSLATOR.get(cat, cat) for cat in categories}
 
     def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
@@ -540,6 +556,7 @@ LIFTOVER_METHODS: dict = {
     },
     HistoricVariants: {
         '1.0.0_1.0.1': hv_100_to_101,
+        '2.0.0_2.1.0': hv_200_to_210,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,

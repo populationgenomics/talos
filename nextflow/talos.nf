@@ -10,6 +10,7 @@ include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
 include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
+include { StartupChecks } from './modules/talos/StartupChecks/main'
 
 workflow {
     // existence of these files is necessary for starting the workflow
@@ -22,6 +23,14 @@ workflow {
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true)
     ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
     ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
+
+    // run pre-Talos startup checks
+    StartupChecks
+        ch_mt,
+        ch_pedigree,
+        ch_clinvar_tar,
+        ch_runåtime_config,
+    )
 
     // download everything in PanelApp - unless it exists from a previous download
     if(file(params.panelapp).exists()) {

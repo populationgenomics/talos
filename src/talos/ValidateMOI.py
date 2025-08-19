@@ -30,6 +30,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
+    CATEGORY_TRANSLATOR,
 )
 from talos.moi_tests import MOIRunner
 from talos.pedigree_parser import PedigreeParser
@@ -158,7 +159,7 @@ def apply_moi_to_variants(
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
-                    if '4' in each_result.categories:
+                    if CATEGORY_TRANSLATOR['4'] in each_result.categories:
                         continue
 
                     if each_result.reasons == 'Autosomal Dominant':

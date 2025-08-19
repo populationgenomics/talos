@@ -536,16 +536,16 @@ def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser) -> hl
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
-    min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
-    max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
-    min_proband_gq: int = config_retrieve(['de_novo', 'min_proband_gq'], 25)
-    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
+    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
+    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'], 5)
+    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'], 1000)
+    min_proband_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_proband_gq'], 25)
+    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
 
     # this GQ filter will be applied to all samples, not just probands
     # if the dataset is merged from single-sample VCFs, WT samples for a given allele will have no GQ, so this filter
     # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
-    min_all_sample_gq: int = config_retrieve(['de_novo', 'min_all_sample_gq'], None)
+    min_all_sample_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_all_sample_gq'], None)
 
     logger.info('Running de novo search')
 

@@ -76,7 +76,7 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
     return d
 
 
-def config_check(key: list[str], expected_type: type | tuple[type]) -> list[str]:
+def config_check(key: list[str], expected_type: type | tuple[type], optional: bool = False) -> list[str]:
     """
     take a path to a config entry, and one or more expected types
     return a list of Strings:
@@ -86,6 +86,7 @@ def config_check(key: list[str], expected_type: type | tuple[type]) -> list[str]
     Args:
         key (list[str]): the keys for each layer in the config dict, leading to a value to test
         expected_type (Type | tuple[Type]): Type(s) we accept for this config value
+        optional (bool): if True, the key is optional, and if it is not present, we do not raise an error
     Returns:
         a list of the faults in the config search & type check, can be empty
     """
@@ -99,4 +100,6 @@ def config_check(key: list[str], expected_type: type | tuple[type]) -> list[str]
         return [f'config path {config_keys} was {actual_type}, expected {expected_type}']
 
     except ConfigError as ce:
+        if optional:
+            return []
         return [str(ce)]
