@@ -8,6 +8,7 @@ https://tenacity.readthedocs.io/en/latest/
 import json
 import pathlib
 import re
+import statistics
 import string
 import zoneinfo
 from collections import defaultdict
@@ -72,9 +73,6 @@ DOI_URL = 'https://doi.org/'
 # we've noted some instances where we failed the whole process due to failure to parse phase data
 # don't fail, just suggest that someone raises an issue on github, but only print this message once
 PHASE_BROKEN: bool = False
-
-# a constant for the variant counting stats
-MEAN_SLASH_SAMPLE = 'Mean/sample'
 
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
@@ -1040,8 +1038,18 @@ def generate_summary_stats(result_set: ResultData):
     # update the counts-per-sample dictionary
     number_of_samples = len(result_set.results)
 
-    for count_list in category_count.values():
+    stats_count: dict[str, dict[str, int | float]] = {}
+    for category_type, count_list in category_count.items():
         # pad the observed counts to the number of samples under consideration
         count_list.extend([0] * (number_of_samples - len(count_list)))
 
-    result_set.metadata.variant_breakdown = category_count
+        stats_count[category_type] = {
+            'mean': sum(count_list) / number_of_samples,
+            'min': min(count_list),
+            'max': max(count_list),
+            'median': statistics.median(count_list),
+            'mode': statistics.mode(count_list) if len(count_list) > 0 else 0,
+            'stddev': statistics.stdev(count_list) if len(count_list) > 1 else 0.0,
+        }
+
+    result_set.metadata.variant_breakdown = stats_count

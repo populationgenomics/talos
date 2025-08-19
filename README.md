@@ -69,7 +69,7 @@ docker build -t talos:7.4.2 .
 
 ### **2. Download Annotation Resources**
 
-Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a script which will handle the initial download of all required resources.
+Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_file.sh) which will handle the initial download of all required resources.
 
 ### **3. Run Annotation Workflow**
 
@@ -103,9 +103,20 @@ Talos requires the following inputs:
 | ------------------------------- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Variant data**                | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers. |
 | **Pedigree file**               | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                 |
-| **ClinVar data**                | Pre-processed using [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration). The most recent version is available on [Zenodo](https://zenodo.org/records/16792026)                                                                                                                                            |
-| **Configuration file**          | A `.toml` config file specifying cohort name, paths, and filtering settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                        |
+| **ClinVar data**                | [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data. The most recent version is available on [Zenodo](https://zenodo.org/records/16792026), and will be downloaded by running the [large_files setup script](large_files/gather_file.sh).                                                            |
+| **Configuration file**          | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                             |
 |                                 |                                                                                                                                                                                                                                                                                                                                  |
+
+
+## **🔬 Input Validation**
+The first step of the Talos workflow is a module called StartupChecks, which runs a number of input validations:
+
+1. Checks a config file is present, and checks all required entries are present and have the correct type
+2. Opens the Matrix Table and checks the schema and data types
+3. Parses the Pedigree file and checks that it's well formatted and affected participants are present
+4. Checks the ClinVar data, ensuring it is recent and has sufficient entries 
+
+This module will either run and complete, or run and fail, printing a collection of all encountered errors. If it fails, you will need to fix the errors before restarting the workflow.
 
 ---
 
@@ -119,9 +130,9 @@ Talos as a Nextflow workflow is configured through configuration files, one each
 
 Talos produces structured outputs to support both manual review and downstream integration.
 
-### **Primary Output (per family):**
+### **Primary Output:**
 
-- *.json file listing candidate variants
+- *.json file listing all candidate variants for each proband
 
 - Includes variant-level and gene-level evidence, inheritance checks, and phenotype match tags
 

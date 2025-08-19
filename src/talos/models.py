@@ -475,7 +475,7 @@ class ResultMeta(BaseModel):
     run_datetime: str = Field(default=get_granular_date())
 
     # a count of variants per category, used for the report
-    variant_breakdown: dict[str, int] = Field(default_factory=dict)
+    variant_breakdown: dict[str, dict[str, float | int]] = Field(default_factory=dict)
 
 
 class MemberSex(Enum):
