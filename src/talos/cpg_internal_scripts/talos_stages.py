@@ -13,7 +13,7 @@ from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, config, hail_batch, to_path
 from loguru import logger
 
-from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsFromHtToFinalMtStage
+from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
 from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
 from talos.utils import get_granular_date
 
@@ -291,7 +291,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
         UnifiedPanelAppParser,
         MakeHpoPedigree,
         MakeRuntimeConfig,
-        TransferAnnotationsFromHtToFinalMtStage,
+        TransferAnnotationsToMt,
     ],
 )
 class RunHailFiltering(stage.CohortStage):
@@ -311,7 +311,7 @@ class RunHailFiltering(stage.CohortStage):
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # integrate this into the earlier workflow
-        input_mt = inputs.as_path(cohort, TransferAnnotationsFromHtToFinalMtStage)
+        input_mt = inputs.as_path(cohort, TransferAnnotationsToMt)
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig))

@@ -66,7 +66,7 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     return utils.exists(
         cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
-            stage_name='TransferAnnotationsFromHtToFinalMtStage',
+            stage_name='TransferAnnotationsToMt',
             hash_value=cohort.id,
         )
         / f'{cohort.id}.mt',
@@ -74,7 +74,7 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
 
 
 @stage.stage
-class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
+class ExtractVcfFromDatasetMt(stage.CohortStage):
     """
     Extract some plain calls from a joint-callset.
     these calls are a region-filtered subset, limited to genic regions
@@ -113,7 +113,7 @@ class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
         return self.make_outputs(cohort, outputs, jobs=job)
 
 
-@stage.stage(required_stages=ExtractVcfFromDatasetMtWithHail)
+@stage.stage(required_stages=ExtractVcfFromDatasetMt)
 class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
@@ -129,7 +129,7 @@ class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
 
         output = self.expected_outputs(cohort)
 
-        extraction_outputs = inputs.as_dict(cohort, ExtractVcfFromDatasetMtWithHail)
+        extraction_outputs = inputs.as_dict(cohort, ExtractVcfFromDatasetMt)
 
         jobs = ComposeVcfFragments.make_condense_jobs(
             cohort_id=cohort.id,
@@ -148,7 +148,7 @@ class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
 
 
 @stage.stage(required_stages=ConcatenateSitesOnlyVcfFragments)
-class AnnotateGnomadFrequenciesWithEchtvar(stage.CohortStage):
+class AnnotateGnomadUsingEchtvar(stage.CohortStage):
     """Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
@@ -179,8 +179,8 @@ class AnnotateGnomadFrequenciesWithEchtvar(stage.CohortStage):
         return self.make_outputs(cohort, data=output, jobs=job)
 
 
-@stage.stage(required_stages=AnnotateGnomadFrequenciesWithEchtvar)
-class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
+@stage.stage(required_stages=AnnotateGnomadUsingEchtvar)
+class AnnotateWithBcftoolsCsq(stage.CohortStage):
     """Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
@@ -199,7 +199,7 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
             return self.make_outputs(cohort, output, jobs=[])
 
-        gnomad_annotated_vcf = inputs.as_path(cohort, AnnotateGnomadFrequenciesWithEchtvar)
+        gnomad_annotated_vcf = inputs.as_path(cohort, AnnotateGnomadUsingEchtvar)
 
         job = AnnotateConsequenceUsingBcftools.make_bcftools_anno_job(
             cohort_id=cohort.id,
@@ -211,7 +211,7 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
         return self.make_outputs(cohort, data=output, jobs=job)
 
 
-@stage.stage(required_stages=AnnotateConsequenceUsingBcftoolsStage)
+@stage.stage(required_stages=AnnotateWithBcftoolsCsq)
 class AnnotatedVcfIntoHt(stage.CohortStage):
     """Join the annotated sites-only VCF with AlphaMissense, and with gene/transcript information."""
 
@@ -231,7 +231,7 @@ class AnnotatedVcfIntoHt(stage.CohortStage):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
             return self.make_outputs(cohort, output, jobs=[])
 
-        bcftools_vcf = inputs.as_str(cohort, AnnotateConsequenceUsingBcftoolsStage)
+        bcftools_vcf = inputs.as_str(cohort, AnnotateWithBcftoolsCsq)
 
         job = SitesOnlyVcfIntoHt.make_vcf_to_ht_job(
             cohort_id=cohort.id,
@@ -251,10 +251,10 @@ class AnnotatedVcfIntoHt(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[AnnotatedVcfIntoHt, ExtractVcfFromDatasetMtWithHail],
+    required_stages=[AnnotatedVcfIntoHt, ExtractVcfFromDatasetMt],
     analysis_type='talos_prep',
 )
-class TransferAnnotationsFromHtToFinalMtStage(stage.CohortStage):
+class TransferAnnotationsToMt(stage.CohortStage):
     """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
@@ -273,7 +273,7 @@ class TransferAnnotationsFromHtToFinalMtStage(stage.CohortStage):
             return self.make_outputs(cohort, output, jobs=[])
 
         # get the region-limited MT
-        mt = inputs.as_str(cohort, ExtractVcfFromDatasetMtWithHail, 'mt')
+        mt = inputs.as_str(cohort, ExtractVcfFromDatasetMt, 'mt')
 
         # get the table of compressed annotations
         annotations = inputs.as_str(cohort, AnnotatedVcfIntoHt)
