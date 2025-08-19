@@ -739,7 +739,7 @@ def main(results: str, panelapp: str, output: str, ext_id_file: str | None = Non
     except NoVariantsFoundError:
         logger.warning('No Categorised variants found in this whole cohort')
 
-    if external_id_map is None:
+    if external_id_map is None or config_retrieve(['CreateTalosHTML', 'split_reports'], False) is False:
         return
 
     # we only need to do sub-reports if we can delineate by year
