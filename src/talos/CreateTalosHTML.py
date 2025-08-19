@@ -359,6 +359,13 @@ class HTMLBuilder:
         # we ignore that here, and catch it in the outer scope
         # (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
+        # if these attributes are in the config we'll end up with a more descriptive report title
+        dataset = config_retrieve(['dataset', None])
+        seq_type = config_retrieve(['sequencing_type'], None)
+        long_read = 'long_read' if config_retrieve(['long_read'], None) else 'short-read'
+
+        extra_detail = ', '.join((x for x in [dataset, seq_type, long_read] if x))
+
         template_context = {
             # 'metadata': self.metadata,
             'index_path': f'../{Path(output_filepath).name}',
@@ -369,7 +376,7 @@ class HTMLBuilder:
             # 'zero_categorised_samples': zero_cat_samples,
             # 'unused_ext_labels': unused_ext_labels,
             # 'summary_table': None,
-            'report_title': 'Full Talos Report',
+            'report_title': f'Full Talos Report: {extra_detail}',
             # 'solved': self.solved,
             'type': 'whole_cohort',
         }
