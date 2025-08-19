@@ -37,7 +37,7 @@ this workflow is designed to be something which could be executed easily off-sit
 from functools import cache
 
 import loguru
-from cpg_flow import stage, targets, utils, workflow
+from cpg_flow import stage, targets, utils
 from cpg_utils import Path
 
 from talos.cpg_internal_scripts.cpgflow_jobs import (
@@ -48,6 +48,7 @@ from talos.cpg_internal_scripts.cpgflow_jobs import (
     JumpAnnotationsFromHtToFinalMt,
     SitesOnlyVcfIntoHt,
 )
+from talos.cpg_internal_scripts import cpg_flow_utils
 
 SHARD_MANIFEST = 'shard-manifest.txt'
 
@@ -61,15 +62,15 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
 
     This method builds the path to the final object, and checks if it exists in GCP
     If it does, we can skip all other stages
-
-    Args:
-        cohort (targets.Cohort): the cohort to check for existence of the final file
-
-    Returns:
-        bool, whether the final file in the workflow already exists
     """
-    # if the name of the SquashMtIntoTarball Stage changes, update this String
-    return utils.exists(workflow.get_workflow().prefix / 'SquashMtIntoTarball' / f'{cohort.id}.mt.tar')
+    return utils.exists(
+        cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name='TransferAnnotationsFromHtToFinalMtStage',
+            hash_value=cohort.id,
+        )
+        / f'{cohort.id}.mt',
+    )
 
 
 @stage.stage
@@ -79,14 +80,20 @@ class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
     these calls are a region-filtered subset, limited to genic regions
     """
 
-    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='tmp',
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
         return {
             # write path for the full (region-limited) MatrixTable, stripped of info fields
-            'mt': self.tmp_prefix / f'{cohort.id}.mt',
+            'mt': temp_prefix / f'{cohort.id}.mt',
             # this will be the write path for fragments of sites-only VCF
-            'sites_only_vcf_dir': str(self.tmp_prefix / f'{cohort.id}_separate.vcf.bgz'),
+            'sites_only_vcf_dir': str(temp_prefix / f'{cohort.id}_separate.vcf.bgz'),
             # this will be the file which contains the name of all fragments
-            'sites_only_vcf_manifest': self.tmp_prefix / f'{cohort.id}_separate.vcf.bgz' / SHARD_MANIFEST,
+            'sites_only_vcf_manifest': temp_prefix / f'{cohort.id}_separate.vcf.bgz' / SHARD_MANIFEST,
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -109,7 +116,13 @@ class ExtractVcfFromDatasetMtWithHail(stage.CohortStage):
 @stage.stage(required_stages=ExtractVcfFromDatasetMtWithHail)
 class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return self.tmp_prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='tmp',
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return temp_prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         """Trigger a rolling merge using gcloud compose, gluing all the individual files together."""
@@ -123,18 +136,29 @@ class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
             manifest_file=extraction_outputs['sites_only_vcf_manifest'],
             manifest_dir=extraction_outputs['sites_only_vcf_dir'],
             output=output,
-            tmp_dir=self.tmp_prefix,
+            tmp_dir=cpg_flow_utils.generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                category='tmp',
+                stage_name=self.name,
+                hash_value=cohort.id,
+            ),
             job_attrs=self.get_job_attrs(cohort),
         )
         return self.make_outputs(cohort, data=output, jobs=jobs)
 
 
 @stage.stage(required_stages=ConcatenateSitesOnlyVcfFragments)
-class AnnotateGnomadUsingEchtvarStage(stage.CohortStage):
+class AnnotateGnomadFrequenciesWithEchtvar(stage.CohortStage):
     """Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return self.tmp_prefix / f'{cohort.id}_gnomad_frequency_annotated.vcf.bgz'
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='tmp',
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return temp_prefix / f'{cohort.id}_gnomad_frequency_annotated.vcf.bgz'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         output = self.expected_outputs(cohort)
@@ -155,12 +179,18 @@ class AnnotateGnomadUsingEchtvarStage(stage.CohortStage):
         return self.make_outputs(cohort, data=output, jobs=job)
 
 
-@stage.stage(required_stages=AnnotateGnomadUsingEchtvarStage)
+@stage.stage(required_stages=AnnotateGnomadFrequenciesWithEchtvar)
 class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
     """Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return self.tmp_prefix / f'{cohort.id}_consequence_annotated.vcf.bgz'
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='tmp',
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return temp_prefix / f'{cohort.id}_consequence_annotated.vcf.bgz'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         output = self.expected_outputs(cohort)
@@ -169,7 +199,7 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
             return self.make_outputs(cohort, output, jobs=[])
 
-        gnomad_annotated_vcf = inputs.as_path(cohort, AnnotateGnomadUsingEchtvarStage)
+        gnomad_annotated_vcf = inputs.as_path(cohort, AnnotateGnomadFrequenciesWithEchtvar)
 
         job = AnnotateConsequenceUsingBcftools.make_bcftools_anno_job(
             cohort_id=cohort.id,
@@ -182,12 +212,17 @@ class AnnotateConsequenceUsingBcftoolsStage(stage.CohortStage):
 
 
 @stage.stage(required_stages=AnnotateConsequenceUsingBcftoolsStage)
-class SitesOnlyVcfIntoAnnotationsHt(stage.CohortStage):
+class AnnotatedVcfIntoHt(stage.CohortStage):
     """Join the annotated sites-only VCF with AlphaMissense, and with gene/transcript information."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        # output will be a tarball, containing the {dataset.name}_annotations.ht directory
-        return self.tmp_prefix / f'{cohort.id}_annotations.ht'
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='tmp',
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return temp_prefix / f'{cohort.id}_annotations.ht'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         output = self.expected_outputs(cohort)
@@ -202,7 +237,13 @@ class SitesOnlyVcfIntoAnnotationsHt(stage.CohortStage):
             cohort_id=cohort.id,
             bcftools_vcf=bcftools_vcf,
             output_ht=output,
-            tmp_dir=self.tmp_prefix / f'{cohort.id}_annotation_checkpoint',
+            tmp_dir=cpg_flow_utils.generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                category='tmp',
+                stage_name=self.name,
+                hash_value=cohort.id,
+            )
+            / f'{cohort.id}_annotation_checkpoint',
             job_attrs=self.get_job_attrs(cohort),
         )
 
@@ -210,14 +251,19 @@ class SitesOnlyVcfIntoAnnotationsHt(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[SitesOnlyVcfIntoAnnotationsHt, ExtractVcfFromDatasetMtWithHail],
+    required_stages=[AnnotatedVcfIntoHt, ExtractVcfFromDatasetMtWithHail],
     analysis_type='talos_prep',
 )
 class TransferAnnotationsFromHtToFinalMtStage(stage.CohortStage):
     """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return self.tmp_prefix / f'{cohort.id}.mt'
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return temp_prefix / f'{cohort.id}.mt'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         output = self.expected_outputs(cohort)
@@ -230,7 +276,7 @@ class TransferAnnotationsFromHtToFinalMtStage(stage.CohortStage):
         mt = inputs.as_str(cohort, ExtractVcfFromDatasetMtWithHail, 'mt')
 
         # get the table of compressed annotations
-        annotations = inputs.as_str(cohort, SitesOnlyVcfIntoAnnotationsHt)
+        annotations = inputs.as_str(cohort, AnnotatedVcfIntoHt)
 
         job = JumpAnnotationsFromHtToFinalMt.make_annotation_transfer_job(
             cohort_id=cohort.id,
