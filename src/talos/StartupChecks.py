@@ -300,9 +300,8 @@ def main(
     check_clinvar(clinvar_paths)
 
     if LOG_ERRORS:
-        logger.info('One or more startup checks failed:')
-        for error in LOG_ERRORS:
-            logger.info(f' - {error}')
+        logger.error('One or more startup checks failed:')
+        logger.error('\n'.join(LOG_ERRORS))
         sys.exit(1)
 
     print('All startup checks passed successfully.')

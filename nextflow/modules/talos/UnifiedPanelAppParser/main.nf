@@ -9,6 +9,7 @@ process UnifiedPanelAppParser {
         path panelapp_cache
         path pedigree
         path hpo
+        path check_file
 
     output:
         path "${params.cohort}_panelapp.json"

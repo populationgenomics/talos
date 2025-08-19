@@ -50,7 +50,8 @@ workflow {
         ch_runtime_config,
     	ch_panelapp,
     	ch_pedigree,
-    	ch_hpo_file
+    	ch_hpo_file,
+    	StartupChecks.out,
     )
 
     RunHailFiltering(
@@ -59,6 +60,7 @@ workflow {
         ch_pedigree,
         ch_clinvar_tar,
         ch_runtime_config,
+        StartupChecks.out,
     )
 
     // Validate MOI of all variants
