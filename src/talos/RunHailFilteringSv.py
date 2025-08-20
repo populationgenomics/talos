@@ -10,14 +10,15 @@ CategoryBooleanSV1:
 
 from argparse import ArgumentParser
 
-import hail as hl
 from loguru import logger
+
+import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
+from talos.pedigree_parser import PedigreeParser
 from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.utils import read_json_from_path
-
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
@@ -267,8 +268,11 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         _read_if_exists=True,
     )
 
+    # parse the pedigree into an object
+    pedigree_data = PedigreeParser(pedigree)
+
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
+    mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove filtered variants
     mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))

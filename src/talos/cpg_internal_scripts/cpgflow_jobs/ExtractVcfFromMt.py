@@ -1,10 +1,9 @@
 from typing import TYPE_CHECKING
 
-from cpg_utils import config, hail_batch, Path
 from cpg_flow import targets
+from cpg_utils import Path, config, hail_batch
 
 from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
-
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -26,6 +25,7 @@ def make_vcf_extraction_job(
                 dataset=cohort.dataset.name,
                 analysis_type='matrixtable',
                 sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
         ):
             raise ValueError(f'No MatrixTable found in Metamist for {cohort.id}')

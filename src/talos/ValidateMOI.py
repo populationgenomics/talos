@@ -19,6 +19,7 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
+    CATEGORY_TRANSLATOR,
     FamilyMembers,
     MemberSex,
     PanelApp,
@@ -26,35 +27,34 @@ from talos.models import (
     ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
-    Pedigree,
     ReportPanel,
     ReportVariant,
     ResultData,
     ResultMeta,
 )
 from talos.moi_tests import MOIRunner
+from talos.pedigree_parser import PedigreeParser
 from talos.utils import (
     GeneDict,
-    canonical_contigs_from_vcf,
     annotate_variant_dates_using_prior_results,
+    canonical_contigs_from_vcf,
     find_comp_hets,
     gather_gene_dict_from_contig,
+    generate_summary_stats,
     polish_exomiser_results,
-    make_flexible_pedigree,
     read_json_from_path,
 )
 from talos.version import __version__
 
 AMBIGUOUS_FLAG = 'Ambiguous Cat.1 MOI'
 MALE_FEMALE = {
-    '1': MemberSex.MALE.value,
-    '2': MemberSex.FEMALE.value,
-    '-9': MemberSex.UNKNOWN.value,
-    '0': MemberSex.UNKNOWN.value,
+    0: MemberSex.UNKNOWN.value,
+    1: MemberSex.MALE.value,
+    2: MemberSex.FEMALE.value,
 }
 
 
-def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str, MOIRunner]:
+def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -78,7 +78,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: Pedigree) -> dict[str,
 
     Args:
         panelapp_data (PanelApp):
-        pedigree (Pedigree):
+        pedigree (PedigreeParser):
 
     Returns:
         a dict of all MOI classes, indexed by MOI string
@@ -103,7 +103,7 @@ def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
     panelapp_data: dict[str, PanelDetail],
-    pedigree: Pedigree,
+    pedigree: PedigreeParser,
 ) -> list[ReportVariant]:
     """
     take all variants on a given contig & MOI filters
@@ -113,7 +113,7 @@ def apply_moi_to_variants(
         variant_dict (dict): all possible variants, lists indexed by gene
         moi_lookup (dict): the MOI model runner per MOI string
         panelapp_data (dict): all genes and relevant details
-        pedigree (Pedigree): the pedigree for this cohort
+        pedigree (PedigreeParser): the pedigree for this cohort
     """
 
     results = []
@@ -160,10 +160,10 @@ def apply_moi_to_variants(
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
-                    if '4' in each_result.categories:
+                    if CATEGORY_TRANSLATOR['4'] in each_result.categories:
                         continue
 
-                    if each_result.reasons == {'Autosomal Dominant'}:
+                    if each_result.reasons == 'Autosomal Dominant':
                         each_result.flags.add(AMBIGUOUS_FLAG)
 
             results.extend(variant_results)
@@ -232,7 +232,7 @@ def filter_results_to_panels(
         results_holder.results[each_event.sample].variants.append(each_event)
 
 
-def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
+def count_families(pedigree: PedigreeParser) -> dict:
     """
     add metadata to results
     parsed during generation of the report
@@ -241,8 +241,7 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
     maybe re-think this output structure for the report
 
     Args:
-        pedigree (Pedigree): the Pedigree object for the family
-        samples (list): all the samples across all VCFs
+        pedigree (PedigreeParser): the Pedigree object for the family
 
     Returns:
         A breakdown of all the family structures within this analysis
@@ -255,18 +254,14 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
 
     # now count family sizes, structures, sexes, and affected
     for family_members in pedigree.by_family.values():
-        # reduce those to participants within VCFs
-        filter_members = [member for member in family_members if member.id in samples]
-
-        # find trios. there's magic method for this in peds, but we're
-        # using a different representation
+        # find trios
         trios = [
             member
-            for member in filter_members
-            if member.affected == '2' and member.mother is not None and member.father is not None
+            for member in family_members
+            if member.is_affected and member.mother_id is not None and member.father_id is not None
         ]
 
-        # this could be extended, or do more stringent family tests
+        # count famiy size, based only on samples in the variant data
         if len(trios) == 1:
             stat_counter['trios'] += 1
         elif len(trios) == trios_in_a_quad:
@@ -274,10 +269,10 @@ def count_families(pedigree: Pedigree, samples: set[str]) -> dict:
         else:
             stat_counter[str(len(family_members))] += 1
 
-        for member in filter_members:
+        for member in family_members:
             # any value not specifically addressed here defaults to unknown
             stat_counter[MALE_FEMALE.get(member.sex, MemberSex.UNKNOWN.value)] += 1
-            if member.affected == '2':
+            if member.is_affected:
                 stat_counter['affected'] += 1
 
     return dict(stat_counter)
@@ -287,7 +282,7 @@ def prepare_results_shell(
     results_meta: ResultMeta,
     small_samples: set[str],
     sv_samples: set[str],
-    pedigree: Pedigree,
+    pedigree: PedigreeParser,
     panelapp: PanelApp,
 ) -> ResultData:
     """
@@ -297,7 +292,7 @@ def prepare_results_shell(
         results_meta (): metadata for the results
         small_samples (): samples in the Small VCF
         sv_samples (): samples in the SV VCFs
-        pedigree (): the Pedigree object
+        pedigree (): the Pedigree object, already reduced to samples in the callset
         panelapp (): dictionary of gene data
 
     Returns:
@@ -310,24 +305,22 @@ def prepare_results_shell(
     # find the solved cases in this project
     solved_cases = config_retrieve(['ValidateMOI', 'solved_cases'], [])
 
-    # all affected samples in Pedigree, small variant and SV VCFs may not completely overlap
-    all_samples: set[str] = small_samples | sv_samples
+    for participant in pedigree.participants.values():
+        if not participant.is_affected:
+            continue
 
-    for sample in [sam for sam in pedigree.members if sam.affected == '2' and sam.id in all_samples]:
         family_members = {
-            member.id: FamilyMembers(
+            member.sample_id: FamilyMembers(
                 sex=MALE_FEMALE.get(member.sex, MemberSex.UNKNOWN.value),
-                affected=member.affected == '2',
-                ext_id=member.ext_id,
+                affected=member.is_affected,
             )
-            for member in pedigree.by_family[sample.family]
+            for member in pedigree.by_family[participant.family_id]
         }
-        sample_panel_data = panelapp.participants.get(sample.id, ParticipantHPOPanels())
-        results_shell.results[sample.id] = ParticipantResults(
+        sample_panel_data = panelapp.participants.get(participant.sample_id, ParticipantHPOPanels())
+        results_shell.results[participant.sample_id] = ParticipantResults(
             variants=[],
             metadata=ParticipantMeta(
-                ext_id=sample.ext_id,
-                family_id=sample_panel_data.family_id or sample.family,
+                family_id=sample_panel_data.family_id or participant.family_id,
                 members=family_members,
                 phenotypes=sample_panel_data.hpo_terms,
                 panel_details={
@@ -335,9 +328,9 @@ def prepare_results_shell(
                     for panel_id in sample_panel_data.panels
                     if panel_id in panelapp.metadata
                 },
-                solved=bool(sample.id in solved_cases or sample.family in solved_cases),
-                present_in_small=sample.id in small_samples,
-                present_in_sv=sample.id in sv_samples,
+                solved=bool(participant.sample_id in solved_cases or participant.family_id in solved_cases),
+                present_in_small=participant.sample_id in small_samples,
+                present_in_sv=participant.sample_id in sv_samples,
             ),
         )
 
@@ -347,7 +340,7 @@ def prepare_results_shell(
 def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=[], nargs='+')
+    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=None)
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
@@ -367,7 +360,7 @@ def main(
     output: str,
     panelapp_path: str,
     pedigree: str,
-    labelled_sv: list[str] | None = None,
+    labelled_sv: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -395,19 +388,10 @@ def main(
         """,
     )
 
-    if labelled_sv is None:
-        labelled_sv = []
-
     panelapp: PanelApp = read_json_from_path(
         panelapp_path,
         return_model=PanelApp,
     )
-
-    # parse the pedigree from the file
-    ped = make_flexible_pedigree(pedigree, panelapp)
-
-    # set up the inheritance checks
-    moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
 
     result_list: list[ReportVariant] = []
 
@@ -420,11 +404,27 @@ def main(
     small_vcf_samples.update(set(vcf_opened.samples))
 
     # optional SV behaviour
-    sv_opened = [VCFReader(sv_vcf) for sv_vcf in labelled_sv]
-    for sv_vcf in sv_opened:
-        sv_vcf_samples.update(set(sv_vcf.samples))
+    sv_opened = None
+    if labelled_sv:
+        sv_opened = VCFReader(labelled_sv)
+        sv_vcf_samples = set(sv_opened.samples)
 
-    all_samples: set[str] = small_vcf_samples.union(sv_vcf_samples)
+    all_samples = small_vcf_samples.union(sv_vcf_samples)
+
+    # parse the pedigree from the file
+    ped = PedigreeParser(pedigree)
+
+    # slim down the pedigree to only samples we have in the pedigrees
+    ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
+
+    # reduce cohort to singletons, if the config say so
+    if config_retrieve('singletons', False):
+        logger.info('Reducing pedigree to affected singletons only')
+        ped.set_participants(ped.as_singletons())
+        ped.set_participants(ped.get_affected_members())
+
+    # set up the inheritance checks
+    moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
 
     # obtain a set of all contigs with variants
     for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -432,7 +432,7 @@ def main(
         contig_dict = gather_gene_dict_from_contig(
             contig=contig,
             variant_source=vcf_opened,
-            sv_sources=sv_opened,
+            sv_source=sv_opened,
         )
 
         result_list.extend(
@@ -446,10 +446,9 @@ def main(
 
     # create the full final output file
     results_meta = ResultMeta(
-        family_breakdown=count_families(ped, samples=all_samples),
+        family_breakdown=count_families(ped),
         panels=panelapp.metadata,
         version=__version__,
-        categories=config_retrieve('categories'),
     )
 
     # create a shell to store results in, adds participant metadata
@@ -469,6 +468,8 @@ def main(
 
     # annotate previously seen results using cumulative data file(s)
     annotate_variant_dates_using_prior_results(results_model)
+
+    generate_summary_stats(results_model)
 
     # write the output to long term storage using Pydantic
     # validate the model against the schema, then write the result if successful

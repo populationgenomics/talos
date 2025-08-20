@@ -10,6 +10,7 @@ process RunHailFiltering {
         path pedigree
         path clinvar
         path talos_config
+        path check_file
 
     output:
         tuple \

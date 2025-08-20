@@ -11,14 +11,12 @@ If there is no common prefix, we don't attempt this grouping
 """
 
 import json
-
 from argparse import ArgumentParser
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 
 from cloudpathlib.anypath import to_anypath
 
 from talos.models import ResultData
-
 from talos.utils import read_json_from_path
 
 MEAN_SLASH_SAMPLE = 'Mean/sample'

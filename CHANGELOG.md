@@ -14,6 +14,26 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.0.0] - 2025-08-19
+
+### Removed
+
+* All phenopacket generation and parsing code and dependencies are removed
+* Removes the second report from HPOFlagging, instead exporting a single, phenotype-annotated report
+
+### Changed
+
+* No more phenopackets, instead we're using a single TSV (pedigree) file to contain the pedigree data, and optionally HPO terms. See the docs/Pedigree.md file for details on the new format and corresponding parser.
+* The Report now presents the variant Categories as a short phrase (e.g. "ClinVarP/LP, HighImpact", instead of "1, 3")
+* Lots of Model updates, but the liftover methods should accommodate them
+
+### Added
+
+* Added a Startup validation module to the Nextflow Talos-workflow. This checks the provided files/data should give successful results
+* Added a pedigree parser module, and uses it internally
+* Adds a file download process for all the required large input files
+* Adds a breakdown of count/mean/median/SD for instances of each variant category in the report JSON
+
 [7.5.0] - 2025-08-07
 
 ### Changed

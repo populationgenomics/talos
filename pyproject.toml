@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="7.5.2"
+version="8.0.0"
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -31,15 +31,10 @@ dependencies=[
     'loguru>=0.7.3',
     'networkx>=3',
     'obonet>=1',
-    'peds==1.3.2',
     'pendulum>=3.1.0',
-    'phenopackets>=2',
-    'protobuf==3.20.2',
     'pydantic>=2.5.2',
     'python-dateutil>=2',
     'semsimian',
-    # peds has an explicit dependency on pkg_resources, so cannot be installed without setuptools
-    'setuptools',
     'tabulate>=0.8.9',
     'tenacity>=9.0.0',
     'toml==0.10.2',
@@ -53,7 +48,6 @@ cpg = [
 ]
 test = [
     'bump-my-version',
-    'black',
     'pre-commit',
     'pytest',
     'pytest-httpx',
@@ -87,8 +81,6 @@ run_workflow = 'talos.cpg_internal_scripts.run_workflow:cli_main'
 AggregateExomiserVariantTsvs = 'talos.AggregateExomiserVariantTsvs:cli_main'
 # Scans Metamist for published reports, collects into an index page
 BuildReportIndexPage = 'talos.cpg_internal_scripts.BuildReportIndexPage:main'
-# Create cohort phenopackets from Metamist
-MakePhenopackets = 'talos.cpg_internal_scripts.MakePhenopackets:cli_main'
 # Parse the summary JSON, generating a file for ingestion by Seqr
 MinimiseOutputForSeqr = 'talos.cpg_internal_scripts.MinimiseOutputForSeqr:cli_main'
 
@@ -97,8 +89,6 @@ MinimiseOutputForSeqr = 'talos.cpg_internal_scripts.MinimiseOutputForSeqr:cli_ma
 # ----------------------------------------------------------------------------------------
 # turns the SVDB TSV into a Hail Table
 ConvertSpliceVarDb = 'talos.ConvertSpliceVarDb:cli_main'
-# Builds cohort phenopackets from a pedigree with HPO terms
-ConvertPedToPhenopackets = 'talos.ConvertPedToPhenopackets:cli_main'
 # Download and format all current PanelApp data
 DownloadPanelApp = 'talos.DownloadPanelApp:cli_main'
 # Parse the Downloaded PanelApp data, generating a run-specific PanelApp subset
@@ -124,20 +114,6 @@ packages = ["src/talos"]
 
 [options]
 include_package_data = true
-
-[tool.black]
-line-length = 120
-skip-string-normalization = true
-exclude = '''
-/(
-  venv
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -171,8 +147,8 @@ ignore = [
     "PLR0913", # Too many arguments in function (> 5)
     "C901", # method is too complex (> 10 conditions)
     "N999", # invalid module name (not lower-case and potholes)
-    "I001", # Import block is un-sorted or un-formatted (to remove soon)
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "PLR2004" #  Magic value used in comparison, consider replacing `X` with a constant variable. I don't rate this
 ]
 
 [tool.ruff.format]
@@ -193,7 +169,7 @@ hail = ["hail"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
 
 [tool.bumpversion]
-current_version = "7.5.2"
+current_version = "8.0.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true
@@ -211,11 +187,6 @@ search = "VERSION: {current_version}"
 replace = "VERSION: {new_version}"
 
 [[tool.bumpversion.files]]
-filename = "README.md"
-search = "{current_version}"
-replace = "{new_version}"
-
-[[tool.bumpversion.files]]
 filename = "nextflow/talos.config"
 search = "{current_version}"
 replace = "{new_version}"
@@ -227,5 +198,10 @@ replace = "{new_version}"
 
 [[tool.bumpversion.files]]
 filename = "src/talos/version.py"
+search = "{current_version}"
+replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "src/talos/README.md"
 search = "{current_version}"
 replace = "{new_version}"

@@ -13,6 +13,7 @@
                             <dd class="col-sm-9">
                             {% if variant.var_type == 'SmallVariant' %}
                                 {{variant.var_data.info.var_link}}
+
                                 <dt class="col-sm-3">Filter status</dt>
                                 <dd class="col-sm-9">{{variant.var_data.info.as_filterstatus}}</dd>
 
@@ -21,7 +22,6 @@
 
                             {% endif %}
                             </dd>
-
 
                             <dt class="col-sm-3">Allele Counts</dt>
 
@@ -81,49 +81,42 @@
                         <h5 class="card-title"> Qualifying Talos categories</h5>
                         <dl class="row">
 
-                            {% if '1' in variant.categories %}
+                            {% if 'ClinVarP/LP' in variant.categories %}
                             <dt class="col-sm-3">Category 1</dt>
                             <dd class="col-sm-9">
                                 Variant P/LP in clinvar
                             </dd>
                             {% endif %}
 
-                            {% if '3' in variant.categories %}
+                            {% if 'HighImpact' in variant.categories %}
                             <dt class="col-sm-3">Category 3</dt>
                             <dd class="col-sm-9">
                                 High impact variant
                             </dd>
                             {% endif %}
 
-                            {% if '4' in variant.categories %}
+                            {% if 'DeNovo' in variant.categories %}
                             <dt class="col-sm-3">De novo </dt>
                             <dd class="col-sm-9">
                                 De novo variant
                             </dd>
                             {% endif %}
 
-                            {% if '5' in variant.categories %}
+                            {% if 'SpliceAI' in variant.categories %}
                             <dt class="col-sm-3">Category 5</dt>
                             <dd class="col-sm-9">
                                 High SpliceAI score
                             </dd>
                             {% endif %}
 
-                            {% if '6' in variant.categories %}
+                            {% if 'AlphaMissense' in variant.categories %}
                             <dt class="col-sm-3">Category 6</dt>
                             <dd class="col-sm-9">
                                 AlphaMissense Pathogenic Prediction
                             </dd>
                             {% endif %}
 
-                            {% if 'support' in variant.categories %}
-                            <dt class="col-sm-3">Category Support</dt>
-                            <dd class="col-sm-9">
-                                Consensus in silico Pathogenic
-                            </dd>
-                            {% endif %}
-
-                            {% if 'sv1' in variant.categories %}
+                            {% if 'LofSV' in variant.categories %}
                             <dt class="col-sm-3">LOF SV</dt>
                             <dd class="col-sm-9">
                                 Predicted LoF Structural Variant
@@ -152,7 +145,7 @@
                                     sample.family_members[sample_id].sex.value,
                                     sample.family_members[sample_id].affected
                                   )}}
-                                {{sample.family_members[sample_id].ext_id}} - {{gt}} <br>
+                                {{sample.family_display[sample_id]}} - {{gt}} <br>
                             {% endfor %}
                             </dd>
 
@@ -169,8 +162,8 @@
                                 Assigned Panels:
                             </dt>
                             <dd class="col-sm-9">
-                            {% for panel_id, panel_name in sample.panel_details.items() %}
-                                {{ panel_name }} ({{ panel_id }})<br>
+                            {% for panel_id, panel_data in sample.panel_details.items() %}
+                                {{ panel_data.name }} ({{ panel_id }}) v.{{ panel_data.version }}<br>
                             {% endfor %}
                             </dd>
                         </dl>
@@ -212,22 +205,20 @@
                                     <th>Exon</th>
                                     <th>Biotype</th>
                                     <th>MANE ID</th>
-                                    <th>AM Class</th>
-                                    <th>AM Score</th>
+                                    <th>AlphaMissense</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for csq in variant.var_data.transcript_consequences%}
                                 <tr>
-                                    <td>{{csq.symbol}}</td>
+                                    <td>{{csq.gene}}</td>
                                     <td>{{csq.dna_change}}</td>
                                     <td>{{csq.ensp}} {{csq.amino_acid_change}}</td>
                                     <td>{{csq.consequence}}</td>
                                     <td>{{csq.exon}}</td>
                                     <td>{{csq.biotype}}</td>
                                     <td>{{csq.mane_id}}</td>
-                                    <td>{{csq.am_class}}</td>
-                                    <td>{% if csq.am_pathogenicity is float %} {{csq.am_pathogenicity|round(2)}} {% endif %}</td>
+                                    <td>{{csq.am_class}}{% if csq.am_pathogenicity is float %} ({{csq.am_pathogenicity|round(2)}}) {% endif %}</td>
                                 </tr>
                                 {% endfor %}
                                 </body>

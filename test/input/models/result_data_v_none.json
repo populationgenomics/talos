@@ -47,7 +47,7 @@
                         "matched": []
                     },
                     "phenotypes": [],
-                    "reasons": [],
+                    "reasons": ["Automsomal Dominant"],
                     "sample": "sam2",
                     "support_vars": [],
                     "var_data": {

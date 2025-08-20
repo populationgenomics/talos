@@ -8,8 +8,9 @@ to be digested down to a per-project object
 
 from sys import argv
 
-from tenacity import retry
 import toml
+from tenacity import retry
+
 from metamist.graphql import gql, query
 
 PROJECT_QUERY = gql(
@@ -89,6 +90,9 @@ with open(argv[1], encoding='utf-8') as handle:
     solved_fams: set[str] = {x.strip() for x in handle.readlines()}
 
 for project in all_projects_of_interest:
+    if 'test' in project or 'training' in project:
+        continue
+
     # write this to a dict
     project_dict[project] = get_data_for_project(project)
 

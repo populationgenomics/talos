@@ -61,13 +61,12 @@ critical_csq = ['frameshift', 'splice_acceptor', 'splice_donor', 'start_lost', '
 minimum_depth = 10
 spliceai = 0.5
 
-[categories]
-1 = 'ClinVar Pathogenic'
-3 = 'High Impact Variant'
-4 = 'de Novo'
-5 = 'High SpliceAI Score'
-6 = 'AlphaMissense P/LP'
-pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
+[RunHailFiltering.de_novo]
+min_child_ab = 0.2
+min_depth = 5
+max_depth = 1000
+min_proband_gq = 25
+min_alt_depth = 5
 
 #[cohorts.cohort]
 ## cohort-specific variables affecting how the final HTML report appears

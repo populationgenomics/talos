@@ -4,17 +4,17 @@ generate an index HTML page with links to all reports
 """
 
 import re
+from argparse import ArgumentParser
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
-
 import jinja2
 from cloudpathlib.anypath import to_anypath
-from metamist.graphql import gql, query
+from loguru import logger
 
+from metamist.graphql import gql, query
 
 DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
@@ -55,7 +55,8 @@ class Report:
 
     dataset: str
     address: str
-    genome_or_exome: str
+    is_exome: bool
+    is_long_read: bool
     date: str
     title: str
 
@@ -71,30 +72,45 @@ def get_my_projects() -> set[str]:
     return all_projects
 
 
-def get_project_analyses(project: str) -> dict[str, str]:
+def get_project_analyses(project: str) -> dict[tuple[bool, bool], str]:
     """
-    Find all the active analysis entries for this project - we only want one regular report, the latest.
+    Find all the active analysis entries for this project, subdivide the analyses by long/short read and exome/genome
+
+    Create a dictionary indexed on a double boolean key:
+    - the file is long_read
+    - the file is exome
+
+    This was chosen as in the CPG infrastructure, 'genome' is the default, so 'exome' is in the path if relevant.
+    Likewise for short-read vs. "long-read". This is not a perfect solution, but it works for now.
+
+    Also... you can use a tuple as a dictionary key and that's cool.
     """
 
-    # we no longer generate 'latest' reports - HTML limitations have been removed
-    project_reports: dict[str, str] = {'exome': '', 'genome': ''}
+    project_reports: dict[tuple[bool, bool], str] = {}
+
     all_analyses = query(REPORT_QUERY, variables={'project': project})['project']['analyses']
     for analysis in all_analyses:
-        # get the type or skip (outdated)
-        if not (st := analysis['meta'].get('sequencing_type')):
+        # skip the much older analysis entry formats
+        if not (outputs := analysis.get('outputs', None)):
+            continue
+        if isinstance(outputs, str):
             continue
 
-        # get the output path, allow for old analysis entries
-        output_path = analysis['outputs'] if isinstance(analysis['outputs'], str) else analysis['outputs']['path']
+        output_path = outputs['path']
 
-        project_reports[st] = output_path
+        long = 'long_read' in output_path
+        exome = 'exome' in output_path
+
+        project_reports[(long, exome)] = output_path
 
     return project_reports
 
 
-def main() -> None:
+def main(dataset: str = 'aip') -> None:
     """
-    Finds all existing reports, generates an HTML file.
+    Finds all existing reports, generates an HTML file as an index page.
+    Args:
+        dataset (str): The dataset to generate the index for, defaults to 'aip' for legacy reasons.
     """
 
     parsed_reports = {cohort: get_project_analyses(cohort) for cohort in get_my_projects()}
@@ -102,7 +118,7 @@ def main() -> None:
     report_list: list[Report] = []
 
     for cohort, cohort_results in parsed_reports.items():
-        for sequencing_type, report_path in cohort_results.items():
+        for (long_read, exome), report_path in cohort_results.items():
             # general - only one of these
             if report_path:
                 this_file_name = Path(report_path).name
@@ -116,13 +132,14 @@ def main() -> None:
                             Report(
                                 dataset=cohort,
                                 address=report_address,
-                                genome_or_exome=sequencing_type,
+                                is_exome=exome,
+                                is_long_read=long_read,
                                 date=report_date.group(1),
                                 title=report_name,
                             ),
                         )
 
-    html_from_reports(report_list, 'aip_index.html')
+    html_from_reports(report_list, f'{dataset}_index.html')
 
 
 def html_from_reports(reports: list[Report], title: str):
@@ -144,6 +161,16 @@ def html_from_reports(reports: list[Report], title: str):
     write_index_to.write_text('\n'.join(line for line in content.split('\n') if line.strip()))
 
 
+def cli_main():
+    """
+    Command line interface for the script.
+    """
+    parser = ArgumentParser(description='Generate an index page for AIP reports')
+    parser.add_argument('--dataset', help='Dataset for the index page', default='aip')
+    args = parser.parse_args()
+    main(dataset=args.dataset)
+
+
 if __name__ == '__main__':
     logger.info('Fetching all reports')
-    main()
+    cli_main()

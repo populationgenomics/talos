@@ -13,25 +13,45 @@ from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
 from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
-from talos.liftover.lift_none_to_1_0_0 import phenotypematchedpanels as pmp_none_to_1_0_0
-from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
+from talos.liftover.lift_2_0_0_to_2_1_0 import (
+    historicvariants as hv_200_to_210,
+)
+from talos.liftover.lift_2_0_0_to_2_1_0 import (
+    panelapp as pa_200_to_210,
+)
+from talos.liftover.lift_2_0_0_to_2_1_0 import (
+    resultdata as rd_200_to_210,
+)
+from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.0.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0']
+CURRENT_VERSION = '2.1.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
 MIN_HET = 0.25
 MAX_HET = 0.75
 MIN_HOM = 0.85
+
+CATEGORY_TRANSLATOR: dict[str, str] = {
+    '1': 'ClinVarP/LP',
+    '3': 'HighImpact',
+    '4': 'DeNovo',
+    '5': 'SpliceAI',
+    '6': 'AlphaMissense',
+    'pm5': 'PM5',
+    'sv1': 'LofSv',
+    'svdb': 'SpliceVarDB',
+    'exomiser': 'Exomiser',
+}
 
 
 class FileTypes(Enum):
@@ -47,7 +67,7 @@ class FileTypes(Enum):
     VCF_BGZ = '.vcf.bgz'
 
 
-class PhenoPacketHpo(BaseModel):
+class HpoTerm(BaseModel):
     """
     A representation of a HPO term
     """
@@ -123,7 +143,7 @@ class VariantCommon(BaseModel):
             sample (str): sample id
 
         Returns:
-            set of all categories applied to this variant
+            set of all categories applied to this variant, using an enhanced labelling String for reporting purposes.
         """
 
         # step down all category flags to boolean flags
@@ -140,7 +160,8 @@ class VariantCommon(BaseModel):
             {bool_cat.replace('categoryboolean', '') for bool_cat in self.boolean_categories if self.info[bool_cat]},
         )
 
-        return categories
+        # upgrade all the category labels for the report
+        return {CATEGORY_TRANSLATOR.get(cat, cat) for cat in categories}
 
     def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
@@ -160,7 +181,11 @@ class VariantCommon(BaseModel):
 
         # if we don't want to allow support variants, remove any from the list of applied categories
         if not allow_support:
-            categories_applied -= self.support_categories
+            # add the longer names to the support_categories - this is a workaround for the fact that the support
+            # categories entry in the config file can now be the numberical/short IDs, or longer names
+            remove_support = self.support_categories
+            remove_support.update({CATEGORY_TRANSLATOR[x] for x in self.support_categories if x in CATEGORY_TRANSLATOR})
+            categories_applied -= remove_support
 
         return len(categories_applied) > 0
 
@@ -317,8 +342,8 @@ class ReportVariant(BaseModel):
     independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
-    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
-    reasons: set[str] = Field(default_factory=set)
+    phenotypes: list[HpoTerm] = Field(default_factory=list)
+    reasons: str = Field(default_factory=str)
     support_vars: set[str] = Field(default_factory=set)
     # log whether there was an increase in ClinVar star rating since the last run
     clinvar_increase: bool = Field(default=False)
@@ -339,18 +364,11 @@ class ReportVariant(BaseModel):
 
 
 class ParticipantHPOPanels(BaseModel):
-    external_id: str = Field(default_factory=str)
     family_id: str = Field(default_factory=str)
-    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    hpo_terms: list[HpoTerm] = Field(default_factory=list)
     panels: set[int] = Field(default_factory=set)
     matched_genes: set[str] = Field(default_factory=set)
     matched_phenotypes: set[str] = Field(default_factory=set)
-
-
-class PhenotypeMatchedPanels(BaseModel):
-    samples: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
-    all_panels: set[int] = Field(default_factory=set)
-    version: str = CURRENT_VERSION
 
 
 class PanelDetail(BaseModel):
@@ -411,16 +429,8 @@ class DownloadedPanelApp(BaseModel):
     # all panels and versions
     versions: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
-    hpos: dict[int, list[PhenoPacketHpo]] = Field(default_factory=dict)
+    hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
-
-
-class CategoryMeta(BaseModel):
-    """
-    The mapping of category names to their display names
-    """
-
-    categories: dict[str, str] = Field(default=dict)
 
 
 class HistoricSampleVariant(BaseModel):
@@ -448,7 +458,6 @@ class HistoricVariants(BaseModel):
     they have been assigned, date first seen, and supporting variants
     """
 
-    metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     # dict - participant ID -> variant -> variant data
     results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
@@ -459,31 +468,31 @@ class ResultMeta(BaseModel):
     metadata for a result set
     """
 
-    categories: dict[str, str] = Field(default=dict)
     version: str = Field(default_factory=str)
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     input_file: str = Field(default_factory=str)
     panels: dict[int, PanelShort] = Field(default_factory=dict)
     run_datetime: str = Field(default=get_granular_date())
 
+    # a count of variants per category, used for the report
+    variant_breakdown: dict[str, dict[str, float | int]] = Field(default_factory=dict)
+
 
 class MemberSex(Enum):
+    UNKNOWN = 'unknown'
     MALE = 'male'
     FEMALE = 'female'
-    UNKNOWN = 'unknown'
 
 
 class FamilyMembers(BaseModel):
     affected: bool = Field(default=False)
-    ext_id: str = Field(default_factory=str)
     sex: str = Field(default=MemberSex.UNKNOWN.value)
 
 
 class ParticipantMeta(BaseModel):
-    ext_id: str
     family_id: str
     members: dict[str, FamilyMembers] = Field(default_factory=dict)
-    phenotypes: list[PhenoPacketHpo] = Field(default_factory=list)
+    phenotypes: list[HpoTerm] = Field(default_factory=list)
     panel_details: dict[int, PanelShort] = Field(default_factory=dict)
     solved: bool = Field(default=False)
     present_in_small: bool = Field(default=False)
@@ -509,12 +518,6 @@ class ResultData(BaseModel):
     version: str = CURRENT_VERSION
 
 
-class ModelVariant(BaseModel):
-    """
-    might be required for the VCF generator
-    """
-
-
 class MiniVariant(BaseModel):
     categories: set[str] = Field(default_factory=set)
     support_vars: set[str] = Field(default_factory=set)
@@ -522,7 +525,6 @@ class MiniVariant(BaseModel):
 
 
 class MiniForSeqr(BaseModel):
-    metadata: CategoryMeta = Field(default_factory=CategoryMeta)
     results: dict[str, dict[str, MiniVariant]] = Field(default_factory=dict)
 
 
@@ -535,28 +537,26 @@ class PedigreeMember(BaseModel):
     id: str
     mother: str | None = None
     father: str | None = None
-    sex: str
-    affected: str
+    sex: int
+    affected: int
     ext_id: str = 'Missing'
-    hpo_terms: list[PhenoPacketHpo] = Field(default_factory=list)
+    hpo_terms: set[str] = Field(default_factory=set)
 
-
-class Pedigree(BaseModel):
-    members: list[PedigreeMember] = Field(default_factory=list)
-    by_family: dict[str, list[PedigreeMember]] = Field(default_factory=dict)
-    by_id: dict[str, PedigreeMember] = Field(default_factory=dict)
+    def __str__(self):
+        """String representation of the participant, used when writing a Pedigree."""
+        return f'{self.family}\t{self.id}\t{self.father}\t{self.mother}\t{self.sex}\t{self.affected}'
 
 
 # methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
-    PhenotypeMatchedPanels: {
-        'None_1.0.0': pmp_none_to_1_0_0,
-    },
+    DownloadedPanelApp: {},
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
+        '2.0.0_2.1.0': pa_200_to_210,
     },
     HistoricVariants: {
         '1.0.0_1.0.1': hv_100_to_101,
+        '2.0.0_2.1.0': hv_200_to_210,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,
@@ -565,13 +565,14 @@ LIFTOVER_METHODS: dict = {
         '1.0.3_1.1.0': rd_103_to_110,
         '1.1.0_1.2.0': rd_110_to_120,
         '1.2.0_2.0.0': rd_120_to_200,
+        '2.0.0_2.1.0': rd_200_to_210,
     },
 }
 
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | ResultData | PanelApp | PhenotypeMatchedPanels,
+    model: HistoricVariants | ResultData | PanelApp | DownloadedPanelApp,
 ) -> dict:
     """
     lift over data from one version to another

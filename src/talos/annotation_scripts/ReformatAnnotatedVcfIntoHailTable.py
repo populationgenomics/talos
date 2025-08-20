@@ -11,11 +11,10 @@ import json
 from argparse import ArgumentParser
 from collections import defaultdict
 
-from loguru import logger
-import hail as hl
-
 from cpg_utils.hail_batch import init_batch
+from loguru import logger
 
+import hail as hl
 
 MISSING_STRING = hl.str('')
 
@@ -63,14 +62,14 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table) -> hl.Ta
     split_csqs = split_csqs.map(
         lambda x: hl.if_else(
             # if there were only 4 values, add 3 missing Strings
-            hl.len(x) == 4,  # noqa: PLR2004
+            hl.len(x) == 4,
             x.extend([MISSING_STRING, MISSING_STRING, MISSING_STRING]),
             hl.if_else(
                 # 5 values... add 2 missing Strings
-                hl.len(x) == 5,  # noqa: PLR2004
+                hl.len(x) == 5,
                 x.extend([MISSING_STRING, MISSING_STRING]),
                 hl.if_else(
-                    hl.len(x) == 6,  # noqa: PLR2004
+                    hl.len(x) == 6,
                     x.extend([MISSING_STRING]),
                     x,
                 ),

@@ -1,3 +1,17 @@
+result_history = "path/to/per-run/results/directory"
+# If this points to a folder (local, or cloud bucket), Talos will record a JSON file of all samples with variants
+# detected, the categories each variant was assigned, and the date of the analysis.
+# each file is named in such a way that the datetime of the analysis is encoded in the filename.
+# During each analysis, if the directory indicated by this path contains files from prior results, the latest file is
+# read in and used to generate the 'iterative' component of Talos:
+# - Where a variant has been previously reported, it will be included in the report, but the date will reflect the first time it was reported
+# - Where a variant has previously been reported, but a never-before-seen category is assigned, the date will be updated to reflect the current date
+# - Each compound heterozygous variant will be reported along with its partner variant IDs. This will
+
+# this value can be set to `true`, which will lead to an analysis of the cohort as singletons
+# no de novo variant detection, and no family-based variant filtering will be performed. May be useful for benchmarking
+singletons = false
+
 [GeneratePanelData]
 # the panelapp instance to use
 panelapp = 'https://panelapp-aus.org/api/v1/panels'
@@ -16,13 +30,12 @@ forced_panels = [1, 2, 3]
 # we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol
 within_x_months = 6
 
-[GeneratePanelData.manual_overrides]
 # this section permits the manual addition of genes to the panel data
 # each gene here will be folded into the panelapp data after standard API queries have taken place
 # if the gene was already identified for this analysis, the MOI provided here will take precedent
 # if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
 # associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
-[[GeneratePanelData.manual_overrides.genes]]
+[[GeneratePanelData.manual_overrides]]
 # this field is mandatory - the ENSG ID of the gene
 ensg = 'ENSG0000012345'
 
@@ -91,10 +104,10 @@ exomiser_rank_threshold = 2
 # this is the final part of the Category name, e.g. categorydetailspm5 is "pm5", and categorybooleansv1 is "sv1"
 phenotype_match = ['6']
 
-# all categories in this list are treated as support
-# i.e. can appear as the second-hit, but will not independently be reported
-# comp-het formations of two support variants are also removed
+# all categories in this list are treated as 'support' i.e. can appear as the second-hit, but will not independently be
+# reported. Comp-het formations of two support variants are also removed
 # all categories not in this list are treated as fully important
+# the values here can either be the category ID (3, 6) or the longer term (e.g. "AlphaMissense")
 support_categories = ['5', '6']
 
 [RunHailFiltering]
@@ -109,7 +122,7 @@ callset_af_sv_recessive = 0.03
 critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
 spliceai = 0.5
 
-[de_novo]
+[RunHailFiltering.de_novo]
 min_child_ab = 0.2
 min_depth = 5
 max_depth = 1000
@@ -119,17 +132,6 @@ min_alt_depth = 5
 # un-comment this to apply a minimum GQ to all samples in the trio, including WT. This will reduce de Novo prediciton
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
 #min_all_sample_gq = 15
-
-[categories]
-1 = 'ClinVar Pathogenic'
-3 = 'High Impact Variant'
-4 = 'de Novo'
-5 = 'High SpliceAI Score'
-6 = 'AlphaMissense P/LP'
-pm5 = 'ACMG PM5 - missense in same residue as known pathogenic'
-svdb = 'SpliceVarDB Predicted Splice-Altering'
-sv1 = 'Predicted LOF SV'
-exomiser = 'Variant prioritised by Exomiser'
 
 [CreateTalosHTML]
 external_labels = "path to labels file"

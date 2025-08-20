@@ -2,8 +2,9 @@
 unit testing collection for the hail MT methods
 """
 
-import hail as hl
 import pytest
+
+import hail as hl
 
 from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, populate_callset_frequencies
 
@@ -47,7 +48,7 @@ def test_full_freq_replacement(make_a_mt, caplog):
 
     assert matrix_out.info.AF.collect()[0] == [0.5]
     assert matrix_out.info.AC.collect()[0] == [1]
-    assert matrix_out.info.AN.collect()[0] == 2  # noqa: PLR2004
+    assert matrix_out.info.AN.collect()[0] == 2
 
 
 @pytest.mark.parametrize(  # needs clinvar

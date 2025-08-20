@@ -1,3 +1,0 @@
-variant_id	hg19	hg38	gene	hgvs	method	classification	location	doi
-1	"11-32392032-G-A"	"11-32392032-G-A"	"TEST1"	"NM_12345.1:c.1111C>T"	"MaPSy"	"Low-frequency"	"Exonic"	"10.1371/journal.pgen.1009884,10.1371/journal.pgen.1009884,10.1371/journal.pgen.1009884"
-2	"12-89470359-A-C"	"12-89470359-A-C"	"TEST2"	"NM_678910.3:c.670-1A>C"	"RNA-Seq"	"Splice-altering"	"Intronic"	"10.1101/gr.231951.117,10.1016/j.molcel.2018.10.037"

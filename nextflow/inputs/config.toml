@@ -1,18 +1,5 @@
-[categories]
-1 = "ClinVar Pathogenic"
-3 = "High Impact Variant"
-4 = "de Novo"
-5 = "High SpliceAI Score"
-6 = "AlphaMissense P/LP"
-pm5 = "ACMG PM5 - missense in same residue as known pathogenic"
-support = "High in Silico Scores"
-sv1 = "Predicted LOF SV"
-svdb = 'SpliceVarDB Predicted Splice-Altering'
-exomiser = 'Variant prioritised by Exomiser'
-
 [GeneratePanelData]
 default_panel = 137
-obo_file = "gs://cpg-common-test/references/aip/hpo_terms.obo"
 panelapp = "https://panelapp-aus.org/api/v1/panels"
 require_pheno_match = [ "FLG", "GJB2", "F2", "F5", "HFE"]
 within_x_months = 6
@@ -25,7 +12,7 @@ forced_panels = [ 144,]
 # if the gene was already identified for this analysis, the MOI provided here will take precedent
 # if the gene here was not identified through panelapp, a new entity will be added, and the panel ID
 # associated with it will be the number zero (panel IDs must all be numeric, 0 is not in use)
-[[GeneratePanelData.manual_overrides.genes]]
+
 # this field is mandatory - the ENSG ID of the gene
 ensg = 'ENSG0000012345'
 
@@ -38,9 +25,6 @@ symbol = 'AGENE'
 # optional
 chrom = '1'
 
-[FindGeneSymbolMap]
-chunk_size = 800
-
 [RunHailFiltering]
 ac_threshold = 0.01
 additional_csq = [ "missense",]
@@ -51,9 +35,16 @@ max_parent_ab = 0.05
 minimum_depth = 10
 spliceai = 0.5
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]
+min_alt_depth = 5
+
+[RunHailFiltering.de_novo]
+min_child_ab = 0.2
+min_depth = 5
+max_depth = 1000
+min_proband_gq = 25
+min_alt_depth = 5
 
 [ValidateMOI]
-
 # callset AF filtering will only be applied to variants with this AC or higher
 min_callset_ac_to_filter = 10
 
@@ -101,14 +92,7 @@ support_categories = ["6"]
 # flagged as being a good phenotypic fit for the specific case
 # This default value "6" (AlphaMissense) is redundant with the "support" category - variants which were only flagged by
 # AlphaMissense will be removed from consideration completely
-phenotype_match = ["6"]
-
-[de_novo]
-min_child_ab = 0.2
-min_depth = 5
-max_depth = 1000
-min_proband_gq = 25
-min_alt_depth = 5
+phenotype_match = ["AlphaMissense"]
 
 # un-comment this to apply a minimum GQ to all samples in the trio, including WT. This will reduce de Novo prediciton
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
@@ -117,17 +101,3 @@ min_alt_depth = 5
 [HPOFlagging]
 semantic_match = true
 min_similarity = 14.0
-
-[RunHailFiltering.cores]
-sv = 2
-small_variants = 8
-
-[RunHailFiltering.memory]
-small_variants = "100Gi"
-
-[RunHailFiltering.storage]
-sv = 10
-
-[RunHailFiltering.timeouts]
-small_variants = 15000
-sv = 3600

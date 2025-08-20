@@ -5,39 +5,37 @@ HTTPX requests are backoff-wrapped using tenacity
 https://tenacity.readthedocs.io/en/latest/
 """
 
-import httpx
 import json
+import pathlib
 import re
+import statistics
 import string
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
-from itertools import chain, combinations_with_replacement, islice
+from itertools import chain, combinations, combinations_with_replacement, islice
 from random import choices
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
-from peds import open_ped
-from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import config_retrieve
 from talos.models import (
+    CATEGORY_TRANSLATOR,
     VARIANT_MODELS,
-    CategoryMeta,
     Coordinates,
     HistoricSampleVariant,
     HistoricVariants,
-    PanelApp,
-    Pedigree,
-    PedigreeMember,
     ResultData,
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
 )
+from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
-
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -80,8 +78,6 @@ PHASE_BROKEN: bool = False
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
     Read the MANE JSON and filter it to the relevant fields
-    Args:
-        mane_json ():
 
     Returns:
         a dictionary of {Symbol: ID}
@@ -95,57 +91,11 @@ def parse_mane_json_to_dict(mane_json: str) -> dict:
 def get_random_string(length: int = 6) -> str:
     """
     get a random string of a pre-determined leng`th
-    Args:
-        length ():
 
     Returns:
         A random string comprised of upper-case letters and numbers
     """
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
-
-
-def make_flexible_pedigree(pedigree: str, panelapp: PanelApp | None = None) -> Pedigree:
-    """
-    takes the representation offered by peds and reshapes it to be searchable
-    this is really just one short step from writing my own implementation...
-
-    Args:
-        pedigree (str): path to a pedigree file
-        panelapp (PanelApp): a PanelApp object
-
-    Returns:
-        a searchable representation of the ped file
-    """
-    if panelapp is None:
-        panelapp = PanelApp()
-
-    new_ped = Pedigree()
-    ped_data = open_ped(pedigree)
-    for family in ped_data:
-        for member in family:
-            me = PedigreeMember(
-                family=member.family,
-                id=member.id,
-                mother=MEMBER_LOOKUP_DICT.get(member.mom, member.mom),
-                father=MEMBER_LOOKUP_DICT.get(member.dad, member.dad),
-                sex=member.sex,
-                affected=member.phenotype,
-            )
-
-            # populate this info if we have it from the GeneratePanelData step/output
-            if pheno_participant := panelapp.participants.get(member.id):
-                me.ext_id = pheno_participant.external_id
-                me.hpo_terms = pheno_participant.hpo_terms
-
-            # add as a member
-            new_ped.members.append(me)
-
-            # add to a lookup
-            new_ped.by_id[me.id] = me
-
-            # add to a list of members in this family
-            new_ped.by_family.setdefault(me.family, []).append(me)
-    return new_ped
 
 
 def chunks(iterable, chunk_size):
@@ -608,8 +558,8 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str,
-    variant_source,
-    sv_sources: list | None = None,
+    variant_source: 'cyvcf2.VCFReader',
+    sv_source: 'cyvcf2.VCFReader | None' = None,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -620,7 +570,7 @@ def gather_gene_dict_from_contig(
     Args:
         contig (): contig name from VCF header
         variant_source (): the VCF reader instance
-        sv_sources (): an optional list of SV VCFs
+        sv_source (): an optional list of SV VCFs
 
     Returns:
         A lookup in the form
@@ -630,8 +580,7 @@ def gather_gene_dict_from_contig(
             ...
         }
     """
-    if sv_sources is None:
-        sv_sources = []
+
     if bl_file := config_retrieve(['GeneratePanelData', 'blacklist'], ''):
         blacklist = read_json_from_path(bl_file, default=[])
     else:
@@ -662,7 +611,8 @@ def gather_gene_dict_from_contig(
         # update the gene index dictionary
         contig_dict[small_variant.info.get('gene_id')].append(small_variant)
 
-    for sv_source in sv_sources:
+    # parse the SV VCF if provided, but not a necessary part of processing
+    if sv_source:
         structural_variants = 0
         for variant in sv_source(contig):
             # create an abstract SV variant
@@ -718,15 +668,8 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
 
 def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[set[str], set[str]]:
     """
-    for this variant, find all samples with a call
-    cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT
-
-    Args:
-        variant (cyvcf2.Variant):
-        samples (list[str]):
-
-    Returns:
-        2 sets of strings; het and hom
+    For this variant, find all samples with a call. cyvcf2 uses 0,1,2,3==HOM_REF, HET, UNKNOWN, HOM_ALT.
+    Returns 2 sets of strings; het sample ID, hom sample IDs
     """
     het_samples = set()
     hom_samples = set()
@@ -744,12 +687,7 @@ def get_non_ref_samples(variant: 'cyvcf2.Variant', samples: list[str]) -> tuple[
 
 
 def extract_csq(csq_contents: str) -> list[dict]:
-    """
-    handle extraction of the CSQ entries based on string in config
-
-    Args:
-        csq_contents ():
-    """
+    """Handle extraction of the CSQ entries based on string in config."""
 
     # allow for no CSQ data, i.e. splice variant
     if not csq_contents:
@@ -769,19 +707,16 @@ def extract_csq(csq_contents: str) -> list[dict]:
     return txc_dict
 
 
-def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHetDict:
+def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> CompHetDict:
     """
-    manual implementation to find compound hets
-    variants provided in the format
+    Find compound het pairs, variants provided in the format [var1, var2, ...]
 
-    [var1, var2, ..]
-
-    generate pair content in the form
-    {sample: {var_as_string: [partner_variant, ...]}}
-
-    Args:
-        var_list (list[VARIANT_MODELS]): all variants in this gene
-        pedigree (): Pedigree
+    generates pair content in the form
+    {
+        sample: {
+            var_as_string: [partner_variant, ...],
+        }
+    }
     """
 
     # create an empty dictionary
@@ -799,7 +734,7 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
             phased = False
 
             # don't assess male compound hets on sex chromosomes
-            if pedigree.by_id[sample].sex == '1' and var_1.coordinates.chrom in X_CHROMOSOME:
+            if pedigree.participants[sample].sex == 1 and var_1.coordinates.chrom in X_CHROMOSOME:
                 continue
 
             # check for both variants being in the same phase set
@@ -817,17 +752,16 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: Pedigree) -> CompHe
 
 def generate_fresh_latest_results(current_results: ResultData):
     """
-    This will be called if a cohort has no latest results, but has
-    indicated a place to save them.
+    This will be called if a cohort has no latest results, but has indicated a place to save them.
     Args:
         current_results (ResultData): results from this current run
     """
 
-    new_history = HistoricVariants(metadata=CategoryMeta(categories=config_retrieve('categories', {})))
+    new_history = HistoricVariants()
     for sample, content in current_results.results.items():
         for var in content.variants:
             # bank the number of clinvar stars, if any
-            if '1' in var.categories:
+            if CATEGORY_TRANSLATOR['1'] in var.categories:
                 clinvar_stars = var.var_data.info.get('clinvar_stars')
                 assert isinstance(clinvar_stars, int)
             else:
@@ -847,9 +781,6 @@ def phenotype_label_history(results: ResultData):
     """
     Annotation in-place of the results object
     Either pull the 'date of phenotype match' from the historic data, or add 'today' to the historic data
-
-    Args:
-        results (ResultData):
     """
     # are there any history results?
     if (historic_folder := config_retrieve('result_history', None)) is None:
@@ -898,19 +829,20 @@ def phenotype_label_history(results: ResultData):
 
 
 def save_new_historic(results: HistoricVariants):
-    """
-    save the new results in the historic results dir
-
-    Args:
-        results (HistoricVariants): object to save as JSON
-    """
+    """Save the new results in the historic results dir."""
 
     if (directory := config_retrieve('result_history', None)) is None:
         logger.info('No historic data folder, no saving')
         return
 
     # we're using cloud paths here
-    new_file = to_anypath(directory) / f'{TODAY}.json'
+    dir_as_path = to_anypath(directory)
+    new_file = dir_as_path / f'{TODAY}.json'
+
+    # need a check for folder existence, or create
+    if isinstance(dir_as_path, pathlib.Path) and not dir_as_path.exists():
+        dir_as_path.mkdir(parents=True, exist_ok=True)
+
     with new_file.open('w') as handle:
         handle.write(results.model_dump_json(indent=4))
 
@@ -954,19 +886,14 @@ def annotate_variant_dates_using_prior_results(results: ResultData):
         generate_fresh_latest_results(current_results=results)
 
 
-def date_from_string(string: str) -> str:
+def date_from_string(filename: str) -> str:
     """
-    takes a string, finds the date. Simples
-    Args:
-        string (a filename):
-
-    Returns:
-        the String YYYY-MM-DD
+    Takes a filename, finds a date. Internally consistent with the way this codebase writes datetimes into file paths.
     """
-    date_search = re.search(DATE_RE, string)
+    date_search = re.search(DATE_RE, filename)
     if date_search:
         return date_search.group()
-    raise ValueError(f'No date found in {string}')
+    raise ValueError(f'No date found in {filename}')
 
 
 def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
@@ -1009,9 +936,6 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
         updated/instantiated cumulative data
     """
 
-    # update to latest category descriptions
-    historic.metadata.categories.update(config_retrieve('categories'))
-
     for sample, content in current.results.items():
         # get the historical record for this sample
         sample_historic = historic.results.get(sample, {})
@@ -1019,7 +943,7 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
         # check each variant found in this round
         for var in content.variants:
             # get the number of clinvar stars, if appropriate
-            if '1' in var.categories:
+            if CATEGORY_TRANSLATOR['1'] in var.categories:
                 clinvar_stars = var.var_data.info.get('clinvar_stars')
                 assert isinstance(clinvar_stars, int)
             else:
@@ -1070,3 +994,63 @@ def date_annotate_results(current: ResultData, historic: HistoricVariants):
                     first_tagged=get_granular_date(),
                     clinvar_stars=clinvar_stars,
                 )
+
+
+def generate_summary_stats(result_set: ResultData):
+    """Reads over the variants present in the result set, and generates some per-sample and per-cohort stats."""
+
+    # make this naive, i.e. not configured specifically based on a list of Categories in configuration
+    category_count: dict[str, list[int]] = defaultdict(list)
+
+    for sample_results in result_set.results.values():
+        if len(sample_results.variants) == 0:
+            continue
+
+        sample_variants: dict[str, set[str]] = defaultdict(set)
+
+        # iterate over all identified variants
+        for each_var in sample_results.variants:
+            var_string = each_var.var_data.coordinates.string_format
+
+            # catch all comp-het pairs as a single variant - we are electing to count comp-het events as a single
+            # variant, so we have to adjust our counting for this
+            # do this by identifying all sorted pairwise combinations, sorting them, creating a single String for each,
+            # and counting each unique String once
+            if sups := each_var.support_vars:
+                var_strings = [' '.join(sorted(combo)) for combo in combinations([var_string, *sups], 2)]
+
+            # if the variant is dominant or Hom, count it once - list of length 1
+            else:
+                var_strings = [var_string]
+
+            for unique_var in var_strings:
+                # populate the 'any's
+                sample_variants['any'].add(unique_var)
+
+                # find all categories associated with this variant. For each category, add to corresponding list and set
+                for category_value in each_var.categories:
+                    sample_variants[category_value].add(unique_var)
+
+        # record that these were the variants seen for this sample,
+        for key, set_of_strings in sample_variants.items():
+            category_count[key].append(len(set_of_strings))
+
+    # update the counts-per-sample dictionary
+    number_of_samples = len(result_set.results)
+
+    stats_count: dict[str, dict[str, int | float]] = {}
+    for category_type, count_list in category_count.items():
+        # pad the observed counts to the number of samples under consideration
+        count_list.extend([0] * (number_of_samples - len(count_list)))
+
+        stats_count[category_type] = {
+            'total': sum(count_list),
+            'mean': sum(count_list) / number_of_samples,
+            'min': min(count_list),
+            'max': max(count_list),
+            'median': statistics.median(count_list),
+            'mode': statistics.mode(count_list) if len(count_list) > 0 else 0,
+            'stddev': statistics.stdev(count_list) if len(count_list) > 1 else 0.0,
+        }
+
+    result_set.metadata.variant_breakdown = stats_count

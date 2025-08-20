@@ -11,11 +11,11 @@ from talos.models import (
     ReportVariant,
     SmallVariant,
 )
+from talos.pedigree_parser import PedigreeParser
 from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
     get_non_ref_samples,
-    make_flexible_pedigree,
 )
 
 ZERO_EXPECTED = 0
@@ -61,7 +61,7 @@ def test_reported_variant_ordering(trio_abs_variant: SmallVariant):
         family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
-        reasons={'test'},
+        reasons='test',
         genotypes={},
     )
     report_2 = ReportVariant(
@@ -69,7 +69,7 @@ def test_reported_variant_ordering(trio_abs_variant: SmallVariant):
         family='1',
         gene='2',
         var_data=deepcopy(trio_abs_variant),
-        reasons={'test'},
+        reasons='test',
         genotypes={},
     )
     assert report_1 == report_2
@@ -147,10 +147,8 @@ def test_comp_hets(two_trio_abs_variants: list[SmallVariant], pedigree_path):
             '20-63406991-C-CGG': [Variant()]
         }
     }
-    :param two_trio_abs_variants:
-    :return:
     """
-    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=make_flexible_pedigree(pedigree_path))
+    ch_dict = find_comp_hets(two_trio_abs_variants, pedigree=PedigreeParser(pedigree_path))
     assert 'male' in ch_dict
     results = ch_dict.get('male')
     assert isinstance(results, dict)
@@ -179,8 +177,6 @@ def test_phased_comp_hets(phased_variants: list[SmallVariant], pedigree_path: st
     """
     phased variants shouldn't form a comp-het
     'mother_1' is het for both variants, but phase-set is same for both
-    :param phased_variants:
-    :return:
     """
-    ch_dict = find_comp_hets(phased_variants, pedigree=make_flexible_pedigree(pedigree_path))
+    ch_dict = find_comp_hets(phased_variants, pedigree=PedigreeParser(pedigree_path))
     assert len(ch_dict) == ZERO_EXPECTED

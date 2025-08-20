@@ -27,29 +27,27 @@ Optionally takes a MANE JSON file, which is used to map Ensembl IDs to gene symb
 - record all variations
 """
 
-import json
-
-import aiohttp
 import asyncio
+import json
 import re
 from argparse import ArgumentParser
-from dateutil.parser import parse
 
+import aiohttp
+from dateutil.parser import parse
 from loguru import logger
 
-from talos.config import config_retrieve, ConfigError
+from talos.config import ConfigError, config_retrieve
 from talos.models import (
-    PanelShort,
-    PhenoPacketHpo,
     DownloadedPanelApp,
     DownloadedPanelAppGene,
     DownloadedPanelAppGenePanelDetail,
+    HpoTerm,
+    PanelShort,
 )
 from talos.utils import (
     get_json_response,
     read_json_from_path,
 )
-
 
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
@@ -93,7 +91,7 @@ class CustomEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[PhenoPacketHpo]]:
+def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[HpoTerm]]:
     """
     query panelapp, collect each panel by its HPO terms
 
@@ -104,7 +102,7 @@ def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[
         dict: {panel_ID: [HPO term, HPO term]}
     """
 
-    panels_by_hpo: dict[int, list[PhenoPacketHpo]] = {}
+    panels_by_hpo: dict[int, list[HpoTerm]] = {}
 
     while True:
         endpoint_data = get_json_response(endpoint)
@@ -114,7 +112,7 @@ def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[
             # can be split over multiple strings, so join then search
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
-                panels_by_hpo[int(panel['id'])].append(PhenoPacketHpo(id=match, label=''))
+                panels_by_hpo[int(panel['id'])].append(HpoTerm(id=match, label=''))
 
         # cycle through additional pages
         if endpoint := endpoint_data['next']:

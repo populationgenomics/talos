@@ -7,8 +7,9 @@ process UnifiedPanelAppParser {
     input:
     	path talos_config
         path panelapp_cache
-        path phenopackets
+        path pedigree
         path hpo
+        path check_file
 
     output:
         path "${params.cohort}_panelapp.json"
@@ -18,7 +19,7 @@ process UnifiedPanelAppParser {
     UnifiedPanelAppParser \
         --input $panelapp_cache \
         --output ${params.cohort}_panelapp.json \
-        --cohort $phenopackets \
+        --pedigree $pedigree \
         --hpo $hpo
     """
 }

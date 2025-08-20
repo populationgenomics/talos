@@ -13,15 +13,14 @@ Read, filter, annotate, classify, and write Genetic data
 
 from argparse import ArgumentParser
 
-import hail as hl
-from cloudpathlib.anypath import to_anypath
 from loguru import logger
-from peds import open_ped
+
+import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
+from talos.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path
-
 
 # set some Hail constants
 MISSING_INT = hl.int32(0)
@@ -517,22 +516,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def get_affected_from_pedigree(ped_file_path: str) -> hl.SetExpression:
-    """Pull out a set of affected members from the pedigree."""
-    set_of_affected_ids: set[str] = set()
-    with to_anypath(ped_file_path).open(encoding='utf-8') as handle:
-        for line in handle:
-            if not line.rstrip() or line.startswith('#'):
-                continue
-            parts = line.rstrip().split()
-            if len(parts) != NUM_PED_COLS:
-                continue
-            if parts[5] == '2':  # affected
-                set_of_affected_ids.add(parts[1])  # sample ID is the second column
-    return hl.literal(set_of_affected_ids)
-
-
-def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTable:
+def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
     The Hail builtin method has limitations around Hemizygous regions
@@ -552,22 +536,25 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['de_novo', 'min_child_ab'], 0.20)
-    min_depth: int = config_retrieve(['de_novo', 'min_depth'], 5)
-    max_depth: int = config_retrieve(['de_novo', 'max_depth'], 1000)
-    min_proband_gq: int = config_retrieve(['de_novo', 'min_proband_gq'], 25)
-    min_alt_depth = config_retrieve(['de_novo', 'min_alt_depth'], 5)
+    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
+    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'], 5)
+    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'], 1000)
+    min_proband_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_proband_gq'], 25)
+    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
 
     # this GQ filter will be applied to all samples, not just probands
     # if the dataset is merged from single-sample VCFs, WT samples for a given allele will have no GQ, so this filter
     # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
-    min_all_sample_gq: int = config_retrieve(['de_novo', 'min_all_sample_gq'], None)
+    min_all_sample_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_all_sample_gq'], None)
 
     logger.info('Running de novo search')
 
     de_novo_matrix = filter_by_consequence(mt)
 
-    pedigree = hl.Pedigree.read(ped_file_path)
+    # takes the parsed pedigree data, writes it to a temporary file as a Strict 6-column format
+    temp_ped_path = 'temp.ped'
+    pedigree_data.write_pedigree(output_path=temp_ped_path)
+    pedigree = hl.Pedigree.read(temp_ped_path)
 
     # allow for depth to be missing, rebuild from other attributes if required, or use a default
     if 'DP' in de_novo_matrix.entry:
@@ -580,7 +567,7 @@ def annotate_category_4(mt: hl.MatrixTable, ped_file_path: str) -> hl.MatrixTabl
         depth = min_depth + 1
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
-    affected_members = get_affected_from_pedigree(ped_file_path)
+    affected_members = hl.literal(pedigree_data.get_affected_member_ids())
 
     de_novo_matrix = de_novo_matrix.filter_entries(
         (min_depth > depth)
@@ -756,28 +743,13 @@ def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
     """
 
     # take all the green genes, remove the metadata
-    green_genes = set(panel_data.genes.keys())
+    green_genes = set(panel_data.genes)
     logger.info(f'Extracted {len(green_genes)} green genes')
     return hl.literal(green_genes)
 
 
-def subselect_mt_to_pedigree(mt: hl.MatrixTable, pedigree: str) -> hl.MatrixTable:
-    """
-    remove any columns from the MT which are not represented in the Pedigree
-    _not_ done: remove variants without calls amongst the current samples
-    that's probably more processing than benefit - will be skipped later
-
-    Args:
-        mt ():
-        pedigree ():
-    Returns:
-        MatrixTable, possibly with fewer columns (samples) present
-    """
-
-    # individual IDs from pedigree
-    ped_samples: set[str] = set()
-    for family in open_ped(pedigree):
-        ped_samples.update({member.id for member in family})
+def subselect_mt_to_pedigree(mt: hl.MatrixTable, ped_samples: set[str]) -> hl.MatrixTable:
+    """Remove any columns from the MT which are not represented in the Pedigree."""
 
     # individual IDs from matrix
     matrix_samples = set(mt.s.collect())
@@ -894,10 +866,12 @@ def main(
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panel_data!r}')
     panelapp = read_json_from_path(panel_data, return_model=PanelApp)
-    assert isinstance(panelapp, PanelApp)
 
     # pull green genes from the panelapp data
     green_expression = green_from_panelapp(panelapp)
+
+    # read the pedigree data
+    pedigree_data: PedigreeParser = PedigreeParser(pedigree)
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
@@ -930,7 +904,7 @@ def main(
     mt = filter_to_population_rare(mt=mt)
 
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, pedigree=pedigree)
+    mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
@@ -971,11 +945,14 @@ def main(
     mt = annotate_category_3(mt=mt)
 
     # insert easy ignore of de novo filtering based on config, to overcome some data format issues
-    if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']):
+    if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']) or config_retrieve(
+        'singletons',
+        False,
+    ):
         logger.info('Skipping de novo annotation, category 4 will not be used during this analysis')
         mt = mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
     else:
-        mt = annotate_category_4(mt=mt, ped_file_path=pedigree)
+        mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data)
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
