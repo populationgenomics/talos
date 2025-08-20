@@ -42,9 +42,7 @@ Talos is **not currently designed** for:
 
 - Analysing **mitochondrial variants, short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
 
-
 > Support for some of these variant types may be added in future releases.
-
 
 Talos complements existing variant curation workflows by focusing on high-specificity identification of variants that are likely to explain a participant’s condition, based on established gene–disease associations and up-to-date variant-level evidence.
 
@@ -64,7 +62,7 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 To build the Docker image:
 
 ```
-docker build -t talos:7.4.2 .
+docker build -t talos:8.0.0 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -73,7 +71,7 @@ Talos requires several large external resources (e.g. reference genome, gnomAD, 
 
 ### **3. Run Annotation Workflow**
 
-This step pre-processes and annotates variants. This workflow only needs to be run once per dataset:
+This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--merged_vcf <path>`:
 
 ```
 nextflow -c nextflow/annotation.config \
@@ -85,12 +83,12 @@ nextflow -c nextflow/annotation.config \
 
 ### **4. Run Variant Prioritisation**
 
-After annotation is complete, run the Talos prioritisation workflow. This workflow is the step required to be re-run regularly for an updated analysis:
+After annotation is complete, run the Talos prioritisation workflow. This workflow should be re-run regularly for an updated analysis:
 
 ```
 nextflow -c nextflow/talos.config \
   run nextflow/talos.nf \
-  --matrix_table nextflow/cohort_outputs/cohort.mt
+  --matrix_table nextflow/cohort_outputs/cohort.mt [--ext_id_map path/to/ext_id_map.tsv]
 ```
 
 ---
@@ -109,7 +107,7 @@ Talos requires the following inputs:
 
 
 ## **🔬 Input Validation**
-The first step of the Talos workflow is a module called StartupChecks, which runs a number of input validations:
+The first step of the Talos workflow is a module called *StartupChecks*, which runs a number of input validations:
 
 1. Checks a config file is present, and checks all required entries are present and have the correct type
 2. Opens the Matrix Table and checks the schema and data types
@@ -157,7 +155,7 @@ Only variants passing configured thresholds and logic modules are returned.
 ## **🔁 Reanalysis Mode**
 
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading/writing state files in a specific folder, which is set in the config file as `result_history`. This allows Talos to track which variants have been seen before, and which have not.
 
 ### **How it works:**
 
@@ -174,7 +172,7 @@ By integrating the results of previous analyses with each new run, each variant 
 - evidence_last_updated: last evidence update (ClinVar, PanelApp)
 
 
-> Talos maintains low review burden by returning only variants with newly actionable evidence.
+> Talos maintains low review burden by allowing users to filter to only variants with newly actionable evidence in each analysis.
 
 ---
 
@@ -215,11 +213,11 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 
 | **Module**    | **Description**                                     |
 |---------------|-----------------------------------------------------|
-| ClinVar_PLP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
-| High_Impact   | Predicted high-impact protein consequences          |
-| De_novo       | Confirmed de novo in affected individual            |
+| ClinVarP/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
+| HighImpact    | Predicted high-impact protein consequences          |
+| DeNovo        | Confirmed de novo in affected individual            |
 | PM5           | Missense in codon with known pathogenic variant     |
-| SV_LOF        | Predicted loss-of-function structural variant       |
+| LofSV         | Predicted loss-of-function structural variant       |
 | AlphaMissense | AlphaMissense-predicted pathogenic missense variant |
 
 Each module can be configured through the `.toml` config file (see [Configuration.md](docs/Configuration.md))

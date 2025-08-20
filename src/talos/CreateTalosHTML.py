@@ -63,7 +63,7 @@ def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
         if not isinstance(id_mapping, dict):
             raise ValueError(f'Expected a dictionary in {ext_id_file}, got {type(id_mapping)}')
 
-    if suffix in ['.tsv', '.csv']:
+    elif suffix in ['.tsv', '.csv']:
         delimiter = ',' if suffix == '.csv' else '\t'
         with file_as_path.open(encoding='utf-8') as handle:
             for line in handle:
@@ -76,6 +76,9 @@ def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
                     raise ValueError(f'Expected two columns in {ext_id_file}, got {len(parts)}')
                 sample_id, ext_id = parts
                 id_mapping[sample_id] = ext_id
+
+    else:
+        raise ValueError(f'Unsupported file format: {ext_id_file} - expected JSON, TSV or CSV, with correct extension.')
 
     return id_mapping
 
