@@ -166,7 +166,7 @@ This is designed to be as flexible as possible, but may be daunting if you're st
 
 ### Links out using an external ID
 - VCF ID: `SAM1`
-- Sample External ID in phenopackets/pedigree: `ExtSam1`
+- Sample External ID in mapping file: `ExtSam1`
 - `CreateTalosHTML.hyperlinks.external` = True
 - Target URLs: `https://seqr.org.au/project/ExtSam1`
   - Template: "https://seqr.org.au/project/{sample}"

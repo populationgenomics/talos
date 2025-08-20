@@ -24,6 +24,7 @@ workflow {
     ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
     ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
     ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
+    ch_opt_ids = channel.fromPath(params.ext_id_map, checkIfExists: true)
 
     // run pre-Talos startup checks
     StartupChecks(
@@ -85,5 +86,6 @@ workflow {
         HPOFlagging.out,
         UnifiedPanelAppParser.out,
         ch_runtime_config,
+        ch_opt_ids,
     )
 }
