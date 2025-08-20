@@ -258,15 +258,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     hl.default_reference('GRCh38')
 
     # read the VCF in as a MatrixTable, and checkpoint it locally
-    mt = hl.import_vcf(
-        vcf_path,
-        reference_genome='GRCh38',
-        skip_invalid_loci=True,
-        force_bgz=True,
-    ).checkpoint(
-        output='temporary.mt',
-        _read_if_exists=True,
-    )
+    mt = hl.read_matrix_table(vcf_path)
 
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)

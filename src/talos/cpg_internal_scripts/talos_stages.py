@@ -347,36 +347,19 @@ class RunHailFilteringSv(stage.CohortStage):
     """
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        if (
-            query_for_latest_analysis(
+        return (
+            generate_dataset_prefix(
                 dataset=cohort.dataset.name,
-                analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
-                long_read=config.config_retrieve(['workflow', 'long_read'], False),
+                stage_name=self.name,
+                hash_value=get_date_string(),
             )
-            is not None
-        ):
-            return (
-                generate_dataset_prefix(
-                    dataset=cohort.dataset.name,
-                    stage_name=self.name,
-                    hash_value=get_date_string(),
-                )
-                / 'labelled_svs.vcf.bgz'
-            )
-        return {}
+            / 'labelled_svs.vcf.bgz'
+        )
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # early skip if the stage has nothing to run on
         expected_out = self.expected_outputs(cohort)
-        if (
-            path_or_none := query_for_latest_analysis(
-                dataset=cohort.dataset.name,
-                analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
-                long_read=config.config_retrieve(['workflow', 'long_read'], False),
-            )
-        ) is None:
-            logger.info(f'No SV MT found for {cohort.id} ({cohort.dataset.name}), skipping')
-            return self.make_outputs(cohort, data=expected_out)
+        sv_mt = config.config_retrieve(['workflow', 'sv_mt'])
 
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
@@ -384,7 +367,7 @@ class RunHailFilteringSv(stage.CohortStage):
 
         cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
         job = set_up_job_with_resources(
-            name=f'RunHailFilteringSV: {cohort.id} ({cohort.dataset.name}), {path_or_none}',
+            name=f'RunHailFilteringSV: {cohort.id} ({cohort.dataset.name}), {sv_mt}',
             cpu=cpu,
             memory='highmem',
         )
@@ -400,18 +383,14 @@ class RunHailFilteringSv(stage.CohortStage):
         # get the MANE json file - used to map gene Symbols <-> IDs
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
 
-        # copy the VCF in
-        annotated_vcf = hail_batch.get_batch().read_input_group(
-            **{
-                'vcf.bgz': path_or_none,
-                'vcf.bgz.tbi': f'{path_or_none}.tbi',
-            },
-        )['vcf.bgz']
+        # copy the MT in
+        job.command(f'gcloud storage cp -r {sv_mt!s} $BATCH_TMPDIR')
+
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
             python -m talos.RunHailFilteringSv \\
-                --input {annotated_vcf} \\
+                --input "${{BATCH_TMPDIR}}/sv.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --mane_json {mane_json} \\
