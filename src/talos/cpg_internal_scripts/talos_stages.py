@@ -319,14 +319,16 @@ class RunHailFiltering(stage.CohortStage):
 
         job.command(f'tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
 
-        # read in the MT using gcloud, directly into batch tmp
-        job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
+        # read in the MT.tar using hail, and decompress it
+        job.command(f'tar -xf {hail_batch.get_batch().read_input(input_mt)} -C $BATCH_TMPDIR')
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
+            ls "${{BATCH_TMPDIR}}"
+            
             python -m talos.RunHailFiltering \\
-                --input "${{BATCH_TMPDIR}}/{cohort.id}.mt" \\
+                --input "${{BATCH_TMPDIR}}/broad-rgp.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --output {job.output['vcf.bgz']} \\
