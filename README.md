@@ -82,7 +82,7 @@ nextflow -c nextflow/annotation.config \
 ```
 
 ```txt
-╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html                                                            
+╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html
 
  N E X T F L O W   ~  version 25.04.6
 
@@ -111,7 +111,7 @@ nextflow -c nextflow/talos.config \
   --matrix_table nextflow/cohort_outputs/cohort.mt [--ext_id_map path/to/ext_id_map.tsv]
 ```
 ```txt
-╰─➤  nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_table nextflow/cohort_outputs/cohort.mt -with-report talos_run.html                                                
+╰─➤  nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_table nextflow/cohort_outputs/cohort.mt -with-report talos_run.html
 
  N E X T F L O W   ~  version 25.04.6
 
@@ -125,7 +125,7 @@ executor >  local (6)
 [1f/84ddaa] process > HPOFlagging (1)           [100%] 1 of 1 ✔
 [9a/f2a945] process > CreateTalosHTML (1)       [100%] 1 of 1 ✔
 Completed at: 20-Aug-2025 11:33:23
-Duration    : 7m 16s       
+Duration    : 7m 16s
 CPU hours   : 0.1
 Succeeded   : 6
 ```
