@@ -11,9 +11,10 @@ process CreateTalosHTML {
         path talos_config
         path ext_ids
 
-    // tarchive of the index page and all per-family reports
+    // reports folder, and tarchive of all reports
     output:
         path "${params.cohort}_report.tar.gz"
+        path "${params.cohort}_report"
 
 	// add the external IDs file if provided
 	script:

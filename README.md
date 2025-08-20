@@ -81,6 +81,26 @@ nextflow -c nextflow/annotation.config \
   [--merged_vcf <path>]
 ```
 
+```txt
+╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html                                                            
+
+ N E X T F L O W   ~  version 25.04.6
+
+Launching `nextflow/annotation.nf` [clever_gutenberg] DSL2 - revision: 0db0088239
+
+executor >  local (6)
+[d4/943f57] process > MergeVcfsWithBcftools (1)             [100%] 1 of 1 ✔
+[6c/2357d2] process > MakeSitesOnlyVcfWithBcftools (1)      [100%] 1 of 1 ✔
+[bf/82d4d4] process > AnnotateGnomadAfWithEchtvar (1)       [100%] 1 of 1 ✔
+[54/17d1b2] process > AnnotateCsqWithBcftools (1)           [100%] 1 of 1 ✔
+[c7/dacf20] process > ReformatAnnotatedVcfIntoHailTable (1) [100%] 1 of 1 ✔
+[65/ace33a] process > TransferAnnotationsToMatrixTable (1)  [100%] 1 of 1 ✔
+Completed at: 20-Aug-2025 11:24:04
+Duration    : 10m 50s
+CPU hours   : 0.2
+Succeeded   : 6
+```
+
 ### **4. Run Variant Prioritisation**
 
 After annotation is complete, run the Talos prioritisation workflow. This workflow should be re-run regularly for an updated analysis:
@@ -90,6 +110,25 @@ nextflow -c nextflow/talos.config \
   run nextflow/talos.nf \
   --matrix_table nextflow/cohort_outputs/cohort.mt [--ext_id_map path/to/ext_id_map.tsv]
 ```
+```txt
+╰─➤  nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_table nextflow/cohort_outputs/cohort.mt -with-report talos_run.html                                                
+
+ N E X T F L O W   ~  version 25.04.6
+
+Launching `nextflow/talos.nf` [focused_murdock] DSL2 - revision: 40d4509d71
+
+executor >  local (6)
+[bd/99ef0c] process > StartupChecks (1)         [100%] 1 of 1 ✔
+[f2/68d5b8] process > UnifiedPanelAppParser (1) [100%] 1 of 1 ✔
+[b5/447858] process > RunHailFiltering (1)      [100%] 1 of 1 ✔
+[0b/5aa7fd] process > ValidateMOI (1)           [100%] 1 of 1 ✔
+[1f/84ddaa] process > HPOFlagging (1)           [100%] 1 of 1 ✔
+[9a/f2a945] process > CreateTalosHTML (1)       [100%] 1 of 1 ✔
+Completed at: 20-Aug-2025 11:33:23
+Duration    : 7m 16s       
+CPU hours   : 0.1
+Succeeded   : 6
+```
 
 ---
 
@@ -97,13 +136,12 @@ nextflow -c nextflow/talos.config \
 
 Talos requires the following inputs:
 
-| **Input type**                  | **Description**                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Variant data**                | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers. |
-| **Pedigree file**               | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                 |
-| **ClinVar data**                | [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data. The most recent version is available on [Zenodo](https://zenodo.org/records/16792026), and will be downloaded by running the [large_files setup script](large_files/gather_file.sh).                                                            |
-| **Configuration file**          | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                             |
-|                                 |                                                                                                                                                                                                                                                                                                                                  |
+| **Input type**         | **Description**                                                                                                                                                                                                                                                                                                                  |
+|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Variant data**       | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers. |
+| **Pedigree file**      | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                 |
+| **Configuration file** | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                             |
+| **Annotation files**   | Various, incuding [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data, gnomAD frequencies, Ensembl GTF, and MANE gene data. These are downloaded by running the [large_files setup script](large_files/gather_file.sh).                                                                              |
 
 
 ## **🔬 Input Validation**
@@ -192,7 +230,7 @@ Talos supports phenotype-driven filtering using **HPO terms**. See [Pedigree.md]
 When provided, phenotype terms are used to:
 
 * Build a more accurate gene panel for each analysis, working with PanelApp to match disease-focused panels to HPO terms
-* Prioritises variants in the report by visually indicating variants in genes which are on disease-specific panels, or where the participant and Gene HPO termsets share phenotypic similarities
+* Prioritise variants in the HTML by highlighting variants in genes which are on disease-specific panels, or where the participant and Gene HPO termsets share phenotypic similarities
 
 ---
 
