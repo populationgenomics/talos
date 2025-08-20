@@ -223,12 +223,13 @@ class MakeHpoPedigree(stage.CohortStage):
         # insert a little stagger
         job.command(f'sleep {randint(0, 180)}')
 
+        tech_string = '--tech long-read' if config.config_retrieve(['workflow', 'long_read'], False) else ''
         job.command(
             f"""
             python -m talos.cpg_internal_scripts.MakeHpoPedigree \\
                 --dataset {query_dataset} \\
                 --output {job.output} \\
-                --type {seq_type}
+                --type {seq_type} {tech_string}
             """,
         )
         hail_batch.get_batch().write_output(job.output, expected_out)
