@@ -6,7 +6,6 @@ from cpg_utils import Path, config, to_path
 
 from metamist import graphql
 
-
 LONG_READ_STRING = 'LongRead'
 METAMIST_ANALYSIS_QUERY = graphql.gql(
     """
