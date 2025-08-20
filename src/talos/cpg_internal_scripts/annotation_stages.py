@@ -43,7 +43,7 @@ from cpg_utils import Path
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     AnnotateConsequenceUsingBcftools,
-    AnnotateGnomadUsingEchtvar,
+    AnnotateGnomadFrequencies,
     ComposeVcfFragments,
     ExtractVcfFromMt,
     JumpAnnotationsFromHtToFinalMt,
@@ -169,7 +169,7 @@ class AnnotateGnomadUsingEchtvar(stage.CohortStage):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
             return self.make_outputs(cohort, output, jobs=[])
 
-        job = AnnotateGnomadUsingEchtvar.make_echtvar_job(
+        job = AnnotateGnomadFrequencies.make_echtvar_job(
             cohort_id=cohort.id,
             sites_only_vcf=site_only_vcf,
             output=output,
