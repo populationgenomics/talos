@@ -138,21 +138,23 @@ And finally, there are some further meta-parameters which control the variants b
 | `hyperlinks.template`         | Mandatory if `hyperlinks` section is present. A String template containing an instance of `{sample}` for interpolating with the chosen Sample ID. This should define a template link to a per-family or per-proband resource                                                                                           |
 | `hyperlinks.variant_template` | Similar to `template`, but containing both `{variant}` and `{sample}`. This is used to generate a link to a per-variant resource, embedding both Sample ID and `chr-pos-ref-alt` (seqr/gnomAD-style)                                                                                                                   |
 | `hyperlinks.lookup`           | Optional, a JSON file mapping the VCF sample IDs to external IDs. If absent, the VCF IDs are embedded into any URLs generated                                                                                                                                                                                          |
-| `hyperlinks.external`         | Boolean, if False (default) the VCF ID will be looked up in `lookup` (if present), or embedded directly into Template strings. If True, the sample `ext_id` (present in the phenopacket data) will be used as an index in the `lookup` dict or embedded into Strings if lookup is absent.                              |
 
 This is designed to be as flexible as possible, but may be daunting if you're starting from scratch. Worked examples:
 
 ### Links out using the exact VCF ID
+
+- Scenario: I want to generate links using a template, where the sample ID from the VCF is used in the hyperlink
 - VCF ID: `SAM1`
 - Target URLs: `https://seqr.org.au/project/SAM1`
   - Template: "https://seqr.org.au/project/{sample}"
 - Target per-variant URLs: `https://seqr.org.au/project/variants/1-12345-A-C/family/SAM1`
-  - Per-variant template: "https://seqr.org.au/project/variants/{variant}/family/{sample}"
+  - Variant template: "https://seqr.org.au/project/variants/{variant}/family/{sample}"
 
-### Links out using a looked-up ID
+### Links out using an alternate ID
+- Scenario: I want to generate links using a template, but the sample ID from the VCF is not suitable for the target URL, so I want to map from the VCF sample ID to a URL-appropriate ID in a TSV/CSV/JSON file
 - VCF ID: `SAM1`
 - Link ID: `ExtSam1`
-- Lookup JSON
+- Lookup JSON (file identified by `hyperlinks.lookup`)
 ```json
 {
     "SAM1": "ExtSam1",
@@ -162,13 +164,4 @@ This is designed to be as flexible as possible, but may be daunting if you're st
 - Target URLs: `https://seqr.org.au/project/ExtSam1`
   - Template: "https://seqr.org.au/project/{sample}"
 - Target per-variant URLs: `https://seqr.org.au/project/variants/1-12345-A-C/family/ExtSam1`
-  - Per-variant template: "https://seqr.org.au/project/variants/{variant}/family/{sample}"
-
-### Links out using an external ID
-- VCF ID: `SAM1`
-- Sample External ID in mapping file: `ExtSam1`
-- `CreateTalosHTML.hyperlinks.external` = True
-- Target URLs: `https://seqr.org.au/project/ExtSam1`
-  - Template: "https://seqr.org.au/project/{sample}"
-- Target per-variant URLs: `https://seqr.org.au/project/variants/1-12345-A-C/family/ExtSam1`
-  - Per-variant template: "https://seqr.org.au/project/variants/{variant}/family/{sample}"
+  - Variant template: "https://seqr.org.au/project/variants/{variant}/family/{sample}"

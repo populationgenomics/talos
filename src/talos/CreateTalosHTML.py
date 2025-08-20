@@ -493,7 +493,9 @@ class LinkEngine:
         Args:
             template (str): mandatory - without this there's no sense generating an instance
             variant_template (str): optional, if there's a string here, we'll try and generate variant-specific links
-            external (bool): if True, embed/lookup external IDs in the lookup dictionary. Default is sample.name
+            external (bool): if True, embed/lookup external IDs in the lookup dictionary. Default is sample.name.
+                             This is mostly for a CPG internal use-case, where the seqr lookup and external lookup come
+                             from different sources. The Lookup variable makes this redundant.
             lookup (dict): optional, a path to a JSON dictionary. Can be used to connect sample ID -> arbitrary ID
         """
         self.template = template
