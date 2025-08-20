@@ -99,7 +99,7 @@ def query_for_latest_analysis(
                 continue
 
             # manually implementing an XOR check - long read (bool) and LongRead in output must match
-            if long_read != LONG_READ_STRING in analysis['output']:
+            if long_read != (LONG_READ_STRING in analysis['output']):
                 loguru.logger.debug(
                     f'Skipping analysis {analysis["output"]} for dataset {query_dataset}. '
                     f'It does not match query parameter long_read={long_read}',
