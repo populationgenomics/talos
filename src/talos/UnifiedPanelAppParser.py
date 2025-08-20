@@ -390,6 +390,16 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
     if forbidden_genes := config_retrieve(['GeneratePanelData', 'forbidden_genes'], None):
         remove_blacklisted_genes(panelapp_data, forbidden_genes)
 
+    # if any genes require a phenotype match, but didn't find one (only on base panel), remove them from consideration
+    if pheno_match := config_retrieve(['GeneratePanelData', 'require_pheno_match'], []):
+        genes_to_remove = set()
+        for ensg, gene_details in panelapp_data.genes.items():
+            # check for a match to either the ENSG ID or the gene symbol in the list from config
+            if (ensg in pheno_match or gene_details.symbol in pheno_match) and gene_details.panels == {DEFAULT_PANEL}:
+                genes_to_remove.add(ensg)
+
+        panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}
+
     # validate and write using pydantic
     valid_cohort_details = PanelApp.model_validate(panelapp_data)
     with open(output_file, 'w', encoding='utf-8') as handle:
