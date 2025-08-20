@@ -46,13 +46,12 @@ pedigree_file = "path/to/pedigree.ped"
 
 pedigree = PedigreeParser(pedigree_file)
 
-# Each pedigree row is parsed into a Participant object
-# These are accessible via the `participants` attribute
+# Each pedigree row is parsed into a Participant object, accessible via the `participants` attribute
 for sample_id, participant in pedigree.participants.items():
     print(f"""
-        Sample ID: {sample_id}, Family ID: {participant.family_id},\
-        Father ID: {participant.father_id}, Mother ID: {participant.mother_id},\
-        Sex: {participant.sex}. Affected: {participant.affected}
+Sample ID: {sample_id}, Family ID: {participant.family_id}, \
+Father ID: {participant.father_id}, Mother ID: {participant.mother_id}, \
+Sex: {participant.sex}. Affected: {participant.affected}
     """)
 
     # You can also access the HPO terms for each participant
@@ -72,22 +71,29 @@ ids = pedigree.get_all_sample_ids()
 affected_participants = pedigree.get_affected_members()
 affected_ids = pedigree.get_affected_member_ids()
 
-# If you want to reduce the pedigree content to only a subset of participants (by sample ID)
-subset_data = pedigree.strip_pedigree_to_samples(['sam1', 'sam2', 'sam3'])
+# The data can be written back out to a clean 6-column pedigree file
+pedigree.write_pedigree("path/to/output.ped")
 
-# If you want the parsed pedigree content, but as singletons (no relationships between samples)
+# there are a few methods to update/edit the parsed pedigree content. These return the participants data, but by default
+# do not update the instance's internal data.
+
+# If you want to reduce the pedigree content to only a subset of participants (by sample ID)
+subset_data: dict[str, Participant] = pedigree.strip_pedigree_to_samples(['SAM1', 'SAM2', 'SAM3'])
+
+# If you want the parsed pedigree content, but as singletons (remove relationships between samples)
 singleton_data = pedigree.as_singletons()
 
-# And the data can be written back out to a clean 6-column pedigree file
-pedigree.write_pedigree("path/to/output.ped")
+# the write method can take a dictionary of participants and will write that instead of the class instance content
+pedigree.write_pedigree("path/to/singletons.ped", participants=singleton_data)
 
 # if you want to permanently update the original pedigree data to singleton/subset data, you can use set_participants
 pedigree.set_participants(singleton_data)
 
-# this method can take a dictionary of participants and will write that instead
-pedigree.write_pedigree("path/to/singletons.ped", participants=singleton_data)
+# or to only write the subset of the data to the file - these are equivalent:
+# a write with an on-the-fly subset
+pedigree.write_pedigree("path/to/subset.ped", only_participants=['SAM1', 'SAM2', 'SAM3'])
 
-# or to only write the subset of the data to the file
-pedigree.set_participants(subset_data)
-pedigree.write_pedigree("path/to/subset.ped", only_participants=['sam1', 'sam2', 'sam3'])
+# overwriting the instance data and then writing
+pedigree.set_participants(pedigree.strip_pedigree_to_samples(['SAM1', 'SAM2', 'SAM3']))
+pedigree.write_pedigree("path/to/subset.ped")
 ```
