@@ -142,7 +142,7 @@ class MakeRuntimeConfig(stage.CohortStage):
         )
         return {
             'config': prefix / 'config.toml',
-            'seqr_lookup': prefix / 'seqr_lookup.csv',
+            'seqr_lookup': prefix / 'seqr_lookup.json',
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
