@@ -496,7 +496,7 @@ class LinkEngine:
             external (bool): if True, embed/lookup external IDs in the lookup dictionary. Default is sample.name.
                              This is mostly for a CPG internal use-case, where the seqr lookup and external lookup come
                              from different sources. The Lookup variable makes this redundant.
-            lookup (dict): optional, a path to a JSON dictionary. Can be used to connect sample ID -> arbitrary ID
+            lookup (dict): optional, a path to a CSV/TSV/JSON file, used to connect sample ID -> arbitrary ID
         """
         self.template = template
         self.variant_template = variant_template
