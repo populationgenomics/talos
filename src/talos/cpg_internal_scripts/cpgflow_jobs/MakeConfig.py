@@ -1,8 +1,8 @@
 import functools
 
 import toml
-from cpg_utils import Path, config
 from cpg_flow import targets
+from cpg_utils import Path, config
 
 from metamist.apis import ProjectApi, WebApi
 from talos.cpg_internal_scripts import cpg_flow_utils
