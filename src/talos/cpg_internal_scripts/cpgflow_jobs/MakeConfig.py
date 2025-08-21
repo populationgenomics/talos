@@ -2,6 +2,7 @@ import functools
 
 import toml
 from cpg_utils import Path, config
+from cpg_flow import targets
 
 from metamist.apis import ProjectApi, WebApi
 from talos.cpg_internal_scripts import cpg_flow_utils
@@ -40,15 +41,25 @@ def get_seqr_project(dataset: str, seq_type: str) -> str | None:
     return project_id
 
 
-def get_hyperlink_section(dataset: str, seq_type: str, mapping_path: Path) -> dict | None:
-    """"""
+def get_hyperlink_section(cohort: targets.Cohort, seq_type: str, mapping_path: Path) -> dict | None:
+    """
+    Retrieve the hyperlink section for the cohort, including seqr project ID and mapping file.
+    The Seqr project and SGID-SeqrID mapping is retrieved from Metamist
+    """
+    dataset = cohort.dataset.name
     if config.config_retrieve(['workflow', 'access_level']) == 'test' and 'test' not in dataset:
         dataset += '-test'
 
     if project_id := get_seqr_project(dataset, seq_type=seq_type):
         mapping = WEB_API.get_seqr_family_guid_map(seq_type, project=dataset)
+        cpg_to_seqr_id = {
+            sg.id: mapping.get(sg.pedigree.fam_id)
+            for sg in cohort.get_sequencing_groups()
+            if sg.pedigree.fam_id in mapping
+        }
         with mapping_path.open('w', encoding='utf-8') as file_handle:
-            file_handle.write(mapping)
+            file_handle.write(cpg_to_seqr_id)
+
         project_template = f'https://seqr.populationgenomics.org.au/project/{project_id}/family_page/{{sample}}'
         variant_template = 'https://seqr.populationgenomics.org.au/variant_search/variant/{variant}/family/{sample}'
         return {
@@ -60,7 +71,8 @@ def get_hyperlink_section(dataset: str, seq_type: str, mapping_path: Path) -> di
     return None
 
 
-def create_config(dataset: str, seqr_out: Path, config_out: Path):
+def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
+    dataset = cohort.dataset.name
     # start off with a fresh config dictionary, including generic content
     new_config = {
         'GeneratePanelData': config.config_retrieve(['GeneratePanelData']),
@@ -99,7 +111,7 @@ def create_config(dataset: str, seqr_out: Path, config_out: Path):
 
     # adapt to new hyperlink config structure
     if hyperlinks := get_hyperlink_section(
-        dataset=dataset,
+        cohort=cohort,
         seq_type=seq_type,
         mapping_path=seqr_out,
     ):

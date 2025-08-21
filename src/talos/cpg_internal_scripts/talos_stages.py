@@ -149,7 +149,7 @@ class MakeRuntimeConfig(stage.CohortStage):
         expected_outputs = self.expected_outputs(cohort)
 
         MakeConfig.create_config(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             seqr_out=expected_outputs['seqr_lookup'],
             config_out=expected_outputs['config'],
         )
