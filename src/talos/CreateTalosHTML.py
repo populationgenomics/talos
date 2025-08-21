@@ -40,7 +40,7 @@ MEAN_SLASH_SAMPLE = 'Mean/sample'
 
 # reactive to different versions of gnomAD
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
-GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
+GNOMAD_SV_KEY = f'{GNOMAD_POP}_svid'
 
 
 def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
