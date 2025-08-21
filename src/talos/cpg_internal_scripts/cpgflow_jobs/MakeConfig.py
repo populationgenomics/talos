@@ -1,16 +1,13 @@
 import functools
+
 import toml
+from cpg_utils import Path, config
 
-from metamist.apis import ProjectApi, SeqrApi, WebApi
-
-from cpg_utils import config, Path
-
+from metamist.apis import ProjectApi, WebApi
 from talos.cpg_internal_scripts import cpg_flow_utils
-
 
 PROJECT_API = ProjectApi()
 WEB_API = WebApi()
-SEQR_API = SeqrApi()
 
 
 @functools.lru_cache(maxsize=1)
@@ -113,5 +110,3 @@ def create_config(dataset: str, seqr_out: Path, config_out: Path):
 
     with config_out.open('w') as write_handle:
         toml.dump(new_config, write_handle)
-
-    return

@@ -12,9 +12,9 @@ from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, config, hail_batch, to_path
 from loguru import logger
 
-from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
 from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
 from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
+from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
 from talos.utils import get_granular_date
 
 if TYPE_CHECKING:
