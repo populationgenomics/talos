@@ -909,8 +909,16 @@ def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
     logger.info(f'Using results from {results_folder}')
 
     # this is currently a CloudPath to access globbing for files in cloud or local settings
-    date_files = {date_from_string(filename.name): filename for filename in to_anypath(results_folder).glob(f'*.{ext}')}
+    date_files = {}
+    for filename in to_anypath(results_folder).glob(f'*.{ext}'):
+        # if the filename is a valid date, add it to the dict, otherwise catch the error and skip it
+        try:
+            date_files[date_from_string(filename.name)] = filename
+        except ValueError:
+            logger.info(f'File {filename} did not have a valid date, skipping')
+
     if not date_files:
+        logger.warning(f'The folder {results_folder} was provided, but did not contain any valid files')
         return None
 
     return str(date_files[max(date_files.keys())].absolute())
