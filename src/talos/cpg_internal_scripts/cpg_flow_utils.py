@@ -20,6 +20,24 @@ METAMIST_ANALYSIS_QUERY = graphql.gql(
     }
 """,
 )
+METAMIST_FAMILY_SG_QUERY = graphql.gql(
+    """
+    query MyQuery($dataset: String!) {
+        project(name: $dataset) {
+            sequencingGroups {
+                sample {
+                    participant {
+                        families {
+                            externalId
+                        }
+                    }
+                }
+                id
+            }
+        }
+    }
+""",
+)
 
 
 @functools.cache
@@ -53,6 +71,27 @@ def generate_dataset_prefix(
     )
 
     return to_path(config.dataset_path(suffix=suffix, dataset=dataset, category=category))
+
+
+def query_for_sg_family_id_map(dataset: str) -> dict[str, str]:
+    """
+    Query for the mapping of Seqr IDs to CPG Family IDs for a given dataset.
+
+    Args:
+        dataset (str): project to query for
+    Returns:
+        dict[str, str]: mapping of Seqr IDs to CPG Family IDs
+    """
+    # swapping to a string we can freely modify
+    loguru.logger.info(f'Querying for Seqr Family ID map in {dataset}')
+
+    result = graphql.query(METAMIST_FAMILY_SG_QUERY, variables={'dataset': dataset})
+
+    return {
+        sg['id']: sg['sample']['participant']['families'][0]['externalId']
+        for sg in result['project']['sequencingGroups']
+        if sg['sample']['participant']['families']
+    }
 
 
 @functools.cache

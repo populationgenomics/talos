@@ -8,13 +8,13 @@ from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
-import toml
 from cpg_flow import stage, targets, workflow
 from cpg_utils import Path, config, hail_batch, to_path
 from loguru import logger
 
 from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
 from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
+from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
 from talos.utils import get_granular_date
 
 if TYPE_CHECKING:
@@ -134,64 +134,25 @@ class MakeRuntimeConfig(stage.CohortStage):
     this new unambiguous config file should be used in all jobs
     """
 
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return (
-            generate_dataset_prefix(
-                dataset=cohort.dataset.name,
-                stage_name=self.name,
-                hash_value=get_date_string(),
-            )
-            / 'config.toml'
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
+        prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name=self.name,
+            hash_value=get_date_string(),
         )
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        # start off with a fresh config dictionary, including generic content
-        new_config = {
-            'GeneratePanelData': config.config_retrieve(['GeneratePanelData']),
-            'RunHailFiltering': config.config_retrieve(['RunHailFiltering']),
-            'RunHailFilteringSv': config.config_retrieve(['RunHailFilteringSv']),
-            'ValidateMOI': config.config_retrieve(['ValidateMOI']),
-            'HPOFlagging': config.config_retrieve(['HPOFlagging']),
-            'CreateTalosHTML': {},  # populate from a separate part of config
-            'dataset': cohort.dataset.name,
-            'sequencing_type': config.config_retrieve(['workflow', 'sequencing_type']),
-            'long_read': config.config_retrieve(['workflow', 'long_read'], False),
-            'singletons': config.config_retrieve(['workflow', 'singletons'], False),
+        return {
+            'config': prefix / 'config.toml',
+            'seqr_lookup': prefix / 'seqr_lookup.json',
         }
 
-        # pull the content relevant to this cohort + sequencing type (mandatory in CPG)
-        seq_type = config.config_retrieve(['workflow', 'sequencing_type'])
-        dataset_conf = config.config_retrieve(['cohorts', cohort.dataset.name])
-        seq_type_conf = dataset_conf.get(seq_type, {})
-
-        # forbidden genes and forced panels
-        new_config['GeneratePanelData'].update(
-            {
-                'forbidden_genes': dataset_conf.get('forbidden', []),
-                'forced_panels': dataset_conf.get('forced_panels', []),
-                'blacklist': dataset_conf.get('blacklist', None),
-            },
-        )
-
-        # optionally, all SG IDs to remove from analysis
-        new_config['ValidateMOI']['solved_cases'] = dataset_conf.get('solved_cases', [])
-
-        # adapt to new hyperlink config structure
-        if hyperlinks := seq_type_conf.get('hyperlinks'):
-            new_config['CreateTalosHTML']['hyperlinks'] = hyperlinks
-
-        if 'external_labels' in seq_type_conf:
-            new_config['CreateTalosHTML']['external_labels'] = seq_type_conf['external_labels']
-
-        # add a location for the run history files
-        if 'result_history' in seq_type_conf:
-            new_config['result_history'] = seq_type_conf['result_history']
-
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         expected_outputs = self.expected_outputs(cohort)
 
-        with expected_outputs.open('w') as write_handle:
-            toml.dump(new_config, write_handle)
-
+        MakeConfig.create_config(
+            cohort=cohort,
+            seqr_out=expected_outputs['seqr_lookup'],
+            config_out=expected_outputs['config'],
+        )
         return self.make_outputs(target=cohort, data=expected_outputs)
 
 
@@ -259,14 +220,14 @@ class UnifiedPanelAppParser(stage.CohortStage):
         job = set_up_job_with_resources(name=f'UnifiedPanelAppParser: {cohort.id} ({cohort.dataset.name})', cpu=1)
 
         # read in the config made in MakeRuntimeConfig
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
 
         # read in the output from DownloadPanelAppData
         panelapp_download = hail_batch.get_batch().read_input(
-            inputs.as_path(target=workflow.get_multicohort(), stage=DownloadPanelAppData),
+            inputs.as_path(workflow.get_multicohort(), DownloadPanelAppData),
         )
 
-        local_ped = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
+        local_ped = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
 
         hpo_file = hail_batch.get_batch().read_input(config.config_retrieve(['GeneratePanelData', 'obo_file']))
 
@@ -316,7 +277,7 @@ class RunHailFiltering(stage.CohortStage):
         input_mt = inputs.as_path(cohort, TransferAnnotationsToMt)
 
         # use the new config file
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
 
         # Talos-prep workflow does a lot of compression, which is nice
         # MTs can vary from <10GB for a small exome, to 170GB for a larger one, Genomes ~200GB
@@ -333,10 +294,10 @@ class RunHailFiltering(stage.CohortStage):
         )
         job.command('set -eux pipefail')
 
-        panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
+        panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
 
         # peds can't read cloud paths
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
         expected_out = self.expected_outputs(cohort)
 
         # copy vcf & index out manually
@@ -417,9 +378,9 @@ class RunHailFilteringSv(stage.CohortStage):
             logger.info(f'No SV MT found for {cohort.id} ({cohort.dataset.name}), skipping')
             return self.make_outputs(cohort, data=expected_out)
 
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
-        panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
+        panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
 
         cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
         job = set_up_job_with_resources(
@@ -491,12 +452,12 @@ class ValidateVariantInheritance(stage.CohortStage):
         job = set_up_job_with_resources(name=f'ValidateMOI: {cohort.id} ({cohort.dataset.name})', cpu=2.0)
 
         # use the new config file
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
 
-        panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=UnifiedPanelAppParser))
+        panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
 
-        pedigree = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeHpoPedigree))
-        hail_inputs = inputs.as_path(target=cohort, stage=RunHailFiltering)
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
+        hail_inputs = inputs.as_path(cohort, RunHailFiltering)
 
         # either find a SV vcf, or None
         if (
@@ -507,7 +468,7 @@ class ValidateVariantInheritance(stage.CohortStage):
             )
             is not None
         ):
-            hail_sv_inputs = inputs.as_path(target=cohort, stage=RunHailFilteringSv)
+            hail_sv_inputs = inputs.as_path(cohort, RunHailFilteringSv)
             labelled_sv_vcf = hail_batch.get_batch().read_input_group(
                 **{'vcf.bgz': hail_sv_inputs, 'vcf.bgz.tbi': f'{hail_sv_inputs}.tbi'},
             )['vcf.bgz']
@@ -570,10 +531,10 @@ class HpoFlagging(stage.CohortStage):
         )
 
         # use the new config file
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, key='config'))
 
         results_json = hail_batch.get_batch().read_input(
-            inputs.as_path(target=cohort, stage=ValidateVariantInheritance),
+            inputs.as_path(cohort, ValidateVariantInheritance),
         )
 
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
@@ -631,7 +592,7 @@ class CreateTalosHtml(stage.CohortStage):
         job = set_up_job_with_resources(name=f'CreateTalosHtml: {cohort.id} ({cohort.dataset.name})')
 
         # use the new config file
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
 
         expected_out = self.expected_outputs(cohort)
 
@@ -712,9 +673,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
             logger.warning(f'No Seqr lookup file for {cohort.id} ({cohort.dataset.name}) {seq_type}')
             return self.make_outputs(cohort, skipped=True)
 
-        input_localised = hail_batch.get_batch().read_input(
-            inputs.as_str(target=cohort, stage=HpoFlagging),
-        )
+        input_localised = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging))
 
         # create a job to run the minimisation script
         job = set_up_job_with_resources(
@@ -723,7 +682,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
         )
 
         # use the new config file
-        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(target=cohort, stage=MakeRuntimeConfig))
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
 
         lookup_in_batch = hail_batch.get_batch().read_input(seqr_lookup)
         job.command(f'export TALOS_CONFIG={runtime_config}')
