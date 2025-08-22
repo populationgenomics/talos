@@ -29,14 +29,14 @@ def get_seqr_project(dataset: str, seq_type: str) -> str | None:
         return None
 
     # if is_seqr is false, skip it
-    if not section.get('is_seqr', False):
+    if not section['meta'].get('is_seqr', False):
         return None
     seqr_key = f'seqr-project-{seq_type}'
     if config.config_retrieve(['workflow', 'long_read'], False):
         seqr_key = f'{seqr_key}-long-read'
 
     # if the seqr key for this combination is not present, return None
-    if not (project_id := section.get(seqr_key, '')):
+    if not (project_id := section['meta'].get(seqr_key, '')):
         return None
     return project_id
 
@@ -51,11 +51,15 @@ def get_hyperlink_section(cohort: targets.Cohort, seq_type: str, mapping_path: P
         dataset += '-test'
 
     if project_id := get_seqr_project(dataset, seq_type=seq_type):
+        # get the mapping of Family ID to Seqr ID
         mapping = WEB_API.get_seqr_family_guid_map(seq_type, project=dataset)
+
+        # get the mapping of SG ID to Family ID
+        sg_to_fam = cpg_flow_utils.query_for_sg_family_id_map(dataset)
+
+        # mix them up to get SG ID: Seqr ID
         cpg_to_seqr_id = {
-            sg.id: mapping.get(sg.pedigree.fam_id)
-            for sg in cohort.get_sequencing_groups()
-            if sg.pedigree.fam_id in mapping
+            sg.id: mapping.get(sg_to_fam[sg.id]) for sg in cohort.get_sequencing_groups() if sg_to_fam[sg.id] in mapping
         }
         with mapping_path.open('w', encoding='utf-8') as file_handle:
             file_handle.write(cpg_to_seqr_id)
@@ -87,7 +91,6 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
         'singletons': config.config_retrieve(['workflow', 'singletons'], False),
         'result_history': cpg_flow_utils.generate_dataset_prefix(
             dataset=dataset,
-            category='analysis',
             hash_value='history',
         ),
     }
