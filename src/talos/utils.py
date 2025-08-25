@@ -77,6 +77,36 @@ DOI_URL = 'https://doi.org/'
 PHASE_BROKEN: bool = False
 
 
+# template SQL for interacting with the history/state DB
+INSERT_VAR_QUERY = 'INSERT INTO variants (contig, position, reference, alternate) VALUES (?, ?, ?, ?);'
+INSERT_CAT_QUERY = 'INSERT INTO categories (var_id, sample_id, category, date) VALUES (?, ?, ?, ?);'
+INSERT_PARTNER_QUERY = 'INSERT INTO partners (var_id, sample_id, partners) VALUES (?, ?, ?);'
+INSERT_VARSTARS_QUERY = 'INSERT INTO var_stars (var_id, sample_id, clinvar_stars) VALUES (?, ?, ?);'
+
+# update the clinvar stars if we see a new value
+UPDATE_CLINVAR_QUERY = 'UPDATE var_stars SET clinvar_stars = ? WHERE var_id = ? AND sample_id = ?;'
+
+# inner join on variants and categories, left join on partners (optional). Basically, get everything for a sample
+QUERY_SAMPLE_ALL = """
+    SELECT
+        variants.var_id,
+        variants.contig,
+        variants.position,
+        variants.reference,
+        variants.alternate,
+        categories.category,
+        categories.date,
+        var_stars.clinvar_stars,
+        partners.partners
+    FROM
+    (variants INNER JOIN categories ON variants.var_id = categories.var_id)
+    LEFT JOIN partners ON variants.var_id = partners.var_id AND categories.sample_id = partners.sample_id
+    LEFT JOIN var_stars ON variants.var_id = var_stars.var_id AND categories.sample_id = var_stars.sample_id
+    WHERE
+        categories.sample_id = "{}";
+"""
+
+
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
     Read the MANE JSON and filter it to the relevant fields
@@ -1000,35 +1030,6 @@ def generate_summary_stats(result_set: ResultData):
         }
 
     result_set.metadata.variant_breakdown = stats_count
-
-
-INSERT_VAR_QUERY = 'INSERT INTO variants (contig, position, reference, alternate) VALUES (?, ?, ?, ?);'
-INSERT_CAT_QUERY = 'INSERT INTO categories (var_id, sample_id, category, date) VALUES (?, ?, ?, ?);'
-INSERT_PARTNER_QUERY = 'INSERT INTO partners (var_id, sample_id, partners) VALUES (?, ?, ?);'
-INSERT_VARSTARS_QUERY = 'INSERT INTO var_stars (var_id, sample_id, clinvar_stars) VALUES (?, ?, ?);'
-
-# update the clinvar stars if we see a new value
-UPDATE_CLINVAR_QUERY = 'UPDATE var_stars SET clinvar_stars = ? WHERE var_id = ? AND sample_id = ?;'
-
-# inner join on variants and categories, left join on partners (optional)
-QUERY_SAMPLE_ALL = """
-    SELECT
-        variants.var_id,
-        variants.contig,
-        variants.position,
-        variants.reference,
-        variants.alternate,
-        categories.category,
-        categories.date,
-        var_stars.clinvar_stars,
-        partners.partners
-    FROM
-    (variants INNER JOIN categories ON variants.var_id = categories.var_id)
-    LEFT JOIN partners ON variants.var_id = partners.var_id AND categories.sample_id = partners.sample_id
-    LEFT JOIN var_stars ON variants.var_id = var_stars.var_id AND categories.sample_id = var_stars.sample_id
-    WHERE
-        categories.sample_id = "{}";
-"""
 
 
 def create_or_open_db(db_path: str) -> sqlite3.Connection:
