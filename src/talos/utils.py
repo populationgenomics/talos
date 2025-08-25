@@ -1139,7 +1139,7 @@ def get_and_organise_db_results(sample_id: str, connection: sqlite3.Connection) 
     return history
 
 
-def get_all_db_variants(connection: sqlite3.Connection) -> dict:
+def get_all_db_variants(connection: sqlite3.Connection) -> dict[str, int]:
     """Query the DB for every variant we've seen before. Or maybe don't bother IDK."""
     all_vars = {}
     results = connection.cursor().execute('SELECT var_id, contig, position, reference, alternate FROM variants;')
@@ -1190,8 +1190,12 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
                         var.var_data.coordinates.alt,
                     ),
                 )
-                last_row_id = cursor.lastrowid
-                all_variant_ids[last_row_id] = var_id
+                if last_row_id := cursor.lastrowid:
+                    all_variant_ids[var_id] = last_row_id
+                else:
+                    connection.close()
+                    raise ValueError(f'Failed to retrieve lastrowid after inserting new variant: {var_id}')
+
                 for each_cat in current_cats:
                     new_categories.append(
                         (last_row_id, sample, translate_category(each_cat), get_granular_date()),
@@ -1212,11 +1216,10 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
                     # add it to the list for creation
                     new_categories.append(
                         (
-                            known_results[var_id]['var_id'],
+                            all_variant_ids[var_id],
                             sample,
                             translate_category(each_cat),
                             get_granular_date(),
-                            clinvar_stars,
                         ),
                     )
 
