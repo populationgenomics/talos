@@ -1049,6 +1049,8 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('PRAGMA foreign_keys = ON;')
+
+    # create a table to hold raw variant coord/ref/alt details
     variants_create = """
         CREATE TABLE IF NOT EXISTS variants (
             var_id INTEGER PRIMARY KEY,
@@ -1061,7 +1063,7 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
     """
     cursor.execute(variants_create)
 
-    # record all variant
+    # record all variant categorisation events - sample, date, category
     categories_create = """
     CREATE TABLE IF NOT EXISTS categories (
         var_id INTEGER NOT NULL,
@@ -1075,7 +1077,7 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
     """
     cursor.execute(categories_create)
 
-    # record all variant stars and phenotype matches
+    # record all variant stars and phenotype matches - dependent on sample & variant, but distint from category
     var_star_create = """
     CREATE TABLE IF NOT EXISTS var_stars (
         var_id INTEGER NOT NULL,
@@ -1089,7 +1091,7 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
     """
     cursor.execute(var_star_create)
 
-    # table to catch comp-het partners
+    # table to record comp-het partners
     partners_create = """
     CREATE TABLE IF NOT EXISTS partners (
         var_id INTEGER NOT NULL,
@@ -1155,7 +1157,7 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
     build/update the historic data within the same loop.
     """
 
-    # get all variants
+    # get all previously seen variants, and their IDs
     all_variant_ids = get_all_db_variants(connection=connection)
     new_categories = []
     new_partners = []
