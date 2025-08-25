@@ -8,6 +8,7 @@ https://tenacity.readthedocs.io/en/latest/
 import json
 import pathlib
 import re
+import sqlite3
 import statistics
 import string
 import zoneinfo
@@ -33,6 +34,7 @@ from talos.models import (
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
+    translate_category,
 )
 from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
@@ -750,33 +752,6 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> 
     return comp_het_results
 
 
-def generate_fresh_latest_results(current_results: ResultData):
-    """
-    This will be called if a cohort has no latest results, but has indicated a place to save them.
-    Args:
-        current_results (ResultData): results from this current run
-    """
-
-    new_history = HistoricVariants()
-    for sample, content in current_results.results.items():
-        for var in content.variants:
-            # bank the number of clinvar stars, if any
-            if CATEGORY_TRANSLATOR['1'] in var.categories:
-                clinvar_stars = var.var_data.info.get('clinvar_stars')
-                assert isinstance(clinvar_stars, int)
-            else:
-                clinvar_stars = None
-
-            new_history.results.setdefault(sample, {})[var.var_data.coordinates.string_format] = HistoricSampleVariant(
-                categories=dict.fromkeys(var.categories, var.first_tagged),
-                support_vars=var.support_vars,
-                independent=var.independent,
-                first_tagged=var.first_tagged,  # this could be min of available values, but this is first analysis
-                clinvar_stars=clinvar_stars,
-            )
-    save_new_historic(results=new_history)
-
-
 def phenotype_label_history(results: ResultData):
     """
     Annotation in-place of the results object
@@ -847,43 +822,6 @@ def save_new_historic(results: HistoricVariants):
         handle.write(results.model_dump_json(indent=4))
 
     logger.info(f'Wrote new data to {new_file}')
-
-
-def annotate_variant_dates_using_prior_results(results: ResultData):
-    """
-    loads the most recent prior result set (if it exists)
-    annotates previously seen variants with the most recent date seen
-    write two files (total, and latest - previous)
-
-    Args:
-        results (ResultData): the results produced during this run
-
-    Returns: same results annotated with date-first-seen
-    """
-
-    if (_historic_folder := config_retrieve('result_history', None)) is None:
-        logger.info('No historic data folder, no filtering')
-        # update all the evidence_last_updated
-        for content in results.results.values():
-            for var in content.variants:
-                var.evidence_last_updated = get_granular_date()
-        return
-
-    # If there;s a historic data folder, find the most recent entry in it
-    latest_results_path = find_latest_file(results_folder=config_retrieve('result_history', None))
-
-    logger.info(f'latest results: {latest_results_path}')
-
-    # get latest results as a HistoricVariants object, or fail - on fail, return
-    if latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants):
-        # this is just to please the type checker
-        assert isinstance(latest_results, HistoricVariants)
-
-        date_annotate_results(results, latest_results)
-        save_new_historic(results=latest_results)
-    else:
-        # generate and write some new latest data
-        generate_fresh_latest_results(current_results=results)
 
 
 def date_from_string(filename: str) -> str:
@@ -1062,3 +1000,243 @@ def generate_summary_stats(result_set: ResultData):
         }
 
     result_set.metadata.variant_breakdown = stats_count
+
+
+INSERT_VAR_QUERY = 'INSERT INTO variants (contig, position, reference, alternate) VALUES (?, ?, ?, ?);'
+INSERT_CAT_QUERY = 'INSERT INTO categories (var_id, sample_id, category, date) VALUES (?, ?, ?, ?);'
+INSERT_PARTNER_QUERY = 'INSERT INTO partners (var_id, sample_id, partners) VALUES (?, ?, ?);'
+INSERT_VARSTARS_QUERY = 'INSERT INTO var_stars (var_id, sample_id, clinvar_stars) VALUES (?, ?, ?);'
+
+# update the clinvar stars if we see a new value
+UPDATE_CLINVAR_QUERY = 'UPDATE var_stars SET clinvar_stars = ? WHERE var_id = ? AND sample_id = ?;'
+
+# inner join on variants and categories, left join on partners (optional)
+QUERY_SAMPLE_ALL = """
+    SELECT
+        variants.var_id,
+        variants.contig,
+        variants.position,
+        variants.reference,
+        variants.alternate,
+        categories.category,
+        categories.date,
+        var_stars.clinvar_stars,
+        partners.partners
+    FROM
+    (variants INNER JOIN categories ON variants.var_id = categories.var_id)
+    LEFT JOIN partners ON variants.var_id = partners.var_id AND categories.sample_id = partners.sample_id
+    LEFT JOIN var_stars ON variants.var_id = var_stars.var_id AND categories.sample_id = var_stars.sample_id
+    WHERE
+        categories.sample_id = "{}";
+"""
+
+
+def create_or_open_db(db_path: str) -> sqlite3.Connection:
+    """
+    Create or open a SQLite database at the specified path,
+
+    Args:
+        db_path (str): The file path for the SQLite database.
+
+    Returns:
+        sqlite3.Connection: A connection object to the SQLite database.
+    """
+
+    if to_anypath(db_path).exists():
+        logger.info(f'Opening existing database at {db_path}')
+        return sqlite3.connect(db_path)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('PRAGMA foreign_keys = ON;')
+    variants_create = """
+        CREATE TABLE IF NOT EXISTS variants (
+            var_id INTEGER PRIMARY KEY,
+            contig TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            reference TEXT NOT NULL,
+            alternate TEXT NOT NULL,
+            UNIQUE (contig, position, reference, alternate)
+        );
+    """
+    cursor.execute(variants_create)
+
+    # record all variant
+    categories_create = """
+    CREATE TABLE IF NOT EXISTS categories (
+        var_id INTEGER NOT NULL,
+        sample_id TEXT NOT NULL,
+        category TEXT NOT NULL,
+        date TEXT NOT NULL,
+        PRIMARY KEY (var_id, sample_id, category),
+        FOREIGN KEY (var_id) REFERENCES variants(var_id),
+        UNIQUE (var_id, sample_id, category)
+    );
+    """
+    cursor.execute(categories_create)
+
+    # record all variant stars and phenotype matches
+    var_star_create = """
+    CREATE TABLE IF NOT EXISTS var_stars (
+        var_id INTEGER NOT NULL,
+        sample_id TEXT NOT NULL,
+        clinvar_stars INTEGER,
+        pheno_match INTEGER,
+        PRIMARY KEY (var_id, sample_id),
+        FOREIGN KEY (var_id) REFERENCES variants(var_id),
+        UNIQUE (var_id, sample_id)
+    );
+    """
+    cursor.execute(var_star_create)
+
+    # table to catch comp-het partners
+    partners_create = """
+    CREATE TABLE IF NOT EXISTS partners (
+        var_id INTEGER NOT NULL,
+        sample_id TEXT NOT NULL,
+        partners TEXT NOT NULL,
+        PRIMARY KEY (var_id, sample_id),
+        FOREIGN KEY (var_id) REFERENCES variants(var_id),
+        UNIQUE (var_id, sample_id)
+    );
+    """
+    cursor.execute(partners_create)
+    conn.commit()
+
+    return conn
+
+
+def get_and_organise_db_results(sample_id: str, connection: sqlite3.Connection) -> dict:
+    """ """
+    history: dict[str, dict] = {}
+    results = connection.cursor().execute(QUERY_SAMPLE_ALL.format(sample_id))
+    for row in results.fetchall():
+        (
+            var_id,
+            contig,
+            position,
+            reference,
+            alternate,
+            category,
+            date,
+            clinvar_stars,
+            partners,
+        ) = row
+        var_key = f'{contig}-{position}-{reference}-{alternate}'
+
+        # maybe we saw this before, with a different category attached
+        if var_key in history:
+            history[var_key]['categories'][category] = date
+            continue
+
+        # or maybe we didn't
+        history[var_key] = {
+            'var_id': var_id,
+            'categories': {category: date},
+            'clinvar_stars': clinvar_stars,
+            'partners': partners.split(',') if partners else [],
+        }
+    return history
+
+
+def get_all_db_variants(connection: sqlite3.Connection) -> dict:
+    """Query the DB for every variant we've seen before. Or maybe don't bother IDK."""
+    all_vars = {}
+    results = connection.cursor().execute('SELECT var_id, contig, position, reference, alternate FROM variants;')
+    for var_id, contig, position, reference, alternate in results.fetchall():
+        var_key = f'{contig}-{position}-{reference}-{alternate}'
+        all_vars[var_key] = var_id
+    return all_vars
+
+
+def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection):
+    """
+    takes the current data, and annotates with previous dates if found
+    build/update the historic data within the same loop.
+    """
+
+    # get all variants
+    all_variant_ids = get_all_db_variants(connection=connection)
+    new_categories = []
+    new_partners = []
+    new_var_stars = []
+    update_var_stars = []
+
+    # grab a cursor, treat yourself
+    cursor = connection.cursor()
+
+    # iterate over each sample section in the results
+    for sample, content in current.results.items():
+        # query the DB for results previously seen for this sample, can be none
+        known_results = get_and_organise_db_results(sample, connection=connection)
+
+        # check each variant found in this round
+        for var in content.variants:
+            # get the number of clinvar stars, if appropriate
+            clinvar_stars = var.var_data.info.get('clinvar_stars', None)
+
+            var_id = var.var_data.coordinates.string_format
+            current_cats = var.categories
+
+            # never seen this sample X variant before, everything is new
+            if var_id not in known_results:
+                # create the variant, store its ID
+                cursor.execute(
+                    INSERT_VAR_QUERY,
+                    (
+                        var.var_data.coordinates.chrom,
+                        var.var_data.coordinates.pos,
+                        var.var_data.coordinates.ref,
+                        var.var_data.coordinates.alt,
+                    ),
+                )
+                last_row_id = cursor.lastrowid
+                all_variant_ids[last_row_id] = var_id
+                for each_cat in current_cats:
+                    new_categories.append(
+                        (last_row_id, sample, translate_category(each_cat), get_granular_date()),
+                    )
+
+                if var.support_vars:
+                    new_partners.append((last_row_id, sample, ','.join(sorted(var.support_vars))))
+
+                if clinvar_stars is not None:
+                    new_var_stars.append((last_row_id, sample, clinvar_stars))
+
+                continue
+
+            # we saw it before, so mark down the previously seen dates
+            latest_date = sorted(known_results[var_id]['categories'].values(), reverse=True)[0]
+            for each_cat in current_cats:
+                if each_cat not in known_results[var_id]['categories']:
+                    # add it to the list for creation
+                    new_categories.append(
+                        (
+                            known_results[var_id]['var_id'],
+                            sample,
+                            translate_category(each_cat),
+                            get_granular_date(),
+                            clinvar_stars,
+                        ),
+                    )
+
+                # if we haven't seen this category before, update the latest date of evidence change
+                else:
+                    latest_date = get_granular_date()
+
+            # update the number of stars if it's increased
+            if clinvar_stars is not None:
+                historic_stars = known_results[var_id]['clinvar_stars']
+                if (historic_stars is None) or clinvar_stars > historic_stars:
+                    var.clinvar_increase = True
+                    update_var_stars.append((clinvar_stars, known_results[var_id]['var_id'], sample))
+
+            # latest _new_ category date as evidence_last_changed timestamp
+            var.evidence_last_updated = latest_date
+
+    cursor.executemany(INSERT_CAT_QUERY, new_categories)
+    cursor.executemany(INSERT_PARTNER_QUERY, new_partners)
+    cursor.executemany(INSERT_VARSTARS_QUERY, new_var_stars)
+    cursor.executemany(UPDATE_CLINVAR_QUERY, update_var_stars)
+    connection.commit()
+    connection.close()

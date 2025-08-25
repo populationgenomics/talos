@@ -54,6 +54,11 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
 }
 
 
+def translate_category(cat: str) -> str:
+    """Translate a category from config file to a more descriptive name. If not found, return the original."""
+    return CATEGORY_TRANSLATOR.get(cat, cat)
+
+
 class FileTypes(Enum):
     """
     enumeration of permitted input file types

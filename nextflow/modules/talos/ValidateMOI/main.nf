@@ -22,6 +22,6 @@ process ValidateMOI {
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \
         --pedigree ${pedigree} \
-        --output ${params.cohort}_results.json
+        --output ${params.cohort}_results.json --db thisfile.db
     """
 }

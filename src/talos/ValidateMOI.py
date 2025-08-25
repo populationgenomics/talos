@@ -36,8 +36,9 @@ from talos.moi_tests import MOIRunner
 from talos.pedigree_parser import PedigreeParser
 from talos.utils import (
     GeneDict,
-    annotate_variant_dates_using_prior_results,
     canonical_contigs_from_vcf,
+    create_or_open_db,
+    db_date_annotate_results,
     find_comp_hets,
     gather_gene_dict_from_contig,
     generate_summary_stats,
@@ -344,6 +345,7 @@ def cli_main():
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
+    parser.add_argument('--db', help='Path to a state SQLite DB, will be read or created', default=None)
     args = parser.parse_args()
 
     main(
@@ -352,6 +354,7 @@ def cli_main():
         panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
+        state_db=args.db,
     )
 
 
@@ -361,6 +364,7 @@ def main(
     panelapp_path: str,
     pedigree: str,
     labelled_sv: str | None = None,
+    state_db: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -375,6 +379,8 @@ def main(
         output (str): location to write output file
         panelapp_path (str): location of PanelApp data JSON
         pedigree (str): location of PED file
+        state_db (str | None): path to a state DB (SQLite), if required. If this arg is not None, but the DB doesn't
+                               exist, it will be created
     """
     logger.info(
         r"""Welcome To
@@ -467,7 +473,9 @@ def main(
     polish_exomiser_results(results_model)
 
     # annotate previously seen results using cumulative data file(s)
-    annotate_variant_dates_using_prior_results(results_model)
+    if state_db:
+        connection = create_or_open_db(state_db)
+        db_date_annotate_results(results_model, connection)
 
     generate_summary_stats(results_model)
 
