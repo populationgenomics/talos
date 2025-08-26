@@ -6,7 +6,6 @@ https://tenacity.readthedocs.io/en/latest/
 """
 
 import json
-import pathlib
 import re
 import sqlite3
 import statistics
@@ -87,7 +86,7 @@ UPDATE_CLINVAR_QUERY = 'UPDATE var_stars SET clinvar_stars = ? WHERE var_id = ? 
 QUERY_SAMPLE_ALL = """
     SELECT
         variants.var_id,
-        variants.contig || '-' || variants.position || '-' || variants.reference || '-' || variants.alternate as var_key,
+        variants.contig||'-'||variants.position||'-'||variants.reference||'-'||variants.alternate as var_key,
         categories.category,
         categories.date,
         var_stars.clinvar_stars,
@@ -103,11 +102,11 @@ QUERY_ALL_VAR_IDS = (
     "SELECT var_id, contig || '-' || position || '-' || reference || '-' || alternate as var_key FROM variants;"
 )
 QUERY_ALL_VAR_STARS = """
-SELECT 
-    variants.var_id, 
+SELECT
+    variants.var_id,
     variants.contig || '-' || variants.position || '-' || variants.reference || '-' || variants.alternate as var_key,
-    var_stars.sample_id, 
-    var_stars.first_pheno_match 
+    var_stars.sample_id,
+    var_stars.first_pheno_match
 FROM variants INNER JOIN var_stars ON variants.var_id = var_stars.var_id;
 """
 INSERT_VARSTARS_PHENO = 'INSERT INTO var_stars (var_id, sample_id, first_pheno_match) VALUES (?, ?, ?);'
@@ -798,7 +797,7 @@ def db_label_phenotypes(db_file: str, results: ResultData):
     db_pheno_results = connection.execute(QUERY_ALL_VAR_STARS).fetchall()
 
     # index the results to be searchable
-    pheno_dict = defaultdict(dict)
+    pheno_dict: dict[str, dict[str, str]] = defaultdict(dict)
     variant_ids = {}
     for var_id, var_key, sample_id, first_pheno_match in db_pheno_results:
         pheno_dict[sample_id][var_key] = first_pheno_match
@@ -1079,7 +1078,7 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
             var_id = var.var_data.coordinates.string_format
             current_cats = var.categories
 
-            # never seen this sample X variant before, everything is new
+            # never seen this sample + variant before, everything is new
             if var_id not in known_results:
                 # create the variant, store its ID
                 cursor.execute(
@@ -1111,8 +1110,10 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
                 continue
 
             # we saw it before, so mark down the previously seen dates
-            latest_date = sorted(known_results[var_id]['categories'].values(), reverse=True)[0]
+            # start with the earliest date of any category being assigned
+            var.first_tagged = latest_date = sorted(known_results[var_id]['categories'].values(), reverse=True)[0]
             for each_cat in current_cats:
+                # if this category has not been seen before, add it to the db, and update the latest date to today
                 if each_cat not in known_results[var_id]['categories']:
                     # add it to the list for creation
                     new_categories.append(
@@ -1123,9 +1124,15 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
                             get_granular_date(),
                         ),
                     )
+                    # if we haven't seen this category before, update the latest date of evidence change
+                    latest_date = get_granular_date()
 
-                # if we haven't seen this category before, update the latest date of evidence change
-                else:
+            # if this is a comp-het, check if we've seen this exact pair before
+            for each_partner in var.support_vars:
+                # if not, update the db and move the latest date forward
+                if each_partner not in known_results[var_id]['partners']:
+                    all_partners = sorted({*known_results[var_id]['partners'], *var.support_vars})
+                    new_partners.append((all_variant_ids[var_id], sample, ','.join(all_partners)))
                     latest_date = get_granular_date()
 
             # update the number of stars if it's increased

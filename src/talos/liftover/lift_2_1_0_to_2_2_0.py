@@ -11,7 +11,7 @@ def dl_panelapp(data_dict: dict) -> dict:
     logger.warning(
         'This PanelApp data does not contain a download date. Talos will warn when PanelApp data is older than 2 '
         'months post-download, but this check will be skipped. We advise you delete this cached data file, and '
-        'generate another.'
+        'generate another.',
     )
 
     data_dict['date'] = get_granular_date()

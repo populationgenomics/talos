@@ -26,7 +26,7 @@ from semsimian import Semsimian
 from talos.config import config_retrieve
 from talos.models import ResultData
 from talos.static_values import get_granular_date
-from talos.utils import parse_mane_json_to_dict, db_label_phenotypes, read_json_from_path
+from talos.utils import db_label_phenotypes, parse_mane_json_to_dict, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 

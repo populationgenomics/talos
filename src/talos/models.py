@@ -23,7 +23,6 @@ from talos.liftover.lift_2_0_0_to_2_1_0 import (
 )
 from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
-
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
@@ -45,6 +44,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     '4': 'DeNovo',
     '5': 'SpliceAI',
     '6': 'AlphaMissense',
+    'support': 'AlphaMissense',
     'pm5': 'PM5',
     'sv1': 'LofSv',
     'svdb': 'SpliceVarDB',

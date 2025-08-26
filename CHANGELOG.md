@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * All phenopacket generation and parsing code and dependencies are removed
 * Removes the second report from HPOFlagging, instead exporting a single, phenotype-annotated report
+* JSON files are no longer used to represent previous results, instead moving to a database file
 
 ### Changed
 
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a pedigree parser module, and uses it internally
 * Adds a file download process for all the required large input files
 * Adds a breakdown of count/mean/median/SD for instances of each variant category in the report JSON
+* A SQLite database is now used to represent previous results, instead of JSON files. This is a more robust and scalable approach, and allows for easier querying of previous results. A script is provided to convert old JSON history files to the new database format.
 
 [7.5.0] - 2025-08-07
 
