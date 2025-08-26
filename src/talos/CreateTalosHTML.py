@@ -50,8 +50,8 @@ def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
     If provided in JSON format, this must be a dictionary of Sample ID -> External ID
     """
 
-    # escape if there was nothing provided
-    if ext_id_file is None:
+    # escape if there was nothing provided, or the file doesn't exist
+    if ext_id_file is None or (not to_anypath(ext_id_file).exists()):
         return None
 
     id_mapping: dict[str, str] = {}
@@ -709,11 +709,24 @@ def cli_main():
     parser.add_argument('--panelapp', help='PanelApp data', required=True)
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--ext_ids', help='Optional, Mapping file for external IDs', default=None)
+    parser.add_argument('--seqr_ids', help='Optional, Mapping file for Seqr IDs', default=None)
     args = parser.parse_args()
-    main(results=args.input, panelapp=args.panelapp, output=args.output, ext_id_file=args.ext_ids)
+    main(
+        results=args.input,
+        panelapp=args.panelapp,
+        output=args.output,
+        ext_id_file=args.ext_ids,
+        seqr_id_file=args.seqr_ids,
+    )
 
 
-def main(results: str, panelapp: str, output: str, ext_id_file: str | None = None):
+def main(
+    results: str,
+    panelapp: str,
+    output: str,
+    ext_id_file: str | None = None,
+    seqr_id_file: str | None = None,
+):
     """
 
     Args:
@@ -721,6 +734,7 @@ def main(results: str, panelapp: str, output: str, ext_id_file: str | None = Non
         panelapp (str): path to the panelapp data
         output (str): where to write the HTML file
         ext_id_file (str | None): optional, path to a file containing external IDs
+        seqr_id_file (str | None): optional, path to a file containing Seqr IDs
     """
 
     report_output_dir = Path(output).parent
@@ -731,8 +745,8 @@ def main(results: str, panelapp: str, output: str, ext_id_file: str | None = Non
     external_id_map = parse_ids_from_file(ext_id_file)
 
     # set up the link builder, or None
-    if link_section := config_retrieve(['CreateTalosHTML', 'hyperlinks'], None):
-        link_builder = LinkEngine(**link_section)
+    if (link_section := config_retrieve(['CreateTalosHTML', 'hyperlinks'], None)) and seqr_id_file:
+        link_builder = LinkEngine(**link_section, lookup=seqr_id_file)
     else:
         link_builder = None
 

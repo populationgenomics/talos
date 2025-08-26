@@ -87,7 +87,7 @@ UPDATE_CLINVAR_QUERY = 'UPDATE var_stars SET clinvar_stars = ? WHERE var_id = ? 
 QUERY_SAMPLE_ALL = """
     SELECT
         variants.var_id,
-        concat(variants.contig, '-', variants.position, '-', variants.reference, '-', variants.alternate) as var_key
+        variants.contig || '-' || variants.position || '-' || variants.reference || '-' || variants.alternate as var_key,
         categories.category,
         categories.date,
         var_stars.clinvar_stars,
@@ -100,12 +100,12 @@ QUERY_SAMPLE_ALL = """
         categories.sample_id = "{}";
 """
 QUERY_ALL_VAR_IDS = (
-    "SELECT var_id, concat(contig, '-', position, '-', reference, '-', alternate) as var_key FROM variants;"
+    "SELECT var_id, contig || '-' || position || '-' || reference || '-' || alternate as var_key FROM variants;"
 )
 QUERY_ALL_VAR_STARS = """
 SELECT 
     variants.var_id, 
-    concat(variants.contig, '-', variants.position, '-', variants.reference, '-', variants.alternate) as var_key,
+    variants.contig || '-' || variants.position || '-' || variants.reference || '-' || variants.alternate as var_key,
     var_stars.sample_id, 
     var_stars.first_pheno_match 
 FROM variants INNER JOIN var_stars ON variants.var_id = var_stars.var_id;
@@ -951,11 +951,6 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
     if to_anypath(db_path).exists():
         logger.info(f'Opening existing database at {db_path}')
         return sqlite3.connect(db_path)
-
-    # need a check for folder existence, or create
-    dir_as_path = to_anypath(db_path)
-    if isinstance(dir_as_path, pathlib.Path) and not dir_as_path.exists():
-        dir_as_path.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

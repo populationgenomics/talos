@@ -25,6 +25,10 @@ workflow {
     ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
     ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
     ch_opt_ids = channel.fromPath(params.ext_id_map, checkIfExists: true)
+    ch_seqr_ids = channel.fromPath(params.seqr_lookup, checkIfExists: true)
+
+    // may not exist on the first run
+    ch_history = channel.fromPath(params.history)
 
     // run pre-Talos startup checks
     StartupChecks(
@@ -70,15 +74,17 @@ workflow {
         UnifiedPanelAppParser.out,
         ch_pedigree,
         ch_runtime_config,
+        ch_history,
     )
 
     // Flag any relevant HPO terms
     HPOFlagging(
-        ValidateMOI.out,
+        ValidateMOI.out.json,
         ch_mane,
         ch_gen2phen,
         ch_phenio,
         ch_runtime_config,
+        ValidateMOI.out.db,
     )
 
     // Generate HTML report - only suited to single-report runs
@@ -87,5 +93,6 @@ workflow {
         UnifiedPanelAppParser.out,
         ch_runtime_config,
         ch_opt_ids,
+        ch_seqr_ids,
     )
 }

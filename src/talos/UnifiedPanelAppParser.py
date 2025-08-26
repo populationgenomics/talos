@@ -4,7 +4,7 @@ Combines the two behaviours of
 - QueryPanelApp: Use the PanelApp API to get all genes and panels relevant to the analysis
 
 Takes as input:
-- The downloadeded PanelApp data
+- The downloaded PanelApp data
 - Optionally a Pedigree file which can contain HPO terms, these would be used to match panels to families
 """
 
@@ -50,6 +50,9 @@ except KeyError:
 
 # create a datetime threshold
 NEW_THRESHOLD = pendulum.now().subtract(months=WITHIN_X_MONTHS)
+
+# expired data check - raise errors when the downloaded PanelApp data is 2+ months old, request a refresh
+EXPIRED_DOWNLOAD = pendulum.now().subtract(months=2)
 
 MOI_FOR_CUSTOM_GENES = 'Mono_And_Biallelic'
 CUSTOM_PANEL_ID = 0
@@ -351,6 +354,13 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
     """
 
     cached_panelapp: DownloadedPanelApp = read_json_from_path(panel_data, return_model=DownloadedPanelApp)
+
+    # I think we're happy being hard here, we want to force consistent updates of the PanelApp data
+    if pendulum.from_format(cached_panelapp.date, 'YYYY-MM-DD') < EXPIRED_DOWNLOAD:
+        raise ValueError(
+            f'PanelApp data was downloaded on {cached_panelapp.date}, which is over 2 months ago. '
+            f'Please refresh the data using DownloadPanelApp.py (or by deleting this file, and re-running the wf.)',
+        )
 
     pedigree = PedigreeParser(pedigree_path)
 

@@ -21,15 +21,17 @@ from talos.liftover.lift_2_0_0_to_2_1_0 import (
 from talos.liftover.lift_2_0_0_to_2_1_0 import (
     resultdata as rd_200_to_210,
 )
+from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
+
 from talos.static_values import get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.1.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0']
+CURRENT_VERSION = '2.2.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -432,6 +434,7 @@ class DownloadedPanelApp(BaseModel):
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
+    date: str = Field(default=get_granular_date())
 
 
 class ResultMeta(BaseModel):
@@ -520,7 +523,9 @@ class PedigreeMember(BaseModel):
 
 # methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
-    DownloadedPanelApp: {},
+    DownloadedPanelApp: {
+        '2.1.0_2.2.0': dl_pa_210_to_220,
+    },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
