@@ -70,7 +70,7 @@ MEMBER_LOOKUP_DICT = {'0': None}
 DOI_URL = 'https://doi.org/'
 
 # we've noted some instances where we failed the whole process due to failure to parse phase data
-# don't fail, just suggest that someone raises an issue on github, but only print this message once
+# don't fail, just suggest that someone raises an issue on GitHub, but only print this message once
 PHASE_BROKEN: bool = False
 
 
@@ -988,7 +988,7 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
     """
     cursor.execute(categories_create)
 
-    # record all variant stars and phenotype matches - dependent on sample & variant, but distint from category
+    # record all variant stars and phenotype matches - dependent on sample & variant, but distinct from category
     var_star_create = """
     CREATE TABLE IF NOT EXISTS var_stars (
         var_id INTEGER NOT NULL,
