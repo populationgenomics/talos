@@ -9,16 +9,12 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
 from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    historicvariants as hv_200_to_210,
-)
 from talos.liftover.lift_2_0_0_to_2_1_0 import (
     panelapp as pa_200_to_210,
 )
@@ -438,36 +434,6 @@ class DownloadedPanelApp(BaseModel):
     version: str = CURRENT_VERSION
 
 
-class HistoricSampleVariant(BaseModel):
-    """ """
-
-    # categories here will be a dict of {categories: associated date first seen}
-    categories: dict[str, str]
-    # new variable to store the date the variant was first seen, static
-    first_tagged: str
-    support_vars: set[str] = Field(
-        default_factory=set,
-        description='supporting variants if this has been identified in a comp-het',
-    )
-    independent: bool = Field(default=True)
-    clinvar_stars: int | None = None
-    first_phenotype_tagged: str | None = None
-    phenotype_labels: set[str] = Field(default_factory=set)
-
-
-class HistoricVariants(BaseModel):
-    """
-    The model representing the state transition file
-    All relevant metadata relating to the available categories
-    Then a per-participant dict of variants, containing the categories
-    they have been assigned, date first seen, and supporting variants
-    """
-
-    # dict - participant ID -> variant -> variant data
-    results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
-    version: str = CURRENT_VERSION
-
-
 class ResultMeta(BaseModel):
     """
     metadata for a result set
@@ -559,10 +525,6 @@ LIFTOVER_METHODS: dict = {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
     },
-    HistoricVariants: {
-        '1.0.0_1.0.1': hv_100_to_101,
-        '2.0.0_2.1.0': hv_200_to_210,
-    },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,
         '1.0.0_1.0.1': rd_100_to_101,
@@ -577,7 +539,7 @@ LIFTOVER_METHODS: dict = {
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | ResultData | PanelApp | DownloadedPanelApp,
+    model: ResultData | PanelApp | DownloadedPanelApp,
 ) -> dict:
     """
     lift over data from one version to another

@@ -25,11 +25,8 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from talos.config import config_retrieve
 from talos.models import (
-    CATEGORY_TRANSLATOR,
     VARIANT_MODELS,
     Coordinates,
-    HistoricSampleVariant,
-    HistoricVariants,
     ResultData,
     SmallVariant,
     StructuralVariant,
@@ -90,21 +87,31 @@ UPDATE_CLINVAR_QUERY = 'UPDATE var_stars SET clinvar_stars = ? WHERE var_id = ? 
 QUERY_SAMPLE_ALL = """
     SELECT
         variants.var_id,
-        variants.contig,
-        variants.position,
-        variants.reference,
-        variants.alternate,
+        concat(variants.contig, '-', variants.position, '-', variants.reference, '-', variants.alternate) as var_key
         categories.category,
         categories.date,
         var_stars.clinvar_stars,
         partners.partners
     FROM
-    (variants INNER JOIN categories ON variants.var_id = categories.var_id)
-    LEFT JOIN partners ON variants.var_id = partners.var_id AND categories.sample_id = partners.sample_id
-    LEFT JOIN var_stars ON variants.var_id = var_stars.var_id AND categories.sample_id = var_stars.sample_id
+        (variants INNER JOIN categories ON variants.var_id = categories.var_id)
+        LEFT JOIN partners ON variants.var_id = partners.var_id AND categories.sample_id = partners.sample_id
+        LEFT JOIN var_stars ON variants.var_id = var_stars.var_id AND categories.sample_id = var_stars.sample_id
     WHERE
         categories.sample_id = "{}";
 """
+QUERY_ALL_VAR_IDS = (
+    "SELECT var_id, concat(contig, '-', position, '-', reference, '-', alternate) as var_key FROM variants;"
+)
+QUERY_ALL_VAR_STARS = """
+SELECT 
+    variants.var_id, 
+    concat(variants.contig, '-', variants.position, '-', variants.reference, '-', variants.alternate) as var_key,
+    var_stars.sample_id, 
+    var_stars.first_pheno_match 
+FROM variants INNER JOIN var_stars ON variants.var_id = var_stars.var_id;
+"""
+INSERT_VARSTARS_PHENO = 'INSERT INTO var_stars (var_id, sample_id, first_pheno_match) VALUES (?, ?, ?);'
+UPDATE_VARSTARS_PHENO = 'UPDATE var_stars SET first_pheno_match = ? WHERE var_id = ? AND sample_id = ?;'
 
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
@@ -782,76 +789,54 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> 
     return comp_het_results
 
 
-def phenotype_label_history(results: ResultData):
-    """
-    Annotation in-place of the results object
-    Either pull the 'date of phenotype match' from the historic data, or add 'today' to the historic data
-    """
-    # are there any history results?
-    if (historic_folder := config_retrieve('result_history', None)) is None:
-        logger.info('No historic data folder, no labelling')
-        return
+def db_label_phenotypes(db_file: str, results: ResultData):
+    """Using a SQLite DB, update the phenotype labels for all variants, annotate first phenotype match date."""
+    connection = create_or_open_db(db_file)
 
-    latest_results_path = find_latest_file(results_folder=historic_folder)
-    logger.info(f'latest results: {latest_results_path}')
+    # get all current phenotype matches - this could be a series of lean queries, but we're expecting snowballing data
+    # so we'd be querying for all samples anyway
+    db_pheno_results = connection.execute(QUERY_ALL_VAR_STARS).fetchall()
 
-    # get latest results as a HistoricVariants object, or fail - on fail, return
-    if (latest_results := read_json_from_path(latest_results_path, return_model=HistoricVariants)) is None:
-        # this HPO-flagging stage shouldn't make its own historic data
-        logger.info(f"Historic data {latest_results_path} doesn't really exist, quitting")
-        return
+    # index the results to be searchable
+    pheno_dict = defaultdict(dict)
+    variant_ids = {}
+    for var_id, var_key, sample_id, first_pheno_match in db_pheno_results:
+        pheno_dict[sample_id][var_key] = first_pheno_match
+        variant_ids[var_key] = var_id
 
-    for sample, content in results.results.items():
-        # get the historical record for this sample
-        sample_historic = latest_results.results.get(sample, {})
-        # check each variant found in this round
-        for var in content.variants:
-            var_id = var.var_data.coordinates.string_format
-            if hist := sample_historic.get(var_id):
-                # update the date of the first phenotype match, or add it into the history
-                if hist.first_phenotype_tagged:
-                    var.date_of_phenotype_match = hist.first_phenotype_tagged
-                else:
-                    hist.first_phenotype_tagged = get_granular_date()
+    new_var_stars = []
+    update_var_stars = []
 
-                # update all the phenotype labels - we might identify incremental phenotype matches in future
-                hist.phenotype_labels.update(var.phenotype_labels)
+    for sample, var_list in results.results.items():
+        sample_history = pheno_dict.get(sample, {})
+
+        for var in var_list.variants:
+            var_key = var.var_data.coordinates.string_format
+
+            # pheno match date already exists in the db, must be an earlier date than today
+            if early_date := sample_history.get(var_key):
+                var.date_of_phenotype_match = early_date
+                continue
+
+            # no current phenotype match, nothing to add to the db
+            if not var.phenotype_labels:
+                continue
+
+            # decide whether we need to insert or update
+            if var_key in sample_history:
+                # entry exists, but pheno match date was None (may have previously been ClinVar stars only) - update
+                # this is the second round of history recording, no new variants should be added here
+                update_var_stars.append((get_granular_date(), variant_ids[var_key], sample))
             else:
-                # totally new variant, probably not possible, but tolerate here anyway
-                # reasoning: we're always running this after MOI checking, so we shouldn't
-                # have completely new variants between there and here
-                sample_historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
-                    categories={cat: get_granular_date() for cat in var.categories},
-                    support_vars=var.support_vars,
-                    independent=var.independent,
-                    first_tagged=get_granular_date(),
-                    clinvar_stars=var.var_data.info.get('clinvar_stars'),
-                    phenotype_labels=var.phenotype_labels,
-                    first_phenotype_tagged=get_granular_date(),
-                )
-
-    save_new_historic(results=latest_results)
-
-
-def save_new_historic(results: HistoricVariants):
-    """Save the new results in the historic results dir."""
-
-    if (directory := config_retrieve('result_history', None)) is None:
-        logger.info('No historic data folder, no saving')
-        return
-
-    # we're using cloud paths here
-    dir_as_path = to_anypath(directory)
-    new_file = dir_as_path / f'{TODAY}.json'
-
-    # need a check for folder existence, or create
-    if isinstance(dir_as_path, pathlib.Path) and not dir_as_path.exists():
-        dir_as_path.mkdir(parents=True, exist_ok=True)
-
-    with new_file.open('w') as handle:
-        handle.write(results.model_dump_json(indent=4))
-
-    logger.info(f'Wrote new data to {new_file}')
+                # new entry, add it
+                new_var_stars.append((variant_ids[var_key], sample, get_granular_date()))
+    if update_var_stars:
+        connection.executemany(UPDATE_VARSTARS_PHENO, update_var_stars)
+    if new_var_stars:
+        connection.executemany(INSERT_VARSTARS_PHENO, new_var_stars)
+    if new_var_stars or update_var_stars:
+        connection.commit()
+    connection.close()
 
 
 def date_from_string(filename: str) -> str:
@@ -890,86 +875,6 @@ def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
         return None
 
     return str(date_files[max(date_files.keys())].absolute())
-
-
-def date_annotate_results(current: ResultData, historic: HistoricVariants):
-    """
-    takes the current data, and annotates with previous dates if found
-    build/update the historic data within the same loop
-
-    logically we can't reach this method in production without historic
-    data being present. This method no longer permits historic data to be
-    missing, and edits objects in place
-
-    first_seen date is the earliest date of any category assignment
-    this date should be static
-
-    Args:
-        current (ResultData): results generated during this run
-        historic (HistoricVariants): optionally, historic data
-
-    Returns:
-        updated/instantiated cumulative data
-    """
-
-    for sample, content in current.results.items():
-        # get the historical record for this sample
-        sample_historic = historic.results.get(sample, {})
-
-        # check each variant found in this round
-        for var in content.variants:
-            # get the number of clinvar stars, if appropriate
-            if CATEGORY_TRANSLATOR['1'] in var.categories:
-                clinvar_stars = var.var_data.info.get('clinvar_stars')
-                assert isinstance(clinvar_stars, int)
-            else:
-                clinvar_stars = None
-
-            var_id = var.var_data.coordinates.string_format
-            current_cats = var.categories
-
-            # this variant was previously seen
-            if hist := sample_historic.get(var_id):
-                # bool if this was ever independent (i.e. dominant or Homozygous)
-                # changed logic - do not update dates of prior category assignments
-                if var.independent and not hist.independent:
-                    hist.independent = True
-
-                # if we have any new categories don't alter the date
-                if new_cats := current_cats - set(hist.categories):
-                    # add any new categories
-                    for cat in new_cats:
-                        hist.categories[cat] = get_granular_date()
-
-                # update to include all support_variants
-                # support vars is comp-het partners, different from support-level category importance
-                hist.support_vars.update(var.support_vars)
-
-                # mark the first seen timestamp
-                var.first_tagged = hist.first_tagged
-
-                # log an increase in ClinVar star rating
-                if clinvar_stars:
-                    historic_stars = hist.clinvar_stars
-
-                    # if clinvar_stars was previously None, or was previously lower, store and keep a boolean
-                    # then update the history for this variant to flag that the star rating has increased
-                    if (historic_stars is None) or clinvar_stars > historic_stars:
-                        var.clinvar_increase = True
-                        hist.clinvar_stars = clinvar_stars
-
-                # latest _new_ category date as evidence_last_changed timestamp
-                var.evidence_last_updated = sorted(hist.categories.values(), reverse=True)[0]
-
-            # totally new variant
-            else:
-                historic.results.setdefault(sample, {})[var_id] = HistoricSampleVariant(
-                    categories={cat: get_granular_date() for cat in current_cats},
-                    support_vars=var.support_vars,
-                    independent=var.independent,
-                    first_tagged=get_granular_date(),
-                    clinvar_stars=clinvar_stars,
-                )
 
 
 def generate_summary_stats(result_set: ResultData):
@@ -1047,6 +952,11 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
         logger.info(f'Opening existing database at {db_path}')
         return sqlite3.connect(db_path)
 
+    # need a check for folder existence, or create
+    dir_as_path = to_anypath(db_path)
+    if isinstance(dir_as_path, pathlib.Path) and not dir_as_path.exists():
+        dir_as_path.mkdir(parents=True, exist_ok=True)
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('PRAGMA foreign_keys = ON;')
@@ -1084,7 +994,7 @@ def create_or_open_db(db_path: str) -> sqlite3.Connection:
         var_id INTEGER NOT NULL,
         sample_id TEXT NOT NULL,
         clinvar_stars INTEGER,
-        pheno_match INTEGER,
+        first_pheno_match TEXT,
         PRIMARY KEY (var_id, sample_id),
         FOREIGN KEY (var_id) REFERENCES variants(var_id),
         UNIQUE (var_id, sample_id)
@@ -1116,16 +1026,12 @@ def get_and_organise_db_results(sample_id: str, connection: sqlite3.Connection) 
     for row in results.fetchall():
         (
             var_id,
-            contig,
-            position,
-            reference,
-            alternate,
+            var_key,
             category,
             date,
             clinvar_stars,
             partners,
         ) = row
-        var_key = f'{contig}-{position}-{reference}-{alternate}'
 
         # maybe we saw this before, with a different category attached
         if var_key in history:
@@ -1143,13 +1049,9 @@ def get_and_organise_db_results(sample_id: str, connection: sqlite3.Connection) 
 
 
 def get_all_db_variants(connection: sqlite3.Connection) -> dict[str, int]:
-    """Query the DB for every variant we've seen before. Or maybe don't bother IDK."""
-    all_vars = {}
-    results = connection.cursor().execute('SELECT var_id, contig, position, reference, alternate FROM variants;')
-    for var_id, contig, position, reference, alternate in results.fetchall():
-        var_key = f'{contig}-{position}-{reference}-{alternate}'
-        all_vars[var_key] = var_id
-    return all_vars
+    """Query the DB for every variant we've seen before."""
+    results = connection.cursor().execute(QUERY_ALL_VAR_IDS)
+    return {var_key: var_id for var_id, var_key in results.fetchall()}
 
 
 def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection):
@@ -1160,6 +1062,7 @@ def db_date_annotate_results(current: ResultData, connection: sqlite3.Connection
 
     # get all previously seen variants, and their IDs
     all_variant_ids = get_all_db_variants(connection=connection)
+
     new_categories = []
     new_partners = []
     new_var_stars = []

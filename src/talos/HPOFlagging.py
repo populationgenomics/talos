@@ -26,7 +26,7 @@ from semsimian import Semsimian
 from talos.config import config_retrieve
 from talos.models import ResultData
 from talos.static_values import get_granular_date
-from talos.utils import parse_mane_json_to_dict, phenotype_label_history, read_json_from_path
+from talos.utils import parse_mane_json_to_dict, db_label_phenotypes, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
@@ -94,7 +94,7 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
     return ensgs
 
 
-def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, set[str]]):
+def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, set[str]], history_db: str | None = None):
     """
     for each variant, find any phenotype matches between the participant and gene HPO sets
 
@@ -105,6 +105,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
     Args:
         result_object (ResultData):
         gen_phen (dict): mapping of ENSGs to relevant HPO terms
+        history_db (str | None): path to a state DB, if needed
     """
     semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
 
@@ -149,7 +150,8 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
                 variant.phenotype_labels = pheno_matches
 
-    phenotype_label_history(result_object)
+    if history_db:
+        db_label_phenotypes(history_db, result_object)
 
 
 def remove_phenotype_required_variants(result_object: ResultData):
@@ -192,6 +194,7 @@ def cli_main():
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
     parser.add_argument('--output', help='Annotated output')
+    parser.add_argument('--db', help='State database, if needed', default=None)
     args = parser.parse_args()
     main(
         result_file=args.input,
@@ -199,6 +202,7 @@ def cli_main():
         gen2phen=args.gen2phen,
         phenio=args.phenio,
         out_path=args.output,
+        state_db=args.db,
     )
 
 
@@ -208,6 +212,7 @@ def main(
     gen2phen: str,
     phenio: str,
     out_path: str,
+    state_db: str | None = None,
 ):
     """
 
@@ -217,6 +222,7 @@ def main(
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
         out_path (str): path to write the annotated results
+        state_db (str | None): path to a state DB, if needed
     """
 
     gene_map = parse_mane_json_to_dict(mane_json)
@@ -236,7 +242,7 @@ def main(
         _semsim = get_sem_client(phenio_db=phenio)
 
     # label phenotype matches, and write the results to a JSON file
-    annotate_phenotype_matches(results, gen_phen_dict)
+    annotate_phenotype_matches(results, gen_phen_dict, state_db)
 
     # remove any variants where a phenotype match is required but not found
     remove_phenotype_required_variants(results)
