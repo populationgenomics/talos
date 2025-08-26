@@ -51,7 +51,10 @@ def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
     """
 
     # escape if there was nothing provided, or the file doesn't exist
-    if ext_id_file is None or (not to_anypath(ext_id_file).exists()):
+    if ext_id_file is None:
+        return None
+    if not to_anypath(ext_id_file).exists():
+        logger.warning(f'External ID file {ext_id_file} does not exist or was not accessible, skipping')
         return None
 
     id_mapping: dict[str, str] = {}
