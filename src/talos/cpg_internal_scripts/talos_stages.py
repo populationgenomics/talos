@@ -15,11 +15,11 @@ from loguru import logger
 from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
 from talos.cpg_internal_scripts.cpg_flow_utils import (
     generate_dataset_prefix,
-    query_for_latest_analysis,
     get_latest_history_file,
+    query_for_latest_analysis,
 )
 from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
-from talos.static_values import get_granular_date, get_finegrained_date
+from talos.static_values import get_finegrained_date, get_granular_date
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
