@@ -193,7 +193,7 @@ Only variants passing configured thresholds and logic modules are returned.
 ## **🔁 Reanalysis Mode**
 
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading/writing state files in a specific folder, which is set in the config file as `result_history`. This allows Talos to track which variants have been seen before, and which have not.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This utilises a database which is passed between runs, allowing Talos to track which variants have been seen before, and which have not. See [History](docs/History.md) for more details.
 
 ### **How it works:**
 

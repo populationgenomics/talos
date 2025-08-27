@@ -86,7 +86,7 @@ ignore_categories = [ "exomiser", "svdb"]
 
 # categories where a variant can 'support' another variant, e.g. Comp-Het, but a variant which only has categories in
 # this list will not feature as a homozygous variant or dominant single hit
-support_categories = ["6"]
+support_categories = ["AlphaMissense"]
 
 # variants where all applied categories are in this list are removed from the report unless the gene or variant is
 # flagged as being a good phenotypic fit for the specific case

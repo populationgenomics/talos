@@ -7,6 +7,7 @@ from datetime import datetime
 
 TIMEZONE = zoneinfo.ZoneInfo('Australia/Brisbane')
 _GRANULAR_DATE: str | None = None
+_FINEGRAIN_DATE: str | None = None
 
 
 def get_granular_date():
@@ -17,3 +18,13 @@ def get_granular_date():
     if _GRANULAR_DATE is None:
         _GRANULAR_DATE = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d')
     return _GRANULAR_DATE
+
+
+def get_finegrained_date():
+    """
+    cached getter/setter
+    """
+    global _FINEGRAIN_DATE
+    if _FINEGRAIN_DATE is None:
+        _FINEGRAIN_DATE = datetime.now(tz=TIMEZONE).strftime('%Y-%m-%d_%H%M%S')
+    return _FINEGRAIN_DATE

@@ -154,3 +154,27 @@ def query_for_latest_analysis(
     # return the latest, determined by a sort on timestamp
     # 2023-10-10... > 2023-10-09..., so sort on strings
     return analysis_by_date[sorted(analysis_by_date)[-1]]
+
+
+def get_latest_history_file(dataset: str) -> Path | None:
+    """
+    Get the latest history file for a given dataset.
+
+    Args:
+        dataset (str):  project to query for
+        category (str): category of the path to search in, defaults to 'intermediate'
+    Returns:
+        Path or None: path to the latest history file, or None if not found
+    """
+    folder = generate_dataset_prefix(
+        dataset=dataset,
+        hash_value='history',
+    )
+
+    current_files = list(folder.glob('talos_history_*.json'))
+
+    if not current_files:
+        return None
+
+    # find the latest by sorting on filename - the date is in YYYYMMDD format
+    return sorted(current_files, key=lambda x: x.stem)[-1]

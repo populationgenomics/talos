@@ -15,7 +15,11 @@ from talos.utils import (
 INSERT_VARSTARS = 'INSERT INTO var_stars (var_id, sample_id, clinvar_stars, first_pheno_match) VALUES (?, ?, ?, ?);'
 
 
-def main(input_file: str, output_file: str):
+def main(input_file: str, output_file: str, bad_dates: list[str] | None = None) -> None:
+    """Convert a JSON history file to a SQLite database. Optionally filter out results from bad dates."""
+    if bad_dates is None:
+        bad_dates = []
+
     local_file = 'local.db'
     connection = create_or_open_db(local_file)
     cursor = connection.cursor()
@@ -56,7 +60,7 @@ def main(input_file: str, output_file: str):
             connection.execute(INSERT_VARSTARS, (var_id, sample_id, clinvar_stars, first_pheno_match))
 
             for category, date_string in content['categories'].items():
-                if category.lower() == 'support':
+                if date_string in bad_dates or category.lower() == 'support':
                     continue
                 cursor.execute(INSERT_CAT_QUERY, (var_id, sample_id, translate_category(category), date_string))
         connection.commit()
@@ -70,9 +74,10 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='Convert a JSON history file to a SQLite database.')
     parser.add_argument('json_file', type=str, help='Path to the JSON history file.')
     parser.add_argument('db_file', type=str, help='Path to the output SQLite database file.')
+    parser.add_argument('--bad_dates', nargs='+', help='Any YYYY-MM-DD dates to ignore.', default=[])
     args = parser.parse_args()
 
-    main(args.json_file, args.db_file)
+    main(args.json_file, args.db_file, bad_dates=args.bad_dates)
 
 
 """

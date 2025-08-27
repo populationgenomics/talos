@@ -9,8 +9,8 @@ import hail as hl
 
 from talos.models import PanelApp
 from talos.RunHailFiltering import (
-    annotate_category_3,
-    annotate_category_6,
+    annotate_category_alphamissense,
+    annotate_category_high_impact,
     annotate_clinvarbitration,
     filter_to_categorised,
     filter_to_population_rare,
@@ -52,8 +52,8 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
         ),
     )
 
-    anno_matrix = annotate_category_3(anno_matrix)
-    assert anno_matrix.info.categoryboolean3.collect() == [classified]
+    anno_matrix = annotate_category_high_impact(anno_matrix)
+    assert anno_matrix.info.categorybooleanhighimpact.collect() == [classified]
 
 
 @pytest.mark.skip(reason='category 5 currently inactive')
@@ -71,7 +71,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
     """
 
     matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score))
-    assert matrix.info.categoryboolean5.collect() == [flag]
+    assert matrix.info.categorybooleanspliceai.collect() == [flag]
 
 
 @pytest.mark.parametrize(
@@ -100,9 +100,9 @@ def test_class_6_assignment(am_class, classified, make_a_mt):
         ),
     )
 
-    anno_matrix = annotate_category_6(anno_matrix)
+    anno_matrix = annotate_category_alphamissense(anno_matrix)
     anno_matrix.rows().show()
-    assert anno_matrix.info.categoryboolean6.collect() == [classified]
+    assert anno_matrix.info.categorybooleanalphamissense.collect() == [classified]
 
 
 def annotate_c6_missing(make_a_mt, caplog):
@@ -121,8 +121,8 @@ def annotate_c6_missing(make_a_mt, caplog):
         ),
     )
 
-    anno_matrix = annotate_category_6(anno_matrix)
-    assert anno_matrix.info.categoryboolean6.collect() == [0]
+    anno_matrix = annotate_category_alphamissense(anno_matrix)
+    assert anno_matrix.info.categorybooleanalphamissense.collect() == [0]
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
 
@@ -254,13 +254,13 @@ def test_filter_to_classified(
     """
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
-            categoryboolean1=one,
-            categoryboolean3=three,
-            categorysample4=four,
-            categoryboolean5=five,
-            categoryboolean6=six,
+            categorybooleanclinvarplp=one,
+            categorybooleanhighimpact=three,
+            categorysampledenovo=four,
+            categorybooleanspliceai=five,
+            categorybooleanalphamissense=six,
             categorydetailspm5=pm5,
-            categorybooleansvdb=svdb,
+            categorybooleansplicevardb=svdb,
             categorydetailsexomiser=exomiser,
         ),
     )
@@ -308,4 +308,4 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
-    assert len([x for x in returned_table.info.categoryboolean1.collect() if x == 1]) == strong
+    assert len([x for x in returned_table.info.categorybooleanclinvarplp.collect() if x == 1]) == strong

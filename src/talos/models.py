@@ -38,16 +38,23 @@ MIN_HET = 0.25
 MAX_HET = 0.75
 MIN_HOM = 0.85
 
+# dictionary for translating all the previous aliases for categories to their more descriptive names
 CATEGORY_TRANSLATOR: dict[str, str] = {
     '1': 'ClinVarP/LP',
+    'clinvarplp': 'ClinVarP/LP',
     '3': 'HighImpact',
+    'highimpact': 'HighImpact',
     '4': 'DeNovo',
+    'denovo': 'DeNovo',
     '5': 'SpliceAI',
+    'spliceai': 'SpliceAI',
     '6': 'AlphaMissense',
-    'support': 'AlphaMissense',
+    'alphamissense': 'AlphaMissense',
     'pm5': 'PM5',
     'sv1': 'LofSv',
+    'lofsv': 'LofSv',
     'svdb': 'SpliceVarDB',
+    'splicevardb': 'SpliceVarDB',
     'exomiser': 'Exomiser',
 }
 
@@ -164,7 +171,7 @@ class VariantCommon(BaseModel):
         )
 
         # upgrade all the category labels for the report
-        return {CATEGORY_TRANSLATOR.get(cat, cat) for cat in categories}
+        return {translate_category(cat.lower()) for cat in categories}
 
     def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
@@ -187,7 +194,7 @@ class VariantCommon(BaseModel):
             # add the longer names to the support_categories - this is a workaround for the fact that the support
             # categories entry in the config file can now be the numberical/short IDs, or longer names
             remove_support = self.support_categories
-            remove_support.update({CATEGORY_TRANSLATOR[x] for x in self.support_categories if x in CATEGORY_TRANSLATOR})
+            remove_support.update({translate_category(x.lower()) for x in self.support_categories})
             categories_applied -= remove_support
 
         return len(categories_applied) > 0

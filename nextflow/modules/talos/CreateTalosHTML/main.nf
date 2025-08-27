@@ -20,7 +20,7 @@ process CreateTalosHTML {
 	// add the external IDs file if provided
 	script:
 	def ext_id_arg = ext_ids.name != 'NO_FILE' ? "--ext_ids $ext_ids" : ''
-	def seqr_arg = seqr_ids.name != 'NO_FILE' ? "--seqr_ids $seqr_ids" : ''
+	def seqr_arg = seqr_ids.name != 'NO_SEQR_FILE' ? "--seqr_ids $seqr_ids" : ''
 
     """
     export TALOS_CONFIG=${talos_config}

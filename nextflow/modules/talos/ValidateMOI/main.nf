@@ -17,7 +17,7 @@ process ValidateMOI {
 
     output:
         path "${params.cohort}_results.json", emit: json
-        path "${timestamp}.db", emit: db
+        path "talos_history_${timestamp}.db", emit: db
 
     """
     export TALOS_CONFIG=${talos_config}

@@ -13,9 +13,13 @@ from cpg_utils import Path, config, hail_batch, to_path
 from loguru import logger
 
 from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
-from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
+from talos.cpg_internal_scripts.cpg_flow_utils import (
+    generate_dataset_prefix,
+    query_for_latest_analysis,
+    get_latest_history_file,
+)
 from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
-from talos.utils import get_granular_date
+from talos.static_values import get_granular_date, get_finegrained_date
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -437,15 +441,16 @@ class ValidateVariantInheritance(stage.CohortStage):
     run the labelled VCF -> results JSON stage
     """
 
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return (
-            generate_dataset_prefix(
-                dataset=cohort.dataset.name,
-                stage_name=self.name,
-                hash_value=get_date_string(),
-            )
-            / 'summary_output.json'
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
+        prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name=self.name,
+            hash_value=get_date_string(),
         )
+        return {
+            'json': prefix / 'summary_output.json',
+            'history': prefix / 'validate_history.db',
+        }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # resource consumption here has dropped hugely
@@ -483,6 +488,13 @@ class ValidateVariantInheritance(stage.CohortStage):
             },
         )['vcf.bgz']
 
+        if latest := get_latest_history_file(cohort.dataset.name):
+            logger.info(f'Using history file {latest} for {cohort.id} ({cohort.dataset.name})')
+            db_file = hail_batch.get_batch().read_input(latest)
+        else:
+            logger.info('No prior history file')
+            db_file = get_latest_history_file
+
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
@@ -490,11 +502,13 @@ class ValidateVariantInheritance(stage.CohortStage):
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
-                --pedigree {pedigree} {sv_vcf_arg}
+                --pedigree {pedigree} {sv_vcf_arg} \\
+                --db {db_file}
             """,
         )
         expected_out = self.expected_outputs(cohort)
-        hail_batch.get_batch().write_output(job.output, expected_out)
+        hail_batch.get_batch().write_output(job.output, expected_out['json'])
+        hail_batch.get_batch().write_output(db_file, expected_out['history'])
 
         return self.make_outputs(cohort, data=expected_out, jobs=job)
 
@@ -505,15 +519,20 @@ class ValidateVariantInheritance(stage.CohortStage):
     analysis_keys=['report'],
 )
 class HpoFlagging(stage.CohortStage):
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        return (
-            generate_dataset_prefix(
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
+        return {
+            'json': generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 stage_name=self.name,
                 hash_value=get_date_string(),
             )
-            / 'full_report.json'
-        )
+            / 'full_report.json',
+            'history': generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                hash_value='history',
+            )
+            / f'talos_history_{get_finegrained_date()}.json',
+        }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         outputs = self.expected_outputs(cohort)
@@ -534,7 +553,12 @@ class HpoFlagging(stage.CohortStage):
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, key='config'))
 
         results_json = hail_batch.get_batch().read_input(
-            inputs.as_path(cohort, ValidateVariantInheritance),
+            inputs.as_path(cohort, ValidateVariantInheritance, 'json'),
+        )
+
+        # read the history file from the previous stage
+        history_db = hail_batch.get_batch().read_input(
+            inputs.as_path(cohort, ValidateVariantInheritance, 'history'),
         )
 
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
@@ -547,12 +571,15 @@ class HpoFlagging(stage.CohortStage):
                 --mane_json {mane_json} \\
                 --gen2phen {gene_to_phenotype} \\
                 --phenio {phenio_db} \\
-                --output {job.output!s}
+                --output {job.output!s} \\
+                --db {history_db}
             """,
         )
 
-        hail_batch.get_batch().write_output(job.output, outputs)
+        hail_batch.get_batch().write_output(job.output, outputs['json'])
 
+        # write the history to a new path
+        hail_batch.get_batch().write_output(history_db, outputs['history'])
         return self.make_outputs(target=cohort, jobs=job, data=outputs)
 
 
@@ -602,7 +629,7 @@ class CreateTalosHtml(stage.CohortStage):
                 id_map_handle.write(f'{sg.id}\t{sg.participant_id}\n')
 
         localised_ids = hail_batch.get_batch().read_input(expected_out['id_map'])
-        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging))
+        results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'json'))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
 
         # this will write output files directly to GCP
@@ -673,7 +700,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
             logger.warning(f'No Seqr lookup file for {cohort.id} ({cohort.dataset.name}) {seq_type}')
             return self.make_outputs(cohort, skipped=True)
 
-        input_localised = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging))
+        input_localised = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging, 'json'))
 
         # create a job to run the minimisation script
         job = set_up_job_with_resources(

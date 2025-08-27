@@ -295,10 +295,10 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     # hard filter remaining rows to PanelApp green genes
     mt = mt.filter_rows(green_expression.contains(mt.info.gene_id))
 
-    # everything left is `SV1`
+    # everything left is a `LOF SV`
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleansv1=ONE_INT,
+            categorybooleanlofsv=ONE_INT,
         ),
     )
 
@@ -306,11 +306,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     mt = fix_hemi_calls(mt)
 
     # now write that badboi
-    hl.export_vcf(
-        mt,
-        vcf_out,
-        tabix=True,
-    )
+    hl.export_vcf(mt, vcf_out, tabix=True)
 
 
 if __name__ == '__main__':

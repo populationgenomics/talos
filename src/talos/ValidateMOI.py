@@ -19,7 +19,6 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
-    CATEGORY_TRANSLATOR,
     FamilyMembers,
     MemberSex,
     PanelApp,
@@ -31,6 +30,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
+    translate_category,
 )
 from talos.moi_tests import MOIRunner
 from talos.pedigree_parser import PedigreeParser
@@ -151,17 +151,17 @@ def apply_moi_to_variants(
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
-                partial_pen=bool(variant.info.get('categoryboolean1', False)),
+                partial_pen=bool(variant.info.get('categorybooleanclinvarplp', False)),
             )
 
             # Flag! If this is a Category 1 (ClinVar) variant, and we are
             # interpreting under a lenient MOI, add flag for analysts
             # control this in just one place
-            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categoryboolean1', False):
+            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categorybooleanclinvarplp', False):
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
-                    if CATEGORY_TRANSLATOR['4'] in each_result.categories:
+                    if translate_category('denovo') in each_result.categories:
                         continue
 
                     if each_result.reasons == 'Autosomal Dominant':
@@ -345,7 +345,7 @@ def cli_main():
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
-    parser.add_argument('--db', help='Path to a state SQLite DB, will be read or created', default=None)
+    parser.add_argument('--db', help='Path to a SQLite DB, will be read or created', default=None)
     args = parser.parse_args()
 
     main(

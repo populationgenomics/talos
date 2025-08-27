@@ -174,6 +174,7 @@ class HTMLBuilder:
         subset_id: str | None = None,
         link_engine: 'LinkEngine | None' = None,
         ext_id_map: dict[str, str] | None = None,
+        ext_labels: dict | None = None,
     ):
         """
         Args:
@@ -182,6 +183,7 @@ class HTMLBuilder:
             subset_id (str, optional): the subset ID to use for this report
             link_engine (LinkEngine, optional): the link engine to generate hyperlinks with
             ext_id_map (dict[str, str], optional): a mapping of sample IDs to external IDs, optional
+            ext_labels (dict | None): a nested dictionary of sample IDs, variant identifiers, and labels, or None
         """
 
         if ext_id_map is None:
@@ -216,11 +218,7 @@ class HTMLBuilder:
         #         "1-123457-A-T": ["label1"]
         #     },
         # }
-        self.ext_labels: dict[str, dict] = read_json_from_path(
-            config_retrieve(['CreateTalosHTML', 'external_labels'], None),
-            {},
-        )
-        assert isinstance(self.ext_labels, dict)
+        self.ext_labels = ext_labels or {}
 
         self.metadata = results_dict.metadata
         self.panel_names = {panel.name for panel in self.metadata.panels.values()}
@@ -713,6 +711,7 @@ def cli_main():
     parser.add_argument('--output', help='Final HTML filename', required=True)
     parser.add_argument('--ext_ids', help='Optional, Mapping file for external IDs', default=None)
     parser.add_argument('--seqr_ids', help='Optional, Mapping file for Seqr IDs', default=None)
+    parser.add_argument('--labels', help='Dict, SampleID: VariantID: [labels], optional', default=None)
     args = parser.parse_args()
     main(
         results=args.input,
@@ -720,6 +719,7 @@ def cli_main():
         output=args.output,
         ext_id_file=args.ext_ids,
         seqr_id_file=args.seqr_ids,
+        external_labels=args.labels,
     )
 
 
@@ -729,6 +729,7 @@ def main(
     output: str,
     ext_id_file: str | None = None,
     seqr_id_file: str | None = None,
+    external_labels: str | None = None,
 ):
     """
 
@@ -738,6 +739,7 @@ def main(
         output (str): where to write the HTML file
         ext_id_file (str | None): optional, path to a file containing external IDs
         seqr_id_file (str | None): optional, path to a file containing Seqr IDs
+        external_labels (str | None): optional, path to a file containing external labels
     """
 
     report_output_dir = Path(output).parent
@@ -746,6 +748,8 @@ def main(
 
     # can be None if absent, or is a lookup of sample ID in VCF ~ an external ID
     external_id_map = parse_ids_from_file(ext_id_file)
+
+    labels_file: dict[str, dict] = read_json_from_path(external_labels, {})
 
     # set up the link builder, or None
     if (link_section := config_retrieve(['CreateTalosHTML', 'hyperlinks'], None)) and seqr_id_file:
@@ -759,6 +763,7 @@ def main(
         panelapp_path=panelapp,
         link_engine=link_builder,
         ext_id_map=external_id_map,
+        ext_labels=labels_file,
     )
 
     # if this fails with a NoVariantsFoundException, there were no variants to present in the whole cohort
@@ -782,6 +787,7 @@ def main(
             subset_id=prefix,
             link_engine=link_builder,
             ext_id_map=external_id_map,
+            ext_labels=labels_file,
         )
         try:
             output_filepath = join(report_output_dir, report)

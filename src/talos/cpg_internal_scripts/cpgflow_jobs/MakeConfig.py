@@ -89,10 +89,6 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
         'sequencing_type': config.config_retrieve(['workflow', 'sequencing_type']),
         'long_read': config.config_retrieve(['workflow', 'long_read'], False),
         'singletons': config.config_retrieve(['workflow', 'singletons'], False),
-        'result_history': cpg_flow_utils.generate_dataset_prefix(
-            dataset=dataset,
-            hash_value='history',
-        ),
     }
 
     # pull the content relevant to this cohort + sequencing type (mandatory in CPG)
