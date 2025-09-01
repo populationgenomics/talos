@@ -838,44 +838,6 @@ def db_label_phenotypes(db_file: str, results: ResultData):
     connection.close()
 
 
-def date_from_string(filename: str) -> str:
-    """
-    Takes a filename, finds a date. Internally consistent with the way this codebase writes datetimes into file paths.
-    """
-    date_search = re.search(DATE_RE, filename)
-    if date_search:
-        return date_search.group()
-    raise ValueError(f'No date found in {filename}')
-
-
-def find_latest_file(results_folder: str, ext: str = 'json') -> str | None:
-    """
-    takes a directory of files, and finds the latest
-    Args:
-        results_folder (): local or remote folder, or don't call this method
-        ext (): the type of files we're looking for
-
-    Returns: most recent file path, or None
-    """
-
-    logger.info(f'Using results from {results_folder}')
-
-    # this is currently a CloudPath to access globbing for files in cloud or local settings
-    date_files = {}
-    for filename in to_anypath(results_folder).glob(f'*.{ext}'):
-        # if the filename is a valid date, add it to the dict, otherwise catch the error and skip it
-        try:
-            date_files[date_from_string(filename.name)] = filename
-        except ValueError:
-            logger.info(f'File {filename} did not have a valid date, skipping')
-
-    if not date_files:
-        logger.warning(f'The folder {results_folder} was provided, but did not contain any valid files')
-        return None
-
-    return str(date_files[max(date_files.keys())].absolute())
-
-
 def generate_summary_stats(result_set: ResultData):
     """Reads over the variants present in the result set, and generates some per-sample and per-cohort stats."""
 
