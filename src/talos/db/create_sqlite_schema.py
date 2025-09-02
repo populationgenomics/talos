@@ -1,7 +1,9 @@
 from typing import List
+from sqlalchemy import create_engine, select, join, update
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import PickleType, String, Integer, Float, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm.session import Session
 
 from talos.static_values import get_granular_date
 
@@ -21,8 +23,12 @@ class Family(Base):
 
 class Participant(Base):
     """
-    Atomic description of a participant, no relationships. This can be used to collect external IDs, affected status, HPO terms, etc.
-    we could add name, age, etc. but these aren't important for Talos
+    Purpose: atomic description of each participant:
+      - no relationships to other members
+      - can be used to collect external IDs, affected status, HPO terms, etc.
+      - we could add name, age, etc. but these aren't important for Talos
+
+    The "trio" table (previously "probands", I don't like either name) has proband~mother~father relationships
     """
 
     __tablename__ = 'participant'
@@ -35,7 +41,8 @@ class Participant(Base):
     # seqr ID is actually at the family level, but that's not important here, it still applies to the proband
     seqr_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
-    family: Mapped[str | None] = mapped_column(String(50), ForeignKey('family.id'), nullable=True)
+    # each participant belongs to a family, non-nullable foreign key. This is mandatory from the Pedigree
+    family: Mapped[str] = mapped_column(String(50), ForeignKey('family.id'), nullable=False)
 
     # boolean
     affected: Mapped[bool] = mapped_column(nullable=False, default=False)
@@ -46,13 +53,19 @@ class Participant(Base):
 
 class Trio(Base):
     """
-    Affected members and immediate family context. Each row represents a nuclear trio used in inheritance filtering
-    What happens if we previously had a proband, and in a new run we have parents? Detect and update?
+    Purpose: Affected members and immediate family context
+      - Each row represents a nuclear trio used in inheritance filtering
+      - This is centered around the affected participant, who may or may not have parents in the system
+      - The proband is the affected participant, mother and father are optional
+      - We can have multiple trios in the same family (i.e. affected sibs), each being a separate entity here
+      - This would be more important in the report/presentation stages - retrieve all members and affected status which played a role in the filtering decision
+
     TODO I don't like the name of this table - the family unit acted on by Talos is not always a trio, but is limited
     TODO to proband, mother, father.
     """
 
     __tablename__ = 'trio'
+
     # with multiple foreign keys to the participant table, we need to explicitly define the foreign_keys in the relationship
     id: Mapped[str] = mapped_column(String(50), ForeignKey('participant.id'), primary_key=True, unique=True)
     proband = relationship('Participant', foreign_keys=[id])
@@ -67,11 +80,18 @@ class Trio(Base):
     solved: Mapped[bool | None] = mapped_column(Boolean, default=False)
     solved_by: Mapped[int | None] = mapped_column(Integer, ForeignKey('decision.id'), nullable=True)
 
+    # a timestamp if the family existed, and was updated to contain additional members
+    family_updated: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
 
 class Variant(Base):
     """
-    A variant seen in any participant.
-    We could add more fields if we want to track them.
+    Purpose: an entity to store the details of a given variant, participant/trio agnostic
+      - the coordinates and alleles defining the variant
+      - static annotations which do not change between participants, e.g., gnomAD, ClinVar, SpliceAI, etc.
+      - relationships to transcript consequences, which may be multiple per variant
+
+    we do not store per-event information here, e.g. categories, genotypes, that is in the ReportEvent table
     """
 
     __tablename__ = 'variant'
@@ -102,6 +122,9 @@ class Variant(Base):
     clinvar_clinsig: Mapped[str | None] = mapped_column(String(20), nullable=True)
     clinvar_stars: Mapped[int | None] = mapped_column(Integer, nullable=True)
     clinvar_increased: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # specific to SVs - potentially multiple implicated genes
+    predicted_lof: Mapped[set[str] | None] = mapped_column(PickleType, nullable=True)
 
     # ensure uniqueness on the combination [chromosome, position, reference, alternate]
     __table_args__ = (UniqueConstraint('chromosome', 'position', 'reference', 'alternate', name='variant_unique'),)
@@ -198,6 +221,34 @@ class ReportEvent(Base):
     evidence_last_updated: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     __table_args__ = (UniqueConstraint('variant_id', 'second_variant_id', 'moi_satisfied', name='variant_moi_unique'),)
+
+    def add_categories(self, category: str | list[str], session: Session) -> None:
+        """
+        Add one or more new categories with the current date if it doesn't already exist.
+        Example of chucking this update logic into the model rather than the application code.
+        Dubious about whether this would cause longer runtimes than a single mass update at the end.
+        """
+        # make it iterable
+        categories = category if isinstance(category, list) else [category]
+        updated = False
+        for cat in categories:
+            if cat not in self.categories:
+                updated = True
+                self.categories[cat] = get_granular_date()
+
+        if not updated:
+            return
+        session.execute(
+            update(ReportEvent),
+            [
+                {
+                    'evidence_last_updated': max(self.categories.values()),
+                    'categories': self.categories,
+                    'id': self.id,
+                }
+            ],
+        )
+        session.commit()
 
 
 class Decision(Base):

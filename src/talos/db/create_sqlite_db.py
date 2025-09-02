@@ -122,22 +122,7 @@ for participant in result:
 
         # now maybe I want to update the report event with an additional category
         if 'new_category' not in var.ReportEvent.categories:
-            var.ReportEvent.categories['new_category'] = '2025-03-01'
-
-        print(f'New categories: {var.ReportEvent.categories}')
-
-        # update it through the update & params
-        _SESSION.execute(
-            update(ReportEvent),
-            [
-                {
-                    'evidence_last_updated': max(var.ReportEvent.categories.values()),
-                    'categories': var.ReportEvent.categories,
-                    'id': var.ReportEvent.id,
-                }
-            ],
-        )
-        _SESSION.commit()
+            var.ReportEvent.add_categories(['new_category', 'another_category'], _SESSION)
 
 # just to make sure it updated
 reportevent_check = _SESSION.execute(select(ReportEvent).where(ReportEvent.id == reportevent1.id)).scalar_one()
