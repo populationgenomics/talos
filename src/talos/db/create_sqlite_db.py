@@ -15,7 +15,7 @@ from talos.db.create_sqlite_schema import (
     Run,
 )
 
-from sqlalchemy import create_engine, select, join, update
+from sqlalchemy import create_engine, select, join, update, insert
 from sqlalchemy.orm.session import Session
 
 from cloudpathlib.anypath import to_anypath
@@ -49,40 +49,62 @@ main()
 # some examples of how this would work
 f1 = Family(id='FAM1')
 _SESSION.add(f1)
-p1 = Participant(
-    id='P1',
-    family=f1.id,
-    ext_id='EXT1',
-    affected=True,
-)
-_SESSION.add(p1)
 
-pro1 = Trio(
+_SESSION.execute(
+    insert(Participant),
+    [
+        {'id': 'P1', 'family': f1.id, 'ext_id': 'EXT1', 'affected': True},
+        {'id': 'P2', 'family': f1.id, 'ext_id': 'EXT2', 'affected': False},
+        {'id': 'P3', 'family': f1.id, 'ext_id': 'EXT3', 'affected': False},
+    ],
+)
+_SESSION.commit()
+
+p1 = _SESSION.execute(select(Participant).where(Participant.id == 'P1')).scalar_one()
+
+proband1 = Trio(
     id=p1.id,
     solved=False,
 )
-_SESSION.add(pro1)
+_SESSION.add(proband1)
 
-var1 = Variant(
-    chromosome='chr1',
-    position=123456,
-    reference='A',
-    alternate='T',
+# bulk insertion syntax for a single Class type
+_SESSION.execute(
+    insert(Variant),
+    [
+        {'chromosome': 'chr1', 'position': 123456, 'reference': 'A', 'alternate': 'T'},
+        {'chromosome': 'chr2', 'position': 121456, 'reference': 'A', 'alternate': 'TA'},
+        {'chromosome': 'chr3', 'position': 1234556, 'reference': 'AGG', 'alternate': 'T'},
+        {'chromosome': 'chr4', 'position': 123256, 'reference': 'C', 'alternate': 'GA'},
+    ],
 )
-_SESSION.add(var1)
+_SESSION.commit()
 
-txcsq1 = TranscriptConsequence(
-    variant=var1,
-    gene_symbol='GENE1',
-    consequence='missense_variant',
+# query back one of the variants
+var1 = _SESSION.execute(
+    select(Variant).where(
+        (Variant.chromosome == 'chr1')
+        & (Variant.position == 123456)
+        & (Variant.reference == 'A')
+        & (Variant.alternate == 'T')
+    ),
+).scalar_one()
+
+# many transcript consequences for a single event, one commit
+_SESSION.execute(
+    insert(TranscriptConsequence),
+    [
+        {'variant_id': var1.id, 'gene_symbol': 'GENE1', 'consequence': 'missense', 'enst': 'ENST00000367770'},
+        {'variant_id': var1.id, 'gene_symbol': 'GENE1', 'consequence': 'missense', 'enst': 'ENST00000360823'},
+        {'variant_id': var1.id, 'gene_symbol': 'GENE2', 'consequence': 'splice_region', 'enst': 'ENST00000360910'},
+    ],
 )
-_SESSION.add(txcsq1)
 
 # autoincrementing IDs are assigned on commit, so this needs to be pushed before the foreign key relationships can exist
 _SESSION.commit()
 
 reportevent1 = ReportEvent(
-    trio_id=pro1.id,
+    trio_id=proband1.id,
     variant_id=var1.id,
     moi_satisfied='Initial population',
     panels={1, 2, 3},
@@ -91,7 +113,6 @@ reportevent1 = ReportEvent(
 )
 
 _SESSION.add(reportevent1)
-
 _SESSION.commit()
 
 # query for the family, scalar_one() raises if not exactly one result
