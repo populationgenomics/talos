@@ -460,6 +460,11 @@ def create_small_variant(
         elif isinstance(info[sam_cat], set):
             info[sam_cat] = list(info[sam_cat])
 
+    # check that there's at least one category left after the PM5/Exomiser/SVDB/other processing, else return None
+    # this isn't a sample-specific check, just a check that there's anything left worth classifying on
+    if not (any(info[cat] for cat in boolean_categories) or any(info[cat] for cat in sample_categories)):
+        return None
+
     phased = get_phase_data(samples, var)
 
     # only keep these where the sample has a variant - the majority of samples have empty data, and we don't use it
