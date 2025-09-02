@@ -3,22 +3,20 @@ demonstration in two parts for the creation of a db schema, and the creation of 
 the accompanying file create_sqlite_schema.py contains the schema definition
 """
 
-from talos.db.create_sqlite_schema import (
-    Base,
-    Family,
-    Participant,
-    Decision,
-    Trio,
-    Variant,
-    TranscriptConsequence,
-    ReportEvent,
-    Run,
-)
-
-from sqlalchemy import create_engine, select, join, update, insert
+from cloudpathlib.anypath import to_anypath
+from sqlalchemy import create_engine, insert, select
 from sqlalchemy.orm.session import Session
 
-from cloudpathlib.anypath import to_anypath
+from talos.db.create_sqlite_schema import (
+    Base,
+    Decision,
+    Family,
+    Participant,
+    ReportEvent,
+    TranscriptConsequence,
+    Trio,
+    Variant,
+)
 
 _SESSION: Session | None = None
 
@@ -45,6 +43,9 @@ def main():
 
 
 main()
+
+if _SESSION is None:
+    raise RuntimeError('session not created')
 
 # some examples of how this would work
 f1 = Family(id='FAM1')
@@ -86,7 +87,7 @@ var1 = _SESSION.execute(
         (Variant.chromosome == 'chr1')
         & (Variant.position == 123456)
         & (Variant.reference == 'A')
-        & (Variant.alternate == 'T')
+        & (Variant.alternate == 'T'),
     ),
 ).scalar_one()
 
@@ -136,7 +137,7 @@ for participant in result:
             select(TranscriptConsequence).where(TranscriptConsequence.variant_id == var.ReportEvent.variant_id),
         ):
             print(
-                f'    Gene: {tx.TranscriptConsequence.gene_symbol}, consequence: {tx.TranscriptConsequence.consequence}'
+                f'   Gene: {tx.TranscriptConsequence.gene_symbol}, consequence: {tx.TranscriptConsequence.consequence}',
             )
 
         print(var.ReportEvent.categories)

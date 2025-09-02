@@ -1,9 +1,8 @@
-from typing import List
-from sqlalchemy import create_engine, select, join, update
-from sqlalchemy.schema import ForeignKey, UniqueConstraint
-from sqlalchemy.types import PickleType, String, Integer, Float, Boolean
+from sqlalchemy import update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.orm.session import Session
+from sqlalchemy.schema import ForeignKey, UniqueConstraint
+from sqlalchemy.types import Boolean, Float, Integer, PickleType, String
 
 from talos.static_values import get_granular_date
 
@@ -58,7 +57,9 @@ class Trio(Base):
       - This is centered around the affected participant, who may or may not have parents in the system
       - The proband is the affected participant, mother and father are optional
       - We can have multiple trios in the same family (i.e. affected sibs), each being a separate entity here
-      - This would be more important in the report/presentation stages - retrieve all members and affected status which played a role in the filtering decision
+      - This would be more important in the report/presentation stages
+          - retrieve all members and affected status which played a role in the filtering decision
+          - present genotypes for the trio members
 
     TODO I don't like the name of this table - the family unit acted on by Talos is not always a trio, but is limited
     TODO to proband, mother, father.
@@ -66,7 +67,7 @@ class Trio(Base):
 
     __tablename__ = 'trio'
 
-    # with multiple foreign keys to the participant table, we need to explicitly define the foreign_keys in the relationship
+    # multiple foreign keys to the participant table, we need to explicitly define the foreign_keys in the relationship
     id: Mapped[str] = mapped_column(String(50), ForeignKey('participant.id'), primary_key=True, unique=True)
     proband = relationship('Participant', foreign_keys=[id])
     mother_id: Mapped[str | None] = mapped_column(String(50), ForeignKey('participant.id'), nullable=True)
@@ -112,7 +113,7 @@ class Variant(Base):
     gnomad_homalt: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # multiple foreign key connections to the TX consequences for this variant
-    transcript_consequence: Mapped[List['TranscriptConsequence']] = relationship(back_populates='variant')
+    transcript_consequence: Mapped[list['TranscriptConsequence']] = relationship(back_populates='variant')
 
     # SpliceAI can be 4 separate scores, but currently we only have one (or none by default)
     # we're currently getting SpliceAI scores at the variant level, not the transcript level
@@ -171,7 +172,7 @@ class TranscriptConsequence(Base):
 
 class ReportEvent(Base):
     """
-    A record of an event in the report generation process, a variant, the family it was seen in, genotypes, and categories.
+    A reportable event; a variant, the family it was seen in, genotypes, and categories.
     We can revisit the same event later, if it is seen with different (additional) categories.
     """
 
@@ -194,9 +195,7 @@ class ReportEvent(Base):
     # a collection of all the panels applied to this trio containing this gene
     panels: Mapped[set[int] | None] = mapped_column(PickleType, nullable=True)
 
-    # # maybe? a dict of IDs to genotypes?
-    # genotypes: Mapped[Optional[dict[str, str]]] = mapped_column(PickleType, nullable=True)
-    # # or this? splitting the nuclear family genotypes out into separate fields. This is a bit limiting, but simpler.
+    # # splitting the nuclear family genotypes out into separate fields. This is a bit limiting, but simpler than a dict
     genotype_proband: Mapped[str] = mapped_column(String(10), nullable=False)
     genotype_mother: Mapped[str | None] = mapped_column(String(10), nullable=True)
     genotype_father: Mapped[str | None] = mapped_column(String(10), nullable=True)
@@ -245,7 +244,7 @@ class ReportEvent(Base):
                     'evidence_last_updated': max(self.categories.values()),
                     'categories': self.categories,
                     'id': self.id,
-                }
+                },
             ],
         )
         session.commit()
