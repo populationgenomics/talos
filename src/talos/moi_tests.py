@@ -544,8 +544,8 @@ class RecessiveAutosomalCH(BaseMoi):
         if self.variant_too_common(principal):
             return classifications
 
-        # if hets are present, try and find support
-        for sample_id in principal.het_samples:
+        # if hets are present, try and find support - if the partner is a deletion or SV, hets can appear as homs
+        for sample_id in principal.het_samples | principal.hom_samples:
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
@@ -575,6 +575,8 @@ class RecessiveAutosomalCH(BaseMoi):
                             partner.sample_category_check(sample_id, allow_support=False),
                         ],
                     )
+                    # allow comp-het with a hom and a deletion on opposing alleles, but no other homs
+                    or (sample_id in principal.hom_samples and partner.coordinates.alt != '<DEL>')
                 ):
                     continue
 
@@ -593,7 +595,7 @@ class RecessiveAutosomalCH(BaseMoi):
                             categories=principal.category_values(sample_id),
                             reasons=self.applied_moi,
                             genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                            support_vars={partner.info['var_link']},
+                            support_vars={partner.info.get('var_link', 'no_link') or 'no_link'},  # SVs may not have one
                             flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
                             independent=False,
                         ),
@@ -985,10 +987,14 @@ class XRecessiveFemaleCH(BaseMoi):
         # remove from analysis if too many homs are present in population databases
         if self.variant_too_common(principal):
             return classifications
-        het_females = {sam for sam in principal.het_samples if self.pedigree.participants[sam].is_female}
 
-        # if het females are present, try and find support
-        for sample_id in het_females:
+        # initially consider both hom and het variants, to be filtered back to only [Hom x Del] pairs
+        female_var_ids = {
+            sam for sam in principal.het_samples | principal.hom_samples if self.pedigree.participants[sam].is_female
+        }
+
+        # if het/hom females are present, try and find support
+        for sample_id in female_var_ids:
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
             if (
@@ -1020,6 +1026,8 @@ class XRecessiveFemaleCH(BaseMoi):
                             partner.sample_category_check(sample_id, allow_support=False),
                         ],
                     )
+                    # allow comp-het with a hom and a deletion on opposing alleles, but no other homs
+                    or (sample_id in principal.hom_samples and partner.coordinates.alt != '<DEL>')
                 ):
                     continue
 

@@ -45,14 +45,14 @@ This document explains the configuration options, the default values, and sensib
   * Config Section: `RunHailFiltering.de_novo`
   * Description: Controls filtering thresholds and de novo variant detection parameters during the Hail Stage
 
-| Field            | Purpose                                                                                                                                                         | Default | Alternative |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|-------------|
-| `min_child_ab`   | Minimum proportion of alt-supporting reads relative to overall read depth for the proband                                                                       | 0.20    |             |
-| `min_depth`      | Minimum read depth for calls. In order of preference/availability this is from `DP`, total of `AD`, or if both are absent, a dummy value which will always pass | 5       |             |
-| `max_depth`      | Maximum read depth for calls. In order of preference/availability this is from `DP`, total of `AD`, or if both are absent, a dummy value which will always pass | 1000    |             |
-| `min_alt_depth`  | If all other conditions succeed, at least this many Alt observations to confirm a de Novo call                                                                  | 5       |             |
-| `min_proband_gq` | Minumum genotype quality score for all variants in probands/affected participants (detected via Pedigree)                                                       | 25      | 40          |
-| `min_all_sample_gq`  | Minimum GQ applied to all samples                                                                                                                               | 5       |             |
+| Field                | Purpose                                                                                                                                                         | Default | Alternative |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|-------------|
+| `min_child_ab`       | Minimum proportion of alt-supporting reads relative to overall read depth for the proband                                                                       | 0.20    |             |
+| `min_depth`          | Minimum read depth for calls. In order of preference/availability this is from `DP`, total of `AD`, or if both are absent, a dummy value which will always pass | 5       |             |
+| `max_depth`          | Maximum read depth for calls. In order of preference/availability this is from `DP`, total of `AD`, or if both are absent, a dummy value which will always pass | 1000    |             |
+| `min_alt_depth`      | If all other conditions succeed, at least this many Alt observations to confirm a de Novo call                                                                  | 5       |             |
+| `min_proband_gq`     | Minumum genotype quality score for all variants in probands/affected participants (detected via Pedigree)                                                       | 25      | 40          |
+| `min_all_sample_gq`  | Minimum GQ applied to all samples                                                                                                                               | 15      |             |
 
 ---
 
