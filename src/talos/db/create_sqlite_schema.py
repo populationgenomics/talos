@@ -1,7 +1,7 @@
 from sqlalchemy import update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.orm.session import Session
-from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
+from sqlalchemy.schema import ForeignKey, Index
 from sqlalchemy.types import Boolean, Float, Integer, PickleType, String
 
 from talos.static_values import get_granular_date
