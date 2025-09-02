@@ -1,7 +1,7 @@
 from sqlalchemy import update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.orm.session import Session
-from sqlalchemy.schema import ForeignKey, UniqueConstraint
+from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Float, Integer, PickleType, String
 
 from talos.static_values import get_granular_date
@@ -33,7 +33,7 @@ class Participant(Base):
     __tablename__ = 'participant'
 
     # the sample ID we would expect in the VCF
-    id: Mapped[str] = mapped_column(String(50), primary_key=True, unique=True)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, unique=True, index=True)
 
     # these two attributes are probably also unique, but not primary keys as they can be null
     ext_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -68,7 +68,7 @@ class Trio(Base):
     __tablename__ = 'trio'
 
     # multiple foreign keys to the participant table, we need to explicitly define the foreign_keys in the relationship
-    id: Mapped[str] = mapped_column(String(50), ForeignKey('participant.id'), primary_key=True, unique=True)
+    id: Mapped[str] = mapped_column(String(50), ForeignKey('participant.id'), primary_key=True, unique=True, index=True)
     proband = relationship('Participant', foreign_keys=[id])
     mother_id: Mapped[str | None] = mapped_column(String(50), ForeignKey('participant.id'), nullable=True)
     mother = relationship('Participant', foreign_keys=[mother_id])
@@ -127,8 +127,8 @@ class Variant(Base):
     # specific to SVs - potentially multiple implicated genes
     predicted_lof: Mapped[set[str] | None] = mapped_column(PickleType, nullable=True)
 
-    # ensure uniqueness on the combination [chromosome, position, reference, alternate]
-    __table_args__ = (UniqueConstraint('chromosome', 'position', 'reference', 'alternate', name='variant_unique'),)
+    # ensure uniqueness on the combination [chromosome, position, reference, alternate], use as an index
+    __table_args__ = (Index('var_index', 'chromosome', 'position', 'reference', 'alternate', unique=True),)
 
     def __repr__(self) -> str:
         return f'{self.chromosome}-{self.position}-{self.reference}-{self.alternate}'
@@ -143,7 +143,7 @@ class TranscriptConsequence(Base):
     __tablename__ = 'transcript_consequence'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    variant_id: Mapped[int] = mapped_column(ForeignKey('variant.id'))
+    variant_id: Mapped[int] = mapped_column(ForeignKey('variant.id'), index=True)
     variant: Mapped['Variant'] = relationship(back_populates='transcript_consequence')
 
     # broadly this matches the fields obtained from bcftools, VEP, and/or ANNOVAR
@@ -219,7 +219,7 @@ class ReportEvent(Base):
     first_pheno_match: Mapped[str | None] = mapped_column(String(50), nullable=True)
     evidence_last_updated: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
-    __table_args__ = (UniqueConstraint('variant_id', 'second_variant_id', 'moi_satisfied', name='variant_moi_unique'),)
+    __table_args__ = (Index('variant_moi_unique', 'variant_id', 'second_variant_id', 'moi_satisfied', unique=True),)
 
     def add_categories(self, category: str | list[str], session: Session) -> None:
         """
