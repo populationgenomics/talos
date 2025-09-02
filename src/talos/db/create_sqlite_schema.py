@@ -21,12 +21,11 @@ class Family(Base):
 
 class Participant(Base):
     """
-    atomic description of a participant, no relationships
+    Atomic description of a participant, no relationships. This can be used to collect external IDs, affected status, HPO terms, etc.
     we could add name, age, etc. but these aren't important for Talos
     """
 
     __tablename__ = 'participant'
-    # id = Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, nullable=False)
 
     # the sample ID we would expect in the VCF
     id: Mapped[str] = mapped_column(String(50), primary_key=True, unique=True)
@@ -45,13 +44,15 @@ class Participant(Base):
     hpo_terms: Mapped[set[str] | None] = mapped_column(PickleType, nullable=True)
 
 
-class Proband(Base):
+class Trio(Base):
     """
     Affected members and immediate family context. Each row represents a nuclear trio used in inheritance filtering
     What happens if we previously had a proband, and in a new run we have parents? Detect and update?
+    TODO I don't like the name of this table - the family unit acted on by Talos is not always a trio, but is limited
+    TODO to proband, mother, father.
     """
 
-    __tablename__ = 'proband'
+    __tablename__ = 'trio'
     # with multiple foreign keys to the participant table, we need to explicitly define the foreign_keys in the relationship
     id: Mapped[str] = mapped_column(String(50), ForeignKey('participant.id'), primary_key=True, unique=True)
     proband = relationship('Participant', foreign_keys=[id])
@@ -155,17 +156,19 @@ class ReportEvent(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     timestamp: Mapped[str] = mapped_column(String(50), nullable=False, default=get_granular_date())
-    proband_id: Mapped[str] = mapped_column(String(50), ForeignKey('proband.id'), nullable=False)
+    trio_id: Mapped[str] = mapped_column(String(50), ForeignKey('trio.id'), nullable=False)
     variant_id: Mapped[str] = mapped_column(String(50), ForeignKey('variant.id'), nullable=False)
-    # optional for comp-het pairs
+
+    # optional, for comp-het pairs
     second_variant_id: Mapped[str | None] = mapped_column(String(50), ForeignKey('variant.id'), nullable=True)
-    # the MOI model which was satisfied for this event
+
+    # the MOI model which was satisfied for this event, singular, as we don't merge variants any more
     moi_satisfied: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # optional, any filters or AB test failures which should be noted for the variant
     flags: Mapped[set[str] | None] = mapped_column(PickleType, nullable=True)
 
-    # a collection of all the panels applied to this proband containing this gene
+    # a collection of all the panels applied to this trio containing this gene
     panels: Mapped[set[int] | None] = mapped_column(PickleType, nullable=True)
 
     # # maybe? a dict of IDs to genotypes?
@@ -209,7 +212,7 @@ class Decision(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    # the report event table connects the proband, variant, genotypes, categories, etc.
+    # the report event table connects the trio, variant, genotypes, categories, etc.
     report_event_id: Mapped[int] = mapped_column(Integer, ForeignKey('report_event.id'), nullable=False)
 
     timestamp: Mapped[str] = mapped_column(String(50), default=get_granular_date())

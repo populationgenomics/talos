@@ -8,7 +8,7 @@ from talos.db.create_sqlite_schema import (
     Family,
     Participant,
     Decision,
-    Proband,
+    Trio,
     Variant,
     TranscriptConsequence,
     ReportEvent,
@@ -57,7 +57,7 @@ p1 = Participant(
 )
 _SESSION.add(p1)
 
-pro1 = Proband(
+pro1 = Trio(
     id=p1.id,
     solved=False,
 )
@@ -82,7 +82,7 @@ _SESSION.add(txcsq1)
 _SESSION.commit()
 
 reportevent1 = ReportEvent(
-    proband_id=pro1.id,
+    trio_id=pro1.id,
     variant_id=var1.id,
     moi_satisfied='Initial population',
     panels={1, 2, 3},
@@ -99,15 +99,13 @@ family_result = _SESSION.execute(select(Family).where(Family.id == 'FAM1')).scal
 print(f'Family ID: {family_result.id}')
 
 # join probands to participants, and filter by family id
-result = _SESSION.execute(
-    select(Proband, Participant).join(Proband.proband).where(Participant.family == family_result.id)
-)
+result = _SESSION.execute(select(Trio, Participant).join(Trio.proband).where(Participant.family == family_result.id))
 
 # iterate over the probands in the family
 for participant in result:
     print(f'Participant ID: {participant.Participant.id}, EXT ID: {participant.Participant.ext_id}')
     for var in _SESSION.execute(
-        select(ReportEvent).where(ReportEvent.proband_id == participant.Participant.id),
+        select(ReportEvent).where(ReportEvent.trio_id == participant.Participant.id),
     ):
         print(f'  Reported variant ID: {var.ReportEvent.variant_id}')
         print(f'  Categories: {var.ReportEvent.categories}')
@@ -120,9 +118,13 @@ for participant in result:
                 f'    Gene: {tx.TranscriptConsequence.gene_symbol}, consequence: {tx.TranscriptConsequence.consequence}'
             )
 
-        # now maybe I want to update the report event with an additional category
-        var.ReportEvent.categories['new_category'] = '2025-03-01'
         print(var.ReportEvent.categories)
+
+        # now maybe I want to update the report event with an additional category
+        if 'new_category' not in var.ReportEvent.categories:
+            var.ReportEvent.categories['new_category'] = '2025-03-01'
+
+        print(f'New categories: {var.ReportEvent.categories}')
 
         # update it through the update & params
         _SESSION.execute(
@@ -156,7 +158,12 @@ decision_check = _SESSION.execute(select(Decision).where(Decision.id == decision
 print(f'Decision recorded: {decision_check.decision}, notes: {decision_check.notes}')
 
 
-_SESSION.close()
-
 # sqlalchemy doesn't have a built-in get_or_create, but it's easy enough to do with a select and an add if not found
 # https://stackoverflow.com/questions/2546207/does-sqlalchemy-have-an-equivalent-of-djangos-get-or-create
+
+# get variants and corresponding report events in a single query
+result = _SESSION.execute(select(Variant, ReportEvent).join(ReportEvent, Variant.id == ReportEvent.variant_id))
+for var, report in result:
+    print(f'Variant {var.id} reported in event {report.id}')
+
+_SESSION.close()
