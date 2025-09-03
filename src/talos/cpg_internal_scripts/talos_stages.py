@@ -438,22 +438,12 @@ class ValidateVariantInheritance(stage.CohortStage):
         pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
         hail_inputs = inputs.as_path(cohort, RunHailFiltering)
 
-        # either find a SV vcf, or None
-        if (
-            query_for_latest_analysis(
-                dataset=cohort.dataset.name,
-                analysis_type=SV_ANALYSIS_TYPES[config.config_retrieve(['workflow', 'sequencing_type'])],
-                long_read=config.config_retrieve(['workflow', 'long_read'], False),
-            )
-            is not None
-        ):
-            hail_sv_inputs = inputs.as_path(cohort, RunHailFilteringSv)
-            labelled_sv_vcf = hail_batch.get_batch().read_input_group(
-                **{'vcf.bgz': hail_sv_inputs, 'vcf.bgz.tbi': f'{hail_sv_inputs}.tbi'},
-            )['vcf.bgz']
-            sv_vcf_arg = f'--labelled_sv {labelled_sv_vcf} '
-        else:
-            sv_vcf_arg = ''
+        # always use, I manually provided it
+        hail_sv_inputs = inputs.as_path(cohort, RunHailFilteringSv)
+        labelled_sv_vcf = hail_batch.get_batch().read_input_group(
+            **{'vcf.bgz': hail_sv_inputs, 'vcf.bgz.tbi': f'{hail_sv_inputs}.tbi'},
+        )['vcf.bgz']
+        sv_vcf_arg = f'--labelled_sv {labelled_sv_vcf} '
 
         labelled_vcf = hail_batch.get_batch().read_input_group(
             **{
