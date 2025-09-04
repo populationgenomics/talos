@@ -797,6 +797,29 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
     return mt
 
 
+def pad_homref_ad(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """
+    Observed in some callsets, the AD genotype/format field contains only a single value for HomRef calls.
+    This detects those values, and adds a second value of 0, to enable AD-based filtering later in the pipeline.
+    """
+
+    def pad_ad(ad):
+        return hl.if_else(
+            (hl.len(ad) == 1) & (ad[0] > 0),
+            ad.append(0),
+            ad,
+        )
+
+    logger.info('Padding AD field for HomRef calls where only a single value is present')
+    return mt.annotate_entries(
+        AD=hl.if_else(
+            mt.GT.is_hom_ref(),
+            pad_ad(mt.AD),
+            mt.AD,
+        )
+    )
+
+
 def cli_main():
     """
     Read MT, filter, and apply category annotation, export as a VCF
@@ -884,6 +907,9 @@ def main(
         mt.alleles.contains('*'),
         keep=False,
     )
+
+    if config_retrieve(['RunHailFiltering', 'pad_homref_ad'], False):
+        mt = pad_homref_ad(mt)
 
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
