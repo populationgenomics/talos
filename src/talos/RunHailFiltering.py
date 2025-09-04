@@ -516,7 +516,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser) -> hl.MatrixTable:
+def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser, strict_ad: bool = False) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
     The Hail builtin method has limitations around Hemizygous regions
@@ -551,6 +551,10 @@ def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser) -> hl
 
     de_novo_matrix = filter_by_consequence(mt)
 
+    # if we use the strict AD filter, we will remove all samples without exactly 2 AD values
+    if strict_ad:
+        de_novo_matrix = de_novo_matrix.filter_entries(hl.len(de_novo_matrix.AD) == 2)
+
     # takes the parsed pedigree data, writes it to a temporary file as a Strict 6-column format
     temp_ped_path = 'temp.ped'
     pedigree_data.write_pedigree(output_path=temp_ped_path)
@@ -558,21 +562,24 @@ def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser) -> hl
 
     # allow for depth to be missing, rebuild from other attributes if required, or use a default
     if 'DP' in de_novo_matrix.entry:
-        depth = de_novo_matrix.DP
+        pass
     elif 'AD' in de_novo_matrix.entry:
-        depth = hl.sum(de_novo_matrix.AD)
+        de_novo_matrix = de_novo_matrix.annotate_entries(DP=hl.sum(de_novo_matrix.AD))
     else:
+        de_novo_matrix = de_novo_matrix.annotate_entries(DP=min_depth + 1)
         logger.info('DP and AD both absent, chucking in a default value')
         logger.info('Input variant data should really have either DP or AD present for various QC purposes')
-        depth = min_depth + 1
+
+    print('now')
+    de_novo_matrix.entries().show()
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = hl.literal(pedigree_data.get_affected_member_ids())
 
     de_novo_matrix = de_novo_matrix.filter_entries(
-        (min_depth > depth)
-        | (max_depth < depth)
-        | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * depth))
+        (min_depth > de_novo_matrix.DP)
+        | (max_depth < de_novo_matrix.DP)
+        | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))
         # these tests are aimed exclusively at affected participants
         | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
         keep=False,
@@ -797,7 +804,7 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
     return mt
 
 
-def pad_homref_ad(mt: hl.MatrixTable) -> hl.MatrixTable:
+def pad_homref_ad(mt: hl.MatrixTable):
     """
     Observed in some callsets, the AD genotype/format field contains only a single value for HomRef calls.
     This detects those values, and adds a second value of 0, to enable AD-based filtering later in the pipeline.
@@ -811,7 +818,7 @@ def pad_homref_ad(mt: hl.MatrixTable) -> hl.MatrixTable:
         )
 
     logger.info('Padding AD field for HomRef calls where only a single value is present')
-    return mt.annotate_entries(
+    mt = mt.annotate_entries(
         AD=hl.if_else(
             mt.GT.is_hom_ref(),
             pad_ad(mt.AD),
@@ -849,7 +856,7 @@ def cli_main():
     )
 
 
-def main(
+def main(  # noqa: PLR0915
     mt_path: str,
     panel_data: str,
     pedigree: str,
@@ -909,7 +916,7 @@ def main(
     )
 
     if config_retrieve(['RunHailFiltering', 'pad_homref_ad'], False):
-        mt = pad_homref_ad(mt)
+        pad_homref_ad(mt)
 
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
@@ -978,7 +985,27 @@ def main(
         logger.info('Skipping de novo annotation, category 4 will not be used during this analysis')
         mt = mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
     else:
-        mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data)
+        try:
+            # try the standard approach first
+            mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data)
+
+        # catch a known error caused by AD fields with a single value
+        except hl.utils.java.HailUserError as e:
+            logger.error(f'Failed to run de novo annotation, skipping category 4. Error was: {e}')
+
+            # attempt to interpret the error, and re-run with strict AD filtering if it matches
+            if 'HailException: array index out of bounds: index=1, length=1' in str(e):
+                logger.error(
+                    'This error has previously been caused by a variant caller assigning only a single value in the AD '
+                    'field for Het calls, where Talos expects two entries; [Ref, Alt].'
+                    'If this applies to your dataset, try setting the config option "RunHailFiltering.pad_homref_ad" '
+                    'to true, which will add a second value of 0 to all 1-len HomRef AD fields. This will not solve '
+                    'situations where the AD field is missing or malformed for Het or Hom calls.'
+                    'Talos will re-attempt de novo variant detection, filtering to entries with exactly 2 AD values.',
+                )
+                mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data, strict_ad=True)
+            else:
+                mt = mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
