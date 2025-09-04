@@ -803,7 +803,7 @@ def pad_homref_ad(mt: hl.MatrixTable) -> hl.MatrixTable:
     This detects those values, and adds a second value of 0, to enable AD-based filtering later in the pipeline.
     """
 
-    def pad_ad(ad):
+    def pad_ad(ad) -> hl.ArrayExpression:
         return hl.if_else(
             (hl.len(ad) == 1) & (ad[0] > 0),
             ad.append(0),
@@ -816,7 +816,7 @@ def pad_homref_ad(mt: hl.MatrixTable) -> hl.MatrixTable:
             mt.GT.is_hom_ref(),
             pad_ad(mt.AD),
             mt.AD,
-        )
+        ),
     )
 
 
