@@ -570,9 +570,6 @@ def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser, stric
         logger.info('DP and AD both absent, chucking in a default value')
         logger.info('Input variant data should really have either DP or AD present for various QC purposes')
 
-    print('now')
-    de_novo_matrix.entries().show()
-
     # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = hl.literal(pedigree_data.get_affected_member_ids())
 
