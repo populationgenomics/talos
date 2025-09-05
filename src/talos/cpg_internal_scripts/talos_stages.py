@@ -485,15 +485,14 @@ class ValidateVariantInheritance(stage.CohortStage):
 
         # find the latest analysis result, and use it as a history file
         history_string = ''
-        if latest_results := (
-            query_for_latest_analysis(
+        if (
+            latest_results := query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type='aip-results',
                 sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
                 long_read=config.config_retrieve(['workflow', 'long_read'], False),
             )
-            is not None
-        ):
+        ) is not None:
             history_string = f'--previous {hail_batch.get_batch().read_input(latest_results)}'
 
         job.command(f'export TALOS_CONFIG={runtime_config}')

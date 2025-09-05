@@ -31,14 +31,7 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
     ],
 )
 def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a_mt):
-    """
-
-    Args:
-        clinvar_talos ():
-        consequence_terms ():
-        classified ():
-        make_a_mt ():
-    """
+    """"""
 
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(clinvar_talos=clinvar_talos),
@@ -50,7 +43,7 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
     )
 
     anno_matrix = annotate_category_high_impact(anno_matrix)
-    assert anno_matrix.info.categoryboolean3.collect() == [classified]
+    assert anno_matrix.info.categorybooleanhighimpact.collect() == [classified]
 
 
 @pytest.mark.skip(reason='category 5 currently inactive')
@@ -64,7 +57,7 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
     """
 
     matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score))
-    assert matrix.info.categoryboolean5.collect() == [flag]
+    assert matrix.info.categorybooleanspliceai.collect() == [flag]
 
 
 @pytest.mark.parametrize(
@@ -89,7 +82,7 @@ def test_alphamissense_assignment(am_class, classified, make_a_mt):
 
     anno_matrix = annotate_category_alphamissense(anno_matrix)
     anno_matrix.rows().show()
-    assert anno_matrix.info.categoryboolean6.collect() == [classified]
+    assert anno_matrix.info.categorybooleanalphamissense.collect() == [classified]
 
 
 def annotate_c6_missing(make_a_mt, caplog):
@@ -109,7 +102,7 @@ def annotate_c6_missing(make_a_mt, caplog):
     )
 
     anno_matrix = annotate_category_alphamissense(anno_matrix)
-    assert anno_matrix.info.categoryboolean6.collect() == [0]
+    assert anno_matrix.info.categorybooleanalphamissense.collect() == [0]
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
 

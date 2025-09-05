@@ -26,7 +26,7 @@ def test_dn_working(clinvar_talos, consequence, biotype, result, make_a_de_novo_
     )
     dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path))
 
-    assert dn_matrix.info.categorysample4.collect() == result
+    assert dn_matrix.info.categorysampledenovo.collect() == result
 
 
 def test_dn_bch_one(make_a_bch_de_novo_mt, pedigree_path):
@@ -57,4 +57,4 @@ def test_dn_bch_working(make_a_bch_de_novo_mt, pedigree_path):
 
     pad_homref_ad(dn_matrix)
     dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path), strict_ad=True)
-    assert dn_matrix.info.categorysample4.collect() == ['missing']
+    assert dn_matrix.info.categorysampledenovo.collect() == ['missing']
