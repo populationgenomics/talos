@@ -12,7 +12,6 @@ def panelapp(data_dict: dict) -> dict:
 
 
 def resultdata(data_dict: dict) -> dict:
-    print(data_dict)
     for result in data_dict['results'].values():
         for variant in result['variants']:
             variant['reasons'] = variant['reasons'].pop()

@@ -16,15 +16,10 @@ from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    historicvariants as hv_200_to_210,
-)
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    panelapp as pa_200_to_210,
-)
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    resultdata as rd_200_to_210,
-)
+from talos.liftover.lift_2_0_0_to_2_1_0 import historicvariants as hv_200_to_210
+from talos.liftover.lift_2_0_0_to_2_1_0 import panelapp as pa_200_to_210
+from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
+from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -32,8 +27,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.1.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0']
+CURRENT_VERSION = '2.2.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -328,27 +323,34 @@ class ReportVariant(BaseModel):
 
     sample: str
     var_data: VARIANT_MODELS
-    categories: set[str] = Field(default_factory=set)
+    categories: dict[str, str] = Field(default_factory=dict)
     date_of_phenotype_match: str | None = None
+
     phenotype_labels: set[str] = Field(default_factory=set)
 
     evidence_last_updated: str = Field(default=get_granular_date())
+
     family: str = Field(default_factory=str)
     # 'tagged' is seqr-compliant language
     first_tagged: str = Field(default=get_granular_date())
     flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
     genotypes: dict[str, str] = Field(default_factory=dict)
-    independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
     phenotypes: list[HpoTerm] = Field(default_factory=list)
     reasons: str = Field(default_factory=str)
     support_vars: set[str] = Field(default_factory=set)
+
+    # new, recording this here instead of in the history file
+    clinvar_stars: int | None = None
+
     # log whether there was an increase in ClinVar star rating since the last run
     clinvar_increase: bool = Field(default=False)
+
     # exomiser results - I'd like to store this in a cleaner way in future
     exomiser_results: list[str] = Field(default_factory=list)
+    found_in_current_run: bool = Field(default=True)
 
     def __eq__(self, other):
         """
@@ -566,6 +568,7 @@ LIFTOVER_METHODS: dict = {
         '1.1.0_1.2.0': rd_110_to_120,
         '1.2.0_2.0.0': rd_120_to_200,
         '2.0.0_2.1.0': rd_200_to_210,
+        '2.1.0_2.2.0': rd_210_to_220,
     },
 }
 

@@ -11,10 +11,15 @@ process ValidateMOI {
         path panelapp
         path pedigree
         path talos_config
+        path previous_results
+
+	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
 
     output:
-        path"${params.cohort}_results.json"
+        path"${params.cohort}_results_${timestamp}.json"
 
+	script:
+		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
     """
     export TALOS_CONFIG=${talos_config}
 
@@ -22,6 +27,6 @@ process ValidateMOI {
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \
         --pedigree ${pedigree} \
-        --output ${params.cohort}_results.json
+        --output ${params.cohort}_results_${timestamp}.json $history_arg
     """
 }

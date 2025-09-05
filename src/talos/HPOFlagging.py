@@ -21,12 +21,13 @@ Variants where all categories are on that list will be removed unless any of the
 from argparse import ArgumentParser
 from collections import defaultdict
 
+from loguru import logger
 from semsimian import Semsimian
 
 from talos.config import config_retrieve
 from talos.models import ResultData
 from talos.static_values import get_granular_date
-from talos.utils import parse_mane_json_to_dict, phenotype_label_history, read_json_from_path
+from talos.utils import parse_mane_json_to_dict, read_json_from_path, phenotype_history
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
@@ -88,7 +89,7 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
 
             # for structural variants, add all the LOF'd genes
             # TODO (mwelland): if/when we create other SV categories, we may need to catch those here too
-            if lof := variant.var_data.info.get('predicted_lof'):
+            if lof := variant.var_data.info.get('lof'):
                 ensgs.update(set(str(lof).split(',')))
 
     return ensgs
@@ -149,8 +150,6 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
                 variant.phenotype_labels = pheno_matches
 
-    phenotype_label_history(result_object)
-
 
 def remove_phenotype_required_variants(result_object: ResultData):
     """
@@ -192,6 +191,7 @@ def cli_main():
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
     parser.add_argument('--output', help='Annotated output')
+    parser.add_argument('--previous', help='Path to previous results', default=None)
     args = parser.parse_args()
     main(
         result_file=args.input,
@@ -199,6 +199,7 @@ def cli_main():
         gen2phen=args.gen2phen,
         phenio=args.phenio,
         out_path=args.output,
+        previous=args.previous,
     )
 
 
@@ -208,6 +209,7 @@ def main(
     gen2phen: str,
     phenio: str,
     out_path: str,
+    previous: str | None = None,
 ):
     """
 
@@ -217,6 +219,7 @@ def main(
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
         out_path (str): path to write the annotated results
+        previous (str | None): location of previous results JSON, or None if first time/history not required
     """
 
     gene_map = parse_mane_json_to_dict(mane_json)
@@ -240,6 +243,15 @@ def main(
 
     # remove any variants where a phenotype match is required but not found
     remove_phenotype_required_variants(results)
+
+    # check phenotype matches against history
+    logger.info(f'Attempting to read history from {previous}')
+    previous_results: ResultData | None = read_json_from_path(
+        previous,
+        return_model=ResultData,
+        default=None,
+    )
+    phenotype_history(results, previous_results)
 
     # validate the object
     validated_results = ResultData.model_validate(results)

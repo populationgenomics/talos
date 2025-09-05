@@ -26,6 +26,9 @@ workflow {
     ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
     ch_opt_ids = channel.fromPath(params.ext_id_map, checkIfExists: true)
 
+    // may not exist on the first run, will be populated using a dummy file
+    ch_previous_results = channel.fromPath(params.previous_results, checkIfExists: true)
+
     // run pre-Talos startup checks
     StartupChecks(
         ch_mt,
@@ -70,6 +73,7 @@ workflow {
         UnifiedPanelAppParser.out,
         ch_pedigree,
         ch_runtime_config,
+        ch_previous_results,
     )
 
     // Flag any relevant HPO terms
@@ -79,6 +83,7 @@ workflow {
         ch_gen2phen,
         ch_phenio,
         ch_runtime_config,
+        ch_previous_results,
     )
 
     // Generate HTML report - only suited to single-report runs
