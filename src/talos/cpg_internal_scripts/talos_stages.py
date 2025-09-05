@@ -605,7 +605,7 @@ class CreateTalosHtml(stage.CohortStage):
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
-        seqr_lookup = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'seqr_lookup'))
+        seqr_lookup = inputs.as_path(cohort, MakeRuntimeConfig, 'seqr_lookup')
 
         expected_out = self.expected_outputs(cohort)
 
