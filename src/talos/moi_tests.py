@@ -22,6 +22,7 @@ from typing import ClassVar
 from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
 from talos.pedigree_parser import PedigreeParser
+from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
 HEMI_CHROMS = {'chrX, chrY'}
@@ -503,11 +504,11 @@ class DominantAutosomal(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
 
@@ -592,12 +593,12 @@ class RecessiveAutosomalCH(BaseMoi):
                             family=self.pedigree.participants[sample_id].family_id,
                             gene=principal.info.get('gene_id'),
                             var_data=principal,
-                            categories=principal.category_values(sample_id),
+                            categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                             reasons=self.applied_moi,
                             genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                             support_vars={partner.info.get('var_link', 'no_link') or 'no_link'},  # SVs may not have one
                             flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
-                            independent=False,
+                            clinvar_stars=principal.info.get('clinvar_stars'),
                         ),
                     )
 
@@ -666,11 +667,11 @@ class RecessiveAutosomalHomo(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         reasons=self.applied_moi,
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
 
@@ -740,11 +741,11 @@ class XDominant(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -820,12 +821,12 @@ class XPseudoDominantFemale(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         flags=principal.get_sample_flags(sample_id)
                         | {'Affected female with heterozygous variant in XLR gene'},
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -890,11 +891,11 @@ class XRecessiveMale(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         reasons=self.applied_moi,
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -952,11 +953,11 @@ class XRecessiveFemaleHom(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         reasons=self.applied_moi,
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -1042,13 +1043,13 @@ class XRecessiveFemaleCH(BaseMoi):
                             family=self.pedigree.participants[sample_id].family_id,
                             gene=principal.info.get('gene_id'),
                             var_data=principal,
-                            categories=principal.category_values(sample_id),
+                            categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                             reasons=self.applied_moi,
                             genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                             # needs to comply with Seqr
                             support_vars={partner.info['var_link']},
                             flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
-                            independent=False,
+                            clinvar_stars=principal.info.get('clinvar_stars'),
                         ),
                     )
 

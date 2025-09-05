@@ -118,7 +118,7 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
                 ONE_INT,
                 MISSING_INT,
             ),
-            categoryboolean1=hl.if_else(
+            categorybooleanclinvarplp=hl.if_else(
                 (mt.info.clinvar_significance == PATHOGENIC) & (mt.info.clinvar_stars > 0),
                 ONE_INT,
                 MISSING_INT,
@@ -424,7 +424,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
     )
 
 
-def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_alphamissense(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category6 flag
     - AlphaMissense likely Pathogenic on at least one transcript
@@ -440,12 +440,12 @@ def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
     Args:
         mt (hl.MatrixTable):
     Returns:
-        same variants, categoryboolean6 set to 1 or 0
+        same variants, categorybooleanalphamissense set to 1 or 0
     """
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolean6=hl.if_else(
+            categorybooleanalphamissense=hl.if_else(
                 hl.len(mt.transcript_consequences.filter(lambda x: x.am_class == 'likely_pathogenic')) > 0,
                 ONE_INT,
                 MISSING_INT,
@@ -454,7 +454,7 @@ def annotate_category_6(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     applies the boolean Category3 flag
     - Critical protein consequence on at least one transcript
@@ -463,7 +463,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
         mt (hl.MatrixTable):
 
     Returns:
-        same variants, categoryboolean3 set to 1 or 0
+        same variants, categorybooleanhighimpact set to 1 or 0
     """
 
     critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT))
@@ -471,7 +471,7 @@ def annotate_category_3(mt: hl.MatrixTable) -> hl.MatrixTable:
     # First check if we have any HIGH consequences
     return mt.annotate_rows(
         info=mt.info.annotate(
-            categoryboolean3=hl.if_else(
+            categorybooleanhighimpact=hl.if_else(
                 (
                     hl.len(
                         mt.transcript_consequences.filter(
@@ -516,7 +516,11 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser, strict_ad: bool = False) -> hl.MatrixTable:
+def annotate_category_de_novo(
+    mt: hl.MatrixTable,
+    pedigree_data: PedigreeParser,
+    strict_ad: bool = False,
+) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
     The Hail builtin method has limitations around Hemizygous regions
@@ -651,7 +655,7 @@ def annotate_category_4(mt: hl.MatrixTable, pedigree_data: PedigreeParser, stric
 
     # annotate those values as a flag if relevant, else 'missing'
     return mt.annotate_rows(
-        info=mt.info.annotate(categorysample4=hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)),
+        info=mt.info.annotate(categorysampledenovo=hl.or_else(dn_table[mt.row_key].dn_ids, MISSING_STRING)),
     )
 
 
@@ -700,10 +704,10 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
 
     return mt.filter_rows(
-        (mt.info.categoryboolean1 == 1)
-        | (mt.info.categoryboolean6 == 1)
-        | (mt.info.categoryboolean3 == 1)
-        | (mt.info.categorysample4 != MISSING_STRING)
+        (mt.info.categorybooleanclinvarplp == 1)
+        | (mt.info.categorybooleanalphamissense == 1)
+        | (mt.info.categorybooleanhighimpact == 1)
+        | (mt.info.categorysampledenovo != MISSING_STRING)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
         | (mt.info.categorybooleansvdb == 1)
         | (mt.info.categorydetailsexomiser != MISSING_STRING),
@@ -971,8 +975,8 @@ def main(  # noqa: PLR0915
     # 1 was applied earlier during the integration of clinvar data
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
     logger.info('Applying categories')
-    mt = annotate_category_6(mt=mt)
-    mt = annotate_category_3(mt=mt)
+    mt = annotate_category_alphamissense(mt=mt)
+    mt = annotate_category_high_impact(mt=mt)
 
     # insert easy ignore of de novo filtering based on config, to overcome some data format issues
     if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']) or config_retrieve(
@@ -980,11 +984,11 @@ def main(  # noqa: PLR0915
         False,
     ):
         logger.info('Skipping de novo annotation, category 4 will not be used during this analysis')
-        mt = mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
+        mt = mt.annotate_rows(info=mt.info.annotate(categorysampledenovo=MISSING_STRING))
     else:
         try:
             # try the standard approach first
-            mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data)
+            mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data)
 
         # catch a known error caused by AD fields with a single value
         except hl.utils.java.HailUserError as e:
@@ -1000,9 +1004,9 @@ def main(  # noqa: PLR0915
                     'situations where the AD field is missing or malformed for Het or Hom calls.'
                     'Talos will re-attempt de novo variant detection, filtering to entries with exactly 2 AD values.',
                 )
-                mt = annotate_category_4(mt=mt, pedigree_data=pedigree_data, strict_ad=True)
+                mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data, strict_ad=True)
             else:
-                mt = mt.annotate_rows(info=mt.info.annotate(categorysample4=MISSING_STRING))
+                mt = mt.annotate_rows(info=mt.info.annotate(categorysampledenovo=MISSING_STRING))
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)

@@ -14,6 +14,18 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.0.2] - 2025-09-03
+
+### Removed
+
+* The `result_history` mechanic for providing a directory of discrete files represnting state
+
+### Changed
+
+* State is now handled by passing a whole previous analysis result JSON into the workflow using `--previous_results`
+* During MOI evaluation, a Homozygous variant will be considered for Comp-Het analysis, but only if the second hit is a SV deletion
+* The ClinVar data download has been updated to the latest Zenodo release (2025-09)
+
 [8.0.0] - 2025-08-19
 
 ### Removed

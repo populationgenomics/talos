@@ -137,9 +137,10 @@ And finally, there are some further meta-parameters which control the variants b
 | `external_labels`             | Optional, path to an external labels JSON file. This is a nested dictionary of `sample_id[chr-pos-ref-alt]: [label, label2]`. If provided, the labels will be annotated on the report, useful in recording known false positives, or prior diagnoses etc. A log of all provided-but-not-in-results labels is generated |
 | `hyperlinks.template`         | Mandatory if `hyperlinks` section is present. A String template containing an instance of `{sample}` for interpolating with the chosen Sample ID. This should define a template link to a per-family or per-proband resource                                                                                           |
 | `hyperlinks.variant_template` | Similar to `template`, but containing both `{variant}` and `{sample}`. This is used to generate a link to a per-variant resource, embedding both Sample ID and `chr-pos-ref-alt` (seqr/gnomAD-style)                                                                                                                   |
-| `hyperlinks.lookup`           | Optional, a JSON file mapping the VCF sample IDs to external IDs. If absent, the VCF IDs are embedded into any URLs generated                                                                                                                                                                                          |
 
-This is designed to be as flexible as possible, but may be daunting if you're starting from scratch. Worked examples:
+### Hyperlinks
+
+To generate Hyperlinks to Seqr, this section should contain the `hyperlinks` block with relevant templates, alongside a file mapping the VCF sample IDs to the IDs used in the target system. This should be added to the [NextFlow config](https://github.com/populationgenomics/talos/blob/main/docs/NextflowConfiguration.md#talosconfig) as `params.seqr_lookup`, and can be a TSV, CSV, or JSON file. This is designed to be as flexible as possible, but may be daunting if you're starting from scratch. Worked examples:
 
 ### Links out using the exact VCF ID
 
@@ -154,7 +155,7 @@ This is designed to be as flexible as possible, but may be daunting if you're st
 - Scenario: I want to generate links using a template, but the sample ID from the VCF is not suitable for the target URL, so I want to map from the VCF sample ID to a URL-appropriate ID in a TSV/CSV/JSON file
 - VCF ID: `SAM1`
 - Link ID: `ExtSam1`
-- Lookup JSON (file identified by `hyperlinks.lookup`)
+- Lookup JSON (file identified by `params.seqr_lookup` in NextFlow config)
 ```json
 {
     "SAM1": "ExtSam1",

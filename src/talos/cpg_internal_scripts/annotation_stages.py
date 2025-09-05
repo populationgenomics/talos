@@ -129,6 +129,10 @@ class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
 
         output = self.expected_outputs(cohort)
 
+        if does_final_file_path_exist(cohort):
+            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
+            return self.make_outputs(cohort, output, jobs=None)
+
         extraction_outputs = inputs.as_dict(cohort, ExtractVcfFromDatasetMt)
 
         jobs = ComposeVcfFragments.make_condense_jobs(

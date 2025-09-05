@@ -25,6 +25,10 @@ workflow {
     ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
     ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
     ch_opt_ids = channel.fromPath(params.ext_id_map, checkIfExists: true)
+    ch_seqr_ids = channel.fromPath(params.seqr_lookup, checkIfExists: true)
+
+    // may not exist on the first run, will be populated using a dummy file
+    ch_previous_results = channel.fromPath(params.previous_results, checkIfExists: true)
 
     // run pre-Talos startup checks
     StartupChecks(
@@ -70,6 +74,7 @@ workflow {
         UnifiedPanelAppParser.out,
         ch_pedigree,
         ch_runtime_config,
+        ch_previous_results,
     )
 
     // Flag any relevant HPO terms
@@ -87,5 +92,6 @@ workflow {
         UnifiedPanelAppParser.out,
         ch_runtime_config,
         ch_opt_ids,
+        ch_seqr_ids,
     )
 }

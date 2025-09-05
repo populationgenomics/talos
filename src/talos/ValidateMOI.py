@@ -19,7 +19,6 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
-    CATEGORY_TRANSLATOR,
     FamilyMembers,
     MemberSex,
     PanelApp,
@@ -31,6 +30,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
+    translate_category,
 )
 from talos.moi_tests import MOIRunner
 from talos.pedigree_parser import PedigreeParser
@@ -150,17 +150,15 @@ def apply_moi_to_variants(
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
-                partial_pen=bool(variant.info.get('categoryboolean1', False)),
+                partial_pen=bool(variant.info.get('categorybooleanclinvarplp', False)),
             )
 
-            # Flag! If this is a Category 1 (ClinVar) variant, and we are
-            # interpreting under a lenient MOI, add flag for analysts
-            # control this in just one place
-            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categoryboolean1', False):
+            # Flag! If this is a ClinVar P/LP variant, and we interpret under a lenient MOI, add flag for analysts
+            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categorybooleanclinvarplp', False):
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
-                    if CATEGORY_TRANSLATOR['4'] in each_result.categories:
+                    if translate_category('4') in each_result.categories:
                         continue
 
                     if each_result.reasons == 'Autosomal Dominant':
@@ -344,6 +342,7 @@ def cli_main():
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
+    parser.add_argument('--previous', help='Path to previous results', default=None)
     args = parser.parse_args()
 
     main(
@@ -352,6 +351,7 @@ def cli_main():
         panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
+        previous=args.previous,
     )
 
 
@@ -361,6 +361,7 @@ def main(
     panelapp_path: str,
     pedigree: str,
     labelled_sv: str | None = None,
+    previous: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -375,6 +376,7 @@ def main(
         output (str): location to write output file
         panelapp_path (str): location of PanelApp data JSON
         pedigree (str): location of PED file
+        previous (str | None): location of previous results JSON, or None if first time/history not required
     """
     logger.info(
         r"""Welcome To
@@ -391,6 +393,13 @@ def main(
     panelapp: PanelApp = read_json_from_path(
         panelapp_path,
         return_model=PanelApp,
+    )
+
+    logger.info(f'Attempting to read history from {previous}')
+    previous_results: ResultData | None = read_json_from_path(
+        previous,
+        return_model=ResultData,
+        default=None,
     )
 
     result_list: list[ReportVariant] = []
@@ -466,8 +475,8 @@ def main(
     # need some extra filtering here to tidy up exomiser categorisation
     polish_exomiser_results(results_model)
 
-    # annotate previously seen results using cumulative data file(s)
-    annotate_variant_dates_using_prior_results(results_model)
+    # annotate previously seen results by building on previous analysis results
+    annotate_variant_dates_using_prior_results(results_model, previous_results)
 
     generate_summary_stats(results_model)
 
