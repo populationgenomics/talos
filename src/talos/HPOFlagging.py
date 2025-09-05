@@ -1,16 +1,7 @@
 """
-Takes the result date from ValidateMOI
+Takes the result date from ValidateMOI.
 For each reportable result, identify if the variant is a strong phenotype match for the family
 
-1. Write 2 results - the result set annotated with Phenotype-match flags
-2. The annotated result set, reduced to only phenotype matches
-
-Include something here about where to find the inputs ...
-
-gene_to_phenotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
-phenio.db: Download: https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
-
-The removal of variants where a phenotype match is required but not found it now done here
 A list of categories in config is used to determine which variants are required to have a phenotype match
 Variants where all categories are on that list will be removed unless any of these are satisfied:
 - variant gene is on a forced panel
@@ -21,13 +12,12 @@ Variants where all categories are on that list will be removed unless any of the
 from argparse import ArgumentParser
 from collections import defaultdict
 
-from loguru import logger
 from semsimian import Semsimian
 
 from talos.config import config_retrieve
 from talos.models import ResultData
 from talos.static_values import get_granular_date
-from talos.utils import parse_mane_json_to_dict, read_json_from_path, phenotype_history
+from talos.utils import parse_mane_json_to_dict, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
@@ -199,7 +189,6 @@ def cli_main():
         gen2phen=args.gen2phen,
         phenio=args.phenio,
         out_path=args.output,
-        previous=args.previous,
     )
 
 
@@ -209,7 +198,6 @@ def main(
     gen2phen: str,
     phenio: str,
     out_path: str,
-    previous: str | None = None,
 ):
     """
 
@@ -219,7 +207,6 @@ def main(
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
         out_path (str): path to write the annotated results
-        previous (str | None): location of previous results JSON, or None if first time/history not required
     """
 
     gene_map = parse_mane_json_to_dict(mane_json)
@@ -243,15 +230,6 @@ def main(
 
     # remove any variants where a phenotype match is required but not found
     remove_phenotype_required_variants(results)
-
-    # check phenotype matches against history
-    logger.info(f'Attempting to read history from {previous}')
-    previous_results: ResultData | None = read_json_from_path(
-        previous,
-        return_model=ResultData,
-        default=None,
-    )
-    phenotype_history(results, previous_results)
 
     # validate the object
     validated_results = ResultData.model_validate(results)

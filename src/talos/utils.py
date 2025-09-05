@@ -6,7 +6,6 @@ https://tenacity.readthedocs.io/en/latest/
 """
 
 import json
-import pathlib
 import re
 import statistics
 import string
@@ -24,18 +23,15 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from talos.config import config_retrieve
 from talos.models import (
-    CATEGORY_TRANSLATOR,
     VARIANT_MODELS,
     Coordinates,
-    HistoricSampleVariant,
-    HistoricVariants,
     ResultData,
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
+    translate_category,
 )
 from talos.pedigree_parser import PedigreeParser
-from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -433,7 +429,9 @@ def create_small_variant(
     )
 
     # optionally - ignore some categories from this analysis
-    ignored_categories = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
+    # keep it super flexible, lower case and a translated version
+    ignored_categories = {word.lower() for word in config_retrieve(['ValidateMOI', 'ignore_categories'], [])}
+    ignored_categories.update({translate_category(x) for x in ignored_categories})
 
     # set the class attributes - skipping over categories we've chosen to ignore
     boolean_categories = [
@@ -448,7 +446,8 @@ def create_small_variant(
     ]
 
     # the categories to be treated as support-only for this runtime - make it a set
-    support_categories = set(config_retrieve(['ValidateMOI', 'support_categories'], []))
+    support_categories = {word.lower() for word in config_retrieve(['ValidateMOI', 'support_categories'], [])}
+    support_categories.update({translate_category(x) for x in support_categories})
 
     # overwrite with true booleans
     for cat in boolean_categories:
@@ -758,33 +757,6 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> 
     return comp_het_results
 
 
-def phenotype_history(results: ResultData, previous_results: ResultData | None = None):
-    """
-    Annotation in-place of the results object using a previous results set, if provided
-    Either pull the 'date of phenotype match' from the historic data, or add 'today' to the historic data
-    """
-    if previous_results is None:
-        logger.info('No previous results provided, saving with current dates only')
-        return
-
-    for sample, content in results.results.items():
-        # this variant was absent from previous analysis, or was newly added in this run
-        if sample not in previous_results.results:
-            continue
-
-        # collect both results sets into dicts for easy lookup
-        new_vars = {var.var_data.coordinates.string_format: var for var in content.variants}
-
-        # scroll over all the variants found in the previous run
-        for old_var in previous_results.results[sample].variants:
-            # if we find a variant again we've seen before, and that previous identification had a phenotype match date
-            # set the date of phenotype match in the new results to the earlier date
-            if (
-                old_coord := old_var.var_data.coordinates.string_format
-            ) in new_vars and old_var.date_of_phenotype_match:
-                new_vars[old_coord].date_of_phenotype_match = old_var.date_of_phenotype_match
-
-
 def annotate_variant_dates_using_prior_results(results: ResultData, previous_results: ResultData | None = None):
     """
     loads the most recent prior result set (if it exists)
@@ -828,14 +800,25 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
             new_var = new_vars[old_coord]
             if new_var.clinvar_stars:
                 new_var.clinvar_increase = bool(
-                    old_var.clinvar_stars is None or new_var.clinvar_stars > old_var.clinvar_stars
+                    old_var.clinvar_stars is None or new_var.clinvar_stars > old_var.clinvar_stars,
                 )
 
+            print(new_var.categories)
+            print(old_var.categories)
             for cat, date in old_var.categories.items():
-                new_var.categories[cat] = date
+                new_var.categories[translate_category(cat)] = date
+            print(new_var.categories)
 
-            # set the
-            new_var.evidence_last_updated = max(new_var.categories.values())
+            # collect all the dates we have for first category assignment
+            category_dates = list(new_var.categories.values())
+
+            # we previously had a phenotype match date, carry it forward
+            if old_pheno := old_var.date_of_phenotype_match:
+                new_var.date_of_phenotype_match = old_pheno
+                category_dates.append(old_pheno)
+
+            new_var.evidence_last_updated = max(category_dates)
+            new_var.first_tagged = min(new_var.categories.values())
 
 
 def generate_summary_stats(result_set: ResultData):

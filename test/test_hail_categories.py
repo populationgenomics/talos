@@ -9,8 +9,8 @@ import hail as hl
 
 from talos.models import PanelApp
 from talos.RunHailFiltering import (
-    annotate_category_3,
-    annotate_category_6,
+    annotate_category_alphamissense,
+    annotate_category_high_impact,
     annotate_clinvarbitration,
     filter_to_categorised,
     filter_to_population_rare,
@@ -20,9 +20,6 @@ from talos.RunHailFiltering import (
 
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED
 
-category_1_keys = ['locus', 'categoryboolean1']
-category_2_keys = ['locus', 'clinvar_talos', 'cadd', 'revel', 'geneIds', 'consequence_terms']
-category_3_keys = ['locus', 'clinvar_talos', 'lof', 'consequence_terms']
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
@@ -52,7 +49,7 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
         ),
     )
 
-    anno_matrix = annotate_category_3(anno_matrix)
+    anno_matrix = annotate_category_high_impact(anno_matrix)
     assert anno_matrix.info.categoryboolean3.collect() == [classified]
 
 
@@ -63,11 +60,7 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
 )
 def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
     """
-
-    Args:
-        spliceai_score ():
-        flag ():
-        make_a_mt ():
+    we don't currently use category 5, but test the logic here anyway
     """
 
     matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score))
@@ -83,14 +76,8 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
         (hl.missing('tstr'), 0),
     ],
 )
-def test_class_6_assignment(am_class, classified, make_a_mt):
-    """
-
-    Args:
-        am_class ():
-        classified ():
-        make_a_mt ():
-    """
+def test_alphamissense_assignment(am_class, classified, make_a_mt):
+    """"""
 
     anno_matrix = make_a_mt.annotate_rows(
         transcript_consequences=hl.array(
@@ -100,7 +87,7 @@ def test_class_6_assignment(am_class, classified, make_a_mt):
         ),
     )
 
-    anno_matrix = annotate_category_6(anno_matrix)
+    anno_matrix = annotate_category_alphamissense(anno_matrix)
     anno_matrix.rows().show()
     assert anno_matrix.info.categoryboolean6.collect() == [classified]
 
@@ -121,7 +108,7 @@ def annotate_c6_missing(make_a_mt, caplog):
         ),
     )
 
-    anno_matrix = annotate_category_6(anno_matrix)
+    anno_matrix = annotate_category_alphamissense(anno_matrix)
     assert anno_matrix.info.categoryboolean6.collect() == [0]
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
@@ -254,11 +241,11 @@ def test_filter_to_classified(
     """
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
-            categoryboolean1=one,
-            categoryboolean3=three,
-            categorysample4=four,
-            categoryboolean5=five,
-            categoryboolean6=six,
+            categorybooleanclinvarplp=one,
+            categorybooleanhighimpact=three,
+            categorysampledenovo=four,
+            categorybooleanspliceai=five,
+            categorybooleanalphamissense=six,
             categorydetailspm5=pm5,
             categorybooleansvdb=svdb,
             categorydetailsexomiser=exomiser,
@@ -286,7 +273,6 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     - apply the parametrized annotations to the table
     """
 
-    # make into a data frame
     table = hl.Table.from_pandas(
         pd.DataFrame(
             [
@@ -308,4 +294,4 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
-    assert len([x for x in returned_table.info.categoryboolean1.collect() if x == 1]) == strong
+    assert len([x for x in returned_table.info.categorybooleanclinvarplp.collect() if x == 1]) == strong

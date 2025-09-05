@@ -83,7 +83,6 @@ workflow {
         ch_gen2phen,
         ch_phenio,
         ch_runtime_config,
-        ch_previous_results,
     )
 
     // Generate HTML report - only suited to single-report runs

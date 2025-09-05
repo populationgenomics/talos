@@ -15,7 +15,7 @@ from loguru import logger
 from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
 from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
 from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
-from talos.utils import get_granular_date
+from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -483,6 +483,19 @@ class ValidateVariantInheritance(stage.CohortStage):
             },
         )['vcf.bgz']
 
+        # find the latest analysis result, and use it as a history file
+        history_string = ''
+        if latest_results := (
+            query_for_latest_analysis(
+                dataset=cohort.dataset.name,
+                analysis_type='aip-results',
+                sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
+            )
+            is not None
+        ):
+            history_string = f'--previous {hail_batch.get_batch().read_input(latest_results)}'
+
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
@@ -490,7 +503,7 @@ class ValidateVariantInheritance(stage.CohortStage):
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
-                --pedigree {pedigree} {sv_vcf_arg}
+                --pedigree {pedigree} {sv_vcf_arg} {history_string}
             """,
         )
         expected_out = self.expected_outputs(cohort)
