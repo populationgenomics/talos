@@ -69,7 +69,6 @@ def get_hyperlink_section(cohort: targets.Cohort, seq_type: str, mapping_path: P
         return {
             'template': project_template,
             'variant_template': variant_template,
-            'lookup': str(mapping_path),
         }
 
     return None

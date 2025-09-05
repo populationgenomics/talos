@@ -606,6 +606,7 @@ class CreateTalosHtml(stage.CohortStage):
 
         # use the new config file
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
+        seqr_lookup = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'seqr_lookup'))
 
         expected_out = self.expected_outputs(cohort)
 
@@ -624,13 +625,16 @@ class CreateTalosHtml(stage.CohortStage):
         # create a new directory for the results
         job.command('mkdir html_outputs')
         job.command('cd html_outputs')
+
+        # seqr_lookup can be missing/None here, that's ok
         job.command(
             f"""
             python -m talos.CreateTalosHTML \\
                 --input {results_json} \\
                 --panelapp {panelapp_data} \\
                 --output summary_output.html \\
-                --ext_ids {localised_ids}
+                --ext_ids {localised_ids} \\
+                --seqr_ids {seqr_lookup}
             """,
         )
 
