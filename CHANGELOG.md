@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * State is now handled by passing a whole previous analysis result JSON into the workflow using `--previous_results`
 * During MOI evaluation, a Homozygous variant will be considered for Comp-Het analysis, but only if the second hit is a SV deletion
+* The ClinVar data download has been updated to the latest Zenodo release (2025-09)
 
 [8.0.0] - 2025-08-19
 
