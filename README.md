@@ -193,7 +193,7 @@ Only variants passing configured thresholds and logic modules are returned.
 ## **🔁 Reanalysis Mode**
 
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading/writing state files in a specific folder, which is set in the config file as `result_history`. This allows Talos to track which variants have been seen before, and which have not.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the config setting `params.previous_results`. See [History](docs/Reanalysis.md) for more information.
 
 ### **How it works:**
 
@@ -208,7 +208,6 @@ By integrating the results of previous analyses with each new run, each variant 
 - first_seen: original detection date
 
 - evidence_last_updated: last evidence update (ClinVar, PanelApp)
-
 
 > Talos maintains low review burden by allowing users to filter to only variants with newly actionable evidence in each analysis.
 

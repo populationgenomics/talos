@@ -32,6 +32,7 @@ from talos.models import (
     translate_category,
 )
 from talos.pedigree_parser import PedigreeParser
+from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -803,11 +804,8 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
                     old_var.clinvar_stars is None or new_var.clinvar_stars > old_var.clinvar_stars,
                 )
 
-            print(new_var.categories)
-            print(old_var.categories)
             for cat, date in old_var.categories.items():
                 new_var.categories[translate_category(cat)] = date
-            print(new_var.categories)
 
             # collect all the dates we have for first category assignment
             category_dates = list(new_var.categories.values())
@@ -816,6 +814,11 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
             if old_pheno := old_var.date_of_phenotype_match:
                 new_var.date_of_phenotype_match = old_pheno
                 category_dates.append(old_pheno)
+
+            # new supporting comp-het partners = new evidence change date
+            if new_var.support_vars - old_var.support_vars:
+                category_dates.append(get_granular_date())
+            new_var.support_vars.update(old_var.support_vars)
 
             new_var.evidence_last_updated = max(category_dates)
             new_var.first_tagged = min(new_var.categories.values())
