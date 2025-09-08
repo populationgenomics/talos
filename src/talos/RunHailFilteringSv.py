@@ -88,8 +88,8 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.Matri
             AF=mt.info.AF,
             AN=mt.info.AN,
             algorithms=mt.info.ALGORITHMS,
-            gnomad_sv_ID=mt.info[f'{GNOMAD_POP}_sv_SVID'],
-            gnomad_sv_AF=mt.info[f'{GNOMAD_POP}_sv_AF'],
+            gnomad_sv_ID=mt.info[f'{GNOMAD_POP}_SVID'],
+            gnomad_sv_AF=mt.info[f'{GNOMAD_POP}_AF'],
             lof=hl.set(mt.info['PREDICTED_LOF']),
             n_het=mt.info.N_HET,
             n_homalt=mt.info.N_HOMALT,
@@ -258,15 +258,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     hl.default_reference('GRCh38')
 
     # read the VCF in as a MatrixTable, and checkpoint it locally
-    mt = hl.import_vcf(
-        vcf_path,
-        reference_genome='GRCh38',
-        skip_invalid_loci=True,
-        force_bgz=True,
-    ).checkpoint(
-        output='temporary.mt',
-        _read_if_exists=True,
-    )
+    mt = hl.read_matrix_table(vcf_path)
 
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)
