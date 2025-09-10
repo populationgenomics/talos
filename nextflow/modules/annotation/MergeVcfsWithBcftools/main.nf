@@ -38,6 +38,6 @@ process MergeVcfsWithBcftools {
 			-Ou \
 			-f ${ref_genome} \
 			- | \
-        bcftools +fill-tags -Oz -o "${params.cohort}_merged.vcf.bgz" -W=tbi - -- -t AF
+        bcftools +fill-tags -Oz -o "${params.cohort}_merged.vcf.bgz" -W=tbi - -- -t AC,AF,AN
         """
 }
