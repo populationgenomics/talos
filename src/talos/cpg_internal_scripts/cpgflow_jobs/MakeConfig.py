@@ -4,8 +4,10 @@ import json
 import toml
 from cpg_flow import targets
 from cpg_utils import Path, config
+from loguru import logger
 
 from metamist.apis import ProjectApi, WebApi
+from metamist.exceptions import ForbiddenException
 from talos.cpg_internal_scripts import cpg_flow_utils
 
 PROJECT_API = ProjectApi()
@@ -23,7 +25,11 @@ def get_project_mapping() -> dict[str, dict]:
 def get_seqr_project(dataset: str, seq_type: str) -> str | None:
     """Retrieve the seqr project ID for this combination of project, sequencing type, and long/short read - or None."""
 
-    project_map = get_project_mapping()
+    try:
+        project_map = get_project_mapping()
+    except ForbiddenException:
+        logger.info(f'Forbidden access to seqr project mappings for {dataset}')
+        return None
 
     # if this dataset is not in the project map, return None
     if not (section := project_map.get(dataset)):
