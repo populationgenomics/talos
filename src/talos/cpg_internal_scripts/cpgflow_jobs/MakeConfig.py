@@ -1,4 +1,5 @@
 import functools
+import json
 
 import toml
 from cpg_flow import targets
@@ -62,7 +63,7 @@ def get_hyperlink_section(cohort: targets.Cohort, seq_type: str, mapping_path: P
             sg.id: mapping.get(sg_to_fam[sg.id]) for sg in cohort.get_sequencing_groups() if sg_to_fam[sg.id] in mapping
         }
         with mapping_path.open('w', encoding='utf-8') as file_handle:
-            file_handle.write(cpg_to_seqr_id)
+            json.dump(cpg_to_seqr_id, file_handle, indent=2)
 
         project_template = f'https://seqr.populationgenomics.org.au/project/{project_id}/family_page/{{sample}}'
         variant_template = 'https://seqr.populationgenomics.org.au/variant_search/variant/{variant}/family/{sample}'
