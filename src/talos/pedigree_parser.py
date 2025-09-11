@@ -31,7 +31,7 @@ VALID_SEX = {'1', '2', '0'}
 MALE_SEX = {'male', '1'}
 FEMALE_SEX = {'female', '2'}
 UNKNOWN_SEX = {'0', 'unknown', 'other'}
-NULL_VALUES = {'0', 0, 'other', '-', '', 'unaffected'}
+NULL_VALUES = {'0', 0, 'other', '-', '', 'unaffected', '-9'}
 VALID_AFFECTED = {'0', '1', '2'}
 GRUDGINGLY_VALID_AFFECTED = {'affected', 'true'}
 
