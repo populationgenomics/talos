@@ -792,6 +792,7 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
             old_coord = old_var.var_data.coordinates.string_format
             # we didn't recover this variant in the current run - insert it into new results, marking as not found
             if old_coord not in new_vars:
+                old_var.categories = {translate_category(key): val for key, val in old_var.categories.items()}
                 old_var.found_in_current_run = False
                 old_var.clinvar_increase = False
                 content.variants.append(old_var)
