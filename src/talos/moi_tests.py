@@ -606,8 +606,12 @@ class RecessiveAutosomalCH(BaseMoi):
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         # SVs may not have a var_link
-                        support_vars={partner.info.get('var_link', partner.coordinates.string_format) for partner in partner_variants},
-                        flags=principal.get_sample_flags(sample_id) | {partner.get_sample_flags(sample_id) for partner in partner_variants},
+                        support_vars={
+                            partner.info.get('var_link', partner.coordinates.string_format)
+                            for partner in partner_variants
+                        },
+                        flags=principal.get_sample_flags(sample_id)
+                        | {partner.get_sample_flags(sample_id) for partner in partner_variants},
                         clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
@@ -1063,8 +1067,12 @@ class XRecessiveFemaleCH(BaseMoi):
                         categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                        support_vars={partner.info.get('var_link', partner.coordinates.string_format) for partner in partner_variants},
-                        flags=principal.get_sample_flags(sample_id) | {partner.get_sample_flags(sample_id) for partner in partner_variants},
+                        support_vars={
+                            partner.info.get('var_link', partner.coordinates.string_format)
+                            for partner in partner_variants
+                        },
+                        flags=principal.get_sample_flags(sample_id)
+                        | {partner.get_sample_flags(sample_id) for partner in partner_variants},
                         clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
