@@ -17,6 +17,7 @@ Expected available gnomad annotations:
 # mypy: ignore-errors
 from abc import abstractmethod
 from dataclasses import dataclass
+from itertools import chain
 from typing import ClassVar
 
 from talos.config import config_retrieve
@@ -611,7 +612,7 @@ class RecessiveAutosomalCH(BaseMoi):
                             for partner in partner_variants
                         },
                         flags=principal.get_sample_flags(sample_id)
-                        | {partner.get_sample_flags(sample_id) for partner in partner_variants},
+                        | set(chain.from_iterable(partner.get_sample_flags(sample_id) for partner in partner_variants)),
                         clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
@@ -1072,7 +1073,7 @@ class XRecessiveFemaleCH(BaseMoi):
                             for partner in partner_variants
                         },
                         flags=principal.get_sample_flags(sample_id)
-                        | {partner.get_sample_flags(sample_id) for partner in partner_variants},
+                        | set(chain.from_iterable(partner.get_sample_flags(sample_id) for partner in partner_variants)),
                         clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
