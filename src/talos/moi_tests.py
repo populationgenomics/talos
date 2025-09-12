@@ -362,7 +362,7 @@ class BaseMoi:
         Returns:
             bool: True if the variant is too common
         """
-        if variant.info.get('categoryboolean1'):
+        if variant.info.get('categorybooleanclinvarplp'):
             return self.clinvar_filter.too_common(variant=variant)
         return self.global_filter.too_common(variant)
 
@@ -379,7 +379,8 @@ class BaseMoi:
 
         def get_sample_genotype(member_id: str, sex: int) -> str:
             """
-            for this specific member, find the genotype
+            For this specific member, find the genotype
+
             Args:
                 member_id (str): sample ID in the pedigree
                 sex (int): male/female/unknown
@@ -486,7 +487,7 @@ class DominantAutosomal(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    var_is_cat_1=principal.info.get('categoryboolean1'),
+                    var_is_cat_1=principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -555,7 +556,7 @@ class RecessiveAutosomalCH(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -566,7 +567,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     partner.insufficient_read_depth(
                         sample_id,
                         self.minimum_depth,
-                        partner.info.get('categoryboolean1'),
+                        partner.info.get('categorybooleanclinvarplp'),
                     )
                     or self.variant_too_common(partner)
                     or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
@@ -649,7 +650,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -723,7 +724,7 @@ class XDominant(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -796,7 +797,7 @@ class XPseudoDominantFemale(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -873,7 +874,7 @@ class XRecessiveMale(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -935,7 +936,7 @@ class XRecessiveFemaleHom(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -1004,7 +1005,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -1019,7 +1020,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     or partner.insufficient_read_depth(
                         sample_id,
                         self.minimum_depth,
-                        partner.info.get('categoryboolean1'),
+                        partner.info.get('categorybooleanclinvarplp'),
                     )
                     or not any(
                         [

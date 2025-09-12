@@ -470,7 +470,9 @@ class Sample:
                 html_builder,
             )
             for report_variant in variants
-            if not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
+            # the report can contain results found previously but not now, unsure if we want these reported
+            if report_variant.found_in_current_run
+            and not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
         ]
 
     def __str__(self):
