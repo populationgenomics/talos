@@ -32,6 +32,17 @@ this workflow is designed to be something which could be executed easily off-sit
 
 * Step 6: Load the HailTable into the final MatrixTable
     - Reads the minimised MatrixTable and the HailTable of annotations
+
+And somewhat in parallel to that:
+
+* Step M1: If availalable, pick up a Mitochondrial joint-vcf
+    - this will be filed in Metamist under the dataset, called "merged_mito.vcf.bgz"
+    - Mito variant calling is based on "chrM" (Hail likes "chrM")
+    - Run BCFtools consequence annotation on that VCF
+    - Run the step.5 from above (reformatting annotations)
+    - We don't have Echtvar annotations for chrM(?)
+
+* Step M2: Concat the reformatted Mito MatrixTable to the whole-genome
 """
 
 from functools import cache
@@ -71,6 +82,26 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
         )
         / f'{cohort.id}.mt',
     )
+
+
+@stage.stage
+class AnnotateMitoCallset(stage.CohortStage):
+    """
+    Detect a mitochondrial callset, and if available, run consequence annotation on it.
+    """
+
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
+        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            category='tmp',
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return {'mt_csq': temp_prefix / f'{cohort.id}.mt.vcf.bgz'}
+
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        outputs = self.expected_outputs(cohort)
+        ...
 
 
 @stage.stage

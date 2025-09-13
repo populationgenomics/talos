@@ -16,16 +16,14 @@ def make_vcf_to_ht_job(
     """"""
 
     # pull the alphamissense TarBall location from config, and localise it
-    alphamissense = config.reference_path('alphamissense/ht')
+    alphamissense = config.config_retrieve(['references', 'alphamissense_ht'])
 
     # mane version for gene details
-    mane_version = config.config_retrieve(['workflow', 'mane_version'], '1.4')
-    mane_json = hail_batch.get_batch().read_input(config.reference_path(f'mane_{mane_version}/json'))
+    mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_json']))
 
     # ensembl version used to generate region of interest
-    ensembl_version = config.config_retrieve(['workflow', 'ensembl_version'], 113)
     # local file parsed into a dict
-    gene_roi = hail_batch.get_batch().read_input(config.reference_path(f'ensembl_{ensembl_version}/bed'))
+    gene_roi = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'ensembl_bed']))
 
     job = hail_batch.get_batch().new_job(
         name=f'ProcessAnnotatedSitesOnlyVcfIntoHt: {cohort_id}',

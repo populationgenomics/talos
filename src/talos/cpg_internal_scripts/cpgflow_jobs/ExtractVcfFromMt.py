@@ -31,8 +31,8 @@ def make_vcf_extraction_job(
             raise ValueError(f'No MatrixTable found in Metamist for {cohort.id}')
 
     # get the BED file - does not need to be localised
-    ensembl_version = config.config_retrieve(['workflow', 'ensembl_version'], 113)
-    bed = config.reference_path(f'ensembl_{ensembl_version}/merged_bed')
+    bed = config.config_retrieve(['references', 'ensembl_merged_bed'])
+
     job = hail_batch.get_batch().new_job(f'ExtractDataFromDatasetMt: {cohort.id}', attributes=job_attrs)
     job.storage('10Gi')
     job.image(config.config_retrieve(['workflow', 'driver_image']))

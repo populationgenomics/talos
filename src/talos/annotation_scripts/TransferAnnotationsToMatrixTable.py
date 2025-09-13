@@ -25,6 +25,12 @@ def cli_main():
     parser.add_argument('--annotations', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
     parser.add_argument('--backend', help='type of backend to use', default='local')
+    parser.add_argument(
+        '--mito',
+        help='MatrixTable of annotated Mito varaints to concat',
+        required=False,
+        default=None,
+    )
     args = parser.parse_args()
 
     main(
@@ -32,6 +38,7 @@ def cli_main():
         output_path=args.output,
         annotations=args.annotations,
         backend=args.backend,
+        mito=args.mito,
     )
 
 
@@ -40,6 +47,7 @@ def main(
     output_path: str,
     annotations: str,
     backend: str,
+    mito: str | None = None,
 ):
     """
     Takes a Hail-Table of annotations, a joint-called VCF, reads the VCF as a MatrixTable and hops the annotations over
@@ -51,6 +59,7 @@ def main(
         output_path (str): path to write the resulting MatrixTable to
         annotations (str): path to a Hail Table containing annotations
         backend (str): which backend type to use
+        mito (str): MatrixTable of annotated Mito variants, optional
     """
 
     if backend == 'local':
@@ -99,6 +108,24 @@ def main(
         transcript_consequences=matched_annotations.transcript_consequences,
         gene_ids=matched_annotations.gene_ids,
     )
+
+    # if mito was provided, assume it has all the same annotations as the main mt
+    # filter down to common samples, and glue the MTs together
+    # I don't think this will work - I can make the row schemas work, but not the entries
+    # shift in tactics - need a 3rd different VCF... damn
+    if mito:
+        mito_mt = hl.read_matrix_table(mito)
+        # set intersection to get common samples
+        mito_samples = set(mito_mt.s.collect())
+        main_samples = set(mt.s.collect())
+        common_samples = mito_samples & main_samples
+
+        if not common_samples:
+            raise ValueError(f'Maion Mt and Mito MT provided, but no common samples {mito}')
+
+        filtered_mito = mito_mt.filter_cols(hl.literal(common_samples).contains(mt.s))
+        filtered_main = mt.filter_cols(hl.literal(common_samples).contains(mt.s))
+        mt = hl.MatrixTable.union_rows(filtered_mito, filtered_main)
 
     mt.describe()
 

@@ -16,6 +16,8 @@ from loguru import logger
 
 import hail as hl
 
+MISSING_FLOAT = hl.float64(0)
+MISSING_INT = hl.int32(0)
 MISSING_STRING = hl.str('')
 
 
@@ -40,13 +42,13 @@ def extract_and_split_csq_string(vcf_path: str) -> list[str]:
     return csq_whole_string.lower().split('|')
 
 
-def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table) -> hl.Table:
+def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.MatrixTable) -> hl.Table | hl.MatrixTable:
     """
     Take the list of BCSQ strings, split the CSQ annotation and re-organise as a hl struct
 
     Args:
         csq_strings (list[str]): a list of strings, each representing a CSQ entry
-        ht (hl.MatrixTable): the Table to annotate
+        ht (hl.Table): the Table to annotate
 
     Returns:
         a Table with the BCSQ annotations re-arranged
@@ -161,7 +163,7 @@ def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
                 am_pathogenicity=hl.if_else(
                     x.transcript == am_ht[ht.key].transcript,
                     am_ht[ht.key].am_pathogenicity,
-                    hl.float64(0),
+                    MISSING_FLOAT,
                 ),
             ),
             ht.transcript_consequences,
@@ -178,16 +180,7 @@ def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Tab
 
     if mane_path is None:
         logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
-        return ht.annotate(
-            transcript_consequences=hl.map(
-                lambda x: x.annotate(
-                    mane_status=MISSING_STRING,
-                    ensp=MISSING_STRING,
-                    mane_id=MISSING_STRING,
-                ),
-                ht.transcript_consequences,
-            ),
-        )
+        return ht
 
     # read in the mane table
     with open(mane_path) as handle:
@@ -287,7 +280,7 @@ def main(
     mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
 
     # checkpoint the rows as a Table locally to make everything downstream faster
-    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.mt', overwrite=True, _read_if_exists=True)
+    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.ht', overwrite=True, _read_if_exists=True)
 
     # re-shuffle the BCSQ elements
     ht = csq_strings_into_hail_structs(csq_fields, ht)
