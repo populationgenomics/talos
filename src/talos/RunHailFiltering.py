@@ -30,7 +30,7 @@ ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
 PATHOGENIC = hl.str('Pathogenic/Likely Pathogenic')
 SPLICE_ALTERING = hl.str('splice-altering')
-ADDITIONAL_CSQ_DEFAULT = ['missense']
+ADDITIONAL_CSQ_DEFAULT = ['missense', 'inframe_deletion', 'inframe_insertion']
 CRITICAL_CSQ_DEFAULT = [
     'frameshift',
     'splice_acceptor',

@@ -27,7 +27,7 @@ chrom = '1'
 
 [RunHailFiltering]
 ac_threshold = 0.01
-additional_csq = [ "missense",]
+additional_csq = [ "missense", "inframe_deletion", "inframe_insertion"]
 af_semi_rare = 0.01
 callset_af_sv_recessive = 0.03
 critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
