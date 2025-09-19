@@ -284,7 +284,8 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
+    # pass a set of new genes; fixture gene_id is 'ensga'
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal({'ensga'}))
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
     assert len([x for x in returned_table.info.categorybooleanclinvarplp.collect() if x == 1]) == strong

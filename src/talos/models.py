@@ -37,8 +37,10 @@ MIN_HOM = 0.85
 
 # dictionary for translating all the previous aliases for categories to their more descriptive names
 CATEGORY_TRANSLATOR: dict[str, str] = {
-    '1': 'ClinVarP/LP',
-    'clinvarplp': 'ClinVarP/LP',
+    '1': 'ClinVar P/LP',
+    'clinvarplp': 'ClinVar P/LP',
+    'clinvar0star': 'ClinVar 0-star',
+    'clinvar0starnewgene': 'ClinVar 0-star NewGene',
     '3': 'HighImpact',
     'highimpact': 'HighImpact',
     '4': 'DeNovo',
