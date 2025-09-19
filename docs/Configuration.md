@@ -116,7 +116,7 @@ And finally, there are some further meta-parameters which control the variants b
 | `ignore_categories`       | Categories which are ignored for this analysis. Variants with only these cats. assigned will never reach the report                                          | [exomiser, svdb] |
 | `exomiser_rank_threshold` | If Exomiser is used, limit results to the top n hits                                                                                                         | 2                |
 | `phenotype_match`         | List of categories, variants with only these assigned will be removed from the report unless a phenotype-match is detected                                   | [6]              |
-| `support_categories`      | List of categories, variants with only these assigned will be removed from the report unless detected with a comp-het partner having a 'full' value category | [6, clinvar0star] |
+| `support_categories`      | List of categories, variants with only these assigned will be removed from the report unless detected with a comp-het partner having a 'full' value category | [alphagenome, clinvar0star] |
 
 ## Stage: `HPOFlagging`
   * Config Section: `HPOFlagging`
