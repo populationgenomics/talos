@@ -40,7 +40,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     '1': 'ClinVar P/LP',
     'clinvarplp': 'ClinVar P/LP',
     'clinvar0star': 'ClinVar 0-star',
-    'clinvar0starnewgene': 'ClinVar NewGene',
+    'clinvar0starnewgene': 'ClinVar Recent Gene',
     '3': 'High Impact',
     'highimpact': 'High Impact',
     '4': 'De Novo',

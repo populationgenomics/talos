@@ -18,7 +18,7 @@ forced_panels = [1, 2, 3]
 # integer, when parsing panel data, this value determines whether a gene is 'recent'
 # we find the date each gene became Green/Ready, and if that is within X months of today
 # we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol
-within_x_months = 6
+within_x_months = 24
 
 # this section permits the manual addition of genes to the panel data
 # each gene here will be folded into the panelapp data after standard API queries have taken place
