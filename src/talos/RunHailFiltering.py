@@ -721,13 +721,6 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         input matrix, minus rows without Categories applied
     """
 
-    # TODO: if we go with these categories, add them to the test schemas and remove this workaround
-    # ensure newly added optional categories exist with default 0 to avoid schema errors in tests/pipelines
-    if 'categorybooleanclinvar0star' not in mt.row.info.dtype:
-        mt = mt.annotate_rows(info=mt.info.annotate(categorybooleanclinvar0star=MISSING_INT))
-    if 'categorybooleanclinvar0starnewgene' not in mt.row.info.dtype:
-        mt = mt.annotate_rows(info=mt.info.annotate(categorybooleanclinvar0starnewgene=MISSING_INT))
-
     return mt.filter_rows(
         (mt.info.categorybooleanclinvarplp == 1)
         | (mt.info.categorybooleanclinvar0star == 1)

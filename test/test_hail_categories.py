@@ -205,16 +205,18 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,three,four,five,six,pm5,svdb,exomiser,length',
+    'one,three,four,five,six,pm5,svdb,exomiser,zerostar,newgene,length',
     [
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0),
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 1),
-        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 0, 0, 1),
+        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 1, 1),
     ],
 )
 def test_filter_to_classified(
@@ -226,6 +228,8 @@ def test_filter_to_classified(
     pm5: str,
     svdb: int,
     exomiser: str,
+    zerostar: int,
+    newgene: int,
     length: int,
     make_a_mt: hl.MatrixTable,  # via a pytest fixture
 ):
@@ -242,6 +246,8 @@ def test_filter_to_classified(
             categorydetailspm5=pm5,
             categorybooleansvdb=svdb,
             categorydetailsexomiser=exomiser,
+            categorybooleanclinvar0star=zerostar,
+            categorybooleanclinvar0starnewgene=newgene,
         ),
     )
     matrix = filter_to_categorised(anno_matrix)
