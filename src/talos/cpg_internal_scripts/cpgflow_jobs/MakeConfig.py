@@ -104,20 +104,23 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
 
     # pull the content relevant to this cohort + sequencing type (mandatory in CPG)
     seq_type = config.config_retrieve(['workflow', 'sequencing_type'])
-    dataset_conf = config.config_retrieve(['cohorts', dataset])
-    seq_type_conf = dataset_conf.get(seq_type, {})
+    if dataset_conf := config.config_retrieve(['cohorts', dataset], False):
+        seq_type_conf = dataset_conf.get(seq_type, {})
 
-    # forbidden genes and forced panels
-    new_config['GeneratePanelData'].update(
-        {
-            'forbidden_genes': dataset_conf.get('forbidden', []),
-            'forced_panels': dataset_conf.get('forced_panels', []),
-            'blacklist': dataset_conf.get('blacklist', None),
-        },
-    )
+        # forbidden genes and forced panels
+        new_config['GeneratePanelData'].update(
+            {
+                'forbidden_genes': dataset_conf.get('forbidden', []),
+                'forced_panels': dataset_conf.get('forced_panels', []),
+                'blacklist': dataset_conf.get('blacklist', None),
+            },
+        )
 
-    # optionally, all SG IDs to remove from analysis
-    new_config['ValidateMOI']['solved_cases'] = dataset_conf.get('solved_cases', [])
+        # optionally, all SG IDs to remove from analysis
+        new_config['ValidateMOI']['solved_cases'] = dataset_conf.get('solved_cases', [])
+
+        if 'external_labels' in seq_type_conf:
+            new_config['CreateTalosHTML']['external_labels'] = seq_type_conf['external_labels']
 
     # adapt to new hyperlink config structure
     if hyperlinks := get_hyperlink_section(
@@ -126,9 +129,6 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
         mapping_path=seqr_out,
     ):
         new_config['CreateTalosHTML']['hyperlinks'] = hyperlinks
-
-    if 'external_labels' in seq_type_conf:
-        new_config['CreateTalosHTML']['external_labels'] = seq_type_conf['external_labels']
 
     with config_out.open('w') as write_handle:
         toml.dump(new_config, write_handle)
