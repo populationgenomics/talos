@@ -130,7 +130,7 @@ fi
 start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4/MANE.GRCh38.v1.4.summary.txt.gz
 
 # Ensembl GFF3 data
-start_download https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens/Homo_sapiens.GRCh38.113.gff3.gz
+start_download https://ftp.ensembl.org/pub/release-115/gff3/homo_sapiens/Homo_sapiens.GRCh38.115.gff3.gz
 
 # Jax lab file for phenotype matching
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2025-05-06/hp.obo
