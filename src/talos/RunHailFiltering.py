@@ -83,7 +83,11 @@ def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.drop('variant_qc')
 
 
-def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTable:
+def annotate_clinvarbitration(
+    mt: hl.MatrixTable,
+    clinvar: str,
+    new_genes: hl.SetExpression,
+) -> hl.MatrixTable:
     """
     Don't allow these annotations to be missing
     - Talos has been co-developed with ClinvArbitration, a ClinVar re-summary effort
@@ -120,6 +124,20 @@ def annotate_clinvarbitration(mt: hl.MatrixTable, clinvar: str) -> hl.MatrixTabl
             ),
             categorybooleanclinvarplp=hl.if_else(
                 (mt.info.clinvar_significance == PATHOGENIC) & (mt.info.clinvar_stars > 0),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            # mark variants that are P/LP, have no stars and in PanelApp "new" genes
+            categorybooleanclinvar0starnewgene=hl.if_else(
+                (mt.info.clinvar_significance == PATHOGENIC)
+                & (mt.info.clinvar_stars == 0)
+                & (hl.len(new_genes.intersection(mt.gene_ids)) > 0),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            # mark variants that are P/LP and have no stars
+            categorybooleanclinvar0star=hl.if_else(
+                (mt.info.clinvar_significance == PATHOGENIC) & (mt.info.clinvar_stars == 0),
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -705,6 +723,8 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     return mt.filter_rows(
         (mt.info.categorybooleanclinvarplp == 1)
+        | (mt.info.categorybooleanclinvar0star == 1)
+        | (mt.info.categorybooleanclinvar0starnewgene == 1)
         | (mt.info.categorybooleanalphamissense == 1)
         | (mt.info.categorybooleanhighimpact == 1)
         | (mt.info.categorysampledenovo != MISSING_STRING)
@@ -754,6 +774,22 @@ def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
     green_genes = set(panel_data.genes)
     logger.info(f'Extracted {len(green_genes)} green genes')
     return hl.literal(green_genes)
+
+
+def new_green_genes_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
+    """
+    Pull all ENSGs from PanelApp data labelled as "new" (i.e. PanelDetail.new non-empty)
+
+    Args:
+        panel_data (PanelApp): the PanelApp object
+
+    Returns:
+        a set expression - all genes marked as new for any panel in the analysis
+    """
+
+    new_genes = {ensg for ensg, details in panel_data.genes.items() if getattr(details, 'new', None)}
+    logger.info(f'Extracted {len(new_genes)} new genes')
+    return hl.literal(new_genes)
 
 
 def subselect_mt_to_pedigree(mt: hl.MatrixTable, ped_samples: set[str]) -> hl.MatrixTable:
@@ -900,6 +936,8 @@ def main(  # noqa: PLR0915
 
     # pull green genes from the panelapp data
     green_expression = green_from_panelapp(panelapp)
+    # pull genes marked as new in PanelApp
+    new_green_genes_expression = new_green_genes_from_panelapp(panelapp)
 
     # read the pedigree data
     pedigree_data: PedigreeParser = PedigreeParser(pedigree)
@@ -932,7 +970,8 @@ def main(  # noqa: PLR0915
             mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
 
     # swap out the default clinvar annotations with private clinvar
-    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar)
+    # include a flag for variants that are ClinVar P/LP AND in PanelApp "new" genes
+    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar, new_genes=new_green_genes_expression)
 
     # remove common-in-gnomad variants (also includes ClinVar annotation)
     mt = filter_to_population_rare(mt=mt)

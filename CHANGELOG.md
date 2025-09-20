@@ -14,6 +14,23 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.1.0] - 2025-09-19
+
+### Added
+
+* New default variant category:
+  * `ClinVar Recent Gene` -  P/LP ClinVar with 0 stars that are in "new" PanelApp genes. New genes are defined by the recency threshold configured via GeneratePanelData.within_x_months (default: 24).
+* New support/secondary category:
+  * `ClinVar 0-star` - P/LP ClinVar with 0 stars. This is a support/secondary category by default, but can be promoted to strong in config.
+
+### Changed
+
+* GeneratePanelData.within_x_months is now 24 months by default (was 6 months). This means that "new" genes are those added to PanelApp within the last 24 months.
+
+### Fixed
+
+* Corrected boolean precedence in Hail expression for `categorybooleanclinvar0starnewgene`.
+
 [8.0.4] - 2025-09-19
 
 ### Changed

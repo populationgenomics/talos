@@ -205,16 +205,18 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,three,four,five,six,pm5,svdb,exomiser,length',
+    'one,three,four,five,six,pm5,svdb,exomiser,zerostar,newgene,length',
     [
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0),
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 1),
-        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 0, 0, 1),
+        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 1, 1),
     ],
 )
 def test_filter_to_classified(
@@ -226,6 +228,8 @@ def test_filter_to_classified(
     pm5: str,
     svdb: int,
     exomiser: str,
+    zerostar: int,
+    newgene: int,
     length: int,
     make_a_mt: hl.MatrixTable,  # via a pytest fixture
 ):
@@ -242,6 +246,8 @@ def test_filter_to_classified(
             categorydetailspm5=pm5,
             categorybooleansvdb=svdb,
             categorydetailsexomiser=exomiser,
+            categorybooleanclinvar0star=zerostar,
+            categorybooleanclinvar0starnewgene=newgene,
         ),
     )
     matrix = filter_to_categorised(anno_matrix)
@@ -284,7 +290,73 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal({'ensga'}))
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
     assert len([x for x in returned_table.info.categorybooleanclinvarplp.collect() if x == 1]) == strong
+
+
+@pytest.mark.parametrize(
+    'rating,stars,expected_flag',
+    [
+        ('Pathogenic/Likely Pathogenic', 0, 1),
+        ('Pathogenic/Likely Pathogenic', 1, 0),
+        ('other', 3, 0),
+        ('benign', 0, 0),  # note: benign with stars>0 would be filtered out entirely
+    ],
+)
+def test_annotate_clinvar_0star_category(rating, stars, expected_flag, tmp_path, make_a_mt):
+    """Verify categorybooleanclinvar0star is set only for P/LP with 0 stars."""
+
+    table = hl.Table.from_pandas(
+        pd.DataFrame(
+            [
+                {
+                    'locus': hl.Locus(contig='chr1', position=12345),
+                    'alleles': ['A', 'G'],
+                    'clinical_significance': rating,
+                    'gold_stars': stars,
+                    'allele_id': 1,
+                },
+            ],
+        ),
+        key=['locus', 'alleles'],
+    )
+    table_path = str(tmp_path / 'anno_0star.ht')
+    table.write(table_path)
+
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal({'ensga'}))
+    assert returned_table.info.categorybooleanclinvar0star.collect() == [expected_flag]
+
+
+@pytest.mark.parametrize(
+    'rating,stars,new_set,expected_flag',
+    [
+        ('Pathogenic/Likely Pathogenic', 0, {'ensga'}, 1),   # matches fixture gene and is 0-star
+        ('Pathogenic/Likely Pathogenic', 0, {'NOT_MATCH'}, 0),
+        ('Pathogenic/Likely Pathogenic', 1, {'ensga'}, 0),   # not 0-star
+        ('other', 0, {'ensga'}, 0),
+    ],
+)
+def test_annotate_clinvar_0star_newgene_category(rating, stars, new_set, expected_flag, tmp_path, make_a_mt):
+    """Verify categorybooleanclinvar0starnewgene requires P/LP, 0 stars, and gene in the provided new_genes set."""
+
+    table = hl.Table.from_pandas(
+        pd.DataFrame(
+            [
+                {
+                    'locus': hl.Locus(contig='chr1', position=12345),
+                    'alleles': ['A', 'G'],
+                    'clinical_significance': rating,
+                    'gold_stars': stars,
+                    'allele_id': 1,
+                },
+            ],
+        ),
+        key=['locus', 'alleles'],
+    )
+    table_path = str(tmp_path / 'anno_0star_newgene.ht')
+    table.write(table_path)
+
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal(set(new_set)))
+    assert returned_table.info.categorybooleanclinvar0starnewgene.collect() == [expected_flag]

@@ -62,7 +62,7 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 To build the Docker image:
 
 ```
-docker build -t talos:8.0.4 .
+docker build -t talos:8.1.0 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -250,12 +250,14 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 
 | **Module**    | **Description**                                     |
 |---------------|-----------------------------------------------------|
-| ClinVarP/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
-| HighImpact    | Predicted high-impact protein consequences          |
-| DeNovo        | Confirmed de novo in affected individual            |
+| ClinVar P/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
+| ClinVar Recent Gene | P/LP in a PanelApp “new” gene (became Green within the recency window configured by `GeneratePanelData.within_x_months`, default 24) |
+| High Impact    | Predicted high-impact protein consequences          |
+| De Novo        | Confirmed de novo in affected individual            |
 | PM5           | Missense in codon with known pathogenic variant     |
 | LofSV         | Predicted loss-of-function structural variant       |
-| AlphaMissense | AlphaMissense-predicted pathogenic missense variant |
+| ClinVar 0-star | P/LP with 0 gold stars in ClinVar [Supporting category] |
+| AlphaMissense | AlphaMissense-predicted pathogenic missense variant  [Supporting category] |
 
 Each module can be configured through the `.toml` config file (see [Configuration.md](docs/Configuration.md))
 

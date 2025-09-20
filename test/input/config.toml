@@ -4,7 +4,7 @@ forced_panels = [99]
 panelapp = 'https://panelapp-aus.org/api/v1/panels'
 panel_month_delta = 12
 require_pheno_match = ['FLG', 'GJB2']
-within_x_months = 6
+within_x_months = 24
 
 [ValidateMOI]
 
@@ -46,7 +46,7 @@ clinvar_dominant_callset_max_af = 0.05
 
 phenotype_match = [ '6']
 ignore_categories = [ 'exomiser', 'svdb']
-support_categories = ['6', '5']
+support_categories = ['6', '5', 'clinvar0star']
 exomiser_rank_threshold = 2
 # All IDs for cases to remove from this round of reports - already solved
 solved_cases = ['female']
