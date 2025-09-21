@@ -27,6 +27,13 @@
         .group-name {
             font-weight: normal;
         }
+
+        .child-row-content {
+            max-width: 1200px;
+            margin-left: 0;
+            margin-right: auto;
+            text-align: left;
+        }
     </style>
   </head>
 
@@ -104,39 +111,335 @@
 
     <script>
     $(document).ready(function() {
-        var collapsedGroups = {};
+        function ucscUrl(variant, padding) {
+            if (padding === undefined) {
+                padding = 20;
+            }
+            var pos = parseInt(variant.pos, 10);
+            var refLen = variant.ref ? variant.ref.length : 1;
+            return 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&highlight=hg38.chr' +
+                   variant.chrom + ':' + pos + '-' + (refLen + pos - 1) +
+                   '&position=chr' + variant.chrom + ':' + (pos - padding) + '-' + (pos + padding);
+        }
 
-        // Initialize DataTable
+        function spliceAiUrl(variant, distance, mask) {
+            if (distance === undefined) {
+                distance = 500;
+            }
+            if (mask === undefined) {
+                mask = 0;
+            }
+            return 'https://spliceailookup.broadinstitute.org/#variant=' +
+                   variant.chrom + ':' + variant.pos + '-' + variant.ref + '-' + variant.alt +
+                   '&hg=38&distance=' + distance + '&mask=' + mask + '&precomputed=0';
+        }
+
+        function omimGeneUrl(symbol) {
+            return 'https://www.omim.org/search?index=entry&start=1&search=' +
+                   encodeURIComponent(symbol) + '&field=approved_gene_symbol';
+        }
+
+        function decipherUrl(geneId, proteinView) {
+            if (proteinView === undefined) {
+                proteinView = true;
+            }
+            if (proteinView) {
+                return 'https://www.deciphergenomics.org/gene/' + geneId + '/overview/protein-genomic-info';
+            }
+            return 'https://www.deciphergenomics.org/gene/' + geneId + '/overview/clinical-info';
+        }
+
+        function pedSymbol(sex, affected) {
+            var shape = 'diamond';
+            if (sex === 'male' || sex === '1') {
+                shape = 'square';
+            } else if (sex === 'female' || sex === '2') {
+                shape = 'circle';
+            }
+
+            var iconClass = 'bi-question-' + shape;
+            if (affected === '2' || affected === 'true' || affected === true) {
+                iconClass = 'bi-' + shape + '-fill';
+            } else if (affected === '1' || affected === 'false' || affected === false) {
+                iconClass = 'bi-' + shape;
+            }
+
+            return '<i class="' + iconClass + ' text-small text-secondary"></i>';
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === undefined || unsafe === null) {
+                return '';
+            }
+            var value = String(unsafe);
+            return value
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function parseDataAttribute(tr, attribute, fallback) {
+            var value = tr.attr(attribute);
+            if (value === undefined || value === null) {
+                return fallback;
+            }
+
+            if (typeof value !== 'string') {
+                return value;
+            }
+
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        function formatChildRow(rowData) {
+            var variantData = rowData.variantData || {};
+            var genotypes = rowData.genotypes || {};
+            var phenotypes = rowData.phenotypes || [];
+            var panelDetails = rowData.panelDetails || {};
+            var familyMembers = rowData.familyMembers || {};
+            var familyDisplay = rowData.familyDisplay || {};
+            var supportVars = rowData.supportVars || [];
+            var transcriptConsequences = rowData.transcriptConsequences || [];
+
+            var html = '<div class="child-row-content"><div class="row">';
+
+            html += '<div class="col-md-6"><div class="card"><div class="card-body">';
+            html += '<h5 class="card-title">Variant Details</h5><dl class="row">';
+
+            html += '<dt class="col-sm-4">Coordinates</dt><dd class="col-sm-8">';
+            html += escapeHtml(rowData.variantCoords) + '<br>' + escapeHtml(rowData.variantChange);
+            if (variantData.info && variantData.info.as_filterstatus) {
+                html += '<br><small class="text-muted">Filter: ' + escapeHtml(String(variantData.info.as_filterstatus)) + '</small>';
+            }
+            if (rowData.variantType === 'StructuralVariant' && variantData.info) {
+                var svLen = variantData.info.svlen;
+                var svType = variantData.info.svtype;
+                if (svType) {
+                    html += '<br>' + escapeHtml(String(svType));
+                    if (svLen !== undefined && svLen !== null) {
+                        html += ' ' + escapeHtml(String(svLen)) + 'bp';
+                    }
+                }
+            }
+            html += '</dd>';
+
+            html += '<dt class="col-sm-4">Allele Counts</dt><dd class="col-sm-8">';
+            if (variantData.info) {
+                var callsetAc = (variantData.info.ac !== undefined && variantData.info.ac !== null) ? variantData.info.ac : 'N/A';
+                var callsetAn = (variantData.info.an !== undefined && variantData.info.an !== null) ? variantData.info.an : 'N/A';
+                html += 'Callset: ' + escapeHtml(String(callsetAc)) + ' / ' + escapeHtml(String(callsetAn)) + '<br>';
+
+                if (rowData.variantType === 'SmallVariant' && variantData.info.gnomad_ac !== undefined && variantData.info.gnomad_ac !== null) {
+                    var gnomadId = null;
+                    if (variantData.coordinates && variantData.coordinates.chrom && variantData.coordinates.ref && variantData.coordinates.alt) {
+                        gnomadId = [
+                            variantData.coordinates.chrom,
+                            variantData.coordinates.pos,
+                            variantData.coordinates.ref,
+                            variantData.coordinates.alt
+                        ].join('-');
+                    }
+                    if (!gnomadId) {
+                        gnomadId = rowData.variantCoords.replace(':', '-');
+                    }
+                    html += 'gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(gnomadId) + '?dataset=gnomad_r4" target="_blank">' + escapeHtml(String(variantData.info.gnomad_ac)) + '</a>';
+                } else if (rowData.variantType === 'StructuralVariant' && variantData.info.gnomad_key) {
+                    var svAfVal = variantData.info['gnomad_v2.1_sv_af'];
+                    var svAf = 'N/A';
+                    if (svAfVal !== undefined && svAfVal !== null && !isNaN(parseFloat(svAfVal))) {
+                        svAf = parseFloat(svAfVal).toFixed(4);
+                    }
+                    html += 'gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r2_1" target="_blank">' + escapeHtml(String(svAf)) + '</a>';
+                }
+            }
+            html += '</dd>';
+
+            if (rowData.variantType === 'SmallVariant' && variantData.info) {
+                html += '<dt class="col-sm-4">Predictions</dt><dd class="col-sm-8">';
+                if (variantData.info.alpha_missense_max && variantData.info.alpha_missense_max !== 'missing') {
+                    html += 'AlphaMissense: ' + parseFloat(variantData.info.alpha_missense_max).toFixed(2) + '<br>';
+                }
+                if (variantData.info.splice_ai_delta) {
+                    var variantRef = {
+                        chrom: rowData.variantCoords.split(':')[0],
+                        pos: rowData.variantCoords.split(':')[1],
+                        ref: variantData.coordinates ? variantData.coordinates.ref : '',
+                        alt: variantData.coordinates ? variantData.coordinates.alt : ''
+                    };
+                    html += 'SpliceAI: <a href="' + spliceAiUrl(variantRef) + '" target="_blank">' + parseFloat(variantData.info.splice_ai_delta).toFixed(2) + '</a>';
+                    if (variantData.info.splice_ai_csq && !['missing', 'No_consequence'].includes(variantData.info.splice_ai_csq)) {
+                        html += ' (' + escapeHtml(variantData.info.splice_ai_csq) + ')';
+                    }
+                }
+                html += '</dd>';
+
+                html += '<dt class="col-sm-4">External Links</dt><dd class="col-sm-8">';
+                var variantForLinks = {
+                    chrom: rowData.variantCoords.split(':')[0],
+                    pos: rowData.variantCoords.split(':')[1],
+                    ref: variantData.coordinates ? variantData.coordinates.ref : '',
+                    alt: variantData.coordinates ? variantData.coordinates.alt : ''
+                };
+                var genes = rowData.genes ? rowData.genes.split(',') : [];
+                var firstGene = genes[0] ? genes[0].split(':') : ['', ''];
+
+                html += '<a href="' + spliceAiUrl(variantForLinks) + '" target="_blank">SpliceAI</a> | ';
+                html += '<a href="' + ucscUrl(variantForLinks) + '" target="_blank">UCSC</a> | ';
+                if (firstGene[0]) {
+                    html += '<a href="' + decipherUrl(firstGene[0], true) + '" target="_blank">Decipher</a> ';
+                    html += '<a href="' + decipherUrl(firstGene[0], false) + '" target="_blank">(Clinical)</a> | ';
+                }
+                if (firstGene[1]) {
+                    html += '<a href="' + omimGeneUrl(firstGene[1]) + '" target="_blank">OMIM</a>';
+                }
+                html += '</dd>';
+            } else if (rowData.variantType === 'StructuralVariant' && variantData.info) {
+                html += '<dt class="col-sm-4">Additional</dt><dd class="col-sm-8">';
+                var lof = variantData.info.lof;
+                if (lof) {
+                    var lofText = Array.isArray(lof) ? lof.join(', ') : String(lof);
+                    html += 'LoF Genes: ' + escapeHtml(lofText) + '<br>';
+                }
+                var algorithms = variantData.info.algorithms;
+                if (algorithms) {
+                    var algText = Array.isArray(algorithms) ? algorithms.join(', ') : String(algorithms);
+                    html += 'Algorithms: ' + escapeHtml(algText) + '<br>';
+                }
+                var evidence = variantData.info.evidence;
+                if (evidence) {
+                    var evidenceText = Array.isArray(evidence) ? evidence.join(', ') : String(evidence);
+                    html += 'Evidence Types: ' + escapeHtml(evidenceText) + '<br>';
+                }
+                if (rowData.genes) {
+                    var genesList = rowData.genes.split(',');
+                    var first = genesList[0] ? genesList[0].split(':') : ['', ''];
+                    if (first[1]) {
+                        html += '<a href="' + omimGeneUrl(first[1]) + '" target="_blank">OMIM</a>';
+                    }
+                }
+                html += '</dd>';
+            }
+
+            html += '</dl></div></div></div>';
+
+            html += '<div class="col-md-6"><div class="card"><div class="card-body">';
+            html += '<h5 class="card-title">Family Information</h5><dl class="row">';
+
+            html += '<dt class="col-sm-4">Genotypes</dt><dd class="col-sm-8">';
+            Object.keys(genotypes).forEach(function(sampleId) {
+                if (familyMembers[sampleId] && familyDisplay[sampleId] && genotypes[sampleId]) {
+                    var member = familyMembers[sampleId];
+                    var sex = member.sex && member.sex.value ? member.sex.value : member.sex;
+                    var affected = member.affected;
+                    html += pedSymbol(sex, affected) + ' ';
+                    html += escapeHtml(familyDisplay[sampleId]) + ' - ' + escapeHtml(genotypes[sampleId]) + '<br>';
+                }
+            });
+            html += '</dd>';
+
+            html += '<dt class="col-sm-4">Phenotypes</dt><dd class="col-sm-8">';
+            phenotypes.forEach(function(phenotype) {
+                if (phenotype && phenotype.id && phenotype.label) {
+                    html += escapeHtml(phenotype.id) + ' - ' + escapeHtml(phenotype.label) + '<br>';
+                }
+            });
+            html += '</dd>';
+
+            html += '<dt class="col-sm-4">Panels</dt><dd class="col-sm-8">';
+            Object.keys(panelDetails).forEach(function(panelId) {
+                var panel = panelDetails[panelId];
+                if (panel && panel.name) {
+                    html += escapeHtml(panel.name) + ' (' + escapeHtml(panelId) + ') v.' + escapeHtml(panel.version || 'N/A') + '<br>';
+                }
+            });
+            html += '</dd>';
+
+            html += '</dl></div></div>';
+
+            if (supportVars && supportVars.length > 0) {
+                html += '<div class="card mt-2"><div class="card-body">';
+                html += '<h5 class="card-title">Supporting Variants</h5><ul class="list-unstyled">';
+                supportVars.forEach(function(coords) {
+                    if (coords) {
+                        html += '<li><small>' + escapeHtml(coords) + '</small></li>';
+                    }
+                });
+                html += '</ul></div></div>';
+            }
+
+            html += '</div></div>';
+
+            if (transcriptConsequences && transcriptConsequences.length > 0) {
+                html += '<div class="col-12 mt-3"><div class="card"><div class="card-body">';
+                html += '<h5 class="card-title">Transcript Consequences</h5>';
+                html += '<div class="table-responsive"><table class="table table-sm table-striped">';
+                html += '<thead class="table-dark"><tr>';
+                html += '<th>Gene</th><th>HGVS c.</th><th>HGVS p.</th><th>Consequence</th>';
+                html += '<th>Exon</th><th>Biotype</th><th>MANE</th><th>AlphaMissense</th>';
+                html += '</tr></thead><tbody>';
+
+                transcriptConsequences.forEach(function(csq) {
+                    if (csq) {
+                        html += '<tr>';
+                        html += '<td>' + escapeHtml(csq.gene || '') + '</td>';
+                        html += '<td><small>' + escapeHtml(csq.dna_change || '') + '</small></td>';
+                        html += '<td><small>' + escapeHtml((csq.ensp || '') + ' ' + (csq.amino_acid_change || '')) + '</small></td>';
+                        html += '<td><small>' + escapeHtml(csq.consequence || '') + '</small></td>';
+                        html += '<td>' + escapeHtml(csq.exon || '') + '</td>';
+                        html += '<td><small>' + escapeHtml(csq.biotype || '') + '</small></td>';
+                        html += '<td>' + escapeHtml(csq.mane_id || '') + '</td>';
+                        html += '<td>' + escapeHtml(csq.am_class || '');
+                        if (csq.am_pathogenicity && typeof csq.am_pathogenicity === 'number') {
+                            html += ' (' + csq.am_pathogenicity.toFixed(2) + ')';
+                        }
+                        html += '</td></tr>';
+                    }
+                });
+
+                html += '</tbody></table></div></div></div></div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
         var table = $('#variant-table').DataTable({
-            "paging": true,
-            "pageLength": 50, // Number of rows per page
-            "lengthMenu": [10, 25, 50, 100], // Options for rows per page
-            "ordering": true, // Enable sorting
-            "searching": true, // Enable searching
+            paging: true,
+            pageLength: 50,
+            lengthMenu: [10, 25, 50, 100],
+            ordering: true,
+            searching: true,
             rowGroup: {
-                // Uses the 'row group' plugin
-                dataSrc: 0,
+                dataSrc: function (row) {
+                    var cellHtml = row[0];
+                    var tempDiv = $('<div>').html(cellHtml);
+                    return tempDiv.text().trim() || 'Unknown';
+                },
                 startRender: function (rows, group) {
-                    var collapsed = !!collapsedGroups[group];
+                    var collapsed = false;
 
                     rows.nodes().each(function (r) {
                         r.style.display = collapsed ? 'none' : '';
                     });
 
-                    // Add category name to the <tr>
-                    return $('<tr/>')
-                        .append('<td colspan="100%">' + group + ' (' + rows.count() + ')</td>')
+                    var headerRow = $('<tr/>')
+                        .append('<td colspan="100%">' + escapeHtml(group) + ' (' + rows.count() + ')</td>')
                         .attr('data-name', group)
-                        .toggleClass('collapsed', collapsed);
-                }
-              }
-            }
-        );
+                        .addClass('group-start');
 
-       $('#variant-table tbody').on('click', 'tr.group-start', function () {
-            var name = $(this).data('name');
-            collapsedGroups[name] = !collapsedGroups[name];
-            table.draw(false);
+                    if (collapsed) {
+                        headerRow.addClass('collapsed');
+                    }
+
+                    return headerRow;
+                }
+            }
         });
 
         // Prevent sorting when clicking on input fields
@@ -157,9 +460,59 @@
         });
 
 
+        $('#variant-table tbody').on('click', 'td.details-control', function () {
+            var tr = $(this).closest('tr');
+            var row = table.row(tr);
+
+            if (row.child.isShown()) {
+                row.child.hide();
+                tr.removeClass('shown');
+                $(this).find('i').removeClass('bi-chevron-down').addClass('bi-card-text');
+            } else {
+                var rowData = {
+                    variantType: tr.attr('data-variant-type') || '',
+                    sampleName: tr.attr('data-sample-name') || '',
+                    sampleExtId: tr.attr('data-sample-ext-id') || '',
+                    familyId: tr.attr('data-family-id') || '',
+                    variantCoords: tr.attr('data-variant-coords') || '',
+                    variantChange: tr.attr('data-variant-change') || '',
+                    genes: tr.attr('data-genes') || '',
+                    variantData: parseDataAttribute(tr, 'data-variant-data', {}),
+                    genotypes: parseDataAttribute(tr, 'data-genotypes', {}),
+                    phenotypes: parseDataAttribute(tr, 'data-phenotypes', []),
+                    panelDetails: parseDataAttribute(tr, 'data-panel-details', {}),
+                    familyMembers: parseDataAttribute(tr, 'data-family-members', {}),
+                    familyDisplay: parseDataAttribute(tr, 'data-family-display', {}),
+                    supportVars: parseDataAttribute(tr, 'data-support-vars', []),
+                    transcriptConsequences: parseDataAttribute(tr, 'data-transcript-consequences', [])
+                };
+
+                row.child(formatChildRow(rowData)).show();
+                tr.addClass('shown');
+                $(this).find('i').removeClass('bi-card-text').addClass('bi-chevron-down');
+            }
+        });
+
         // Enable bootstrap tool tips
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+        var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        $('#variant-table tbody').on('click', 'tr.group-start', function () {
+            var name = $(this).data('name');
+            var collapsed = $(this).hasClass('collapsed');
+            $(this).toggleClass('collapsed');
+
+            table.rows(function (idx, data, node) {
+                var cellHtml = data[0];
+                var tempDiv = $('<div>').html(cellHtml);
+                var text = tempDiv.text().trim() || 'Unknown';
+                return text === name;
+            }).nodes().to$().each(function () {
+                this.style.display = collapsed ? '' : 'none';
+            });
+        });
       });
     </script>
   </body>

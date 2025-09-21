@@ -403,27 +403,6 @@ class HTMLBuilder:
 
         logger.info(f'Wrote {output_filepath}')
 
-        outpath_name = Path(output_filepath).name
-
-        for sample in template_context['samples']:
-            assert isinstance(sample, Sample)
-            if not sample.variants:
-                continue
-
-            report_address = output_filepath.replace(outpath_name, sample.report_url)
-
-            logger.debug(f'Writing {report_address}')
-
-            new_context = template_context | {
-                'samples': [sample],
-                'report_title': f'Talos Report for {sample.name}',
-                'type': 'sample',
-            }
-
-            template = env.get_template('sample_index.html.jinja')
-            content = template.render(**new_context)
-            with open(report_address, 'w') as handle:
-                handle.writelines(content)
 
 
 class Sample:
@@ -439,7 +418,6 @@ class Sample:
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
-        indi_folder = f'individuals_{html_builder.subset_id}' if html_builder.subset_id is not None else 'individuals'
         self.metadata = metadata
         self.name = name
         self.family_id = metadata.family_id
@@ -459,8 +437,6 @@ class Sample:
         else:
             self.sample_link = None
 
-        self.report_url = f'{indi_folder}/{self.name}.html'
-
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [
             Variant(
@@ -474,6 +450,26 @@ class Sample:
             if report_variant.found_in_current_run
             and not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
         ]
+
+        # Pre-serialize complex nested objects for Jinja2
+        self.panel_details_json = {
+            str(pid): panel.model_dump(mode='json')
+            for pid, panel in self.panel_details.items()
+        } if hasattr(self, 'panel_details') and self.panel_details else {}
+
+        self.family_members_json = {
+            member_id: member.model_dump(mode='json')
+            for member_id, member in self.family_members.items()
+        } if hasattr(self, 'family_members') and self.family_members else {}
+
+        # Pre-serialize phenotypes (HpoTerm objects)
+        self.phenotypes_json = [
+            phenotype.model_dump(mode='json') if hasattr(phenotype, 'model_dump') else phenotype
+            for phenotype in self.phenotypes
+        ] if hasattr(self, 'phenotypes') and self.phenotypes else []
+
+        # Pre-serialize family_display (should be simple dict, but let's be safe)
+        self.family_display_json = dict(self.family_display) if hasattr(self, 'family_display') else {}
 
     def __str__(self):
         return self.name
@@ -664,6 +660,22 @@ class Variant:
         else:
             self.var_link = None
 
+        # Pre-serialize variant data for Jinja2 to avoid complex template logic
+        self.var_data_json = self.var_data.model_dump(mode='json') if self.var_data else {}
+
+        # Pre-serialize other potentially complex objects
+        self.genotypes_json = dict(self.genotypes) if hasattr(self, 'genotypes') else {}
+        self.support_vars_json = list(self.support_vars) if hasattr(self, 'support_vars') else []
+
+        # Pre-serialize transcript consequences
+        if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:
+            self.transcript_consequences_json = [
+                csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq
+                for csq in self.var_data.transcript_consequences
+            ]
+        else:
+            self.transcript_consequences_json = []
+
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
@@ -774,8 +786,6 @@ def main(
     # catch this, but fail gracefully so that the process overall is a success
     try:
         logger.debug(f'Writing whole-cohort categorised variants to {output}')
-        # find the path to the output directory, and make an individual directory
-        makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
         html.write_html(output_filepath=output)
     except NoVariantsFoundError:
         logger.warning('No Categorised variants found in this whole cohort')
@@ -796,7 +806,6 @@ def main(
         try:
             output_filepath = join(report_output_dir, report)
             logger.debug(f'Attempting to create {report} at {output_filepath}')
-            makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             logger.info('No variants in that report, skipping')
