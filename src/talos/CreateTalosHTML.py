@@ -12,7 +12,6 @@ import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
-from os import makedirs
 from os.path import join
 from pathlib import Path
 from typing import Any
@@ -404,7 +403,6 @@ class HTMLBuilder:
         logger.info(f'Wrote {output_filepath}')
 
 
-
 class Sample:
     """
     Sample related logic
@@ -452,21 +450,27 @@ class Sample:
         ]
 
         # Pre-serialize complex nested objects for Jinja2
-        self.panel_details_json = {
-            str(pid): panel.model_dump(mode='json')
-            for pid, panel in self.panel_details.items()
-        } if hasattr(self, 'panel_details') and self.panel_details else {}
+        self.panel_details_json = (
+            {str(pid): panel.model_dump(mode='json') for pid, panel in self.panel_details.items()}
+            if hasattr(self, 'panel_details') and self.panel_details
+            else {}
+        )
 
-        self.family_members_json = {
-            member_id: member.model_dump(mode='json')
-            for member_id, member in self.family_members.items()
-        } if hasattr(self, 'family_members') and self.family_members else {}
+        self.family_members_json = (
+            {member_id: member.model_dump(mode='json') for member_id, member in self.family_members.items()}
+            if hasattr(self, 'family_members') and self.family_members
+            else {}
+        )
 
         # Pre-serialize phenotypes (HpoTerm objects)
-        self.phenotypes_json = [
-            phenotype.model_dump(mode='json') if hasattr(phenotype, 'model_dump') else phenotype
-            for phenotype in self.phenotypes
-        ] if hasattr(self, 'phenotypes') and self.phenotypes else []
+        self.phenotypes_json = (
+            [
+                phenotype.model_dump(mode='json') if hasattr(phenotype, 'model_dump') else phenotype
+                for phenotype in self.phenotypes
+            ]
+            if hasattr(self, 'phenotypes') and self.phenotypes
+            else []
+        )
 
         # Pre-serialize family_display (should be simple dict, but let's be safe)
         self.family_display_json = dict(self.family_display) if hasattr(self, 'family_display') else {}
