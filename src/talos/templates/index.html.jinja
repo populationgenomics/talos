@@ -445,7 +445,7 @@
             if (variantData.info) {
                 var callsetAc = (variantData.info.ac !== undefined && variantData.info.ac !== null) ? variantData.info.ac : 'N/A';
                 var callsetAn = (variantData.info.an !== undefined && variantData.info.an !== null) ? variantData.info.an : 'N/A';
-                html += 'Callset AC: ' + escapeHtml(String(callsetAc)) + ' / AN:' + escapeHtml(String(callsetAn)) + '<br>';
+                html += 'Sample AC: ' + escapeHtml(String(callsetAc)) + ' / AN: ' + escapeHtml(String(callsetAn)) + '<br>';
 
                 if (rowData.variantType === 'SmallVariant' && variantData.info.gnomad_ac !== undefined && variantData.info.gnomad_ac !== null) {
                     var gnomadId = null;

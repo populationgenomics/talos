@@ -18,7 +18,7 @@
 >
     <td style="white-space: nowrap" class="details-control">
         {# Individual ID - Click to expand details #}
-        <a href="javascript:void(0)" class="details-toggle" role="button" aria-label="Toggle details"><i class="bi-plus-square"></i></a>
+        <button type="button" class="btn btn-link btn-sm p-0 details-toggle" aria-label="Toggle details"><i class="bi-plus-square"></i></button>
 
         {% if sample.sample_link %}
             <a href="{{sample.sample_link|e}}" target="_blank">
@@ -44,7 +44,7 @@
             {{variant.chrom|e}}:{{variant.pos}}
         {% endif %}
         <br>
-        {{ variant.change|replace("->", ">") |e }}
+        {{ variant.change|replace("->", ">")|e }}
         {% if variant.var_type == 'SmallVariant' and variant.var_data.info %}
         {% set gnomad_url = 'https://gnomad.broadinstitute.org/variant/' ~ (variant|urlencode) ~ '?dataset=gnomad_r4' %}
         <br>
@@ -117,7 +117,7 @@
     <td>
         {# Clinvar #}
         {% if variant.var_data.info.clinvar_allele %}
-            <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele|urlencode}}[alleleid]"target="_blank">{{ variant.var_data.info.clinvar_significance|replace('Pathogenic/Likely Pathogenic','(Likely) Pathogenic')|replace('missing','')|e }}</a>
+            <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele|urlencode}}[alleleid]" target="_blank">{{ variant.var_data.info.clinvar_significance|replace('Pathogenic/Likely Pathogenic','(Likely) Pathogenic')|replace('missing','')|e }}</a>
             {% if variant.var_data.info.clinvar_stars %}{% for i in range(variant.var_data.info.clinvar_stars|int) -%}<i class="bi-star"></i>{% endfor %}{% endif %}
         {% endif %}
         {% if 'pm5' in variant.categories and variant.var_data.info.pm5_data %}

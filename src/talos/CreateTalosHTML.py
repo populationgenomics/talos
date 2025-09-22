@@ -274,7 +274,7 @@ class HTMLBuilder:
                 samples_with_no_variants.append(sample.ext_id)
 
             sample_variants: defaultdict[str, set[str]] = defaultdict(set)
-            sample_variants['any']  # initialize default category
+            sample_variants['any'] = set()  # initialize default category
 
             # iterate over the list of variants
             for variant in sample.variants:
