@@ -41,67 +41,209 @@
     <nav class="navbar navbar-dark bg-dark justify-content-start">
       <a class="navbar-brand p-1" href="#"> {{ report_title|default("Talos Report") }}</a>
       <span class="navbar-text">
-        {{ run_datetime }}
+        Generated: {{ run_datetime }}
       </span>
     </nav>
 
-    {# Results #}
     <div class="container-fluid py-4 px-3 px-lg-4">
+        <ul class="nav nav-tabs mb-3" id="report-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-pane" type="button" role="tab" aria-controls="results-pane" aria-selected="true">Results</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata-pane" type="button" role="tab" aria-controls="metadata-pane" aria-selected="false"> Run Metadata</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config-pane" type="button" role="tab" aria-controls="config-pane" aria-selected="false">Run Configuration</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="report-tabs-content">
+            <div class="tab-pane fade show active" id="results-pane" role="tabpanel" aria-labelledby="results-tab">
+                <button class="btn btn-outline-info btn-sm mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#report-help"
+                    aria-expanded="false" aria-controls="report-help">
+                    Help
+                </button>
+                <div class="collapse" id="report-help">
+                    <div class="card card-body mb-3">
+                        <h5>Symbol Legend</h5>
 
-        </br>
-        ClinvArbitration, CPG's re-aggregation of ClinVar submissions: <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">https://github.com/populationgenomics/ClinvArbitration</a>
-        </br>
-        <i class="bi-person-check-fill text-success">Phenotype match: Panel-based</i>
-        </br>
-        <i class="bi-person-check-fill text-info">Phenotype match: Cohort-based</i>
-        </br>
-        <i class="bi-person-check-fill" style="color: #FF5733">Phenotype match: HPO-based</i>
-        </br>
-        <i class="bi bi-star-fill text-warning"> New Genes in the Mendeliome</i>
-        </br>
-        <i class="bi bi-star-fill text-primary"> New Genes in phenotype-matched panels</i>
+                        <p class="mb-1">
+                        <i class="bi bi-person-check-fill text-success"></i>
+                        Phenotype match (panel-based): One or more patient HPO terms match HPO terms characteristic of a disease-specific gene panel.
+                        </p>
 
-        <div class="mb-3">
-            <label for="phenotype-filter" class="form-label">Phenotype match filter</label>
-            <select id="phenotype-filter" class="form-select form-select-sm" style="max-width: 240px;">
-                <option value="all" selected>All variants</option>
-                <option value="has">With phenotype match</option>
-                <option value="none">Without phenotype match</option>
-            </select>
-        </div>
+                        <p class="mb-1">
+                        <i class="bi bi-person-check-fill text-info"></i>
+                        Phenotype match (cohort-based): This gene is included in a PanelApp Australia panel configured for this cohort.
+                        </p>
 
-        <table class="display" id="variant-table">
+                        <p class="mb-1">
+                        <i class="bi bi-person-check-fill" style="color:#FF5733"></i>
+                        Phenotype match (HPO-based): One or more patient HPO terms match HPO terms associated with this gene.
+                        </p>
 
-            <thead>
-                <tr>
-                    <th class="group-separator">Individual</th>
-                    <th>Variant</th>
-                    <th>Gene (MOI)</th>
-                    <th>Categories</th>
-                    <th>First Tagged</th>
-                    <th>MANE CSQ</th>
-                    <th>ClinvArbitration</th>
-                    <th>Flags</th>
-                </tr>
-                <tr>
-                    <th><input type="text" placeholder="Search Individual"></th>
-                    <th><input type="text" placeholder="Search Variant"></th>
-                    <th><input type="text" placeholder="Search Gene (MOI)"></th>
-                    <th><input type="text" placeholder="Search Categories"></th>
-                    <th><input type="text" placeholder="Search First Tagged"></th>
-                    <th><input type="text" placeholder="Search MANE CSQ"></th>
-                    <th><input type="text" placeholder="Search ClinvArbitration"></th>
-                    <th><input type="text" placeholder="Search Flags"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sample in samples if sample.variants %}
-                    {% for variant in sample.variants %}
-                        {% include "variant_table_row.html.jinja" %}
+                        <p class="mb-1">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        Genes that have recently been added to the
+                        <a href="https://panelapp-aus.org/panels/137/" target="_blank">Mendeliome gene panel</a>.
+                        </p>
+
+                        <p class="mb-2">
+                        <i class="bi bi-star-fill text-primary"></i>
+                        Genes that have recently been added to a panel matched to this patient’s HPO terms.
+                        </p>
+
+                        <h5>ClinvArbitration</h5>
+                        <p class="mb-2">
+                        ClinVar classifications are aggregated from individual ClinVar submissions using
+                        <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">ClinvArbitration</a>.
+                        The tool favours clear assignment of pathogenic or benign ratings rather than defaulting to ‘conflicting’.
+                        </p>
+                        <h5>Flags</h5>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">AB Ratio</span>  allele balance falls outside the expected ranges (≤0.15 overall, outside 0.25–0.75 for hets, or ≤0.85 for homs)
+                        </p>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">Low Read Depth</span> read depth (AD) for the sample is below the minimum threshold (default: 10)
+                        </p>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">Ambiguous MOI</span> applied to AD Talos candidates that are P/LP in ClinVar but the gene is associated with both dominant and recessive disorders inheritance in PanelApp.
+                        </p>
+
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="phenotype-filter" class="form-label">Phenotype match filter</label>
+                    <select id="phenotype-filter" class="form-select form-select-sm" style="max-width: 240px;">
+                        <option value="all" selected>All variants</option>
+                        <option value="has">With phenotype match</option>
+                        <option value="none">Without phenotype match</option>
+                    </select>
+                </div>
+
+                <table class="display" id="variant-table">
+
+                    <thead>
+                        <tr>
+                            <th class="group-separator">Individual</th>
+                            <th>Variant</th>
+                            <th>Gene (MOI)</th>
+                            <th>Categories</th>
+                            <th>First Tagged</th>
+                            <th>MANE CSQ</th>
+                            <th>ClinvArbitration</th>
+                            <th>Flags</th>
+                        </tr>
+                        <tr>
+                            <th><input type="text" placeholder="Search Individual"></th>
+                            <th><input type="text" placeholder="Search Variant"></th>
+                            <th><input type="text" placeholder="Search Gene (MOI)"></th>
+                            <th><input type="text" placeholder="Search Categories"></th>
+                            <th><input type="text" placeholder="Search First Tagged"></th>
+                            <th><input type="text" placeholder="Search MANE CSQ"></th>
+                            <th><input type="text" placeholder="Search ClinVar"></th>
+                            <th><input type="text" placeholder="Search Flags"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sample in samples if sample.variants %}
+                            {% for variant in sample.variants %}
+                                {% include "variant_table_row.html.jinja" %}
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="tab-pane fade" id="metadata-pane" role="tabpanel" aria-labelledby="metadata-tab">
+                {% if summary_table or meta_tables %}
+                    {% if summary_table %}
+                    <div class="card mb-3">
+                        <div class="card-header">Run Summary</div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            {% for column in summary_table.columns %}
+                                            <th>{{ column|e }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in summary_table.rows %}
+                                        <tr>
+                                            {% for column in summary_table.columns %}
+                                            <td>{{ row[column]|default('', true)|e }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if zero_categorised_samples %}
+                    <div class="alert alert-warning" role="alert">
+                        Samples with no candidate variants: {{ zero_categorised_samples|join(', ')|e }}
+                    </div>
+                    {% endif %}
+                    {% if unused_ext_labels %}
+                    <div class="alert alert-info" role="alert">
+                        Unused external labels:
+                        <ul class="mb-0">
+                            {% for entry in unused_ext_labels %}
+                            <li>{{ entry|tojson }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if meta_tables %}
+                    {% for table_name, table in meta_tables.items() %}
+                        <div class="card mb-3">
+                            <div class="card-header">{{ table_name|e }}</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                {% for column in table.columns %}
+                                                <th>{{ column|e }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in table.rows %}
+                                            <tr>
+                                                {% for column in table.columns %}
+                                                <td>{{ row[column]|default('', true)|e }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     {% endfor %}
-                {% endfor %}
-            </tbody>
-        </table>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No metadata available.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="config-pane" role="tabpanel" aria-labelledby="config-tab">
+                {% if config_json %}
+                <div class="card">
+                    <div class="card-body">
+                        <pre class="bg-light border rounded p-3 small text-break" style="white-space: pre-wrap;">{{ config_json|e }}</pre>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No configuration details available.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <script>
