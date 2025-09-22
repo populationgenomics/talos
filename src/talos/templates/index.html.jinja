@@ -61,6 +61,15 @@
         </br>
         <i class="bi bi-star-fill text-primary"> New Genes in phenotype-matched panels</i>
 
+        <div class="mb-3">
+            <label for="phenotype-filter" class="form-label">Phenotype match filter</label>
+            <select id="phenotype-filter" class="form-select form-select-sm" style="max-width: 240px;">
+                <option value="all" selected>All variants</option>
+                <option value="has">With phenotype match</option>
+                <option value="none">Without phenotype match</option>
+            </select>
+        </div>
+
         <table class="display" id="variant-table">
 
             <thead>
@@ -196,6 +205,45 @@
                 return fallback;
             }
         }
+
+        var phenotypeFilter = $('#phenotype-filter');
+
+        $('#variant-table tbody tr').each(function () {
+            if (!this.hasAttribute('data-has-phenotype')) {
+                var phenoCellText = $(this).find('td').eq(5).text().trim();
+                var hasMatch = phenoCellText && phenoCellText.charAt(0) === 'Y';
+                this.setAttribute('data-has-phenotype', hasMatch ? '1' : '0');
+            }
+        });
+
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable !== $('#variant-table')[0]) {
+                return true;
+            }
+
+            var filterValue = phenotypeFilter.val();
+            if (!filterValue || filterValue === 'all') {
+                return true;
+            }
+
+            var aoData = settings.aoData[dataIndex];
+            var rowNode = aoData && aoData.nTr;
+            if (!rowNode) {
+                return true;
+            }
+
+            var hasPhenotype = rowNode.getAttribute('data-has-phenotype');
+
+            if (filterValue === 'has') {
+                return hasPhenotype === '1';
+            }
+
+            if (filterValue === 'none') {
+                return hasPhenotype !== '1';
+            }
+
+            return true;
+        });
 
         function formatChildRow(rowData) {
             var variantData = rowData.variantData || {};
@@ -497,6 +545,10 @@
         var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
             new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        phenotypeFilter.on('change', function () {
+            table.draw();
         });
 
         $('#variant-table tbody').on('click', 'tr.group-start', function () {
