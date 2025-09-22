@@ -200,8 +200,7 @@ class HTMLBuilder:
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
         # If it exists, read the forbidden genes as a list
-        self.forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], [])
-        assert isinstance(self.forbidden_genes, list)
+        self.forbidden_genes = set(config_retrieve(['GeneratePanelData', 'forbidden_genes'], []))
         logger.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # take the link-generating instance (can be None)

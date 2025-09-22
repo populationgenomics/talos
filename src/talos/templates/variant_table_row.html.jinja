@@ -1,4 +1,4 @@
-<tr 
+<tr
     data-variant-type="{{variant.var_type}}"
     data-sample-name="{{sample.name|e}}"
     data-sample-ext-id="{{sample.ext_id|e}}"
@@ -17,7 +17,7 @@
 >
     <td style="white-space: nowrap" class="details-control">
         {# Individual ID - Click to expand details #}
-        <a href="#" class="details-toggle"><i class="bi-card-text"></i></a>
+        <a href="javascript:void()" class="details-toggle"><i class="bi-card-text"></i></a>
 
         {% if sample.sample_link %}
             <a href="{{sample.sample_link|e}}" target="_blank">
