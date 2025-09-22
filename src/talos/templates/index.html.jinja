@@ -46,7 +46,7 @@
     </nav>
 
     {# Results #}
-    <div class="container-fluid px-4 py-4">
+    <div class="container-fluid py-4 px-3 px-lg-4">
 
         </br>
         ClinvArbitration, CPG's re-aggregation of ClinVar submissions: <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">https://github.com/populationgenomics/ClinvArbitration</a>
@@ -75,37 +75,23 @@
             <thead>
                 <tr>
                     <th class="group-separator">Individual</th>
-                    <th>Family</th>
-                    <th>Source</th>
                     <th>Variant</th>
                     <th>Gene (MOI)</th>
-                    <th>Pheno Match</th>
                     <th>Categories</th>
-                    <th>gnomAD 4.1</th>
                     <th>First Tagged</th>
                     <th>MANE CSQ</th>
                     <th>ClinvArbitration</th>
-                    <th>PM5 ClinvArbitration</th>
-                    <th>Ext. Label</th>
                     <th>Flags</th>
-                    <th>Support</th>
                 </tr>
                 <tr>
                     <th><input type="text" placeholder="Search Individual"></th>
-                    <th><input type="text" placeholder="Search Family"></th>
-                    <th><input type="text" placeholder="Search Source"></th>
                     <th><input type="text" placeholder="Search Variant"></th>
                     <th><input type="text" placeholder="Search Gene (MOI)"></th>
-                    <th><input type="text" placeholder="Search Pheno Match"></th>
                     <th><input type="text" placeholder="Search Categories"></th>
-                    <th><input type="text" placeholder="Search gnomAD"></th>
                     <th><input type="text" placeholder="Search First Tagged"></th>
                     <th><input type="text" placeholder="Search MANE CSQ"></th>
                     <th><input type="text" placeholder="Search ClinvArbitration"></th>
-                    <th><input type="text" placeholder="Search PM5 ClinvArbitration"></th>
-                    <th><input type="text" placeholder="Search Ext. Label"></th>
                     <th><input type="text" placeholder="Search Flags"></th>
-                    <th><input type="text" placeholder="Search Support"></th>
                 </tr>
             </thead>
             <tbody>
@@ -210,9 +196,7 @@
 
         $('#variant-table tbody tr').each(function () {
             if (!this.hasAttribute('data-has-phenotype')) {
-                var phenoCellText = $(this).find('td').eq(5).text().trim();
-                var hasMatch = phenoCellText && phenoCellText.charAt(0) === 'Y';
-                this.setAttribute('data-has-phenotype', hasMatch ? '1' : '0');
+                this.setAttribute('data-has-phenotype', '0');
             }
         });
 
@@ -253,35 +237,73 @@
             var familyMembers = rowData.familyMembers || {};
             var familyDisplay = rowData.familyDisplay || {};
             var supportVars = rowData.supportVars || [];
-            var transcriptConsequences = rowData.transcriptConsequences || [];
+        var transcriptConsequences = rowData.transcriptConsequences || [];
 
-            var html = '<div class="child-row-content"><div class="row">';
+        var html = '<div class="child-row-content"><div class="row">';
 
-            html += '<div class="col-md-6"><div class="card"><div class="card-body">';
-            html += '<h5 class="card-title">Variant Details</h5><dl class="row">';
+        html += '<div class="col-md-6"><div class="card"><div class="card-body">';
+        html += '<h5 class="card-title">Variant Details</h5><dl class="row">';
 
-            html += '<dt class="col-sm-4">Coordinates</dt><dd class="col-sm-8">';
-            html += escapeHtml(rowData.variantCoords) + '<br>' + escapeHtml(rowData.variantChange);
-            if (variantData.info && variantData.info.as_filterstatus) {
-                html += '<br><small class="text-muted">Filter: ' + escapeHtml(String(variantData.info.as_filterstatus)) + '</small>';
-            }
-            if (rowData.variantType === 'StructuralVariant' && variantData.info) {
-                var svLen = variantData.info.svlen;
-                var svType = variantData.info.svtype;
-                if (svType) {
-                    html += '<br>' + escapeHtml(String(svType));
-                    if (svLen !== undefined && svLen !== null) {
-                        html += ' ' + escapeHtml(String(svLen)) + 'bp';
-                    }
-                }
-            }
+        html += '<dt class="col-sm-4">Coordinates</dt><dd class="col-sm-8">';
+        html += escapeHtml(rowData.variantCoords) + '<br>' + escapeHtml(rowData.variantChange);
+        html += '</dd>';
+
+        if (rowData.variantType) {
+            html += '<dt class="col-sm-4">Source</dt><dd class="col-sm-8">';
+            html += escapeHtml(String(rowData.variantType));
             html += '</dd>';
+        }
+
+        if (variantData.info && variantData.info.as_filterstatus) {
+            html += '<dt class="col-sm-4">Filter status</dt><dd class="col-sm-8">';
+            html += escapeHtml(String(variantData.info.as_filterstatus));
+            html += '</dd>';
+        }
+
+        if (supportVars && supportVars.length > 0) {
+            var validSupport = supportVars.filter(function(coords) {
+                return Boolean(coords);
+            });
+            if (validSupport.length > 0) {
+                html += '<dt class="col-sm-4">Supporting variants</dt><dd class="col-sm-8">';
+                validSupport.forEach(function(coords, index) {
+                    if (rowData.variantType === 'SmallVariant') {
+                        var parts = coords.split('-');
+                        if (parts.length === 4) {
+                            var seqrUrl = 'https://seqr.popgen.au/project/TALOS_VARIANTS/variant_search/variant_details?variant=' + encodeURIComponent(parts.join('-'));
+                            html += '<a href="' + seqrUrl + '" target="_blank">' + escapeHtml(coords) + '</a>';
+                        } else {
+                            html += escapeHtml(coords);
+                        }
+                    } else {
+                        html += escapeHtml(coords);
+                    }
+                    if (index < validSupport.length - 1) {
+                        html += '<br>';
+                    }
+                });
+                html += '</dd>';
+            }
+        }
+
+        if (rowData.variantType === 'StructuralVariant' && variantData.info) {
+            var svLen = variantData.info.svlen;
+            var svType = variantData.info.svtype;
+            if (svType) {
+                html += '<dt class="col-sm-4">Structural details</dt><dd class="col-sm-8">';
+                html += escapeHtml(String(svType));
+                if (svLen !== undefined && svLen !== null) {
+                    html += ' ' + escapeHtml(String(svLen)) + 'bp';
+                }
+                html += '</dd>';
+            }
+        }
 
             html += '<dt class="col-sm-4">Allele Counts</dt><dd class="col-sm-8">';
             if (variantData.info) {
                 var callsetAc = (variantData.info.ac !== undefined && variantData.info.ac !== null) ? variantData.info.ac : 'N/A';
                 var callsetAn = (variantData.info.an !== undefined && variantData.info.an !== null) ? variantData.info.an : 'N/A';
-                html += 'Callset: ' + escapeHtml(String(callsetAc)) + ' / ' + escapeHtml(String(callsetAn)) + '<br>';
+                html += 'Callset AC: ' + escapeHtml(String(callsetAc)) + ' / AN:' + escapeHtml(String(callsetAn)) + '<br>';
 
                 if (rowData.variantType === 'SmallVariant' && variantData.info.gnomad_ac !== undefined && variantData.info.gnomad_ac !== null) {
                     var gnomadId = null;
@@ -296,12 +318,17 @@
                     if (!gnomadId) {
                         gnomadId = rowData.variantCoords.replace(':', '-');
                     }
-                    html += 'gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(gnomadId) + '?dataset=gnomad_r4" target="_blank">' + escapeHtml(String(variantData.info.gnomad_ac)) + '</a>';
+                    var gnomadAfVal = variantData.info.gnomad_af;
+                    var gnomadAf = 'N/A';
+                    if (gnomadAfVal !== undefined && gnomadAfVal !== null && !isNaN(parseFloat(gnomadAfVal))) {
+                        gnomadAf = parseFloat(gnomadAfVal).toFixed(5);
+                    }
+                    html += 'gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(gnomadId) + '?dataset=gnomad_r4" target="_blank"> AC:' + escapeHtml(String(variantData.info.gnomad_ac)) + ' AF: ' + escapeHtml(String(gnomadAf)) + '</a>';
                 } else if (rowData.variantType === 'StructuralVariant' && variantData.info.gnomad_key) {
                     var svAfVal = variantData.info['gnomad_v2.1_sv_af'];
                     var svAf = 'N/A';
                     if (svAfVal !== undefined && svAfVal !== null && !isNaN(parseFloat(svAfVal))) {
-                        svAf = parseFloat(svAfVal).toFixed(4);
+                        svAf = parseFloat(svAfVal).toFixed(5);
                     }
                     html += 'gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r2_1" target="_blank">' + escapeHtml(String(svAf)) + '</a>';
                 }
@@ -410,38 +437,31 @@
 
             html += '</dl></div></div>';
 
-            if (supportVars && supportVars.length > 0) {
-                html += '<div class="card mt-2"><div class="card-body">';
-                html += '<h5 class="card-title">Supporting Variants</h5><ul class="list-unstyled">';
-                supportVars.forEach(function(coords) {
-                    if (coords) {
-                        html += '<li><small>' + escapeHtml(coords) + '</small></li>';
-                    }
-                });
-                html += '</ul></div></div>';
-            }
-
-            html += '</div></div>';
+        html += '</div></div>';
 
             if (transcriptConsequences && transcriptConsequences.length > 0) {
                 html += '<div class="col-12 mt-3"><div class="card"><div class="card-body">';
                 html += '<h5 class="card-title">Transcript Consequences</h5>';
                 html += '<div class="table-responsive"><table class="table table-sm table-striped">';
                 html += '<thead class="table-dark"><tr>';
-                html += '<th>Gene</th><th>HGVS c.</th><th>HGVS p.</th><th>Consequence</th>';
-                html += '<th>Exon</th><th>Biotype</th><th>MANE</th><th>AlphaMissense</th>';
+                html += '<th>Gene</th><th>Transcript</th><th>Protein change</th><th>Consequence</th>';
+                html += '<th>Biotype</th><th>AlphaMissense</th>';
                 html += '</tr></thead><tbody>';
 
                 transcriptConsequences.forEach(function(csq) {
                     if (csq) {
+                        var transcriptId = csq.transcript || csq.feature || '';
                         html += '<tr>';
                         html += '<td>' + escapeHtml(csq.gene || '') + '</td>';
-                        html += '<td><small>' + escapeHtml(csq.dna_change || '') + '</small></td>';
-                        html += '<td><small>' + escapeHtml((csq.ensp || '') + ' ' + (csq.amino_acid_change || '')) + '</small></td>';
+                        html += '<td><small>' + escapeHtml(transcriptId) + '</small></td>';
+                        var proteinChange = (csq.amino_acid_change || '');
+                        html += '<td><small>' + escapeHtml(proteinChange.trim()) + '</small>';
+                        if (csq.mane_id) {
+                            html += ' <span class="badge text-bg-info"> MANE - ' + escapeHtml(String(csq.mane_id)) + '</span>';
+                        }
+                        html += '</td>';
                         html += '<td><small>' + escapeHtml(csq.consequence || '') + '</small></td>';
-                        html += '<td>' + escapeHtml(csq.exon || '') + '</td>';
                         html += '<td><small>' + escapeHtml(csq.biotype || '') + '</small></td>';
-                        html += '<td>' + escapeHtml(csq.mane_id || '') + '</td>';
                         html += '<td>' + escapeHtml(csq.am_class || '');
                         if (csq.am_pathogenicity && typeof csq.am_pathogenicity === 'number') {
                             html += ' (' + csq.am_pathogenicity.toFixed(2) + ')';
@@ -515,7 +535,7 @@
             if (row.child.isShown()) {
                 row.child.hide();
                 tr.removeClass('shown');
-                $(this).find('i').removeClass('bi-chevron-down').addClass('bi-card-text');
+                $(this).find('i').removeClass('bi-dash-square').addClass('bi-plus-square');
             } else {
                 var rowData = {
                     variantType: tr.attr('data-variant-type') || '',
@@ -537,7 +557,7 @@
 
                 row.child(formatChildRow(rowData)).show();
                 tr.addClass('shown');
-                $(this).find('i').removeClass('bi-card-text').addClass('bi-chevron-down');
+                $(this).find('i').removeClass('bi-plus-square').addClass('bi-dash-square');
             }
         });
 
