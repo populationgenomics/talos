@@ -333,7 +333,6 @@ class AnnotateAndLabelMito(stage.CohortStage):
                 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi',
             },
         )
-        label_job.output.add_extension('.vcf.bgz')
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
@@ -341,7 +340,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
 
             python -m talos.ReformatAndLabelMitoVcf \\
                 --input {localised_vcf} \\
-                --output {label_job.output} \\
+                --output {label_job.output['vcf.bgz']} \\
                 --pedigree {pedigree} \\
                 --panelapp {panelapp_json} \\
                 --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht"
