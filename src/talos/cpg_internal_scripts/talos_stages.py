@@ -567,8 +567,17 @@ class ValidateVariantInheritance(stage.CohortStage):
 
         # is this run going to include mito data?
         mito_vcf_arg = ''
-        if mito_inputs := inputs.as_dict(cohort, AnnotateAndLabelMito):
-            labelled_mito = mito_inputs['labelled']
+        if (
+            query_for_latest_analysis(
+                dataset=cohort.dataset.name,
+                analysis_type='vcf',
+                sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
+                stage_name='GenerateMitoJointCall',
+            )
+            is not None
+        ):
+            labelled_mito = inputs.as_str(cohort, AnnotateAndLabelMito, 'labelled')
             mito_vcf = hail_batch.get_batch().read_input_group(
                 **{
                     'vcf.bgz': labelled_mito,
