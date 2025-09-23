@@ -336,8 +336,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
                 --output {outputs['labelled']} \\
                 --pedigree {pedigree} \\
                 --panelapp {panelapp_json} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" \\
-                --batch
+                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht"
             """,
         )
         label_job.depends_on(annotate_job)
