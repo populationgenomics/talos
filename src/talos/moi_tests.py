@@ -1093,7 +1093,7 @@ class Mitochondrial(BaseMoi):
     def run(
         self,
         principal: VARIANT_MODELS,
-        comp_het: CompHetDict | None = None,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
         partial_pen: bool = False,  # noqa: ARG002
     ) -> list[ReportVariant]:
         """ """

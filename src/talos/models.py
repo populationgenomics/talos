@@ -220,7 +220,7 @@ class VariantCommon(BaseModel):
         """
         return set()
 
-    def min_alt_ratio(self, sample: str, threshold: float = 0.1) -> bool:
+    def min_alt_ratio(self, sample: str, threshold: float = 0.1) -> bool:  # noqa: ARG002
         """Dummy method for alt read ratio checking - not implemented for SVs."""
         return True
 

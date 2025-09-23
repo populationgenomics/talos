@@ -400,7 +400,7 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
 def create_small_variant(
     var: 'cyvcf2.Variant',
     samples: list[str],
-) -> SmallVariant:
+) -> SmallVariant | None:
     """Takes a small variant and creates a Model from it."""
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
@@ -598,9 +598,7 @@ def gather_gene_dict_from_contig(
     # iterate over all variants on this contig and store by unique key
     # if contig has no variants, prints an error and returns []
     for variant in variant_source(contig):
-        small_variant = create_small_variant(var=variant, samples=variant_source.samples)
-
-        if small_variant is None:
+        if (small_variant := create_small_variant(var=variant, samples=variant_source.samples)) is None:
             continue
 
         if small_variant.coordinates.string_format in blacklist:
@@ -611,7 +609,7 @@ def gather_gene_dict_from_contig(
         contig_variants += 1
 
         # update the gene index dictionary
-        contig_dict[small_variant.info.get('gene_id')].append(small_variant)
+        contig_dict[small_variant.info['gene_id']].append(small_variant)
 
     # parse the SV VCF if provided, but not a necessary part of processing
     if sv_source:
@@ -624,7 +622,7 @@ def gather_gene_dict_from_contig(
             structural_variants += 1
 
             # update the gene index dictionary
-            contig_dict[structural_variant.info.get('gene_id')].append(structural_variant)
+            contig_dict[structural_variant.info['gene_id']].append(structural_variant)
 
         logger.info(f'Contig {contig} contained {structural_variants} SVs')
 

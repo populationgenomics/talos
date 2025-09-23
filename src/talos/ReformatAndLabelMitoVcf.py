@@ -24,9 +24,9 @@ from talos.models import PanelApp
 from talos.pedigree_parser import PedigreeParser
 from talos.RunHailFiltering import (
     annotate_clinvarbitration,
+    csq_struct_to_string,
     filter_matrix_by_ac,
     subselect_mt_to_pedigree,
-    csq_struct_to_string,
 )
 from talos.utils import read_json_from_path
 
