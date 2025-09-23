@@ -1,4 +1,4 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.134.cpg2-1 AS base
+FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.134.cpg2-2 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -14,7 +14,7 @@ RUN apt update && apt install -y --no-install-recommends \
 
 FROM base AS bcftools_compiler
 
-ARG BCFTOOLS_VERSION=1.21
+ARG BCFTOOLS_VERSION=1.22
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         gcc \

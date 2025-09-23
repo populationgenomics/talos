@@ -1,17 +1,6 @@
 """
 A number of classes, each representing one Mode of Inheritance
 One class (MoiRunner) to run all the appropriate MOIs on a variant
-
-Reduce the PanelApp plain text MOI description into a few categories
-We then run a permissive MOI match for the variant
-
-Expected available gnomad annotations:
-'gnomad': struct {
-    gnomad_AC: int32,
-    gnomad_AF: float64,
-    gnomad_AC_XY: int32,
-    gnomad_HomAlt: int32
-}
 """
 
 # mypy: ignore-errors
@@ -265,6 +254,10 @@ class MOIRunner:
                 XRecessiveFemaleHom(pedigree=pedigree),
                 XRecessiveFemaleCH(pedigree=pedigree),
                 XPseudoDominantFemale(pedigree=pedigree),
+            ]
+        elif target_moi == 'Mitochondrial':
+            self.filter_list = [
+                Mitochondrial(pedigree=pedigree),
             ]
 
         else:
@@ -1077,5 +1070,61 @@ class XRecessiveFemaleCH(BaseMoi):
                         clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
+        return classifications
+
+
+class Mitochondrial(BaseMoi):
+    """
+    ignore males, accept female comp-het only
+    """
+
+    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Mitochondrial'):
+        """
+        Set parameters specific to mitochondrial.
+        Currently, Mito only works with ClinVar, which is given a partially-penetrant interpretation, so maternally
+        inherited will never be disqualifying. This is basically a presence in proband test.
+        """
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        self.global_filter = DominantFilter()
+        self.clinvar_filter = ClinVarDominantFilter()
+        self.plasmy_threshold = config_retrieve(['ValidateMOI', 'heteroplasmy_min'], 0.2)
+
+    def run(
+        self,
+        principal: VARIANT_MODELS,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
+        partial_pen: bool = False,  # noqa: ARG002
+    ) -> list[ReportVariant]:
+        """ """
+
+        classifications = []
+
+        # no need for a too-common test, we don't currently have pop. freq data
+
+        for sample_id in principal.het_samples | principal.hom_samples:
+            if self.pedigree.participants[sample_id].is_not_affected:
+                continue
+
+            # don't run primary analysis for unaffected
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not (
+                principal.sample_category_check(sample_id, allow_support=True)
+                and principal.min_alt_ratio(sample_id, self.plasmy_threshold)
+            ):
+                continue
+
+            classifications.append(
+                ReportVariant(
+                    sample=sample_id,
+                    family=self.pedigree.participants[sample_id].family_id,
+                    gene=principal.info.get('gene_id'),
+                    var_data=principal,
+                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    reasons=self.applied_moi,
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                    flags=principal.get_sample_flags(sample_id),
+                    clinvar_stars=principal.info.get('clinvar_stars'),
+                ),
+            )
 
         return classifications

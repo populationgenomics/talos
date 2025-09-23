@@ -222,6 +222,10 @@ class VariantCommon(BaseModel):
         """
         return set()
 
+    def min_alt_ratio(self, sample: str, threshold: float = 0.1) -> bool:  # noqa: ARG002
+        """Dummy method for alt read ratio checking - not implemented for SVs."""
+        return True
+
 
 class SmallVariant(VariantCommon):
     """
@@ -309,6 +313,12 @@ class SmallVariant(VariantCommon):
         if (variant_ab <= MAX_WT) or (het and not MIN_HET <= variant_ab <= MAX_HET) or (hom and variant_ab <= MIN_HOM):
             return {'AB Ratio'}
         return set()
+
+    def min_alt_ratio(self, sample: str, threshold: float = 0.2) -> bool:
+        sample_depth = self.depths[sample]
+        sample_alt = self.alt_depths[sample]
+
+        return (sample_alt / sample_depth) > threshold
 
 
 class StructuralVariant(VariantCommon):

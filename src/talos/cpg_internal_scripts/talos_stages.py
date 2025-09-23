@@ -9,12 +9,13 @@ from random import randint
 from typing import TYPE_CHECKING
 
 from cpg_flow import stage, targets, workflow
+from cpg_flow.targets import Cohort
 from cpg_utils import Path, config, hail_batch, to_path
 from loguru import logger
 
 from talos.cpg_internal_scripts.annotation_stages import TransferAnnotationsToMt
 from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
-from talos.cpg_internal_scripts.cpgflow_jobs import MakeConfig
+from talos.cpg_internal_scripts.cpgflow_jobs import AnnotateMitoCsqUsingBcftools, MakeConfig
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -25,6 +26,21 @@ SV_ANALYSIS_TYPES = {
     'exome': 'single_dataset_cnv_annotated',
     'genome': 'single_dataset_sv_annotated',
 }
+
+
+@functools.cache
+def get_clinvar_tar() -> str:
+    """
+    pulling out a helper method for getting the ClinVar tar file
+    """
+    if not (clinvar_tar := config.config_retrieve(['workflow', 'clinvar_data'], None)):
+        clinvar_tar = query_for_latest_analysis(
+            dataset=config.config_retrieve(['workflow', 'dataset']),
+            analysis_type='clinvarbitration',
+        )
+        if clinvar_tar is None:
+            raise ValueError('No ClinVar data found')
+    return clinvar_tar
 
 
 def set_up_job_with_resources(
@@ -249,6 +265,85 @@ class UnifiedPanelAppParser(stage.CohortStage):
         return self.make_outputs(cohort, data=expected_out, jobs=job)
 
 
+# I'm stashing the whole Mito Processing workflow into the 'Talos' workflow, instead of Annotation & then Labelling
+# The reason is that there is no MANE data for Mito, and that's how I'm sourcing ENSG IDs in the BCFtools CSQ era
+# As a result we need to use the panelapp data in the annotation/labelling process
+# from that point it's just easier to cram the whole VCF -> MT -> VCF process into a single script, and in future maybe
+# negate the whole need to put that in a MT at all
+@stage.stage(required_stages=[MakeHpoPedigree, MakeRuntimeConfig, UnifiedPanelAppParser])
+class AnnotateAndLabelMito(stage.CohortStage):
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path] | None:
+        if not query_for_latest_analysis(
+            dataset=cohort.dataset.name,
+            analysis_type='vcf',
+            sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+            long_read=config.config_retrieve(['workflow', 'long_read'], False),
+            stage_name='GenerateMitoJointCall',
+        ):
+            logger.info(f'No Mito Joint-Call found in Metamist for {cohort.id}')
+            return None
+
+        prefix = generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name=self.name,
+            hash_value=get_date_string(),
+        )
+
+        return {
+            'annotated': prefix / 'mito_annotated.vcf.bgz',
+            'labelled': prefix / 'mito_labelled.vcf.bgz',
+        }
+
+    def queue_jobs(self, cohort: Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        outputs = self.expected_outputs(cohort)
+        if not outputs:
+            logger.info(f'No Mito output for {cohort.id}')
+            return self.make_outputs(cohort, data={}, jobs=None)
+
+        mito_vcf = query_for_latest_analysis(
+            dataset=cohort.dataset.name,
+            analysis_type='vcf',
+            sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+            long_read=config.config_retrieve(['workflow', 'long_read'], False),
+            stage_name='GenerateMitoJointCall',
+        )
+        if not mito_vcf:
+            return self.make_outputs(cohort, data={}, jobs=None)
+
+        # create the job which annotates the VCF
+        annotate_job = AnnotateMitoCsqUsingBcftools.make_bcftools_mito_jobs(
+            cohort_id=cohort.id,
+            mito_vcf=mito_vcf,
+            output=outputs['vcf'],
+            job_attrs=self.get_job_attrs(cohort),
+        )
+
+        # create the job which will reformat that into a MT, do labelling, and export as a VCF
+        runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
+        pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
+        panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
+        clinvar_tar = get_clinvar_tar()
+
+        label_job = hail_batch.get_batch().new_bash_job(f'Reformat Mito VCF into MT: {cohort.dataset.name}')
+        label_job.command(
+            f"""
+            export TALOS_CONFIG={runtime_config}
+            tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR
+
+            python -m talos.ReformatAndLabelMitoVcf \\
+                --input {outputs['annotated']} \\
+                --output {outputs['labelled']} \\
+                --pedigree {pedigree} \\
+                --panelapp {panelapp_json} \\
+                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" \\
+                --batch
+            """,
+        )
+        label_job.depends_on(annotate_job)
+
+        return self.make_outputs(cohort, data=outputs, jobs=[annotate_job, label_job, label_job])
+
+
 @stage.stage(
     required_stages=[
         UnifiedPanelAppParser,
@@ -309,13 +404,7 @@ class RunHailFiltering(stage.CohortStage):
         )
 
         # find the clinvar table, localise, and expand
-        if not (clinvar_tar := config.config_retrieve(['workflow', 'clinvar_data'], None)):
-            clinvar_tar = query_for_latest_analysis(
-                dataset=config.config_retrieve(['workflow', 'dataset']),
-                analysis_type='clinvarbitration',
-            )
-            if clinvar_tar is None:
-                raise ValueError('No ClinVar data found')
+        clinvar_tar = get_clinvar_tar()
 
         job.command(f'tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
 
@@ -425,6 +514,7 @@ class RunHailFilteringSv(stage.CohortStage):
 
 @stage.stage(
     required_stages=[
+        AnnotateAndLabelMito,
         MakeHpoPedigree,
         UnifiedPanelAppParser,
         RunHailFiltering,
@@ -460,6 +550,7 @@ class ValidateVariantInheritance(stage.CohortStage):
         hail_inputs = inputs.as_path(cohort, RunHailFiltering)
 
         # either find a SV vcf, or None
+        sv_vcf_arg = ''
         if (
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
@@ -473,8 +564,18 @@ class ValidateVariantInheritance(stage.CohortStage):
                 **{'vcf.bgz': hail_sv_inputs, 'vcf.bgz.tbi': f'{hail_sv_inputs}.tbi'},
             )['vcf.bgz']
             sv_vcf_arg = f'--labelled_sv {labelled_sv_vcf} '
-        else:
-            sv_vcf_arg = ''
+
+        # is this run going to include mito data?
+        mito_vcf_arg = ''
+        if mito_inputs := inputs.as_dict(cohort, AnnotateAndLabelMito):
+            labelled_mito = mito_inputs['labelled']
+            mito_vcf = hail_batch.get_batch().read_input_group(
+                **{
+                    'vcf.bgz': labelled_mito,
+                    'vcf.bgz.tbi': f'{labelled_mito}.tbi',
+                },
+            )['vcf.bgz']
+            mito_vcf_arg = f'--labelled_mito {mito_vcf} '
 
         labelled_vcf = hail_batch.get_batch().read_input_group(
             **{
@@ -502,7 +603,7 @@ class ValidateVariantInheritance(stage.CohortStage):
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
-                --pedigree {pedigree} {sv_vcf_arg} {history_string}
+                --pedigree {pedigree} {sv_vcf_arg} {history_string} {mito_vcf_arg}
             """,
         )
         expected_out = self.expected_outputs(cohort)

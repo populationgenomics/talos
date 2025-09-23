@@ -339,6 +339,7 @@ def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=None)
+    parser.add_argument('--labelled_mito', help='Category-labelled Mito VCF', default=None)
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
@@ -351,6 +352,7 @@ def cli_main():
         panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
+        labelled_mito=args.labelled_mito,
         previous=args.previous,
     )
 
@@ -361,6 +363,7 @@ def main(
     panelapp_path: str,
     pedigree: str,
     labelled_sv: str | None = None,
+    labelled_mito: str | None = None,
     previous: str | None = None,
 ):
     """
@@ -373,6 +376,7 @@ def main(
     Args:
         labelled_vcf (str): VCF output from Hail Labelling stage
         labelled_sv (str | None): optional second VCF (SV)
+        labelled_mito (str | None): optional Mitochondrial VCF
         output (str): location to write output file
         panelapp_path (str): location of PanelApp data JSON
         pedigree (str): location of PED file
@@ -407,6 +411,7 @@ def main(
     # collect all sample IDs from each VCF type
     small_vcf_samples: set[str] = set()
     sv_vcf_samples: set[str] = set()
+    _mito_vcf_samples: set[str] = set()
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
@@ -417,6 +422,11 @@ def main(
     if labelled_sv:
         sv_opened = VCFReader(labelled_sv)
         sv_vcf_samples = set(sv_opened.samples)
+
+    mito_opened = None
+    if labelled_mito:
+        mito_opened = VCFReader(labelled_mito)
+        _mito_vcf_samples = set(mito_opened.samples)
 
     all_samples = small_vcf_samples.union(sv_vcf_samples)
 
@@ -444,6 +454,17 @@ def main(
             sv_source=sv_opened,
         )
 
+        result_list.extend(
+            apply_moi_to_variants(
+                variant_dict=contig_dict,
+                moi_lookup=moi_lookup,
+                panelapp_data=panelapp.genes,
+                pedigree=ped,
+            ),
+        )
+
+    if mito_opened:
+        contig_dict = gather_gene_dict_from_contig('chrM', variant_source=mito_opened)
         result_list.extend(
             apply_moi_to_variants(
                 variant_dict=contig_dict,

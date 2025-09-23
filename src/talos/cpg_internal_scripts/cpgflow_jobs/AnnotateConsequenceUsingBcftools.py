@@ -17,17 +17,16 @@ def make_bcftools_anno_job(
     gnomad_annotated_vcf = hail_batch.get_batch().read_input(gnomad_vcf)
 
     # get the GFF3 file required to generate consequences
-    ensembl_version = config.config_retrieve(['workflow', 'ensembl_version'], 113)
-    gff3_file = hail_batch.get_batch().read_input(config.reference_path(f'ensembl_{ensembl_version}/gff3'))
+    gff3_file = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'ensembl_gff3']))
 
     # get the fasta
-    fasta = hail_batch.get_batch().read_input(config.reference_path('broad/ref_fasta'))
+    fasta = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'ref_fasta']))
 
     job = hail_batch.get_batch().new_bash_job(
         name=f'AnnotateConsequenceWithBcftools: {cohort_id}',
         attributes=job_attrs | {'tool': 'bcftools'},
     )
-    job.image(config.config_retrieve(['images', 'bcftools_120']))
+    job.image(config.config_retrieve(['images', 'bcftools']))
     job.cpu(4).storage('20G')
 
     job.declare_resource_group(output={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'})
