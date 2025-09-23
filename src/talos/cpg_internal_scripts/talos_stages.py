@@ -333,6 +333,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
                 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi',
             },
         )
+        label_job.output.add_extension('.vcf.bgz')
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
