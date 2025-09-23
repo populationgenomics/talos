@@ -325,6 +325,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
         clinvar_tar = get_clinvar_tar()
 
         label_job = hail_batch.get_batch().new_bash_job(f'Reformat Mito VCF into MT: {cohort.dataset.name}')
+        label_job.image(config.config_retrieve(['workflow', 'driver_image']))
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
