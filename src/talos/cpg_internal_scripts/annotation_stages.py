@@ -85,26 +85,6 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
 
 
 @stage.stage
-class AnnotateMitoCallset(stage.CohortStage):
-    """
-    Detect a mitochondrial callset, and if available, run consequence annotation on it.
-    """
-
-    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
-        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
-            category='tmp',
-            stage_name=self.name,
-            hash_value=cohort.id,
-        )
-        return {'mt_csq': temp_prefix / f'{cohort.id}.mt.vcf.bgz'}
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        outputs = self.expected_outputs(cohort)
-        ...
-
-
-@stage.stage
 class ExtractVcfFromDatasetMt(stage.CohortStage):
     """
     Extract some plain calls from a joint-callset.
