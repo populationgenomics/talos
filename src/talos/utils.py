@@ -400,14 +400,8 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
 def create_small_variant(
     var: 'cyvcf2.Variant',
     samples: list[str],
-):
-    """
-    takes a small variant and creates a Model from it
-
-    Args:
-        var ():
-        samples ():
-    """
+) -> SmallVariant:
+    """Takes a small variant and creates a Model from it."""
 
     coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref=var.REF, alt=var.ALT[0])
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'var_link': coordinates.string_format}
@@ -502,7 +496,7 @@ def create_small_variant(
     )
 
 
-def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]):
+def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]) -> StructuralVariant:
     """
     takes an SV and creates a Model from it
     far less complicated than the SmallVariant model
@@ -555,7 +549,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
     """
 
     # contig matching regex - remove all HLA/decoy/unknown
-    contig_re = re.compile(r'^(chr)?[0-9XYMT]{1,2}$')
+    contig_re = re.compile(r'^(chr)?[0-9XY]{1,2}$')
 
     return {
         contig['ID']
