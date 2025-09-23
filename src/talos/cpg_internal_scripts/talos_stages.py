@@ -326,20 +326,28 @@ class AnnotateAndLabelMito(stage.CohortStage):
 
         label_job = hail_batch.get_batch().new_bash_job(f'Reformat Mito VCF into MT: {cohort.dataset.name}')
         label_job.image(config.config_retrieve(['workflow', 'driver_image']))
+        localised_vcf = hail_batch.get_batch().read_input(outputs['annotated'])
+        label_job.declare_resource_group(
+            output={
+                'vcf.bgz': '{root}.vcf.bgz',
+                'vcf.bgz.tbi': '{root}.vcf.bgz.tbi',
+            },
+        )
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
             tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR
 
             python -m talos.ReformatAndLabelMitoVcf \\
-                --input {outputs['annotated']} \\
-                --output {outputs['labelled']} \\
+                --input {localised_vcf} \\
+                --output {label_job.output} \\
                 --pedigree {pedigree} \\
                 --panelapp {panelapp_json} \\
                 --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht"
             """,
         )
         label_job.depends_on(annotate_job)
+        hail_batch.get_batch().write_output(label_job.output, str(outputs['labelled']).removesuffix('.vcf.bgz'))
 
         return self.make_outputs(cohort, data=outputs, jobs=[annotate_job, label_job, label_job])
 
