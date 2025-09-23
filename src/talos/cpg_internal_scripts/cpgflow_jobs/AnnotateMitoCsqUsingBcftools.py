@@ -55,6 +55,6 @@ def make_bcftools_mito_jobs(
         """,
     )
 
-    batch_instance.write_output(csq_job.output, str(output).removesuffix('.vcf.bgz'))
+    batch_instance.write_output(csq_job.output, output)
 
     return csq_job
