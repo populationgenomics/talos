@@ -1088,7 +1088,7 @@ class Mitochondrial(BaseMoi):
         super().__init__(pedigree=pedigree, applied_moi=applied_moi)
         self.global_filter = DominantFilter()
         self.clinvar_filter = ClinVarDominantFilter()
-        self.plasmy_threshold = config_retrieve(['ValidateMOI', 'heteroplasmy_min'], 0.0)
+        self.plasmy_threshold = config_retrieve(['ValidateMOI', 'heteroplasmy_min'], 0.2)
 
     def run(
         self,
