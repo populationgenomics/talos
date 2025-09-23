@@ -129,7 +129,7 @@ def annotate_clinvarbitration(
             ),
         ),
     )
-    if new_genes:
+    if new_genes is not None:
         mt = mt.annotate_rows(
             info=mt.info.annotate(
                 # mark variants that are P/LP, have no stars and in PanelApp "new" genes
