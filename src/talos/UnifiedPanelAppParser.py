@@ -4,7 +4,7 @@ Combines the two behaviours of
 - QueryPanelApp: Use the PanelApp API to get all genes and panels relevant to the analysis
 
 Takes as input:
-- The downloadeded PanelApp data
+- The downloaded PanelApp data
 - Optionally a Pedigree file which can contain HPO terms, these would be used to match panels to families
 """
 
@@ -33,9 +33,15 @@ from talos.utils import read_json_from_path
 
 PANELAPP_BASE_PANEL = 137
 X_CHROMOSOME = {'X'}
-# most lenient to most conservative
-# usage = if we have two MOIs for the same gene, take the broadest
-ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic']
+# most lenient to most conservative. Usage = if we have two MOIs for the same gene, take the broadest
+ORDERED_MOIS = [
+    'Mono_And_Biallelic',
+    'Monoallelic',
+    'Hemi_Mono_In_Female',
+    'Hemi_Bi_In_Female',
+    'Biallelic',
+    'Mitochondrial',
+]
 IRRELEVANT_MOI = {'unknown', 'other'}
 
 # we consider a gene new, and worth flagging, if it was made Green in a panel within this time frame
@@ -211,6 +217,8 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
 
         # run a match: case to classify it
         match input_list:
+            case ['mitochondrial']:
+                simplified_mois.add('Mitochondrial')
             case ['biallelic', *_additional]:
                 simplified_mois.add('Biallelic')
             case ['both', *_additional]:

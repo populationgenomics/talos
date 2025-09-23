@@ -32,6 +32,17 @@ this workflow is designed to be something which could be executed easily off-sit
 
 * Step 6: Load the HailTable into the final MatrixTable
     - Reads the minimised MatrixTable and the HailTable of annotations
+
+And somewhat in parallel to that:
+
+* Step M1: If availalable, pick up a Mitochondrial joint-vcf
+    - this will be filed in Metamist under the dataset, called "merged_mito.vcf.bgz"
+    - Mito variant calling is based on "chrM" (Hail likes "chrM")
+    - Run BCFtools consequence annotation on that VCF
+    - Run the step.5 from above (reformatting annotations)
+    - We don't have Echtvar annotations for chrM(?)
+
+* Step M2: Concat the reformatted Mito MatrixTable to the whole-genome
 """
 
 from functools import cache

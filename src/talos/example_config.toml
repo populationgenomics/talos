@@ -112,6 +112,8 @@ callset_af_sv_recessive = 0.03
 critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
 spliceai = 0.5
 
+heteroplasmy_min = 0.2
+
 # un-comment this to enable the homref AD padding behaviour:
 #    - adding a default of 0 representing # alternate reads in homref calls
 #pad_homref_ad = true

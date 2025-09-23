@@ -24,9 +24,11 @@ process FilterVcfToBedWithBcftools {
     	-m -any \
     	-f ${ref_genome} \
         -R ${bed_file} \
-        -Ou ${vcf} | \
+        -Ou ${vcf} \
+        --no-version | \
     bcftools +fill-tags \
         -Oz \
+        --no-version \
         -o "${params.cohort}_merged_filtered.vcf.bgz" \
         -W=tbi - -- -t AC,AF,AN
     """
