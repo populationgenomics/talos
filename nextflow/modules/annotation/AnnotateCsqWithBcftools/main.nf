@@ -14,8 +14,8 @@ process AnnotateCsqWithBcftools {
 
     script:
     """
-    bcftools index -t ${vcf}
-    bcftools csq --force -f "${reference}" \
+    bcftools index --no-version -t ${vcf}
+    bcftools csq --no-version --force -f "${reference}" \
         --local-csq \
         -g ${gff3} \
         -B 20 \

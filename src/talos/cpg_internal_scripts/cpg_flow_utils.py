@@ -100,6 +100,7 @@ def query_for_latest_analysis(
     analysis_type: str,
     sequencing_type: str = 'all',
     long_read: bool = False,
+    stage_name: str | None = None,
 ) -> str | None:
     """
     Query for the latest analysis object of a given type in the requested project.
@@ -112,6 +113,7 @@ def query_for_latest_analysis(
                                seqr_loader used 'custom': using a config entry we can decide which type to use
         sequencing_type (str): optional, if set, only return entries with meta.sequencing_type == this
         long_read (bool):      if True, will skip over any entries that are not LongRead (SNPsIndels/SV)
+        stage_name (str):      optional, if set, will only return entries with meta.stage == this
     Returns:
         str, the path to the latest object for the given type, or log a warning and return None
     """
@@ -143,6 +145,9 @@ def query_for_latest_analysis(
                     f'Skipping analysis {analysis["output"]} for dataset {query_dataset}. '
                     f'It does not match query parameter long_read={long_read}',
                 )
+                continue
+
+            if stage_name is not None and analysis['meta'].get('stage') != stage_name:
                 continue
 
             analysis_by_date[analysis['timestampCompleted']] = analysis['output']
