@@ -350,6 +350,10 @@ class SneakyTable:
         # convert to a matrix table, with sample IDs as columns
         mt = ht.to_matrix_table_row_major(columns=list(self.sample_details.keys()), col_field_name='s')
 
+        # normalise test schema: expose geneIds as gene_ids for downstream code/tests
+        if 'geneIds' in list(mt.row):
+            mt = mt.annotate_rows(gene_ids=mt.geneIds)
+
         # parse the genotype calls as hl.call
         mt = mt.annotate_entries(GT=hl.parse_call(mt.GT))
         mt.write(tmp_mt, overwrite=True)

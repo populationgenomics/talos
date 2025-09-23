@@ -4,7 +4,7 @@ forced_panels = [99]
 panelapp = 'https://panelapp-aus.org/api/v1/panels'
 panel_month_delta = 12
 require_pheno_match = ['FLG', 'GJB2']
-within_x_months = 6
+within_x_months = 24
 
 [ValidateMOI]
 
@@ -46,7 +46,7 @@ clinvar_dominant_callset_max_af = 0.05
 
 phenotype_match = [ '6']
 ignore_categories = [ 'exomiser', 'svdb']
-support_categories = ['6', '5']
+support_categories = ['6', '5', 'clinvar0star']
 exomiser_rank_threshold = 2
 # All IDs for cases to remove from this round of reports - already solved
 solved_cases = ['female']
@@ -55,7 +55,7 @@ solved_cases = ['female']
 description = 'variables for the hail operations, including CSQ sets and filter thresholds'
 csq_string = ['consequence', 'symbol', 'gene', 'feature', 'mane_select', 'biotype', 'exon', 'hgvsc', 'hgvsp', 'cdna_position', 'cds_position', 'protein_position', 'variant_class', 'ensp', 'lof', 'sift', 'polyphen', 'am_class', 'am_pathogenicity']
 ac_threshold = 0.01
-additional_csq = ['missense']
+additional_csq = ['missense', 'inframe_deletion', 'inframe_insertion']
 af_semi_rare = 0.01
 critical_csq = ['frameshift', 'splice_acceptor', 'splice_donor', 'start_lost', 'stop_gained', 'stop_lost']
 minimum_depth = 10

@@ -12,6 +12,8 @@ from talos.RunHailFiltering import annotate_category_de_novo, pad_homref_ad
         (0, 'frameshift', 'protein_coding', ['male']),
         (1, 'synonymous', 'protein_coding', ['male']),
         (0, 'synonymous', 'protein_coding', ['missing']),
+        (0, 'inframe_deletion', 'protein_coding', ['male']),
+        (0, 'inframe_insertion', 'protein_coding', ['male']),
     ],
 )
 def test_dn_working(clinvar_talos, consequence, biotype, result, make_a_de_novo_mt, pedigree_path):

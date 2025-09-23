@@ -1070,7 +1070,6 @@ class XRecessiveFemaleCH(BaseMoi):
                         clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
-
         return classifications
 
 
