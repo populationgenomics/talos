@@ -50,8 +50,7 @@ def make_bcftools_mito_jobs(
             -g {gff3_file} \\
             -B 10 \\
             --unify-chr-names 'chr,-,chr' \\
-            -Oz -o annotated_chrMT.vcf.bgz \\
-            -W=tbi \\
+            -Oz -o {csq_job.output} \\
             {local_mito_vcf}
         """,
     )
