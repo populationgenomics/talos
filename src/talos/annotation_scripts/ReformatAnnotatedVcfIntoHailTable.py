@@ -254,7 +254,7 @@ def main(
     checkpoint: str | None = None,
 ):
     """
-    Takes a VEP-annotated VCF, reorganises into a Talos-compatible MatrixTable
+    Takes a BCFtools-annotated VCF, reorganises into a Talos-compatible MatrixTable
     Will annotate at runtime with AlphaMissense annotations
 
     Args:
