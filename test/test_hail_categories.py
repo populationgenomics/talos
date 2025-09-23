@@ -332,9 +332,9 @@ def test_annotate_clinvar_0star_category(rating, stars, expected_flag, tmp_path,
 @pytest.mark.parametrize(
     'rating,stars,new_set,expected_flag',
     [
-        ('Pathogenic/Likely Pathogenic', 0, {'ensga'}, 1),   # matches fixture gene and is 0-star
+        ('Pathogenic/Likely Pathogenic', 0, {'ensga'}, 1),  # matches fixture gene and is 0-star
         ('Pathogenic/Likely Pathogenic', 0, {'NOT_MATCH'}, 0),
-        ('Pathogenic/Likely Pathogenic', 1, {'ensga'}, 0),   # not 0-star
+        ('Pathogenic/Likely Pathogenic', 1, {'ensga'}, 0),  # not 0-star
         ('other', 0, {'ensga'}, 0),
     ],
 )

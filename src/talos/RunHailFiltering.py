@@ -86,7 +86,7 @@ def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_clinvarbitration(
     mt: hl.MatrixTable,
     clinvar: str,
-    new_genes: hl.SetExpression,
+    new_genes: hl.SetExpression | None = None,
 ) -> hl.MatrixTable:
     """
     Don't allow these annotations to be missing
@@ -115,7 +115,7 @@ def annotate_clinvarbitration(
     )
 
     # annotate as either strong or regular, return the result
-    return mt.annotate_rows(
+    mt = mt.annotate_rows(
         info=mt.info.annotate(
             clinvar_talos=hl.if_else(
                 mt.info.clinvar_significance == PATHOGENIC,
@@ -127,22 +127,28 @@ def annotate_clinvarbitration(
                 ONE_INT,
                 MISSING_INT,
             ),
-            # mark variants that are P/LP, have no stars and in PanelApp "new" genes
-            categorybooleanclinvar0starnewgene=hl.if_else(
-                (mt.info.clinvar_significance == PATHOGENIC)
-                & (mt.info.clinvar_stars == 0)
-                & (hl.len(new_genes.intersection(mt.gene_ids)) > 0),
-                ONE_INT,
-                MISSING_INT,
-            ),
-            # mark variants that are P/LP and have no stars
-            categorybooleanclinvar0star=hl.if_else(
-                (mt.info.clinvar_significance == PATHOGENIC) & (mt.info.clinvar_stars == 0),
-                ONE_INT,
-                MISSING_INT,
-            ),
         ),
     )
+    if new_genes:
+        mt = mt.annotate_rows(
+            info=mt.info.annotate(
+                # mark variants that are P/LP, have no stars and in PanelApp "new" genes
+                categorybooleanclinvar0starnewgene=hl.if_else(
+                    (mt.info.clinvar_significance == PATHOGENIC)
+                    & (mt.info.clinvar_stars == 0)
+                    & (hl.len(new_genes.intersection(mt.gene_ids)) > 0),
+                    ONE_INT,
+                    MISSING_INT,
+                ),
+                # mark variants that are P/LP and have no stars
+                categorybooleanclinvar0star=hl.if_else(
+                    (mt.info.clinvar_significance == PATHOGENIC) & (mt.info.clinvar_stars == 0),
+                    ONE_INT,
+                    MISSING_INT,
+                ),
+            ),
+        )
+    return mt
 
 
 def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None, ignored: bool = False) -> hl.MatrixTable:
