@@ -693,7 +693,7 @@ class HpoFlagging(stage.CohortStage):
     tolerate_missing_output=True,
 )
 class CreateTalosHtml(stage.CohortStage):
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         std_prefix = generate_dataset_prefix(
             dataset=cohort.dataset.name,
             stage_name=self.name,
@@ -725,50 +725,36 @@ class CreateTalosHtml(stage.CohortStage):
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
         seqr_lookup = inputs.as_path(cohort, MakeRuntimeConfig, 'seqr_lookup')
 
-        expected_out = self.expected_outputs(cohort)
+        outputs = self.expected_outputs(cohort)
 
         # generate an internal~external ID map for labelling the HTML file
-        with expected_out['id_map'].open('w') as id_map_handle:
+        with outputs['id_map'].open('w') as id_map_handle:
             for sg in cohort.get_sequencing_groups():
                 id_map_handle.write(f'{sg.id}\t{sg.participant_id}\n')
 
-        localised_ids = hail_batch.get_batch().read_input(expected_out['id_map'])
+        localised_ids = hail_batch.get_batch().read_input(outputs['id_map'])
         results_json = hail_batch.get_batch().read_input(inputs.as_str(cohort, HpoFlagging))
         panelapp_data = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
 
         # this will write output files directly to GCP
         job.command(f'export TALOS_CONFIG={runtime_config}')
 
-        # create a new directory for the results
-        job.command('mkdir html_outputs')
-        job.command('cd html_outputs')
-
         # seqr_lookup can be missing/None here, that's ok
+        # after the initial report is generated, also copy it to a generic/static location
         job.command(
             f"""
             python -m talos.CreateTalosHTML \\
                 --input {results_json} \\
                 --panelapp {panelapp_data} \\
-                --output summary_output.html \\
+                --output {job.output} \\
                 --ext_ids {localised_ids} \\
                 --seqr_ids {seqr_lookup}
+            
+            gcloud storage cp {outputs['dated']} {outputs['generic']}
             """,
         )
 
-        # copy up to a date-specific run folder
-        date_folder = str(expected_out['dated']).removesuffix('/summary_output.html')
-        job.command(f'gcloud storage cp -r * {date_folder!s}')
-
-        # copy to a dataset-generic folder
-        generic_folder = str(expected_out['generic']).removesuffix('/summary_output.html')
-        job.command(f'gcloud storage cp -r * {generic_folder!s}')
-
-        # Create a tar'chive here, then use an image with GCloud to copy it up in a bit
-        job.command(f'tar -czf {job.output} *')
-
-        hail_batch.get_batch().write_output(job.output, expected_out['tar'])
-
-        return self.make_outputs(cohort, data=expected_out, jobs=job)
+        return self.make_outputs(cohort, data=outputs, jobs=job)
 
 
 @stage.stage(
