@@ -403,22 +403,16 @@
         }
 
         if (supportVars && supportVars.length > 0) {
-            var validSupport = supportVars.filter(function(coords) {
-                return Boolean(coords);
+            var validSupport = supportVars.filter(function(entry) {
+                return entry && entry.var_string;
             });
             if (validSupport.length > 0) {
                 html += '<dt class="col-sm-4">Supporting variants</dt><dd class="col-sm-8">';
-                validSupport.forEach(function(coords, index) {
-                    if (rowData.variantType === 'SmallVariant') {
-                        var parts = coords.split('-');
-                        if (parts.length === 4) {
-                            var seqrUrl = 'https://seqr.popgen.au/project/TALOS_VARIANTS/variant_search/variant_details?variant=' + encodeURIComponent(parts.join('-'));
-                            html += '<a href="' + seqrUrl + '" target="_blank">' + escapeHtml(coords) + '</a>';
-                        } else {
-                            html += escapeHtml(coords);
-                        }
+                validSupport.forEach(function(entry, index) {
+                    if (entry.url) {
+                        html += '<a href="' + escapeHtml(entry.url) + '" target="_blank">' + escapeHtml(entry.var_string) + '</a>';
                     } else {
-                        html += escapeHtml(coords);
+                        html += escapeHtml(entry.var_string);
                     }
                     if (index < validSupport.length - 1) {
                         html += '<br>';
@@ -445,7 +439,7 @@
             if (variantData.info) {
                 var callsetAc = (variantData.info.ac !== undefined && variantData.info.ac !== null) ? variantData.info.ac : 'N/A';
                 var callsetAn = (variantData.info.an !== undefined && variantData.info.an !== null) ? variantData.info.an : 'N/A';
-                html += 'Sample AC: ' + escapeHtml(String(callsetAc)) + ' / AN: ' + escapeHtml(String(callsetAn)) + '<br>';
+                html += 'This callset AC: ' + escapeHtml(String(callsetAc)) + ' / AN: ' + escapeHtml(String(callsetAn)) + '<br>';
 
                 if (rowData.variantType === 'SmallVariant' && variantData.info.gnomad_ac !== undefined && variantData.info.gnomad_ac !== null) {
                     var gnomadId = null;
@@ -478,7 +472,7 @@
             html += '</dd>';
 
             if (rowData.variantType === 'SmallVariant' && variantData.info) {
-                html += '<dt class="col-sm-4">Predictions</dt><dd class="col-sm-8">';
+                html += '<dt class="col-sm-4">In Silico Predictions</dt><dd class="col-sm-8">';
                 if (variantData.info.alpha_missense_max && variantData.info.alpha_missense_max !== 'missing') {
                     html += 'AlphaMissense: ' + parseFloat(variantData.info.alpha_missense_max).toFixed(2) + '<br>';
                 }

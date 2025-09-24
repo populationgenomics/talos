@@ -90,9 +90,11 @@
         {% endif %}
         <br>
         <span class="text-muted">
-        {{ variant.reasons|replace("Autosomal Recessive Homozygous","AR-Hom")
-        |replace("Autosomal Recessive Compound-Het","AR-CH")
-        |replace("Autosomal Dominant","AD")|e}}
+        {{ variant.reasons|replace("Autosomal Recessive Homozygous","AR (Hom)")
+        |replace("Autosomal Recessive Comp-Het","AR (Comp-Het)")
+        |replace("Autosomal Dominant","AD")
+        |replace("X_Male","XLR (Male)")
+        | e }}
         </span>
     </td>
     <td>
@@ -120,7 +122,7 @@
             <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele|urlencode}}[alleleid]" target="_blank">{{ variant.var_data.info.clinvar_significance|replace('Pathogenic/Likely Pathogenic','(Likely) Pathogenic')|replace('missing','')|e }}</a>
             {% if variant.var_data.info.clinvar_stars %}{% for i in range(variant.var_data.info.clinvar_stars|int) -%}<i class="bi-star"></i>{% endfor %}{% endif %}
         {% endif %}
-        {% if 'pm5' in variant.categories and variant.var_data.info.pm5_data %}
+        {% if 'PM5' in variant.categories and variant.var_data.info.pm5_data %}
             <br>
             <small class="text-muted">PM5 Variants:</small><br>
             {% for allele, stars in variant.var_data.info.pm5_data.items() %}

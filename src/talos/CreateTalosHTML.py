@@ -710,7 +710,19 @@ class Variant:
 
         # Pre-serialize other potentially complex objects
         self.genotypes_json = dict(self.genotypes) if hasattr(self, 'genotypes') else {}
-        self.support_vars_json = list(self.support_vars) if hasattr(self, 'support_vars') else []
+        self.support_vars_json = []
+        if hasattr(self, 'support_vars') and self.support_vars:
+            for var_string in self.support_vars:
+                url = None
+                if html_builder.link_engine:
+                    url = html_builder.link_engine.generate_variant_link(sample, var_string)
+
+                self.support_vars_json.append(
+                    {
+                        'var_string': var_string,
+                        'url': url,
+                    }
+                )
 
         # Pre-serialize transcript consequences
         if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:
