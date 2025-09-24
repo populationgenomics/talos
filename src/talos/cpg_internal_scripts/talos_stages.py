@@ -749,7 +749,7 @@ class CreateTalosHtml(stage.CohortStage):
                 --output {job.output} \\
                 --ext_ids {localised_ids} \\
                 --seqr_ids {seqr_lookup}
-            
+
             gcloud storage cp {outputs['dated']} {outputs['generic']}
             """,
         )
