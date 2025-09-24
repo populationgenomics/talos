@@ -621,7 +621,7 @@ class Variant:
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 
-    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):
+    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):  # noqa: PLR0915
         self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
         self.chrom = report_variant.var_data.coordinates.chrom
@@ -721,7 +721,7 @@ class Variant:
                     {
                         'var_string': var_string,
                         'url': url,
-                    }
+                    },
                 )
 
         # Pre-serialize transcript consequences
