@@ -240,101 +240,7 @@ class HTMLBuilder:
             )
         self.samples.sort(key=lambda x: x.ext_id)
 
-    def get_summary_stats(self) -> tuple[pd.DataFrame, list[str], list[dict]]:
-        """
-        Run the numbers across all variant categories
-        Treat each primary-secondary comp-het pairing as one event
-        i.e. the thing being counted here is the number of events
-        which passed through the MOI process, not the absolute number
-        of variants in the report
-        """
-        categories_config = config_retrieve('categories', {}) or {}
-        ordered_categories = ['any']
-        if isinstance(categories_config, dict):
-            ordered_categories.extend(list(categories_config.keys()))
-
-        category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
-        unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
-
-        def ensure_category(category_name: str) -> None:
-            if category_name not in category_count:
-                category_count[category_name] = []
-                unique_variants[category_name] = set()
-                ordered_categories.append(category_name)
-
-        samples_with_no_variants: list[str] = []
-        ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
-
-        sample_to_ext: dict[str, str] = {}
-
-        for sample in self.samples:
-            sample_to_ext[sample.name] = sample.ext_id
-
-            if len(sample.variants) == 0:
-                samples_with_no_variants.append(sample.ext_id)
-
-            sample_variants: defaultdict[str, set[str]] = defaultdict(set)
-            sample_variants['any'] = set()  # initialize default category
-
-            # iterate over the list of variants
-            for variant in sample.variants:
-                var_string = variant.var_data.coordinates.string_format
-                unique_variants['any'].add(var_string)
-                sample_variants['any'].add(var_string)
-
-                # find all categories associated with this variant
-                # for each category, add to corresponding list and set
-                for category_value in variant.categories:
-                    ensure_category(category_value)
-                    sample_variants[category_value].add(var_string)
-                    unique_variants[category_value].add(var_string)
-
-                # remove any external labels associated with this sample/variant.
-                if sample.name in ext_label_map:
-                    ext_label_map[sample.name].pop(var_string, None)
-
-            # update the global lists with per-sample counts
-            for key, key_list in category_count.items():
-                key_list.append(len(sample_variants[key]))
-
-        # Extract the list of unused ext labels
-        unused_ext_labels = [
-            {
-                'sample': sample_id,
-                'sample_ext': sample_to_ext.get(sample_id, sample_id),
-                'variant': var_id,
-                'labels': labels,
-            }
-            for sample_id, var_dict in ext_label_map.items()
-            for var_id, labels in var_dict.items()
-        ]
-
-        summary_dicts = [
-            {
-                'Category': key,
-                'Total': sum(category_count[key]),
-                'Unique': len(unique_variants[key]),
-                'Peak #/sample': max(category_count[key]),
-                MEAN_SLASH_SAMPLE: sum(category_count[key]) / len(category_count[key]),
-            }
-            for key in ordered_categories
-            if category_count[key]
-        ]
-
-        # this can fail if there are no categorised variants... at all
-        if not summary_dicts:
-            raise NoVariantsFoundError('No categorised variants found')
-
-        my_df: pd.DataFrame = pd.DataFrame(summary_dicts)
-        my_df[MEAN_SLASH_SAMPLE] = my_df[MEAN_SLASH_SAMPLE].round(3)
-
-        # the table re-sorts when parsed into the DataTable
-        # so this forced ordering doesn't work
-        my_df.Category = my_df.Category.astype('category')
-        my_df.Category = my_df.Category.cat.set_categories(ordered_categories)
-        my_df = my_df.sort_values(by='Category')
-
-        return my_df, samples_with_no_variants, unused_ext_labels
+    # get_summary_stats has been replaced by summary data in results.metadata
 
     def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
@@ -401,14 +307,50 @@ class HTMLBuilder:
         summary_table = None
         zero_cat_samples: list[str] = []
         unused_ext_labels: list[dict] = []
-        try:
-            summary_df, zero_cat_samples, unused_ext_labels = self.get_summary_stats()
-            summary_table = {
-                'columns': summary_df.columns.tolist(),
-                'rows': summary_df.to_dict(orient='records'),
-            }
-        except NoVariantsFoundError:
-            logger.warning('No categorised variants found; summary statistics not generated')
+
+        # Build summary table from metadata.variant_breakdown if present
+        if self.metadata.variant_breakdown:
+            try:
+                # convert dict to dataframe with a Category column
+                rows = []
+                for category, stats in self.metadata.variant_breakdown.items():
+                    row = {'Category': category} | stats
+                    rows.append(row)
+
+                summary_df = pd.DataFrame(rows)
+                # round mean to 3 decimals if present and rename columns for display
+                if 'mean' in summary_df.columns:
+                    summary_df['mean'] = summary_df['mean'].round(3)
+                summary_df = summary_df.rename(
+                    columns={
+                        'total': 'Total',
+                        'mean': 'Mean/sample',
+                        'max': 'Max/sample',
+                        'min': 'Min',
+                        'median': 'Median',
+                        'mode': 'Mode',
+                        'stddev': 'Stddev',
+                    },
+                )
+
+                summary_table = {
+                    'columns': summary_df.columns.tolist(),
+                    'rows': summary_df.to_dict(orient='records'),
+                }
+            except Exception as e:
+                logger.warning(f'Failed to build summary table from metadata: {e}')
+
+        # Map samples_with_no_variants to external IDs if available
+        if getattr(self.metadata, 'samples_with_no_variants', None):
+            zero_cat_samples = [self.ext_id_map.get(sam, sam) for sam in self.metadata.samples_with_no_variants]
+
+        # Prepare unused external labels, including external sample IDs if possible
+        if getattr(self.metadata, 'unused_ext_labels', None):
+            for entry in self.metadata.unused_ext_labels:
+                sam = entry.get('sample')
+                entry = dict(entry)
+                entry['sample_ext'] = self.ext_id_map.get(sam, sam)
+                unused_ext_labels.append(entry)
 
         config_options = config_retrieve([])
         config_json = json.dumps(config_options, indent=2, sort_keys=True)

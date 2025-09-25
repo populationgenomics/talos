@@ -822,9 +822,11 @@ def generate_summary_stats(result_set: ResultData):
 
     # make this naive, i.e. not configured specifically based on a list of Categories in configuration
     category_count: dict[str, list[int]] = defaultdict(list)
+    samples_with_no_variants: list[str] = []
 
-    for sample_results in result_set.results.values():
+    for sample_id, sample_results in result_set.results.items():
         if len(sample_results.variants) == 0:
+            samples_with_no_variants.append(sample_id)
             continue
 
         sample_variants: dict[str, set[str]] = defaultdict(set)
@@ -875,3 +877,30 @@ def generate_summary_stats(result_set: ResultData):
         }
 
     result_set.metadata.variant_breakdown = stats_count
+
+    # record samples with no variants (by sample ID)
+    result_set.metadata.samples_with_no_variants = samples_with_no_variants
+
+    # Compute unused external labels, if an external labels file is configured
+    unused_ext_labels: list[dict[str, Any]] = []
+    try:
+        labels_path = config_retrieve(['CreateTalosHTML', 'external_labels'], None)
+        if labels_path:
+            ext_label_map: dict[str, dict[str, list[str]]] = read_json_from_path(labels_path, default={}) or {}
+
+            # Remove any labels that correspond to observed variants
+            for sample_id, sample_results in result_set.results.items():
+                if sample_id not in ext_label_map:
+                    continue
+                for variant in sample_results.variants:
+                    var_string = variant.var_data.coordinates.string_format
+                    ext_label_map[sample_id].pop(var_string, None)
+
+            # Whatever remains in ext_label_map did not match any observed variants
+            for sam, var_dict in ext_label_map.items():
+                for var_id, labels in var_dict.items():
+                    unused_ext_labels.append({'sample': sam, 'variant': var_id, 'labels': labels})
+    except Exception as e:  # be tolerant; stats should not fail if labels are misconfigured
+        logger.warning(f'Unable to compute unused external labels: {e}')
+
+    result_set.metadata.unused_ext_labels = unused_ext_labels
