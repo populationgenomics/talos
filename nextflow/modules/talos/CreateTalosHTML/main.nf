@@ -12,10 +12,8 @@ process CreateTalosHTML {
         path ext_ids
         path seqr_ids
 
-    // reports folder, and tarchive of all reports
     output:
-        path "${params.cohort}_report.tar.gz"
-        path "${params.cohort}_report"
+        path "${params.cohort}_report.html"
 
 	// add the external IDs file if provided
 	script:
@@ -28,7 +26,6 @@ process CreateTalosHTML {
     CreateTalosHTML \
         --input ${talos_result_json} \
         --panelapp ${panelapp_data} \
-        --output ${params.cohort}_report/${params.cohort}_report.html $ext_id_arg $seqr_arg
-    tar --no-xattrs -czf ${params.cohort}_report.tar.gz ${params.cohort}_report
+        --output ${params.cohort}_report.html $ext_id_arg $seqr_arg
     """
 }

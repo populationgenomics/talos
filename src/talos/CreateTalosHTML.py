@@ -8,6 +8,7 @@ If there's a common prefix (e.g. by year), we split the data into sub-reports,
 but we don't need to keep paring it down and down
 """
 
+import json
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -247,9 +248,19 @@ class HTMLBuilder:
         which passed through the MOI process, not the absolute number
         of variants in the report
         """
-        ordered_categories = ['any', *list(config_retrieve('categories', {}).keys())]
+        categories_config = config_retrieve('categories', {}) or {}
+        ordered_categories = ['any']
+        if isinstance(categories_config, dict):
+            ordered_categories.extend(list(categories_config.keys()))
+
         category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
         unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
+
+        def ensure_category(category_name: str) -> None:
+            if category_name not in category_count:
+                category_count[category_name] = []
+                unique_variants[category_name] = set()
+                ordered_categories.append(category_name)
 
         samples_with_no_variants: list[str] = []
         ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
@@ -262,7 +273,8 @@ class HTMLBuilder:
             if len(sample.variants) == 0:
                 samples_with_no_variants.append(sample.ext_id)
 
-            sample_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
+            sample_variants: defaultdict[str, set[str]] = defaultdict(set)
+            sample_variants['any'] = set()  # initialize default category
 
             # iterate over the list of variants
             for variant in sample.variants:
@@ -273,6 +285,7 @@ class HTMLBuilder:
                 # find all categories associated with this variant
                 # for each category, add to corresponding list and set
                 for category_value in variant.categories:
+                    ensure_category(category_value)
                     sample_variants[category_value].add(var_string)
                     unique_variants[category_value].add(var_string)
 
@@ -371,19 +384,48 @@ class HTMLBuilder:
 
         extra_detail = ', '.join(x for x in [dataset, seq_type, long_read] if x)
 
+        meta_tables_raw = self.read_metadata()
+        meta_tables = {
+            name: {
+                'columns': table.columns.tolist(),
+                'rows': table.to_dict(orient='records'),
+            }
+            for name, table in meta_tables_raw.items()
+            if not table.empty
+        }
+
+        # ensure Meta (run metadata) appears first and has a descriptive heading
+        if 'Meta' in meta_tables:
+            meta_tables = {'Run Metadata': meta_tables.pop('Meta')} | meta_tables
+
+        summary_table = None
+        zero_cat_samples: list[str] = []
+        unused_ext_labels: list[dict] = []
+        try:
+            summary_df, zero_cat_samples, unused_ext_labels = self.get_summary_stats()
+            summary_table = {
+                'columns': summary_df.columns.tolist(),
+                'rows': summary_df.to_dict(orient='records'),
+            }
+        except NoVariantsFoundError:
+            logger.warning('No categorised variants found; summary statistics not generated')
+
+        config_options = config_retrieve([])
+        config_json = json.dumps(config_options, indent=2, sort_keys=True)
+
         template_context = {
             # 'metadata': self.metadata,
             'index_path': f'../{Path(output_filepath).name}',
             'run_datetime': self.metadata.run_datetime,
             'samples': self.samples,
-            # 'meta_tables': {},
-            # 'forbidden_genes': sorted(self.forbidden_genes),
-            # 'zero_categorised_samples': zero_cat_samples,
-            # 'unused_ext_labels': unused_ext_labels,
-            # 'summary_table': None,
-            'report_title': f'Full Talos Report: {extra_detail}',
+            'report_title': f'Talos Report: {extra_detail}',
             # 'solved': self.solved,
             'type': 'whole_cohort',
+            'meta_tables': meta_tables,
+            'summary_table': summary_table,
+            'zero_categorised_samples': zero_cat_samples,
+            'unused_ext_labels': unused_ext_labels,
+            'config_json': config_json,
         }
 
         # write all HTML content to the output file in one go
@@ -579,7 +621,7 @@ class Variant:
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 
-    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):
+    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):  # noqa: PLR0915
         self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
         self.chrom = report_variant.var_data.coordinates.chrom
@@ -668,7 +710,19 @@ class Variant:
 
         # Pre-serialize other potentially complex objects
         self.genotypes_json = dict(self.genotypes) if hasattr(self, 'genotypes') else {}
-        self.support_vars_json = list(self.support_vars) if hasattr(self, 'support_vars') else []
+        self.support_vars_json = []
+        if hasattr(self, 'support_vars') and self.support_vars:
+            for var_string in self.support_vars:
+                url = None
+                if html_builder.link_engine:
+                    url = html_builder.link_engine.generate_variant_link(sample, var_string)
+
+                self.support_vars_json.append(
+                    {
+                        'var_string': var_string,
+                        'url': url,
+                    },
+                )
 
         # Pre-serialize transcript consequences
         if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:

@@ -259,7 +259,7 @@ def count_families(pedigree: PedigreeParser) -> dict:
             if member.is_affected and member.mother_id is not None and member.father_id is not None
         ]
 
-        # count famiy size, based only on samples in the variant data
+        # count family size, based only on samples in the variant data
         if len(trios) == 1:
             stat_counter['trios'] += 1
         elif len(trios) == trios_in_a_quad:
@@ -436,7 +436,7 @@ def main(
     # slim down the pedigree to only samples we have in the pedigrees
     ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
 
-    # reduce cohort to singletons, if the config say so
+    # reduce cohort to singletons, if the config says so
     if config_retrieve('singletons', False):
         logger.info('Reducing pedigree to affected singletons only')
         ped.set_participants(ped.as_singletons())
