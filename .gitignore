@@ -93,3 +93,10 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+#nextflow
+.nextflow/
+.nextflow.log*
+nextflow/cohort_outputs/
+nextflow/processed_annotations/
+work/

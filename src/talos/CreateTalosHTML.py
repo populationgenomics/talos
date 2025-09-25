@@ -8,11 +8,11 @@ If there's a common prefix (e.g. by year), we split the data into sub-reports,
 but we don't need to keep paring it down and down
 """
 
+import json
 import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
-from os import makedirs
 from os.path import join
 from pathlib import Path
 from typing import Any
@@ -201,8 +201,7 @@ class HTMLBuilder:
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
         # If it exists, read the forbidden genes as a list
-        self.forbidden_genes = config_retrieve(['GeneratePanelData', 'forbidden_genes'], [])
-        assert isinstance(self.forbidden_genes, list)
+        self.forbidden_genes = set(config_retrieve(['GeneratePanelData', 'forbidden_genes'], []))
         logger.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # take the link-generating instance (can be None)
@@ -241,89 +240,7 @@ class HTMLBuilder:
             )
         self.samples.sort(key=lambda x: x.ext_id)
 
-    def get_summary_stats(self) -> tuple[pd.DataFrame, list[str], list[dict]]:
-        """
-        Run the numbers across all variant categories
-        Treat each primary-secondary comp-het pairing as one event
-        i.e. the thing being counted here is the number of events
-        which passed through the MOI process, not the absolute number
-        of variants in the report
-        """
-        ordered_categories = ['any', *list(config_retrieve('categories', {}).keys())]
-        category_count: dict[str, list[int]] = {key: [] for key in ordered_categories}
-        unique_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
-
-        samples_with_no_variants: list[str] = []
-        ext_label_map: dict = self.ext_labels.copy() if self.ext_labels else {}
-
-        sample_to_ext: dict[str, str] = {}
-
-        for sample in self.samples:
-            sample_to_ext[sample.name] = sample.ext_id
-
-            if len(sample.variants) == 0:
-                samples_with_no_variants.append(sample.ext_id)
-
-            sample_variants: dict[str, set[str]] = {key: set() for key in ordered_categories}
-
-            # iterate over the list of variants
-            for variant in sample.variants:
-                var_string = variant.var_data.coordinates.string_format
-                unique_variants['any'].add(var_string)
-                sample_variants['any'].add(var_string)
-
-                # find all categories associated with this variant
-                # for each category, add to corresponding list and set
-                for category_value in variant.categories:
-                    sample_variants[category_value].add(var_string)
-                    unique_variants[category_value].add(var_string)
-
-                # remove any external labels associated with this sample/variant.
-                if sample.name in ext_label_map:
-                    ext_label_map[sample.name].pop(var_string, None)
-
-            # update the global lists with per-sample counts
-            for key, key_list in category_count.items():
-                key_list.append(len(sample_variants[key]))
-
-        # Extract the list of unused ext labels
-        unused_ext_labels = [
-            {
-                'sample': sample_id,
-                'sample_ext': sample_to_ext.get(sample_id, sample_id),
-                'variant': var_id,
-                'labels': labels,
-            }
-            for sample_id, var_dict in ext_label_map.items()
-            for var_id, labels in var_dict.items()
-        ]
-
-        summary_dicts = [
-            {
-                'Category': key,
-                'Total': sum(category_count[key]),
-                'Unique': len(unique_variants[key]),
-                'Peak #/sample': max(category_count[key]),
-                MEAN_SLASH_SAMPLE: sum(category_count[key]) / len(category_count[key]),
-            }
-            for key in ordered_categories
-            if category_count[key]
-        ]
-
-        # this can fail if there are no categorised variants... at all
-        if not summary_dicts:
-            raise NoVariantsFoundError('No categorised variants found')
-
-        my_df: pd.DataFrame = pd.DataFrame(summary_dicts)
-        my_df[MEAN_SLASH_SAMPLE] = my_df[MEAN_SLASH_SAMPLE].round(3)
-
-        # the table re-sorts when parsed into the DataTable
-        # so this forced ordering doesn't work
-        my_df.Category = my_df.Category.astype('category')
-        my_df.Category = my_df.Category.cat.set_categories(ordered_categories)
-        my_df = my_df.sort_values(by='Category')
-
-        return my_df, samples_with_no_variants, unused_ext_labels
+    # get_summary_stats has been replaced by summary data in results.metadata
 
     def read_metadata(self) -> dict[str, pd.DataFrame]:
         """
@@ -373,19 +290,80 @@ class HTMLBuilder:
 
         extra_detail = ', '.join(x for x in [dataset, seq_type, long_read] if x)
 
+        meta_tables_raw = self.read_metadata()
+        meta_tables = {
+            name: {
+                'columns': table.columns.tolist(),
+                'rows': table.to_dict(orient='records'),
+            }
+            for name, table in meta_tables_raw.items()
+            if not table.empty
+        }
+
+        # ensure Meta (run metadata) appears first and has a descriptive heading
+        if 'Meta' in meta_tables:
+            meta_tables = {'Run Metadata': meta_tables.pop('Meta')} | meta_tables
+
+        summary_table = None
+        zero_cat_samples: list[str] = []
+        unused_ext_labels: list[dict] = []
+
+        # Build summary table from metadata.variant_breakdown if present
+        if self.metadata.variant_breakdown:
+            # convert dict to dataframe with a Category column
+            rows = []
+            for category, stats in self.metadata.variant_breakdown.items():
+                row = {'Category': category} | stats
+                rows.append(row)
+
+            summary_df = pd.DataFrame(rows)
+            # round mean to 3 decimals if present and rename columns for display
+            if 'mean' in summary_df.columns:
+                summary_df['mean'] = summary_df['mean'].round(3)
+            summary_df = summary_df.rename(
+                columns={
+                    'total': 'Total',
+                    'mean': 'Mean/sample',
+                    'max': 'Max/sample',
+                    'min': 'Min',
+                    'median': 'Median',
+                    'mode': 'Mode',
+                    'stddev': 'Stddev',
+                },
+            )
+
+            summary_table = {
+                'columns': summary_df.columns.tolist(),
+                'rows': summary_df.to_dict(orient='records'),
+            }
+
+        # Map samples_with_no_variants to external IDs if available
+        if getattr(self.metadata, 'samples_with_no_variants', None):
+            zero_cat_samples = [self.ext_id_map.get(sam, sam) for sam in self.metadata.samples_with_no_variants]
+
+        # Prepare unused external labels, including external sample IDs if possible
+        if getattr(self.metadata, 'unused_ext_labels', None):
+            for entry in self.metadata.unused_ext_labels:
+                sam = entry.get('sample')
+                entry['sample_ext'] = self.ext_id_map.get(sam, sam) if isinstance(sam, str) else sam
+                unused_ext_labels.append(entry)
+
+        config_options = config_retrieve([])
+        config_json = json.dumps(config_options, indent=2, sort_keys=True)
+
         template_context = {
             # 'metadata': self.metadata,
             'index_path': f'../{Path(output_filepath).name}',
             'run_datetime': self.metadata.run_datetime,
             'samples': self.samples,
-            # 'meta_tables': {},
-            # 'forbidden_genes': sorted(self.forbidden_genes),
-            # 'zero_categorised_samples': zero_cat_samples,
-            # 'unused_ext_labels': unused_ext_labels,
-            # 'summary_table': None,
-            'report_title': f'Full Talos Report: {extra_detail}',
+            'report_title': f'Talos Report: {extra_detail}',
             # 'solved': self.solved,
             'type': 'whole_cohort',
+            'meta_tables': meta_tables,
+            'summary_table': summary_table,
+            'zero_categorised_samples': zero_cat_samples,
+            'unused_ext_labels': unused_ext_labels,
+            'config_json': config_json,
         }
 
         # write all HTML content to the output file in one go
@@ -403,28 +381,6 @@ class HTMLBuilder:
 
         logger.info(f'Wrote {output_filepath}')
 
-        outpath_name = Path(output_filepath).name
-
-        for sample in template_context['samples']:
-            assert isinstance(sample, Sample)
-            if not sample.variants:
-                continue
-
-            report_address = output_filepath.replace(outpath_name, sample.report_url)
-
-            logger.debug(f'Writing {report_address}')
-
-            new_context = template_context | {
-                'samples': [sample],
-                'report_title': f'Talos Report for {sample.name}',
-                'type': 'sample',
-            }
-
-            template = env.get_template('sample_index.html.jinja')
-            content = template.render(**new_context)
-            with open(report_address, 'w') as handle:
-                handle.writelines(content)
-
 
 class Sample:
     """
@@ -439,7 +395,6 @@ class Sample:
         ext_labels: dict[str, list[str]],
         html_builder: HTMLBuilder,
     ):
-        indi_folder = f'individuals_{html_builder.subset_id}' if html_builder.subset_id is not None else 'individuals'
         self.metadata = metadata
         self.name = name
         self.family_id = metadata.family_id
@@ -459,8 +414,6 @@ class Sample:
         else:
             self.sample_link = None
 
-        self.report_url = f'{indi_folder}/{self.name}.html'
-
         # Ingest variants excluding any on the forbidden gene list
         self.variants = [
             Variant(
@@ -474,6 +427,32 @@ class Sample:
             if report_variant.found_in_current_run
             and not variant_in_forbidden_gene(report_variant, html_builder.forbidden_genes)
         ]
+
+        # Pre-serialize complex nested objects for Jinja2
+        self.panel_details_json = (
+            {str(pid): panel.model_dump(mode='json') for pid, panel in self.panel_details.items()}
+            if hasattr(self, 'panel_details') and self.panel_details
+            else {}
+        )
+
+        self.family_members_json = (
+            {member_id: member.model_dump(mode='json') for member_id, member in self.family_members.items()}
+            if hasattr(self, 'family_members') and self.family_members
+            else {}
+        )
+
+        # Pre-serialize phenotypes (HpoTerm objects)
+        self.phenotypes_json = (
+            [
+                phenotype.model_dump(mode='json') if hasattr(phenotype, 'model_dump') else phenotype
+                for phenotype in self.phenotypes
+            ]
+            if hasattr(self, 'phenotypes') and self.phenotypes
+            else []
+        )
+
+        # Pre-serialize family_display (should be simple dict, but let's be safe)
+        self.family_display_json = dict(self.family_display) if hasattr(self, 'family_display') else {}
 
     def __str__(self):
         return self.name
@@ -580,7 +559,7 @@ class Variant:
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 
-    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):
+    def __init__(self, report_variant: ReportVariant, sample: Sample, ext_labels: list, html_builder: HTMLBuilder):  # noqa: PLR0915
         self.var_data = report_variant.var_data
         self.var_type = report_variant.var_data.__class__.__name__
         self.chrom = report_variant.var_data.coordinates.chrom
@@ -663,6 +642,34 @@ class Variant:
             self.var_link = html_builder.link_engine.generate_variant_link(sample, var_string)
         else:
             self.var_link = None
+
+        # Pre-serialize variant data for Jinja2 to avoid complex template logic
+        self.var_data_json = self.var_data.model_dump(mode='json') if self.var_data else {}
+
+        # Pre-serialize other potentially complex objects
+        self.genotypes_json = dict(self.genotypes) if hasattr(self, 'genotypes') else {}
+        self.support_vars_json = []
+        if hasattr(self, 'support_vars') and self.support_vars:
+            for var_string in self.support_vars:
+                url = None
+                if html_builder.link_engine:
+                    url = html_builder.link_engine.generate_variant_link(sample, var_string)
+
+                self.support_vars_json.append(
+                    {
+                        'var_string': var_string,
+                        'url': url,
+                    },
+                )
+
+        # Pre-serialize transcript consequences
+        if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:
+            self.transcript_consequences_json = [
+                csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq
+                for csq in self.var_data.transcript_consequences
+            ]
+        else:
+            self.transcript_consequences_json = []
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
@@ -774,8 +781,6 @@ def main(
     # catch this, but fail gracefully so that the process overall is a success
     try:
         logger.debug(f'Writing whole-cohort categorised variants to {output}')
-        # find the path to the output directory, and make an individual directory
-        makedirs(join(report_output_dir, 'individuals'), exist_ok=True)
         html.write_html(output_filepath=output)
     except NoVariantsFoundError:
         logger.warning('No Categorised variants found in this whole cohort')
@@ -796,7 +801,6 @@ def main(
         try:
             output_filepath = join(report_output_dir, report)
             logger.debug(f'Attempting to create {report} at {output_filepath}')
-            makedirs(join(report_output_dir, f'individuals_{prefix}'), exist_ok=True)
             html.write_html(output_filepath=output_filepath)
         except NoVariantsFoundError:
             logger.info('No variants in that report, skipping')

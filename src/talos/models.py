@@ -39,6 +39,7 @@ MIN_HOM = 0.85
 CATEGORY_TRANSLATOR: dict[str, str] = {
     '1': 'ClinVar P/LP',
     'clinvarplp': 'ClinVar P/LP',
+    'ClinVarP/LP': 'ClinVar P/LP',
     'clinvar0star': 'ClinVar 0-star',
     'clinvar0starnewgene': 'ClinVar Recent Gene',
     '3': 'High Impact',
@@ -473,6 +474,10 @@ class ResultMeta(BaseModel):
 
     # a count of variants per category, used for the report
     variant_breakdown: dict[str, dict[str, float | int]] = Field(default_factory=dict)
+    # list of samples that had no variants in this result set
+    samples_with_no_variants: list[str] = Field(default_factory=list)
+    # external labels provided but not matched to any variant in this result set
+    unused_ext_labels: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MemberSex(Enum):
