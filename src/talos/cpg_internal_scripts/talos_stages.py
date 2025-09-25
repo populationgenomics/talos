@@ -276,7 +276,6 @@ class AnnotateAndLabelMito(stage.CohortStage):
         if not query_for_latest_analysis(
             dataset=cohort.dataset.name,
             analysis_type='vcf',
-            sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
             long_read=config.config_retrieve(['workflow', 'long_read'], False),
             stage_name='GenerateMitoJointCall',
         ):
@@ -303,7 +302,6 @@ class AnnotateAndLabelMito(stage.CohortStage):
         mito_vcf = query_for_latest_analysis(
             dataset=cohort.dataset.name,
             analysis_type='vcf',
-            sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
             long_read=config.config_retrieve(['workflow', 'long_read'], False),
             stage_name='GenerateMitoJointCall',
         )
@@ -579,7 +577,6 @@ class ValidateVariantInheritance(stage.CohortStage):
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
                 analysis_type='vcf',
-                sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
                 long_read=config.config_retrieve(['workflow', 'long_read'], False),
                 stage_name='GenerateMitoJointCall',
             )
