@@ -349,7 +349,7 @@ class HTMLBuilder:
             for entry in self.metadata.unused_ext_labels:
                 sam = entry.get('sample')
                 entry = dict(entry)
-                entry['sample_ext'] = self.ext_id_map.get(sam, sam)
+                entry['sample_ext'] = self.ext_id_map.get(sam, sam) if isinstance(sam, str) else sam
                 unused_ext_labels.append(entry)
 
         config_options = config_retrieve([])
