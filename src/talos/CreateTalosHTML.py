@@ -310,35 +310,32 @@ class HTMLBuilder:
 
         # Build summary table from metadata.variant_breakdown if present
         if self.metadata.variant_breakdown:
-            try:
-                # convert dict to dataframe with a Category column
-                rows = []
-                for category, stats in self.metadata.variant_breakdown.items():
-                    row = {'Category': category} | stats
-                    rows.append(row)
+            # convert dict to dataframe with a Category column
+            rows = []
+            for category, stats in self.metadata.variant_breakdown.items():
+                row = {'Category': category} | stats
+                rows.append(row)
 
-                summary_df = pd.DataFrame(rows)
-                # round mean to 3 decimals if present and rename columns for display
-                if 'mean' in summary_df.columns:
-                    summary_df['mean'] = summary_df['mean'].round(3)
-                summary_df = summary_df.rename(
-                    columns={
-                        'total': 'Total',
-                        'mean': 'Mean/sample',
-                        'max': 'Max/sample',
-                        'min': 'Min',
-                        'median': 'Median',
-                        'mode': 'Mode',
-                        'stddev': 'Stddev',
-                    },
-                )
+            summary_df = pd.DataFrame(rows)
+            # round mean to 3 decimals if present and rename columns for display
+            if 'mean' in summary_df.columns:
+                summary_df['mean'] = summary_df['mean'].round(3)
+            summary_df = summary_df.rename(
+                columns={
+                    'total': 'Total',
+                    'mean': 'Mean/sample',
+                    'max': 'Max/sample',
+                    'min': 'Min',
+                    'median': 'Median',
+                    'mode': 'Mode',
+                    'stddev': 'Stddev',
+                },
+            )
 
-                summary_table = {
-                    'columns': summary_df.columns.tolist(),
-                    'rows': summary_df.to_dict(orient='records'),
-                }
-            except Exception as e:
-                logger.warning(f'Failed to build summary table from metadata: {e}')
+            summary_table = {
+                'columns': summary_df.columns.tolist(),
+                'rows': summary_df.to_dict(orient='records'),
+            }
 
         # Map samples_with_no_variants to external IDs if available
         if getattr(self.metadata, 'samples_with_no_variants', None):
@@ -348,7 +345,6 @@ class HTMLBuilder:
         if getattr(self.metadata, 'unused_ext_labels', None):
             for entry in self.metadata.unused_ext_labels:
                 sam = entry.get('sample')
-                entry = dict(entry)
                 entry['sample_ext'] = self.ext_id_map.get(sam, sam) if isinstance(sam, str) else sam
                 unused_ext_labels.append(entry)
 
