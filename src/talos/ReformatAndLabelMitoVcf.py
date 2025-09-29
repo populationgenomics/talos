@@ -189,7 +189,13 @@ def main(
     pedigree_data = PedigreeParser(pedigree)
 
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
+    try:
+        mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
+    except ValueError as ve:
+        logger.error(str(ve))
+        mt = mt.filter_rows(hl.is_defined(mt.filters), keep=False)
+        hl.export_vcf(mt, output_path, tabix=True)
+        sys.exit(0)
 
     mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar_path)
 
