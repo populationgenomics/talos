@@ -7,6 +7,7 @@ re-arrange it into a HailTable for use with the Talos pipeline.
 This process combines the AF/CSQs already applied with the MANE transcript/protein names, and AlphaMissense annotations
 """
 
+import sys
 from argparse import ArgumentParser
 
 from cpg_utils.hail_batch import init_batch
@@ -156,8 +157,6 @@ def main(
 
     # gets a lookup of all relevant genes from the PanelApp dump
     symbol_to_ensg = {gene.symbol: key for key, gene in panel_data.genes.items() if gene.chrom.startswith('M')}
-    symbol_to_ensg_hl = hl.literal(symbol_to_ensg)
-    green_ensg_ids = hl.literal(set(symbol_to_ensg.values()))
 
     if batch:
         logger.info('Using Hail Batch backend')
@@ -171,6 +170,17 @@ def main(
 
     # read the VCF into a MatrixTable
     mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
+
+    # there's no mito analysis to do if there are no mito genes on the panel
+    # this will be resolved by an enhanced mendeliome at some point, but for now we need to quit out
+    # drop all the rows, and write a zero-variant VCF. It's a messy compromise, I'll fix it properly later
+    if not symbol_to_ensg:
+        mt = mt.filter_rows(hl.is_defined(mt.filters), keep=False)
+        hl.export_vcf(mt, output_path, tabix=True)
+        sys.exit(0)
+
+    symbol_to_ensg_hl = hl.literal(symbol_to_ensg)
+    green_ensg_ids = hl.literal(set(symbol_to_ensg.values()))
 
     # remove filtered variants
     mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))

@@ -737,7 +737,6 @@ class CreateTalosHtml(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
 
         # seqr_lookup can be missing/None here, that's ok
-        # after the initial report is generated, also copy it to a generic/static location
         job.command(
             f"""
             python -m talos.CreateTalosHTML \\
@@ -746,10 +745,12 @@ class CreateTalosHtml(stage.CohortStage):
                 --output {job.output} \\
                 --ext_ids {localised_ids} \\
                 --seqr_ids {seqr_lookup}
-
-            gcloud storage cp {outputs['dated']} {outputs['generic']}
             """,
         )
+
+        # copy the same output to both the static and date-specific locations
+        hail_batch.get_batch().write_output(job.output, outputs['dated'])
+        hail_batch.get_batch().write_output(job.output, outputs['generic'])
 
         return self.make_outputs(cohort, data=outputs, jobs=job)
 
