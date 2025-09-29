@@ -709,7 +709,6 @@ class CreateTalosHtml(stage.CohortStage):
             hash_value='talos_static',
         )
         return {
-            'tar': std_prefix / 'reports.tar.gz',
             'id_map': std_prefix / 'int_ext_id_map.tsv',
             'dated': web_prefix / 'summary_output.html',
             'generic': static_web_prefix / 'summary_output.html',
