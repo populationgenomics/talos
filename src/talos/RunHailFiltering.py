@@ -955,10 +955,7 @@ def main(  # noqa: PLR0915
     # Filter out star alleles, not currently capable of handling them
     # Will revisit once our internal experience with DRAGEN-generated variant data improves
     logger.info('Removing any star-allele sites from the dataset, Talos is not currently designed to handle these')
-    mt = mt.filter_rows(
-        mt.alleles.contains('*'),
-        keep=False,
-    )
+    mt = mt.filter_rows(mt.alleles.contains('*'), keep=False)
 
     if config_retrieve(['RunHailFiltering', 'pad_homref_ad'], False):
         pad_homref_ad(mt)
@@ -983,6 +980,13 @@ def main(  # noqa: PLR0915
     mt = filter_to_population_rare(mt=mt)
 
     # subset to currently considered samples
+
+    # reduce cohort to affected singletons, if the config says so
+    if config_retrieve('singletons', False):
+        logger.info('Reducing pedigree to affected singletons only')
+        ped.set_participants(ped.as_singletons())
+        ped.set_participants(ped.get_affected_members())
+
     mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove any rows which have no genes of interest

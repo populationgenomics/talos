@@ -21,6 +21,7 @@ from talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable import (
     MISSING_STRING,
     extract_and_split_csq_string,
 )
+from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.pedigree_parser import PedigreeParser
 from talos.RunHailFiltering import (
@@ -187,6 +188,12 @@ def main(
 
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)
+
+    # reduce cohort to singletons, if the config says so
+    if config_retrieve('singletons', False):
+        logger.info('Reducing pedigree to affected singletons only')
+        pedigree_data.set_participants(pedigree_data.as_singletons())
+        pedigree_data.set_participants(pedigree_data.get_affected_members())
 
     # subset to currently considered samples
     try:

@@ -271,6 +271,12 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)
 
+    # reduce cohort to singletons, if the config says so
+    if config_retrieve('singletons', False):
+        logger.info('Reducing pedigree to affected singletons only')
+        pedigree_data.set_participants(pedigree_data.as_singletons())
+        pedigree_data.set_participants(pedigree_data.get_affected_members())
+
     # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
