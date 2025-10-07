@@ -979,14 +979,13 @@ def main(  # noqa: PLR0915
     # remove common-in-gnomad variants (also includes ClinVar annotation)
     mt = filter_to_population_rare(mt=mt)
 
-    # subset to currently considered samples
-
     # reduce cohort to affected singletons, if the config says so
     if config_retrieve('singletons', False):
         logger.info('Reducing pedigree to affected singletons only')
-        ped.set_participants(ped.as_singletons())
-        ped.set_participants(ped.get_affected_members())
+        pedigree_data.set_participants(pedigree_data.as_singletons())
+        pedigree_data.set_participants(pedigree_data.get_affected_members())
 
+    # subset to currently considered samples
     mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove any rows which have no genes of interest
