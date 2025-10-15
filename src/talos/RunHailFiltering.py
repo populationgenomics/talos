@@ -873,6 +873,12 @@ def main(
     # read the pedigree data
     pedigree_data: PedigreeParser = PedigreeParser(pedigree)
 
+    # reduce cohort to affected singletons, if the config says so
+    if config_retrieve('singletons', False):
+        logger.info('Reducing pedigree to affected singletons only')
+        pedigree_data.set_participants(pedigree_data.as_singletons())
+        pedigree_data.set_participants(pedigree_data.get_affected_members())
+
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
     logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
