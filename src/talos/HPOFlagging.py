@@ -1,16 +1,7 @@
 """
-Takes the result date from ValidateMOI
+Takes the result date from ValidateMOI.
 For each reportable result, identify if the variant is a strong phenotype match for the family
 
-1. Write 2 results - the result set annotated with Phenotype-match flags
-2. The annotated result set, reduced to only phenotype matches
-
-Include something here about where to find the inputs ...
-
-gene_to_phenotype: Download: https://hpo.jax.org/app/data/annotations#:~:text=download-,GENES,-TO%20PHENOTYPE"
-phenio.db: Download: https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
-
-The removal of variants where a phenotype match is required but not found it now done here
 A list of categories in config is used to determine which variants are required to have a phenotype match
 Variants where all categories are on that list will be removed unless any of these are satisfied:
 - variant gene is on a forced panel
@@ -26,7 +17,7 @@ from semsimian import Semsimian
 from talos.config import config_retrieve
 from talos.models import ResultData
 from talos.static_values import get_granular_date
-from talos.utils import parse_mane_json_to_dict, phenotype_label_history, read_json_from_path
+from talos.utils import parse_mane_json_to_dict, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
@@ -88,7 +79,7 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
 
             # for structural variants, add all the LOF'd genes
             # TODO (mwelland): if/when we create other SV categories, we may need to catch those here too
-            if lof := variant.var_data.info.get('predicted_lof'):
+            if lof := variant.var_data.info.get('lof'):
                 ensgs.update(set(str(lof).split(',')))
 
     return ensgs
@@ -149,8 +140,6 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
 
                 variant.phenotype_labels = pheno_matches
 
-    phenotype_label_history(result_object)
-
 
 def remove_phenotype_required_variants(result_object: ResultData):
     """
@@ -192,6 +181,7 @@ def cli_main():
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
     parser.add_argument('--output', help='Annotated output')
+    parser.add_argument('--previous', help='Path to previous results', default=None)
     args = parser.parse_args()
     main(
         result_file=args.input,

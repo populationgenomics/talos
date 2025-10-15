@@ -9,6 +9,8 @@ The file names created by the `gather_files.sh` script are the same as the defau
 If you already have any of these data files or reference genomes present locally, e.g. from a prior deployment or other local work, the script will not re-download them, so you can run the script multiple times without worrying about overwriting existing files. This behaviour requires the file names to match exactly (e.g. the reference genome is expected as `ref.fa`).
 
 > **n.b.** Talos has only been tested on GRCh38, and in that particular reference genome is used in a number of places. The download script fetches a gzip-compressed copy of HG38 as part of the setup process, and Talos is not technically supported on other reference genomes, so your variant data will have to be aligned to GRCh38 for the time being. If you have a need to run Talos on a different reference genome, please raise an issue in the GitHub repository. To use the reference genome downloaded by this scripted process, you will need to decompress with `gunzip` and index with `samtools faidx` prior to its use in the workflow.
+>
+> **n.b.2.** The reference genome is expected to be named `ref.fa` after decompression, and the index file `ref.fa.fai`. If you have an appropriate reference genome already present, you can either rename it to `ref.fa` (with a matching index) to prevent the data download script from re-downloading a duplicate reference genome.
 
 ## Files
 
@@ -21,6 +23,6 @@ The `gather_files.sh` script downloads the following:
 5. Predictions for AlphaMissense, e.g. `AlphaMissense_hg38.tsv.gz` from https://zenodo.org/records/8208688.
 6. `genes_to_phenotypes.txt` and `hp.obo` from `https://github.com/obophenotype/human-phenotype-ontology/releases`
 7. `phenio.db` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz, then decompressed
-8. `ClinvArbitration` data from Zenodo https://zenodo.org/records/16792026
+8. `ClinvArbitration` data from Zenodo https://zenodo.org/records/17060310
 
 > **NOTE** the ClinvArbitration data is updated and re-uploaded monthly. This should be downloaded from Zenodo prior to attempting to run Talos, and an updated version should be downloaded each month to stay current.

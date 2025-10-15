@@ -19,7 +19,6 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
-    CATEGORY_TRANSLATOR,
     FamilyMembers,
     MemberSex,
     PanelApp,
@@ -31,6 +30,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
+    translate_category,
 )
 from talos.moi_tests import MOIRunner
 from talos.pedigree_parser import PedigreeParser
@@ -150,17 +150,15 @@ def apply_moi_to_variants(
             variant_results = runner.run(
                 principal_var=variant,
                 comp_het=comp_het_dict,
-                partial_pen=bool(variant.info.get('categoryboolean1', False)),
+                partial_pen=bool(variant.info.get('categorybooleanclinvarplp', False)),
             )
 
-            # Flag! If this is a Category 1 (ClinVar) variant, and we are
-            # interpreting under a lenient MOI, add flag for analysts
-            # control this in just one place
-            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categoryboolean1', False):
+            # Flag! If this is a ClinVar P/LP variant, and we interpret under a lenient MOI, add flag for analysts
+            if panel_gene_data.moi == 'Mono_And_Biallelic' and variant.info.get('categorybooleanclinvarplp', False):
                 # consider each variant in turn
                 for each_result in variant_results:
                     # never tag if this variant/sample is de novo
-                    if CATEGORY_TRANSLATOR['4'] in each_result.categories:
+                    if translate_category('4') in each_result.categories:
                         continue
 
                     if each_result.reasons == 'Autosomal Dominant':
@@ -261,7 +259,7 @@ def count_families(pedigree: PedigreeParser) -> dict:
             if member.is_affected and member.mother_id is not None and member.father_id is not None
         ]
 
-        # count famiy size, based only on samples in the variant data
+        # count family size, based only on samples in the variant data
         if len(trios) == 1:
             stat_counter['trios'] += 1
         elif len(trios) == trios_in_a_quad:
@@ -341,9 +339,11 @@ def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
     parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=None)
+    parser.add_argument('--labelled_mito', help='Category-labelled Mito VCF', default=None)
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
+    parser.add_argument('--previous', help='Path to previous results', default=None)
     args = parser.parse_args()
 
     main(
@@ -352,6 +352,8 @@ def cli_main():
         panelapp_path=args.panelapp,
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
+        labelled_mito=args.labelled_mito,
+        previous=args.previous,
     )
 
 
@@ -361,6 +363,8 @@ def main(
     panelapp_path: str,
     pedigree: str,
     labelled_sv: str | None = None,
+    labelled_mito: str | None = None,
+    previous: str | None = None,
 ):
     """
     VCFs used here should be small
@@ -372,9 +376,11 @@ def main(
     Args:
         labelled_vcf (str): VCF output from Hail Labelling stage
         labelled_sv (str | None): optional second VCF (SV)
+        labelled_mito (str | None): optional Mitochondrial VCF
         output (str): location to write output file
         panelapp_path (str): location of PanelApp data JSON
         pedigree (str): location of PED file
+        previous (str | None): location of previous results JSON, or None if first time/history not required
     """
     logger.info(
         r"""Welcome To
@@ -393,11 +399,19 @@ def main(
         return_model=PanelApp,
     )
 
+    logger.info(f'Attempting to read history from {previous}')
+    previous_results: ResultData | None = read_json_from_path(
+        previous,
+        return_model=ResultData,
+        default=None,
+    )
+
     result_list: list[ReportVariant] = []
 
     # collect all sample IDs from each VCF type
     small_vcf_samples: set[str] = set()
     sv_vcf_samples: set[str] = set()
+    _mito_vcf_samples: set[str] = set()
 
     # open the small variant VCF using a cyvcf2 reader
     vcf_opened = VCFReader(labelled_vcf)
@@ -411,13 +425,19 @@ def main(
 
     all_samples = small_vcf_samples.union(sv_vcf_samples)
 
+    mito_opened = None
+    if labelled_mito:
+        mito_opened = VCFReader(labelled_mito)
+        mito_vcf_samples = set(mito_opened.samples)
+        all_samples |= mito_vcf_samples
+
     # parse the pedigree from the file
     ped = PedigreeParser(pedigree)
 
     # slim down the pedigree to only samples we have in the pedigrees
     ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
 
-    # reduce cohort to singletons, if the config say so
+    # reduce cohort to singletons, if the config says so
     if config_retrieve('singletons', False):
         logger.info('Reducing pedigree to affected singletons only')
         ped.set_participants(ped.as_singletons())
@@ -435,6 +455,17 @@ def main(
             sv_source=sv_opened,
         )
 
+        result_list.extend(
+            apply_moi_to_variants(
+                variant_dict=contig_dict,
+                moi_lookup=moi_lookup,
+                panelapp_data=panelapp.genes,
+                pedigree=ped,
+            ),
+        )
+
+    if mito_opened:
+        contig_dict = gather_gene_dict_from_contig('chrM', variant_source=mito_opened)
         result_list.extend(
             apply_moi_to_variants(
                 variant_dict=contig_dict,
@@ -466,8 +497,8 @@ def main(
     # need some extra filtering here to tidy up exomiser categorisation
     polish_exomiser_results(results_model)
 
-    # annotate previously seen results using cumulative data file(s)
-    annotate_variant_dates_using_prior_results(results_model)
+    # annotate previously seen results by building on previous analysis results
+    annotate_variant_dates_using_prior_results(results_model, previous_results)
 
     generate_summary_stats(results_model)
 

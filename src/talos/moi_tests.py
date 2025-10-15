@@ -1,27 +1,18 @@
 """
 A number of classes, each representing one Mode of Inheritance
 One class (MoiRunner) to run all the appropriate MOIs on a variant
-
-Reduce the PanelApp plain text MOI description into a few categories
-We then run a permissive MOI match for the variant
-
-Expected available gnomad annotations:
-'gnomad': struct {
-    gnomad_AC: int32,
-    gnomad_AF: float64,
-    gnomad_AC_XY: int32,
-    gnomad_HomAlt: int32
-}
 """
 
 # mypy: ignore-errors
 from abc import abstractmethod
 from dataclasses import dataclass
+from itertools import chain
 from typing import ClassVar
 
 from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
 from talos.pedigree_parser import PedigreeParser
+from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
 HEMI_CHROMS = {'chrX, chrY'}
@@ -249,7 +240,10 @@ class MOIRunner:
                 RecessiveAutosomalCH(pedigree=pedigree),
             ]
         elif target_moi == 'Biallelic':
-            self.filter_list = [RecessiveAutosomalHomo(pedigree=pedigree), RecessiveAutosomalCH(pedigree=pedigree)]
+            self.filter_list = [
+                RecessiveAutosomalHomo(pedigree=pedigree),
+                RecessiveAutosomalCH(pedigree=pedigree),
+            ]
 
         elif target_moi == 'Hemi_Mono_In_Female':
             self.filter_list = [XRecessiveMale(pedigree=pedigree), XDominant(pedigree=pedigree)]
@@ -261,6 +255,10 @@ class MOIRunner:
                 XRecessiveFemaleCH(pedigree=pedigree),
                 XPseudoDominantFemale(pedigree=pedigree),
             ]
+        elif target_moi == 'Mitochondrial':
+            self.filter_list = [
+                Mitochondrial(pedigree=pedigree),
+            ]
 
         else:
             raise KeyError(f'MOI type {target_moi} is not addressed in MOI')
@@ -271,8 +269,8 @@ class MOIRunner:
 
         Args:
             principal_var (): the variant we are focused on
-            comp_het ():
-            partial_pen ():
+            comp_het (dict | None): a lookup of each variant to all potential partners (screened for in-phase)
+            partial_pen (bool): whether to use a partial-penetrance interpretation model
         """
 
         if comp_het is None:
@@ -361,7 +359,7 @@ class BaseMoi:
         Returns:
             bool: True if the variant is too common
         """
-        if variant.info.get('categoryboolean1'):
+        if variant.info.get('categorybooleanclinvarplp'):
             return self.clinvar_filter.too_common(variant=variant)
         return self.global_filter.too_common(variant)
 
@@ -378,7 +376,8 @@ class BaseMoi:
 
         def get_sample_genotype(member_id: str, sex: int) -> str:
             """
-            for this specific member, find the genotype
+            For this specific member, find the genotype
+
             Args:
                 member_id (str): sample ID in the pedigree
                 sex (int): male/female/unknown
@@ -485,7 +484,7 @@ class DominantAutosomal(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    var_is_cat_1=principal.info.get('categoryboolean1'),
+                    var_is_cat_1=principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -503,11 +502,11 @@ class DominantAutosomal(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
 
@@ -546,6 +545,8 @@ class RecessiveAutosomalCH(BaseMoi):
 
         # if hets are present, try and find support - if the partner is a deletion or SV, hets can appear as homs
         for sample_id in principal.het_samples | principal.hom_samples:
+            partner_variants = []
+
             # skip primary analysis for unaffected members
             # this sample must be categorised - check Cat 4 contents
             if (
@@ -554,7 +555,7 @@ class RecessiveAutosomalCH(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -565,7 +566,7 @@ class RecessiveAutosomalCH(BaseMoi):
                     partner.insufficient_read_depth(
                         sample_id,
                         self.minimum_depth,
-                        partner.info.get('categoryboolean1'),
+                        partner.info.get('categorybooleanclinvarplp'),
                     )
                     or self.variant_too_common(partner)
                     or partner.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
@@ -586,20 +587,28 @@ class RecessiveAutosomalCH(BaseMoi):
                     variant_1=principal,
                     variant_2=partner,
                 ):
-                    classifications.append(
-                        ReportVariant(
-                            sample=sample_id,
-                            family=self.pedigree.participants[sample_id].family_id,
-                            gene=principal.info.get('gene_id'),
-                            var_data=principal,
-                            categories=principal.category_values(sample_id),
-                            reasons=self.applied_moi,
-                            genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                            support_vars={partner.info.get('var_link', 'no_link') or 'no_link'},  # SVs may not have one
-                            flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
-                            independent=False,
-                        ),
-                    )
+                    partner_variants.append(partner)
+
+            if partner_variants:
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.participants[sample_id].family_id,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                        reasons=self.applied_moi,
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        # SVs may not have a var_link
+                        support_vars={
+                            partner.info.get('var_link', partner.coordinates.string_format)
+                            for partner in partner_variants
+                        },
+                        flags=principal.get_sample_flags(sample_id)
+                        | set(chain.from_iterable(partner.get_sample_flags(sample_id) for partner in partner_variants)),
+                        clinvar_stars=principal.info.get('clinvar_stars'),
+                    ),
+                )
 
         return classifications
 
@@ -648,7 +657,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -666,11 +675,11 @@ class RecessiveAutosomalHomo(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         reasons=self.applied_moi,
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
 
@@ -722,7 +731,7 @@ class XDominant(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -740,11 +749,11 @@ class XDominant(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -795,7 +804,7 @@ class XPseudoDominantFemale(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -820,12 +829,12 @@ class XPseudoDominantFemale(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         flags=principal.get_sample_flags(sample_id)
                         | {'Affected female with heterozygous variant in XLR gene'},
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -872,7 +881,7 @@ class XRecessiveMale(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -890,11 +899,11 @@ class XRecessiveMale(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         reasons=self.applied_moi,
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -934,7 +943,7 @@ class XRecessiveFemaleHom(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -952,11 +961,11 @@ class XRecessiveFemaleHom(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=principal,
-                        categories=principal.category_values(sample_id),
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         reasons=self.applied_moi,
                         flags=principal.get_sample_flags(sample_id),
-                        independent=True,
+                        clinvar_stars=principal.info.get('clinvar_stars'),
                     ),
                 )
         return classifications
@@ -995,6 +1004,9 @@ class XRecessiveFemaleCH(BaseMoi):
 
         # if het/hom females are present, try and find support
         for sample_id in female_var_ids:
+            # collect all valid partners once, into a single combined 'event'
+            partner_variants = []
+
             # don't run primary analysis for unaffected
             # we require this specific sample to be categorised - check Cat 4 contents
             if (
@@ -1003,7 +1015,7 @@ class XRecessiveFemaleCH(BaseMoi):
                 or principal.insufficient_read_depth(
                     sample_id,
                     self.minimum_depth,
-                    principal.info.get('categoryboolean1'),
+                    principal.info.get('categorybooleanclinvarplp'),
                 )
                 or principal.insufficient_alt_depth(sample_id, self.minimum_alt_depth)
             ):
@@ -1018,7 +1030,7 @@ class XRecessiveFemaleCH(BaseMoi):
                     or partner.insufficient_read_depth(
                         sample_id,
                         self.minimum_depth,
-                        partner.info.get('categoryboolean1'),
+                        partner.info.get('categorybooleanclinvarplp'),
                     )
                     or not any(
                         [
@@ -1036,20 +1048,83 @@ class XRecessiveFemaleCH(BaseMoi):
                     variant_1=principal,
                     variant_2=partner,
                 ):
-                    classifications.append(
-                        ReportVariant(
-                            sample=sample_id,
-                            family=self.pedigree.participants[sample_id].family_id,
-                            gene=principal.info.get('gene_id'),
-                            var_data=principal,
-                            categories=principal.category_values(sample_id),
-                            reasons=self.applied_moi,
-                            genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
-                            # needs to comply with Seqr
-                            support_vars={partner.info['var_link']},
-                            flags=principal.get_sample_flags(sample_id) | partner.get_sample_flags(sample_id),
-                            independent=False,
-                        ),
-                    )
+                    partner_variants.append(partner)
+
+            # add a single event with all valid comp-het partners.
+            if partner_variants:
+                classifications.append(
+                    ReportVariant(
+                        sample=sample_id,
+                        family=self.pedigree.participants[sample_id].family_id,
+                        gene=principal.info.get('gene_id'),
+                        var_data=principal,
+                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                        reasons=self.applied_moi,
+                        genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                        support_vars={
+                            partner.info.get('var_link', partner.coordinates.string_format)
+                            for partner in partner_variants
+                        },
+                        flags=principal.get_sample_flags(sample_id)
+                        | set(chain.from_iterable(partner.get_sample_flags(sample_id) for partner in partner_variants)),
+                        clinvar_stars=principal.info.get('clinvar_stars'),
+                    ),
+                )
+        return classifications
+
+
+class Mitochondrial(BaseMoi):
+    """
+    ignore males, accept female comp-het only
+    """
+
+    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Mitochondrial'):
+        """
+        Set parameters specific to mitochondrial.
+        Currently, Mito only works with ClinVar, which is given a partially-penetrant interpretation, so maternally
+        inherited will never be disqualifying. This is basically a presence in proband test.
+        """
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        self.global_filter = DominantFilter()
+        self.clinvar_filter = ClinVarDominantFilter()
+        self.plasmy_threshold = config_retrieve(['ValidateMOI', 'heteroplasmy_min'], 0.2)
+
+    def run(
+        self,
+        principal: VARIANT_MODELS,
+        comp_het: CompHetDict | None = None,  # noqa: ARG002
+        partial_pen: bool = False,  # noqa: ARG002
+    ) -> list[ReportVariant]:
+        """ """
+
+        classifications = []
+
+        # no need for a too-common test, we don't currently have pop. freq data
+
+        for sample_id in principal.het_samples | principal.hom_samples:
+            if self.pedigree.participants[sample_id].is_not_affected:
+                continue
+
+            # don't run primary analysis for unaffected
+            # we require this specific sample to be categorised - check Cat 4 contents
+            if not (
+                principal.sample_category_check(sample_id, allow_support=True)
+                and principal.min_alt_ratio(sample_id, self.plasmy_threshold)
+            ):
+                continue
+
+            classifications.append(
+                ReportVariant(
+                    sample=sample_id,
+                    family=self.pedigree.participants[sample_id].family_id,
+                    gene=principal.info.get('gene_id'),
+                    var_data=principal,
+                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    reasons=self.applied_moi,
+                    genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
+                    flags=principal.get_sample_flags(sample_id),
+                    clinvar_stars=principal.info.get('clinvar_stars'),
+                ),
+            )
 
         return classifications

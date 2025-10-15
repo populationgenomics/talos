@@ -23,9 +23,13 @@ process FilterVcfToBedWithBcftools {
     bcftools norm \
     	-m -any \
     	-f ${ref_genome} \
-        --write-index=tbi \
         -R ${bed_file} \
-        -Oz -o "${params.cohort}_merged_filtered.vcf.bgz" \
-        ${vcf}
+        -Ou ${vcf} \
+        --no-version | \
+    bcftools +fill-tags \
+        -Oz \
+        --no-version \
+        -o "${params.cohort}_merged_filtered.vcf.bgz" \
+        -W=tbi - -- -t AC,AF,AN
     """
 }

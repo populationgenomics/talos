@@ -31,7 +31,7 @@ VALID_SEX = {'1', '2', '0'}
 MALE_SEX = {'male', '1'}
 FEMALE_SEX = {'female', '2'}
 UNKNOWN_SEX = {'0', 'unknown', 'other'}
-NULL_VALUES = {'0', 0, 'other', '-', '', 'unaffected'}
+NULL_VALUES = {'0', 0, 'other', '-', '', 'unaffected', '-9'}
 VALID_AFFECTED = {'0', '1', '2'}
 GRUDGINGLY_VALID_AFFECTED = {'affected', 'true'}
 
@@ -177,8 +177,19 @@ class PedigreeParser:
         A situation for this is when a provided pedigree is a superset of the participants we have variant data for. By
         stripping the pedigree down to only the samples we've really seen, we can use all pedigree participants with no
         need to constantly re-check.
+
+        Additional behaviour, as well as main identities, also strip out mother/father where they're not in the subset
         """
-        return {key: value for key, value in self.participants.items() if key in only_participants}
+        return_data: PEDIGREE_DATA = {}
+        for sample_id, participant in self.participants.items():
+            if sample_id not in only_participants:
+                continue
+            if participant.mother_id not in only_participants:
+                participant.mother_id = NULL_PARTICIPANT
+            if participant.father_id not in only_participants:
+                participant.father_id = NULL_PARTICIPANT
+            return_data[sample_id] = participant
+        return return_data
 
     def write_pedigree(
         self,

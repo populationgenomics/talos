@@ -27,6 +27,13 @@
         .group-name {
             font-weight: normal;
         }
+
+        .child-row-content {
+            max-width: 1200px;
+            margin-left: 0;
+            margin-right: auto;
+            text-align: left;
+        }
     </style>
   </head>
 
@@ -34,109 +41,609 @@
     <nav class="navbar navbar-dark bg-dark justify-content-start">
       <a class="navbar-brand p-1" href="#"> {{ report_title|default("Talos Report") }}</a>
       <span class="navbar-text">
-        {{ run_datetime }}
+        Generated: {{ run_datetime }}
       </span>
     </nav>
 
-    {# Results #}
-    <div>
+    <div class="container-fluid py-4 px-3 px-lg-4">
+        <ul class="nav nav-tabs mb-3" id="report-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-pane" type="button" role="tab" aria-controls="results-pane" aria-selected="true">Results</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata-pane" type="button" role="tab" aria-controls="metadata-pane" aria-selected="false"> Run Metadata</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config-pane" type="button" role="tab" aria-controls="config-pane" aria-selected="false">Run Configuration</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="report-tabs-content">
+            <div class="tab-pane fade show active" id="results-pane" role="tabpanel" aria-labelledby="results-tab">
+                <button class="btn btn-outline-info btn-sm mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#report-help"
+                    aria-expanded="false" aria-controls="report-help">
+                    Help
+                </button>
+                <div class="collapse" id="report-help">
+                    <div class="card card-body mb-3">
+                        <h5>Symbol Legend</h5>
 
-        </br>
-        ClinvArbitration, CPG's re-aggregation of ClinVar submissions: <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">https://github.com/populationgenomics/ClinvArbitration</a>
-        </br>
-        <i class="bi-person-check-fill text-success">Phenotype match: Panel-based</i>
-        </br>
-        <i class="bi-person-check-fill text-info">Phenotype match: Cohort-based</i>
-        </br>
-        <i class="bi-person-check-fill" style="color: #FF5733">Phenotype match: HPO-based</i>
-        </br>
-        <i class="bi bi-star-fill text-warning"> New Genes in the Mendeliome</i>
-        </br>
-        <i class="bi bi-star-fill text-primary"> New Genes in phenotype-matched panels</i>
+                        <p class="mb-1">
+                        <i class="bi bi-person-check-fill text-success"></i>
+                        Phenotype match (panel-based): One or more patient HPO terms match HPO terms characteristic of a disease-specific gene panel.
+                        </p>
 
-        <table class="display" id="variant-table">
+                        <p class="mb-1">
+                        <i class="bi bi-person-check-fill text-info"></i>
+                        Phenotype match (cohort-based): This gene is included in a PanelApp Australia panel configured for this cohort.
+                        </p>
 
-            <thead>
-                <tr>
-                    <th class="group-separator">Individual</th>
-                    <th>Family</th>
-                    <th>Source</th>
-                    <th>Variant</th>
-                    <th>Gene (MOI)</th>
-                    <th>Pheno Match</th>
-                    <th>Categories</th>
-                    <th>gnomAD 4.1</th>
-                    <th>First Tagged</th>
-                    <th>MANE CSQ</th>
-                    <th>ClinvArbitration</th>
-                    <th>PM5 ClinvArbitration</th>
-                    <th>Ext. Label</th>
-                    <th>Flags</th>
-                    <th>Support</th>
-                </tr>
-                <tr>
-                    <th><input type="text" placeholder="Search Individual"></th>
-                    <th><input type="text" placeholder="Search Family"></th>
-                    <th><input type="text" placeholder="Search Source"></th>
-                    <th><input type="text" placeholder="Search Variant"></th>
-                    <th><input type="text" placeholder="Search Gene (MOI)"></th>
-                    <th><input type="text" placeholder="Search Pheno Match"></th>
-                    <th><input type="text" placeholder="Search Categories"></th>
-                    <th><input type="text" placeholder="Search gnomAD"></th>
-                    <th><input type="text" placeholder="Search First Tagged"></th>
-                    <th><input type="text" placeholder="Search MANE CSQ"></th>
-                    <th><input type="text" placeholder="Search ClinvArbitration"></th>
-                    <th><input type="text" placeholder="Search PM5 ClinvArbitration"></th>
-                    <th><input type="text" placeholder="Search Ext. Label"></th>
-                    <th><input type="text" placeholder="Search Flags"></th>
-                    <th><input type="text" placeholder="Search Support"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sample in samples if sample.variants %}
-                    {% for variant in sample.variants %}
-                        {% include "variant_table_row.html.jinja" %}
+                        <p class="mb-1">
+                        <i class="bi bi-person-check-fill" style="color:#FF5733"></i>
+                        Phenotype match (HPO-based): One or more patient HPO terms match HPO terms associated with this gene.
+                        </p>
+
+                        <p class="mb-1">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        Genes that have recently been added to the
+                        <a href="https://panelapp-aus.org/panels/137/" target="_blank">Mendeliome gene panel</a>.
+                        </p>
+
+                        <p class="mb-2">
+                        <i class="bi bi-star-fill text-primary"></i>
+                        Genes that have recently been added to a panel matched to this patient’s HPO terms.
+                        </p>
+
+                        <h5>ClinvArbitration</h5>
+                        <p class="mb-2">
+                        ClinVar classifications are aggregated from individual ClinVar submissions using
+                        <a href="https://github.com/populationgenomics/ClinvArbitration" target="_blank">ClinvArbitration</a>.
+                        The tool favours clear assignment of pathogenic or benign ratings rather than defaulting to ‘conflicting’.
+                        </p>
+                        <h5>Flags</h5>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">AB Ratio</span>  allele balance falls outside the expected ranges (≤0.15 overall, outside 0.25–0.75 for hets, or ≤0.85 for homs)
+                        </p>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">Low Read Depth</span> read depth (AD) for the sample is below the minimum threshold (default: 10)
+                        </p>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">Ambiguous MOI</span> applied to AD Talos candidates that are P/LP in ClinVar but the gene is associated with both dominant and recessive disorders inheritance in PanelApp.
+                        </p>
+
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="phenotype-filter" class="form-label">Phenotype match filter</label>
+                    <select id="phenotype-filter" class="form-select form-select-sm" style="max-width: 240px;">
+                        <option value="all" selected>All variants</option>
+                        <option value="has">With phenotype match</option>
+                        <option value="none">Without phenotype match</option>
+                    </select>
+                </div>
+
+                <table class="display" id="variant-table">
+
+                    <thead>
+                        <tr>
+                            <th class="group-separator">Individual</th>
+                            <th>Variant</th>
+                            <th>Gene (MOI)</th>
+                            <th>Categories</th>
+                            <th>First Tagged</th>
+                            <th>MANE CSQ</th>
+                            <th>ClinvArbitration</th>
+                            <th>Flags</th>
+                        </tr>
+                        <tr>
+                            <th><input type="text" placeholder="Search Individual"></th>
+                            <th><input type="text" placeholder="Search Variant"></th>
+                            <th><input type="text" placeholder="Search Gene (MOI)"></th>
+                            <th><input type="text" placeholder="Search Categories"></th>
+                            <th><input type="text" placeholder="Search First Tagged"></th>
+                            <th><input type="text" placeholder="Search MANE CSQ"></th>
+                            <th><input type="text" placeholder="Search ClinVar"></th>
+                            <th><input type="text" placeholder="Search Flags"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sample in samples if sample.variants %}
+                            {% for variant in sample.variants %}
+                                {% include "variant_table_row.html.jinja" %}
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="tab-pane fade" id="metadata-pane" role="tabpanel" aria-labelledby="metadata-tab">
+                {% if summary_table or meta_tables %}
+                    {% if summary_table %}
+                    <div class="card mb-3">
+                        <div class="card-header">Run Summary</div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            {% for column in summary_table.columns %}
+                                            <th>{{ column|e }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in summary_table.rows %}
+                                        <tr>
+                                            {% for column in summary_table.columns %}
+                                            <td>{{ row[column]|default('', true)|e }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if zero_categorised_samples %}
+                    <div class="alert alert-warning" role="alert">
+                        Samples with no candidate variants: {{ zero_categorised_samples|join(', ')|e }}
+                    </div>
+                    {% endif %}
+                    {% if unused_ext_labels %}
+                    <div class="alert alert-info" role="alert">
+                        Unused external labels:
+                        <ul class="mb-0">
+                            {% for entry in unused_ext_labels %}
+                            <li>{{ entry|tojson }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if meta_tables %}
+                    {% for table_name, table in meta_tables.items() %}
+                        <div class="card mb-3">
+                            <div class="card-header">{{ table_name|e }}</div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                {% for column in table.columns %}
+                                                <th>{{ column|e }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in table.rows %}
+                                            <tr>
+                                                {% for column in table.columns %}
+                                                <td>{{ row[column]|default('', true)|e }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     {% endfor %}
-                {% endfor %}
-            </tbody>
-        </table>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No metadata available.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="config-pane" role="tabpanel" aria-labelledby="config-tab">
+                {% if config_json %}
+                <div class="card">
+                    <div class="card-body">
+                        <pre class="bg-light border rounded p-3 small text-break" style="white-space: pre-wrap;">{{ config_json|e }}</pre>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No configuration details available.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <script>
     $(document).ready(function() {
-        var collapsedGroups = {};
+        function ucscUrl(variant, padding) {
+            if (padding === undefined) {
+                padding = 20;
+            }
+            var pos = parseInt(variant.pos, 10);
+            var refLen = variant.ref ? variant.ref.length : 1;
+            return 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&highlight=hg38.chr' +
+                   variant.chrom + ':' + pos + '-' + (refLen + pos - 1) +
+                   '&position=chr' + variant.chrom + ':' + (pos - padding) + '-' + (pos + padding);
+        }
 
-        // Initialize DataTable
+        function spliceAiUrl(variant, distance, mask) {
+            if (distance === undefined) {
+                distance = 500;
+            }
+            if (mask === undefined) {
+                mask = 0;
+            }
+            return 'https://spliceailookup.broadinstitute.org/#variant=' +
+                   variant.chrom + ':' + variant.pos + '-' + variant.ref + '-' + variant.alt +
+                   '&hg=38&distance=' + distance + '&mask=' + mask + '&precomputed=0';
+        }
+
+        function omimGeneUrl(symbol) {
+            return 'https://www.omim.org/search?index=entry&start=1&search=' +
+                   encodeURIComponent(symbol) + '&field=approved_gene_symbol';
+        }
+
+        function decipherUrl(geneId, proteinView) {
+            if (proteinView === undefined) {
+                proteinView = true;
+            }
+            if (proteinView) {
+                return 'https://www.deciphergenomics.org/gene/' + geneId + '/overview/protein-genomic-info';
+            }
+            return 'https://www.deciphergenomics.org/gene/' + geneId + '/overview/clinical-info';
+        }
+
+        function pedSymbol(sex, affected) {
+            var shape = 'diamond';
+            if (sex === 'male' || sex === '1') {
+                shape = 'square';
+            } else if (sex === 'female' || sex === '2') {
+                shape = 'circle';
+            }
+
+            var iconClass = 'bi-question-' + shape;
+            if (affected === '2' || affected === 'true' || affected === true) {
+                iconClass = 'bi-' + shape + '-fill';
+            } else if (affected === '1' || affected === 'false' || affected === false) {
+                iconClass = 'bi-' + shape;
+            }
+
+            return '<i class="' + iconClass + ' text-small text-secondary"></i>';
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === undefined || unsafe === null) {
+                return '';
+            }
+            var value = String(unsafe);
+            return value
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function parseDataAttribute(tr, attribute, fallback) {
+            var value = tr.attr(attribute);
+            if (value === undefined || value === null) {
+                return fallback;
+            }
+
+            if (typeof value !== 'string') {
+                return value;
+            }
+
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        var phenotypeFilter = $('#phenotype-filter');
+
+        $('#variant-table tbody tr').each(function () {
+            if (!this.hasAttribute('data-has-phenotype')) {
+                this.setAttribute('data-has-phenotype', '0');
+            }
+        });
+
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable !== $('#variant-table')[0]) {
+                return true;
+            }
+
+            var filterValue = phenotypeFilter.val();
+            if (!filterValue || filterValue === 'all') {
+                return true;
+            }
+
+            var aoData = settings.aoData[dataIndex];
+            var rowNode = aoData && aoData.nTr;
+            if (!rowNode) {
+                return true;
+            }
+
+            var hasPhenotype = rowNode.getAttribute('data-has-phenotype');
+
+            if (filterValue === 'has') {
+                return hasPhenotype === '1';
+            }
+
+            if (filterValue === 'none') {
+                return hasPhenotype !== '1';
+            }
+
+            return true;
+        });
+
+        function formatChildRow(rowData) {
+            var variantData = rowData.variantData || {};
+            var genotypes = rowData.genotypes || {};
+            var phenotypes = rowData.phenotypes || [];
+            var panelDetails = rowData.panelDetails || {};
+            var familyMembers = rowData.familyMembers || {};
+            var familyDisplay = rowData.familyDisplay || {};
+            var supportVars = rowData.supportVars || [];
+        var transcriptConsequences = rowData.transcriptConsequences || [];
+
+        var html = '<div class="child-row-content"><div class="row">';
+
+        html += '<div class="col-md-6"><div class="card"><div class="card-body">';
+        html += '<h5 class="card-title">Variant Details</h5><dl class="row">';
+
+        html += '<dt class="col-sm-4">Coordinates</dt><dd class="col-sm-8">';
+        html += escapeHtml(rowData.variantCoords) + '<br>' + escapeHtml(rowData.variantChange);
+        html += '</dd>';
+
+        if (rowData.variantType) {
+            html += '<dt class="col-sm-4">Source</dt><dd class="col-sm-8">';
+            html += escapeHtml(String(rowData.variantType));
+            html += '</dd>';
+        }
+
+        if (variantData.info && variantData.info.as_filterstatus) {
+            html += '<dt class="col-sm-4">Filter status</dt><dd class="col-sm-8">';
+            html += escapeHtml(String(variantData.info.as_filterstatus));
+            html += '</dd>';
+        }
+
+        if (supportVars && supportVars.length > 0) {
+            var validSupport = supportVars.filter(function(entry) {
+                return entry && entry.var_string;
+            });
+            if (validSupport.length > 0) {
+                html += '<dt class="col-sm-4">Supporting variants</dt><dd class="col-sm-8">';
+                validSupport.forEach(function(entry, index) {
+                    if (entry.url) {
+                        html += '<a href="' + escapeHtml(entry.url) + '" target="_blank">' + escapeHtml(entry.var_string) + '</a>';
+                    } else {
+                        html += escapeHtml(entry.var_string);
+                    }
+                    if (index < validSupport.length - 1) {
+                        html += '<br>';
+                    }
+                });
+                html += '</dd>';
+            }
+        }
+
+        if (rowData.variantType === 'StructuralVariant' && variantData.info) {
+            var svLen = variantData.info.svlen;
+            var svType = variantData.info.svtype;
+            if (svType) {
+                html += '<dt class="col-sm-4">Structural details</dt><dd class="col-sm-8">';
+                html += escapeHtml(String(svType));
+                if (svLen !== undefined && svLen !== null) {
+                    html += ' ' + escapeHtml(String(svLen)) + 'bp';
+                }
+                html += '</dd>';
+            }
+        }
+
+            html += '<dt class="col-sm-4">Allele Counts</dt><dd class="col-sm-8">';
+            if (variantData.info) {
+                var callsetAc = (variantData.info.ac !== undefined && variantData.info.ac !== null) ? variantData.info.ac : 'N/A';
+                var callsetAn = (variantData.info.an !== undefined && variantData.info.an !== null) ? variantData.info.an : 'N/A';
+                html += 'This callset AC: ' + escapeHtml(String(callsetAc)) + ' / AN: ' + escapeHtml(String(callsetAn)) + '<br>';
+
+                if (rowData.variantType === 'SmallVariant' && variantData.info.gnomad_ac !== undefined && variantData.info.gnomad_ac !== null) {
+                    var gnomadId = null;
+                    if (variantData.coordinates && variantData.coordinates.chrom && variantData.coordinates.ref && variantData.coordinates.alt) {
+                        gnomadId = [
+                            variantData.coordinates.chrom,
+                            variantData.coordinates.pos,
+                            variantData.coordinates.ref,
+                            variantData.coordinates.alt
+                        ].join('-');
+                    }
+                    if (!gnomadId) {
+                        gnomadId = rowData.variantCoords.replace(':', '-');
+                    }
+                    var gnomadAfVal = variantData.info.gnomad_af;
+                    var gnomadAf = 'N/A';
+                    if (gnomadAfVal !== undefined && gnomadAfVal !== null && !isNaN(parseFloat(gnomadAfVal))) {
+                        gnomadAf = parseFloat(gnomadAfVal).toFixed(5);
+                    }
+                    html += 'gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(gnomadId) + '?dataset=gnomad_r4" target="_blank"> AC:' + escapeHtml(String(variantData.info.gnomad_ac)) + ' AF: ' + escapeHtml(String(gnomadAf)) + '</a>';
+                } else if (rowData.variantType === 'StructuralVariant' && variantData.info.gnomad_key) {
+                    var svAfVal = variantData.info['gnomad_v2.1_sv_af'];
+                    var svAf = 'N/A';
+                    if (svAfVal !== undefined && svAfVal !== null && !isNaN(parseFloat(svAfVal))) {
+                        svAf = parseFloat(svAfVal).toFixed(5);
+                    }
+                    html += 'gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/' + encodeURIComponent(String(variantData.info.gnomad_key)) + '?dataset=gnomad_sv_r2_1" target="_blank">' + escapeHtml(String(svAf)) + '</a>';
+                }
+            }
+            html += '</dd>';
+
+            if (rowData.variantType === 'SmallVariant' && variantData.info) {
+                html += '<dt class="col-sm-4">In Silico Predictions</dt><dd class="col-sm-8">';
+                if (variantData.info.alpha_missense_max && variantData.info.alpha_missense_max !== 'missing') {
+                    html += 'AlphaMissense: ' + parseFloat(variantData.info.alpha_missense_max).toFixed(2) + '<br>';
+                }
+                if (variantData.info.splice_ai_delta) {
+                    var variantRef = {
+                        chrom: rowData.variantCoords.split(':')[0],
+                        pos: rowData.variantCoords.split(':')[1],
+                        ref: variantData.coordinates ? variantData.coordinates.ref : '',
+                        alt: variantData.coordinates ? variantData.coordinates.alt : ''
+                    };
+                    html += 'SpliceAI: <a href="' + spliceAiUrl(variantRef) + '" target="_blank">' + parseFloat(variantData.info.splice_ai_delta).toFixed(2) + '</a>';
+                    if (variantData.info.splice_ai_csq && !['missing', 'No_consequence'].includes(variantData.info.splice_ai_csq)) {
+                        html += ' (' + escapeHtml(variantData.info.splice_ai_csq) + ')';
+                    }
+                }
+                html += '</dd>';
+
+                html += '<dt class="col-sm-4">External Links</dt><dd class="col-sm-8">';
+                var variantForLinks = {
+                    chrom: rowData.variantCoords.split(':')[0],
+                    pos: rowData.variantCoords.split(':')[1],
+                    ref: variantData.coordinates ? variantData.coordinates.ref : '',
+                    alt: variantData.coordinates ? variantData.coordinates.alt : ''
+                };
+                var genes = rowData.genes ? rowData.genes.split(',') : [];
+                var firstGene = genes[0] ? genes[0].split(':') : ['', ''];
+
+                html += '<a href="' + spliceAiUrl(variantForLinks) + '" target="_blank">SpliceAI</a> | ';
+                html += '<a href="' + ucscUrl(variantForLinks) + '" target="_blank">UCSC</a> | ';
+                if (firstGene[0]) {
+                    html += '<a href="' + decipherUrl(firstGene[0], true) + '" target="_blank">Decipher</a> ';
+                    html += '<a href="' + decipherUrl(firstGene[0], false) + '" target="_blank">(Clinical)</a> | ';
+                }
+                if (firstGene[1]) {
+                    html += '<a href="' + omimGeneUrl(firstGene[1]) + '" target="_blank">OMIM</a>';
+                }
+                html += '</dd>';
+            } else if (rowData.variantType === 'StructuralVariant' && variantData.info) {
+                html += '<dt class="col-sm-4">Additional</dt><dd class="col-sm-8">';
+                var lof = variantData.info.lof;
+                if (lof) {
+                    var lofText = Array.isArray(lof) ? lof.join(', ') : String(lof);
+                    html += 'LoF Genes: ' + escapeHtml(lofText) + '<br>';
+                }
+                var algorithms = variantData.info.algorithms;
+                if (algorithms) {
+                    var algText = Array.isArray(algorithms) ? algorithms.join(', ') : String(algorithms);
+                    html += 'Algorithms: ' + escapeHtml(algText) + '<br>';
+                }
+                var evidence = variantData.info.evidence;
+                if (evidence) {
+                    var evidenceText = Array.isArray(evidence) ? evidence.join(', ') : String(evidence);
+                    html += 'Evidence Types: ' + escapeHtml(evidenceText) + '<br>';
+                }
+                if (rowData.genes) {
+                    var genesList = rowData.genes.split(',');
+                    var first = genesList[0] ? genesList[0].split(':') : ['', ''];
+                    if (first[1]) {
+                        html += '<a href="' + omimGeneUrl(first[1]) + '" target="_blank">OMIM</a>';
+                    }
+                }
+                html += '</dd>';
+            }
+
+            html += '</dl></div></div></div>';
+
+            html += '<div class="col-md-6"><div class="card"><div class="card-body">';
+            html += '<h5 class="card-title">Family Information</h5><dl class="row">';
+
+            html += '<dt class="col-sm-4">Genotypes</dt><dd class="col-sm-8">';
+            Object.keys(genotypes).forEach(function(sampleId) {
+                if (familyMembers[sampleId] && familyDisplay[sampleId] && genotypes[sampleId]) {
+                    var member = familyMembers[sampleId];
+                    var sex = member.sex && member.sex.value ? member.sex.value : member.sex;
+                    var affected = member.affected;
+                    html += pedSymbol(sex, affected) + ' ';
+                    html += escapeHtml(familyDisplay[sampleId]) + ' - ' + escapeHtml(genotypes[sampleId]) + '<br>';
+                }
+            });
+            html += '</dd>';
+
+            html += '<dt class="col-sm-4">Phenotypes</dt><dd class="col-sm-8">';
+            phenotypes.forEach(function(phenotype) {
+                if (phenotype && phenotype.id && phenotype.label) {
+                    html += escapeHtml(phenotype.id) + ' - ' + escapeHtml(phenotype.label) + '<br>';
+                }
+            });
+            html += '</dd>';
+
+            html += '<dt class="col-sm-4">Panels</dt><dd class="col-sm-8">';
+            Object.keys(panelDetails).forEach(function(panelId) {
+                var panel = panelDetails[panelId];
+                if (panel && panel.name) {
+                    html += escapeHtml(panel.name) + ' (' + escapeHtml(panelId) + ') v.' + escapeHtml(panel.version || 'N/A') + '<br>';
+                }
+            });
+            html += '</dd>';
+
+            html += '</dl></div></div>';
+
+        html += '</div></div>';
+
+            if (transcriptConsequences && transcriptConsequences.length > 0) {
+                html += '<div class="col-12 mt-3"><div class="card"><div class="card-body">';
+                html += '<h5 class="card-title">Transcript Consequences</h5>';
+                html += '<div class="table-responsive"><table class="table table-sm table-striped">';
+                html += '<thead class="table-dark"><tr>';
+                html += '<th>Gene</th><th>Transcript</th><th>Protein change</th><th>Consequence</th>';
+                html += '<th>Biotype</th><th>AlphaMissense</th>';
+                html += '</tr></thead><tbody>';
+
+                transcriptConsequences.forEach(function(csq) {
+                    if (csq) {
+                        var transcriptId = csq.transcript || csq.feature || '';
+                        html += '<tr>';
+                        html += '<td>' + escapeHtml(csq.gene || '') + '</td>';
+                        html += '<td><small>' + escapeHtml(transcriptId) + '</small></td>';
+                        var proteinChange = (csq.amino_acid_change || '');
+                        html += '<td><small>' + escapeHtml(proteinChange.trim()) + '</small>';
+                        if (csq.mane_id) {
+                            html += ' <span class="badge text-bg-info"> MANE - ' + escapeHtml(String(csq.mane_id)) + '</span>';
+                        }
+                        html += '</td>';
+                        html += '<td><small>' + escapeHtml(csq.consequence || '') + '</small></td>';
+                        html += '<td><small>' + escapeHtml(csq.biotype || '') + '</small></td>';
+                        html += '<td>' + escapeHtml(csq.am_class || '');
+                        if (csq.am_pathogenicity && typeof csq.am_pathogenicity === 'number') {
+                            html += ' (' + csq.am_pathogenicity.toFixed(2) + ')';
+                        }
+                        html += '</td></tr>';
+                    }
+                });
+
+                html += '</tbody></table></div></div></div></div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
         var table = $('#variant-table').DataTable({
-            "paging": true,
-            "pageLength": 50, // Number of rows per page
-            "lengthMenu": [10, 25, 50, 100], // Options for rows per page
-            "ordering": true, // Enable sorting
-            "searching": true, // Enable searching
+            paging: true,
+            pageLength: 50,
+            lengthMenu: [10, 25, 50, 100],
+            ordering: true,
+            searching: true,
             rowGroup: {
-                // Uses the 'row group' plugin
-                dataSrc: 0,
+                dataSrc: function (row) {
+                    var cellHtml = row[0];
+                    var tempDiv = $('<div>').html(cellHtml);
+                    return tempDiv.text().trim() || 'Unknown';
+                },
                 startRender: function (rows, group) {
-                    var collapsed = !!collapsedGroups[group];
+                    var collapsed = false;
 
                     rows.nodes().each(function (r) {
                         r.style.display = collapsed ? 'none' : '';
                     });
 
-                    // Add category name to the <tr>
-                    return $('<tr/>')
-                        .append('<td colspan="100%">' + group + ' (' + rows.count() + ')</td>')
+                    var headerRow = $('<tr/>')
+                        .append('<td colspan="100%">' + escapeHtml(group) + ' (' + rows.count() + ')</td>')
                         .attr('data-name', group)
-                        .toggleClass('collapsed', collapsed);
-                }
-              }
-            }
-        );
+                        .addClass('group-start');
 
-       $('#variant-table tbody').on('click', 'tr.group-start', function () {
-            var name = $(this).data('name');
-            collapsedGroups[name] = !collapsedGroups[name];
-            table.draw(false);
+                    if (collapsed) {
+                        headerRow.addClass('collapsed');
+                    }
+
+                    return headerRow;
+                }
+            }
         });
 
         // Prevent sorting when clicking on input fields
@@ -157,9 +664,63 @@
         });
 
 
+        $('#variant-table tbody').on('click', 'td.details-control', function () {
+            var tr = $(this).closest('tr');
+            var row = table.row(tr);
+
+            if (row.child.isShown()) {
+                row.child.hide();
+                tr.removeClass('shown');
+                $(this).find('i').removeClass('bi-dash-square').addClass('bi-plus-square');
+            } else {
+                var rowData = {
+                    variantType: tr.attr('data-variant-type') || '',
+                    sampleName: tr.attr('data-sample-name') || '',
+                    sampleExtId: tr.attr('data-sample-ext-id') || '',
+                    familyId: tr.attr('data-family-id') || '',
+                    variantCoords: tr.attr('data-variant-coords') || '',
+                    variantChange: tr.attr('data-variant-change') || '',
+                    genes: tr.attr('data-genes') || '',
+                    variantData: parseDataAttribute(tr, 'data-variant-data', {}),
+                    genotypes: parseDataAttribute(tr, 'data-genotypes', {}),
+                    phenotypes: parseDataAttribute(tr, 'data-phenotypes', []),
+                    panelDetails: parseDataAttribute(tr, 'data-panel-details', {}),
+                    familyMembers: parseDataAttribute(tr, 'data-family-members', {}),
+                    familyDisplay: parseDataAttribute(tr, 'data-family-display', {}),
+                    supportVars: parseDataAttribute(tr, 'data-support-vars', []),
+                    transcriptConsequences: parseDataAttribute(tr, 'data-transcript-consequences', [])
+                };
+
+                row.child(formatChildRow(rowData)).show();
+                tr.addClass('shown');
+                $(this).find('i').removeClass('bi-plus-square').addClass('bi-dash-square');
+            }
+        });
+
         // Enable bootstrap tool tips
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+        var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        phenotypeFilter.on('change', function () {
+            table.draw();
+        });
+
+        $('#variant-table tbody').on('click', 'tr.group-start', function () {
+            var name = $(this).data('name');
+            var collapsed = $(this).hasClass('collapsed');
+            $(this).toggleClass('collapsed');
+
+            table.rows(function (idx, data, node) {
+                var cellHtml = data[0];
+                var tempDiv = $('<div>').html(cellHtml);
+                var text = tempDiv.text().trim() || 'Unknown';
+                return text === name;
+            }).nodes().to$().each(function () {
+                this.style.display = collapsed ? '' : 'none';
+            });
+        });
       });
     </script>
   </body>

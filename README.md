@@ -62,7 +62,7 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 To build the Docker image:
 
 ```
-docker build -t talos:8.0.0 .
+docker build -t talos:8.2.0 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -71,7 +71,7 @@ Talos requires several large external resources (e.g. reference genome, gnomAD, 
 
 ### **3. Run Annotation Workflow**
 
-This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--merged_vcf <path>`:
+This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--merged_vcf <path>` (AC/AF/AN values for each variant will be added to the VCF based on the subset of samples present. If you would like to provide this allele frequency data from an alternate source please raise an issue, and we can look into this):
 
 ```
 nextflow -c nextflow/annotation.config \
@@ -193,7 +193,7 @@ Only variants passing configured thresholds and logic modules are returned.
 ## **🔁 Reanalysis Mode**
 
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading/writing state files in a specific folder, which is set in the config file as `result_history`. This allows Talos to track which variants have been seen before, and which have not.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the config setting `params.previous_results`. See [History](docs/Reanalysis.md) for more information.
 
 ### **How it works:**
 
@@ -208,7 +208,6 @@ By integrating the results of previous analyses with each new run, each variant 
 - first_seen: original detection date
 
 - evidence_last_updated: last evidence update (ClinVar, PanelApp)
-
 
 > Talos maintains low review burden by allowing users to filter to only variants with newly actionable evidence in each analysis.
 
@@ -251,12 +250,14 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 
 | **Module**    | **Description**                                     |
 |---------------|-----------------------------------------------------|
-| ClinVarP/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
-| HighImpact    | Predicted high-impact protein consequences          |
-| DeNovo        | Confirmed de novo in affected individual            |
+| ClinVar P/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
+| ClinVar Recent Gene | P/LP in a PanelApp “new” gene (became Green within the recency window configured by `GeneratePanelData.within_x_months`, default 24) |
+| High Impact    | Predicted high-impact protein consequences          |
+| De Novo        | Confirmed de novo in affected individual            |
 | PM5           | Missense in codon with known pathogenic variant     |
 | LofSV         | Predicted loss-of-function structural variant       |
-| AlphaMissense | AlphaMissense-predicted pathogenic missense variant |
+| ClinVar 0-star | P/LP with 0 gold stars in ClinVar [Supporting category] |
+| AlphaMissense | AlphaMissense-predicted pathogenic missense variant  [Supporting category] |
 
 Each module can be configured through the `.toml` config file (see [Configuration.md](docs/Configuration.md))
 

@@ -9,8 +9,8 @@ import hail as hl
 
 from talos.models import PanelApp
 from talos.RunHailFiltering import (
-    annotate_category_3,
-    annotate_category_6,
+    annotate_category_alphamissense,
+    annotate_category_high_impact,
     annotate_clinvarbitration,
     filter_to_categorised,
     filter_to_population_rare,
@@ -20,9 +20,6 @@ from talos.RunHailFiltering import (
 
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED
 
-category_1_keys = ['locus', 'categoryboolean1']
-category_2_keys = ['locus', 'clinvar_talos', 'cadd', 'revel', 'geneIds', 'consequence_terms']
-category_3_keys = ['locus', 'clinvar_talos', 'lof', 'consequence_terms']
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
 
 
@@ -34,14 +31,7 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
     ],
 )
 def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a_mt):
-    """
-
-    Args:
-        clinvar_talos ():
-        consequence_terms ():
-        classified ():
-        make_a_mt ():
-    """
+    """"""
 
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(clinvar_talos=clinvar_talos),
@@ -52,8 +42,8 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
         ),
     )
 
-    anno_matrix = annotate_category_3(anno_matrix)
-    assert anno_matrix.info.categoryboolean3.collect() == [classified]
+    anno_matrix = annotate_category_high_impact(anno_matrix)
+    assert anno_matrix.info.categorybooleanhighimpact.collect() == [classified]
 
 
 @pytest.mark.skip(reason='category 5 currently inactive')
@@ -63,15 +53,11 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
 )
 def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
     """
-
-    Args:
-        spliceai_score ():
-        flag ():
-        make_a_mt ():
+    we don't currently use category 5, but test the logic here anyway
     """
 
     matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score))
-    assert matrix.info.categoryboolean5.collect() == [flag]
+    assert matrix.info.categorybooleanspliceai.collect() == [flag]
 
 
 @pytest.mark.parametrize(
@@ -83,14 +69,8 @@ def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
         (hl.missing('tstr'), 0),
     ],
 )
-def test_class_6_assignment(am_class, classified, make_a_mt):
-    """
-
-    Args:
-        am_class ():
-        classified ():
-        make_a_mt ():
-    """
+def test_alphamissense_assignment(am_class, classified, make_a_mt):
+    """"""
 
     anno_matrix = make_a_mt.annotate_rows(
         transcript_consequences=hl.array(
@@ -100,9 +80,9 @@ def test_class_6_assignment(am_class, classified, make_a_mt):
         ),
     )
 
-    anno_matrix = annotate_category_6(anno_matrix)
+    anno_matrix = annotate_category_alphamissense(anno_matrix)
     anno_matrix.rows().show()
-    assert anno_matrix.info.categoryboolean6.collect() == [classified]
+    assert anno_matrix.info.categorybooleanalphamissense.collect() == [classified]
 
 
 def annotate_c6_missing(make_a_mt, caplog):
@@ -121,8 +101,8 @@ def annotate_c6_missing(make_a_mt, caplog):
         ),
     )
 
-    anno_matrix = annotate_category_6(anno_matrix)
-    assert anno_matrix.info.categoryboolean6.collect() == [0]
+    anno_matrix = annotate_category_alphamissense(anno_matrix)
+    assert anno_matrix.info.categorybooleanalphamissense.collect() == [0]
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
 
@@ -225,16 +205,18 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,three,four,five,six,pm5,svdb,exomiser,length',
+    'one,three,four,five,six,pm5,svdb,exomiser,zerostar,newgene,length',
     [
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0),
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 1),
-        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 1),
-        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 0, 0, 1),
+        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 1, 1),
     ],
 )
 def test_filter_to_classified(
@@ -246,6 +228,8 @@ def test_filter_to_classified(
     pm5: str,
     svdb: int,
     exomiser: str,
+    zerostar: int,
+    newgene: int,
     length: int,
     make_a_mt: hl.MatrixTable,  # via a pytest fixture
 ):
@@ -254,14 +238,16 @@ def test_filter_to_classified(
     """
     anno_matrix = make_a_mt.annotate_rows(
         info=make_a_mt.info.annotate(
-            categoryboolean1=one,
-            categoryboolean3=three,
-            categorysample4=four,
-            categoryboolean5=five,
-            categoryboolean6=six,
+            categorybooleanclinvarplp=one,
+            categorybooleanhighimpact=three,
+            categorysampledenovo=four,
+            categorybooleanspliceai=five,
+            categorybooleanalphamissense=six,
             categorydetailspm5=pm5,
             categorybooleansvdb=svdb,
             categorydetailsexomiser=exomiser,
+            categorybooleanclinvar0star=zerostar,
+            categorybooleanclinvar0starnewgene=newgene,
         ),
     )
     matrix = filter_to_categorised(anno_matrix)
@@ -286,7 +272,6 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     - apply the parametrized annotations to the table
     """
 
-    # make into a data frame
     table = hl.Table.from_pandas(
         pd.DataFrame(
             [
@@ -305,7 +290,73 @@ def test_annotate_talos_clinvar(rating, stars, rows, regular, strong, tmp_path, 
     table_path = str(tmp_path / 'anno.ht')
     table.write(table_path)
 
-    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path)
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal({'ensga'}))
     assert returned_table.count_rows() == rows
     assert len([x for x in returned_table.info.clinvar_talos.collect() if x == 1]) == regular
-    assert len([x for x in returned_table.info.categoryboolean1.collect() if x == 1]) == strong
+    assert len([x for x in returned_table.info.categorybooleanclinvarplp.collect() if x == 1]) == strong
+
+
+@pytest.mark.parametrize(
+    'rating,stars,expected_flag',
+    [
+        ('Pathogenic/Likely Pathogenic', 0, 1),
+        ('Pathogenic/Likely Pathogenic', 1, 0),
+        ('other', 3, 0),
+        ('benign', 0, 0),  # note: benign with stars>0 would be filtered out entirely
+    ],
+)
+def test_annotate_clinvar_0star_category(rating, stars, expected_flag, tmp_path, make_a_mt):
+    """Verify categorybooleanclinvar0star is set only for P/LP with 0 stars."""
+
+    table = hl.Table.from_pandas(
+        pd.DataFrame(
+            [
+                {
+                    'locus': hl.Locus(contig='chr1', position=12345),
+                    'alleles': ['A', 'G'],
+                    'clinical_significance': rating,
+                    'gold_stars': stars,
+                    'allele_id': 1,
+                },
+            ],
+        ),
+        key=['locus', 'alleles'],
+    )
+    table_path = str(tmp_path / 'anno_0star.ht')
+    table.write(table_path)
+
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal({'ensga'}))
+    assert returned_table.info.categorybooleanclinvar0star.collect() == [expected_flag]
+
+
+@pytest.mark.parametrize(
+    'rating,stars,new_set,expected_flag',
+    [
+        ('Pathogenic/Likely Pathogenic', 0, {'ensga'}, 1),  # matches fixture gene and is 0-star
+        ('Pathogenic/Likely Pathogenic', 0, {'NOT_MATCH'}, 0),
+        ('Pathogenic/Likely Pathogenic', 1, {'ensga'}, 0),  # not 0-star
+        ('other', 0, {'ensga'}, 0),
+    ],
+)
+def test_annotate_clinvar_0star_newgene_category(rating, stars, new_set, expected_flag, tmp_path, make_a_mt):
+    """Verify categorybooleanclinvar0starnewgene requires P/LP, 0 stars, and gene in the provided new_genes set."""
+
+    table = hl.Table.from_pandas(
+        pd.DataFrame(
+            [
+                {
+                    'locus': hl.Locus(contig='chr1', position=12345),
+                    'alleles': ['A', 'G'],
+                    'clinical_significance': rating,
+                    'gold_stars': stars,
+                    'allele_id': 1,
+                },
+            ],
+        ),
+        key=['locus', 'alleles'],
+    )
+    table_path = str(tmp_path / 'anno_0star_newgene.ht')
+    table.write(table_path)
+
+    returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal(set(new_set)))
+    assert returned_table.info.categorybooleanclinvar0starnewgene.collect() == [expected_flag]

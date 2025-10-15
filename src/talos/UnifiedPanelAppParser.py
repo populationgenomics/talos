@@ -4,7 +4,7 @@ Combines the two behaviours of
 - QueryPanelApp: Use the PanelApp API to get all genes and panels relevant to the analysis
 
 Takes as input:
-- The downloadeded PanelApp data
+- The downloaded PanelApp data
 - Optionally a Pedigree file which can contain HPO terms, these would be used to match panels to families
 """
 
@@ -33,9 +33,15 @@ from talos.utils import read_json_from_path
 
 PANELAPP_BASE_PANEL = 137
 X_CHROMOSOME = {'X'}
-# most lenient to most conservative
-# usage = if we have two MOIs for the same gene, take the broadest
-ORDERED_MOIS = ['Mono_And_Biallelic', 'Monoallelic', 'Hemi_Mono_In_Female', 'Hemi_Bi_In_Female', 'Biallelic']
+# most lenient to most conservative. Usage = if we have two MOIs for the same gene, take the broadest
+ORDERED_MOIS = [
+    'Mono_And_Biallelic',
+    'Monoallelic',
+    'Hemi_Mono_In_Female',
+    'Hemi_Bi_In_Female',
+    'Biallelic',
+    'Mitochondrial',
+]
 IRRELEVANT_MOI = {'unknown', 'other'}
 
 # we consider a gene new, and worth flagging, if it was made Green in a panel within this time frame
@@ -51,6 +57,8 @@ except KeyError:
 # create a datetime threshold
 NEW_THRESHOLD = pendulum.now().subtract(months=WITHIN_X_MONTHS)
 
+# expired data check - raise errors when the downloaded PanelApp data is 2+ months old, request a refresh
+EXPIRED_DOWNLOAD = pendulum.now().subtract(months=2)
 MOI_FOR_CUSTOM_GENES = 'Mono_And_Biallelic'
 CUSTOM_PANEL_ID = 0
 
@@ -209,6 +217,8 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
 
         # run a match: case to classify it
         match input_list:
+            case ['mitochondrial']:
+                simplified_mois.add('Mitochondrial')
             case ['biallelic', *_additional]:
                 simplified_mois.add('Biallelic')
             case ['both', *_additional]:
@@ -353,6 +363,13 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
     cached_panelapp: DownloadedPanelApp = read_json_from_path(panel_data, return_model=DownloadedPanelApp)
 
     pedigree = PedigreeParser(pedigree_path)
+
+    # I think we're happy being hard here, we want to force consistent updates of the PanelApp data
+    if pendulum.from_format(cached_panelapp.date, 'YYYY-MM-DD') < EXPIRED_DOWNLOAD:
+        raise ValueError(
+            f'PanelApp data was downloaded on {cached_panelapp.date}, which is over 2 months ago. '
+            f'Please refresh the data using DownloadPanelApp.py (or by deleting this file, and re-running the wf.)',
+        )
 
     hpo_graph = None
     hpo_label_lookup = {}

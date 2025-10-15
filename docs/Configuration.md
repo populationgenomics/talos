@@ -25,7 +25,7 @@ This document explains the configuration options, the default values, and sensib
 | `require_pheno_match` | List of gene symbols to remove from analysis unless phenotype matched to a participant. This is useful to exclude genes that frequently result in noise.                                                                                                                                                                                                                                       | FLG, GJB2, F2, F5, HFE                                         |                                                                          |
 | `forbidden_genes`     | List of genes that will be excluded from all results.                                                                                                                                                                                                                                                                                                                                          | N/A                                                            | Late onset/incidental findings                                           |
 | `forced_panels`       | List of PanelApp panel IDs to apply to all cohort members. Typically used during the analysis of disease-specific cohorts. For example, if analysing a cohort consisting of patients who all have a suspected mitochondrial disorder, you could set this to `203` to highlight any genes associated with the Aus PanelApp [Mitochondrial disease panel](https://panelapp-aus.org/panels/203/). | N/A                                                            | Phenotype specific panels                                                |
-| `within_x_months`     | Integer, genes added to panels within X months are flagged in the report                                                                                                                                                                                                                                                                                                                       | 6                                                              |                                                                          |
+| `within_x_months`     | Integer, genes added to panels within X months are flagged in the report and used to determine “new” genes for the "ClinVar Recent Gene" category                                                                                                                                                                                                                                                     | 24                                                             |                                                                          |
 | `manual_overrides`    | A manually defined panel: gene symbols, MOI. Can be used to generate an artificial panel, e.g. for recently discovered genes which are not yet in PanelApp                                                                                                                                                                                                                                     | N/A                                                            | Recently discovered genes, not yet in PanelApp                           |
 
 ---
@@ -116,7 +116,7 @@ And finally, there are some further meta-parameters which control the variants b
 | `ignore_categories`       | Categories which are ignored for this analysis. Variants with only these cats. assigned will never reach the report                                          | [exomiser, svdb] |
 | `exomiser_rank_threshold` | If Exomiser is used, limit results to the top n hits                                                                                                         | 2                |
 | `phenotype_match`         | List of categories, variants with only these assigned will be removed from the report unless a phenotype-match is detected                                   | [6]              |
-| `support_categories`      | List of categories, variants with only these assigned will be removed from the report unless detected with a comp-het partner having a 'full' value category | [6]              |
+| `support_categories`      | List of categories, variants with only these assigned will be removed from the report unless detected with a comp-het partner having a 'full' value category | [alphamissense, clinvar0star] |
 
 ## Stage: `HPOFlagging`
   * Config Section: `HPOFlagging`
@@ -134,12 +134,12 @@ And finally, there are some further meta-parameters which control the variants b
 
 | Field                         | Purpose                                                                                                                                                                                                                                                                                                                |
 |-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `external_labels`             | Optional, path to an external labels JSON file. This is a nested dictionary of `sample_id[chr-pos-ref-alt]: [label, label2]`. If provided, the labels will be annotated on the report, useful in recording known false positives, or prior diagnoses etc. A log of all provided-but-not-in-results labels is generated |
 | `hyperlinks.template`         | Mandatory if `hyperlinks` section is present. A String template containing an instance of `{sample}` for interpolating with the chosen Sample ID. This should define a template link to a per-family or per-proband resource                                                                                           |
 | `hyperlinks.variant_template` | Similar to `template`, but containing both `{variant}` and `{sample}`. This is used to generate a link to a per-variant resource, embedding both Sample ID and `chr-pos-ref-alt` (seqr/gnomAD-style)                                                                                                                   |
-| `hyperlinks.lookup`           | Optional, a JSON file mapping the VCF sample IDs to external IDs. If absent, the VCF IDs are embedded into any URLs generated                                                                                                                                                                                          |
 
-This is designed to be as flexible as possible, but may be daunting if you're starting from scratch. Worked examples:
+### Hyperlinks
+
+To generate Hyperlinks to Seqr, this section should contain the `hyperlinks` block with relevant templates, alongside a file mapping the VCF sample IDs to the IDs used in the target system. This should be added to the [NextFlow config](https://github.com/populationgenomics/talos/blob/main/docs/NextflowConfiguration.md#talosconfig) as `params.seqr_lookup`, and can be a TSV, CSV, or JSON file. This is designed to be as flexible as possible, but may be daunting if you're starting from scratch. Worked examples:
 
 ### Links out using the exact VCF ID
 
@@ -154,7 +154,7 @@ This is designed to be as flexible as possible, but may be daunting if you're st
 - Scenario: I want to generate links using a template, but the sample ID from the VCF is not suitable for the target URL, so I want to map from the VCF sample ID to a URL-appropriate ID in a TSV/CSV/JSON file
 - VCF ID: `SAM1`
 - Link ID: `ExtSam1`
-- Lookup JSON (file identified by `hyperlinks.lookup`)
+- Lookup JSON (file identified by `params.seqr_lookup` in NextFlow config)
 ```json
 {
     "SAM1": "ExtSam1",

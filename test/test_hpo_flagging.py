@@ -8,7 +8,7 @@ SMALL_1 = SmallVariant(
     transcript_consequences=[],
 )
 SV_1 = SmallVariant(
-    info={'gene_id': 'ENSG2', 'predicted_lof': 'ENSG3,ENSG4'},
+    info={'gene_id': 'ENSG2', 'lof': 'ENSG3,ENSG4'},
     coordinates=TEST_COORDS,
     transcript_consequences=[],
 )

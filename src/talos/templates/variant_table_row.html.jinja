@@ -1,94 +1,105 @@
-<tr>
-    <td style="white-space: nowrap">
-        {# Individual ID #}
-        {% if type == 'sample' %}
-            <a href="#" class="toggle"><i class="bi-card-text"></i></a>
-        {% elif type == 'whole_cohort' %}
-            <a href="{{sample.report_url}}" target="_blank"><i class="bi-card-text"></i></a>
-        {% endif %}
+<tr
+    data-variant-type="{{variant.var_type}}"
+    data-sample-name="{{sample.name|e}}"
+    data-sample-ext-id="{{sample.ext_id|e}}"
+    data-family-id="{{sample.family_id|e}}"
+    data-variant-coords="{{variant.chrom|e}}:{{variant.pos}}"
+    data-variant-change="{{variant.change|e}}"
+    data-genes="{{variant.genes|map('join', ':')|join(',')|e}}"
+    data-variant-data='{{variant.var_data_json|tojson}}'
+    data-genotypes='{{variant.genotypes_json|tojson}}'
+    data-phenotypes='{{sample.phenotypes_json|tojson}}'
+    data-panel-details='{{sample.panel_details_json|tojson}}'
+    data-family-members='{{sample.family_members_json|tojson}}'
+    data-family-display='{{sample.family_display_json|tojson}}'
+    data-support-vars='{{variant.support_vars_json|tojson}}'
+    data-transcript-consequences='{{variant.transcript_consequences_json|tojson}}'
+    data-has-phenotype="{{ 1 if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches else 0 }}"
+>
+    <td style="white-space: nowrap" class="details-control">
+        {# Individual ID - Click to expand details #}
+        <button type="button" class="btn btn-link btn-sm p-0 details-toggle" aria-label="Toggle details"><i class="bi-plus-square"></i></button>
 
         {% if sample.sample_link %}
-            <a href="{{sample.sample_link}}" target="_blank">
-                {{sample.ext_id}}
+            <a href="{{sample.sample_link|e}}" target="_blank">
+                {{sample.ext_id|e}}
             </a>
         {% else %}
-            {{sample.ext_id}}
+            {{sample.ext_id|e}}
+        {% endif %}
+        {% if sample.family_id %}
+            <br><span class="text-muted">Family: {{ sample.family_id|e }}</span>
         {% endif %}
         {% if sample.name != sample.ext_id %}
-            <br><span class="text-muted">({{ sample }})</span>
+            <br><span class="text-muted">({{ sample|e }})</span>
         {% endif %}
-    </td>
-    <td>
-        {{sample.family_id}}
-    </td>
-    <td>
-        {{ variant.var_type }}
     </td>
     <td>
         {# Coordinates #}
         {% if variant.var_link %}
-            <a href="{{variant.var_link}}" target="_blank">
-                {{variant.chrom}}:{{variant.pos}}
+            <a href="{{variant.var_link|e}}" target="_blank">
+                {{variant.chrom|e}}:{{variant.pos}}
             </a>
         {% else %}
-            {{variant.chrom}}:{{variant.pos}}
+            {{variant.chrom|e}}:{{variant.pos}}
         {% endif %}
         <br>
-        {{ variant.change }}
+        {{ variant.change|replace("->", ">")|e }}
+        {% if variant.var_type == 'SmallVariant' and variant.var_data.info %}
+        {% set gnomad_url = 'https://gnomad.broadinstitute.org/variant/' ~ (variant|urlencode) ~ '?dataset=gnomad_r4' %}
+        <br>
+        <small class="text-muted">
+            gnomAD v4 AC: <a href="{{ gnomad_url }}" target="_blank">{{ variant.var_data.info.gnomad_ac }}</a>
+            {% if variant.var_data.info.gnomad_af is not none %}
+            | AF: <a href="{{ gnomad_url }}" target="_blank">{{ variant.var_data.info.gnomad_af | round(4) }}</a>
+            {% endif %}
+        </small>
+        {% elif variant.var_type == 'StructuralVariant' and variant.var_data.info and variant.var_data.info.gnomad_key %}
+        <br>
+        <small class="text-muted">
+            gnomAD v2.1: <a href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key|urlencode}}?dataset=gnomad_sv_r2_1" target="_blank">{{ variant.var_data.info['gnomad_v2.1_sv_af'] | round(4) }}</a>
+        </small>
+        {% endif %}
     </td>
     <td>
         {# Gene symbol #}
         {% for gene in variant.genes %}
-        <a href="https://panelapp-aus.org/panels/entities/{{gene[1]}}" target="_blank">{{gene[1]}}</a>
+        <a href="https://panelapp-aus.org/panels/entities/{{gene[1]|urlencode}}" target="_blank">{{gene[1]|e}}</a>
         {% endfor %}
+        {% if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches %}
+        {% if variant.pheno_matches %}
+        <i class="bi-person-check-fill text-success ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Phenotype-Panel match: {{variant.pheno_matches|join(', ')|e}}"></i>
+        {% endif %}
+        {% if variant.forced_matches %}
+        <i class="bi-person-check-fill text-info ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')|e}}"></i>
+        {% endif %}
+        {% if variant.phenotype_matches %}
+        <i class="bi-person-check-fill ms-1" style="color: #FF5733" data-bs-toggle="tooltip" data-bs-placement="top"
+            data-bs-title="Gene-Phenotype match: {{variant.phenotype_matches|join(', ')|e}}"></i>
+        {% endif %}
+        {% endif %}
         {% if variant.new_in_base_panel %}
         <i class="bi bi-star-fill text-warning" data-bs-toggle="tooltip" data-bs-placement="top"
             data-bs-title="Gene new in Mendeliome"></i>
         {% endif %}
         {% if variant.new_panels %}
         <i class="bi bi-star-fill text-primary" data-bs-toggle="tooltip" data-bs-placement="top"
-            data-bs-title="Gene new in: {{ variant.new_panels|join(', ') }} "></i>
+            data-bs-title="Gene new in: {{ variant.new_panels|join(', ')|e }} "></i>
         {% endif %}
         <br>
-        {{ variant.reasons|replace("Autosomal Recessive Homozygous","AR-Hom")
-        |replace("Autosomal Recessive Compound-Het","AR-CH")
-        |replace("Autosomal Dominant","AD")}}
-    </td>
-    <td>
-        {# Pheno Match #}
-        {% if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches %}
-            Y
-            {% if variant.pheno_matches %}
-            <i class="bi-person-check-fill text-success" data-bs-toggle="tooltip" data-bs-placement="top"
-                data-bs-title="Phenotype-Panel match: {{variant.pheno_matches|join(', ')}}"></i>
-            {% endif %}
-            {% if variant.forced_matches %}
-            <i class="bi-person-check-fill text-info" data-bs-toggle="tooltip" data-bs-placement="top"
-                data-bs-title="Cohort panels: {{variant.forced_matches|join(', ')}}"></i>
-            {% endif %}
-            {% if variant.phenotype_matches %}
-            <i class="bi-person-check-fill" style="color: #FF5733" data-bs-toggle="tooltip" data-bs-placement="top"
-                data-bs-title="Gene-Phenotype match: {{variant.phenotype_matches|join(', ')}}"></i>
-            {% endif %}
-        {% endif %}
+        <span class="text-muted">
+        {{ variant.reasons|replace("Autosomal Recessive Homozygous","AR (Hom)")
+        |replace("Autosomal Recessive Comp-Het","AR (Comp-Het)")
+        |replace("Autosomal Dominant","AD")
+        |replace("X_Male","XLR (Male)")
+        | e }}
+        </span>
     </td>
     <td>
         {# Categories #}
-        {{variant.categories|join(", ")|replace("_", " ")}}
-    </td>
-    <td>
-        {% if variant.var_type == 'SmallVariant' %}
-            AC: <a
-                href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r4"
-                target="_blank">{{variant.var_data.info.gnomad_ac}}</a><br>
-            AF: <a
-                href="https://gnomad.broadinstitute.org/variant/{{variant}}?dataset=gnomad_r4"
-                target="_blank">{{variant.var_data.info.gnomad_af | round(4)}}</a><br>
-        {% elif (variant.var_type == 'StructuralVariant') and (variant.var_data.info.gnomad_key) %}
-            gnomAD v2.1: <a
-                href="https://gnomad.broadinstitute.org/variant/{{variant.var_data.info.gnomad_key}}?dataset=gnomad_sv_r2_1"
-                target="_blank">{{variant.var_data.info['gnomad_v2.1_sv_af'] | round(4)}}</a><br>
-        {% endif %}
+        {{variant.categories|join(", ")|replace("_", " ")|e}}
     </td>
     <td>
         {# First Tagged #}
@@ -97,9 +108,10 @@
     <td>
         {# CSQ #}
         {% if variant.mane_csq %}
-            {{variant.mane_csq}}
+            {{variant.mane_csq|e}}
             <br>
-            {{ variant.mane_hgvsps }}
+            {% set mane_parts = (variant.mane_hgvsps or '').split(' ', 1) %}
+            {{ mane_parts[1]|default(mane_parts[0], true)|e }}
         {% elif variant.var_type == 'SmallVariant' %}
             <span class="badge text-bg-warning">Non-canonical transcript only</span>
         {% endif %}
@@ -107,41 +119,38 @@
     <td>
         {# Clinvar #}
         {% if variant.var_data.info.clinvar_allele %}
-            <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele}}[alleleid]"target="_blank">{{ variant.var_data.info.clinvar_significance|replace('missing','') }}</a>
+            <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{variant.var_data.info.clinvar_allele|urlencode}}[alleleid]" target="_blank">{{ variant.var_data.info.clinvar_significance|replace('Pathogenic/Likely Pathogenic','(Likely) Pathogenic')|replace('missing','')|e }}</a>
             {% if variant.var_data.info.clinvar_stars %}{% for i in range(variant.var_data.info.clinvar_stars|int) -%}<i class="bi-star"></i>{% endfor %}{% endif %}
         {% endif %}
-    </td>
-    <td>
-        {# PM5 ClinVar #}
-        {% if 'pm5' in variant.categories %}
+        {% if 'PM5' in variant.categories and variant.var_data.info.pm5_data %}
+            <br>
+            <small class="text-muted">PM5 Variants:</small><br>
             {% for allele, stars in variant.var_data.info.pm5_data.items() %}
-                <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele}}[alleleid]"
+                <a href="http://www.ncbi.nlm.nih.gov/clinvar?term={{allele|urlencode}}[alleleid]"
                     target="_blank">
-                    {{allele}}
+                    {{allele|e}}
                 </a>
+                {% if not loop.last %}<br>{% endif %}
             {% endfor %}
         {% endif %}
     </td>
     <td>
-        {# External Labels #}
+        {# Warning Flags #}
+        {% if variant.ext_labels %}
+        <small class="text-muted">External labels</small><br>
         {% for label in variant.ext_labels %}
         <span class="badge text-bg-info">
-            {{ label }}
+            {{ label|e }}
         </span><br>
         {% endfor %}
-    </td>
-    <td>
-        {# Warning Flags #}
+        {% endif %}
+        {% if variant.warning_flags %}
+        {% if variant.ext_labels %}<br>{% endif %}
         {% for flag in variant.warning_flags %}
         <span class="badge text-bg-warning">
-            {{ flag|replace("_", " ") }}
+            {{ flag|replace("_", " ")|e }}
         </span><br>
         {% endfor %}
-    </td>
-    <td>
-        {# Support #}
-        {% for coords in variant.support_vars %}
-            {{coords.split('-')[:2]|join(':')}}
-        {% endfor %}
+        {% endif %}
     </td>
 </tr>

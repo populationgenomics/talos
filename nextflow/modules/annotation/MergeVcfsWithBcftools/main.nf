@@ -32,12 +32,20 @@ process MergeVcfsWithBcftools {
         	-R ${regions} \
         	-0 \
         	-Ou \
+        	--no-version \
         	$input | \
         bcftools norm \
 			-m -any \
 			-Ou \
+			--no-version \
 			-f ${ref_genome} \
 			- | \
-        bcftools +fill-tags -Oz -o "${params.cohort}_merged.vcf.bgz" -W=tbi - -- -t AF
+        bcftools +fill-tags \
+            --no-version \
+            -Oz \
+            -o "${params.cohort}_merged.vcf.bgz" \
+            -W=tbi \
+            - -- \
+            -t AC,AF,AN
         """
 }

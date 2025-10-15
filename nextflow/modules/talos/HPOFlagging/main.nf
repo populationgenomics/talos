@@ -11,8 +11,10 @@ process HPOFlagging {
         path phenio_db
         path talos_config
 
+	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
+
     output:
-        path "${params.cohort}_full_report.json"
+        path "${params.cohort}_full_report_${timestamp}.json"
 
     """
     export TALOS_CONFIG=${talos_config}
@@ -21,6 +23,6 @@ process HPOFlagging {
          --mane_json ${gene_symbol_map} \
          --gen2phen ${gene_to_phenotype} \
          --phenio ${phenio_db} \
-         --output ${params.cohort}_full_report.json
+         --output ${params.cohort}_full_report_${timestamp}.json
     """
 }

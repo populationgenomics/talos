@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="8.0.0"
+version="8.2.0"
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -43,7 +43,7 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow==v0.3.2',
+    'cpg-flow==0.4.0',
     'google-cloud-storage==2.14.0',
 ]
 test = [
@@ -169,7 +169,7 @@ hail = ["hail"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
 
 [tool.bumpversion]
-current_version = "8.0.0"
+current_version = "8.2.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true
@@ -202,6 +202,6 @@ search = "{current_version}"
 replace = "{new_version}"
 
 [[tool.bumpversion.files]]
-filename = "src/talos/README.md"
+filename = "README.md"
 search = "{current_version}"
 replace = "{new_version}"

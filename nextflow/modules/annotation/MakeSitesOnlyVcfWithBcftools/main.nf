@@ -17,6 +17,7 @@ process MakeSitesOnlyVcfWithBcftools {
     script:
     """
     bcftools view \
+        --no-version \
         --write-index=tbi \
         -G \
         -Oz -o "${params.cohort}_sites_only.vcf.bgz" \

@@ -67,6 +67,8 @@ except (ConfigError, KeyError):
 # if this is a massive result, it returns over a number of pages
 GREEN_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/genes/?confidence_level=3'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
+MITO_BAD = 'MT'
+MITO_GOOD = 'M'
 
 
 class CustomEncoder(json.JSONEncoder):
@@ -201,6 +203,10 @@ def parse_panel(
                 ensg = ensembl_data['ensembl_id']
                 chrom = ensembl_data['location'].split(':')[0]
 
+                # step this down to M, for Hail
+                if chrom == MITO_BAD:
+                    chrom = MITO_GOOD
+
         # no ENSG at all, skip completely
         if not (mane_ensg or ensg):
             logger.info(f'Gene {symbol}/{ensg} removed for lack of chrom or ENSG annotation')
@@ -224,15 +230,7 @@ def parse_panel(
 
 
 async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, list[dict]]:
-    """
-
-    Args:
-        session (aiohttp.ClientSession):
-        panel_id ():
-
-    Returns:
-
-    """
+    """Async method to return data from a single panel"""
     panel_url = GREEN_TEMPLATE.format(id=panel_id)
     panel_results: list[dict] = []
 
@@ -250,15 +248,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
 
 
 async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: int) -> dict:
-    """
-
-    Args:
-        session (aiohttp.ClientSession):
-        panel_id ():
-
-    Returns:
-
-    """
+    """Async method to get activities from a single panel"""
 
     async with session.get(ACTIVITY_TEMPLATE.format(id=panel_id)) as resp:
         reponse = await resp.json()
@@ -266,17 +256,7 @@ async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: 
 
 
 async def get_all_known_panels(panel_ids: set[int], activities: bool = False) -> dict:
-    """
-    take all the panel IDs, asynchronously query for them
-    if panelapp dies it dies
-
-    Args:
-        panel_ids ():
-        activities (bool): if True, get the activity log for this panel
-
-    Returns:
-        the per-panel gene details, or activity log, depending on the activities flag
-    """
+    """Take all the panel IDs, asynchronously query for them. If panelapp dies it dies."""
 
     tasks = []
 
@@ -297,12 +277,6 @@ def reorganise_mane_data(mane_path: str) -> tuple[dict[str, str], dict[str, str]
     takes the dictionary of MANE data and reorganises into 2 dictionaries
     - one indexed on the gene symbol
     - one on the Ensembl ID
-
-    Args:
-        mane_path ():
-
-    Returns:
-
     """
 
     raw_mane_data = read_json_from_path(mane_path)

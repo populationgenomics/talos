@@ -89,12 +89,12 @@ def test_dominant_autosomal_passes(pedigree_path):
         'af': 0.0001,
         'gnomad_ac': 0,
         'gnomad_hom': 0,
-        'categoryboolean1': True,
+        'categorybooleanclinvarplp': True,
         'gene_id': 'TEST1',
     }
 
     # attributes relating to categorisation
-    boolean_categories = ['categoryboolean1']
+    boolean_categories = ['categorybooleanclinvarplp']
 
     dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
 
@@ -168,8 +168,8 @@ def test_recessive_autosomal_hom_passes(pedigree_path):
         ab_ratios={'male': 1.0},
         alt_depths={'male': 15},
         depths={'male': 15},
-        boolean_categories=['categoryboolean1'],
-        info={'categoryboolean1': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'categorybooleanclinvarplp': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
@@ -189,8 +189,8 @@ def test_recessive_autosomal_hom_fails_alt_reads(pedigree_path):
         ab_ratios={'male': 1.0},
         alt_depths={'male': 4},
         depths={'male': 15},
-        boolean_categories=['categoryboolean1'],
-        info={'categoryboolean1': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'categorybooleanclinvarplp': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
@@ -210,8 +210,8 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path):
         ab_ratios={'male': 0.4},
         alt_depths={'male': 40},
         depths={'male': 40},
-        boolean_categories=['categoryboolean1'],
-        info={'categoryboolean1': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'categorybooleanclinvarplp': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
@@ -234,8 +234,8 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -244,8 +244,8 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -266,9 +266,9 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean1'],
-        support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        support_categories={'alphamissense'},
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -277,9 +277,9 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean6'],
-        support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanalphamissense'],
+        support_categories={'alphamissense'},
+        info={'gene_id': 'TEST1', 'categorybooleanalphamissense': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     comp_hets = {
@@ -306,9 +306,9 @@ def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean6'],
-        support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanalphamissense'],
+        support_categories={'alphamissense'},
+        info={'gene_id': 'TEST1', 'categorybooleanalphamissense': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -317,9 +317,9 @@ def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean6'],
-        support_categories={'6'},
-        info={'gene_id': 'TEST1', 'categoryboolean6': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanalphamissense'],
+        support_categories={'alphamissense'},
+        info={'gene_id': 'TEST1', 'categorybooleanalphamissense': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     comp_hets = {
@@ -345,8 +345,8 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -355,8 +355,8 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         ab_ratios={'male': 1.0},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -378,8 +378,8 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         ab_ratios={'female': 0.5},
         alt_depths={'female': 50},
         depths={'female': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     passing_variant2 = SmallVariant(
@@ -388,8 +388,8 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         ab_ratios={'female': 0.5},
         alt_depths={'female': 50},
         depths={'female': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'var_link': 'passing2', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
@@ -469,8 +469,8 @@ def test_x_dominant_female_and_male_het_passes(pedigree_path):
     check that a male and female are accepted as dominant hets
     """
     passing_variant = SmallVariant(
-        boolean_categories=['categoryboolean1'],
-        info={'gnomad_hemi': 0, 'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gnomad_hemi': 0, 'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         het_samples={'female', 'male'},
         alt_depths={'female': 50, 'male': 50},
         depths={'female': 50, 'male': 50},
@@ -489,8 +489,8 @@ def test_x_dominant_female_hom_passes(pedigree_path):
     check that a female is accepted as a hom
     """
     passing_variant = SmallVariant(
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         hom_samples={'female'},
         alt_depths={'female': 100},
         depths={'female': 100},
@@ -509,8 +509,8 @@ def test_x_dominant_male_hom_passes(pedigree_path):
     check that a male is accepted as a het
     """
     passing_variant = SmallVariant(
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         hom_samples={'male'},
         alt_depths={'male': 100},
         depths={'male': 100},
@@ -526,9 +526,9 @@ def test_x_dominant_male_hom_passes(pedigree_path):
 @pytest.mark.parametrize(
     'info,wins',
     [
-        ({'gnomad_af': 0.00001, 'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001}, 1),
-        ({'gnomad_homalt': 2, 'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001}, 1),
-        ({'gnomad_ac': 11, 'gene_id': 'TEST1', 'categoryboolean1': False, 'ac': 10, 'af': 0.0001}, 0),
+        ({'gnomad_af': 0.00001, 'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001}, 1),
+        ({'gnomad_homalt': 2, 'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001}, 1),
+        ({'gnomad_ac': 11, 'gene_id': 'TEST1', 'categorybooleanclinvarplp': False, 'ac': 10, 'af': 0.0001}, 0),
     ],
 )
 def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
@@ -539,7 +539,7 @@ def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
         info=info,
         hom_samples={'male'},
         coordinates=TEST_COORDS_X_1,
-        boolean_categories=['categoryboolean1'],
+        boolean_categories=['categorybooleanclinvarplp'],
         transcript_consequences=[],
         alt_depths={'male': 100},
         depths={'male': 100},
@@ -558,7 +558,7 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
         'gnomad_ac': 0,
         'gnomad_homalt': 0,
         'gene_id': 'TEST1',
-        'categoryboolean1': True,
+        'categorybooleanclinvarplp': True,
         'ac': 10,
         'af': 0.0001,
     }
@@ -568,7 +568,7 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
         info=info_dict,
         het_samples={'female', 'male'},
         hom_samples={'male'},
-        boolean_categories=['categoryboolean1'],
+        boolean_categories=['categorybooleanclinvarplp'],
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
     )
@@ -586,8 +586,8 @@ def test_x_recessive_male_hom_passes(pedigree_path):
         ab_ratios={'female': 1.0, 'male': 1.0},
         alt_depths={'female': 100, 'male': 100},
         depths={'female': 100, 'male': 100},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path))
@@ -607,8 +607,8 @@ def test_x_recessive_female_hom_passes(pedigree_path):
         ab_ratios={'female': 1.0, 'male': 1.0},
         alt_depths={'female': 100, 'male': 100},
         depths={'female': 100, 'male': 100},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     x_rec = XRecessiveFemaleHom(pedigree=PedigreeParser(pedigree_path))
@@ -624,8 +624,8 @@ def test_x_recessive_male_het_passes(pedigree_path):
         ab_ratios={'male': 0.5},
         alt_depths={'male': 25},
         depths={'male': 50},
-        boolean_categories=['categoryboolean1'],
-        info={'gene_id': 'TEST1', 'categoryboolean1': True, 'ac': 10, 'af': 0.0001},
+        boolean_categories=['categorybooleanclinvarplp'],
+        info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
     x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path))
@@ -946,7 +946,7 @@ def test_genotype_calls(pedigree_path):
 
 def test_too_common_in_population_passes_cat1():
     """this should return false, i.e. would not be removed"""
-    info = {'categoryboolean1': True, 'ac': 10, 'af': 0.0001}
+    info = {'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001}
     assert not ClinVarFilter().too_common(
         variant=SmallVariant(
             info=info,

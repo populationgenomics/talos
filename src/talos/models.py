@@ -9,22 +9,16 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from talos.liftover.lift_1_0_0_to_1_0_1 import historicvariants as hv_100_to_101
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
 from talos.liftover.lift_1_0_3_to_1_1_0 import resultdata as rd_103_to_110
 from talos.liftover.lift_1_1_0_to_1_2_0 import resultdata as rd_110_to_120
 from talos.liftover.lift_1_2_0_to_2_0_0 import panelapp as pa_120_to_200
 from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    historicvariants as hv_200_to_210,
-)
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    panelapp as pa_200_to_210,
-)
-from talos.liftover.lift_2_0_0_to_2_1_0 import (
-    resultdata as rd_200_to_210,
-)
+from talos.liftover.lift_2_0_0_to_2_1_0 import panelapp as pa_200_to_210
+from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
+from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
+from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -32,8 +26,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.1.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0']
+CURRENT_VERSION = '2.2.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -41,17 +35,33 @@ MIN_HET = 0.25
 MAX_HET = 0.75
 MIN_HOM = 0.85
 
+# dictionary for translating all the previous aliases for categories to their more descriptive names
 CATEGORY_TRANSLATOR: dict[str, str] = {
-    '1': 'ClinVarP/LP',
-    '3': 'HighImpact',
-    '4': 'DeNovo',
+    '1': 'ClinVar P/LP',
+    'clinvarplp': 'ClinVar P/LP',
+    'ClinVarP/LP': 'ClinVar P/LP',
+    'clinvar0star': 'ClinVar 0-star',
+    'clinvar0starnewgene': 'ClinVar Recent Gene',
+    '3': 'High Impact',
+    'highimpact': 'High Impact',
+    '4': 'De Novo',
+    'denovo': 'De Novo',
     '5': 'SpliceAI',
+    'spliceai': 'SpliceAI',
     '6': 'AlphaMissense',
+    'alphamissense': 'AlphaMissense',
     'pm5': 'PM5',
-    'sv1': 'LofSv',
+    'sv1': 'LOF SV',
+    'lofsv': 'LOF SV',
     'svdb': 'SpliceVarDB',
+    'splicevardb': 'SpliceVarDB',
     'exomiser': 'Exomiser',
 }
+
+
+def translate_category(cat: str) -> str:
+    """Translate a category from config file to a more descriptive name. If not found, return the original."""
+    return CATEGORY_TRANSLATOR.get(cat.lower(), cat)
 
 
 class FileTypes(Enum):
@@ -161,7 +171,7 @@ class VariantCommon(BaseModel):
         )
 
         # upgrade all the category labels for the report
-        return {CATEGORY_TRANSLATOR.get(cat, cat) for cat in categories}
+        return {translate_category(cat) for cat in categories}
 
     def sample_category_check(self, sample_id: str, allow_support: bool = True) -> bool:
         """
@@ -184,7 +194,7 @@ class VariantCommon(BaseModel):
             # add the longer names to the support_categories - this is a workaround for the fact that the support
             # categories entry in the config file can now be the numberical/short IDs, or longer names
             remove_support = self.support_categories
-            remove_support.update({CATEGORY_TRANSLATOR[x] for x in self.support_categories if x in CATEGORY_TRANSLATOR})
+            remove_support.update({translate_category(x) for x in self.support_categories})
             categories_applied -= remove_support
 
         return len(categories_applied) > 0
@@ -212,6 +222,10 @@ class VariantCommon(BaseModel):
         dummy method for alt read depth checking - not implemented for SVs
         """
         return set()
+
+    def min_alt_ratio(self, sample: str, threshold: float = 0.1) -> bool:  # noqa: ARG002
+        """Dummy method for alt read ratio checking - not implemented for SVs."""
+        return True
 
 
 class SmallVariant(VariantCommon):
@@ -301,6 +315,12 @@ class SmallVariant(VariantCommon):
             return {'AB Ratio'}
         return set()
 
+    def min_alt_ratio(self, sample: str, threshold: float = 0.2) -> bool:
+        sample_depth = self.depths[sample]
+        sample_alt = self.alt_depths[sample]
+
+        return (sample_alt / sample_depth) > threshold
+
 
 class StructuralVariant(VariantCommon):
     """
@@ -328,27 +348,34 @@ class ReportVariant(BaseModel):
 
     sample: str
     var_data: VARIANT_MODELS
-    categories: set[str] = Field(default_factory=set)
+    categories: dict[str, str] = Field(default_factory=dict)
     date_of_phenotype_match: str | None = None
+
     phenotype_labels: set[str] = Field(default_factory=set)
 
     evidence_last_updated: str = Field(default=get_granular_date())
+
     family: str = Field(default_factory=str)
     # 'tagged' is seqr-compliant language
     first_tagged: str = Field(default=get_granular_date())
     flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
     genotypes: dict[str, str] = Field(default_factory=dict)
-    independent: bool = Field(default=False)
     labels: set[str] = Field(default_factory=set)
     panels: ReportPanel = Field(default_factory=ReportPanel)
     phenotypes: list[HpoTerm] = Field(default_factory=list)
     reasons: str = Field(default_factory=str)
     support_vars: set[str] = Field(default_factory=set)
+
+    # new, recording this here instead of in the history file
+    clinvar_stars: int | None = None
+
     # log whether there was an increase in ClinVar star rating since the last run
     clinvar_increase: bool = Field(default=False)
+
     # exomiser results - I'd like to store this in a cleaner way in future
     exomiser_results: list[str] = Field(default_factory=list)
+    found_in_current_run: bool = Field(default=True)
 
     def __eq__(self, other):
         """
@@ -431,36 +458,7 @@ class DownloadedPanelApp(BaseModel):
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
-
-
-class HistoricSampleVariant(BaseModel):
-    """ """
-
-    # categories here will be a dict of {categories: associated date first seen}
-    categories: dict[str, str]
-    # new variable to store the date the variant was first seen, static
-    first_tagged: str
-    support_vars: set[str] = Field(
-        default_factory=set,
-        description='supporting variants if this has been identified in a comp-het',
-    )
-    independent: bool = Field(default=True)
-    clinvar_stars: int | None = None
-    first_phenotype_tagged: str | None = None
-    phenotype_labels: set[str] = Field(default_factory=set)
-
-
-class HistoricVariants(BaseModel):
-    """
-    The model representing the state transition file
-    All relevant metadata relating to the available categories
-    Then a per-participant dict of variants, containing the categories
-    they have been assigned, date first seen, and supporting variants
-    """
-
-    # dict - participant ID -> variant -> variant data
-    results: dict[str, dict[str, HistoricSampleVariant]] = Field(default_factory=dict)
-    version: str = CURRENT_VERSION
+    date: str = Field(default=get_granular_date())
 
 
 class ResultMeta(BaseModel):
@@ -476,6 +474,10 @@ class ResultMeta(BaseModel):
 
     # a count of variants per category, used for the report
     variant_breakdown: dict[str, dict[str, float | int]] = Field(default_factory=dict)
+    # list of samples that had no variants in this result set
+    samples_with_no_variants: list[str] = Field(default_factory=list)
+    # external labels provided but not matched to any variant in this result set
+    unused_ext_labels: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MemberSex(Enum):
@@ -549,14 +551,12 @@ class PedigreeMember(BaseModel):
 
 # methods defining how to transition between model versions. If unspecified, no transition is required
 LIFTOVER_METHODS: dict = {
-    DownloadedPanelApp: {},
+    DownloadedPanelApp: {
+        '2.1.0_2.2.0': dl_pa_210_to_220,
+    },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
-    },
-    HistoricVariants: {
-        '1.0.0_1.0.1': hv_100_to_101,
-        '2.0.0_2.1.0': hv_200_to_210,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,
@@ -566,13 +566,14 @@ LIFTOVER_METHODS: dict = {
         '1.1.0_1.2.0': rd_110_to_120,
         '1.2.0_2.0.0': rd_120_to_200,
         '2.0.0_2.1.0': rd_200_to_210,
+        '2.1.0_2.2.0': rd_210_to_220,
     },
 }
 
 
 def lift_up_model_version(
     data: dict,
-    model: HistoricVariants | ResultData | PanelApp | DownloadedPanelApp,
+    model: ResultData | PanelApp | DownloadedPanelApp,
 ) -> dict:
     """
     lift over data from one version to another

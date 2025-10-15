@@ -11,6 +11,7 @@ from talos.models import (
     SmallVariant,
 )
 from talos.pedigree_parser import PedigreeParser
+from talos.static_values import get_granular_date
 from talos.ValidateMOI import count_families, filter_results_to_panels, prepare_results_shell
 
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
@@ -19,9 +20,9 @@ TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
 TEST_COORDS_2 = Coordinates(chrom='2', pos=2, ref='G', alt='T')
 VAR_1 = SmallVariant(coordinates=TEST_COORDS, info={}, transcript_consequences=[])
 VAR_2 = SmallVariant(coordinates=TEST_COORDS_2, info={}, transcript_consequences=[])
-REP_SAM1_1 = ReportVariant(sample='sam1', var_data=VAR_1, categories={'1'}, gene='ENSG1')
-REP_SAM3_1 = ReportVariant(sample='sam3', var_data=VAR_1, categories={'1'}, gene='ENSG4')
-REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2'}, gene='ENSG5')
+REP_SAM1_1 = ReportVariant(sample='sam1', var_data=VAR_1, categories={'ClinvarP/LP': get_granular_date()}, gene='ENSG1')
+REP_SAM3_1 = ReportVariant(sample='sam3', var_data=VAR_1, categories={'ClinvarP/LP': get_granular_date()}, gene='ENSG4')
+REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2': get_granular_date()}, gene='ENSG5')
 
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
 
