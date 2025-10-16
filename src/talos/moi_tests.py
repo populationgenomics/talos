@@ -601,7 +601,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         # SVs may not have a var_link
                         support_vars={
-                            partner.info.get('var_link', partner.coordinates.string_format)
+                            partner.info.get('var_link', partner.coordinates.string_format) or partner.coordinates.string_format
                             for partner in partner_variants
                         },
                         flags=principal.get_sample_flags(sample_id)
@@ -1062,7 +1062,7 @@ class XRecessiveFemaleCH(BaseMoi):
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         support_vars={
-                            partner.info.get('var_link', partner.coordinates.string_format)
+                            partner.info.get('var_link', partner.coordinates.string_format) or partner.coordinates.string_format
                             for partner in partner_variants
                         },
                         flags=principal.get_sample_flags(sample_id)
