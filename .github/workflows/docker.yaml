@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 env:
-  VERSION: 8.2.0
+  VERSION: 8.2.1
 
 jobs:
   docker:
