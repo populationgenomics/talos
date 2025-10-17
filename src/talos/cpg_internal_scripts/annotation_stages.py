@@ -49,13 +49,13 @@ from functools import cache
 
 import loguru
 from cpg_flow import stage, targets, utils
-from cpg_utils import Path, hail_batch
+from cpg_utils import Path
 
-from talos import config
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     AnnotateConsequenceUsingBcftools,
     AnnotateGnomadFrequencies,
+    AnnotateSpliceAiFromHt,
     ComposeVcfFragments,
     ExtractVcfFromMt,
     JumpAnnotationsFromHtToFinalMt,
@@ -325,12 +325,10 @@ class AnnotateSpliceAi(stage.CohortStage):
 
         input_mt = inputs.as_str(cohort, TransferAnnotationsToMt)
 
-        job = hail_batch.get_batch().new_bash_job(f'Incorporate SpliceAi results for {cohort.id}')
-        job.image(config.config_retrieve(['workflow', 'driver_image']))
-        job.command(f"""
-        python -m talos.cpg_internal_scripts.cpgflow_jobs.AnnotateSpliceAiFromHt \\
-            --input {input_mt} \\
-            --output {output!s}
-        """)
+        job = AnnotateSpliceAiFromHt.add_job(
+            input_mt=input_mt,
+            output_mt=str(output),
+            cohort_id=cohort.id,
+        )
 
         return self.make_outputs(cohort, data=output, jobs=job)

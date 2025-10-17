@@ -96,7 +96,7 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
         'ValidateMOI': config.config_retrieve(['ValidateMOI']),
         'HPOFlagging': config.config_retrieve(['HPOFlagging']),
         'CreateTalosHTML': {},  # populate from a separate part of config
-        'splice_ai_ht': config.config_retrieve(['workflow', 'splice_ai_ht']),
+        'splice_ai_ht': config.config_retrieve(['references', 'splice_ai_ht']),
         'dataset': dataset,
         'sequencing_type': config.config_retrieve(['workflow', 'sequencing_type']),
         'long_read': config.config_retrieve(['workflow', 'long_read'], False),
