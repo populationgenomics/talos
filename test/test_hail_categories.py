@@ -11,6 +11,7 @@ from talos.models import PanelApp
 from talos.RunHailFiltering import (
     annotate_category_alphamissense,
     annotate_category_high_impact,
+    annotate_category_spliceai,
     annotate_clinvarbitration,
     filter_to_categorised,
     filter_to_population_rare,
@@ -30,7 +31,7 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
         (1, 'frameshift', ONE_EXPECTED),
     ],
 )
-def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a_mt):
+def test_highimpact(clinvar_talos, consequence_terms, classified, make_a_mt):
     """"""
 
     anno_matrix = make_a_mt.annotate_rows(
@@ -44,6 +45,25 @@ def test_class_3_assignment(clinvar_talos, consequence_terms, classified, make_a
 
     anno_matrix = annotate_category_high_impact(anno_matrix)
     assert anno_matrix.info.categorybooleanhighimpact.collect() == [classified]
+
+
+@pytest.mark.parametrize(
+    'splice_score,classified',
+    [
+        (0.0, 0),
+        (0.499, 0),
+        (1.0, ONE_EXPECTED),
+    ],
+)
+def test_spliceai(splice_score, classified, make_a_mt):
+    """"""
+
+    anno_matrix = make_a_mt.annotate_rows(
+        splice_ai=hl.Struct(delta_score=splice_score),
+    )
+
+    anno_matrix = annotate_category_spliceai(anno_matrix)
+    assert anno_matrix.info.categorybooleanspliceai.collect() == [classified]
 
 
 @pytest.mark.skip(reason='category 5 currently inactive')
