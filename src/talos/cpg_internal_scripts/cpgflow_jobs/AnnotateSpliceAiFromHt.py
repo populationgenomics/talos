@@ -1,23 +1,15 @@
 """
 Add SpliceAi annotations from a reference HT
-
-ref_ht = hl.read_table(config.reference_path('seqr_combined_reference_data'))
-
-ref_data=ref_ht[mt.row_key],
-
-splice_ai=mt.ref_data.splice_ai,
 """
 
 from argparse import ArgumentParser
 
 import loguru
-from cpg_utils import config as cpg_config
-from cpg_utils import hail_batch
-from hailtop.batch.job import BashJob
 
 import hail as hl
+from hailtop.batch.job import BashJob
 
-from talos import config as talos_config
+from cpg_utils import config, hail_batch
 
 MISSING_FLOAT_LO = hl.float64(0.0)
 MISSING_STRING = hl.str('missing')
@@ -27,7 +19,7 @@ def add_job(input_mt: str, output_mt: str, cohort_id: str) -> BashJob:
     """Adds a job to re-run this script."""
 
     job = hail_batch.get_batch().new_bash_job(f'Incorporate SpliceAi results for {cohort_id}')
-    job.image(cpg_config.config_retrieve(['workflow', 'driver_image']))
+    job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.command(f"""
     python -m talos.cpg_internal_scripts.cpgflow_jobs.AnnotateSpliceAiFromHt \\
         --input {input_mt} \\
@@ -41,7 +33,7 @@ def main(input_path: str, output_path: str):
 
     mt = hl.read_matrix_table(input_path)
 
-    ref_data_table = talos_config.config_retrieve('splice_ai_ht')
+    ref_data_table = config.config_retrieve(['references', 'splice_ai_ht'])
     loguru.logger.info(f'Loading SpliceAi annotations from {input_path}')
 
     ht = hl.read_table(ref_data_table)

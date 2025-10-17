@@ -1,9 +1,9 @@
 import functools
 
 import loguru
+
 from cpg_flow import workflow
 from cpg_utils import Path, config, to_path
-
 from metamist import graphql
 
 LONG_READ_STRING = 'LongRead'

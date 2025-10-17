@@ -18,7 +18,6 @@ from talos.RunHailFiltering import (
     green_from_panelapp,
     split_rows_by_gene_and_filter_to_green,
 )
-
 from test.test_utils import ONE_EXPECTED, TWO_EXPECTED
 
 hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')

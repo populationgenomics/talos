@@ -8,10 +8,11 @@ from os.path import join
 from random import randint
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 from cpg_flow import stage, targets, workflow
 from cpg_flow.targets import Cohort
 from cpg_utils import Path, config, hail_batch, to_path
-from loguru import logger
 
 from talos.cpg_internal_scripts.annotation_stages import AnnotateSpliceAi
 from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis

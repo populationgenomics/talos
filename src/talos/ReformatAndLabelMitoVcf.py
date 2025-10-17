@@ -10,10 +10,11 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 import sys
 from argparse import ArgumentParser
 
-from cpg_utils.hail_batch import init_batch
 from loguru import logger
 
 import hail as hl
+
+from cpg_utils.hail_batch import init_batch
 
 from talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable import (
     MISSING_FLOAT,

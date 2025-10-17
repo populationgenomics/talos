@@ -8,10 +8,11 @@ Integrates the two, writing a MatrixTable representation of the fully annotated 
 
 from argparse import ArgumentParser
 
-from cpg_utils.hail_batch import init_batch
 from loguru import logger
 
 import hail as hl
+
+from cpg_utils.hail_batch import init_batch
 
 
 def cli_main():

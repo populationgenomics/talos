@@ -2,12 +2,13 @@ import functools
 import json
 
 import toml
-from cpg_flow import targets
-from cpg_utils import Path, config
 from loguru import logger
 
+from cpg_flow import targets
+from cpg_utils import Path, config
 from metamist.apis import ProjectApi, WebApi
 from metamist.exceptions import ForbiddenException
+
 from talos.cpg_internal_scripts import cpg_flow_utils
 
 PROJECT_API = ProjectApi()

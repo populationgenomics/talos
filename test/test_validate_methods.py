@@ -13,7 +13,6 @@ from talos.models import (
 from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
 from talos.ValidateMOI import count_families, filter_results_to_panels, prepare_results_shell
-
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

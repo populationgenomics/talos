@@ -19,7 +19,6 @@ from talos.moi_tests import (
     XRecessiveMale,
 )
 from talos.pedigree_parser import PedigreeParser
-
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
