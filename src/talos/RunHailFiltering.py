@@ -513,6 +513,28 @@ def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """Label variant with significant spliceAi scores"""
+    # skip over MTs where this annotation is absent
+    if 'splice_ai' not in mt.row_value:
+        return mt.annotate_rows(
+            info=mt.info.annotate(
+                categorybooleanspliceai=MISSING_INT,
+            ),
+        )
+
+    # https://github.com/populationgenomics/talos/blob/93bf0455ab233b096a9687aa28d5faf405bac4ef/talos/RunHailFiltering.py#L270C73-L272C105
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categorybooleanspliceai=hl.if_else(
+                mt.splice_ai.delta_score >= config_retrieve(['RunHailFiltering', 'spliceai']),
+                ONE_INT,
+                MISSING_INT,
+            ),
+        ),
+    )
+
+
 def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     - reduce the per-row transcript CSQ to a limited group
@@ -733,6 +755,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorybooleanclinvar0starnewgene == 1)
         | (mt.info.categorybooleanalphamissense == 1)
         | (mt.info.categorybooleanhighimpact == 1)
+        | (mt.info.categorybooleanspliceai == 1)
         | (mt.info.categorysampledenovo != MISSING_STRING)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
         | (mt.info.categorybooleansvdb == 1)
@@ -1025,6 +1048,7 @@ def main(  # noqa: PLR0915
     logger.info('Applying categories')
     mt = annotate_category_alphamissense(mt=mt)
     mt = annotate_category_high_impact(mt=mt)
+    mt = annotate_category_spliceai(mt=mt)
 
     # insert easy ignore of de novo filtering based on config, to overcome some data format issues
     if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']) or config_retrieve(

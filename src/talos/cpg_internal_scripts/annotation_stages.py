@@ -49,8 +49,9 @@ from functools import cache
 
 import loguru
 from cpg_flow import stage, targets, utils
-from cpg_utils import Path
+from cpg_utils import Path, hail_batch
 
+from talos import config
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     AnnotateConsequenceUsingBcftools,
@@ -77,7 +78,7 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     return utils.exists(
         cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
-            stage_name='TransferAnnotationsToMt',
+            stage_name='AnnotateSpliceAi',
             hash_value=cohort.id,
         )
         / f'{cohort.id}.mt',
@@ -265,20 +266,17 @@ class AnnotatedVcfIntoHt(stage.CohortStage):
         return self.make_outputs(cohort, data=output, jobs=job)
 
 
-@stage.stage(
-    required_stages=[AnnotatedVcfIntoHt, ExtractVcfFromDatasetMt],
-    analysis_type='talos_prep',
-)
+@stage.stage(required_stages=[AnnotatedVcfIntoHt, ExtractVcfFromDatasetMt])
 class TransferAnnotationsToMt(stage.CohortStage):
     """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
+        prefix = cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
             stage_name=self.name,
             hash_value=cohort.id,
         )
-        return temp_prefix / f'{cohort.id}.mt'
+        return prefix / f'{cohort.id}.mt'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         output = self.expected_outputs(cohort)
@@ -300,5 +298,39 @@ class TransferAnnotationsToMt(stage.CohortStage):
             output_mt=output,
             job_attrs=self.get_job_attrs(cohort),
         )
+
+        return self.make_outputs(cohort, data=output, jobs=job)
+
+
+# tack on a private stage which adds SpliceAi results
+
+
+@stage.stage(
+    required_stages=[TransferAnnotationsToMt],
+    analysis_type='talos_prep',
+)
+class AnnotateSpliceAi(stage.CohortStage):
+    """Take the annotated MatrixTable and add SpliceAi annotations. Private CPG stage."""
+
+    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+        prefix = cpg_flow_utils.generate_dataset_prefix(
+            dataset=cohort.dataset.name,
+            stage_name=self.name,
+            hash_value=cohort.id,
+        )
+        return prefix / f'{cohort.id}.mt'
+
+    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        output = self.expected_outputs(cohort)
+
+        input_mt = inputs.as_str(cohort, TransferAnnotationsToMt)
+
+        job = hail_batch.get_batch().new_bash_job(f'Incorporate SpliceAi results for {cohort.id}')
+        job.image(config.config_retrieve(['workflow', 'driver_image']))
+        job.command(f"""
+        python -m talos.cpg_internal_scripts.cpgflow_jobs.AnnotateSpliceAiFromHt \\
+            --input {input_mt} \\
+            --output {output!s}
+        """)
 
         return self.make_outputs(cohort, data=output, jobs=job)
