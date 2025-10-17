@@ -355,7 +355,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
         UnifiedPanelAppParser,
         MakeHpoPedigree,
         MakeRuntimeConfig,
-        TransferAnnotationsToMt,
+        AnnotateSpliceAi,
     ],
 )
 class RunHailFiltering(stage.CohortStage):

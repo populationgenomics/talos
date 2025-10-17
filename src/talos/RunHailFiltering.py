@@ -515,6 +515,14 @@ def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
 
 def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
     """Label variant with significant spliceAi scores"""
+    # skip over MTs where this annotation is absent
+    if 'splice_ai' not in mt.row_value:
+        return mt.annotate_rows(
+            info=mt.info.annotate(
+                categorybooleanspliceai=MISSING_INT,
+            ),
+        )
+
     # https://github.com/populationgenomics/talos/blob/93bf0455ab233b096a9687aa28d5faf405bac4ef/talos/RunHailFiltering.py#L270C73-L272C105
     return mt.annotate_rows(
         info=mt.info.annotate(
