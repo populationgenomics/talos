@@ -125,6 +125,10 @@ max_depth = 1000
 min_proband_gq = 25
 min_alt_depth = 5
 
+# this option will disable all the above depth/GQ/AB filter thresholds, and cause de novo detection to be done solely on
+# the basis of genotype. We do not recommend this for most users, as it can lead to noisier results
+genotype_only = false
+
 # un-comment this to apply a minimum GQ to all samples in the trio, including WT. This will reduce de Novo prediciton
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
 #min_all_sample_gq = 15

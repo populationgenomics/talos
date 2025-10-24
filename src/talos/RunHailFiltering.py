@@ -597,6 +597,11 @@ def annotate_category_de_novo(
     # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
     min_all_sample_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_all_sample_gq'], None)
 
+    # we've seen some pretty weird data formats, so a 'genotype-only' de novo detection option is being added
+    # the noise reduction offered by using the more complex filtering strategies have shown great perforance internally,
+    # but if the data you have doesn't allow for those to be used, consider using this flag
+    genotype_only = config_retrieve(['RunHailFiltering', 'de_novo', 'genotype_only'], False)
+
     logger.info('Running de novo search')
 
     de_novo_matrix = filter_by_consequence(mt)
@@ -623,26 +628,27 @@ def annotate_category_de_novo(
     # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = hl.literal(pedigree_data.get_affected_member_ids())
 
-    de_novo_matrix = de_novo_matrix.filter_entries(
-        (min_depth > de_novo_matrix.DP)
-        | (max_depth < de_novo_matrix.DP)
-        | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))
-        # these tests are aimed exclusively at affected participants
-        | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
-        keep=False,
-    )
-
-    if min_all_sample_gq:
-        logger.info(
-            'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
-            'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
-            '"de_novo.min_all_sample_gq" from the config file.',
-        )
-        # filter out all samples with GQ below the threshold
+    if not genotype_only:
         de_novo_matrix = de_novo_matrix.filter_entries(
-            (hl.is_defined(de_novo_matrix.GQ)) & (min_all_sample_gq >= de_novo_matrix.GQ),
+            (min_depth > de_novo_matrix.DP)
+            | (max_depth < de_novo_matrix.DP)
+            | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))
+            # these tests are aimed exclusively at affected participants
+            | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
             keep=False,
         )
+
+        if min_all_sample_gq:
+            logger.info(
+                'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
+                'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
+                '"de_novo.min_all_sample_gq" from the config file.',
+            )
+            # filter out all samples with GQ below the threshold
+            de_novo_matrix = de_novo_matrix.filter_entries(
+                (hl.is_defined(de_novo_matrix.GQ)) & (min_all_sample_gq >= de_novo_matrix.GQ),
+                keep=False,
+            )
 
     # create a trio matrix (variant rows, trio columns)
     tm = hl.trio_matrix(de_novo_matrix, pedigree, complete_trios=True)
@@ -667,19 +673,27 @@ def annotate_category_de_novo(
         | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
 
-    # require AD & PL for called variants, just not always for HomRef
-    kid_ab = kid.AD[1] / hl.sum(kid.AD)
+    # if genotype-only analysis is taking place, the genotypes are all we're using
+    if genotype_only:
+        tm = tm.annotate_entries(
+            de_novo_tested=hl.case().when(has_candidate_gt_configuration, ONE_INT).default(MISSING_INT),
+        )
 
-    # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
-    # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
-    tm = tm.annotate_entries(
-        de_novo_tested=hl.case()
-        .when(~has_candidate_gt_configuration, MISSING_INT)
-        .when(min_alt_depth > kid.AD[1], MISSING_INT)
-        .when(min_proband_gq > kid.GQ, MISSING_INT)
-        .when(kid_ab < min_child_ab, MISSING_INT)
-        .default(ONE_INT),
-    )
+    else:
+        # require AD & PL for called variants, just not always for HomRef
+        kid_ab = kid.AD[1] / hl.sum(kid.AD)
+
+        # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
+        # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
+        tm = tm.annotate_entries(
+            de_novo_tested=hl.case()
+            .when(~has_candidate_gt_configuration, MISSING_INT)
+            .when(min_alt_depth > kid.AD[1], MISSING_INT)
+            .when(min_proband_gq > kid.GQ, MISSING_INT)
+            .when(kid_ab < min_child_ab, MISSING_INT)
+            .default(ONE_INT),
+        )
+
     tm = tm.filter_entries(tm.de_novo_tested == 1)
 
     # skip most stuff, just retain the keys
