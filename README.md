@@ -62,7 +62,7 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 To build the Docker image:
 
 ```
-docker build -t talos:8.2.1 .
+docker build -t talos:8.2.2 .
 ```
 
 ### **2. Download Annotation Resources**
