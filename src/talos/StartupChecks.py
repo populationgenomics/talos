@@ -285,7 +285,9 @@ def check_clinvar(clinvar_paths: list[str] | None):
         created = pendulum.from_format(hl.eval(clinvar_ht.globals.creation_date), 'YYYY-MM-DD')
         if created < pendulum.now().subtract(months=2) and config_retrieve(['clinvar_check_age'], True):
             LOG_ERRORS.append(
-                f'ClinVar HailTable {clinvar_path} is > 2 months old: {created.to_date_string()}, get a new one.'
+                f'ClinVar Data {clinvar_path} is > 2 months old: {created.to_date_string()}. Talos utilises the latest'
+                f'ClinVar data with each run to identify recent pathogenic discoveries in your dataset. By using '
+                f'outdated ClinVar results this will not be effective.\n\n'
                 f'Alternatively, disable this check by setting the config key "clinvar_check_age" to False.',
             )
 
