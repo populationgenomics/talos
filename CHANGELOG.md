@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* CPG Internally - due to altered CSQ behaviour in BCFtools 1.22, revert back to 1.21. Update the CSQ invocation to remove the explicit prefix unification.
+* CPG Internally - due to altered CSQ behaviour in BCFtools 1.22, revert back to 1.21. Retain the explicit prefix unification in the CSQ call in case I accidentally update the version again.
 
 [8.2.0] - 2025-09-22
 
