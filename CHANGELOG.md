@@ -18,8 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* CPG Internally - adapt to an altered CSQ behaviour in BCFtools 1.22
-* General purpose - move to BCFtools 1.22 in the standard Dockerfile
+* CPG Internally - due to altered CSQ behaviour in BCFtools 1.22, revert back to 1.21. Update 
 
 [8.2.0] - 2025-09-22
 
