@@ -44,6 +44,7 @@ def make_bcftools_anno_job(
             --threads 4 \\
             -g {gff3_file} \\
             -B 10 \\
+            --unify-chr-names 'chr,-,chr' \\
             -Oz -o {job.output['vcf.bgz']} \\
             -W=tbi \\
             {gnomad_annotated_vcf}
