@@ -56,7 +56,7 @@ def main(input_path: str, output_path: str):
     # print the resulting schema
     mt.describe()
 
-    mt.write(output_path)
+    mt.write(output_path, overwrite=True)
 
 
 if __name__ == '__main__':
