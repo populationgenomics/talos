@@ -50,7 +50,7 @@ from functools import cache
 import loguru
 
 from cpg_flow import stage, targets, utils
-from cpg_utils import Path
+from cpg_utils import Path, config
 
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
@@ -76,6 +76,11 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     This method builds the path to the final object, and checks if it exists in GCP
     If it does, we can skip all other stages
     """
+
+    # if this is being forced, state that the final output can't be reused
+    if config.config_retrieve(['workflow', 'force_rerun'], False):
+        return False
+
     return utils.exists(
         cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
