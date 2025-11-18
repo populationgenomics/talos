@@ -281,7 +281,7 @@ def main(
     mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
 
     # checkpoint the rows as a Table locally to make everything downstream faster
-    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.ht', overwrite=True, _read_if_exists=True)
+    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.ht', overwrite=True)
 
     # re-shuffle the BCSQ elements
     ht = csq_strings_into_hail_structs(csq_fields, ht)

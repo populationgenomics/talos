@@ -263,10 +263,7 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         reference_genome='GRCh38',
         skip_invalid_loci=True,
         force_bgz=True,
-    ).checkpoint(
-        output='temporary.mt',
-        _read_if_exists=True,
-    )
+    ).checkpoint(output='temporary.mt')
 
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)
