@@ -14,6 +14,13 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.3.0] - 2025-10-18
+
+### Fixed
+
+* CPG Internally - adapt to an altered CSQ behaviour in BCFtools 1.22
+* General purpose - move to BCFtools 1.22 in the standard Dockerfile
+
 [8.2.0] - 2025-09-22
 
 ### Added
