@@ -15,7 +15,8 @@ RUN apt update && apt install -y --no-install-recommends \
 FROM base AS bcftools_compiler
 
 # BCFtools 1.22 doesn't do any inference on chr-prefixes during CSQ, so the mismatch between fasta/vcf, and the gff3 (no chr-prefix) needs to be handled explicitly
-ARG BCFTOOLS_VERSION=1.21
+# BCFtools 1.22 is required internally as it's the first version with a built-in Mitochondrial lookup table.
+ARG BCFTOOLS_VERSION=1.22
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         gcc \
