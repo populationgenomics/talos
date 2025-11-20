@@ -20,7 +20,7 @@ RUN apt update && apt install -y --no-install-recommends \
 
 FROM base AS bcftools_compiler
 
-ARG BCFTOOLS_VERSION=1.21
+ARG BCFTOOLS_VERSION=1.22
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         gcc \
