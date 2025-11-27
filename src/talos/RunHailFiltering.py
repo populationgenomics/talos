@@ -618,7 +618,7 @@ def annotate_category_de_novo(
 
     # a series of adjustments for processing sparse data and dragen-igg
 
-    # if there is a high quality missing call (?) treat it as homref
+    # GT missing -> HomRef if the GQ is above min_all_sample_gq
     de_novo_matrix = de_novo_matrix.annotate_entries(
         GT=hl.if_else(
             # if the GT is assigned, use it
@@ -633,7 +633,7 @@ def annotate_category_de_novo(
         ),
     )
 
-    # pad some AD values if HomRefs are single-element
+    # pad some AD values if HomRefs are single-element, if AD is missing completely but the var is high quality, insert
     # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenennigans
     de_novo_matrix = de_novo_matrix.annotate_entries(
         AD=hl.if_else(
@@ -655,8 +655,7 @@ def annotate_category_de_novo(
         ),
     )
 
-    # missing -> HomRef if the GQ is above min_all_sample_gq
-    # If AD is 'present' but a missing value, replace it with min_depth + 1
+    # If DP is 'present' but a missing value, replace it with sum(AD), if DP isn't in the schema at all, insert it
     if 'DP' in de_novo_matrix.entry:
         de_novo_matrix = de_novo_matrix.annotate_entries(
             # if depth is present in the schema and has a real value, use it
