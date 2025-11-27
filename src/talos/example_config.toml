@@ -114,10 +114,6 @@ spliceai = 0.5
 
 heteroplasmy_min = 0.2
 
-# un-comment this to enable the homref AD padding behaviour:
-#    - adding a default of 0 representing # alternate reads in homref calls
-#pad_homref_ad = true
-
 [RunHailFiltering.de_novo]
 min_child_ab = 0.2
 min_depth = 5
