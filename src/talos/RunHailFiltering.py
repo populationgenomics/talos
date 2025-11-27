@@ -599,7 +599,7 @@ def annotate_category_de_novo(
     min_all_sample_gq: int = de_novo_config.get('min_all_sample_gq', 19)
 
     # we've seen some pretty weird data formats, so a 'genotype-only' de novo detection option is being added
-    # the noise reduction offered by using the more complex filtering strategies have shown great perforance internally,
+    # the noise reduction offered by using the more complex filtering strategies have shown great performance internally,
     # but if the data you have doesn't allow for those to be used, consider using this flag
     genotype_only: bool = de_novo_config.get('genotype_only', False)
 
