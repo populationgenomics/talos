@@ -357,28 +357,28 @@ class SneakyTable:
         # parse the genotype calls as hl.call, but allow for missingness
         mt = mt.annotate_entries(
             GT=hl.if_else(
-                mt.GT=='.',
+                mt.GT == '.',
                 hl.missing(t=hl.tcall),
                 hl.parse_call(mt.GT),
-            )
+            ),
         )
 
         # check for the magic [-1] AD value, if found, replace with a missing value
         mt = mt.annotate_entries(
             AD=hl.if_else(
-                mt.AD==[-1],
+                mt.AD == [-1],
                 hl.missing(hl.tarray(hl.tint)),
                 mt.AD,
-            )
+            ),
         )
 
         # check for the magic [-1] AD value, if found, replace with a missing value
         mt = mt.annotate_entries(
             DP=hl.if_else(
-                mt.DP==-1,
+                mt.DP == -1,
                 hl.missing(hl.tint),
                 mt.DP,
-            )
+            ),
         )
 
         mt.write(tmp_mt, overwrite=True)

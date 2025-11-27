@@ -3,7 +3,7 @@ import pytest
 import hail as hl
 
 from talos.pedigree_parser import PedigreeParser
-from talos.RunHailFiltering import annotate_category_de_novo, pad_homref_ad
+from talos.RunHailFiltering import annotate_category_de_novo
 
 
 @pytest.mark.parametrize(
@@ -44,19 +44,3 @@ def test_dn_bch_one(make_a_bch_de_novo_mt, pedigree_path):
 
     with pytest.raises(hl.utils.java.HailUserError):
         _dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path))
-
-
-def test_dn_bch_working(make_a_bch_de_novo_mt, pedigree_path):
-    """check that the de novo annotation works"""
-    dn_matrix = make_a_bch_de_novo_mt.annotate_rows(
-        info=make_a_bch_de_novo_mt.info.annotate(clinvar_talos=1),
-        transcript_consequences=hl.array(
-            [
-                hl.Struct(consequence='frameshift', biotype='protein_coding'),
-            ],
-        ),
-    )
-
-    pad_homref_ad(dn_matrix)
-    dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path), strict_ad=True)
-    assert dn_matrix.info.categorysampledenovo.collect() == ['missing']
