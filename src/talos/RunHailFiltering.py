@@ -617,6 +617,22 @@ def annotate_category_de_novo(
     pedigree = hl.Pedigree.read(temp_ped_path)
 
     # a series of adjustments for processing sparse data and dragen-igg
+
+    # if there is a high quality missing call (?) treat it as homref
+    de_novo_matrix = de_novo_matrix.annotate_entries(
+        GT=hl.if_else(
+            # if the GT is assigned, use it
+            hl.is_defined(de_novo_matrix.GT),
+            de_novo_matrix.GT,
+            # if it's a missing value but with a decent GQ, call it a HomRef
+            hl.if_else(
+                min_all_sample_gq < de_novo_matrix.GQ,
+                hl.Call([0, 0]),
+                de_novo_matrix.GT,
+            ),
+        ),
+    )
+
     # pad some AD values if HomRefs are single-element
     # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenennigans
     de_novo_matrix = de_novo_matrix.annotate_entries(
@@ -636,17 +652,6 @@ def annotate_category_de_novo(
                 [min_depth + 1, 0],
             ),
             de_novo_matrix.AD,
-        ),
-        GT=hl.if_else(
-            # if the GT is assigned, use it
-            hl.is_defined(de_novo_matrix.GT),
-            de_novo_matrix.GT,
-            # if it's a missing value but with a decent GQ, call it a HomRef
-            hl.if_else(
-                min_all_sample_gq < de_novo_matrix.GQ,
-                hl.Call([0, 0]),
-                de_novo_matrix.GT,
-            ),
         ),
     )
 
