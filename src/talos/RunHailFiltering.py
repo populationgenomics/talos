@@ -646,7 +646,7 @@ def annotate_category_de_novo(
                     # check for instances of only one AD value, and append a 0 for alt counts
                     (hl.len(de_novo_matrix.AD) == 1) & (de_novo_matrix.AD[0] > 0),
                     de_novo_matrix.AD.append(0),
-                    de_novo_matrix.AD,  # what is this?
+                    de_novo_matrix.AD,
                 ),
                 # aiming this at missing "." AD but high quality call, replace with dummy values
                 [min_depth + 1, 0],
