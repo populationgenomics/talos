@@ -616,17 +616,36 @@ def annotate_category_de_novo(
     pedigree_data.write_pedigree(output_path=temp_ped_path)
     pedigree = hl.Pedigree.read(temp_ped_path)
 
-    # a series of adjustments for processing sparse data
+    # a series of adjustments for processing sparse data and dragen-igg
+    # pad some AD values if HomRefs are single-element
+    # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenennigans
+    de_novo_matrix = de_novo_matrix.annotate_entries(
+        AD=hl.if_else(
+            de_novo_matrix.GT.is_hom_ref(),
+            hl.if_else(
+                (hl.is_defined(de_novo_matrix.AD)) & (de_novo_matrix.GQ > min_all_sample_gq),
+                hl.if_else(
+                    (hl.len(de_novo_matrix.AD) == 1) & (de_novo_matrix.AD[0] > 0),
+                    de_novo_matrix.AD.append(0),
+                    de_novo_matrix.AD,  # what is this?
+                ),
+                # aiming this at missing "." AD, replace with something generic
+                [min_depth + 1, 0]
+            ),
+            de_novo_matrix.AD,
+        ),
+    )
+
     # missing -> HomRef if the GQ is above min_all_sample_gq
     # If AD is 'present' but a missing value, replace it with min_depth + 1
     de_novo_matrix = de_novo_matrix.annotate_entries(
-        # if depth is present, use it
+        # if depth is present in the schema and has a real value, use it
         DP=hl.if_else(
-            hl.is_defined(de_novo_matrix.entry['DP']),
+            ('DP' in de_novo_matrix.entry) & (hl.is_defined(de_novo_matrix.DP)),
             de_novo_matrix.DP,
             # if depth is absent but AD is not missing, use the sum of AD
             hl.if_else(
-                (hl.is_defined(de_novo_matrix.entry['AD'])) & ~(hl.is_missing(de_novo_matrix.AD)),
+                hl.is_defined(de_novo_matrix.AD),
                 hl.sum(de_novo_matrix.AD),
                 # If AD and depth are both missing, chuck in a dummy value
                 min_depth + 1
@@ -634,7 +653,7 @@ def annotate_category_de_novo(
         ),
         GT=hl.if_else(
             # if the GT is assigned, use it
-            ~hl.is_missing(de_novo_matrix.GT),
+            hl.is_defined(de_novo_matrix.GT),
             de_novo_matrix.GT,
             # if it's a missing value but with a decent GQ, call it a HomRef
             hl.if_else(
@@ -643,24 +662,6 @@ def annotate_category_de_novo(
                 de_novo_matrix.GT,
             )
         )
-    )
-
-    # and maybe pad some AD values, adjusts for some truly unconventional spec-breaking DRAGEN IGG shenennigans
-    de_novo_matrix = de_novo_matrix.annotate_entries(
-        AD=hl.if_else(
-            de_novo_matrix.GT.is_hom_ref(),
-            hl.if_else(
-                # aiming this at missing "." AD
-                hl.is_defined(de_novo_matrix.AD),
-                hl.if_else(
-                    (hl.len(de_novo_matrix.AD) == 1) & (de_novo_matrix.AD[0] > 0),
-                    de_novo_matrix.AD.append(0),
-                    de_novo_matrix.AD,
-                ),
-                [min_depth + 1, 0]
-            ),
-            de_novo_matrix.AD,
-        ),
     )
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
