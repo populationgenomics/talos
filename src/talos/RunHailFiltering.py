@@ -586,21 +586,22 @@ def annotate_category_de_novo(
     """
 
     # modifiable through config
-    min_child_ab: float = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
-    min_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_depth'], 5)
-    max_depth: int = config_retrieve(['RunHailFiltering', 'de_novo', 'max_depth'], 1000)
-    min_proband_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_proband_gq'], 25)
-    min_alt_depth = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
+    de_novo_config = config_retrieve(['RunHailFiltering', 'de_novo'])
+    min_child_ab: float = de_novo_config.get('min_child_ab', 0.20)
+    min_depth: int = de_novo_config.get('min_depth', 5)
+    max_depth: int = de_novo_config.get('max_depth', 1000)
+    min_proband_gq: int = de_novo_config.get('min_proband_gq', 25)
+    min_alt_depth: int = de_novo_config.get('min_alt_depth', 5)
 
     # this GQ filter will be applied to all samples, not just probands
     # if the dataset is merged from single-sample VCFs, WT samples for a given allele will have no GQ, so this filter
     # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
-    min_all_sample_gq: int = config_retrieve(['RunHailFiltering', 'de_novo', 'min_all_sample_gq'], None)
+    min_all_sample_gq: int = de_novo_config.get('min_all_sample_gq', 19)
 
     # we've seen some pretty weird data formats, so a 'genotype-only' de novo detection option is being added
-    # the noise reduction offered by using the more complex filtering strategies have shown great perforance internally,
+    # the noise reduction offered by using the more complex filtering strategies have shown great performance internally
     # but if the data you have doesn't allow for those to be used, consider using this flag
-    genotype_only = config_retrieve(['RunHailFiltering', 'de_novo', 'genotype_only'], False)
+    genotype_only: bool = de_novo_config.get('genotype_only', False)
 
     logger.info('Running de novo search')
 
@@ -615,15 +616,59 @@ def annotate_category_de_novo(
     pedigree_data.write_pedigree(output_path=temp_ped_path)
     pedigree = hl.Pedigree.read(temp_ped_path)
 
-    # allow for depth to be missing, rebuild from other attributes if required, or use a default
+    # a series of adjustments for processing sparse data and dragen-igg
+
+    # GT missing -> HomRef if the GQ is above min_all_sample_gq
+    de_novo_matrix = de_novo_matrix.annotate_entries(
+        GT=hl.if_else(
+            # if the GT is assigned, use it
+            hl.is_defined(de_novo_matrix.GT),
+            de_novo_matrix.GT,
+            # if it's a missing value but with a decent GQ, call it a HomRef
+            hl.if_else(
+                min_all_sample_gq < de_novo_matrix.GQ,
+                hl.Call([0, 0]),
+                de_novo_matrix.GT,
+            ),
+        ),
+    )
+
+    # pad some AD values if HomRefs are single-element, if AD is missing completely but the var is high quality, insert
+    # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenanigans
+    de_novo_matrix = de_novo_matrix.annotate_entries(
+        AD=hl.if_else(
+            # if this is a high quality HomRef
+            (de_novo_matrix.GT.is_hom_ref()) & (min_all_sample_gq < de_novo_matrix.GQ),
+            hl.if_else(
+                # If HomRef is populated
+                hl.is_defined(de_novo_matrix.AD),
+                hl.if_else(
+                    # check for instances of only one AD value, and append a 0 for alt counts
+                    (hl.len(de_novo_matrix.AD) == 1) & (de_novo_matrix.AD[0] > 0),
+                    de_novo_matrix.AD.append(0),
+                    de_novo_matrix.AD,
+                ),
+                # aiming this at missing "." AD but high quality call, replace with dummy values
+                [min_depth + 1, 0],
+            ),
+            de_novo_matrix.AD,
+        ),
+    )
+
+    # If DP is 'present' but a missing value, replace it with sum(AD), if DP isn't in the schema at all, insert it
     if 'DP' in de_novo_matrix.entry:
-        pass
-    elif 'AD' in de_novo_matrix.entry:
-        de_novo_matrix = de_novo_matrix.annotate_entries(DP=hl.sum(de_novo_matrix.AD))
+        de_novo_matrix = de_novo_matrix.annotate_entries(
+            # if depth is present in the schema and has a real value, use it
+            DP=hl.if_else(
+                hl.is_defined(de_novo_matrix.DP),
+                de_novo_matrix.DP,
+                # otherwise use the AD value
+                hl.sum(de_novo_matrix.AD),
+            ),
+        )
+    # if depth isn't in the schema at all, insert it
     else:
-        de_novo_matrix = de_novo_matrix.annotate_entries(DP=min_depth + 1)
-        logger.info('DP and AD both absent, chucking in a default value')
-        logger.info('Input variant data should really have either DP or AD present for various QC purposes')
+        de_novo_matrix = de_novo_matrix.annotate_entries(DP=hl.sum(de_novo_matrix.AD))
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = hl.literal(pedigree_data.get_affected_member_ids())
@@ -884,29 +929,6 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
     return mt
 
 
-def pad_homref_ad(mt: hl.MatrixTable):
-    """
-    Observed in some callsets, the AD genotype/format field contains only a single value for HomRef calls.
-    This detects those values, and adds a second value of 0, to enable AD-based filtering later in the pipeline.
-    """
-
-    def pad_ad(ad) -> hl.ArrayExpression:
-        return hl.if_else(
-            (hl.len(ad) == 1) & (ad[0] > 0),
-            ad.append(0),
-            ad,
-        )
-
-    logger.info('Padding AD field for HomRef calls where only a single value is present')
-    mt = mt.annotate_entries(
-        AD=hl.if_else(
-            mt.GT.is_hom_ref(),
-            pad_ad(mt.AD),
-            mt.AD,
-        ),
-    )
-
-
 def cli_main():
     """
     Read MT, filter, and apply category annotation, export as a VCF
@@ -993,9 +1015,6 @@ def main(  # noqa: PLR0915
     # Will revisit once our internal experience with DRAGEN-generated variant data improves
     logger.info('Removing any star-allele sites from the dataset, Talos is not currently designed to handle these')
     mt = mt.filter_rows(mt.alleles.contains('*'), keep=False)
-
-    if config_retrieve(['RunHailFiltering', 'pad_homref_ad'], False):
-        pad_homref_ad(mt)
 
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
