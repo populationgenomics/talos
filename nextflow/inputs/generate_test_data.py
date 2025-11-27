@@ -10,6 +10,8 @@ hl.default_reference('GRCh38')
 
 comp_het = {'proband': Entry('1/1'), 'mother': Entry('0/1'), 'father': Entry('0/1')}
 de_novo = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/0')}
+tricky_de_novo = {'proband': Entry('0/1'), 'mother': Entry('.', ad=[-1]), 'father': Entry('.', ad=[-1])}
+
 mat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/1'), 'father': Entry('0/0')}
 pat_inherited = {'proband': Entry('0/1'), 'mother': Entry('0/0'), 'father': Entry('0/1')}
 
@@ -52,8 +54,14 @@ v7 = VepVariant(BaseFields('chrX:71109321', ['G', 'A']), [t], sample_data=mat_in
 # rnu4-2 (AD/AR) | cat 1, de novo | should be reported
 v8 = VepVariant(BaseFields('chr12:120291834', ['A', 'G']), [t], sample_data=de_novo)
 
+# HSPA8, not in any panels
+v9 = VepVariant(BaseFields('chr11:123057736', ['A', 'AATC']), [t], sample_data=tricky_de_novo)
+
+# HSPA8, not in any panels
+v10 = VepVariant(BaseFields('chr16:89279566', ['CCTTCGGGG', 'C']), [t], sample_data=tricky_de_novo)
+
 # create a SneakyTable object, which will take a list of VepVariant objects
-sn = SneakyTable([vnorm, v1, v2a, v2b, v3a, v3b, v4, v5, v6, v7, v8], '', sample_schema)
+sn = SneakyTable([vnorm, v1, v2a, v2b, v3a, v3b, v4, v5, v6, v7, v8, v9, v10], '', sample_schema)
 
 # once the table is parsed using the JSON schema, convert to a Hail MatrixTable
 # using the row_major functionality - this takes the list of sample IDs, converts those
