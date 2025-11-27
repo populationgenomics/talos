@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* The docker images, both CPG internal and general purpose, both use BCFtools 1.22, and the NF CSQ annotation module updates to use appropriate syntax  
+* The docker images, both CPG internal and general purpose, both use BCFtools 1.22, and the NF CSQ annotation module updates to use appropriate syntax
 
 [8.3.0] - 2025-10-18
 
