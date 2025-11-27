@@ -634,7 +634,7 @@ def annotate_category_de_novo(
     )
 
     # pad some AD values if HomRefs are single-element, if AD is missing completely but the var is high quality, insert
-    # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenennigans
+    # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenanigans
     de_novo_matrix = de_novo_matrix.annotate_entries(
         AD=hl.if_else(
             # if this is a high quality HomRef
