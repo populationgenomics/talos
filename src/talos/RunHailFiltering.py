@@ -621,15 +621,18 @@ def annotate_category_de_novo(
     # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenennigans
     de_novo_matrix = de_novo_matrix.annotate_entries(
         AD=hl.if_else(
-            de_novo_matrix.GT.is_hom_ref(),
+            # if this is a high quality HomRef
+            (de_novo_matrix.GT.is_hom_ref()) & (min_all_sample_gq < de_novo_matrix.GQ),
             hl.if_else(
-                (hl.is_defined(de_novo_matrix.AD)) & (min_all_sample_gq < de_novo_matrix.GQ),
+                # If HomRef is populated
+                hl.is_defined(de_novo_matrix.AD),
                 hl.if_else(
+                    # check for instances of only one AD value, and append a 0 for alt counts
                     (hl.len(de_novo_matrix.AD) == 1) & (de_novo_matrix.AD[0] > 0),
                     de_novo_matrix.AD.append(0),
                     de_novo_matrix.AD,  # what is this?
                 ),
-                # aiming this at missing "." AD, replace with something generic
+                # aiming this at missing "." AD but high quality call, replace with dummy values
                 [min_depth + 1, 0],
             ),
             de_novo_matrix.AD,
