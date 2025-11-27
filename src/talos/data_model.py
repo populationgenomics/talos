@@ -372,7 +372,7 @@ class SneakyTable:
             ),
         )
 
-        # check for the magic [-1] AD value, if found, replace with a missing value
+        # check for the magic -1 DP value, if found, replace with a missing value
         mt = mt.annotate_entries(
             DP=hl.if_else(
                 mt.DP == -1,
