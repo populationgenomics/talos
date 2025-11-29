@@ -4,5 +4,7 @@ build
 .github
 .coverage*
 .nextflow
+work
+nextflow/processed_annotations
 
 large_files

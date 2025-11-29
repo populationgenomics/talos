@@ -1,0 +1,5 @@
+[
+    {"field": "clinical_significance", "alias": "clinical_significance", "missing_string": "."},
+    {"field": "gold_stars", "alias": "gold_stars", "missing_value": -2147483648},
+    {"field": "allele_id", "alias": "allele_id", "missing_value": -2147483648}
+]

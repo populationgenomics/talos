@@ -14,9 +14,7 @@ process FilterVcfToBedWithBcftools {
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        tuple \
-            path("${params.cohort}_merged_filtered.vcf.bgz"), \
-            path("${params.cohort}_merged_filtered.vcf.bgz.tbi")
+        path "${params.cohort}_merged_filtered.vcf.bgz"
 
     script:
     """
@@ -30,6 +28,6 @@ process FilterVcfToBedWithBcftools {
         -Oz \
         --no-version \
         -o "${params.cohort}_merged_filtered.vcf.bgz" \
-        -W=tbi - -- -t AC,AF,AN
+        - -- -t AC,AF,AN
     """
 }

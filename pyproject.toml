@@ -113,6 +113,12 @@ packages = ["src/talos"]
 [options]
 include_package_data = true
 
+[options.package_data]
+'talos'=  [
+    'am_header.txt',
+]
+
+
 [tool.mypy]
 ignore_missing_imports = true
 

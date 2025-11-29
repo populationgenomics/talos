@@ -227,7 +227,6 @@ def cli_main():
     parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
     parser.add_argument('--gene_bed', help='BED file containing gene mapping')
-    parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', required=True)
     parser.add_argument('--mane', help='Hail Table containing MANE annotations', default=None)
     parser.add_argument(
         '--checkpoint',
@@ -240,7 +239,6 @@ def cli_main():
         vcf_path=args.input,
         output_path=args.output,
         gene_bed=args.gene_bed,
-        alpha_m=args.am,
         mane=args.mane,
         checkpoint=args.checkpoint,
     )
@@ -250,7 +248,6 @@ def main(
     vcf_path: str,
     output_path: str,
     gene_bed: str,
-    alpha_m: str,
     mane: str | None = None,
     checkpoint: str | None = None,
 ):
@@ -262,7 +259,6 @@ def main(
         vcf_path (str): path to the annotated sites-only VCF
         output_path (str): path to write the resulting Hail Table to, must
         gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
-        alpha_m (str): path to the AlphaMissense Hail Table, required
         mane (str | None): path to a MANE Hail Table for enhanced annotation
         checkpoint (str): which hail backend to use. Defaults to
     """
@@ -291,9 +287,6 @@ def main(
 
     # get a hold of the geneIds - use some aggregation
     ht = ht.annotate(gene_ids=hl.set(ht.transcript_consequences.map(lambda c: c.gene_id)))
-
-    # add AlphaMissense scores
-    ht = insert_am_annotations(ht, am_table=alpha_m)
 
     # drop the BCSQ field
     ht = ht.annotate(info=ht.info.drop('BCSQ'))

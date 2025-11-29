@@ -5,16 +5,13 @@ process MergeVcfsWithBcftools {
     input:
         path vcfs
         path tbis
-        path regions
         path ref_genome
 
     // merge the VCFs into a single VCF
     publishDir params.cohort_output_dir
 
     output:
-        tuple \
-            path("${params.cohort}_merged.vcf.bgz"), \
-            path("${params.cohort}_merged.vcf.bgz.tbi")
+        path "${params.cohort}_merged.vcf.bgz"
 
     script:
 
@@ -29,23 +26,10 @@ process MergeVcfsWithBcftools {
         bcftools merge \
         	--force-single \
         	-m none \
-        	-R ${regions} \
         	-0 \
-        	-Ou \
+        	-Oz \
         	--no-version \
-        	$input | \
-        bcftools norm \
-			-m -any \
-			-Ou \
-			--no-version \
-			-f ${ref_genome} \
-			- | \
-        bcftools +fill-tags \
-            --no-version \
-            -Oz \
-            -o "${params.cohort}_merged.vcf.bgz" \
-            -W=tbi \
-            - -- \
-            -t AC,AF,AN
+        	$input \
+        	-o -o "${params.cohort}_merged.vcf.bgz"
         """
 }

@@ -3,14 +3,13 @@ process ReformatAnnotatedVcfIntoHailTable {
 
     input:
         path vcf
-        path alphamissense
         path gene_bed
         path mane
 
     publishDir params.cohort_output_dir
 
     output:
-        path "${params.cohort}_annotations.ht"
+        path "${vcf.baseName}_annotations.ht"
 
     script:
         """
@@ -18,9 +17,8 @@ process ReformatAnnotatedVcfIntoHailTable {
 
         ReformatAnnotatedVcfIntoHailTable \
             --input ${vcf} \
-            --am ${alphamissense} \
             --gene_bed ${gene_bed} \
-            --output ${params.cohort}_annotations.ht \
+            --output ${vcf.baseName}_annotations.ht \
             --mane ${mane}
         """
 }
