@@ -128,7 +128,7 @@ workflow {
 	// new stuff from here - we have a MT, now export sites only fragments from it
 	MakeSitesOnlyVcfsFromMt(ch_mt)
 
-	// MakeSitesOnlyVcfsFromMt.out will be a channel of *.bgz vcf fragments
+	// MakeSitesOnlyVcfsFromMt.out will be a list of *.bgz vcf fragments, need to separate them into separate values
 
     // apply the gnomAD and AlphaMissense annotations using echtvar
     AnnotateWithEchtvar(
