@@ -5,8 +5,9 @@ The previous process had some slow VCF operations, then converted the VCF to a M
 
 from argparse import ArgumentParser
 
-import hail as hl
 from loguru import logger
+
+import hail as hl
 
 
 def main(input_path: str, bed: str, output_path: str) -> None:
@@ -24,7 +25,7 @@ def main(input_path: str, bed: str, output_path: str) -> None:
     # filter to overlaps with the BED file
     mt = mt.filter_rows(hl.is_defined(bed_region[mt.locus]))
 
-    logger.info(f'Splitting multiallelic variants in input data')
+    logger.info('Splitting multiallelic variants in input data')
     mt = hl.split_multi_hts(mt)
 
     # replace the existing INFO block to just have AC/AN/AF - no other carry-over. Allow for this to be missing.

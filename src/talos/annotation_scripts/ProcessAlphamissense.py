@@ -29,7 +29,7 @@ def main(input_am: str, output: str):
             llist = line.rstrip().split()
 
             out.write(
-                f'{llist[0]}\t{llist[1]}\t.\t{llist[2]}\t{llist[3]}\t60\tPASS\tam_class={llist[9]};am_score={llist[8]};am_transcript={llist[6].split(".")[0]}\n'
+                f'{llist[0]}\t{llist[1]}\t.\t{llist[2]}\t{llist[3]}\t60\tPASS\tam_class={llist[9]};am_score={llist[8]};am_transcript={llist[6].split(".")[0]}\n',
             )
 
 

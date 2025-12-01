@@ -78,10 +78,7 @@ def main(
 
     # read each annotation table individually, then obtain the union of all tables
     annotation_tables = [hl.read_table(each_table) for each_table in annotations]
-    if len(annotation_tables) == 1:
-        ht = annotation_tables[0]
-    else:
-        ht = annotation_tables[0].union(*annotation_tables[1:])
+    ht = annotation_tables[0] if len(annotation_tables) == 1 else annotation_tables[0].union(*annotation_tables[1:])
 
     # syntactic sugar for later on
     matched_annotations = ht[mt.row_key]

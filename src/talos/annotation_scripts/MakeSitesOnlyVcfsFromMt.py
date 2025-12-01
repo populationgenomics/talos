@@ -6,7 +6,6 @@ from argparse import ArgumentParser
 
 import hail as hl
 
-
 # VCFs can only be exported from the MatrixTable when all FILTERS entries are accounted for in the header
 # Some quality filtering parameters are assigned but not described in the header.
 # The solutions are either add an entry in this `filter` dict for each possible FILTER, and add metadata=METADATA in the
