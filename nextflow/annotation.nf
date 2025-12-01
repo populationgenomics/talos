@@ -132,23 +132,23 @@ workflow {
 
     // apply the gnomAD and AlphaMissense annotations using echtvar
     AnnotateWithEchtvar(
-        MakeSitesOnlyVcfsFromMt.out.collect().flatten(),
-        ch_gnomad_zip,
-        ch_alphamissense_zip,
+        MakeSitesOnlyVcfsFromMt.out.flatten(),
+        ch_gnomad_zip.first(),
+        ch_alphamissense_zip.first(),
     )
 
     // annotate transcript consequences with bcftools csq
     AnnotateCsqWithBcftools(
-        AnnotateWithEchtvar.out.collect().flatten(),
-        ch_gff,
-        ch_ref_genome,
+        AnnotateWithEchtvar.out,
+        ch_gff.first(),
+        ch_ref_genome.first(),
     )
 
     // reformat the annotations in the VCF, retain as a Hail Table
     ReformatAnnotatedVcfIntoHailTable(
-        AnnotateCsqWithBcftools.out.collect().flatten(),
-        ch_bed,
-        ch_mane,
+        AnnotateCsqWithBcftools.out,
+        ch_bed.first(),
+        ch_mane.first(),
     )
 
     // combine the join-VCF and annotations as a HailTable

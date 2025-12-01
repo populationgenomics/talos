@@ -78,7 +78,7 @@ def main(
     if len(annotation_tables) == 1:
         ht = annotation_tables[0]
     else:
-        ht = annotation_tables[0].union(annotation_tables[1:])
+        ht = annotation_tables[0].union(*annotation_tables[1:])
 
     # syntax sweeter for later on
     matched_annotations = ht[mt.row_key]

@@ -6,10 +6,22 @@ from argparse import ArgumentParser
 
 import hail as hl
 
+METADATA = {
+    'filter': {
+        'LowDepth': {
+            'Description': 'LowDepth',
+        },
+    },
+}
+
 
 def main(input_mt: str, output_dir: str) -> None:
-    hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
+    hl.context.init_spark(master='local[*]', default_reference='GRCh38')
     mt = hl.read_matrix_table(input_mt)
+
+    # remove any filtered out rows
+    # todo: maybe remove this later?
+    mt = mt.filter_rows(mt.filters.length() == 0)
     hl.export_vcf(mt.rows(), output_dir, parallel='header_per_shard')
 
 
