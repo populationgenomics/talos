@@ -4,6 +4,7 @@ process TransferAnnotationsToMatrixTable {
     input:
         path mt
         path annotations
+        path regions
 
     publishDir params.cohort_output_dir, mode: 'copy'
 
@@ -17,6 +18,7 @@ process TransferAnnotationsToMatrixTable {
         TransferAnnotationsToMatrixTable \
             --input ${mt} \
             --annotations ${annotations} \
-            --output ${params.cohort}.mt
+            --output ${params.cohort}.mt \
+            --regions ${regions}
         """
 }

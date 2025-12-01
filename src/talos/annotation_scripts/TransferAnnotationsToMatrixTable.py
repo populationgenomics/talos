@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Takes the full un-annotated joint-callset VCF,
-A HailTable of the formatted annotations,
-Integrates the two, writing a MatrixTable representation of the fully annotated VCF
+Takes the MatrixTable representing the full callset, and one or more Hail Tables containing annotations
+Integrates the two, writing a MatrixTable representation of the fully annotated joint call
 """
 
 from argparse import ArgumentParser
@@ -31,6 +30,7 @@ def cli_main():
     )
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
     parser.add_argument('--backend', help='type of backend to use', default='local')
+    parser.add_argument('--regions', help='Optional, BED file to write reduced output', default=None)
     args = parser.parse_args()
 
     main(
@@ -38,6 +38,7 @@ def cli_main():
         output_path=args.output,
         annotations=args.annotations,
         backend=args.backend,
+        regions=args.regions,
     )
 
 
@@ -46,6 +47,7 @@ def main(
     output_path: str,
     annotations: list[str],
     backend: str,
+    regions: str | None = None,
 ):
     """
     Takes a Hail-Table of annotations, a joint-called VCF, reads the VCF as a MatrixTable and hops the annotations over
@@ -57,6 +59,7 @@ def main(
         output_path (str): path to write the resulting MatrixTable to
         annotations (list[str]): path to one or more Hail Tables containing annotations
         backend (str): which backend type to use
+        regions (str | None): optional, a BED file to limit the written data to only genic regions (space saving)
     """
 
     if not annotations:
@@ -101,6 +104,14 @@ def main(
     )
 
     mt.describe()
+
+    if regions:
+        logger.info(f'Reading the bed file {regions} to use in region-filtering {input_path}')
+        # read of the BED file, skipping any contigs not in the reference genome
+        bed_region = hl.import_bed(regions, skip_invalid_intervals=True)
+
+        # filter to overlaps with the BED file
+        mt = mt.filter_rows(hl.is_defined(bed_region[mt.locus]))
 
     mt.write(output_path, overwrite=True)
 

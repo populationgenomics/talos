@@ -3,13 +3,17 @@
 /*
 This workflow is a minimised annotation process for the Talos pipeline.
 
-It takes multiple VCFs, merges them into a single VCF, and annotates the merged VCF with relevant annotations.
+As input, this either takes a Hail MatrixTable (preferred), a Joint-called VCF (OK), or multiple individual VCFs (slow).
 
-The specific annotations are:
-- gnomAD v4.1 frequencies, applied to the joint VCF using echtvar
-- Transcript consequences, using BCFtools annotate
-- AlphaMissense, applied using Hail
-- MANE trancript IDs and corresponding proteins, applied using Hail
+The first step is transforming any non-MT inputs into a MatrixTable. If separate VCFs are provided this is done by first
+merging VCFs using BCFtools. Once a joint-call is obtained, this is done by importing the VCF to MT.
+
+From the MatrixTable we export each fragment as a sites-only VCF representation, all downstream steps act in parallel:
+
+ - Use Echtvar to annotate gnomAD population frequencies and AlphaMissense data in a single pass
+ - Use BCFtools to annotate transcript consequences
+ - Convert each annotated fragment into a Hail table by splitting and rearranging the annotation fields
+ - Ingest the HTs as a single Hail Table, and use it to annotate the MatrixTable of the full callset, writing a new MT
 */
 
 nextflow.enable.dsl=2
@@ -126,8 +130,6 @@ workflow {
 	// new stuff from here - we have a MT, now export sites only fragments from it
 	MakeSitesOnlyVcfsFromMt(ch_mt)
 
-	// MakeSitesOnlyVcfsFromMt.out will be a list of *.bgz vcf fragments, need to separate them into separate values
-
     // apply the gnomAD and AlphaMissense annotations using echtvar
     AnnotateWithEchtvar(
         MakeSitesOnlyVcfsFromMt.out.flatten(),
@@ -153,5 +155,6 @@ workflow {
     TransferAnnotationsToMatrixTable(
         ch_mt,
         ReformatAnnotatedVcfIntoHailTable.out.collect(),
+        ch_merged_bed,
     )
 }
