@@ -1,4 +1,3 @@
-
 process MakeSitesOnlyVcfsFromMt {
     container params.container
 

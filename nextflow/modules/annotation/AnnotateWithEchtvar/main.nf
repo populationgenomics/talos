@@ -1,4 +1,3 @@
-
 process AnnotateWithEchtvar {
     container params.container
 

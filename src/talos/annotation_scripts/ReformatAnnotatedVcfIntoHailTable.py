@@ -260,15 +260,15 @@ def main(
         output_path (str): path to write the resulting Hail Table to, must
         gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
         mane (str | None): path to a MANE Hail Table for enhanced annotation
-        checkpoint (str): which hail backend to use. Defaults to
+        checkpoint (str): which hail backend to use. Defaults to None == local backend
     """
 
     if checkpoint:
         logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
         init_batch()
     else:
-        logger.info('Using Hail Local backend, no checkpoints')
-        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
+        logger.info('Using Hail Local backend')
+        hl.context.init_spark(master='local[*]', default_reference='GRCh38')
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)

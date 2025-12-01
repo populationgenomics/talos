@@ -73,7 +73,7 @@ def main(
     mt = hl.read_matrix_table(mt_path)
 
     if bed:
-        # remote-read of the BED file, skipping any contigs not in the reference genome
+        # read the BED file, skipping any contigs not in the reference genome
         # the Ensembl data wasn't filtered to remove non-standard contigs
         limited_region = hl.import_bed(bed, reference_genome=config.genome_build(), skip_invalid_intervals=True)
         # filter to overlaps with the BED file

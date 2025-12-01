@@ -15,7 +15,7 @@ def main(input_path: str, bed: str, output_path: str) -> None:
         input_path,
         array_elements_required=False,
         force_bgz=True,
-    )
+    ).checkpoint(f'{output_path}._temp')
 
     logger.info(f'Reading the bed file {bed} to use in region-filtering {input_path}')
     # read of the BED file, skipping any contigs not in the reference genome

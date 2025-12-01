@@ -1,4 +1,3 @@
-
 process MergeVcfsWithBcftools {
     container params.container
 
@@ -30,6 +29,6 @@ process MergeVcfsWithBcftools {
         	-Oz \
         	--no-version \
         	$input \
-        	-o -o "${params.cohort}_merged.vcf.bgz"
+        	-o "${params.cohort}_merged.vcf.bgz"
         """
 }

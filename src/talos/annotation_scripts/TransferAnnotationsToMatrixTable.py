@@ -67,7 +67,7 @@ def main(
 
     if backend == 'local':
         logger.info('Using local backend for Hail')
-        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
+        hl.context.init_spark(master='local[*]', default_reference='GRCh38')
     else:
         logger.info('Using Batch backend for Hail')
         init_batch()
@@ -83,7 +83,7 @@ def main(
     else:
         ht = annotation_tables[0].union(*annotation_tables[1:])
 
-    # syntax sweeter for later on
+    # syntactic sugar for later on
     matched_annotations = ht[mt.row_key]
 
     # a couple of lines commented of to make this as easy as possible to adopt
@@ -107,7 +107,7 @@ def main(
 
     if regions:
         logger.info(f'Reading the bed file {regions} to use in region-filtering {input_path}')
-        # read of the BED file, skipping any contigs not in the reference genome
+        # read the BED file, skipping any contigs not in the reference genome
         bed_region = hl.import_bed(regions, skip_invalid_intervals=True)
 
         # filter to overlaps with the BED file

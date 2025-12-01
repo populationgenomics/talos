@@ -120,7 +120,7 @@ workflow {
                 ch_ref_genome,
             )
             VcfToMatrixTable(
-                channel.fromPath(params.merged_vcf, checkIfExists: true),
+                MergeVcfsWithBcftools.out,
                 ch_merged_bed,
             )
             ch_mt = VcfToMatrixTable.out

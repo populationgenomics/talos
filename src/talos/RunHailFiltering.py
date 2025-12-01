@@ -993,7 +993,7 @@ def main(  # noqa: PLR0915
     ███      ███     ███   ███      █  ███     ███  ███     ███
    █████    █████   █████ ███████████    ███████     █████████ """,
     )
-    hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
+    hl.context.init_spark(master='local[*]', default_reference='GRCh38')
 
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panel_data!r}')

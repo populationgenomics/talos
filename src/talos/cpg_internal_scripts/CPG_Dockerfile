@@ -59,6 +59,7 @@ WORKDIR /talos
 COPY LICENSE pyproject.toml README.md ./
 COPY echtvar echtvar/
 COPY src src/
-COPY nextflow nextflow/
 
 RUN pip install --no-cache-dir ".[cpg]"
+
+COPY nextflow nextflow/
