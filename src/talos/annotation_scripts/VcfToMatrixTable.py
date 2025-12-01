@@ -19,7 +19,7 @@ def main(input_path: str, bed: str, output_path: str) -> None:
     ).checkpoint(f'{output_path}._temp')
 
     logger.info(f'Reading the bed file {bed} to use in region-filtering {input_path}')
-    # read of the BED file, skipping any contigs not in the reference genome
+    # read the BED file, skipping any contigs not in the reference genome
     bed_region = hl.import_bed(bed, skip_invalid_intervals=True)
 
     # filter to overlaps with the BED file
