@@ -16,7 +16,22 @@ def main(input_path: str, bed: str, output_path: str) -> None:
         input_path,
         array_elements_required=False,
         force_bgz=True,
-    ).checkpoint(f'{output_path}._temp')
+    ).checkpoint(f'{output_path}._temp', _read_if_exists=True)
+
+    # allow for IGG-related shennanigans
+    mt = mt.annotate_entries(
+        AD=hl.if_else(
+            # if this is a high quality HomRef
+            (mt.GT.is_hom_ref()) & (hl.len(mt.AD) == 1),
+            hl.if_else(
+                # If HomRef is populated
+                hl.is_defined(mt.AD),
+                mt.AD.append(0),
+                mt.AD,
+            ),
+            mt.AD,
+        ),
+    )
 
     logger.info(f'Reading the bed file {bed} to use in region-filtering {input_path}')
     # read the BED file, skipping any contigs not in the reference genome
@@ -32,13 +47,14 @@ def main(input_path: str, bed: str, output_path: str) -> None:
     if 'AF' not in mt.info:
         mt = hl.variant_qc(mt)
         mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                AF=[mt.variant_qc.AF[1]],
+            info=hl.struct(
+                AF=mt.variant_qc.AF,
                 AN=mt.variant_qc.AN,
-                AC=[mt.variant_qc.AC[1]],
+                AC=mt.variant_qc.AC,
             ),
             filters=hl.empty_set(hl.tstr),
         )
+        mt = mt.drop('variant_qc')
 
     mt = mt.select_rows(
         info=hl.struct(

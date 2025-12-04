@@ -16,6 +16,6 @@ process VcfToMatrixTable {
             --input ${vcf} \
             --regions ${bed} \
             --output ${params.cohort}_initial.mt
-            rm -r ${params.cohort}_initial.mt._temp
+        rm -r ${params.cohort}_initial.mt._temp
         """
 }

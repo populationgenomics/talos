@@ -75,9 +75,9 @@ def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
     # we already mandate that data is normalised/de-duplicated, so we can safely take the last element
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            AC=mt.variant_qc.AC[-1:],
+            AC=mt.variant_qc.AC,
             AN=mt.variant_qc.AN,
-            AF=mt.variant_qc.AF[-1:],
+            AF=mt.variant_qc.AF,
         ),
     )
     return mt.drop('variant_qc')
