@@ -300,7 +300,7 @@ def main(
     """
 
     # start up a hail runtime to check the MatrixTable and ClinVar HailTable
-    hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
+    hl.context.init_spark(master='local[*]', default_reference='GRCh38')
 
     # Run the checks on the pedigree, and on the Config file (picked up from the environment variable TALOS_CONFIG)
     validate_pedigree(pedigree_path)

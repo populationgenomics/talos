@@ -2,15 +2,15 @@ process AnnotateCsqWithBcftools {
     container params.container
 
     input:
-        path(vcf)
-        path(gff3)
-        path(reference)
+        path vcf
+        path gff3
+        path reference
 
     // annotate this VCF with gnomAD data
     publishDir params.cohort_output_dir, mode: 'copy'
 
     output:
-        path("${params.cohort}_csq.vcf.bgz")
+        path("${vcf.baseName}_csq.vcf.bgz")
 
     script:
     """
@@ -20,7 +20,7 @@ process AnnotateCsqWithBcftools {
         -g ${gff3} \
         --unify-chr-names 'chr,-,chr' \
         -B 20 \
-        -Oz -o "${params.cohort}_csq.vcf.bgz" \
+        -Oz -o "${vcf.baseName}_csq.vcf.bgz" \
         ${vcf}
     """
 }
