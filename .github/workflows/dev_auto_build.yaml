@@ -21,7 +21,7 @@ env:
 jobs:
   get_next_version:
     runs-on: ubuntu-latest
-    environment: 'dev'
+    environment: production
     outputs:
       matrix: ${{ steps.get_next_version.outputs.next_version }}
     steps:
@@ -57,7 +57,7 @@ jobs:
 
   deploy_image_auto:
     runs-on: ubuntu-latest
-    environment: 'dev'
+    environment: production
     needs:
       - get_next_version
     if: ${{ needs.get_next_version.outputs.matrix != '{"include":[]}' && needs.get_next_version.outputs.matrix != '' && github.event_name == 'push' }}
