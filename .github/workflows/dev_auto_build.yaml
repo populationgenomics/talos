@@ -1,0 +1,98 @@
+name: Autobuild dev image
+on:
+  push:
+    branches-ignore:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PROJECT: 'cpg-common'
+  DOCKER_BUILDKIT: 1
+  BUILDKIT_PROGRESS: plain
+  CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+  DOCKER_PREFIX: 'australia-southeast1-docker.pkg.dev'
+  IMAGES_PREFIX: 'australia-southeast1-docker.pkg.dev/cpg-common/images-dev'
+
+jobs:
+  get_next_version:
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      matrix: ${{ steps.get_next_version.outputs.next_version }}
+    steps:
+      - name: 'Checkout repo'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/main' && 'main' || github.event.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - id: 'google-cloud-auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: "projects/1051897107465/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "gh-images-deployer@cpg-common.iam.gserviceaccount.com"
+
+      - id: 'google-cloud-sdk-setup'
+        name: 'Set up Cloud SDK'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT }}
+
+      - name: 'Get current version'
+        id: get_next_version
+        run: |
+          next_version=$(python .github/workflows/get_version.py)
+          echo "next_version=$next_version" >> "$GITHUB_OUTPUT"
+
+  deploy_image_auto:
+    runs-on: ubuntu-latest
+    environment: production
+    needs:
+      - get_next_version
+    if: ${{ needs.get_next_version.outputs.matrix != '{"include":[]}' && needs.get_next_version.outputs.matrix != '' && github.event_name == 'push' }}
+    strategy:
+      matrix: ${{ fromJson(needs.get_next_version.outputs.matrix) }}
+    steps:
+      - name: 'checkout repo'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - id: 'google-cloud-auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: "projects/1051897107465/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "gh-images-deployer@cpg-common.iam.gserviceaccount.com"
+
+      - id: 'google-cloud-sdk-setup'
+        name: 'Set up Cloud SDK'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: 'gcloud docker auth'
+        run: |
+          gcloud auth configure-docker ${{ env.DOCKER_PREFIX }}
+
+      - name: 'build image with get_next_version'
+        run: |
+          docker build . -f src/talos/cpg_internal_scripts/CPG_Dockerfile \
+          --build-arg VERSION=${{ matrix.tag }} \
+          --tag ${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}
+
+      - name: 'Push to dev artifactory'
+        run: |
+          docker push "${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}" | tee push.log
+          digest=$(grep 'digest:' push.log | grep -o 'sha256:[0-9a-f]*')
+          echo ":package: Link to image:" >> $GITHUB_STEP_SUMMARY
+          echo "https://console.cloud.google.com/artifacts/docker/cpg-common/australia-southeast1/images-dev/${{ matrix.name }}/$digest?project=cpg-common" >> $GITHUB_STEP_SUMMARY

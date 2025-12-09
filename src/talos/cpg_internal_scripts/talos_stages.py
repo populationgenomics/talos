@@ -478,10 +478,9 @@ class RunHailFilteringSv(stage.CohortStage):
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
         pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
 
-        cpu: int = config.config_retrieve(['RunHailFiltering', 'cores', 'sv'], 2)
         job = set_up_job_with_resources(
             name=f'RunHailFilteringSV: {cohort.id} ({cohort.dataset.name}), {path_or_none}',
-            cpu=cpu,
+            cpu=2,
             memory='highmem',
         )
 

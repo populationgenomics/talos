@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="8.3.2"
+version="8.3.3"
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -41,7 +41,7 @@ dependencies=[
 [project.optional-dependencies]
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
-    'cpg-flow>=1',
+    'cpg-flow~=1.2',
     'google-cloud-storage==2.14.0',
 ]
 test = [
@@ -167,7 +167,7 @@ hail = ["hail", "hailtop"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
 
 [tool.bumpversion]
-current_version = "8.3.2"
+current_version = "8.3.3"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true
@@ -180,9 +180,14 @@ search = 'version="{current_version}"'
 replace = 'version="{new_version}"'
 
 [[tool.bumpversion.files]]
-filename = ".github/workflows/docker.yaml"
-search = "VERSION: {current_version}"
-replace = "VERSION: {new_version}"
+filename = "src/talos/cpg_internal_scripts/CPG_Dockerfile"
+search = "{current_version}"
+replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "Dockerfile"
+search = "{current_version}"
+replace = "{new_version}"
 
 [[tool.bumpversion.files]]
 filename = "nextflow/talos.config"
