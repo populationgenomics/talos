@@ -24,6 +24,8 @@ def make_echtvar_job(
         attributes=job_attrs | {'tool': 'echtvar'},
     )
     job.image(config.config_retrieve(['images', 'echtvar']))
+
+    # todo update this
     job.command(f'echtvar anno -e {gnomad_annotations} {sites_vcf} {job.output}')
     job.storage('20Gi').memory('highmem').cpu(4)
 

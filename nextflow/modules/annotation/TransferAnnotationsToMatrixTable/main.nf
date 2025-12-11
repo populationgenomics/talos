@@ -2,8 +2,9 @@ process TransferAnnotationsToMatrixTable {
     container params.container
 
     input:
+        path mt
         path annotations
-        tuple path(vcf), path(tbi)
+        path regions
 
     publishDir params.cohort_output_dir, mode: 'copy'
 
@@ -15,8 +16,9 @@ process TransferAnnotationsToMatrixTable {
         set -ex
 
         TransferAnnotationsToMatrixTable \
-            --input ${vcf} \
+            --input ${mt} \
             --annotations ${annotations} \
-            --output ${params.cohort}.mt
+            --output ${params.cohort}.mt \
+            --regions ${regions}
         """
 }
