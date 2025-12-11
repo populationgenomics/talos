@@ -1,4 +1,4 @@
-import functools
+from functools import cache
 
 import loguru
 
@@ -40,7 +40,37 @@ METAMIST_FAMILY_SG_QUERY = graphql.gql(
 )
 
 
-@functools.cache
+@cache
+def check_for_dataset_centric_cohorts() -> bool:
+    """
+    Fail if we are using cohorts containing samples from more than one dataset, or a cohort which doesn't have that
+    dataset nominated as its 'analysis_dataset'
+
+    Returns:
+        bool
+    """
+
+    issues: list[str] = []
+
+    mc = workflow.get_multicohort()
+
+    for cohort in mc.get_cohorts():
+        set_of_sg_datasets = {sg.dataset.name for sg in cohort.get_sequencing_groups()}
+        if len(set_of_sg_datasets) > 1:
+            issues.append(f'{cohort.id} has sequencing groups from multiple datasets')
+            continue
+
+        sg_dataset = set_of_sg_datasets.pop()
+        if cohort.dataset.name != sg_dataset:
+            issues.append(f'{cohort.id} has Dataset {cohort.dataset.name}, SGs are all {sg_dataset}')
+
+    if issues:
+        raise RuntimeError(issues)
+
+    return True
+
+
+@cache
 def generate_dataset_prefix(
     dataset: str,
     category: str | None = None,
@@ -94,7 +124,7 @@ def query_for_sg_family_id_map(dataset: str) -> dict[str, str]:
     }
 
 
-@functools.cache
+@cache
 def query_for_latest_analysis(
     dataset: str,
     analysis_type: str,
