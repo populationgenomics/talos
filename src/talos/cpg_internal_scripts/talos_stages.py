@@ -15,7 +15,11 @@ from cpg_flow.targets import Cohort
 from cpg_utils import Path, config, hail_batch, to_path
 
 from talos.cpg_internal_scripts.annotation_stages import AnnotateSpliceAi
-from talos.cpg_internal_scripts.cpg_flow_utils import generate_dataset_prefix, query_for_latest_analysis
+from talos.cpg_internal_scripts.cpg_flow_utils import (
+    check_for_dataset_centric_cohorts,
+    generate_dataset_prefix,
+    query_for_latest_analysis,
+)
 from talos.cpg_internal_scripts.cpgflow_jobs import AnnotateMitoCsqUsingBcftools, MakeConfig
 from talos.static_values import get_granular_date
 
@@ -163,6 +167,7 @@ class MakeRuntimeConfig(stage.CohortStage):
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        _cohort_dataset_pass = check_for_dataset_centric_cohorts()
         expected_outputs = self.expected_outputs(cohort)
 
         MakeConfig.create_config(
