@@ -46,7 +46,7 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
         if config_path == ENV_VAR:
             config_path = environ[ENV_VAR]
             if config_path is None:
-                raise ValueError(f'Set the environment variable {ENV_VAR}, or provide a specfic config path')
+                raise ValueError(f'Set the environment variable {ENV_VAR}, or provide a specific config path')
         elif config_path is None:
             raise ValueError(f'Supply a non-default file path, or export to the environment variable {ENV_VAR}')
 

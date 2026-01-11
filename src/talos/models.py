@@ -192,7 +192,7 @@ class VariantCommon(BaseModel):
         # if we don't want to allow support variants, remove any from the list of applied categories
         if not allow_support:
             # add the longer names to the support_categories - this is a workaround for the fact that the support
-            # categories entry in the config file can now be the numberical/short IDs, or longer names
+            # categories entry in the config file can now be the numerical/short IDs, or longer names
             remove_support = self.support_categories
             remove_support.update({translate_category(x) for x in self.support_categories})
             categories_applied -= remove_support

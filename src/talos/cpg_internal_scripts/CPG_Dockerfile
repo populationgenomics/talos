@@ -2,8 +2,6 @@ FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV VERSION=8.3.4
-
 RUN apt update && apt install -y --no-install-recommends \
         libbz2-1.0 \
         libcurl4 \
@@ -63,3 +61,5 @@ COPY src src/
 COPY nextflow nextflow/
 
 RUN pip install --no-cache-dir ".[cpg]"
+
+ENV VERSION=8.3.5

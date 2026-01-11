@@ -11,7 +11,7 @@ this workflow is designed to be something which could be executed easily off-sit
 
 * Step 2: Reassemble the sites-only VCF fragments into a single VCF
     - This uses the gcloud compose operation, which is a rolling merge of the fragments
-    - Code re-used from the rd_combiner workflow
+    - Code reused from the rd_combiner workflow
     - Data is written into permanent storage, it's only small
 
 * Step 3: Annotate the sites-only VCF with gnomad frequencies
@@ -35,7 +35,7 @@ this workflow is designed to be something which could be executed easily off-sit
 
 And somewhat in parallel to that:
 
-* Step M1: If availalable, pick up a Mitochondrial joint-vcf
+* Step M1: If available, pick up a Mitochondrial joint-vcf
     - this will be filed in Metamist under the dataset, called "merged_mito.vcf.bgz"
     - Mito variant calling is based on "chrM" (Hail likes "chrM")
     - Run BCFtools consequence annotation on that VCF

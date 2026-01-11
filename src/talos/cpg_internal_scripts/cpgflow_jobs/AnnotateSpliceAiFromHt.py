@@ -45,7 +45,7 @@ def main(input_path: str, output_path: str):
     #  }                            noqa: ERA001
     mt = mt.annotate_rows(splice_ai=ht[mt.row_key].splice_ai)
 
-    # make sure these are real values, i.e. pad missings
+    # make sure these are real values, i.e. pad missing
     mt = mt.annotate_rows(
         splice_ai=mt.splice_ai.annotate(
             delta_score=hl.or_else(mt.splice_ai.delta_score, MISSING_FLOAT_LO),
