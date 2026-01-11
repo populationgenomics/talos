@@ -407,9 +407,9 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
     if some of the het/hom samples are identified as de novo, but fail AB/alt depth test, strip that rating
 
     Args:
-        info_dict:
-        alt_depths:
-        ab_ratios:
+        info_dict: the key.lower(): value mapping from the INFO field of this VCF row
+        alt_depths: parsed {ID: int} dictionary of all sample alt depths
+        ab_ratios: parsed {ID: float} dictionary of all sample AB ratios
     """
 
     # no de novos, no problem
