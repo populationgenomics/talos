@@ -213,10 +213,10 @@ The way hyperlinks are generated out to external resources has been changed to b
 Package is now limited to Python 3.10.X, due to a restriction in CPG-Flow.
 
 Extensive renovation of how population filters are applied to different types of variant/MOI. This new approach
-separates Dominant/non-Dominant filters, and ClinVar/Non-ClinVar filters. Each MOI model implents one of these 4 models,
-each populating its filters from a specific block in config. As well as resulting in a more transparent and extensible
-filtering process, this also removes a number of noisy variants we were retaining due to overly lax/absent filtering of
-ClinVar Pathogenic variants.
+separates Dominant/non-Dominant filters, and ClinVar/Non-ClinVar filters. Each MOI model implements one of these 4
+models, each populating its filters from a specific block in config. As well as resulting in a more transparent and
+extensible filtering process, this also removes a number of noisy variants we were retaining due to overly lax/absent
+filtering of ClinVar Pathogenic variants.
 
 ### Added
 
@@ -349,7 +349,7 @@ Huge re-working of the pre-commit tooling, resulting in reduced overall line cou
 [3.0.0] - 2023-12-08
 
 This was a MASSIVE refactor affecting almost all parts of the codebase. Instead of characterising
-data in various places using type hinting, I've now introducted Pydantic models to formally represent
+data in various places using type hinting, I've now introduced Pydantic models to formally represent
 the data used in each part of the application (see reanalysis/models.py). This has the benefit of
 making the code more readable, and also allows for the use of Pydantic's validation and parsing.
 

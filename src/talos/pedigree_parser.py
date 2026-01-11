@@ -297,7 +297,7 @@ class PedigreeParser:
                 )
 
         # Now validate parents, and validate that all listed IDs are present in the participants
-        # we're making this valus a String consistently, but we allow '0' as a valid value for missing parents
+        # we're making this value a String consistently, but we allow '0' as a valid value for missing parents
         for each_id, each_participant in participants.items():
             if each_participant.father_id not in participants and each_participant.father_id != '0':
                 message = f'Participant {each_id} has an invalid father ID: {each_participant.father_id}'

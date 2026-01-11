@@ -31,7 +31,7 @@ def test_dn_working(clinvar_talos, consequence, biotype, result, make_a_de_novo_
     assert dn_matrix.info.categorysampledenovo.collect() == result
 
 
-def test_dn_bch_one(make_a_bch_de_novo_mt, pedigree_path):
+def test_dn_bch_one(make_a_bch_de_novo_mt):
     """check that the de novo annotation works"""
     dn_matrix = make_a_bch_de_novo_mt.annotate_rows(
         info=make_a_bch_de_novo_mt.info.annotate(clinvar_talos=1),

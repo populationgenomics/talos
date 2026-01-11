@@ -51,7 +51,7 @@ This document explains the configuration options, the default values, and sensib
 | `min_depth`          | Minimum read depth for calls. In order of preference/availability this is from `DP`, total of `AD`, or if both are absent, a dummy value which will always pass | 5       |             |
 | `max_depth`          | Maximum read depth for calls. In order of preference/availability this is from `DP`, total of `AD`, or if both are absent, a dummy value which will always pass | 1000    |             |
 | `min_alt_depth`      | If all other conditions succeed, at least this many Alt observations to confirm a de Novo call                                                                  | 5       |             |
-| `min_proband_gq`     | Minumum genotype quality score for all variants in probands/affected participants (detected via Pedigree)                                                       | 25      | 40          |
+| `min_proband_gq`     | Minimum genotype quality score for all variants in probands/affected participants (detected via Pedigree)                                                       | 25      | 40          |
 | `min_all_sample_gq`  | Minimum GQ applied to all samples                                                                                                                               | 15      |             |
 
 ---
@@ -125,7 +125,7 @@ And finally, there are some further meta-parameters which control the variants b
 | Field            | Purpose                                                                                                | Default |
 |------------------|--------------------------------------------------------------------------------------------------------|---------|
 | `semantic_match` | If True, run a semantic match between gene and proband HPO terms. If False, do a pure set intersection | True    |
-| `min_similarity` | If `semantic_match`, this is the minumum required similarity when comparing termsets using Semsimian   | 14.0    |
+| `min_similarity` | If `semantic_match`, this is the minimum required similarity when comparing termsets using Semsimian   | 14.0    |
 
 ## Stage: `CreateTalosHTML`
   * Config Section: `CreateTalosHTML`

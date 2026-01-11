@@ -4,7 +4,7 @@ Talos requires a number of large files, for both the minimal test workflow, and 
 
 The `gather_files.sh` script will download the files to the local directory, wherever it is run. That can either be this `large_files` directory, or any other directory you choose. When running the [Annotation](../nextflow/annotation.nf) and [Talos](../nextflow/talos.nf) workflows, you can override the default `large_files` directory by setting the `--large_files` parameter when invoking the nextflow run command, indicating the directory where you have downloaded the files.
 
-The file names created by the `gather_files.sh` script are the same as the default names in the [annotation.config](../nextflow/annotation.config) and [talos.config](../nextflow/talos.config) files - if file names in the configuration files are altered, the file names should be udpated to match. The exception is the reference genome
+The file names created by the `gather_files.sh` script are the same as the default names in the [annotation.config](../nextflow/annotation.config) and [talos.config](../nextflow/talos.config) files - if file names in the configuration files are altered, the file names should be updated to match. The exception is the reference genome
 
 If you already have any of these data files or reference genomes present locally, e.g. from a prior deployment or other local work, the script will not re-download them, so you can run the script multiple times without worrying about overwriting existing files. This behaviour requires the file names to match exactly (e.g. the reference genome is expected as `ref.fa`).
 

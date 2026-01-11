@@ -251,8 +251,8 @@ async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: 
     """Async method to get activities from a single panel"""
 
     async with session.get(ACTIVITY_TEMPLATE.format(id=panel_id)) as resp:
-        reponse = await resp.json()
-        return {panel_id: reponse}
+        response = await resp.json()
+        return {panel_id: response}
 
 
 async def get_all_known_panels(panel_ids: set[int], activities: bool = False) -> dict:

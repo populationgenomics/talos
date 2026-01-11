@@ -52,7 +52,7 @@ def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Annotate the MatrixTable with the callset frequencies
     If these attributes are already present, do nothing
-    If AF is the only mising attribute, derive it from AC & AN
+    If AF is the only missing attribute, derive it from AC & AN
     If all are missing, populate using hl.variant_qc
     Returns:
         the original MT, with AC/AF/AN populated
@@ -573,7 +573,7 @@ def annotate_category_de_novo(
     This was rebuilt by Kyle in the Talkowski lab
     https://github.com/talkowski-lab/variant-interpretation/blob/3a4cdd2e74f0826aa1640473ade03567364602f3/scripts/wes_denovo_full.py
 
-    Both versions heavily rely on probablity likelihoods and AD/Depths to make decisions about whether a call is more
+    Both versions heavily rely on probability likelihoods and AD/Depths to make decisions about whether a call is more
     likely to be noise or a true event.
 
     In our latest combiner callsets (which may apply at other sites), we don't have PL/AD fields populated for WT calls
