@@ -22,6 +22,7 @@ import pandas as pd
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 
+from talos.bcftools_interpreter import TYPES_RE, classify_change
 from talos.config import config_retrieve
 from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import read_json_from_path
@@ -611,6 +612,19 @@ class Variant:
                 {f'{sample.metadata.panel_details[pid]}({pid})' for pid in new_panels.intersection(match_ids)},
             )
 
+        # Pre-serialize transcript consequences
+        self.transcript_consequences_json = []
+        if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:
+            # drop in a bcftools AA change reinterpretation here
+            for csq in self.var_data.transcript_consequences:
+                if (type_match := TYPES_RE.match(csq['consequence'])) and csq.get('amino_acid_change'):
+                    csq['amino_acid_change'] = classify_change(
+                        csq['amino_acid_change'],
+                        consequence=type_match[0],
+                    )
+                self.transcript_consequences_json.append(
+                    csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq)
+
         # Summaries CSQ strings
         if isinstance(self.var_data, SmallVariant):
             (self.mane_csq, self.mane_hgvsps) = self.parse_csq()
@@ -662,14 +676,6 @@ class Variant:
                     },
                 )
 
-        # Pre-serialize transcript consequences
-        if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:
-            self.transcript_consequences_json = [
-                csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq
-                for csq in self.var_data.transcript_consequences
-            ]
-        else:
-            self.transcript_consequences_json = []
 
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
@@ -691,19 +697,10 @@ class Variant:
                 continue
 
             if csq['mane_id']:
+                # todo adapt this part
                 mane_consequences.update(csq['consequence'].split('&'))
                 if aa := csq.get('amino_acid_change'):
                     mane_hgvsps.add(f'{csq["ensp"]}: {aa}')
-                # TODO (MattWellie) add HGVS c. notation
-                # TODO (MattWellie) add HGVS p. notation
-                # elif csq['hgvsc']:
-                #     hgvsc = csq['hgvsc'].split(':')[1]
-                #
-                #     # if massive indel base stretches are included, replace with a numerical length
-                #     if match := CDNA_SQUASH.search(hgvsc):
-                #         hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
-                #
-                #     mane_hgvsps.add(hgvsc)
 
         # simplify the consequence strings
         mane_consequences = ', '.join(_csq.replace('_variant', '').replace('_', ' ') for _csq in mane_consequences)
