@@ -413,7 +413,7 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
     """
 
     # no de novos, no problem
-    if not info_dict['categorysampledenovo']:
+    if not info_dict.get('categorysampledenovo'):
         return
 
     to_pop: list[str] = []

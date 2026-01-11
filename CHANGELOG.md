@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Substantially alters the de novo detection method, splitting up the analysis of 'stable' fields (GT/GQ/DP) from the less-stable fields we've encountered variant-caller specific issues with.
-* This delayed application of AD-field specific tests allows for flexibility without relaxing any established logic 
+* This delayed application of AD-field specific tests allows for flexibility without relaxing any established logic
 
 ### Changed
 
