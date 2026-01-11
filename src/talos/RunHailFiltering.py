@@ -565,7 +565,6 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_category_de_novo(
     mt: hl.MatrixTable,
     pedigree_data: PedigreeParser,
-    strict_ad: bool = False,
 ) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
@@ -587,29 +586,21 @@ def annotate_category_de_novo(
 
     # modifiable through config
     de_novo_config = config_retrieve(['RunHailFiltering', 'de_novo'])
-    min_child_ab: float = de_novo_config.get('min_child_ab', 0.20)
     min_depth: int = de_novo_config.get('min_depth', 5)
     max_depth: int = de_novo_config.get('max_depth', 1000)
     min_proband_gq: int = de_novo_config.get('min_proband_gq', 25)
-    min_alt_depth: int = de_novo_config.get('min_alt_depth', 5)
 
     # this GQ filter will be applied to all samples, not just probands
     # if the dataset is merged from single-sample VCFs, WT samples for a given allele will have no GQ, so this filter
     # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
     min_all_sample_gq: int = de_novo_config.get('min_all_sample_gq', 19)
 
-    # we've seen some pretty weird data formats, so a 'genotype-only' de novo detection option is being added
-    # the noise reduction offered by using the more complex filtering strategies have shown great performance internally
-    # but if the data you have doesn't allow for those to be used, consider using this flag
-    genotype_only: bool = de_novo_config.get('genotype_only', False)
-
     logger.info('Running de novo search')
 
-    de_novo_matrix = filter_by_consequence(mt)
+    # mini_mt = mt.filter_rows(mt.locus == hl.Locus(contig='chr2', position=25234286))
+    # de_novo_matrix = filter_by_consequence(mini_mt)
 
-    # if we use the strict AD filter, we will remove all samples without exactly 2 AD values
-    if strict_ad:
-        de_novo_matrix = de_novo_matrix.filter_entries(hl.len(de_novo_matrix.AD) == 2)
+    de_novo_matrix = filter_by_consequence(mt)
 
     # takes the parsed pedigree data, writes it to a temporary file as a Strict 6-column format
     temp_ped_path = 'temp.ped'
@@ -633,28 +624,6 @@ def annotate_category_de_novo(
         ),
     )
 
-    # pad some AD values if HomRefs are single-element, if AD is missing completely but the var is high quality, insert
-    # adjusts for some truly unconventional spec-breaking DRAGEN IGG shenanigans
-    de_novo_matrix = de_novo_matrix.annotate_entries(
-        AD=hl.if_else(
-            # if this is a high quality HomRef
-            (de_novo_matrix.GT.is_hom_ref()) & (min_all_sample_gq < de_novo_matrix.GQ),
-            hl.if_else(
-                # If HomRef is populated
-                hl.is_defined(de_novo_matrix.AD),
-                hl.if_else(
-                    # check for instances of only one AD value, and append a 0 for alt counts
-                    (hl.len(de_novo_matrix.AD) == 1) & (de_novo_matrix.AD[0] > 0),
-                    de_novo_matrix.AD.append(0),
-                    de_novo_matrix.AD,
-                ),
-                # aiming this at missing "." AD but high quality call, replace with dummy values
-                [min_depth + 1, 0],
-            ),
-            de_novo_matrix.AD,
-        ),
-    )
-
     # If DP is 'present' but a missing value, replace it with sum(AD), if DP isn't in the schema at all, insert it
     if 'DP' in de_novo_matrix.entry:
         de_novo_matrix = de_novo_matrix.annotate_entries(
@@ -666,34 +635,31 @@ def annotate_category_de_novo(
                 hl.sum(de_novo_matrix.AD),
             ),
         )
-    # if depth isn't in the schema at all, insert it
     else:
         de_novo_matrix = de_novo_matrix.annotate_entries(DP=hl.sum(de_novo_matrix.AD))
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = hl.literal(pedigree_data.get_affected_member_ids())
 
-    if not genotype_only:
+    de_novo_matrix = de_novo_matrix.filter_entries(
+        (min_depth > de_novo_matrix.DP)
+        | (max_depth < de_novo_matrix.DP)
+        # these tests are aimed exclusively at affected participants
+        | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
+        keep=False,
+    )
+
+    if min_all_sample_gq:
+        logger.info(
+            'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
+            'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
+            '"de_novo.min_all_sample_gq" from the config file.',
+        )
+        # filter out all samples with GQ below the threshold
         de_novo_matrix = de_novo_matrix.filter_entries(
-            (min_depth > de_novo_matrix.DP)
-            | (max_depth < de_novo_matrix.DP)
-            | (de_novo_matrix.GT.is_het()) & (de_novo_matrix.AD[1] < (min_child_ab * de_novo_matrix.DP))
-            # these tests are aimed exclusively at affected participants
-            | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
+            (hl.is_defined(de_novo_matrix.GQ)) & (min_all_sample_gq >= de_novo_matrix.GQ),
             keep=False,
         )
-
-        if min_all_sample_gq:
-            logger.info(
-                'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
-                'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
-                '"de_novo.min_all_sample_gq" from the config file.',
-            )
-            # filter out all samples with GQ below the threshold
-            de_novo_matrix = de_novo_matrix.filter_entries(
-                (hl.is_defined(de_novo_matrix.GQ)) & (min_all_sample_gq >= de_novo_matrix.GQ),
-                keep=False,
-            )
 
     # create a trio matrix (variant rows, trio columns)
     tm = hl.trio_matrix(de_novo_matrix, pedigree, complete_trios=True)
@@ -718,26 +684,14 @@ def annotate_category_de_novo(
         | (tm.locus.in_mito() & kid.GT.is_hom_var() & mom.GT.is_hom_ref())
     )
 
-    # if genotype-only analysis is taking place, the genotypes are all we're using
-    if genotype_only:
-        tm = tm.annotate_entries(
-            de_novo_tested=hl.case().when(has_candidate_gt_configuration, ONE_INT).default(MISSING_INT),
-        )
-
-    else:
-        # require AD & PL for called variants, just not always for HomRef
-        kid_ab = kid.AD[1] / hl.sum(kid.AD)
-
-        # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
-        # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
-        tm = tm.annotate_entries(
-            de_novo_tested=hl.case()
-            .when(~has_candidate_gt_configuration, MISSING_INT)
-            .when(min_alt_depth > kid.AD[1], MISSING_INT)
-            .when(min_proband_gq > kid.GQ, MISSING_INT)
-            .when(kid_ab < min_child_ab, MISSING_INT)
-            .default(ONE_INT),
-        )
+    # horribly simplified - we don't have the PL or AD for any WTs, so we're really fudging the main parts
+    # I've also dropped the requirements for different confidence levels, we're treating Low/Medium/High equally
+    tm = tm.annotate_entries(
+        de_novo_tested=hl.case()
+        .when(~has_candidate_gt_configuration, MISSING_INT)
+        .when(min_proband_gq > kid.GQ, MISSING_INT)
+        .default(ONE_INT),
+    )
 
     tm = tm.filter_entries(tm.de_novo_tested == 1)
 
@@ -1009,6 +963,9 @@ def main(  # noqa: PLR0915
 
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
+
+    # mt = mt.filter_rows(mt.locus == hl.Locus(contig='chr2', position=25234286))
+    # mt = generate_a_checkpoint(mt, f'{checkpoint}_teeny')
     logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
     # Filter out star alleles, not currently capable of handling them
@@ -1091,27 +1048,8 @@ def main(  # noqa: PLR0915
         logger.info('Skipping de novo annotation, category 4 will not be used during this analysis')
         mt = mt.annotate_rows(info=mt.info.annotate(categorysampledenovo=MISSING_STRING))
     else:
-        try:
-            # try the standard approach first
-            mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data)
-
-        # catch a known error caused by AD fields with a single value
-        except hl.utils.java.HailUserError as e:
-            logger.error(f'Failed to run de novo annotation, skipping category 4. Error was: {e}')
-
-            # attempt to interpret the error, and re-run with strict AD filtering if it matches
-            if 'HailException: array index out of bounds: index=1, length=1' in str(e):
-                logger.error(
-                    'This error has previously been caused by a variant caller assigning only a single value in the AD '
-                    'field for Het calls, where Talos expects two entries; [Ref, Alt].'
-                    'If this applies to your dataset, try setting the config option "RunHailFiltering.pad_homref_ad" '
-                    'to true, which will add a second value of 0 to all 1-len HomRef AD fields. This will not solve '
-                    'situations where the AD field is missing or malformed for Het or Hom calls.'
-                    'Talos will re-attempt de novo variant detection, filtering to entries with exactly 2 AD values.',
-                )
-                mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data, strict_ad=True)
-            else:
-                mt = mt.annotate_rows(info=mt.info.annotate(categorysampledenovo=MISSING_STRING))
+        # try the standard approach first
+        mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data)
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
