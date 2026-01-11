@@ -597,9 +597,6 @@ def annotate_category_de_novo(
 
     logger.info('Running de novo search')
 
-    # mini_mt = mt.filter_rows(mt.locus == hl.Locus(contig='chr2', position=25234286))
-    # de_novo_matrix = filter_by_consequence(mini_mt)
-
     de_novo_matrix = filter_by_consequence(mt)
 
     # takes the parsed pedigree data, writes it to a temporary file as a Strict 6-column format
@@ -964,8 +961,6 @@ def main(  # noqa: PLR0915
     # read the matrix table from a localised directory
     mt = hl.read_matrix_table(mt_path)
 
-    # mt = mt.filter_rows(mt.locus == hl.Locus(contig='chr2', position=25234286))
-    # mt = generate_a_checkpoint(mt, f'{checkpoint}_teeny')
     logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
     # Filter out star alleles, not currently capable of handling them

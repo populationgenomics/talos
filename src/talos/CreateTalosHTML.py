@@ -617,13 +617,14 @@ class Variant:
         if hasattr(self.var_data, 'transcript_consequences') and self.var_data.transcript_consequences:
             # drop in a bcftools AA change reinterpretation here
             for csq in self.var_data.transcript_consequences:
-                if (type_match := TYPES_RE.match(csq['consequence'])) and csq.get('amino_acid_change'):
+                csq_string = str(csq['consequence'])
+                if (type_match := TYPES_RE.match(csq_string)) and csq.get('amino_acid_change'):
                     csq['amino_acid_change'] = classify_change(
-                        csq['amino_acid_change'],
+                        csq_string,
                         consequence=type_match[0],
                     )
                 self.transcript_consequences_json.append(
-                    csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq
+                    csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq,
                 )
 
         # Summaries CSQ strings

@@ -418,9 +418,6 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
 
     to_pop: list[str] = []
     for sample_id in info_dict['categorysampledenovo']:
-        DE_NOVO_MIN_AB
-        DE_NOVO_MIN_ALT
-
         if alt_depths[sample_id] < DE_NOVO_MIN_ALT or ab_ratios[sample_id] < DE_NOVO_MIN_AB:
             to_pop.append(sample_id)
 
@@ -507,7 +504,7 @@ def create_small_variant(
 
     organise_de_novo(info, alt_depths, ab_ratios)
 
-    # check that there's at least one category left after the PM5/Exomiser/SVDB/DeNovo/other processing, else return None
+    # check for at least one remaining category after PM5/Exomiser/SVDB/DeNovo/other processing, else None
     # this isn't a sample-specific check, just a check that there's anything left worth classifying on
     if not (any(info[cat] for cat in boolean_categories) or any(info[cat] for cat in sample_categories)):
         return None
