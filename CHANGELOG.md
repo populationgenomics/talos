@@ -14,16 +14,17 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-[8.4.0] - 2025-11-27
+[8.3.5] - 2026-01-11
 
 ### Fixed
 
-* Substantially alters the de novo detection method, inferring GT (where missing but high quality -> HomRef), AD (where missing but high quality HomRef insert dummy values, where AD is a single element list add a 0 representing no alt reads), and DP (If DP is defined, use it, otherwise derive DP from AD)
-* These changes should allow collaborators with gVCF combined data, but not combined with Hail Query, to run de novo detection
+* Substantially alters the de novo detection method, splitting up the analysis of 'stable' fields (GT/GQ/DP) from the less-stable fields we've encountered variant-caller specific issues with.
+* This delayed application of AD-field specific tests allows for flexibility without relaxing any established logic 
 
 ### Changed
 
-* The docker images, both CPG internal and general purpose, both use BCFtools 1.22, and the NF CSQ annotation module updates to use appropriate syntax
+* Docker images, both CPG internal and general purpose, both use BCFtools 1.22, and the NF CSQ annotation module updates to use appropriate syntax
+* Docker image base has been updated to Debian Trixie
 
 [8.3.0] - 2025-10-18
 
