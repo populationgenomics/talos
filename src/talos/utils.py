@@ -78,6 +78,7 @@ BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_ge
 DE_NOVO_MIN_AB = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
 DE_NOVO_MIN_ALT = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
 
+
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
     Read the MANE JSON and filter it to the relevant fields
@@ -400,7 +401,7 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
     info_dict['svdb_doi'] = doi_urls
 
 
-def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_ratios:dict[str, float]) -> None:
+def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_ratios: dict[str, float]) -> None:
     """
     apply some late checking on de novo attributes
     if some of the het/hom samples are identified as de novo, but fail AB/alt depth test, strip that rating

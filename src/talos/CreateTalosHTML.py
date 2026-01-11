@@ -623,7 +623,8 @@ class Variant:
                         consequence=type_match[0],
                     )
                 self.transcript_consequences_json.append(
-                    csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq)
+                    csq.model_dump(mode='json') if hasattr(csq, 'model_dump') else csq
+                )
 
         # Summaries CSQ strings
         if isinstance(self.var_data, SmallVariant):
@@ -676,7 +677,6 @@ class Variant:
                     },
                 )
 
-
     def __str__(self) -> str:
         return f'{self.chrom}-{self.pos}-{self.ref}-{self.alt}'
 
@@ -697,7 +697,6 @@ class Variant:
                 continue
 
             if csq['mane_id']:
-                # todo adapt this part
                 mane_consequences.update(csq['consequence'].split('&'))
                 if aa := csq.get('amino_acid_change'):
                     mane_hgvsps.add(f'{csq["ensp"]}: {aa}')
