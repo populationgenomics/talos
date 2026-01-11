@@ -76,4 +76,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"
 
-ENV VERSION=8.3.4
+ENV VERSION=8.3.5
