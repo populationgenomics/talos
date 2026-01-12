@@ -5,6 +5,8 @@ nextflow.enable.dsl=2
 // deactivated for now
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
 include { DownloadPanelApp } from './modules/talos/DownloadPanelApp/main'
+include { GetLatestClinvArbitrationFile } from './modules/talos/GetLatestClinvArbitrationFile/main'
+include { GetLatestClinvArbitrationId } from './modules/talos/GetLatestClinvArbitrationId/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
@@ -18,7 +20,6 @@ workflow {
     // pedigree_channel = channel.fromPath(params.pedigree)
     ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true)
     ch_runtime_config = channel.fromPath(params.runtime_config, checkIfExists: true)
-    ch_clinvar_tar = channel.fromPath(params.clinvar, checkIfExists: true)
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true)
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true)
     ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
@@ -29,6 +30,26 @@ workflow {
 
     // may not exist on the first run, will be populated using a dummy file
     ch_previous_results = channel.fromPath(params.previous_results, checkIfExists: true)
+
+    // problem to solve -
+    // 1. Get the ID from Zenodo
+    GetLatestClinvArbitrationId(params.clinvar_zenodo)
+
+    // 2. Route the ID based on whether the local file exists
+    ch_id_route = GetLatestClinvArbitrationId.out.map{ it.trim() }
+        .branch { id ->
+            def targetFile = file("${params.large_files}/clinvarbitration_${id}.tar.gz")
+            exists: targetFile.exists()
+                return targetFile
+            download: !targetFile.exists()
+                return id
+        }
+
+    // 3. Only run the download process for the 'download' branch
+    GetLatestClinvArbitrationFile(ch_id_route.download)
+
+    // 4. Combine them back: use the existing file OR the newly downloaded one
+    ch_clinvar_tar = ch_id_route.exists.mix(GetLatestClinvArbitrationFile.out)
 
     // run pre-Talos startup checks
     StartupChecks(
