@@ -4,6 +4,7 @@ build
 .github
 .coverage*
 .nextflow
+.git
 
 large_files
 nextflow/*_outputs
