@@ -23,5 +23,5 @@ process StartupChecks {
         --clinvar ${clinvar}
 
     echo "success" > "${params.cohort}_checked"
-     """
+    """
 }

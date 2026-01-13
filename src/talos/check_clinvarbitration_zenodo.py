@@ -40,8 +40,8 @@ def get_latest_zenodo_record_id(record_id: int, download: bool = False) -> str:
             data = response.json()
             if not download:
                 return str(data['recid'])
-        except (httpx.ConnectTimeout, httpx.DecodingError):
-            # Failed to get latest zenodo record ID, retrying
+        except httpx.HTTPError:
+            # Failed to get latest zenodo record ID due to an HTTP/network error, retrying
             continue
 
     if data is None:

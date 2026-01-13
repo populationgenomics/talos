@@ -10,8 +10,8 @@ process DownloadClinVarFiles {
         path "variants_${timestamp}.txt.gz", emit: variants
 
     """
-    wget ${params.submission_summary} -O submissions_${timestamp}.txt.gz &
-    wget ${params.variant_summary} -O variants_${timestamp}.txt.gz &
+    wget '${params.submission_summary}' -O submissions_${timestamp}.txt.gz &
+    wget '${params.variant_summary}' -O variants_${timestamp}.txt.gz &
     wait
     """
 }

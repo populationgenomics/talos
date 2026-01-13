@@ -1,7 +1,7 @@
 process AnnotateClinvarWithBcftools {
     container params.container
 
-    publishDir params.output_dir
+    publishDir params.processed_annotations
 
     input:
         path vcf
