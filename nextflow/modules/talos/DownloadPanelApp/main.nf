@@ -8,11 +8,13 @@ process DownloadPanelApp {
         path mane
         path talos_config
 
+    def timestamp = new java.util.Date().format('yyyy-MM')
+
     output:
-        path "panelapp_download.json"
+        path "panelapp_${timestamp}.json", emit: json
 
     """
     export TALOS_CONFIG=${talos_config}
-    DownloadPanelApp --output panelapp_download.json --mane ${mane}
+    DownloadPanelApp --output panelapp_${timestamp}.json --mane ${mane}
     """
 }

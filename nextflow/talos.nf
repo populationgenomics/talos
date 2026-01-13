@@ -36,9 +36,8 @@ workflow {
     def current_month = new java.util.Date().format('yyyy-MM')
     String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
     String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.ht"
-    def pm5_file = file(current_clinvarbitration_pm5)
 
-    if (pm5_file.exists()) {
+    if (file(current_clinvarbitration_pm5).exists()) {
         ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all)
         ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5)
     } else {
@@ -81,15 +80,15 @@ workflow {
     )
 
     // download everything in PanelApp - unless it exists from a previous download
-    if(file(params.panelapp).exists()) {
-		ch_panelapp = Channel.fromPath(params.panelapp)
-	}
-	else {
+    String panelapp_dump = "${params.processed_annotations}/panelapp_${current_month}.json"
+    if(file(panelapp_dump).exists()) {
+		ch_panelapp = Channel.fromPath(panelapp_dump)
+	} else {
 		DownloadPanelApp(
 			ch_mane,
 			ch_runtime_config,
 		)
-		ch_panelapp = DownloadPanelApp.out
+		ch_panelapp = DownloadPanelApp.out.json
 	}
 
     // UnifiedPanelAppParser
