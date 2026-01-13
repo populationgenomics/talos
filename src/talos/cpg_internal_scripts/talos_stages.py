@@ -371,14 +371,14 @@ class AnnotateAndLabelMito(stage.CohortStage):
             f"""
             export TALOS_CONFIG={runtime_config}
 
-            gcloud storage cp -r {clinvarbitration_ht} "${{BATCH_TMPDIR}}/clinvarbitration.ht"
+            gcloud storage cp -r {clinvarbitration_ht} "$BATCH_TMPDIR/clinvarbitration.ht"
 
             python -m talos.ReformatAndLabelMitoVcf \\
                 --input {localised_vcf} \\
                 --output {label_job.output['vcf.bgz']} \\
                 --pedigree {pedigree} \\
                 --panelapp {panelapp_json} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration.ht"
+                --clinvar "$BATCH_TMPDIR/clinvarbitration.ht"
             """,
         )
         label_job.depends_on(annotate_job)
@@ -448,23 +448,23 @@ class RunHailFiltering(stage.CohortStage):
 
         # find the clinvar tables from previous stage, read in
         clinvarbitration_hts = inputs.as_dict(target=workflow.get_multicohort(), stage=GenerateNewClinvArbitration)
-        job.command(f'gcloud storage cp -r {clinvarbitration_hts["decisions"]} "${{BATCH_TMPDIR}}/clinvarbitration.ht"')
-        job.command(f'gcloud storage cp -r {clinvarbitration_hts["pm5"]} "${{BATCH_TMPDIR}}/clinvarbitration.pm5.ht"')
+        job.command(f'gcloud storage cp -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR/clinvarbitration.ht"')
+        job.command(f'gcloud storage cp -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR/clinvarbitration.pm5.ht"')
 
         # read in the MT using gcloud, directly into batch tmp
-        job.command(f'gcloud storage cp -r {input_mt!s} ${{BATCH_TMPDIR}}')
+        job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
             python -m talos.RunHailFiltering \\
-                --input "${{BATCH_TMPDIR}}/{cohort.id}.mt" \\
+                --input "$BATCH_TMPDIR/{cohort.id}.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --output {job.output['vcf.bgz']} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration.ht" \\
-                --pm5 "${{BATCH_TMPDIR}}/clinvarbitration.pm5.ht" \\
-                --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
+                --clinvar "$BATCH_TMPDIR/clinvarbitration.ht" \\
+                --pm5 "$BATCH_TMPDIR/clinvarbitration.pm5.ht" \\
+                --checkpoint "$BATCH_TMPDIR/checkpoint.mt"
             """,
         )
         hail_batch.get_batch().write_output(job.output, str(expected_out).removesuffix('.vcf.bgz'))

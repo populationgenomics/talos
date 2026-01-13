@@ -38,11 +38,11 @@ def run_clinvarbitration_in_full(
         if not (clinvar_file_tmp / filename).exists():
             # download with wget, write to stdout, use tee to write that to GCP temp, and a local file. Nice.
             job.command(
-                f'wget -q {CLINVAR_FTP}/{filename} -O - | tee ${{BATCH_TMPDIR}}/{filename} | gcloud storage cp - {clinvar_file_tmp}/{filename}',  # noqa: E501
+                f'wget -q {CLINVAR_FTP}/{filename} -O - | tee $BATCH_TMPDIR/{filename} | gcloud storage cp - {clinvar_file_tmp}/{filename}',  # noqa: E501
             )
         else:
             temp_file = batch_instance.read_input(clinvar_file_tmp / filename)
-            job.command(f'mv {temp_file} ${{BATCH_TMPDIR}}/{filename}')
+            job.command(f'mv {temp_file} $BATCH_TMPDIR/{filename}')
     # endregion
 
     # region: make new summary
@@ -54,12 +54,12 @@ def run_clinvarbitration_in_full(
 
     job.command(f"""
         python3 -m clinvarbitration.scripts.resummarise_clinvar \\
-            -v ${{BATCH_TMPDIR}}/{variant_name} \\
-            -s ${{BATCH_TMPDIR}}/{submission_name} \\
-            {blacklist_string} -o ${{BATCH_TMPDIR}}/clinvarbitration
+            -v $BATCH_TMPDIR/{variant_name} \\
+            -s $BATCH_TMPDIR/{submission_name} \\
+            {blacklist_string} -o $BATCH_TMPDIR/clinvarbitration
     """)
     # copy up to GCP
-    job.command(f'gcloud storage cp -r ${{BATCH_TMPDIR}}/clinvarbitration.ht {decisions}')
+    job.command(f'gcloud storage cp -r $BATCH_TMPDIR/clinvarbitration.ht {decisions}')
     # endregion
 
     # region: annotate SNVs
@@ -76,7 +76,7 @@ def run_clinvarbitration_in_full(
         -f {ref_fa} \\
         --unify-chr-names 'chr,-,chr' \\
         -g {gff3} \\
-        "${{BATCH_TMPDIR}}/clinvarbitration.vcf.bgz" \\
+        "$BATCH_TMPDIR/clinvarbitration.vcf.bgz" \\
         -o out.vcf
     """)
 
@@ -91,7 +91,7 @@ def run_clinvarbitration_in_full(
             -d \\
             -s :missense \\
             -f "%transcript\t%amino_acid_change\t%allele_id\t%gold_stars\n" \\
-            > ${{BATCH_TMPDIR}}/clinvarbitration.annotated.tsv
+            > $BATCH_TMPDIR/clinvarbitration.annotated.tsv
         """,
     )
     # endregion
@@ -100,11 +100,11 @@ def run_clinvarbitration_in_full(
     # write both HT and TSV outputs to the same root location
     job.command("""
         python3 -m clinvarbitration.scripts.clinvar_by_codon \\
-            -i ${BATCH_TMPDIR}/clinvarbitration.annotated.tsv \\
-            -o ${BATCH_TMPDIR}/clinvarbitration.pm5
+            -i $BATCH_TMPDIR/clinvarbitration.annotated.tsv \\
+            -o $BATCH_TMPDIR/clinvarbitration.pm5
     """)
     # copy up
-    job.command(f'gcloud storage cp -r ${{BATCH_TMPDIR}}/clinvarbitration.pm5.ht {pm5}')
+    job.command(f'gcloud storage cp -r $BATCH_TMPDIR/clinvarbitration.pm5.ht {pm5}')
     # endregion
 
     return job
