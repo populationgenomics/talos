@@ -1,3 +1,4 @@
+def timestamp = new java.util.Date().format('yyyy-MM')
 
 process DownloadPanelApp {
     container params.container
@@ -7,8 +8,6 @@ process DownloadPanelApp {
     input:
         path mane
         path talos_config
-
-    def timestamp = new java.util.Date().format('yyyy-MM')
 
     output:
         path "panelapp_${timestamp}.json", emit: json

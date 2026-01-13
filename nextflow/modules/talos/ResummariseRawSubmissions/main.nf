@@ -1,3 +1,5 @@
+def timestamp = new java.util.Date().format('yyyy-MM')
+
 process ResummariseRawSubmissions {
     container params.container
 
@@ -6,8 +8,6 @@ process ResummariseRawSubmissions {
     input:
         path variant_summary
         path submission_summary
-
-    def timestamp = new java.util.Date().format('yyyy-MM')
 
     output:
         path "clinvarbitration_${timestamp}.vcf.bgz", emit: "vcf"

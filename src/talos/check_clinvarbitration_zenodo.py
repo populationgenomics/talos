@@ -19,10 +19,19 @@ from argparse import ArgumentParser
 import httpx
 
 
-def get_latest_zenodo_record_id(record_id: int, download: bool = False) -> str:
+def get_zenodo_record_details(record_id: int, download: bool = False) -> str:
     """
+    Resolve information for a Zenodo record.
+
     Take a zenodo record ID, find the latest version of that record, return latest ID.
     Optionally if the behaviour switch `--download` is used, print out the file/content link.
+
+    args:
+        record_id (int): The numeric Zenodo record identifier to resolve.
+        download (bool): If ``False``, resolve and return the latest record ID;
+            if ``True``, return the download URL for the first file of the given record instead.
+    return:
+        A string containing either the latest Zenodo record ID or the file download URL
     """
 
     manual_retries = 3
@@ -56,4 +65,4 @@ if __name__ == '__main__':
     parser.add_argument('zenodo_id', type=int)
     parser.add_argument('--download', action='store_true')
     args = parser.parse_args()
-    print(get_latest_zenodo_record_id(args.zenodo_id, download=args.download))
+    print(get_zenodo_record_details(args.zenodo_id, download=args.download))
