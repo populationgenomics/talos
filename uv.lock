@@ -392,6 +392,18 @@ wheels = [
 ]
 
 [[package]]
+name = "clinvarbitration"
+version = "2.2.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cpg-flow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/02/af/5a83cc37053100d48391062b06837db72106cac6228e9f0cd4b241ebb089/clinvarbitration-2.2.6.tar.gz", hash = "sha256:e45c90dd2054591678b07b6efba3c00b206be51723840e2f7dbca120d4c994d2", size = 39159, upload-time = "2026-01-12T10:43:16.384Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/9f/860c75f477da5ef335ee717cd05aac058cb8a330cff3bebfe7e9c6c5cd97/clinvarbitration-2.2.6-py3-none-any.whl", hash = "sha256:0c2d353a28fefae3f6a06c3275810aefa046aae11f20473edcea1086cfe43da1", size = 26339, upload-time = "2026-01-12T10:42:09.147Z" },
+]
+
+[[package]]
 name = "cloudpathlib"
 version = "0.22.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1217,19 +1229,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/99/5b/a36a337438a14116b16480db471ad061c36c3694df7c2084a0da7ba538b7/matplotlib_inline-0.1.7.tar.gz", hash = "sha256:8423b23ec666be3d16e16b60bdd8ac4e86e840ebd1dd11a30b9f117f2fa0ab90", size = 8159, upload-time = "2024-04-15T13:44:44.803Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8f/8e/9ad090d3553c280a8060fbf6e24dc1c0c29704ee7d1c372f0c174aa59285/matplotlib_inline-0.1.7-py3-none-any.whl", hash = "sha256:df192d39a4ff8f21b1895d72e6a13f5fcc5099f00fa84384e0ea28c2cc0653ca", size = 9899, upload-time = "2024-04-15T13:44:43.265Z" },
-]
-
-[[package]]
-name = "mendelbrot"
-version = "0.0.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cloudpathlib", extra = ["all"] },
-    { name = "loguru" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/35/09/d4a1120b9c4d850121b5dd47e18014c7ac4e5e54c1d20b2f028aa5e2f975/mendelbrot-0.0.2.tar.gz", hash = "sha256:68d7c82471334f65200b80a73787fa61bd5db5b5f8b26a815f8abb255930217f", size = 15950, upload-time = "2026-01-14T02:17:00.265Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/56/cb5cb6cce2dcc932736d6d6d24b97357a87e3d954c35527264f519c7f606/mendelbrot-0.0.2-py3-none-any.whl", hash = "sha256:61a2d911117e6e521445e19d2512d07dd707d3716441ec84fd8deb5eb9ef0f22", size = 9033, upload-time = "2026-01-14T02:16:58.85Z" },
 ]
 
 [[package]]
@@ -2136,9 +2135,10 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "8.3.5"
+version = "8.3.4"
 source = { editable = "." }
 dependencies = [
+    { name = "clinvarbitration" },
     { name = "cloudpathlib", extra = ["all"] },
     { name = "cpg-utils" },
     { name = "cyvcf2" },
@@ -2146,7 +2146,6 @@ dependencies = [
     { name = "hail" },
     { name = "httpx" },
     { name = "jinja2" },
-    { name = "mendelbrot" },
     { name = "networkx" },
     { name = "obonet" },
     { name = "pendulum" },
@@ -2174,6 +2173,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "bump-my-version", marker = "extra == 'test'" },
+    { name = "clinvarbitration" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
     { name = "cpg-flow", marker = "extra == 'cpg'", specifier = "~=1.2" },
     { name = "cpg-utils", specifier = ">=5.4.1" },
@@ -2183,7 +2183,6 @@ requires-dist = [
     { name = "hail", specifier = "==0.2.134" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.3" },
-    { name = "mendelbrot", specifier = ">=0.0.2" },
     { name = "networkx", specifier = ">=3" },
     { name = "obonet", specifier = ">=1" },
     { name = "pendulum", specifier = ">=3.1.0" },

@@ -8,7 +8,8 @@ process RunHailFiltering {
         path mt
         path panelapp_data
         path pedigree
-        path clinvar
+        path clinvar_all
+        path clinvar_pm5
         path talos_config
         path check_file
 
@@ -21,15 +22,13 @@ process RunHailFiltering {
     """
     export TALOS_CONFIG=${talos_config}
 
-    tar --no-same-owner -zxf ${clinvar}
-
     RunHailFiltering \
         --input ${mt} \
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \
         --output ${params.cohort}_small_variants_labelled.vcf.bgz \
-        --clinvar clinvarbitration_data/clinvar_decisions.ht \
-        --pm5 clinvarbitration_data/clinvar_decisions.pm5.ht \
+        --clinvar ${clinvar_all} \
+        --pm5 ${clinvar_pm5} \
         --checkpoint checkpoint
     """
 }

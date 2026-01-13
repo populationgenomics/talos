@@ -2,66 +2,89 @@
 
 nextflow.enable.dsl=2
 
-// deactivated for now
+include { AnnotateClinvarWithBcftools } from './modules/talos/AnnotateClinvarWithBcftools/main'
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
+include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
+include { DownloadClinVarFiles } from './modules/talos/DownloadClinVarFiles/main'
 include { DownloadPanelApp } from './modules/talos/DownloadPanelApp/main'
 include { GetLatestClinvArbitrationFile } from './modules/talos/GetLatestClinvArbitrationFile/main'
 include { GetLatestClinvArbitrationId } from './modules/talos/GetLatestClinvArbitrationId/main'
-include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
-include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
-include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
-include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
+include { MakeClinvarbitrationPm5 } from './modules/talos/MakeClinvarbitrationPm5/main'
+include { ResummariseRawSubmissions } from './modules/talos/ResummariseRawSubmissions/main'
+include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { StartupChecks } from './modules/talos/StartupChecks/main'
+include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
+include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 
 workflow {
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    // pedigree_channel = channel.fromPath(params.pedigree)
-    ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true)
-    ch_runtime_config = channel.fromPath(params.runtime_config, checkIfExists: true)
-    ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true)
-    ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true)
-    ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
-    ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
-    ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
-    ch_opt_ids = channel.fromPath(params.ext_id_map, checkIfExists: true)
-    ch_seqr_ids = channel.fromPath(params.seqr_lookup, checkIfExists: true)
+    // pedigree_channel = Channel.fromPath(params.pedigree)
+    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true)
+    ch_runtime_config = Channel.fromPath(params.runtime_config, checkIfExists: true)
+    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true)
+    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true)
+    ch_mane = Channel.fromPath(params.parsed_mane, checkIfExists: true)
+    ch_pedigree = Channel.fromPath(params.pedigree, checkIfExists: true)
+    ch_mt = Channel.fromPath(params.matrix_table, checkIfExists: true)
+    ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true)
+    ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true)
 
     // may not exist on the first run, will be populated using a dummy file
-    ch_previous_results = channel.fromPath(params.previous_results, checkIfExists: true)
+    ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true)
 
-    // problem to solve -
-    // 1. Get the ID from Zenodo
-    GetLatestClinvArbitrationId(params.clinvar_zenodo)
+    // does this month's clinvarbitration data exist?
+    def current_month = new java.util.Date().format('yyyy-MM')
+    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.ht"
+    def pm5_file = file(current_clinvarbitration_pm5)
 
-    // 2. Route the ID based on whether the local file exists
-    ch_id_route = GetLatestClinvArbitrationId.out.map{ it.trim() }
-        .branch { id ->
-            def targetFile = file("${params.large_files}/clinvarbitration_${id}.tar.gz")
-            exists: targetFile.exists()
-                return targetFile
-            download: !targetFile.exists()
-                return id
-        }
+    if (pm5_file.exists()) {
+        ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all)
+        ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5)
+    } else {
+        // new workflow elements to go and create it
+        DownloadClinVarFiles()
 
-    // 3. Only run the download process for the 'download' branch
-    GetLatestClinvArbitrationFile(ch_id_route.download)
+        // reinterpret the results using altered heuristics
+        ResummariseRawSubmissions(
+            DownloadClinVarFiles.out.variants,
+            DownloadClinVarFiles.out.submissions,
+        )
 
-    // 4. Combine them back: use the existing file OR the newly downloaded one
-    ch_clinvar_tar = ch_id_route.exists.mix(GetLatestClinvArbitrationFile.out)
+        ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
+        ch_ref_fa = Channel.fromPath(
+            params.ref_genome,
+            checkIfExists: true,
+        )
+
+        // annotate the SNV VCF using BCFtools
+        AnnotateClinvarWithBcftools(
+            ResummariseRawSubmissions.out.vcf,
+            ch_ref_fa,
+            ch_gff,
+        )
+
+        MakeClinvarbitrationPm5(
+            AnnotateClinvarWithBcftools.out.tsv,
+        )
+
+        ch_clinvar_all = ResummariseRawSubmissions.out.ht
+        ch_clinvar_pm5 = MakeClinvarbitrationPm5.out.ht
+    }
 
     // run pre-Talos startup checks
     StartupChecks(
         ch_mt,
         ch_pedigree,
-        ch_clinvar_tar,
+        ch_clinvar_all,
         ch_runtime_config,
     )
 
     // download everything in PanelApp - unless it exists from a previous download
     if(file(params.panelapp).exists()) {
-		ch_panelapp = channel.fromPath(params.panelapp)
+		ch_panelapp = Channel.fromPath(params.panelapp)
 	}
 	else {
 		DownloadPanelApp(
@@ -84,7 +107,8 @@ workflow {
         ch_mt,
         UnifiedPanelAppParser.out,
         ch_pedigree,
-        ch_clinvar_tar,
+        ch_clinvar_all,
+        ch_clinvar_pm5,
         ch_runtime_config,
         StartupChecks.out,
     )

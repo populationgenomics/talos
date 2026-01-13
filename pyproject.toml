@@ -21,6 +21,7 @@ classifiers=[
 
 dependencies=[
     'hail==0.2.134',
+    "clinvarbitration",
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.4.1',
     'cyvcf2>=0.30.18',
@@ -31,7 +32,7 @@ dependencies=[
     'networkx>=3',
     'obonet>=1',
     'pendulum>=3.1.0',
-    'pydantic>=2.5.2',
+    'pydantic>=2.12',
     'python-dateutil>=2',
     'semsimian',
     'tabulate>=0.8.9',
