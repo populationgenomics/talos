@@ -14,5 +14,3 @@ jobs:
         with:
           inputs: .
           summary: true
-          ignore-vulns: |
-            GHSA-8qvm-5x2c-j2w7  # Denial of service in protobuf=3.20.2; hail pins this version.
