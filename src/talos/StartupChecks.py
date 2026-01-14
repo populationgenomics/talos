@@ -15,7 +15,7 @@ from loguru import logger
 import hail as hl
 
 from talos.config import config_check, config_retrieve
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 
 # collect all parsing errors as strings, print before crashing (unless everything passes...)
 LOG_ERRORS: list[str] = []

@@ -24,7 +24,7 @@ from talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable import (
 )
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.RunHailFiltering import (
     annotate_clinvarbitration,
     csq_struct_to_string,

@@ -33,7 +33,7 @@ from talos.models import (
     translate_category,
 )
 from talos.moi_tests import MOIRunner
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.utils import (
     GeneDict,
     annotate_variant_dates_using_prior_results,

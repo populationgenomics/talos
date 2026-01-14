@@ -19,7 +19,7 @@ import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path
 
 # set some Hail constants

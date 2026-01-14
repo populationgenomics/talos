@@ -16,7 +16,7 @@ import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.RunHailFiltering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.utils import read_json_from_path
 

@@ -28,7 +28,7 @@ from talos.models import (
     PanelShort,
     ParticipantHPOPanels,
 )
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path
 
 PANELAPP_BASE_PANEL = 137

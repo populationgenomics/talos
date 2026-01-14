@@ -11,7 +11,7 @@ from typing import ClassVar
 
 from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 

@@ -21,7 +21,7 @@ from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
-from talos.bcftools_interpreter import TYPES_RE, classify_change
+from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
@@ -32,7 +32,7 @@ from talos.models import (
     lift_up_model_version,
     translate_category,
 )
-from talos.pedigree_parser import PedigreeParser
+from mendelbrot.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -700,6 +700,8 @@ def extract_csq(csq_contents: str) -> list[dict]:
     # iterate over all consequences, and make each into a dict
     txc_dicts = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
 
+    print(txc_dicts)
+
     # update this String to be either a float, or missing
     for each_dict in txc_dicts:
         am_path = each_dict.get('am_pathogenicity')
@@ -707,11 +709,13 @@ def extract_csq(csq_contents: str) -> list[dict]:
 
         # update the BCFtools amino acid change with an HGVS reinterpretation
         csq_string = str(each_dict['consequence'])
-        if (type_match := TYPES_RE.match(csq_string)) and each_dict.get('amino_acid_change'):
+        if (type_match := TYPES_RE.match(csq_string)) and (aa := each_dict.get('amino_acid_change')):
             each_dict['amino_acid_change'] = classify_change(
-                csq_string,
+                aa,
                 consequence=type_match[0],
             )
+
+    input(txc_dicts)
 
     return txc_dicts
 
