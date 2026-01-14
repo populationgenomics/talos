@@ -116,7 +116,7 @@ def get_date_string() -> str:
     return config.config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-@stage.stage(analysis_type='clinvarbitration')
+@stage.stage()
 class GenerateNewClinvArbitration(stage.MultiCohortStage):
     """If the monthly ClinvArbitration files don't exist, generate them."""
 
