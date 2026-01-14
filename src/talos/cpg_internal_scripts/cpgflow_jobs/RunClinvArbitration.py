@@ -90,7 +90,7 @@ def run_clinvarbitration_in_full(
             +split-vep out.vcf \\
             -d \\
             -s :missense \\
-            -f "%transcript\t%amino_acid_change\t%allele_id\t%gold_stars\n" \\
+            -f "%transcript\\t%amino_acid_change\\t%allele_id\\t%gold_stars\\n" \\
             > $BATCH_TMPDIR/clinvarbitration.annotated.tsv
         """,
     )
