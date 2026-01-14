@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-The way ClinvArbitration data is provided is changing completely. Instead of the resummarised data being generated 
-locally and 
+The way ClinvArbitration data is provided is changing completely. Instead of the resummarised data being generated
+locally and
 
 [8.3.6] - 2026-01-16
 
