@@ -11,11 +11,11 @@ from os import getenv
 import pendulum
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
+from mendelbrot.pedigree_parser import PedigreeParser
 
 import hail as hl
 
 from talos.config import config_check, config_retrieve
-from talos.pedigree_parser import PedigreeParser
 
 # collect all parsing errors as strings, print before crashing (unless everything passes...)
 LOG_ERRORS: list[str] = []

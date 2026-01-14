@@ -3,6 +3,7 @@ tests relating to the MOI filters
 """
 
 import pytest
+from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.models import Coordinates, SmallVariant
 from talos.moi_tests import (
@@ -18,7 +19,6 @@ from talos.moi_tests import (
     XRecessiveFemaleHom,
     XRecessiveMale,
 )
-from talos.pedigree_parser import PedigreeParser
 from test.test_utils import TWO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')

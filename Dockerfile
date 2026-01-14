@@ -2,8 +2,6 @@ FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV VERSION=8.3.4
-
 RUN apt update && apt install -y --no-install-recommends \
         apt-transport-https \
         bzip2 \
@@ -77,3 +75,5 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"
+
+ENV VERSION=8.3.5

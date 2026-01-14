@@ -15,6 +15,7 @@ from string import punctuation
 import networkx as nx
 import pendulum
 from loguru import logger
+from mendelbrot.pedigree_parser import PedigreeParser
 from networkx import dfs_successors
 from networkx.exception import NetworkXError
 from obonet import read_obo
@@ -28,7 +29,6 @@ from talos.models import (
     PanelShort,
     ParticipantHPOPanels,
 )
-from talos.pedigree_parser import PedigreeParser
 from talos.utils import read_json_from_path
 
 PANELAPP_BASE_PANEL = 137

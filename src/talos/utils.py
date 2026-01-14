@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
+from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
+from mendelbrot.pedigree_parser import PedigreeParser
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import config_retrieve
@@ -31,7 +33,6 @@ from talos.models import (
     lift_up_model_version,
     translate_category,
 )
-from talos.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -703,6 +704,14 @@ def extract_csq(csq_contents: str) -> list[dict]:
     for each_dict in txc_dicts:
         am_path = each_dict.get('am_pathogenicity')
         each_dict['am_pathogenicity'] = float(am_path) if am_path else ''
+
+        # update the BCFtools amino acid change with an HGVS reinterpretation
+        csq_string = str(each_dict['consequence'])
+        if (type_match := TYPES_RE.match(csq_string)) and (aa := each_dict.get('amino_acid_change')):
+            each_dict['amino_acid_change'] = classify_change(
+                aa,
+                consequence=type_match[0],
+            )
 
     return txc_dicts
 

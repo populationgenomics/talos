@@ -1,8 +1,8 @@
 import pytest
+from mendelbrot.pedigree_parser import PedigreeParser
 
 import hail as hl
 
-from talos.pedigree_parser import PedigreeParser
 from talos.RunHailFiltering import annotate_category_de_novo
 
 
