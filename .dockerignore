@@ -8,3 +8,5 @@ build
 
 large_files
 nextflow/*_outputs
+nextflow/processed_annotations
+nextflow/inputs

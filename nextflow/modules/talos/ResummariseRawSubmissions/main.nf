@@ -21,7 +21,9 @@ process ResummariseRawSubmissions {
     python3 -m clinvarbitration.scripts.resummarise_clinvar \
         -v "${variant_summary}" \
         -s "${submission_summary}" \
-        -o "clinvarbitration_${timestamp}"
+        -o "clinvarbitration_${timestamp}" \
+        -b "${params.clinvar_blacklist}"
+
     # remove the byproduct TSV which was read into a HT
     rm clinvarbitration_${timestamp}.tsv
     """

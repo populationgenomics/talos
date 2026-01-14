@@ -14,6 +14,13 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.4.0] - 2026-01-14
+
+### Changed
+
+The way ClinvArbitration data is provided is changing completely. Instead of the resummarised data being generated 
+locally and 
+
 [8.3.6] - 2026-01-16
 
 ### Changed
@@ -37,7 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Adds HGVS interpretation to the amino_acid_change field coming out of BCFtools CSQ
 
 [8.3.4] - 2025-11-27
-
 ### Fixed
 
 * Substantially alters the de novo detection method, inferring GT (where missing but high quality -> HomRef), AD (where missing but high quality HomRef insert dummy values, where AD is a single element list add a 0 representing no alt reads), and DP (If DP is defined, use it, otherwise derive DP from AD)
