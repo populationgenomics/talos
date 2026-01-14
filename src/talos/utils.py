@@ -19,9 +19,10 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
+from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
+from mendelbrot.pedigree_parser import PedigreeParser
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
-from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
@@ -32,7 +33,6 @@ from talos.models import (
     lift_up_model_version,
     translate_category,
 )
-from mendelbrot.pedigree_parser import PedigreeParser
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
