@@ -5,13 +5,13 @@ test class for the utils collection
 from copy import deepcopy
 
 from cyvcf2 import VCFReader
+from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.models import (
     Coordinates,
     ReportVariant,
     SmallVariant,
 )
-from talos.pedigree_parser import PedigreeParser
 from talos.utils import (
     find_comp_hets,
     gather_gene_dict_from_contig,
