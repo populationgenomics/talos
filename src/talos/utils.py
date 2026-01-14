@@ -700,8 +700,6 @@ def extract_csq(csq_contents: str) -> list[dict]:
     # iterate over all consequences, and make each into a dict
     txc_dicts = [dict(zip(csq_categories, each_csq.split('|'), strict=True)) for each_csq in csq_contents.split(',')]
 
-    print(txc_dicts)
-
     # update this String to be either a float, or missing
     for each_dict in txc_dicts:
         am_path = each_dict.get('am_pathogenicity')
@@ -714,8 +712,6 @@ def extract_csq(csq_contents: str) -> list[dict]:
                 aa,
                 consequence=type_match[0],
             )
-
-    input(txc_dicts)
 
     return txc_dicts
 
