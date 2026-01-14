@@ -694,16 +694,6 @@ class Variant:
                 mane_consequences.update(csq['consequence'].split('&'))
                 if aa := csq.get('amino_acid_change'):
                     mane_hgvsps.add(f'{csq["ensp"]}: {aa}')
-                # TODO (MattWellie) add HGVS c. notation
-                # TODO (MattWellie) add HGVS p. notation
-                # elif csq['hgvsc']:
-                #     hgvsc = csq['hgvsc'].split(':')[1]
-                #
-                #     # if massive indel base stretches are included, replace with a numerical length
-                #     if match := CDNA_SQUASH.search(hgvsc):
-                #         hgvsc.replace(match.group('bases'), str(len(match.group('bases'))))
-                #
-                #     mane_hgvsps.add(hgvsc)
 
         # simplify the consequence strings
         mane_consequences = ', '.join(_csq.replace('_variant', '').replace('_', ' ') for _csq in mane_consequences)

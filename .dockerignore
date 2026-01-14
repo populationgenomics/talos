@@ -6,3 +6,4 @@ build
 .nextflow
 
 large_files
+nextflow/*_outputs
