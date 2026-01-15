@@ -47,7 +47,7 @@ workflow {
 
         if (file(subfile).exists() && file(varfile).exists()) {
             ch_clinvar_sub = Channel.fromPath(subfile)
-            ch_clinvar_sub = Channel.fromPath(subfile)
+            ch_clinvar_var = Channel.fromPath(varfile)
         } else {
             println "Attempting to download ClinVar raw data, requires internet connection."
             println "If this step fails, try re-running gather_file.sh in the `large_files` directory."
