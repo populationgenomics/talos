@@ -41,13 +41,27 @@ workflow {
         ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all)
         ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5)
     } else {
-        // new workflow elements to go and create it
-        DownloadClinVarFiles()
+        // new workflow elements to go and create it from raw data
+        String subfile = "${params.large_files}/submissions_${current_month}.txt.gz"
+        String varfile = "${params.large_files}/variants_${current_month}.txt.gz"
+
+        if (file(subfile).exists() && file(varfile).exists()) {
+            ch_clinvar_sub = Channel.fromPath(subfile)
+            ch_clinvar_sub = Channel.fromPath(subfile)
+        } else {
+            println "Attempting to download ClinVar raw data, requires internet connection."
+            println "If this step fails, try re-running gather_file.sh in the `large_files` directory."
+
+            // this step requires an internet connection, which may be problematic at some sites
+            DownloadClinVarFiles()
+            ch_clinvar_sub = DownloadClinVarFiles.out.submissions
+            ch_clinvar_var = DownloadClinVarFiles.out.variants
+        }
 
         // reinterpret the results using altered heuristics
         ResummariseRawSubmissions(
-            DownloadClinVarFiles.out.variants,
-            DownloadClinVarFiles.out.submissions,
+            ch_clinvar_var,
+            ch_clinvar_sub,
         )
 
         ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
