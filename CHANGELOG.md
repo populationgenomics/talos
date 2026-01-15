@@ -33,7 +33,9 @@ locally and
 * genotype_only (subset of de novo search functionality only using genotypes)
 
 This new strategy does require all sites to periodically re-download the raw ClinVar data. The implementation adds the
-raw data files to the
+raw data files to the [gather_files.sh](large_files/gather_files.sh) script so they'll be available during a first-time
+run. For subsequent months the NextFlow workflow will attempt to download new data directly, but will print a warning
+message stating that the attempt may fail (e.g. HPC environments) and re-running `gather_files.sh` is an alternative.
 
 [8.3.5] - 2026-01-14
 
@@ -44,7 +46,7 @@ raw data files to the
 
 ### Added
 
-* Adds HGVS interpretation to the amino_acid_change field coming out of BCFtools CSQ
+* Adds HGVS interpretation to the amino_acid_change field coming out of BCFtools CSQ (also from `mendelbrot`)
 
 [8.3.4] - 2025-11-27
 ### Fixed
