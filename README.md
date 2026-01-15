@@ -64,9 +64,9 @@ docker build -t talos:8.4.0 .
 
 ### **2. Download Annotation Resources**
 
-Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_file.sh) which will handle the initial download of all required resources.
+Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_files.sh) which will handle the initial download of all required resources.
 
-> **Note** as of version 8.4.0 (Jan 2026), Talos contains an embedded workflow run of [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration). This is the tool CPG uses to periodically re-summarise ClinVar entries. This workflow requires a monthly download of the raw ClinVar files from their FTP site. 
+> **Note** as of version 8.4.0 (Jan 2026), Talos contains an embedded workflow run of [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration). This is the tool CPG uses to periodically re-summarise ClinVar entries. This workflow requires a monthly download of the raw ClinVar files from their FTP site.
 > The workflow will attempt to download and process these files at runtime if a ClinVar run for the current month hasn't been generated. In execution environments without internet access, this download attempt may fail, in which case you can gather the same raw data by re-running the `gather_files.sh` script in the `large_files` directory, then re-run the Talos workflow.
 
 ### **3. Run Annotation Workflow**
@@ -141,7 +141,7 @@ Talos requires the following inputs:
 | **Variant data**       | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers. |
 | **Pedigree file**      | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                 |
 | **Configuration file** | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                             |
-| **Annotation files**   | Various, incuding [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data, gnomAD frequencies, Ensembl GTF, and MANE gene data. These are downloaded by running the [large_files setup script](large_files/gather_file.sh).                                                                              |
+| **Annotation files**   | Various, incuding [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data, gnomAD frequencies, Ensembl GTF, and MANE gene data. These are downloaded by running the [large_files setup script](large_files/gather_files.sh).                                                                              |
 
 
 ## **🔬 Input Validation**

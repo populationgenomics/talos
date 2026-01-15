@@ -32,6 +32,9 @@ locally and
 * strict_ad (padding single-entry AD arrays with 0)
 * genotype_only (subset of de novo search functionality only using genotypes)
 
+This new strategy does require all sites to periodically re-download the raw ClinVar data. The implementation adds the 
+raw data files to the 
+
 [8.3.5] - 2026-01-14
 
 ### Changed

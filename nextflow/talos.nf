@@ -50,7 +50,7 @@ workflow {
             ch_clinvar_var = Channel.fromPath(varfile)
         } else {
             println "Attempting to download ClinVar raw data, requires internet connection."
-            println "If this step fails, try re-running gather_file.sh in the `large_files` directory."
+            println "If this step fails, try re-running gather_files.sh in the `large_files` directory."
 
             // this step requires an internet connection, which may be problematic at some sites
             DownloadClinVarFiles()
