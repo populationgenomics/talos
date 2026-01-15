@@ -7,12 +7,9 @@
 
 **Talos** is a scalable, open-source variant prioritisation tool designed to support automated reanalysis of genomic data in rare disease. It identifies **candidate causative variants in known disease genes** by integrating static annotations (e.g. population frequency, predicted consequence) with dynamic knowledge sources such as ClinVar and PanelApp Australia. Talos applies a set of configurable, rule-based logic modules aligned with ACMG/AMP criteria and prioritises variants consistent with expected mode of inheritance and, optionally, patient phenotype.
 
-
 While Talos can be used for one-off reanalysis of individual families or cohorts, its core design is optimised for **routine, cohort-scale reanalysis**. By comparing current annotations with prior results, Talos highlights **variants that have become reportable due to newly available evidence**—such as new gene–disease or variant–disease relationships—since the last analysis cycle. This enables timely identification of new diagnoses driven by emerging knowledge, while maintaining a low manual review burden.
 
-
 Talos is specifically intended to identify **variants in established disease genes that are likely to explain the participant’s condition**. It is not designed to detect novel candidate genes or to interpret variants of uncertain significance outside the context of existing clinical knowledge. This focus improves specificity and supports use in diagnostic and research reanalysis workflows.
-
 
 A full description of the method and its validation in large clinical and research cohorts is available in our preprint:
 
@@ -68,6 +65,9 @@ docker build -t talos:8.4.0 .
 ### **2. Download Annotation Resources**
 
 Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_file.sh) which will handle the initial download of all required resources.
+
+> **Note** as of version 8.4.0 (Jan 2026), Talos contains an embedded workflow run of [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration). This is the tool CPG uses to periodically re-summarise ClinVar entries. This workflow requires a monthly download of the raw ClinVar files from their FTP site. 
+> The workflow will attempt to download and process these files at runtime if a ClinVar run for the current month hasn't been generated. In execution environments without internet access, this download attempt may fail, in which case you can gather the same raw data by re-running the `gather_files.sh` script in the `large_files` directory, then re-run the Talos workflow.
 
 ### **3. Run Annotation Workflow**
 
@@ -192,7 +192,6 @@ Only variants passing configured thresholds and logic modules are returned.
 
 ## **🔁 Reanalysis Mode**
 
-
 Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the config setting `params.previous_results`. See [History](docs/Reanalysis.md) for more information.
 
 ### **How it works:**
@@ -248,16 +247,16 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 
 ### **Standard Modules**
 
-| **Module**    | **Description**                                     |
-|---------------|-----------------------------------------------------|
-| ClinVar P/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
+| **Module**          | **Description**                                                                                                                      |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| ClinVar P/LP        | Pathogenic or Likely Pathogenic by ClinvArbitration                                                                                  |
 | ClinVar Recent Gene | P/LP in a PanelApp “new” gene (became Green within the recency window configured by `GeneratePanelData.within_x_months`, default 24) |
-| High Impact    | Predicted high-impact protein consequences          |
-| De Novo        | Confirmed de novo in affected individual            |
-| PM5           | Missense in codon with known pathogenic variant     |
-| LofSV         | Predicted loss-of-function structural variant       |
-| ClinVar 0-star | P/LP with 0 gold stars in ClinVar [Supporting category] |
-| AlphaMissense | AlphaMissense-predicted pathogenic missense variant  [Supporting category] |
+| High Impact         | Predicted high-impact protein consequences                                                                                           |
+| De Novo             | Confirmed de novo in affected individual                                                                                             |
+| PM5                 | Missense in codon with known pathogenic variant                                                                                      |
+| LofSV               | Predicted loss-of-function structural variant                                                                                        |
+| ClinVar 0-star      | P/LP with 0 gold stars in ClinVar [Supporting category]                                                                              |
+| AlphaMissense       | AlphaMissense-predicted pathogenic missense variant  [Supporting category]                                                           |
 
 Each module can be configured through the `.toml` config file (see [Configuration.md](docs/Configuration.md))
 
