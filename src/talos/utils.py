@@ -401,6 +401,7 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
         doi_urls.append(DOI_URL + doi)
     info_dict['svdb_doi'] = doi_urls
 
+
 def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_ratios: dict[str, float]) -> None:
     """
     apply some late checking on de novo attributes
@@ -424,6 +425,7 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
     # if we detected any failing samples against these rules, fish them out
     logger.info(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
     info_dict['categorysampledenovo'] = [sam for sam in info_dict['categorysampledenovo'] if sam not in to_pop]
+
 
 def create_small_variant(
     var: 'cyvcf2.Variant',

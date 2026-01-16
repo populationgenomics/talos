@@ -140,7 +140,6 @@ ignore = [
     "E731", # Do not assign a lambda expression, use a def
     "G004", # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
-    "Q000", # Single quotes found but double quotes preferred
     "S101", # Use of assert detected
     "PLR0912", # Too many branches (> 12)
     "PLR0913", # Too many arguments in function (> 5)
@@ -153,6 +152,9 @@ ignore = [
 [tool.ruff.format]
 indent-style = 'space'
 quote-style = "single"
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
 
 [tool.ruff.lint.isort]
 section-order = ["future", "standard-library", "third-party", "hail", "cpg", "first-party", "local-folder"]
