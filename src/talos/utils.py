@@ -423,8 +423,9 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
             to_pop.append(sample_id)
 
     # if we detected any failing samples against these rules, fish them out
-    logger.info(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
-    info_dict['categorysampledenovo'] = [sam for sam in info_dict['categorysampledenovo'] if sam not in to_pop]
+    if to_pop:
+        logger.info(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
+        info_dict['categorysampledenovo'] = [sam for sam in info_dict['categorysampledenovo'] if sam not in to_pop]
 
 
 def create_small_variant(
