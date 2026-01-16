@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="8.3.5"
+version="8.3.6"
 requires-python = ">=3.10,<3.11"
 license-files = ["LICENSE"]
 classifiers=[
@@ -27,7 +27,7 @@ dependencies=[
     'grpcio-status>=1.48,<1.50',
     'httpx>=0.27.0',
     'Jinja2>=3.1.3',
-    'mendelbrot>=0.0.2',
+    'mendelbrot>=0.0.3',
     'networkx>=3',
     'obonet>=1',
     'pendulum>=3.1.0',
@@ -140,7 +140,6 @@ ignore = [
     "E731", # Do not assign a lambda expression, use a def
     "G004", # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
-    "Q000", # Single quotes found but double quotes preferred
     "S101", # Use of assert detected
     "PLR0912", # Too many branches (> 12)
     "PLR0913", # Too many arguments in function (> 5)
@@ -153,6 +152,9 @@ ignore = [
 [tool.ruff.format]
 indent-style = 'space'
 quote-style = "single"
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
 
 [tool.ruff.lint.isort]
 section-order = ["future", "standard-library", "third-party", "hail", "cpg", "first-party", "local-folder"]
@@ -168,7 +170,7 @@ hail = ["hail", "hailtop"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
 
 [tool.bumpversion]
-current_version = "8.3.5"
+current_version = "8.3.6"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true
