@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 The way ClinvArbitration data is provided is changing completely. Instead of the resummarised data being generated
-locally and
+locally (at CPG) and being made public via a Zenodo record, this data is now generated each month as part of the Talos
+workflow.
 
 [8.3.6] - 2026-01-16
 
