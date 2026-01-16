@@ -14,6 +14,17 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.3.6] - 2026-01-16
+
+### Changed
+
+* De Novo detection algorithm altered. Now instead of fully executing in Hail (which has been error prone), the initial search is done in Hail, with secondary filtering (AB ratio, minimum alt depth) taking place later in python, where we can handle errors better.
+
+### Removed
+
+* strict_ad (padding single-entry AD arrays with 0)
+* genotype_only (subset of de novo search functionality only using genotypes)
+
 [8.3.5] - 2026-01-14
 
 ### Changed
