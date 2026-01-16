@@ -75,6 +75,10 @@ PHASE_BROKEN: bool = False
 # not in use yet, if we want to reduce the number of TranscriptConsequence entries we store, this is a good start
 BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_gene_variant']
 
+# attributes used in second order testing of de novo
+DE_NOVO_MIN_AB = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
+DE_NOVO_MIN_ALT = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
+
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
@@ -397,6 +401,29 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
         doi_urls.append(DOI_URL + doi)
     info_dict['svdb_doi'] = doi_urls
 
+def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_ratios: dict[str, float]) -> None:
+    """
+    apply some late checking on de novo attributes
+    if some of the het/hom samples are identified as de novo, but fail AB/alt depth test, strip that rating
+
+    Args:
+        info_dict: the key.lower(): value mapping from the INFO field of this VCF row
+        alt_depths: parsed {ID: int} dictionary of all sample alt depths
+        ab_ratios: parsed {ID: float} dictionary of all sample AB ratios
+    """
+
+    # no de novos, no problem
+    if not info_dict.get('categorysampledenovo'):
+        return
+
+    to_pop: list[str] = []
+    for sample_id in info_dict['categorysampledenovo']:
+        if alt_depths[sample_id] < DE_NOVO_MIN_ALT or ab_ratios[sample_id] < DE_NOVO_MIN_AB:
+            to_pop.append(sample_id)
+
+    # if we detected any failing samples against these rules, fish them out
+    logger.info(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
+    info_dict['categorysampledenovo'] = [sam for sam in info_dict['categorysampledenovo'] if sam not in to_pop]
 
 def create_small_variant(
     var: 'cyvcf2.Variant',
@@ -458,11 +485,6 @@ def create_small_variant(
         elif isinstance(info[sam_cat], set):
             info[sam_cat] = list(info[sam_cat])
 
-    # check that there's at least one category left after the PM5/Exomiser/SVDB/other processing, else return None
-    # this isn't a sample-specific check, just a check that there's anything left worth classifying on
-    if not (any(info[cat] for cat in boolean_categories) or any(info[cat] for cat in sample_categories)):
-        return None
-
     phased = get_phase_data(samples, var)
 
     # only keep these where the sample has a variant - the majority of samples have empty data, and we don't use it
@@ -478,6 +500,15 @@ def create_small_variant(
     ab_ratios: dict[str, float] = {
         k: v for k, v in zip(samples, map(float, var.gt_alt_freqs), strict=True) if k in variant_samples
     }
+
+    # requires use of AB ratios and alt depths, may preclude the use of this variant if no categories remain
+    organise_de_novo(info, alt_depths, ab_ratios)
+
+    # check for at least one remaining category after PM5/Exomiser/SVDB/DeNovo/other processing, else None
+    # this isn't a sample-specific check, just a check that there's anything left worth classifying on
+    if not (any(info[cat] for cat in boolean_categories) or any(info[cat] for cat in sample_categories)):
+        return None
+
     transcript_consequences = extract_csq(csq_contents=info.pop('csq', ''))
 
     return SmallVariant(

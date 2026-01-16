@@ -15,7 +15,6 @@ from loguru import logger
 import hail as hl
 
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
-from talos.utils import create_small_variant, read_json_from_path
 
 # force this to come first
 PWD = Path(__file__).parent
@@ -23,6 +22,8 @@ INPUT: str = str(PWD / 'input')
 hl.init()
 hl.default_reference('GRCh38')
 environ['TALOS_CONFIG'] = join(INPUT, 'config.toml')
+
+from talos.utils import create_small_variant, read_json_from_path  # noqa: E402
 
 LABELLED = join(INPUT, '1_labelled_variant.vcf.bgz')
 Talos_OUTPUT = join(INPUT, 'aip_output_example.json')
