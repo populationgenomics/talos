@@ -7,6 +7,7 @@ from os import environ
 from typing import Any
 
 import toml
+from loguru import logger
 
 # We use these globals for lazy initialization, but pylint doesn't like that.
 # pylint: disable=global-statement, invalid-name
@@ -44,7 +45,13 @@ def config_retrieve(key: list[str] | str, default: Any | None = Unsupplied, conf
     if _config is None:  # Lazily initialize the config.
         # when using default, extract from environment variable
         if config_path == ENV_VAR:
-            config_path = environ[ENV_VAR]
+            try:
+                config_path = environ[ENV_VAR]
+            except KeyError as ke:
+                logger.warning(f"Config variable '{ENV_VAR}' was not set, no config could be loaded.")
+                if default is not None:
+                    return default
+                raise ke
             if config_path is None:
                 raise ValueError(f'Set the environment variable {ENV_VAR}, or provide a specfic config path')
         elif config_path is None:

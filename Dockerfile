@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.10-bookworm-slim AS base
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
