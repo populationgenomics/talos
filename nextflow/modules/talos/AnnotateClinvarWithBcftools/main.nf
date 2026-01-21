@@ -13,8 +13,10 @@ process AnnotateClinvarWithBcftools {
 
     """
     bcftools csq \
+        --force \
         -f "${ref_fa}" \
         -g "${gff3}" \
+        --unify-chr-names 'chr,-,chr' \
         "${vcf}" |
     bcftools +split-vep \
         -d \
