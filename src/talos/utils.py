@@ -197,7 +197,8 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
     # but are un-phased variants
     try:
         if 'PS' in var.FORMAT:
-            for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes, strict=True):
+            phase_list = [int(phase_val[0]) for phase_val in var.format('PS')]
+            for sample, phase, genotype in zip(samples, phase_list, var.genotypes, strict=True):
                 # cyvcf2.Variant holds two ints, and a bool for biallelic calls
                 # but only one int and a bool for hemi
                 if len(genotype) == THREE:

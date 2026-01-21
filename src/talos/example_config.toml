@@ -120,6 +120,7 @@ min_depth = 5
 max_depth = 1000
 min_proband_gq = 25
 min_alt_depth = 5
+apply_min_all_sample_gq = true
 
 # un-comment this to apply a minimum GQ to all samples in the trio, including WT. This will reduce de Novo prediciton
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)
