@@ -22,6 +22,19 @@ The way ClinvArbitration data is provided is changing completely. Instead of the
 locally (at CPG) and being made public via a Zenodo record, this data is now generated each month as part of the Talos
 workflow.
 
+This new strategy does require all sites to periodically re-download the raw ClinVar data. The implementation adds the
+raw data files to the [gather_files.sh](large_files/gather_files.sh) script so they'll be available during a first-time
+run. For subsequent months the NextFlow workflow will attempt to download new data directly, but will print a warning
+message stating that the attempt may fail (e.g. HPC environments) and re-running `gather_files.sh` is an alternative.
+
+[8.3.8] - 2026-01-22
+
+### Changed
+
+* Jumps this codebase up to python 3.11, following a recent release of Hail 0.2.137
+* Docker base images. This is actually a regression to an earlier debian version (bullseye) to support the Hail requirement of Java==11
+* Further corrections to the de novo implementation, now confirmed tested on multiple test datasets
+
 [8.3.6] - 2026-01-16
 
 ### Changed
@@ -32,11 +45,6 @@ workflow.
 
 * strict_ad (padding single-entry AD arrays with 0)
 * genotype_only (subset of de novo search functionality only using genotypes)
-
-This new strategy does require all sites to periodically re-download the raw ClinVar data. The implementation adds the
-raw data files to the [gather_files.sh](large_files/gather_files.sh) script so they'll be available during a first-time
-run. For subsequent months the NextFlow workflow will attempt to download new data directly, but will print a warning
-message stating that the attempt may fail (e.g. HPC environments) and re-running `gather_files.sh` is an alternative.
 
 [8.3.5] - 2026-01-14
 
@@ -50,6 +58,7 @@ message stating that the attempt may fail (e.g. HPC environments) and re-running
 * Adds HGVS interpretation to the amino_acid_change field coming out of BCFtools CSQ (also from `mendelbrot`)
 
 [8.3.4] - 2025-11-27
+
 ### Fixed
 
 * Substantially alters the de novo detection method, inferring GT (where missing but high quality -> HomRef), AD (where missing but high quality HomRef insert dummy values, where AD is a single element list add a 0 representing no alt reads), and DP (If DP is defined, use it, otherwise derive DP from AD)

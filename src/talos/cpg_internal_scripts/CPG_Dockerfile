@@ -1,8 +1,6 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.134.cpg2-2 AS base
+FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.137.cpg1-2 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-ENV VERSION=8.3.4
 
 RUN apt update && apt install -y --no-install-recommends \
         libbz2-1.0 \
@@ -47,12 +45,6 @@ ARG ECHTVAR_VERSION=v0.2.2
 ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" /bin/echtvar
 
 RUN chmod +x /bin/echtvar
-
-# install nextflow
-RUN wget get.nextflow.io -O nextflow && \
-	chmod +x nextflow && \
-    mv nextflow /usr/bin && \
-    nextflow self-update
 
 FROM base_bcftools_echtvar
 

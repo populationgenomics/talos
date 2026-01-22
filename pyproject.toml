@@ -7,7 +7,7 @@ name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
 version="8.4.0"
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.10,<3.12"
 license-files = ["LICENSE"]
 classifiers=[
     'Environment :: Console',
@@ -20,7 +20,7 @@ classifiers=[
 ]
 
 dependencies=[
-    'hail==0.2.134',
+    'hail==0.2.137',
     "clinvarbitration",
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.4.1',
