@@ -75,10 +75,6 @@ PHASE_BROKEN: bool = False
 # not in use yet, if we want to reduce the number of TranscriptConsequence entries we store, this is a good start
 BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_gene_variant']
 
-# attributes used in second order testing of de novo
-DE_NOVO_MIN_AB = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
-DE_NOVO_MIN_ALT = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
-
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
@@ -201,7 +197,8 @@ def get_phase_data(samples: list[str], var: 'cyvcf2.Variant') -> dict[str, dict[
     # but are un-phased variants
     try:
         if 'PS' in var.FORMAT:
-            for sample, phase, genotype in zip(samples, map(int, var.format('PS')), var.genotypes, strict=True):
+            phase_list = [int(phase_val[0]) for phase_val in var.format('PS')]
+            for sample, phase, genotype in zip(samples, phase_list, var.genotypes, strict=True):
                 # cyvcf2.Variant holds two ints, and a bool for biallelic calls
                 # but only one int and a bool for hemi
                 if len(genotype) == THREE:
@@ -413,13 +410,16 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
         ab_ratios: parsed {ID: float} dictionary of all sample AB ratios
     """
 
+    de_novo_min_alt = config_retrieve(['RunHailFiltering', 'de_novo', 'min_alt_depth'], 5)
+    de_novo_min_ab = config_retrieve(['RunHailFiltering', 'de_novo', 'min_child_ab'], 0.20)
+
     # no de novos, no problem
     if not info_dict.get('categorysampledenovo'):
         return
 
     to_pop: list[str] = []
     for sample_id in info_dict['categorysampledenovo']:
-        if alt_depths[sample_id] < DE_NOVO_MIN_ALT or ab_ratios[sample_id] < DE_NOVO_MIN_AB:
+        if alt_depths[sample_id] < de_novo_min_alt or ab_ratios[sample_id] < de_novo_min_ab:
             to_pop.append(sample_id)
 
     # if we detected any failing samples against these rules, fish them out

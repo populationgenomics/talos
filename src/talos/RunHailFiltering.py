@@ -591,7 +591,7 @@ def annotate_category_de_novo(
     min_proband_gq: int = de_novo_config.get('min_proband_gq', 25)
 
     # this GQ filter will be applied to all samples, not just probands
-    # if the dataset is merged from single-sample VCFs, WT samples for a given allele will have no GQ, so this filter
+    # if the dataset is merged from single-sample VCFs, WT samples for a given allele may have no GQ. If so this filter
     # will remove all of those samples, removing our ability to detect de novo events in the corresponding families
     min_all_sample_gq: int = de_novo_config.get('min_all_sample_gq', 19)
 
@@ -599,13 +599,24 @@ def annotate_category_de_novo(
 
     de_novo_matrix = filter_by_consequence(mt)
 
+    # choose whether to apply this filter to all entries
+    if de_novo_config.get('apply_min_all_sample_gq', True):
+        logger.info(
+            'Applying minimum GQ filter to all samples. '
+            'If this is inappropriate (e.g. sparse data with missing GQ values), '
+            'set the config entry de_novo.apply_min_all_sample_gq to false',
+        )
+        de_novo_matrix = de_novo_matrix.filter_entries(
+            min_all_sample_gq > de_novo_matrix.GQ,
+            keep=False,
+        )
+
     # takes the parsed pedigree data, writes it to a temporary file as a Strict 6-column format
     temp_ped_path = 'temp.ped'
     pedigree_data.write_pedigree(output_path=temp_ped_path)
     pedigree = hl.Pedigree.read(temp_ped_path)
 
     # a series of adjustments for processing sparse data and dragen-igg
-
     # GT missing -> HomRef if the GQ is above min_all_sample_gq
     de_novo_matrix = de_novo_matrix.annotate_entries(
         GT=hl.if_else(
@@ -621,19 +632,31 @@ def annotate_category_de_novo(
         ),
     )
 
-    # If DP is 'present' but a missing value, replace it with sum(AD), if DP isn't in the schema at all, insert it
+    # for scenarios where the DP is absent, attempt to populate, or sub in a dummy value
+    default_depth = hl.literal(min_depth + 1)
+
+    # If DP is 'present' but a missing value, replace it with a default value, if DP isn't in the schema at all, insert
     if 'DP' in de_novo_matrix.entry:
         de_novo_matrix = de_novo_matrix.annotate_entries(
             # if depth is present in the schema and has a real value, use it
             DP=hl.if_else(
                 hl.is_defined(de_novo_matrix.DP),
                 de_novo_matrix.DP,
-                # otherwise use the AD value
+                # otherwise use dummy value
+                default_depth,
+            ),
+        )
+    elif 'AD' in de_novo_matrix.entry:
+        de_novo_matrix = de_novo_matrix.annotate_entries(
+            DP=hl.if_else(
+                hl.is_defined(de_novo_matrix.AD),
                 hl.sum(de_novo_matrix.AD),
+                default_depth,
             ),
         )
     else:
-        de_novo_matrix = de_novo_matrix.annotate_entries(DP=hl.sum(de_novo_matrix.AD))
+        logger.warning('Both DP and AD are undefined, filtering quality will be limited')
+        de_novo_matrix = de_novo_matrix.annotate_entries(DP=default_depth)
 
     # pull out affected members from the pedigree, Hail does not process the phenotype column
     affected_members = hl.literal(pedigree_data.get_affected_member_ids())
@@ -645,18 +668,6 @@ def annotate_category_de_novo(
         | ((affected_members.contains(de_novo_matrix.s)) & (min_proband_gq >= de_novo_matrix.GQ)),
         keep=False,
     )
-
-    if min_all_sample_gq:
-        logger.info(
-            'Applying minimum GQ filter to all samples, this may greatly reduce de Novo event detection if your '
-            'dataset was generated from single-sample VCFs. To disable this behaviour, remove '
-            '"de_novo.min_all_sample_gq" from the config file.',
-        )
-        # filter out all samples with GQ below the threshold
-        de_novo_matrix = de_novo_matrix.filter_entries(
-            (hl.is_defined(de_novo_matrix.GQ)) & (min_all_sample_gq >= de_novo_matrix.GQ),
-            keep=False,
-        )
 
     # create a trio matrix (variant rows, trio columns)
     tm = hl.trio_matrix(de_novo_matrix, pedigree, complete_trios=True)

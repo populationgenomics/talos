@@ -1,4 +1,4 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.134.cpg2-2 AS base
+FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.137.cpg1-2 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -46,12 +46,6 @@ ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echt
 
 RUN chmod +x /bin/echtvar
 
-# install nextflow
-RUN wget get.nextflow.io -O nextflow && \
-	chmod +x nextflow && \
-    mv nextflow /usr/bin && \
-    nextflow self-update
-
 FROM base_bcftools_echtvar
 
 WORKDIR /talos
@@ -62,4 +56,4 @@ COPY nextflow nextflow/
 
 RUN pip install --no-cache-dir ".[cpg]"
 
-ENV VERSION=8.3.6
+ENV VERSION=8.3.8
