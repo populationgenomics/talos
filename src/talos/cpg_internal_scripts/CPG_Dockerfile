@@ -46,12 +46,6 @@ ADD "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echt
 
 RUN chmod +x /bin/echtvar
 
-# install nextflow
-RUN wget get.nextflow.io -O nextflow && \
-	chmod +x nextflow && \
-    mv nextflow /usr/bin && \
-    nextflow self-update
-
 FROM base_bcftools_echtvar
 
 WORKDIR /talos
