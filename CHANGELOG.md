@@ -14,6 +14,15 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.3.8] - 2026-01-22
+
+### Changed
+
+* Jumps this codebase up to python 3.11, following a recent release of Hail 0.2.137
+* Docker base images. This is actually a regression to an earlier debian version (bullseye) to support the Hail requirement of Java==11
+* Further corrections to the de novo implementation, now confirmed tested on multiple test datasets
+
+
 [8.3.6] - 2026-01-16
 
 ### Changed
