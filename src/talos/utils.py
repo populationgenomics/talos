@@ -685,7 +685,6 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
         logger.error('read_json_from_path was passed the path "None"')
         return default
 
-    assert isinstance(read_path, str)
     read_anypath = to_anypath(read_path)
 
     if not read_anypath.exists():
@@ -767,8 +766,6 @@ def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> 
 
     # use combinations_with_replacement to find all gene pairs
     for var_1, var_2 in combinations_with_replacement(var_list, 2):
-        assert var_1.coordinates.chrom == var_2.coordinates.chrom
-
         if (var_1.coordinates == var_2.coordinates) or var_1.coordinates.chrom in NON_HOM_CHROM:
             continue
 

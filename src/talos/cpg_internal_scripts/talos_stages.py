@@ -120,7 +120,7 @@ def get_date_string() -> str:
 class GenerateNewClinvArbitration(stage.MultiCohortStage):
     """If the monthly ClinvArbitration files don't exist, generate them."""
 
-    def expected_outputs(self, multicohort: MultiCohort) -> dict[str, Path]:
+    def expected_outputs(self, _multicohort: MultiCohort) -> dict[str, Path]:
         return {
             'decisions': get_clinvarbitration_folder() / 'clinvar_decisions.ht',
             'pm5': get_clinvarbitration_folder() / 'clinvar_decisions.pm5.ht',
@@ -129,7 +129,7 @@ class GenerateNewClinvArbitration(stage.MultiCohortStage):
     def queue_jobs(
         self,
         multicohort: MultiCohort,
-        inputs: StageInput,
+        _inputs: StageInput,
     ) -> StageOutput:
         """Go away and generate all the ClinvArbitration files."""
         outputs = self.expected_outputs(multicohort)

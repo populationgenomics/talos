@@ -49,8 +49,6 @@ def process_tsv(tsv_path: str) -> tuple[PROBAND_DICT, VAR_DICT]:
     with file_as_path.open() as handle:
         reader = DictReader(handle, delimiter='\t')
         for row in reader:
-            assert isinstance(row, dict)
-
             # Exomiser contains "MT" on all genome builds, which Hail does not accept. Overrule this behaviour.
             contig = row['CONTIG']
             if contig == 'MT':

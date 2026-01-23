@@ -34,6 +34,7 @@ dependencies=[
     'pendulum>=3.1.0',
     'pydantic>=2.12',
     'python-dateutil>=2',
+    'pyspark==3.5.3',
     'semsimian',
     'tabulate>=0.8.9',
     'tenacity>=9.0.0',
@@ -138,10 +139,8 @@ ignore = [
     "ANN201", # Missing return type annotation for public function
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "ANN204", # Missing type annotation for special method `__init__`
-    "E731", # Do not assign a lambda expression, use a def
-    "G004", # Logging statement uses f-string
+    "G004",   # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
-    "S101", # Use of assert detected
     "PLR0912", # Too many branches (> 12)
     "PLR0913", # Too many arguments in function (> 5)
     "C901", # method is too complex (> 10 conditions)
@@ -169,6 +168,8 @@ hail = ["hail", "hailtop"]
 ## - we don't need generic cpg-flow arguments for every Stage, but need to fit the required method signature
 "src/talos/cpg_internal_scripts/annotation_stages.py" = ["ARG002"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
+"src/talos/liftover/*.py" = ["S101"]
+"test/**/*.py" = ["S101", "ANN001"]
 
 [tool.bumpversion]
 current_version = "8.4.0"
