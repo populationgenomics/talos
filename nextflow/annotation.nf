@@ -14,13 +14,14 @@ The specific annotations are:
 
 nextflow.enable.dsl=2
 
+include { SplitVcf } from './modules/annotation/SplitVcf/main'
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
-include { AnnotateGnomadAfWithEchtvar } from './modules/annotation/AnnotateGnomadAfWithEchtvar/main'
+include { AnnotateWithEchtvar } from './modules/annotation/AnnotateWithEchtvar/main'
 include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
 include { FilterVcfToBedWithBcftools } from './modules/annotation/FilterVcfToBedWithBcftools/main'
 include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnlyVcfWithBcftools/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
-include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
+include { ParseAlphaMissense } from './modules/annotation/ParseAlphaMissense/main'
 include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'
 include { ReformatAnnotatedVcfIntoHailTable } from './modules/annotation/ReformatAnnotatedVcfIntoHailTable/main'
 include { TransferAnnotationsToMatrixTable } from './modules/annotation/TransferAnnotationsToMatrixTable/main'
@@ -35,9 +36,9 @@ workflow {
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     // read in as a channel if this was already generated
-    if (file(params.alphamissense_tar).exists()) {
-        ch_alphamissense_table = channel.fromPath(
-        	params.alphamissense_tar,
+    if (file(params.alphamissense_zip).exists()) {
+        ch_alphamissense_zip = channel.fromPath(
+        	params.alphamissense_zip,
         	checkIfExists: true
 		)
     }
@@ -46,9 +47,16 @@ workflow {
     		params.alphamissense_tsv,
     		checkIfExists: true
 		)
-        ParseAlphaMissenseIntoHt(ch_alphamissense_tsv)
-        ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
+        ParseAlphaMissense(ch_alphamissense_tsv)
+        EncodeAlphaMissense(ParseAlphaMissense.out)
+        ch_alphamissense_zip = EncodeAlphaMissense.out
     }
+
+    // read the whole-genome Zip file as an input channel
+    ch_gnomad_zip = channel.fromPath(
+		params.gnomad_zip,
+		checkIfExists: true
+    )
 
     // generate the Region-of-interest BED file from Ensembl GFF3
     // generates a per-gene BED file with ID annotations
@@ -70,56 +78,30 @@ workflow {
     	ch_merged_bed = CreateRoiFromGff3.out.merged_bed
 	}
 
-	// if a merged VCF is provided, don't implement a manual merge - start from an externally completed dataset
-	if (file(params.merged_vcf).exists()) {
-		ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
-		ch_merged_index = channel.fromPath("${params.merged_vcf}.tbi", checkIfExists: true)
+	// require a pre-merged callset
+	ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
+	SplitVcf(ch_merged_vcf)
 
-		FilterVcfToBedWithBcftools(
-			ch_merged_vcf,
-			ch_merged_index,
-			ch_merged_bed,
-			ch_ref_genome,
-		)
-		ch_merged_tuple = FilterVcfToBedWithBcftools.out
-	}
-	else {
-		ch_vcfs = channel.fromPath("${params.input_vcf_dir}/*.${params.input_vcf_extension}", checkIfExists: true )
-		ch_tbis = ch_vcfs.map{ it -> file("${it}.tbi") }
-		MergeVcfsWithBcftools(
-			ch_vcfs.collect(),
-			ch_tbis.collect(),
-			ch_merged_bed,
-			ch_ref_genome,
-		)
-		ch_merged_tuple = MergeVcfsWithBcftools.out
-	}
-
-    // create a sites-only version of this VCF, just to pass less data around when annotating
-    MakeSitesOnlyVcfWithBcftools(
-        ch_merged_tuple
+	FilterVcfToBedWithBcftools(
+        SplitVcf.out.flatten(),
+        ch_merged_bed.first(),
+        ch_ref_genome.first(),
     )
 
-    // read the whole-genome Zip file as an input channel
-    ch_gnomad_zip = channel.fromPath(
-		params.gnomad_zip,
-		checkIfExists: true
-    )
-
-    // and apply the annotation using echtvar
-    AnnotateGnomadAfWithEchtvar(
-        MakeSitesOnlyVcfWithBcftools.out,
-        ch_gnomad_zip,
+	AnnotateWithEchtvar(
+        FilterVcfToBedWithBcftools.out,
+        ch_gnomad_zip.first(),
+        ch_alphamissense_zip.first(),
     )
 
     // annotate transcript consequences with bcftools csq
     AnnotateCsqWithBcftools(
-        AnnotateGnomadAfWithEchtvar.out,
-        ch_gff,
-        ch_ref_genome,
+        AnnotateWithEchtvar.out,
+        ch_gff.first(),
+        ch_ref_genome.first(),
     )
 
-    // pull and parse the MANE data into a Hail Table
+    // pull and parse the MANE data into JSON file
     if (file(params.mane_json).exists()) {
     	ch_mane = channel.fromPath(
 			params.mane_json,
@@ -134,18 +116,18 @@ workflow {
     	ParseManeIntoJson(ch_mane_summary)
     	ch_mane = ParseManeIntoJson.out.json
     }
-
-    // reformat the annotations in the VCF, retain as a Hail Table
-    ReformatAnnotatedVcfIntoHailTable(
-        AnnotateCsqWithBcftools.out,
-        ch_alphamissense_table,
-        ch_bed,
-        ch_mane,
-    )
-
-    // combine the join-VCF and annotations as a HailTable
-    TransferAnnotationsToMatrixTable(
-        ReformatAnnotatedVcfIntoHailTable.out,
-        ch_merged_tuple,
-    )
+//
+//     // reformat the annotations in the VCF, retain as a Hail Table
+//     ReformatAnnotatedVcfIntoHailTable(
+//         AnnotateCsqWithBcftools.out,
+//         ch_alphamissense_table,
+//         ch_bed,
+//         ch_mane,
+//     )
+//
+//     // combine the join-VCF and annotations as a HailTable
+//     TransferAnnotationsToMatrixTable(
+//         ReformatAnnotatedVcfIntoHailTable.out,
+//         ch_merged_tuple,
+//     )
 }
