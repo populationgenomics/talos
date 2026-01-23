@@ -96,7 +96,7 @@ def get_random_string(length: int = 6) -> str:
     Returns:
         A random string comprised of upper-case letters and numbers
     """
-    return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
+    return ''.join(choices(string.ascii_uppercase + string.digits, k=length))  # noqa: S311
 
 
 def chunks(iterable, chunk_size):

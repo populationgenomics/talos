@@ -233,7 +233,7 @@ class MakeHpoPedigree(stage.CohortStage):
         seq_type = config.config_retrieve(['workflow', 'sequencing_type'])
 
         # insert a little stagger
-        job.command(f'sleep {randint(0, 180)}')
+        job.command(f'sleep {randint(0, 180)}')  # noqa: S311
 
         tech_string = '--tech long-read' if config.config_retrieve(['workflow', 'long_read'], False) else ''
         job.command(
