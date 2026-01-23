@@ -99,7 +99,7 @@ def get_random_string(length: int = 6) -> str:
     return ''.join(choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def chunks(iterable, chunk_size):
+def chunks(iterable: list[Any] | set[Any], chunk_size: int):
     """
     Yield successive n-sized chunks from an iterable
 
@@ -118,7 +118,7 @@ def chunks(iterable, chunk_size):
         yield iterable[i : (i + chunk_size)]
 
 
-def generator_chunks(generator, size):
+def generator_chunks(generator, size: int):
     """
     Iterates across a generator, returning specifically sized chunks
 
@@ -147,7 +147,7 @@ def generator_chunks(generator, size):
     ),
     reraise=True,
 )
-def get_json_response(url):
+def get_json_response(url: str):
     """
     takes a request URL, checks for healthy response, returns the JSON
     For this purpose we only expect a dictionary return

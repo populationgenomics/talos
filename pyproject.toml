@@ -131,9 +131,7 @@ select = ["A", "B", "C", "E", "F", "G", "I", "N", "Q", "S", "W", "ANN", "ARG", "
 fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "ERA", "EXE", "FBT", "ICN", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "UP", "YTT"]
 
 ignore = [
-    "ANN001", # Missing type annotation for function argument
-    "ANN101", # Missing type annotation for self in method
-    "ANN102", # Missing type annotation for `cls` in classmethod
+    "ANN001",  # Missing type annotation for function argument
     "ANN201", # Missing return type annotation for public function
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "ANN204", # Missing type annotation for special method `__init__`
@@ -168,6 +166,16 @@ hail = ["hail", "hailtop"]
 ## - we don't need generic cpg-flow arguments for every Stage, but need to fit the required method signature
 "src/talos/cpg_internal_scripts/annotation_stages.py" = ["ARG002"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
+"test/**/*.py" = [
+    "ANN001",  # Missing type annotation for function argument
+    "S101", # asserts allowed in tests...
+    "ARG", # Unused function args -> fixtures nevertheless are functionally relevant...
+    "FBT", # Don't care about booleans as positional arguments in tests, e.g. via @pytest.mark.parametrize()
+    # The below are debateable
+    "PLR2004", # Magic value used in comparison, ...
+    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+]
+
 
 [tool.bumpversion]
 current_version = "8.3.8"

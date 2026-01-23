@@ -1,4 +1,3 @@
-
 """
 takes an alphamissense tsv as input, filters regions, and outputs a new... VCF file.
 
