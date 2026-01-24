@@ -19,6 +19,7 @@ include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBc
 include { AnnotateWithEchtvar } from './modules/annotation/AnnotateWithEchtvar/main'
 include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
 include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
+include { EncodeAlphaMissense } from './modules/annotation/EncodeAlphaMissense/main'
 include { NormaliseAndRegionFilterVcf } from './modules/annotation/NormaliseAndRegionFilterVcf/main'
 include { ParseAlphaMissense } from './modules/annotation/ParseAlphaMissense/main'
 include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'

@@ -22,6 +22,6 @@ process AnnotatedVcfIntoMatrixTable {
             --mane ${mane}
 
         # tidy up all checkpoints
-        rm -r checkpoint_*
+        rm -r checkpoint*
         """
 }

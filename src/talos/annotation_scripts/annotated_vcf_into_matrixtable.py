@@ -41,20 +41,20 @@ def extract_and_split_csq_string(vcf_path: str) -> list[str]:
     return csq_whole_string.lower().split('|')
 
 
-def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.MatrixTable) -> hl.Table | hl.MatrixTable:
+def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Take the list of BCSQ strings, split the CSQ annotation and re-organise as a hl struct
 
     Args:
         csq_strings (list[str]): a list of strings, each representing a CSQ entry
-        ht (hl.Table): the Table to annotate
+        mt (hl.MatrixTable): the Mt to annotate
 
     Returns:
-        a Table with the BCSQ annotations re-arranged
+        original MatrixTable with the BCSQ annotations re-arranged
     """
 
     # get the BCSQ contents as a list of lists of strings, per variant
-    split_csqs = ht.info.BCSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
+    split_csqs = mt.info.BCSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
 
     # this looks pretty hideous, bear with me
     # if BCFtools csq doesn't have a consequence annotation, it will truncate the pipe-delimited string
@@ -80,7 +80,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.Matr
 
     # transform the CSQ string arrays into structs using the header names
     # Consequence | gene | transcript | biotype | strand | amino_acid_change | dna_change
-    ht = ht.annotate(
+    mt = mt.annotate_rows(
         transcript_consequences=split_csqs.map(
             lambda x: hl.struct(
                 **{csq_strings[n]: x[n] for n in range(len(csq_strings)) if csq_strings[n] != 'strand'},
@@ -88,7 +88,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.Matr
         ),
     )
 
-    return ht.annotate(
+    return mt.annotate_rows(
         # amino_acid_change can be absent, or in the form of "123P" or "123P-124F"
         # we use this number when matching to the codons of missense variants, to find codon of the reference pos.
         transcript_consequences=hl.map(
@@ -103,7 +103,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.Matr
                     ),
                 ),
             ),
-            ht.transcript_consequences,
+            mt.transcript_consequences,
         ),
     )
 
@@ -163,13 +163,13 @@ def annotate_all_transcript_consequences(mt: hl.MatrixTable, mane: hl.DictExpres
         transcript_consequences=hl.map(
             lambda x: x.annotate(
                 am_class=hl.if_else(
-                    x.transcript == mt.am_transcript,
-                    mt.am_class,
+                    x.transcript == mt.info.am_transcript,
+                    mt.info.am_class,
                     MISSING_STRING,
                 ),
                 am_pathogenicity=hl.if_else(
-                    x.transcript == mt.am_transcript,
-                    mt.am_pathogenicity,
+                    x.transcript == mt.info.am_transcript,
+                    mt.info.am_class,
                     MISSING_STRING,
                 ),
                 mane_status=hl.if_else(
@@ -263,7 +263,7 @@ def main(
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
 
     # read the VCF into a MatrixTable
-    mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
+    mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True, block_size=20)
 
     # checkpoint locally to make everything downstream faster
     mt = mt.checkpoint(checkpoint or 'checkpoint.ht', overwrite=True)
@@ -279,7 +279,7 @@ def main(
     mt = annotate_all_transcript_consequences(mt, mane_dict, ensg_dict)
 
     # get a hold of the geneIds - use some aggregation
-    mt = mt.annotate(gene_ids=hl.set(mt.transcript_consequences.map(lambda c: c.gene_id)))
+    mt = mt.annotate_rows(gene_ids=hl.set(mt.transcript_consequences.map(lambda c: c.gene_id)))
 
     # take note of all named gnomad_* fields
     individual_gnomad_fields = [f for f in mt.info if f.startswith('gnomad_')]
@@ -288,7 +288,7 @@ def main(
     mt = nest_gnomad_in_struct(mt)
 
     # drop the BCSQ field, and all individual gnomAD annotations
-    mt = mt.annotate(info=mt.info.drop('BCSQ', *individual_gnomad_fields))
+    mt = mt.annotate_rows(info=mt.info.drop('BCSQ', *individual_gnomad_fields))
 
     mt.describe()
 
