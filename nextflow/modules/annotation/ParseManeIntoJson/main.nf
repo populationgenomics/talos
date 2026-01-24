@@ -1,4 +1,3 @@
-
 process ParseManeIntoJson {
     container params.container
 
@@ -12,6 +11,9 @@ process ParseManeIntoJson {
 
     script:
     """
-    ParseManeIntoJson --input ${mane_summary} --output mane.json --format json
+    python -m talos.annotation_scripts.parse_mane_into_json \
+        --input ${mane_summary} \
+        --output mane.json \
+        --format json
     """
 }

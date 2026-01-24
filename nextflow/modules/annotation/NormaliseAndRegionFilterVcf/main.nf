@@ -1,5 +1,4 @@
-
-process FilterVcfToBedWithBcftools {
+process NormaliseAndRegionFilterVcf {
     container params.container
 
     // take the merged VCF and index
@@ -14,8 +13,8 @@ process FilterVcfToBedWithBcftools {
 
     output:
         tuple \
-            path("${vcf.baseName}_merged_filtered.vcf.bgz"), \
-            path("${vcf.baseName}_merged_filtered.vcf.bgz.tbi")
+            path("${vcf.simpleName}_merged_filtered.vcf.bgz"), \
+            path("${vcf.simpleName}_merged_filtered.vcf.bgz.tbi")
 
     script:
     """
@@ -29,7 +28,7 @@ process FilterVcfToBedWithBcftools {
     bcftools +fill-tags \
         -Oz \
         --no-version \
-        -o "${vcf.baseName}_merged_filtered.vcf.bgz" \
+        -o "${vcf.simpleName}_merged_filtered.vcf.bgz" \
         -W=tbi - -- -t AC,AF,AN
     """
 }

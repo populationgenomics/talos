@@ -81,7 +81,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY LICENSE pyproject.toml uv.lock README.md ./
 COPY src src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install ".[cpg]" \
+    uv pip install ".[cpg]"
 
 COPY echtvar echtvar/
 

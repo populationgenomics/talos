@@ -9,7 +9,7 @@ process AnnotateWithEchtvar {
     publishDir params.cohort_output_dir
 
     output:
-        path("${vcf.baseName}_echtvar.vcf.bgz")
+        path("${vcf.simpleName}_echtvar.vcf.bgz")
 
     script:
         """
@@ -19,6 +19,6 @@ process AnnotateWithEchtvar {
             -e ${am_zip} \
             -i "gnomad_AF_joint < 0.05" \
             ${vcf} \
-            "${vcf.baseName}_echtvar.vcf.bgz"
+            "${vcf.simpleName}_echtvar.vcf.bgz"
         """
 }

@@ -1,14 +1,10 @@
-
 process CreateRoiFromGff3 {
     container params.container
 
-    // generate the ROI file
     publishDir params.processed_annotations, mode: 'copy'
 
-    // this file is not downloaded at runtime - that presents issues for execution environments
-    // disconnected from the internet
     input:
-		path(gff)
+		path gff
 
     // generates a BED file one-gene-per-line, for per-gene annotations
     // generates an BED with overlapping intervals merged for filtering
@@ -19,7 +15,7 @@ process CreateRoiFromGff3 {
 
     script:
         """
-        CreateRoiFromGff3 \
+        python -m talos.annotation_scripts.create_roi_from_gff3 \
             --gff3 ${gff} \
             --unmerged_output unsorted_GRCh38.bed \
             --merged_output unsorted_merged_GRCh38.bed
