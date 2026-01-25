@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="8.3.8"
+version="8.4.0"
 requires-python = ">=3.10,<3.12"
 license-files = ["LICENSE"]
 classifiers=[
@@ -43,7 +43,7 @@ dependencies=[
 # various requirements when running cpg-flow/analysis-runner
 cpg = [
     'cpg-flow~=1.2',
-    'google-cloud-storage==2.14.0',
+    'google-cloud-storage',
 ]
 test = [
     'bump-my-version',

@@ -97,7 +97,8 @@ workflow {
 	ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
 
 	// decide whether to split and parallelise, or run as a single operation
-	if ${params.vcf_split_n} > 0 {
+	// if config value is absent completely, skip this step
+	if ((params.vcf_split_n ?: 0) > 0) {
 	    SplitVcf(ch_merged_vcf)
 	    ch_vcfs = SplitVcf.out.flatten()
 	} else {

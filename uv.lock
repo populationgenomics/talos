@@ -2541,7 +2541,7 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "8.3.8"
+version = "8.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpathlib", extra = ["all"] },
@@ -2584,7 +2584,7 @@ requires-dist = [
     { name = "cpg-flow", marker = "extra == 'cpg'", specifier = "~=1.2" },
     { name = "cpg-utils", specifier = ">=5.4.1" },
     { name = "cyvcf2", specifier = ">=0.30.18" },
-    { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },
+    { name = "google-cloud-storage", marker = "extra == 'cpg'" },
     { name = "grpcio-status", specifier = ">=1.48,<1.50" },
     { name = "hail", specifier = "==0.2.137" },
     { name = "httpx", specifier = ">=0.27.0" },
