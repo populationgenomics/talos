@@ -95,10 +95,17 @@ workflow {
 
 	// require a pre-merged callset
 	ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
-	SplitVcf(ch_merged_vcf)
+
+	// decide whether to split and parallelise, or run as a single operation
+	if ${params.vcf_split_n} > 0 {
+	    SplitVcf(ch_merged_vcf)
+	    ch_vcfs = SplitVcf.out.flatten()
+	} else {
+	    ch_vcfs = ch_merged_vcf
+	}
 
 	NormaliseAndRegionFilterVcf(
-        SplitVcf.out.flatten(),
+        ch_vcfs,
         ch_merged_bed.first(),
         ch_ref_genome.first(),
     )
@@ -116,7 +123,7 @@ workflow {
         ch_ref_genome.first(),
     )
 
-    // reformat the annotations in the VCF, retain as a Hail Table
+    // reformat the annotations in the VCF, generate a Hail MatrixTable
     AnnotatedVcfIntoMatrixTable(
         AnnotateCsqWithBcftools.out,
         ch_bed.first(),
