@@ -1,15 +1,14 @@
 #!/usr/bin/env nextflow
 
 /*
-This workflow is a minimised annotation process for the Talos pipeline.
+This workflow is the annotation process for the Talos pipeline.
 
-It takes multiple VCFs, merges them into a single VCF, and annotates the merged VCF with relevant annotations.
-
+It requires a single VCF, which can be single- or multi-sample. This is then annotated and reformatted for Talos.
 The specific annotations are:
-- gnomAD v4.1 frequencies, applied to the joint VCF using echtvar
+
+- gnomAD v4.1 frequencies and alphamissense annotations, applied to the joint VCF using echtvar
 - Transcript consequences, using BCFtools annotate
-- AlphaMissense, applied using Hail
-- MANE trancript IDs and corresponding proteins, applied using Hail
+- MANE trancript IDs and corresponding ENSP IDs, applied using Hail
 */
 
 nextflow.enable.dsl=2
