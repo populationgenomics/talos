@@ -25,7 +25,7 @@ include { ParseManeIntoJson } from './modules/prep/ParseManeIntoJson/main'
 
 
 workflow {
-
+    main:
     def timestamp = new java.util.Date().format('yyyy-MM')
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
@@ -118,28 +118,27 @@ workflow {
     // use workflow outputs, not individual copies
     publish:
         alphamissense = ch_am_ht
-//         bed = ch_bed
-//         merged_bed = ch_merged_bed
-//         clinvar_all = ch_clinvar_all
-//         clinvar_pm5 = ch_clinvar_pm5
-//         mane_json = ch_mane_json
-//         panelapp_out = panelapp_out
+        bed = ch_bed
+        merged_bed = ch_merged_bed
+        clinvar_all = ch_clinvar_all
+        clinvar_pm5 = ch_clinvar_pm5
+        mane_json = ch_mane_json
+        panelapp_out = panelapp_out
 }
-//
 
 output {
     alphamissense {
     }
-//     bed {
-//     }
-//     merged_bed {
-//     }
-//     clinvar_all {
-//     }
-//     clinvar_pm5 {
-//     }
-//     mane_json {
-//     }
-//     panelapp_out {
-//     }
+    bed {
+    }
+    merged_bed {
+    }
+    clinvar_all {
+    }
+    clinvar_pm5 {
+    }
+    mane_json {
+    }
+    panelapp_out {
+    }
 }

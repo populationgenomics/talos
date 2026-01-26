@@ -13,6 +13,7 @@ include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
 include { StartupChecks } from './modules/talos/StartupChecks/main'
 
 workflow {
+    main :
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
     // pedigree_channel = channel.fromPath(params.pedigree)

@@ -21,6 +21,7 @@ classifiers=[
 
 dependencies=[
     'hail==0.2.137',
+    'clinvarbitration',
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.4.1',
     'cyvcf2>=0.30.18',
