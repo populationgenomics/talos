@@ -368,7 +368,7 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
     if pendulum.from_format(cached_panelapp.date, 'YYYY-MM-DD') < EXPIRED_DOWNLOAD:
         raise ValueError(
             f'PanelApp data was downloaded on {cached_panelapp.date}, which is over 2 months ago. '
-            f'Please refresh the data using DownloadPanelApp.py (or by deleting this file, and re-running the wf.)',
+            f'Please refresh the data using the `talos_preparation.nf` sub-workflow, then re-running the Talos WF',
         )
 
     hpo_graph = None

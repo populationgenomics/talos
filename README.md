@@ -126,7 +126,9 @@ After annotation is complete, run the Talos prioritisation workflow. This workfl
 ```
 nextflow -c nextflow/talos.config \
   run nextflow/talos.nf \
-  --matrix_table nextflow/cohort_outputs/cohort.mt [--ext_id_map path/to/ext_id_map.tsv]
+  --matrix_table nextflow/cohort_outputs/cohort.mt \
+  [--ext_id_map path/to/ext_id_map.tsv] \
+  [--cohort_output_dir <path>]
 ```
 
 
