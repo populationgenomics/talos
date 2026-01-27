@@ -36,7 +36,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     ./configure --enable-libcurl --enable-s3 --enable-gcs && \
     make && \
     strip bcftools plugins/*.so && \
-    make DESTDIR=/bcftools_install install
+    make DESTDIR=/bcftools_install install && \
+    cd htslib-${BCFTOOLS_VERSION} && \
+    make && \
+    wget https://github.com/samtools/htslib/releases/download/${BCFTOOLS_VERSION}/htslib-${BCFTOOLS_VERSION}.tar.bz2 && \
+    tar -xf htslib-${BCFTOOLS_VERSION}.tar.bz2 && \
+    cd htslib-${BCFTOOLS_VERSION} && \
+    ./configure --enable-libcurl --enable-s3 --enable-gcs && \
+    make && \
+    mv bgzip tabix /bcftools_install/usr/local/bin/
 
 FROM base AS base_bcftools
 
