@@ -93,21 +93,21 @@ workflow {
     // generates a per-gene BED file with ID annotations
     // and a overlap-merged version of the same for more efficient region filtering
     if (!file(params.ensembl_bed).exists() || !file(params.ensembl_merged_bed).exists()) {
-    	CreateRoiFromGff3(ch_gff)
+        CreateRoiFromGff3(ch_gff)
         ch_bed = CreateRoiFromGff3.out.bed
         ch_merged_bed = CreateRoiFromGff3.out.merged_bed
-	} else {
+    } else {
         ch_merged_bed = Channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
         ch_bed = Channel.fromPath(params.ensembl_bed, checkIfExists: true)
-	}
+    }
 
     // pull and parse the MANE data into a Hail Table
     if (!file(params.mane_json).exists()) {
-    	ch_mane_summary = Channel.fromPath(params.mane, checkIfExists: true)
-    	ParseManeIntoJson(ch_mane_summary)
-    	ch_mane_json = ParseManeIntoJson.out
+        ch_mane_summary = Channel.fromPath(params.mane, checkIfExists: true)
+        ParseManeIntoJson(ch_mane_summary)
+        ch_mane_json = ParseManeIntoJson.out
     } else {
-    	ch_mane_json = Channel.fromPath(params.mane_json, checkIfExists: true)
+        ch_mane_json = Channel.fromPath(params.mane_json, checkIfExists: true)
     }
 
     DownloadPanelApp(
