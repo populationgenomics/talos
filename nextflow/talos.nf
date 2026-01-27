@@ -4,7 +4,6 @@ nextflow.enable.dsl=2
 
 // deactivated for now
 include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
-include { DownloadPanelApp } from './modules/talos/DownloadPanelApp/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
@@ -19,7 +18,6 @@ workflow {
     // pedigree_channel = channel.fromPath(params.pedigree)
     ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true)
     ch_runtime_config = channel.fromPath(params.runtime_config, checkIfExists: true)
-    ch_clinvar_tar = channel.fromPath(params.clinvar, checkIfExists: true)
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true)
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true)
     ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
@@ -31,25 +29,37 @@ workflow {
     // may not exist on the first run, will be populated using a dummy file
     ch_previous_results = channel.fromPath(params.previous_results, checkIfExists: true)
 
+    // current year-month as a String, used to prompt for up to date resource updates
+    def current_month = new java.util.Date().format('yyyy-MM')
+
+    // check if clinvar and panelapp data exist using the timestamp
+    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.ht"
+
+    if (!file(current_clinvarbitration_pm5).exists()) {
+        println "ClinvArbitration data for this month (${current_clinvarbitration_pm5}) doesn't exist, run the Talos Prep workflow"
+        exit 1
+    }
+
+    // read in each Clinvar input source as channel
+    ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true)
+    ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true)
+
+    String panelapp = "${params.processed_annotations}/panelapp_${current_month}.json"
+
+    if (!file(panelapp).exists()) {
+        println "PanelApp data for this month (${panelapp}) doesn't exist, run the Talos Prep workflow"
+        exit 1
+    }
+    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true)
+
     // run pre-Talos startup checks
     StartupChecks(
         ch_mt,
         ch_pedigree,
-        ch_clinvar_tar,
+        ch_clinvar_all,
         ch_runtime_config,
     )
-
-    // download everything in PanelApp - unless it exists from a previous download
-    if(file(params.panelapp).exists()) {
-		ch_panelapp = channel.fromPath(params.panelapp)
-	}
-	else {
-		DownloadPanelApp(
-			ch_mane,
-			ch_runtime_config,
-		)
-		ch_panelapp = DownloadPanelApp.out
-	}
 
     // UnifiedPanelAppParser
     UnifiedPanelAppParser(
@@ -64,7 +74,8 @@ workflow {
         ch_mt,
         UnifiedPanelAppParser.out,
         ch_pedigree,
-        ch_clinvar_tar,
+        ch_clinvar_all,
+        ch_clinvar_pm5,
         ch_runtime_config,
         StartupChecks.out,
     )

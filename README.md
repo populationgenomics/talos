@@ -69,7 +69,22 @@ docker build -t talos:8.3.8 .
 
 Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_file.sh) which will handle the initial download of all required resources.
 
-### **3. Run Annotation Workflow**
+### **3. Run Preparation Workflow**
+
+In addition to the downloaded raw resources, Talos requires two other annotation sources to be kept up to date:
+
+- ClinVar data, formatted into Hail Tables
+- PanelApp data, an up-to-date dump as JSON
+
+A separate sub-workflow, `talos_preparation.nf` handles the download and formatting of this data. Run this with:
+
+```bash
+nextflow -c nextflow/preparation.config run nextflow/talos_preparation.nf [--processed_annotations <path>]
+```
+
+The parameter `processed_annotations` should point to a static directory where talos-generated files can be stored, and any future run of Talos will be able to access them. i.e. data prepared and written here is not linked to any individual underlying cohort or callset.
+
+### **4. Run Annotation Workflow**
 
 This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--merged_vcf <path>` (AC/AF/AN values for each variant will be added to the VCF based on the subset of samples present. If you would like to provide this allele frequency data from an alternate source please raise an issue, and we can look into this):
 
@@ -78,8 +93,11 @@ nextflow -c nextflow/annotation.config \
   run nextflow/annotation.nf \
   [--large_files <path>] \
   [--processed_annotations <path>] \
-  [--merged_vcf <path>]
+  [--merged_vcf <path>] \
+  [--cohort_output_dir <path>]
 ```
+
+`cohort_output_dir` will be used to contain all outputs from this workflow, and is specific to a callset. This argument should point to a directory outside this repository, though for demonstration purposes this will be created at `./nextflow/cohort_outputs`. 
 
 ```txt
 ╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html
@@ -101,15 +119,17 @@ CPU hours   : 0.2
 Succeeded   : 6
 ```
 
-### **4. Run Variant Prioritisation**
+### **5. Run Variant Prioritisation**
 
-After annotation is complete, run the Talos prioritisation workflow. This workflow should be re-run regularly for an updated analysis:
+After annotation is complete, run the Talos prioritisation workflow. This workflow should be re-run regularly for an updated analysis. The `matrix_table` parameter should point to the MT created during the annotation workflow:
 
 ```
 nextflow -c nextflow/talos.config \
   run nextflow/talos.nf \
   --matrix_table nextflow/cohort_outputs/cohort.mt [--ext_id_map path/to/ext_id_map.tsv]
 ```
+
+
 ```txt
 ╰─➤  nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_table nextflow/cohort_outputs/cohort.mt -with-report talos_run.html
 
@@ -136,12 +156,12 @@ Succeeded   : 6
 
 Talos requires the following inputs:
 
-| **Input type**         | **Description**                                                                                                                                                                                                                                                                                                                  |
-|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Variant data**       | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers. |
-| **Pedigree file**      | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                 |
-| **Configuration file** | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                             |
-| **Annotation files**   | Various, incuding [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data, gnomAD frequencies, Ensembl GTF, and MANE gene data. These are downloaded by running the [large_files setup script](large_files/gather_file.sh).                                                                              |
+| **Input type**         | **Description**                                                                                                                                                                                                                                                                                                                    |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Variant data**       | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers.   |
+| **Pedigree file**      | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                   |
+| **Configuration file** | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                               |
+| **Annotation files**   | Various, incuding [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data, gnomAD frequencies, Ensembl GTF, and MANE gene data. These are downloaded by running the [large_files setup script](large_files/gather_file.sh), or through the `talos_preparation` sub-workflow.                               |
 
 
 ## **🔬 Input Validation**
@@ -199,7 +219,7 @@ Talos is designed to support **automated, iterative reanalysis** of undiagnosed 
 
 1. Run full annotation + prioritisation once
 
-2. In future cycles, update ClinVar / PanelApp only
+2. In future cycles, keep ClinVar / PanelApp up to date using the prep workflow
 
 3. Rerun prioritisation to return **newly supported variants**
 
@@ -248,16 +268,16 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 
 ### **Standard Modules**
 
-| **Module**    | **Description**                                     |
-|---------------|-----------------------------------------------------|
-| ClinVar P/LP   | Pathogenic or Likely Pathogenic by ClinvArbitration |
+| **Module**          | **Description**                                                                                                                      |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| ClinVar P/LP        | Pathogenic or Likely Pathogenic by ClinvArbitration                                                                                  |
 | ClinVar Recent Gene | P/LP in a PanelApp “new” gene (became Green within the recency window configured by `GeneratePanelData.within_x_months`, default 24) |
-| High Impact    | Predicted high-impact protein consequences          |
-| De Novo        | Confirmed de novo in affected individual            |
-| PM5           | Missense in codon with known pathogenic variant     |
-| LofSV         | Predicted loss-of-function structural variant       |
-| ClinVar 0-star | P/LP with 0 gold stars in ClinVar [Supporting category] |
-| AlphaMissense | AlphaMissense-predicted pathogenic missense variant  [Supporting category] |
+| High Impact         | Predicted high-impact protein consequences                                                                                           |
+| De Novo             | Confirmed de novo in affected individual                                                                                             |
+| PM5                 | Missense in codon with known pathogenic variant                                                                                      |
+| LofSV               | Predicted loss-of-function structural variant                                                                                        |
+| ClinVar 0-star      | P/LP with 0 gold stars in ClinVar [Supporting category]                                                                              |
+| AlphaMissense       | AlphaMissense-predicted pathogenic missense variant  [Supporting category]                                                           |
 
 Each module can be configured through the `.toml` config file (see [Configuration.md](docs/Configuration.md))
 
