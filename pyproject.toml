@@ -194,12 +194,17 @@ search = "{current_version}"
 replace = "{new_version}"
 
 [[tool.bumpversion.files]]
-filename = "nextflow/talos.config"
+filename = "nextflow/annotation.config"
 search = "{current_version}"
 replace = "{new_version}"
 
 [[tool.bumpversion.files]]
-filename = "nextflow/annotation.config"
+filename = "nextflow/preparation.config"
+search = "{current_version}"
+replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "nextflow/talos.config"
 search = "{current_version}"
 replace = "{new_version}"
 

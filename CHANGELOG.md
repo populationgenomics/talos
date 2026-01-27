@@ -14,6 +14,20 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[8.4.0] - 2026-01-27
+
+### Removed
+
+* ClinvArbitration data is no longer sourced from Zenodo
+
+### Added 
+
+* A preparation workflow, used to download raw ClinVar data and generate annotation sources. Also downloads PanelApp.
+
+### Changed
+
+* The workflow now requires/expects a data dump to exist representing the current month's ClinVar/PanelApp content. If absent, the workflow will quit, and will request you run the prep workflow first.
+
 [8.3.8] - 2026-01-22
 
 ### Changed
@@ -21,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Jumps this codebase up to python 3.11, following a recent release of Hail 0.2.137
 * Docker base images. This is actually a regression to an earlier debian version (bullseye) to support the Hail requirement of Java==11
 * Further corrections to the de novo implementation, now confirmed tested on multiple test datasets
-
 
 [8.3.6] - 2026-01-16
 
