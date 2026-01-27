@@ -1,9 +1,5 @@
-
 process ParseAlphaMissenseIntoHt {
     container params.container
-
-    // parse AM data as a Hail Table
-    publishDir params.processed_annotations, mode: 'copy'
 
     input:
         path am_tsv
@@ -13,7 +9,7 @@ process ParseAlphaMissenseIntoHt {
 
     script:
         """
-        ParseAlphaMissenseIntoHt \
+        python -m talos.annotation_scripts.ParseAlphaMissenseIntoHt \
             --am_tsv ${am_tsv} \
             --ht_out alphamissense_38.ht
         rm temp.json

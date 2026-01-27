@@ -18,11 +18,10 @@ The `gather_files.sh` script downloads the following:
 
 1. A compressed GRCh38 reference genome, in gzipped FASTA format, e.g. from `https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/` (see note above about decompressing and indexing)
 2. An Echtvar reference file from `https://zenodo.org/records/15222100`
-3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.113.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-113/gff3/homo_sapiens).
+3. An Ensembl GFF3 file, e.g. `Homo_sapiens.GRCh38.115.gff3.gz` from the [Ensembl FTP site](https://ftp.ensembl.org/pub/release-115/gff3/homo_sapiens).
 4. A MANE Summary text file, e.g. `MANE.GRCh38.v1.4.summary.txt.gz` from the [RefSeq MANE FTP site](https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.4).
 5. Predictions for AlphaMissense, e.g. `AlphaMissense_hg38.tsv.gz` from https://zenodo.org/records/8208688.
 6. `genes_to_phenotypes.txt` and `hp.obo` from `https://github.com/obophenotype/human-phenotype-ontology/releases`
 7. `phenio.db` from https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz, then decompressed
-8. `ClinvArbitration` data from Zenodo https://zenodo.org/records/17060310
 
-> **NOTE** the ClinvArbitration data is updated and re-uploaded monthly. This should be downloaded from Zenodo prior to attempting to run Talos, and an updated version should be downloaded each month to stay current.
+> **NOTE** the ClinvArbitration data is no longer downloaded by `gather_files.sh`. Instead, there is a separate sub workflow to generate a new annotation source each month.

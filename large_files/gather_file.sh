@@ -137,10 +137,6 @@ start_download https://github.com/obophenotype/human-phenotype-ontology/releases
 
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2025-05-06/genes_to_phenotype.txt
 
-# latest clinvarbitration data
-CLINVAR="clinvarbitration.tar.gz"
-start_download https://zenodo.org/records/17577130/files/ClinvArbitration_Nov_2025_clinvar_decisions.release.tar.gz?download=1 "${CLINVAR}"
-
 # AlphaMissense raw data
 AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
