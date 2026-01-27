@@ -26,7 +26,10 @@ include { ParseManeIntoJson } from './modules/prep/ParseManeIntoJson/main'
 
 workflow {
     main:
+
     def timestamp = new java.util.Date().format('yyyy-MM')
+
+    ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     if (!file(params.alphamissense_tar).exists()) {
@@ -68,7 +71,6 @@ workflow {
             timestamp,
         )
 
-        ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
         ch_ref_fa = Channel.fromPath(params.ref_genome, checkIfExists: true)
 
         // annotate the SNV VCF using BCFtools
@@ -91,7 +93,6 @@ workflow {
     // generates a per-gene BED file with ID annotations
     // and a overlap-merged version of the same for more efficient region filtering
     if (!file(params.ensembl_bed).exists() || !file(params.ensembl_merged_bed).exists()) {
-        ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
     	CreateRoiFromGff3(ch_gff)
         ch_bed = CreateRoiFromGff3.out.bed
         ch_merged_bed = CreateRoiFromGff3.out.merged_bed
