@@ -99,7 +99,7 @@ nextflow -c nextflow/annotation.config \
   [--cohort_output_dir <path>]
 ```
 
-`cohort_output_dir` will be used to contain all outputs from this workflow, and is specific to a callset. This argument should point to a directory outside this repository, though for demonstration purposes this will be created at `./nextflow/cohort_outputs`. 
+`cohort_output_dir` will be used to contain all outputs from this workflow, and is specific to a callset. This argument should point to a directory outside this repository, though for demonstration purposes this will be created at `./nextflow/cohort_outputs`.
 
 ```txt
 ╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html

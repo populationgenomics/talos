@@ -13,4 +13,3 @@ process DownloadPanelApp {
     DownloadPanelApp --output panelapp_${timestamp}.json --mane ${mane}
     """
 }
-

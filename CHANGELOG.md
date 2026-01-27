@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * ClinvArbitration data is no longer sourced from Zenodo
 
-### Added 
+### Added
 
 * A preparation workflow, used to download raw ClinVar data and generate annotation sources. Also downloads PanelApp.
 
