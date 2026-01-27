@@ -18,9 +18,10 @@ include { AnnotateClinvarWithBcftools } from './modules/prep/AnnotateClinvarWith
 include { CreateRoiFromGff3 } from './modules/prep/CreateRoiFromGff3/main'
 include { DownloadClinVarFiles } from './modules/prep/DownloadClinVarFiles/main'
 include { DownloadPanelApp } from './modules/prep/DownloadPanelApp/main'
+include { EncodeAlphaMissense } from './modules/prep/EncodeAlphaMissense/main'
 include { MakeClinvarbitrationPm5 } from './modules/prep/MakeClinvarbitrationPm5/main'
 include { ResummariseRawSubmissions } from './modules/prep/ResummariseRawSubmissions/main'
-include { ParseAlphaMissenseIntoHt } from './modules/prep/ParseAlphaMissenseIntoHt/main'
+include { ParseAlphaMissense } from './modules/prep/ParseAlphaMissense/main'
 include { ParseManeIntoJson } from './modules/prep/ParseManeIntoJson/main'
 
 
@@ -32,12 +33,13 @@ workflow {
     ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
-    if (!file(params.alphamissense_tar).exists()) {
+    if (!file(params.alphamissense_zip).exists()) {
     	ch_alphamissense_tsv = Channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
-        ParseAlphaMissenseIntoHt(ch_alphamissense_tsv)
-        ch_am_ht = ParseAlphaMissenseIntoHt.out
+        ParseAlphaMissense(ch_alphamissense_tsv)
+        EncodeAlphaMissense(ParseAlphaMissense.out)
+        ch_alphamissense_zip = EncodeAlphaMissense.out
     } else {
-        ch_am_ht = Channel.fromPath(params.alphamissense_tar, checkIfExists: true)
+        ch_alphamissense_zip = Channel.fromPath(params.alphamissense_zip, checkIfExists: true)
     }
 
     // does this month's clinvarbitration data exist?
@@ -118,7 +120,7 @@ workflow {
 
     // use workflow outputs, not individual copies
     publish:
-        alphamissense = ch_am_ht
+        alphamissense = ch_alphamissense_zip
         bed = ch_bed
         merged_bed = ch_merged_bed
         clinvar_all = ch_clinvar_all
