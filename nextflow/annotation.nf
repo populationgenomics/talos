@@ -20,7 +20,6 @@ include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
 include { FilterVcfToBedWithBcftools } from './modules/annotation/FilterVcfToBedWithBcftools/main'
 include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnlyVcfWithBcftools/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
-include { ParseAlphaMissenseIntoHt } from './modules/annotation/ParseAlphaMissenseIntoHt/main'
 include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'
 include { ReformatAnnotatedVcfIntoHailTable } from './modules/annotation/ReformatAnnotatedVcfIntoHailTable/main'
 include { TransferAnnotationsToMatrixTable } from './modules/annotation/TransferAnnotationsToMatrixTable/main'
@@ -33,22 +32,15 @@ workflow {
     	checkIfExists: true,
 	)
 
-    // generate the AlphaMissense HT - long running, stored in a separate folder
-    // read in as a channel if this was already generated
-    if (file(params.alphamissense_tar).exists()) {
-        ch_alphamissense_table = channel.fromPath(
-        	params.alphamissense_tar,
-        	checkIfExists: true
-		)
-    }
-    else {
-    	ch_alphamissense_tsv = channel.fromPath(
-    		params.alphamissense_tsv,
-    		checkIfExists: true
-		)
-        ParseAlphaMissenseIntoHt(ch_alphamissense_tsv)
-        ch_alphamissense_table = ParseAlphaMissenseIntoHt.out
-    }
+    // Read the AlphaMissense HT as a channel, or prompt for generation using the prep workflow
+    if (!file(params.alphamissense_tar).exists()) {
+        println "AlphaMissense data must be provided in HT format, run the Talos Prep workflow (talos_preparation.nf)"
+        exit 1
+
+    ch_alphamissense_table = channel.fromPath(
+        params.alphamissense_tar,
+        checkIfExists: true
+    )
 
     // generate the Region-of-interest BED file from Ensembl GFF3
     // generates a per-gene BED file with ID annotations

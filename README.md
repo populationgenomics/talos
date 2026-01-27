@@ -76,6 +76,8 @@ In addition to the downloaded raw resources, Talos requires two other annotation
 - ClinVar data, formatted into Hail Tables
 - PanelApp data, an up-to-date dump as JSON
 
+And a third data source (AlphaMissense) to be reformatted from the TSV into a Hail Table.
+
 A separate sub-workflow, `talos_preparation.nf` handles the download and formatting of this data. Run this with:
 
 ```bash
