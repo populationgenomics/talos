@@ -86,4 +86,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"
 
+COPY echtvar echtavr/
+
 ENV VERSION=8.4.0
