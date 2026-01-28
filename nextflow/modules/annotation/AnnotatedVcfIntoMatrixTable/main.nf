@@ -1,26 +1,27 @@
-process ReformatAnnotatedVcfIntoHailTable {
+process AnnotatedVcfIntoMatrixTable {
     container params.container
 
     input:
         path vcf
-        path alphamissense
         path gene_bed
         path mane
 
     publishDir params.cohort_output_dir
 
     output:
-        path "${params.cohort}_annotations.ht"
+        path "${vcf.simpleName}_annotations.mt"
 
     script:
         """
         set -ex
 
-        ReformatAnnotatedVcfIntoHailTable \
+        python -m talos.annotation_scripts.annotated_vcf_into_matrixtable \
             --input ${vcf} \
-            --am ${alphamissense} \
             --gene_bed ${gene_bed} \
-            --output ${params.cohort}_annotations.ht \
+            --output ${vcf.simpleName}_annotations.mt \
             --mane ${mane}
+
+        # tidy up all checkpoints
+        rm -r checkpoint*
         """
 }

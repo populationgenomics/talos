@@ -59,20 +59,6 @@ Repository = "https://github.com/populationgenomics/talos"
 
 [project.scripts]
 # ----------------------------------------------------------------------------------------
-# these scripts are used during the annotation & data formatting pre-workflow
-# ----------------------------------------------------------------------------------------
-# Parse an Ensembl GFF3 file, output a BED file of gene regions
-CreateRoiFromGff3 = 'talos.annotation_scripts.CreateRoiFromGff3:cli_main'
-# Parse AlphaMissense into Hail Table
-ParseAlphaMissenseIntoHt = 'talos.annotation_scripts.ParseAlphaMissenseIntoHt:cli_main'
-# Parse MANE summary file into JSON
-ParseManeIntoJson = 'talos.annotation_scripts.ParseManeIntoJson:cli_main'
-# Reformats an annotated sites-only VCF into Table, adding additional annotations
-ReformatAnnotatedVcfIntoHailTable = 'talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable:cli_main'
-# Combines the annotations and the VCF into a MatrixTable
-TransferAnnotationsToMatrixTable = 'talos.annotation_scripts.TransferAnnotationsToMatrixTable:cli_main'
-
-# ----------------------------------------------------------------------------------------
 # these scripts are specific to internal CPG functions
 # ----------------------------------------------------------------------------------------
 # sets off the whole workflow in cpg-flow orchestrated Stages

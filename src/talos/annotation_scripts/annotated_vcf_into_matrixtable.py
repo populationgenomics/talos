@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
 """
-This is an adapter process to take a sites-only VCF annotated with gnomAD frequencies and BCFtools csq consequences, and
-re-arrange it into a HailTable for use with the Talos pipeline.
-
-This process combines the AF/CSQs already applied with the MANE transcript/protein names, and AlphaMissense annotations
+Takes the annotated VCF, samples and all, and reads it as a MatrixTable.
+This rearranges all the annotations into the format expected downstream.
 """
 
 import json
@@ -43,20 +41,20 @@ def extract_and_split_csq_string(vcf_path: str) -> list[str]:
     return csq_whole_string.lower().split('|')
 
 
-def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.MatrixTable) -> hl.Table | hl.MatrixTable:
+def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     Take the list of BCSQ strings, split the CSQ annotation and re-organise as a hl struct
 
     Args:
         csq_strings (list[str]): a list of strings, each representing a CSQ entry
-        ht (hl.Table): the Table to annotate
+        mt (hl.MatrixTable): the Mt to annotate
 
     Returns:
-        a Table with the BCSQ annotations re-arranged
+        original MatrixTable with the BCSQ annotations re-arranged
     """
 
     # get the BCSQ contents as a list of lists of strings, per variant
-    split_csqs = ht.info.BCSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
+    split_csqs = mt.info.BCSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
 
     # this looks pretty hideous, bear with me
     # if BCFtools csq doesn't have a consequence annotation, it will truncate the pipe-delimited string
@@ -82,7 +80,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.Matr
 
     # transform the CSQ string arrays into structs using the header names
     # Consequence | gene | transcript | biotype | strand | amino_acid_change | dna_change
-    ht = ht.annotate(
+    mt = mt.annotate_rows(
         transcript_consequences=split_csqs.map(
             lambda x: hl.struct(
                 **{csq_strings[n]: x[n] for n in range(len(csq_strings)) if csq_strings[n] != 'strand'},
@@ -90,7 +88,7 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.Matr
         ),
     )
 
-    return ht.annotate(
+    return mt.annotate_rows(
         # amino_acid_change can be absent, or in the form of "123P" or "123P-124F"
         # we use this number when matching to the codons of missense variants, to find codon of the reference pos.
         transcript_consequences=hl.map(
@@ -105,14 +103,14 @@ def csq_strings_into_hail_structs(csq_strings: list[str], ht: hl.Table | hl.Matr
                     ),
                 ),
             ),
-            ht.transcript_consequences,
+            mt.transcript_consequences,
         ),
     )
 
 
-def annotate_gene_ids(ht: hl.Table, bed_file: str) -> hl.Table:
+def get_gene_id_dict(bed_file: str) -> hl.DictExpression:
     """
-    Using a BED file to generate lookup, annotate each transcript consequence with the Ensembl gene ID(s).
+    Use the BED file to generate a lookup of Gene Symbols to Ensembl Gene IDs
     """
 
     # indexed on contig, then gene symbol: ID
@@ -128,91 +126,82 @@ def annotate_gene_ids(ht: hl.Table, bed_file: str) -> hl.Table:
             ensg, symbol = details.split(';')
             id_dict[chrom][symbol] = ensg
 
-    id_hl_dict = hl.literal(id_dict)
-
-    # take the ENSG value from the dict for the contig (correctly matches PAR region genes)
-    # default to the gene symbol (which can be the ENSG, depending on transcript consequence)
-    return ht.annotate(
-        transcript_consequences=hl.map(
-            lambda x: x.annotate(
-                gene_id=id_hl_dict[ht.locus.contig].get(x.gene, x.gene),
-            ),
-            ht.transcript_consequences,
-        ),
-    )
+    return hl.literal(id_dict)
 
 
-def insert_am_annotations(ht: hl.Table, am_table: str) -> hl.Table:
+def get_mane_annotations(mane_path: str) -> hl.DictExpression:
     """
-    Load up a Hail Table of AlphaMissense annotations, and annotate this data unless the AM annotations already exist.
+    Parse the MANE file, and get a dict expression of annotations.
+    Args:
+        mane_path (str): path to the MANE file
+
+    Returns:
+        the dict expression of MANE annotations
     """
-
-    logger.info(f'Reading AM annotations from {am_table} and applying to MT')
-
-    # read in the hail table containing alpha missense annotations
-    am_ht = hl.read_table(am_table)
-
-    # AM consequence matching needs conditional application based on the specific transcript match
-    return ht.annotate(
-        transcript_consequences=hl.map(
-            lambda x: x.annotate(
-                am_class=hl.if_else(
-                    x.transcript == am_ht[ht.key].transcript,
-                    am_ht[ht.key].am_class,
-                    MISSING_STRING,
-                ),
-                am_pathogenicity=hl.if_else(
-                    x.transcript == am_ht[ht.key].transcript,
-                    am_ht[ht.key].am_pathogenicity,
-                    MISSING_FLOAT,
-                ),
-            ),
-            ht.transcript_consequences,
-        ),
-    )
-
-
-def apply_mane_annotations(ht: hl.Table, mane_path: str | None = None) -> hl.Table:
-    """
-    Apply MANE annotations to the VCF.
-
-    If a MANE json file is provided, it will annotate the transcript consequences with the MANE status/ID
-    """
-
-    if mane_path is None:
-        logger.info('No MANE table found, skipping annotation - dummy values will be entered instead')
-        return ht
-
     # read in the mane table
     with open(mane_path) as handle:
         mane_dict = json.load(handle)
 
     # convert the dict into a Hail Dict
-    hl_mane_dict = hl.dict(mane_dict)
+    return hl.dict(mane_dict)
 
-    key_set = hl_mane_dict.key_set()
 
-    # annotate the variant with MANE data, recovering Mane status, NM ID, and ENSP ID
-    return ht.annotate(
+def annotate_all_transcript_consequences(mt: hl.MatrixTable, mane: hl.DictExpression, ensgs: hl.DictExpression,) -> hl.MatrixTable:
+    """
+    In a single loop, update the AM annotations, MANE annotations, and ENSG gene IDs
+    Args:
+        mt (MatrixTable): the MatrixTable to annotate
+        mane (hl.DictExpression): the MANE annotations
+        ensgs (hl.DictExpression): the ENSG annotations
+
+    Returns:
+        Original MatrixTable, with reformatted + extended annotations
+    """
+    key_set = mane.key_set()
+
+    return mt.annotate_rows(
         transcript_consequences=hl.map(
             lambda x: x.annotate(
+                am_class=hl.if_else(
+                    x.transcript == mt.info.am_transcript,
+                    mt.info.am_class,
+                    MISSING_STRING,
+                ),
+                am_pathogenicity=hl.if_else(
+                    x.transcript == mt.info.am_transcript,
+                    mt.info.am_class,
+                    MISSING_STRING,
+                ),
                 mane_status=hl.if_else(
                     key_set.contains(x.transcript),
-                    hl_mane_dict[x.transcript]['mane_status'],
+                    mane[x.transcript]['mane_status'],
                     MISSING_STRING,
                 ),
                 ensp=hl.if_else(
                     key_set.contains(x.transcript),
-                    hl_mane_dict[x.transcript]['ensp'],
+                    mane[x.transcript]['ensp'],
                     MISSING_STRING,
                 ),
                 mane_id=hl.if_else(
                     key_set.contains(x.transcript),
-                    hl_mane_dict[x.transcript]['mane_id'],
+                    mane[x.transcript]['mane_id'],
                     MISSING_STRING,
                 ),
+                gene_id=ensgs[mt.locus.contig].get(x.gene, x.gene)
             ),
-            ht.transcript_consequences,
+            mt.transcript_consequences,
+        ),
+    )
+
+
+def nest_gnomad_in_struct(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """Tucks all gnomAD annotations into a hl.Struct"""
+    return mt.annotate_rows(
+        gnomad=hl.struct(
+            gnomad_AC=mt.info.gnomad_AC_joint,
+            gnomad_AF=mt.info.gnomad_AF_joint,
+            gnomad_AC_XY=mt.info.gnomad_AC_joint_XY,
+            gnomad_HomAlt=mt.info.gnomad_HomAlt_joint,
         ),
     )
 
@@ -227,7 +216,6 @@ def cli_main():
     parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
     parser.add_argument('--gene_bed', help='BED file containing gene mapping')
-    parser.add_argument('--am', help='Hail Table containing AlphaMissense annotations', required=True)
     parser.add_argument('--mane', help='Hail Table containing MANE annotations', default=None)
     parser.add_argument(
         '--checkpoint',
@@ -240,7 +228,6 @@ def cli_main():
         vcf_path=args.input,
         output_path=args.output,
         gene_bed=args.gene_bed,
-        alpha_m=args.am,
         mane=args.mane,
         checkpoint=args.checkpoint,
     )
@@ -250,7 +237,6 @@ def main(
     vcf_path: str,
     output_path: str,
     gene_bed: str,
-    alpha_m: str,
     mane: str | None = None,
     checkpoint: str | None = None,
 ):
@@ -262,7 +248,6 @@ def main(
         vcf_path (str): path to the annotated sites-only VCF
         output_path (str): path to write the resulting Hail Table to, must
         gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
-        alpha_m (str): path to the AlphaMissense Hail Table, required
         mane (str | None): path to a MANE Hail Table for enhanced annotation
         checkpoint (str): which hail backend to use. Defaults to
     """
@@ -271,38 +256,43 @@ def main(
         logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
         init_batch()
     else:
-        logger.info('Using Hail Local backend, no checkpoints')
+        logger.info('Using Hail Local backend, will use a local checkpoint.')
         hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # pull and split the CSQ header line
     csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
 
     # read the VCF into a MatrixTable
-    mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
+    mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True, block_size=20)
 
-    # checkpoint the rows as a Table locally to make everything downstream faster
-    ht = mt.rows().checkpoint(checkpoint or 'checkpoint.ht', overwrite=True)
+    # checkpoint locally to make everything downstream faster
+    mt = mt.checkpoint(checkpoint or 'checkpoint.ht', overwrite=True)
 
     # re-shuffle the BCSQ elements
-    ht = csq_strings_into_hail_structs(csq_fields, ht)
+    mt = csq_strings_into_hail_structs(csq_fields, mt)
 
-    # add ENSG IDs where possible
-    ht = annotate_gene_ids(ht, bed_file=gene_bed)
+    # Convert JSON data sources into a hl.Dict object
+    ensg_dict = get_gene_id_dict(bed_file=gene_bed)
+    mane_dict = get_mane_annotations(mane_path=mane)
+
+    # in a single loop, update alphamissense annotations, ENSG gene IDs, and MANE status/matched transcripts
+    mt = annotate_all_transcript_consequences(mt, mane_dict, ensg_dict)
 
     # get a hold of the geneIds - use some aggregation
-    ht = ht.annotate(gene_ids=hl.set(ht.transcript_consequences.map(lambda c: c.gene_id)))
+    mt = mt.annotate_rows(gene_ids=hl.set(mt.transcript_consequences.map(lambda c: c.gene_id)))
 
-    # add AlphaMissense scores
-    ht = insert_am_annotations(ht, am_table=alpha_m)
+    # take note of all named gnomad_* fields
+    individual_gnomad_fields = [f for f in mt.info if f.startswith('gnomad_')]
 
-    # drop the BCSQ field
-    ht = ht.annotate(info=ht.info.drop('BCSQ'))
+    # gather gnomAD annotations into a separate struct
+    mt = nest_gnomad_in_struct(mt)
 
-    ht = apply_mane_annotations(ht, mane_path=mane)
+    # drop the BCSQ field, and all individual gnomAD annotations
+    mt = mt.annotate_rows(info=mt.info.drop('BCSQ', *individual_gnomad_fields))
 
-    ht.describe()
+    mt.describe()
 
-    ht.write(output_path, overwrite=True)
+    mt.write(output_path, overwrite=True)
 
 
 if __name__ == '__main__':
