@@ -21,7 +21,7 @@ process RunHailFiltering {
     """
     export TALOS_CONFIG=${talos_config}
 
-    RunHailFiltering \
+    python -m talos.run_hail_filtering \
         --input ${mt} \
         --panelapp ${panelapp_data} \
         --pedigree ${pedigree} \

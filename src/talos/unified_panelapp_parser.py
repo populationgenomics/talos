@@ -354,7 +354,7 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
     Based on all the panels in the analysis, we then fetch the relevant genes and their MOIs
 
     Args:
-        panel_data (str): Path to a monthly cache of PanelApp data, acquired by DownloadPanelApp.py
+        panel_data (str): Path to a monthly cache of PanelApp data, acquired by download_panelapp.py
         output_file (str): Where to write the output file
         pedigree_path (str): Path to a Pedigree, optionally including HPO terms
         hpo_file (str): path to a networkx OBO file containing an HPO ontology tree... or None if you're not using one

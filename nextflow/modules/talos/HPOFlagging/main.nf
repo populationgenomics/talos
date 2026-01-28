@@ -18,7 +18,7 @@ process HPOFlagging {
 
     """
     export TALOS_CONFIG=${talos_config}
-    HPOFlagging \
+    python -m talos.hpo_flagging \
          --input ${talos_result_json} \
          --mane_json ${gene_symbol_map} \
          --gen2phen ${gene_to_phenotype} \

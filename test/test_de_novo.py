@@ -3,7 +3,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 import hail as hl
 
-from talos.RunHailFiltering import annotate_category_de_novo
+from talos.run_hail_filtering import annotate_category_de_novo
 
 
 @pytest.mark.parametrize(

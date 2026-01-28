@@ -9,7 +9,7 @@ process ParseAlphaMissenseIntoHt {
 
     script:
         """
-        python -m talos.annotation_scripts.ParseAlphaMissenseIntoHt \
+        python -m talos.annotation_scripts.parse_alphamissense \
             --am_tsv ${am_tsv} \
             --ht_out alphamissense_38.ht
         rm temp.json

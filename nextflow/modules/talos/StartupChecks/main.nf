@@ -17,7 +17,7 @@ process StartupChecks {
     set -e
     export TALOS_CONFIG=${talos_config}
 
-	python -m talos.StartupChecks \\
+	python -m talos.startup_checks \\
         --mt ${mt} \\
         --pedigree ${pedigree} \\
         --clinvar ${clinvar}

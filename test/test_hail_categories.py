@@ -8,7 +8,7 @@ import pytest
 import hail as hl
 
 from talos.models import PanelApp
-from talos.RunHailFiltering import (
+from talos.run_hail_filtering import (
     annotate_category_alphamissense,
     annotate_category_high_impact,
     annotate_category_spliceai,

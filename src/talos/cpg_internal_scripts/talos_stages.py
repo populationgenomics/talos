@@ -209,7 +209,7 @@ class MakeHpoPedigree(stage.CohortStage):
         tech_string = '--tech long-read' if config.config_retrieve(['workflow', 'long_read'], False) else ''
         job.command(
             f"""
-            python -m talos.cpg_internal_scripts.MakeHpoPedigree \\
+            python -m talos.cpg_internal_scripts.make_hpo_pedigree \\
                 --dataset {query_dataset} \\
                 --output {job.output} \\
                 --type {seq_type} {tech_string}
@@ -258,7 +258,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.UnifiedPanelAppParser \\
+            python -m talos.unified_panelapp_parser \\
                 --input {panelapp_download} \\
                 --output {job.output} \\
                 --pedigree {local_ped} \\
@@ -342,7 +342,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
             export TALOS_CONFIG={runtime_config}
             tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR
 
-            python -m talos.ReformatAndLabelMitoVcf \\
+            python -m talos.reformat_and_label_mito_vcf \\
                 --input {localised_vcf} \\
                 --output {label_job.output['vcf.bgz']} \\
                 --pedigree {pedigree} \\
@@ -426,7 +426,7 @@ class RunHailFiltering(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.RunHailFiltering \\
+            python -m talos.run_hail_filtering \\
                 --input "${{BATCH_TMPDIR}}/{cohort.id}.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
@@ -510,7 +510,7 @@ class RunHailFilteringSv(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.RunHailFilteringSv \\
+            python -m talos.run_hail_filtering_sv \\
                 --input {annotated_vcf} \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
@@ -621,7 +621,7 @@ class ValidateVariantInheritance(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.ValidateMOI \\
+            python -m talos.validate_moi \\
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
@@ -677,7 +677,7 @@ class HpoFlagging(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.HPOFlagging \\
+            python -m talos.hpo_flagging \\
                 --input {results_json} \\
                 --mane_json {mane_json} \\
                 --gen2phen {gene_to_phenotype} \\
@@ -746,7 +746,7 @@ class CreateTalosHtml(stage.CohortStage):
         # seqr_lookup can be missing/None here, that's ok
         job.command(
             f"""
-            python -m talos.CreateTalosHTML \\
+            python -m talos.create_talos_html \\
                 --input {results_json} \\
                 --panelapp {panelapp_data} \\
                 --output {job.output} \\
@@ -813,7 +813,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.cpg_internal_scripts.MinimiseOutputForSeqr \\
+            python -m talos.cpg_internal_scripts.minimise_output_for_seqr \\
                 --input {input_localised} \\
                 --output {job.out_json} \\
                 --pheno {job.pheno_json} \\
@@ -850,6 +850,6 @@ class UpdateIndexFile(stage.MultiCohortStage):
         expected_out = self.expected_outputs(cohort)
 
         dataset = config.config_retrieve(['workflow', 'dataset'])
-        job.command(f'python -m talos.cpg_internal_scripts.BuildReportIndexPage --dataset {dataset}')
+        job.command(f'python -m talos.cpg_internal_scripts.build_report_index --dataset {dataset}')
 
         return self.make_outputs(cohort, data=expected_out, jobs=job)

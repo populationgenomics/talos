@@ -112,11 +112,17 @@ workflow {
         ch_mane_json = Channel.fromPath(params.mane_json, checkIfExists: true)
     }
 
-    DownloadPanelApp(
-        ch_mane_json,
-        timestamp,
-    )
-    panelapp_out = DownloadPanelApp.out
+    String current_panelapp = "${params.processed_annotations}/panelapp_${timestamp}.json"
+
+    if (!file(current_panelapp).exists()) {
+        DownloadPanelApp(
+            ch_mane_json,
+            timestamp,
+        )
+        panelapp_out = DownloadPanelApp.out
+    } else {
+        panelapp_out = Channel.fromPath(current_panelapp, checkIfExists: true)
+    }
 
     // use workflow outputs, not individual copies
     publish:

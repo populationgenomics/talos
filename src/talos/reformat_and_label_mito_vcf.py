@@ -25,7 +25,7 @@ from talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable import (
 )
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.RunHailFiltering import (
+from talos.run_hail_filtering import (
     annotate_clinvarbitration,
     csq_struct_to_string,
     filter_matrix_by_ac,
