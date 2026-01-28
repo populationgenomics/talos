@@ -53,17 +53,20 @@ workflow {
     ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
     ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
 
-	// new approach, require a single VCF as input (TODO: allow multiple shards instead)
-	ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
-
-	// decide whether to split and parallelise, or run as a single operation
-	// if config value is absent completely, skip this step
-	if ((params.vcf_split_n ?: 0) > 0) {
-	    SplitVcf(ch_merged_vcf)
-	    ch_vcfs = SplitVcf.out.flatten()
-	} else {
-	    ch_vcfs = ch_merged_vcf
-	}
+    // see if sharded VCFs were provided
+    if (params.shards != null) {
+        ch_vcfs = Channel.fromPath("${params.shards}/*.${params.input_vcf_extension}").collect()
+    } else {
+        ch_vcf = channel.fromPath(params.vcf, checkIfExists: true)
+        // decide whether to split and parallelise, or run as a single operation
+        // if config value is absent completely, skip this step
+        if ((params.vcf_split_n ?: 0) > 0) {
+            SplitVcf(ch_vcf)
+            ch_vcfs = SplitVcf.out.flatten()
+        } else {
+            ch_vcfs = ch_vcf
+        }
+    }
 
 	NormaliseAndRegionFilterVcf(
         ch_vcfs,
