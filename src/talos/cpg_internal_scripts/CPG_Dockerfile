@@ -65,4 +65,4 @@ COPY echtvar echtavr/
 
 RUN pip install --no-cache-dir ".[cpg]"
 
-ENV VERSION=8.4.0
+ENV VERSION=9.0.0
