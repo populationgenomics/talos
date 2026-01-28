@@ -125,24 +125,33 @@ SCHEMA_OPTIONAL = {
 }
 
 
-def check_mt(mt_path: str | None):
+def check_mt(mt_paths: list[str]):
     """
     Check that the MatrixTable exists and is readable.
     Then check the schema and data type of each element, this is a manual validation and kinda gross.
     """
-    if mt_path is None:
-        LOG_ERRORS.append('MatrixTable path is not provided.')
-        return
+    logger.info(f'Checking MatrixTables {mt_paths}')
 
-    logger.info(f'Checking MatrixTable at {mt_path}')
+    all_mts: list[hl.MatrixTable] = []
+    all_samples: set[str] = set()
 
-    mt_anypath = to_anypath(mt_path)
-    if not (mt_anypath / '_SUCCESS').exists():
-        LOG_ERRORS.append(f'MatrixTable Success file does not exist: {mt_path}')
-        return
+    for each_path in mt_paths:
+        mt_anypath = to_anypath(each_path)
+        if not (mt_anypath / '_SUCCESS').exists():
+            LOG_ERRORS.append(f'MatrixTable Success file does not exist: {each_path}')
+            return
+        mt = hl.read_matrix_table(each_path)
+
+        these_samples = set(mt.s.collect())
+        if all_samples and not (all_samples == these_samples):
+            LOG_ERRORS.append(f'MatrixTable {each_path} contains different samples')
+            return
+
+        all_samples = these_samples
+        all_mts.append(mt)
 
     # boot it up and check the contents
-    mt = hl.read_matrix_table(mt_path)
+    mt = hl.MatrixTable.union_rows(*all_mts)
 
     # check the base fields - this works, but is only the key
     for field, field_type in BASE_FIELDS_REQUIRED:
@@ -292,7 +301,7 @@ def check_clinvar(clinvar_paths: list[str] | None):
 
 def main(
     pedigree_path: str | None,
-    mt_path: str | None,
+    mt_paths: list[str],
     clinvar_paths: list[str] | None,
 ) -> None:
     """
@@ -306,7 +315,7 @@ def main(
     validate_pedigree(pedigree_path)
     check_config()
 
-    check_mt(mt_path)
+    check_mt(mt_paths)
     check_clinvar(clinvar_paths)
 
     if LOG_ERRORS:
@@ -320,7 +329,7 @@ def main(
 if __name__ == '__main__':
     parser = ArgumentParser(description='Startup checks for Talos pipeline')
     parser.add_argument('--pedigree', help='Path to the pedigree file.', default=None)
-    parser.add_argument('--mt', help='Path to the MatrixTable.', default=None)
+    parser.add_argument('--mt', help='Path to the MatrixTable.', nargs='+', required=True)
     parser.add_argument('--clinvar', help='Path to the ClinVar HailTable.', default=None, nargs='+')
     args = parser.parse_args()
-    main(pedigree_path=args.pedigree, mt_path=args.mt, clinvar_paths=args.clinvar)
+    main(pedigree_path=args.pedigree, mt_paths=args.mt, clinvar_paths=args.clinvar)

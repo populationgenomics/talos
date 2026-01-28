@@ -891,13 +891,22 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
     return mt
 
 
+def union_all_mts(mt_paths: list[str]) -> hl.MatrixTable:
+    """Open and union all MatrixTables"""
+    all_mts: list[hl.MatrixTable] = []
+    for mt_path in mt_paths:
+        all_mts.append(hl.read_matrix_table(mt_path))
+
+    return hl.MatrixTable.union_rows(*all_mts)
+
+
 def cli_main():
     """
     Read MT, filter, and apply category annotation, export as a VCF
     """
 
     parser = ArgumentParser()
-    parser.add_argument('--input', required=True, help='path to input MT')
+    parser.add_argument('--input', required=True, help='path to input MT(s)', nargs='+')
     parser.add_argument('--panelapp', help='panelapp JSON')
     parser.add_argument('--pedigree', help='Cohort Pedigree')
     parser.add_argument('--output', help='Where to write the VCF', required=True)
@@ -908,7 +917,7 @@ def cli_main():
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
-        mt_path=args.input,
+        mt_paths=args.input,
         panel_data=args.panelapp,
         pedigree=args.pedigree,
         vcf_out=args.output,
@@ -921,7 +930,7 @@ def cli_main():
 
 
 def main(  # noqa: PLR0915
-    mt_path: str,
+    mt_paths: list[str],
     panel_data: str,
     pedigree: str,
     vcf_out: str,
@@ -935,7 +944,7 @@ def main(  # noqa: PLR0915
     Read MT, filter, and apply category annotation, export as a VCF
 
     Args:
-        mt_path (str): Location of the input MT
+        mt_paths (list[str]): Location of the input MT(s)
         panel_data ():
         pedigree (str): path to a pedigree for this cohort (used in de novo testing)
         vcf_out (str): where to write VCF out
@@ -970,8 +979,8 @@ def main(  # noqa: PLR0915
     pedigree_data: PedigreeParser = PedigreeParser(pedigree)
 
     # read the matrix table from a localised directory
-    mt = hl.read_matrix_table(mt_path)
-    logger.info(f'Loaded annotated MT from {mt_path}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
+    mt = union_all_mts(mt_paths)
+    logger.info(f'Loaded annotated MT from {mt_paths}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
 
     # Filter out star alleles, not currently capable of handling them
     # Will revisit once our internal experience with DRAGEN-generated variant data improves
