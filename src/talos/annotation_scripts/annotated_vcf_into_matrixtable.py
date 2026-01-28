@@ -146,7 +146,11 @@ def get_mane_annotations(mane_path: str) -> hl.DictExpression:
     return hl.dict(mane_dict)
 
 
-def annotate_all_transcript_consequences(mt: hl.MatrixTable, mane: hl.DictExpression, ensgs: hl.DictExpression,) -> hl.MatrixTable:
+def annotate_all_transcript_consequences(
+    mt: hl.MatrixTable,
+    mane: hl.DictExpression,
+    ensgs: hl.DictExpression,
+) -> hl.MatrixTable:
     """
     In a single loop, update the AM annotations, MANE annotations, and ENSG gene IDs
     Args:
@@ -187,7 +191,7 @@ def annotate_all_transcript_consequences(mt: hl.MatrixTable, mane: hl.DictExpres
                     mane[x.transcript]['mane_id'],
                     MISSING_STRING,
                 ),
-                gene_id=ensgs[mt.locus.contig].get(x.gene, x.gene)
+                gene_id=ensgs[mt.locus.contig].get(x.gene, x.gene),
             ),
             mt.transcript_consequences,
         ),
@@ -237,7 +241,7 @@ def main(
     vcf_path: str,
     output_path: str,
     gene_bed: str,
-    mane: str | None = None,
+    mane: str,
     checkpoint: str | None = None,
 ):
     """
@@ -248,7 +252,7 @@ def main(
         vcf_path (str): path to the annotated sites-only VCF
         output_path (str): path to write the resulting Hail Table to, must
         gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
-        mane (str | None): path to a MANE Hail Table for enhanced annotation
+        mane (str): path to a MANE JSON file for enhanced annotation
         checkpoint (str): which hail backend to use. Defaults to
     """
 
