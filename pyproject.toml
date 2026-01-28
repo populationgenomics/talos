@@ -21,7 +21,7 @@ classifiers=[
 
 dependencies=[
     'hail==0.2.137',
-    'clinvarbitration',
+    'clinvarbitration>=2.2.7',
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.4.1',
     'cyvcf2>=0.30.18',
@@ -58,39 +58,7 @@ test = [
 Repository = "https://github.com/populationgenomics/talos"
 
 [project.scripts]
-# ----------------------------------------------------------------------------------------
-# these scripts are specific to internal CPG functions
-# ----------------------------------------------------------------------------------------
-# sets off the whole workflow in cpg-flow orchestrated Stages
 run_workflow = 'talos.cpg_internal_scripts.run_workflow:cli_main'
-# Combine multiple separate Exomiser result files into a single Hail Table/JSON
-AggregateExomiserVariantTsvs = 'talos.AggregateExomiserVariantTsvs:cli_main'
-# Scans Metamist for published reports, collects into an index page
-BuildReportIndexPage = 'talos.cpg_internal_scripts.BuildReportIndexPage:main'
-# Parse the summary JSON, generating a file for ingestion by Seqr
-MinimiseOutputForSeqr = 'talos.cpg_internal_scripts.MinimiseOutputForSeqr:cli_main'
-
-# ----------------------------------------------------------------------------------------
-# these scripts are part of the core Talos workflow
-# ----------------------------------------------------------------------------------------
-# turns the SVDB TSV into a Hail Table
-ConvertSpliceVarDb = 'talos.ConvertSpliceVarDb:cli_main'
-# Download and format all current PanelApp data
-DownloadPanelApp = 'talos.DownloadPanelApp:cli_main'
-# Parse the Downloaded PanelApp data, generating a run-specific PanelApp subset
-UnifiedPanelAppParser = 'talos.UnifiedPanelAppParser:cli_main'
-# Filter and label a small-variant MatrixTable
-RunHailFiltering = 'talos.RunHailFiltering:cli_main'
-# Filter and label a SV MatrixTable
-RunHailFilteringSV = 'talos.RunHailFilteringSv:cli_main'
-# Run each of the category-labelled variants through MOI filters
-ValidateMOI = 'talos.ValidateMOI:cli_main'
-# catch variants which have strong phenotypic matches
-HPOFlagging = 'talos.HPOFlagging:cli_main'
-# Generate a HTML file from the report summary
-CreateTalosHTML = 'talos.CreateTalosHTML:cli_main'
-# Generate a brief summary of an existing report (variant count, family size, etc.)
-SummariseReport = 'talos.SummariseReport:cli_main'
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/talos"]
@@ -124,14 +92,12 @@ ignore = [
     "ANN201", # Missing return type annotation for public function
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "ANN204", # Missing type annotation for special method `__init__`
-    "E731", # Do not assign a lambda expression, use a def
     "G004", # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
     "S101", # Use of assert detected
     "PLR0912", # Too many branches (> 12)
     "PLR0913", # Too many arguments in function (> 5)
     "C901", # method is too complex (> 10 conditions)
-    "N999", # invalid module name (not lower-case and potholes)
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
     "PLR2004" #  Magic value used in comparison, consider replacing `X` with a constant variable. I don't rate this
 ]

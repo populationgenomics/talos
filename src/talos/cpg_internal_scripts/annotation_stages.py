@@ -1,4 +1,6 @@
 """
+Rewrite of the annotation workflow
+
 This workflow is designed to generate a minimally annotated dataset for use in Talos
 this workflow is designed to be something which could be executed easily off-site by non-CPG users
 
@@ -48,22 +50,27 @@ And somewhat in parallel to that:
 from functools import cache
 
 import loguru
+from sortedcontainers import SortedDict
 
 from cpg_flow import stage, targets, utils
-from cpg_utils import Path, config
+from cpg_flow.stage import StageInput, StageOutput
+from cpg_flow.targets import MultiCohort
+from cpg_utils import Path, config, to_path
 
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
-    AnnotateConsequenceUsingBcftools,
-    AnnotateGnomadFrequencies,
-    AnnotateSpliceAiFromHt,
-    ComposeVcfFragments,
-    ExtractVcfFromMt,
-    JumpAnnotationsFromHtToFinalMt,
-    SitesOnlyVcfIntoHt,
+    annotate_csq_with_bcftools,
+    annotate_with_echtvar,
+    annotate_splice_ai,
+    extract_vcfs_from_mt,
+    generate_alphamissense_zip,
+    vcf_into_matrixtable,
 )
 
 SHARD_MANIFEST = 'shard-manifest.txt'
+
+# use to record the number of fragments in each shard manifest
+FRAGMENTS: dict[str, int] = {}
 
 
 @cache
@@ -91,6 +98,38 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     )
 
 
+@cache
+def get_manifest_fragments(vcf_dir: str) -> SortedDict:
+    """"""
+    dir_path = to_path(vcf_dir)
+    manifest = dir_path / SHARD_MANIFEST
+
+    if not manifest.exists():
+        raise FileNotFoundError(
+            f"At lease one cohort needs, but doesn't have, VCF fragments: {manifest}. "
+            f"Re-run the workflow with last_stages='ExtractVcfFromDatasetMt'",
+        )
+
+    with manifest.open() as f:
+        return SortedDict({f'part_{i}': line.rstrip() for i, line in enumerate(f)})
+
+
+@stage.stage
+class EncodeAlphamissense(stage.MultiCohortStage):
+    """ """
+
+    def expected_outputs(self, _multicohort: MultiCohort) -> dict[str, Path]:
+        return {
+            'zip': to_path(config.config_retrieve(['storage', 'common', 'default'])) / 'alphamissense_echtvar.zip',
+        }
+
+    def queue_jobs(self, multicohort: MultiCohort, inputs: StageInput) -> StageOutput:
+        """Do the thing."""
+        outputs = self.expected_outputs(multicohort)
+        job = generate_alphamissense_zip.encode_alphamissense(outputs['zip'])
+        return self.make_outputs(multicohort, outputs, jobs=job)
+
+
 @stage.stage
 class ExtractVcfFromDatasetMt(stage.CohortStage):
     """
@@ -106,12 +145,8 @@ class ExtractVcfFromDatasetMt(stage.CohortStage):
             hash_value=cohort.id,
         )
         return {
-            # write path for the full (region-limited) MatrixTable, stripped of info fields
-            'mt': temp_prefix / f'{cohort.id}.mt',
-            # this will be the write path for fragments of sites-only VCF
-            'sites_only_vcf_dir': str(temp_prefix / f'{cohort.id}_separate.vcf.bgz'),
-            # this will be the file which contains the name of all fragments
-            'sites_only_vcf_manifest': temp_prefix / f'{cohort.id}_separate.vcf.bgz' / SHARD_MANIFEST,
+            'vcf_dir': str(temp_prefix / f'{cohort.id}_separate.vcf.bgz'),
+            'vcf_manifest': temp_prefix / f'{cohort.id}_separate.vcf.bgz' / SHARD_MANIFEST,
         }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
@@ -121,220 +156,168 @@ class ExtractVcfFromDatasetMt(stage.CohortStage):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
             return self.make_outputs(cohort, outputs, jobs=None)
 
-        job = ExtractVcfFromMt.make_vcf_extraction_job(
+        job = extract_vcfs_from_mt.make_vcf_extraction_job(
             cohort=cohort,
-            output_mt=outputs['mt'],
-            output_sitesonly=outputs['sites_only_vcf_dir'],
+            output=outputs['vcf_dir'],
             job_attrs=self.get_job_attrs(cohort),
         )
 
         return self.make_outputs(cohort, outputs, jobs=job)
 
 
-@stage.stage(required_stages=ExtractVcfFromDatasetMt)
-class ConcatenateSitesOnlyVcfFragments(stage.CohortStage):
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+# Ok, there's a change in behaviour here - these stages are carried out on parallel VCF shards
+
+
+@stage.stage(required_stages=[EncodeAlphamissense, ExtractVcfFromDatasetMt])
+class AnnotateUsingEchtvar(stage.CohortStage):
+    """Annotate VCF with gnomad frequencies and AlphaMissense, write to tmp storage."""
+
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
             hash_value=cohort.id,
         )
-        return temp_prefix / f'{cohort.id}_sites_only_reassembled.vcf.bgz'
+        return {
+            'success': temp_prefix / 'success.txt',
+            'fragment_template': str(temp_prefix / '{part}.vcf.bgz'),
+        }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        """Trigger a rolling merge using gcloud compose, gluing all the individual files together."""
-
-        output = self.expected_outputs(cohort)
+        outputs = self.expected_outputs(cohort)
 
         if does_final_file_path_exist(cohort):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
-            return self.make_outputs(cohort, output, jobs=None)
+            return self.make_outputs(cohort, outputs, jobs=[])
 
-        extraction_outputs = inputs.as_dict(cohort, ExtractVcfFromDatasetMt)
+        manifest = inputs.as_str(cohort, ExtractVcfFromDatasetMt, key='vcf_dir')
+        fragments = get_manifest_fragments(manifest)
+        am_zip = inputs.as_str(target=cohort, stage=EncodeAlphamissense, key='zip')
 
-        jobs = ComposeVcfFragments.make_condense_jobs(
+        jobs = annotate_with_echtvar.make_echtvar_job(
             cohort_id=cohort.id,
-            manifest_file=extraction_outputs['sites_only_vcf_manifest'],
-            manifest_dir=extraction_outputs['sites_only_vcf_dir'],
-            output=output,
-            tmp_dir=cpg_flow_utils.generate_dataset_prefix(
-                dataset=cohort.dataset.name,
-                category='tmp',
-                stage_name=self.name,
-                hash_value=cohort.id,
-            ),
-            job_attrs=self.get_job_attrs(cohort),
-        )
-        return self.make_outputs(cohort, data=output, jobs=jobs)
-
-
-@stage.stage(required_stages=ConcatenateSitesOnlyVcfFragments)
-class AnnotateGnomadUsingEchtvar(stage.CohortStage):
-    """Annotate this cohort joint-call VCF with gnomad frequencies, write to tmp storage."""
-
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        temp_prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
-            category='tmp',
-            stage_name=self.name,
-            hash_value=cohort.id,
-        )
-        return temp_prefix / f'{cohort.id}_gnomad_frequency_annotated.vcf.bgz'
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(cohort)
-
-        site_only_vcf = inputs.as_str(cohort, ConcatenateSitesOnlyVcfFragments)
-
-        if does_final_file_path_exist(cohort):
-            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
-            return self.make_outputs(cohort, output, jobs=[])
-
-        job = AnnotateGnomadFrequencies.make_echtvar_job(
-            cohort_id=cohort.id,
-            sites_only_vcf=site_only_vcf,
-            output=output,
+            fragments=fragments,
+            am_zip=am_zip,
+            outputs=outputs,
             job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(cohort, data=output, jobs=job)
+        return self.make_outputs(cohort, data=outputs, jobs=jobs)
 
 
-@stage.stage(required_stages=AnnotateGnomadUsingEchtvar)
+@stage.stage(required_stages=[ExtractVcfFromDatasetMt, AnnotateUsingEchtvar])
 class AnnotateWithBcftoolsCsq(stage.CohortStage):
-    """Take the VCF with gnomad frequencies, and annotate with consequences using BCFtools."""
+    """Take the VCFs with gnomad/alphamissense annotations, add consequences using BCFtools."""
 
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
             hash_value=cohort.id,
         )
-        return temp_prefix / f'{cohort.id}_consequence_annotated.vcf.bgz'
+        return {
+            'success': temp_prefix / 'success.txt',
+            'fragment_template': str(temp_prefix / '{part}.vcf.bgz'),
+        }
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(cohort)
+        outputs = self.expected_outputs(cohort)
 
         if does_final_file_path_exist(cohort):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
-            return self.make_outputs(cohort, output, jobs=[])
+            return self.make_outputs(cohort, outputs, jobs=[])
 
-        gnomad_annotated_vcf = inputs.as_path(cohort, AnnotateGnomadUsingEchtvar)
+        manifest = inputs.as_str(cohort, ExtractVcfFromDatasetMt, key='vcf_dir')
+        fragments = get_manifest_fragments(manifest)
+        echtvar_template = inputs.as_str(target=cohort, stage=AnnotateUsingEchtvar, key='fragment_template')
 
-        job = AnnotateConsequenceUsingBcftools.make_bcftools_anno_job(
+        jobs = annotate_csq_with_bcftools.make_bcftools_anno_jobs(
             cohort_id=cohort.id,
-            gnomad_vcf=gnomad_annotated_vcf,
-            output=output,
+            fragments=list(fragments.keys()),
+            echtvar_template=echtvar_template,
+            outputs=outputs,
             job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(cohort, data=output, jobs=job)
+        return self.make_outputs(cohort, data=outputs, jobs=jobs)
 
 
-@stage.stage(required_stages=AnnotateWithBcftoolsCsq)
-class AnnotatedVcfIntoHt(stage.CohortStage):
-    """Join the annotated sites-only VCF with AlphaMissense, and with gene/transcript information."""
-
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+# changes from here - parallel stages to create a range of MTs, then gather them in SpliceAi
+@stage.stage(required_stages=[ExtractVcfFromDatasetMt, AnnotateWithBcftoolsCsq])
+class AnnotatedVcfIntoMt(stage.CohortStage):
+    def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
             dataset=cohort.dataset.name,
             category='tmp',
             stage_name=self.name,
             hash_value=cohort.id,
         )
-        return temp_prefix / f'{cohort.id}_annotations.ht'
+        return {
+            'success': temp_prefix / 'success.txt',
+            'fragment_template': str(temp_prefix / '{part}.mt'),
+        }
 
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(cohort)
+    def queue_jobs(self, cohort, inputs: stage.StageInput) -> stage.StageOutput:
+        outputs = self.expected_outputs(cohort)
 
         if does_final_file_path_exist(cohort):
             loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
-            return self.make_outputs(cohort, output, jobs=[])
+            return self.make_outputs(cohort, outputs, jobs=[])
 
-        bcftools_vcf = inputs.as_str(cohort, AnnotateWithBcftoolsCsq)
+        manifest = inputs.as_str(cohort, ExtractVcfFromDatasetMt, key='vcf_dir')
+        fragments = get_manifest_fragments(manifest)
+        bcftools_template = inputs.as_str(target=cohort, stage=AnnotateWithBcftoolsCsq, key='fragment_template')
 
-        job = SitesOnlyVcfIntoHt.make_vcf_to_ht_job(
+        jobs = vcf_into_matrixtable.create_mt_ingest_jobs(
             cohort_id=cohort.id,
-            bcftools_vcf=bcftools_vcf,
-            output_ht=output,
-            tmp_dir=cpg_flow_utils.generate_dataset_prefix(
+            fragments=list(fragments.keys()),
+            bcftools_template=bcftools_template,
+            checkpoint=cpg_flow_utils.generate_dataset_prefix(
                 dataset=cohort.dataset.name,
                 category='tmp',
                 stage_name=self.name,
                 hash_value=cohort.id,
             )
-            / f'{cohort.id}_annotation_checkpoint',
+            / f'{cohort.id}_{{part}}annotation_checkpoint',
+            outputs=outputs,
             job_attrs=self.get_job_attrs(cohort),
         )
 
-        return self.make_outputs(cohort, data=output, jobs=job)
-
-
-@stage.stage(required_stages=[AnnotatedVcfIntoHt, ExtractVcfFromDatasetMt])
-class TransferAnnotationsToMt(stage.CohortStage):
-    """Take the variant MatrixTable and a HT of annotations, combine into a final MT."""
-
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
-            stage_name=self.name,
-            hash_value=cohort.id,
-        )
-        return prefix / f'{cohort.id}.mt'
-
-    def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
-        output = self.expected_outputs(cohort)
-
-        if does_final_file_path_exist(cohort):
-            loguru.logger.info(f'Skipping {self.name} for {cohort.id}, final workflow output already exists')
-            return self.make_outputs(cohort, output, jobs=[])
-
-        # get the region-limited MT
-        mt = inputs.as_str(cohort, ExtractVcfFromDatasetMt, 'mt')
-
-        # get the table of compressed annotations
-        annotations = inputs.as_str(cohort, AnnotatedVcfIntoHt)
-
-        job = JumpAnnotationsFromHtToFinalMt.make_annotation_transfer_job(
-            cohort_id=cohort.id,
-            annotations_ht=annotations,
-            input_mt=mt,
-            output_mt=output,
-            job_attrs=self.get_job_attrs(cohort),
-        )
-
-        return self.make_outputs(cohort, data=output, jobs=job)
-
-
-# tack on a private stage which adds SpliceAi results
+        return self.make_outputs(cohort, data=outputs, jobs=jobs)
 
 
 @stage.stage(
-    required_stages=[TransferAnnotationsToMt],
+    required_stages=[ExtractVcfFromDatasetMt, AnnotatedVcfIntoMt],
     analysis_type='talos_prep',
 )
 class AnnotateSpliceAi(stage.CohortStage):
     """Take the annotated MatrixTable and add SpliceAi annotations. Private CPG stage."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
-        prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
-            stage_name=self.name,
-            hash_value=cohort.id,
+        return (
+            cpg_flow_utils.generate_dataset_prefix(
+                dataset=cohort.dataset.name,
+                stage_name=self.name,
+                hash_value=cohort.id,
+            )
+            / f'{cohort.id}.mt'
         )
-        return prefix / f'{cohort.id}.mt'
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         output = self.expected_outputs(cohort)
 
-        input_mt = inputs.as_str(cohort, TransferAnnotationsToMt)
+        manifest = inputs.as_str(cohort, ExtractVcfFromDatasetMt, key='vcf_dir')
+        fragments = get_manifest_fragments(manifest)
+        mt_template = inputs.as_str(target=cohort, stage=AnnotatedVcfIntoMt, key='fragment_template')
 
-        job = AnnotateSpliceAiFromHt.add_job(
-            input_mt=input_mt,
-            output_mt=str(output),
+        job = annotate_splice_ai.add_job(
             cohort_id=cohort.id,
+            fragments=list(fragments.keys()),
+            mt_template=mt_template,
+            output_mt=str(output),
+            job_attrs=self.get_job_attrs(cohort),
         )
 
         return self.make_outputs(cohort, data=output, jobs=job)

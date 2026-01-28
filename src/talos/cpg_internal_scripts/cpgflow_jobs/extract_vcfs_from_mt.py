@@ -11,8 +11,7 @@ if TYPE_CHECKING:
 
 def make_vcf_extraction_job(
     cohort: targets.Cohort,
-    output_mt: Path,
-    output_sitesonly: Path,
+    output: Path,
     job_attrs: dict,
 ) -> 'BashJob':
     """Create a Hail Batch job to extract VCF from a dataset MatrixTable."""
@@ -40,8 +39,7 @@ def make_vcf_extraction_job(
         f"""
         python -m talos.cpg_internal_scripts.extract_fragmented_vcf_from_mt \\
             --input {input_mt} \\
-            --output_mt {output_mt!s} \\
-            --output_sites_only {output_sitesonly!s} \\
+            --output {output!s} \\
             --bed {bed}
         """,
     )

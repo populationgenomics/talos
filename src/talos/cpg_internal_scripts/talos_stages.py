@@ -20,7 +20,7 @@ from talos.cpg_internal_scripts.cpg_flow_utils import (
     generate_dataset_prefix,
     query_for_latest_analysis,
 )
-from talos.cpg_internal_scripts.cpgflow_jobs import AnnotateMitoCsqUsingBcftools, MakeConfig
+from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito_csq, make_config
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -170,7 +170,7 @@ class MakeRuntimeConfig(stage.CohortStage):
         _cohort_dataset_pass = check_for_dataset_centric_cohorts()
         expected_outputs = self.expected_outputs(cohort)
 
-        MakeConfig.create_config(
+        make_config.create_config(
             cohort=cohort,
             seqr_out=expected_outputs['seqr_lookup'],
             config_out=expected_outputs['config'],
@@ -315,7 +315,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
             return self.make_outputs(cohort, data={}, jobs=None)
 
         # create the job which annotates the VCF
-        annotate_job = AnnotateMitoCsqUsingBcftools.make_bcftools_mito_jobs(
+        annotate_job = annotate_mito_csq.make_bcftools_mito_jobs(
             cohort_id=cohort.id,
             mito_vcf=mito_vcf,
             output=outputs['annotated'],

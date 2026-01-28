@@ -143,7 +143,7 @@ def check_mt(mt_paths: list[str]):
         mt = hl.read_matrix_table(each_path)
 
         these_samples = set(mt.s.collect())
-        if all_samples and not (all_samples == these_samples):
+        if all_samples and all_samples != these_samples:
             LOG_ERRORS.append(f'MatrixTable {each_path} contains different samples')
             return
 

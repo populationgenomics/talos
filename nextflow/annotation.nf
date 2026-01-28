@@ -55,7 +55,7 @@ workflow {
 
     // see if sharded VCFs were provided
     if (params.shards != null) {
-        ch_vcfs = Channel.fromPath("${params.shards}/*.${params.input_vcf_extension}").collect()
+        ch_vcfs = Channel.fromPath("${params.shards}/*.${params.input_vcf_extension}")
     } else {
         ch_vcf = channel.fromPath(params.vcf, checkIfExists: true)
         // decide whether to split and parallelise, or run as a single operation

@@ -1,8 +1,6 @@
 process EncodeAlphaMissense {
     container params.container
 
-    publishDir params.processed_annotations, mode: 'copy'
-
     input:
         path vcf
 
