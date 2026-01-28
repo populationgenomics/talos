@@ -34,14 +34,16 @@ workflow {
         println "MANE JSON not available, please run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
+
     ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
 
     // Read the AlphaMissense HT as a channel, or prompt for generation using the prep workflow
     if (!file(params.alphamissense_zip).exists()) {
         println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
+    }
 
-    ch_alphamissense = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
+    ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
 
     // check the ensembl BED file has been generated
     if (!file(params.ensembl_bed).exists()) {

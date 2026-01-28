@@ -173,8 +173,8 @@ def annotate_all_transcript_consequences(
                 ),
                 am_pathogenicity=hl.if_else(
                     x.transcript == mt.info.am_transcript,
-                    mt.info.am_class,
-                    MISSING_STRING,
+                    mt.info.am_score,
+                    MISSING_FLOAT,
                 ),
                 mane_status=hl.if_else(
                     key_set.contains(x.transcript),
