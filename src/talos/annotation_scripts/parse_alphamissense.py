@@ -12,12 +12,13 @@ import gzip
 from argparse import ArgumentParser
 from importlib import resources
 
+resources.files()
 
 def main(input_am: str, output: str):
     with (
         gzip.open(input_am, 'rt') as handle,
         gzip.open(output, 'wt') as out,
-        resources.open_text('talos', 'am_header.txt') as head_in,
+        (resources.files('talos') / 'am_header.txt').open() as head_in,
     ):
         for line in head_in:
             out.write(line)
