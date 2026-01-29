@@ -17,7 +17,7 @@ import hail as hl
 
 from cpg_utils.hail_batch import init_batch
 
-from talos.annotation_scripts.ReformatAnnotatedVcfIntoHailTable import (
+from talos.annotation_scripts.annotated_vcf_into_matrixtable import (
     MISSING_FLOAT,
     MISSING_INT,
     MISSING_STRING,
