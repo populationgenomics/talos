@@ -140,9 +140,6 @@ class ExtractVcfFromDatasetMt(stage.CohortStage):
         return self.make_outputs(cohort, outputs, jobs=job)
 
 
-# Ok, there's a change in behaviour here - these stages are carried out on parallel VCF shards
-
-
 @stage.stage(required_stages=[EncodeAlphamissense, ExtractVcfFromDatasetMt])
 class AnnotateUsingEchtvar(stage.CohortStage):
     """Annotate VCF with gnomad frequencies and AlphaMissense, write to tmp storage."""
