@@ -1,0 +1,30 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=am_class,Number=1,Type=String,Description="">
+##INFO=<ID=am_score,Number=1,Type=Float,Description="">
+##INFO=<ID=am_transcript,Number=1,Type=String,Description="">
+##contig=<ID=chr1,length=248956422,assembly=GRCh38>
+##contig=<ID=chr2,length=242193529,assembly=GRCh38>
+##contig=<ID=chr3,length=198295559,assembly=GRCh38>
+##contig=<ID=chr4,length=190214555,assembly=GRCh38>
+##contig=<ID=chr5,length=181538259,assembly=GRCh38>
+##contig=<ID=chr6,length=170805979,assembly=GRCh38>
+##contig=<ID=chr7,length=159345973,assembly=GRCh38>
+##contig=<ID=chr8,length=145138636,assembly=GRCh38>
+##contig=<ID=chr9,length=138394717,assembly=GRCh38>
+##contig=<ID=chr10,length=133797422,assembly=GRCh38>
+##contig=<ID=chr11,length=135086622,assembly=GRCh38>
+##contig=<ID=chr12,length=133275309,assembly=GRCh38>
+##contig=<ID=chr13,length=114364328,assembly=GRCh38>
+##contig=<ID=chr14,length=107043718,assembly=GRCh38>
+##contig=<ID=chr15,length=101991189,assembly=GRCh38>
+##contig=<ID=chr16,length=90338345,assembly=GRCh38>
+##contig=<ID=chr17,length=83257441,assembly=GRCh38>
+##contig=<ID=chr18,length=80373285,assembly=GRCh38>
+##contig=<ID=chr19,length=58617616,assembly=GRCh38>
+##contig=<ID=chr20,length=64444167,assembly=GRCh38>
+##contig=<ID=chr21,length=46709983,assembly=GRCh38>
+##contig=<ID=chr22,length=50818468,assembly=GRCh38>
+##contig=<ID=chrX,length=156040895,assembly=GRCh38>
+##contig=<ID=chrY,length=57227415,assembly=GRCh38>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
