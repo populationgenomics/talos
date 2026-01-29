@@ -20,14 +20,12 @@ def make_echtvar_job(
     gnomad_annotations = batch.read_input(config.config_retrieve(['references', 'echtvar_gnomad']))
 
     # collect all jobs
-    all_jobs: list['BashJob'] = []
+    all_jobs: list['BashJob'] = []  # noqa: UP037
 
     for part, vcf_path in fragments.items():
         local_vcf = batch.read_input_group(
-            **{
-                'vcf': vcf_path,
-                'vcf_idx': f'{vcf_path}.tbi',
-            }
+            vcf=vcf_path,
+            vcf_idx=f'{vcf_path}.tbi',
         ).vcf
 
         job = batch.new_job(

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
 
 
-def encode_alphamissense(output_path: Path) -> BashJob:
+def encode_alphamissense(output_path: Path) -> 'BashJob':
     """Encode the alphamissense TSV as an Echtvar zip."""
     batch = hail_batch.get_batch()
     tsv_input = batch.read_input(config.config_retrieve(['references', 'alphaissense_tsv']))

@@ -315,7 +315,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
             return self.make_outputs(cohort, data={}, jobs=None)
 
         # create the job which annotates the VCF
-        annotate_job = annotate_mito_csq.make_bcftools_mito_jobs(
+        annotate_job = annotate_mito_csq.make_bcftools_mito_job(
             cohort_id=cohort.id,
             mito_vcf=mito_vcf,
             output=outputs['annotated'],

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
 
 
-def make_bcftools_mito_jobs(
+def make_bcftools_mito_job(
     cohort_id: str,
     mito_vcf: str,
     output: Path,

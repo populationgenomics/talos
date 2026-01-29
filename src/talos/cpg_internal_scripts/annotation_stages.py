@@ -60,8 +60,8 @@ from cpg_utils import Path, config, to_path
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     annotate_csq_with_bcftools,
-    annotate_with_echtvar,
     annotate_splice_ai,
+    annotate_with_echtvar,
     extract_vcfs_from_mt,
     generate_alphamissense_zip,
     vcf_into_matrixtable,

@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-
 from cpg_utils import Path, config, hail_batch
 
 if TYPE_CHECKING:
@@ -21,7 +20,7 @@ def create_mt_ingest_jobs(
     mane_json = batch.read_input(config.config_retrieve(['references', 'mane_json']))
     gene_roi = batch.read_input(config.config_retrieve(['references', 'ensembl_bed']))
 
-    all_jobs: list['BashJob'] = []
+    all_jobs: list['BashJob'] = []  # noqa: UP037
     for part in fragments:
         vcf_path = bcftools_template.format(part=part)
         job = batch.new_bash_job(

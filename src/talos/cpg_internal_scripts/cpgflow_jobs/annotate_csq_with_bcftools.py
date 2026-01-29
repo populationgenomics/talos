@@ -19,14 +19,12 @@ def make_bcftools_anno_jobs(
     gff3_file = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'ensembl_gff3']))
     fasta = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'ref_fasta']))
 
-    all_jobs: list['BashJob'] = []
+    all_jobs: list['BashJob'] = []  # noqa: UP037
     for part in fragments:
         vcf_path = echtvar_template.format(part=part)
         local_vcf = batch.read_input_group(
-            **{
-                'vcf': vcf_path,
-                'vcf_idx': f'{vcf_path}.tbi',
-            }
+            vcf=vcf_path,
+            vcf_idx=f'{vcf_path}.tbi',
         ).vcf
 
         job = hail_batch.get_batch().new_bash_job(
