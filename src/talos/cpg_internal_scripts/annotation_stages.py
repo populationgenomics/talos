@@ -52,7 +52,7 @@ from functools import cache
 import loguru
 from sortedcontainers import SortedDict
 
-from cpg_flow import stage, targets, utils
+from cpg_flow import stage, targets, utils, workflow
 from cpg_flow.stage import StageInput, StageOutput
 from cpg_flow.targets import MultiCohort
 from cpg_utils import Path, config, to_path
@@ -193,7 +193,7 @@ class AnnotateUsingEchtvar(stage.CohortStage):
 
         manifest = inputs.as_str(cohort, ExtractVcfFromDatasetMt, key='vcf_dir')
         fragments = get_manifest_fragments(manifest)
-        am_zip = inputs.as_str(target=cohort, stage=EncodeAlphamissense, key='zip')
+        am_zip = inputs.as_str(target=workflow.get_multicohort(), stage=EncodeAlphamissense, key='zip')
 
         jobs = annotate_with_echtvar.make_echtvar_job(
             cohort_id=cohort.id,
