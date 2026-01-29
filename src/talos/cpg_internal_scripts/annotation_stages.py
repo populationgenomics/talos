@@ -274,13 +274,15 @@ class AnnotatedVcfIntoMt(stage.CohortStage):
             cohort_id=cohort.id,
             fragments=list(fragments.keys()),
             bcftools_template=bcftools_template,
-            checkpoint=cpg_flow_utils.generate_dataset_prefix(
-                dataset=cohort.dataset.name,
-                category='tmp',
-                stage_name=self.name,
-                hash_value=cohort.id,
-            )
-            / f'{cohort.id}_{{part}}annotation_checkpoint',
+            checkpoint=str(
+                cpg_flow_utils.generate_dataset_prefix(
+                    dataset=cohort.dataset.name,
+                    category='tmp',
+                    stage_name=self.name,
+                    hash_value=cohort.id,
+                )
+                / f'{cohort.id}_{{part}}annotation_checkpoint'
+            ),
             outputs=outputs,
             job_attrs=self.get_job_attrs(cohort),
         )
