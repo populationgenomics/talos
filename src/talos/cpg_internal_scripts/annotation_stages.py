@@ -281,7 +281,7 @@ class AnnotatedVcfIntoMt(stage.CohortStage):
                     stage_name=self.name,
                     hash_value=cohort.id,
                 )
-                / f'{cohort.id}_{{part}}annotation_checkpoint'
+                / f'{cohort.id}_{{part}}annotation_checkpoint',
             ),
             outputs=outputs,
             job_attrs=self.get_job_attrs(cohort),
