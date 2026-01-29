@@ -45,7 +45,7 @@ def create_mt_ingest_jobs(
         all_jobs.append(job)
 
     # create a final success job
-    success = batch.new_bash_job(f'{cohort_id} bcftools success file')
+    success = batch.new_bash_job(f'{cohort_id} MT conversion success file')
     success.depends_on(*all_jobs)
     success.image(config.config_retrieve(['workflow', 'driver_image']))
     success.command(f'echo "Success!" > {success.output}')
