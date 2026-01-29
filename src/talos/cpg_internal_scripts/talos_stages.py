@@ -50,21 +50,6 @@ def get_clinvarbitration_folder(temp_folder: bool = False) -> Path:
     )
 
 
-@functools.cache
-def get_clinvar_tar() -> str:
-    """
-    pulling out a helper method for getting the ClinVar tar file
-    """
-    if not (clinvar_tar := config.config_retrieve(['workflow', 'clinvar_data'], None)):
-        clinvar_tar = query_for_latest_analysis(
-            dataset=config.config_retrieve(['workflow', 'dataset']),
-            analysis_type='clinvarbitration',
-        )
-        if clinvar_tar is None:
-            raise ValueError('No ClinVar data found')
-    return clinvar_tar
-
-
 def set_up_job_with_resources(
     name: str,
     memory: str | None = None,
