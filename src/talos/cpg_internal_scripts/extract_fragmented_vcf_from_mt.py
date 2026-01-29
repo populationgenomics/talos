@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Takes a MatrixTable and two output paths
-Writes two representations - region filtered MatrixTable, and the same as a sites-only VCF representation
-VCF is exported per-partition, with a separate header file, to be concatenated later
+Takes a MatrixTable and an output path
+Writes the VCF out in shards, each fragment containing a full header-per-shard
 
 This script also takes a BED file as input; output contains only the variants that overlap with the BED file
 
@@ -54,20 +53,21 @@ VQSR_FILTERS = {
 
 def main(
     mt_path: str,
-    output_mt: str,
-    output_sites_only: str,
+    output: str,
     bed: str | None,
 ) -> None:
     """
 
     Args:
         mt_path (str):
-        output_mt (str): write region-filtered MatrixTable, stripped of INFO fields
-        output_sites_only (str): write a per-partition sites-only VCF directory to this location
+        output (str): write region-filtered VCF, stripped of INFO fields
         bed (str): Region BED file
     """
 
-    hail_batch.init_batch()
+    hail_batch.init_batch(
+        driver_memory='highmem',
+        driver_cores=2,
+    )
 
     # read the dense MT and obtain the sites-only HT
     mt = hl.read_matrix_table(mt_path)
@@ -92,6 +92,7 @@ def main(
         )
         mt = mt.drop('variant_qc')
 
+    # drop all annotations
     mt = mt.select_rows(
         info=hl.struct(
             AF=mt.info.AF,
@@ -102,20 +103,16 @@ def main(
         filters=mt.filters,
     )
 
-    mt.describe()
-
-    mt.write(output_mt, overwrite=True)
-
-    # now read that location for speed, and write the sites-only VCF
-    # keep partitions consistent
-    sites_only_ht = hl.read_matrix_table(output_mt).rows()
+    # determine how many fragments to generate - the thousands we have by default will be pretty excessive
+    if fragments := config.config_retrieve(['workflow', 'vcf_fragments'], False):
+        mt = mt.repartition(fragments)
 
     loguru.logger.info('Writing sites-only VCF in fragments, header-per-shard')
     hl.export_vcf(
-        sites_only_ht,
-        output_sites_only,
+        mt,
+        output,
         tabix=True,
-        parallel='separate_header',
+        parallel='header_per_shard',
         metadata=VQSR_FILTERS,
     )
 
@@ -128,17 +125,13 @@ if __name__ == '__main__':
         required=True,
     )
     parser.add_argument(
-        '--output_mt',
-        help='Path to write the resulting MatrixTable',
+        '--output',
+        help='Path to write the resulting VCF',
         required=True,
-    )
-    parser.add_argument(
-        '--output_sites_only',
-        help='Specify an output path for a sites-only VCF, or None',
     )
     parser.add_argument(
         '--bed',
         help='Region BED file',
     )
     args = parser.parse_args()
-    main(mt_path=args.input, output_mt=args.output_mt, output_sites_only=args.output_sites_only, bed=args.bed)
+    main(mt_path=args.input, output=args.output, bed=args.bed)

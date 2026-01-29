@@ -15,19 +15,21 @@ workflow {
     main :
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    // pedigree_channel = channel.fromPath(params.pedigree)
-    ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true)
-    ch_runtime_config = channel.fromPath(params.runtime_config, checkIfExists: true)
-    ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true)
-    ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true)
-    ch_mane = channel.fromPath(params.parsed_mane, checkIfExists: true)
-    ch_pedigree = channel.fromPath(params.pedigree, checkIfExists: true)
-    ch_mt = channel.fromPath(params.matrix_table, checkIfExists: true)
-    ch_opt_ids = channel.fromPath(params.ext_id_map, checkIfExists: true)
-    ch_seqr_ids = channel.fromPath(params.seqr_lookup, checkIfExists: true)
+    // pedigree_channel = Channel.fromPath(params.pedigree)
+    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true)
+    ch_runtime_config = Channel.fromPath(params.runtime_config, checkIfExists: true)
+    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true)
+    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true)
+    ch_mane = Channel.fromPath(params.parsed_mane, checkIfExists: true)
+    ch_pedigree = Channel.fromPath(params.pedigree, checkIfExists: true)
+    ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true)
+    ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true)
+
+    // find all matrix tables in the cohort output directory - require at least one
+    ch_mts = Channel.fromPath("${params.output_dir}/*.mt", type: 'dir', checkIfExists: true).collect()
 
     // may not exist on the first run, will be populated using a dummy file
-    ch_previous_results = channel.fromPath(params.previous_results, checkIfExists: true)
+    ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true)
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
@@ -55,7 +57,7 @@ workflow {
 
     // run pre-Talos startup checks
     StartupChecks(
-        ch_mt,
+        ch_mts,
         ch_pedigree,
         ch_clinvar_all,
         ch_runtime_config,
@@ -71,7 +73,7 @@ workflow {
     )
 
     RunHailFiltering(
-        ch_mt,
+        ch_mts,
         UnifiedPanelAppParser.out,
         ch_pedigree,
         ch_clinvar_all,

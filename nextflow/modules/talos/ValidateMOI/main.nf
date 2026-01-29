@@ -21,7 +21,7 @@ process ValidateMOI {
     """
     export TALOS_CONFIG=${talos_config}
 
-    ValidateMOI \
+    python -m talos.validate_moi \
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \
         --pedigree ${pedigree} \

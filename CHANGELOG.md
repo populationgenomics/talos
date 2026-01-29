@@ -14,6 +14,23 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[9.0.0] - 2026-01-29
+
+### Changed
+
+The whole annotation pipeline has been changed (see PR #634). In brief:
+
+- instead of operating on the input data in one chunk, we allow for sharded input, or split single inputs
+- annotation is applied to each VCF fragment in parallel
+- candidate NF resourcing is applied to each stage
+- AlphaMissense results are annotated using echtvar instead of a Hail Table join
+- Data is loaded into a MatrixTable once per shard
+- Talos workflow can operate on one or more MTs, so no obligation to coalesce data
+
+### Removed
+
+* all VCF merging steps - this workflow now requires a single VCF, or sharded VCFs representing a single callset
+
 [8.4.0] - 2026-01-27
 
 ### Removed
