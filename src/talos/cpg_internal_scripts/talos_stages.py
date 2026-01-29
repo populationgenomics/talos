@@ -32,6 +32,8 @@ SV_ANALYSIS_TYPES = {
     'genome': 'single_dataset_sv_annotated',
 }
 
+THIS_MONTH = datetime.datetime.now().strftime('%y-%m')  # noqa: DTZ005
+
 
 @functools.cache
 def get_clinvarbitration_folder(temp_folder: bool = False) -> Path:
@@ -43,9 +45,10 @@ def get_clinvarbitration_folder(temp_folder: bool = False) -> Path:
         join(
             config.config_retrieve(['storage', 'default', 'tmp' if temp_folder else 'default']),
             'clinvarbitration',
-            datetime.now().strftime('%y-%m'),  # noqa: DTZ005
+            THIS_MONTH,
         ),
     )
+
 
 @functools.cache
 def get_clinvar_tar() -> str:
@@ -129,7 +132,6 @@ def get_date_string() -> str:
     return config.config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
-
 @stage.stage
 class GenerateNewClinvArbitration(stage.MultiCohortStage):
     """If the monthly ClinvArbitration files don't exist, generate them."""
@@ -158,7 +160,6 @@ class GenerateNewClinvArbitration(stage.MultiCohortStage):
         return self.make_outputs(multicohort, data=outputs, jobs=job)
 
 
-
 @stage.stage(analysis_type='panelapp')
 class DownloadPanelAppData(stage.MultiCohortStage):
     """
@@ -170,7 +171,7 @@ class DownloadPanelAppData(stage.MultiCohortStage):
             join(
                 config.config_retrieve(['storage', 'common', 'analysis']),
                 'panelapp_monthly',
-                f'panelapp_data_{datetime.datetime.now().strftime("%y-%m")}.json',  # noqa: DTZ005
+                f'panelapp_data_{THIS_MONTH}.json',
             ),
         )
 
