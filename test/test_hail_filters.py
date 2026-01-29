@@ -6,7 +6,7 @@ import pytest
 
 import hail as hl
 
-from talos.RunHailFiltering import filter_matrix_by_ac, filter_on_quality_flags, populate_callset_frequencies
+from talos.run_hail_filtering import filter_matrix_by_ac, filter_on_quality_flags, populate_callset_frequencies
 
 
 def test_no_freq_replacement(make_a_mt, caplog):

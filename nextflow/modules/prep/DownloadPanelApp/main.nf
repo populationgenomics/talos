@@ -10,6 +10,8 @@ process DownloadPanelApp {
 
     script:
     """
-    DownloadPanelApp --output panelapp_${timestamp}.json --mane ${mane}
+    python -m talos.download_panelapp \
+        --output panelapp_${timestamp}.json \
+        --mane ${mane}
     """
 }

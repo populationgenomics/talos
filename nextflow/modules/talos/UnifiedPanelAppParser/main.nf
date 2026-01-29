@@ -16,7 +16,7 @@ process UnifiedPanelAppParser {
 
     """
     export TALOS_CONFIG=${talos_config}
-    UnifiedPanelAppParser \
+    python -m talos.unified_panelapp_parser \
         --input $panelapp_cache \
         --output ${params.cohort}_panelapp.json \
         --pedigree $pedigree \

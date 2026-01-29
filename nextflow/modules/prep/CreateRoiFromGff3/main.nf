@@ -1,4 +1,3 @@
-
 process CreateRoiFromGff3 {
     container params.container
 
@@ -16,7 +15,7 @@ process CreateRoiFromGff3 {
 
     script:
         """
-        CreateRoiFromGff3 \
+        python -m talos.annotation_scripts.create_roi_from_gff3 \
             --gff3 ${gff} \
             --unmerged_output unsorted_GRCh38.bed \
             --merged_output unsorted_merged_GRCh38.bed
