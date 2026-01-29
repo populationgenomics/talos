@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 def encode_alphamissense(output_path: Path) -> 'BashJob':
     """Encode the alphamissense TSV as an Echtvar zip."""
     batch = hail_batch.get_batch()
-    tsv_input = batch.read_input(config.config_retrieve(['references', 'alphaissense_tsv']))
+    tsv_input = batch.read_input(config.config_retrieve(['references', 'alphamissense_tsv']))
 
     job = batch.new_bash_job('Encode Alphamissense TSV')
     job.image(config.config_retrieve(['workflow', 'driver_image'])).storage('10GiB')
