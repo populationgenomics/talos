@@ -28,6 +28,8 @@ def make_echtvar_job(
             vcf_idx=f'{vcf_path}.tbi',
         ).vcf
 
+        am_local = batch.read_input(am_zip)
+
         job = batch.new_job(
             name=f'AnnotateWithEchtvar: {cohort_id}, {part}',
             attributes=job_attrs | {'tool': 'echtvar'},
@@ -36,7 +38,7 @@ def make_echtvar_job(
         job.command(f"""
         echtvar anno \\
             -e {gnomad_annotations} \\
-            -e {am_zip} \\
+            -e {am_local} \\
             -i "gnomad_AF_joint < 0.05" \\
             {local_vcf} \\
             {job.output}
