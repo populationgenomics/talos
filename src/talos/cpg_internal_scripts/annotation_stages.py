@@ -106,7 +106,7 @@ def get_manifest_fragments(vcf_dir: str) -> SortedDict:
 
     if not manifest.exists():
         raise FileNotFoundError(
-            f"At lease one cohort needs, but doesn't have, VCF fragments: {manifest}. "
+            f"At least one cohort needs, but doesn't have, VCF fragments: {manifest}. "
             f"Re-run the workflow with last_stages='ExtractVcfFromDatasetMt'",
         )
 

@@ -40,7 +40,10 @@ def add_job(
 
 
 def main(input_paths: list[str], output_path: str):
-    hail_batch.init_batch()
+    hail_batch.init_batch(
+        driver_memory='highmem',
+        driver_cores=2,
+    )
 
     mts = [hl.read_matrix_table(input_path) for input_path in input_paths]
 

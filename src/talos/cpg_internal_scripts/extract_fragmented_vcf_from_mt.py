@@ -64,7 +64,10 @@ def main(
         bed (str): Region BED file
     """
 
-    hail_batch.init_batch()
+    hail_batch.init_batch(
+        driver_memory='highmem',
+        driver_cores=2,
+    )
 
     # read the dense MT and obtain the sites-only HT
     mt = hl.read_matrix_table(mt_path)
