@@ -20,7 +20,7 @@ from talos.cpg_internal_scripts.cpg_flow_utils import (
     generate_dataset_prefix,
     query_for_latest_analysis,
 )
-from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito_csq, make_config
+from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito_csq, make_config, run_clinvarbitration
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -32,6 +32,20 @@ SV_ANALYSIS_TYPES = {
     'genome': 'single_dataset_sv_annotated',
 }
 
+
+@functools.cache
+def get_clinvarbitration_folder(temp_folder: bool = False) -> Path:
+    """
+    get the folder to use for this run
+    sits in a bucket accessible to the operating dataset, in a folder named "clinvarbitration/YY-MM"
+    """
+    return to_path(
+        join(
+            config.config_retrieve(['storage', 'default', 'tmp' if temp_folder else 'default']),
+            'clinvarbitration',
+            datetime.now().strftime('%y-%m'),  # noqa: DTZ005
+        ),
+    )
 
 @functools.cache
 def get_clinvar_tar() -> str:
@@ -113,6 +127,36 @@ def get_date_string() -> str:
         either an override in config, or the default (today, YYYY-MM-DD)
     """
     return config.config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
+
+
+
+@stage.stage
+class GenerateNewClinvArbitration(stage.MultiCohortStage):
+    """If the monthly ClinvArbitration files don't exist, generate them."""
+
+    def expected_outputs(self, _multicohort: targets.MultiCohort) -> dict[str, Path]:
+        return {
+            'decisions': get_clinvarbitration_folder() / 'clinvar_decisions.ht',
+            'pm5': get_clinvarbitration_folder() / 'clinvar_decisions.pm5.ht',
+        }
+
+    def queue_jobs(
+        self,
+        multicohort: targets.MultiCohort,
+        _inputs: stage.StageInput,
+    ) -> stage.StageOutput:
+        """Go away and generate all the ClinvArbitration files."""
+        outputs = self.expected_outputs(multicohort)
+
+        # condensing into a single stage, but having to repeat the clinvar download would be frustrating - into tmp
+        tmp_files_folder = get_clinvarbitration_folder(temp_folder=True)
+        job = run_clinvarbitration.run_clinvarbitration_in_full(
+            clinvar_file_tmp=tmp_files_folder,
+            decisions=outputs['decisions'],
+            pm5=outputs['pm5'],
+        )
+        return self.make_outputs(multicohort, data=outputs, jobs=job)
+
 
 
 @stage.stage(analysis_type='panelapp')
@@ -276,7 +320,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
 # As a result we need to use the panelapp data in the annotation/labelling process
 # from that point it's just easier to cram the whole VCF -> MT -> VCF process into a single script, and in future maybe
 # negate the whole need to put that in a MT at all
-@stage.stage(required_stages=[MakeHpoPedigree, MakeRuntimeConfig, UnifiedPanelAppParser])
+@stage.stage(required_stages=[MakeHpoPedigree, MakeRuntimeConfig, UnifiedPanelAppParser, GenerateNewClinvArbitration])
 class AnnotateAndLabelMito(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path] | None:
         if not query_for_latest_analysis(
@@ -326,7 +370,8 @@ class AnnotateAndLabelMito(stage.CohortStage):
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
         pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
-        clinvar_tar = get_clinvar_tar()
+
+        clinvarbitration_ht = inputs.as_str(workflow.get_multicohort(), GenerateNewClinvArbitration, key='decisions')
 
         label_job = hail_batch.get_batch().new_bash_job(f'Reformat Mito VCF into MT: {cohort.dataset.name}')
         label_job.image(config.config_retrieve(['workflow', 'driver_image']))
@@ -340,14 +385,14 @@ class AnnotateAndLabelMito(stage.CohortStage):
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
-            tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR
+            gcloud storage cp -r {clinvarbitration_ht} "$BATCH_TMPDIR"
 
             python -m talos.reformat_and_label_mito_vcf \\
                 --input {localised_vcf} \\
                 --output {label_job.output['vcf.bgz']} \\
                 --pedigree {pedigree} \\
                 --panelapp {panelapp_json} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht"
+                --clinvar "$BATCH_TMPDIR/clinvar_decisions.ht"
             """,
         )
         label_job.depends_on(annotate_job)
@@ -362,6 +407,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
         MakeHpoPedigree,
         MakeRuntimeConfig,
         AnnotateSpliceAi,
+        GenerateNewClinvArbitration,
     ],
 )
 class RunHailFiltering(stage.CohortStage):
@@ -415,10 +461,10 @@ class RunHailFiltering(stage.CohortStage):
             },
         )
 
-        # find the clinvar table, localise, and expand
-        clinvar_tar = get_clinvar_tar()
-
-        job.command(f'tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
+        # find the clinvar tables from previous stage, read in
+        clinvarbitration_hts = inputs.as_dict(target=workflow.get_multicohort(), stage=GenerateNewClinvArbitration)
+        job.command(f'gcloud storage cp -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR"')
+        job.command(f'gcloud storage cp -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR"')
 
         # read in the MT using gcloud, directly into batch tmp
         job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
@@ -431,8 +477,8 @@ class RunHailFiltering(stage.CohortStage):
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --output {job.output['vcf.bgz']} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" \\
-                --pm5 "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.pm5.ht" \\
+                --clinvar "$BATCH_TMPDIR/clinvar_decisions.ht" \\
+                --pm5 "$BATCH_TMPDIR/clinvar_decisions.pm5.ht" \\
                 --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
             """,
         )
