@@ -12,7 +12,6 @@ import gzip
 from argparse import ArgumentParser
 from importlib import resources
 
-resources.files()
 
 def main(input_am: str, output: str):
     with (
