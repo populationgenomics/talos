@@ -35,7 +35,7 @@ def create_mt_ingest_jobs(
         job.image(config.config_retrieve(['workflow', 'driver_image']))
         job.cpu(2).storage('10G')
         job.command(f"""
-        python -m talos.annotation_scripts \\
+        python -m talos.annotation_scripts.annotated_vcf_into_matrixtable \\
             --input {vcf_path} \\
             --output {output_mt} \\
             --gene_bed {gene_roi} \\
