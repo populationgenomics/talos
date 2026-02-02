@@ -81,7 +81,24 @@ And a third data source (AlphaMissense) to be reformatted from the TSV into a Ha
 A separate sub-workflow, `talos_preparation.nf` handles the download and formatting of this data. Run this with:
 
 ```bash
-nextflow -c nextflow/preparation.config run nextflow/talos_preparation.nf [--processed_annotations <path>]
+nextflow -c nextflow/preparation.config run nextflow/talos_preparation.nf [--processed_annotations <path>] -with-report                                                                                                                                                                                                                                                                                                                                             1 ↵
+
+ N E X T F L O W   ~  version 25.10.2
+
+Launching `nextflow/talos_preparation.nf` [irreverent_crick] DSL2 - revision: 6aacf78940
+
+Attempting to download ClinVar raw data, requires internet connection.
+If this step fails, try running gather_files.sh in the `large_files` directory.
+executor >  local (2)
+[b5/7767be] process > DownloadClinVarFiles (1)        [100%] 1 of 1 ✔
+[f4/64b952] process > ResummariseRawSubmissions (1)   [100%] 1 of 1 ✔
+[25/42f6eb] process > AnnotateClinvarWithBcftools (1) [100%] 1 of 1 ✔
+[53/08b3b2] process > MakeClinvarbitrationPm5 (1)     [100%] 1 of 1 ✔
+[f9/254c75] process > DownloadPanelApp (1)            [100%] 1 of 1 ✔
+Completed at: 02-Feb-2026 14:50:20
+Duration    : 5m 35s
+CPU hours   : 0.2
+Succeeded   : 3
 ```
 
 The parameter `processed_annotations` should point to a static directory where talos-generated files can be stored, and any future run of Talos will be able to access them. i.e. data prepared and written here is not linked to any individual underlying cohort or callset.
@@ -95,62 +112,56 @@ nextflow -c nextflow/annotation.config \
   run nextflow/annotation.nf \
   [--large_files <path>] \
   [--processed_annotations <path>] \
-  [--merged_vcf <path>] \
-  [--cohort_output_dir <path>]
+  [--vcf <path>] \
+  [--output_dir <path>]
 ```
 
-`cohort_output_dir` will be used to contain all outputs from this workflow, and is specific to a callset. This argument should point to a directory outside this repository, though for demonstration purposes this will be created at `./nextflow/cohort_outputs`.
+`output_dir` will be used to contain all outputs from this workflow, and is specific to a callset. This argument should point to a directory outside this repository, though for demonstration purposes this will be created at `./nextflow/cohort_outputs`.
 
 ```txt
 ╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html
 
- N E X T F L O W   ~  version 25.04.6
-
-Launching `nextflow/annotation.nf` [clever_gutenberg] DSL2 - revision: 0db0088239
-
-executor >  local (6)
-[d4/943f57] process > MergeVcfsWithBcftools (1)             [100%] 1 of 1 ✔
-[6c/2357d2] process > MakeSitesOnlyVcfWithBcftools (1)      [100%] 1 of 1 ✔
-[bf/82d4d4] process > AnnotateGnomadAfWithEchtvar (1)       [100%] 1 of 1 ✔
-[54/17d1b2] process > AnnotateCsqWithBcftools (1)           [100%] 1 of 1 ✔
-[c7/dacf20] process > ReformatAnnotatedVcfIntoHailTable (1) [100%] 1 of 1 ✔
-[65/ace33a] process > TransferAnnotationsToMatrixTable (1)  [100%] 1 of 1 ✔
-Completed at: 20-Aug-2025 11:24:04
-Duration    : 10m 50s
-CPU hours   : 0.2
-Succeeded   : 6
+executor >  local (29)
+[21/f91a11] process > SplitVcf (1)                    [100%] 1 of 1 ✔
+[c2/5ef78d] process > NormaliseAndRegionFilterVcf (6) [100%] 7 of 7 ✔
+[f4/9dfe9d] process > AnnotateWithEchtvar (7)         [100%] 7 of 7 ✔
+[fe/976daf] process > AnnotateCsqWithBcftools (7)     [100%] 7 of 7 ✔
+[43/5afeec] process > AnnotatedVcfIntoMatrixTable (7) [100%] 7 of 7 ✔
+Completed at: 29-Jan-2026 09:03:48
+Duration    : 12m 35s
+CPU hours   : 1.2
+Succeeded   : 29
 ```
 
 ### **5. Run Variant Prioritisation**
 
-After annotation is complete, run the Talos prioritisation workflow. This workflow should be re-run regularly for an updated analysis. The `matrix_table` parameter should point to the MT created during the annotation workflow:
+After annotation is complete, run the Talos prioritisation workflow. This workflow should be re-run regularly for an updated analysis.
+The `output_dir` argument should point to the directory created by the annotation workflow:
 
 ```
 nextflow -c nextflow/talos.config \
   run nextflow/talos.nf \
-  --matrix_table nextflow/cohort_outputs/cohort.mt \
   [--ext_id_map path/to/ext_id_map.tsv] \
-  [--cohort_output_dir <path>]
+  [--output_dir <path>]
 ```
 
-
 ```txt
-╰─➤  nextflow -c nextflow/talos.config run nextflow/talos.nf --matrix_table nextflow/cohort_outputs/cohort.mt -with-report talos_run.html
+╰─➤  nextflow -c nextflow/talos.config run nextflow/talos.nf --output_dir nextflow/cohort_outputs -with-report talos_run.html
 
  N E X T F L O W   ~  version 25.04.6
 
 Launching `nextflow/talos.nf` [focused_murdock] DSL2 - revision: 40d4509d71
 
 executor >  local (6)
-[bd/99ef0c] process > StartupChecks (1)         [100%] 1 of 1 ✔
-[f2/68d5b8] process > UnifiedPanelAppParser (1) [100%] 1 of 1 ✔
-[b5/447858] process > RunHailFiltering (1)      [100%] 1 of 1 ✔
-[0b/5aa7fd] process > ValidateMOI (1)           [100%] 1 of 1 ✔
-[1f/84ddaa] process > HPOFlagging (1)           [100%] 1 of 1 ✔
-[9a/f2a945] process > CreateTalosHTML (1)       [100%] 1 of 1 ✔
-Completed at: 20-Aug-2025 11:33:23
-Duration    : 7m 16s
-CPU hours   : 0.1
+[01/0b38ff] process > StartupChecks (1)         [100%] 1 of 1 ✔
+[00/556f61] process > UnifiedPanelAppParser (1) [100%] 1 of 1 ✔
+[12/41cb85] process > RunHailFiltering (1)      [100%] 1 of 1 ✔
+[f1/1bf035] process > ValidateMOI (1)           [100%] 1 of 1 ✔
+[2e/4571d0] process > HPOFlagging (1)           [100%] 1 of 1 ✔
+[25/95d079] process > CreateTalosHTML (1)       [100%] 1 of 1 ✔
+Completed at: 02-Feb-2026 14:53:23
+Duration    : 1m 8s
+CPU hours   : (a few seconds)
 Succeeded   : 6
 ```
 

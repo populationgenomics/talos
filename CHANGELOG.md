@@ -27,6 +27,12 @@ The whole annotation pipeline has been changed (see PR #634). In brief:
 - Data is loaded into a MatrixTable once per shard
 - Talos workflow can operate on one or more MTs, so no obligation to coalesce data
 
+Arguments:
+
+- some workflow arguments have been renamed, e.g. `cohort_output_dir` -> `output_dir`
+- `--matrix_table` has been removed, now the Talos workflow will find all `*.mt`s in the `output_dir` as input
+- I've tried to be more explicit that output/intermediate folders should be stored outside of this repository, so as not to block git updates.
+
 ### Removed
 
 * all VCF merging steps - this workflow now requires a single VCF, or sharded VCFs representing a single callset
