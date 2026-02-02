@@ -1,143 +1,97 @@
 #!/usr/bin/env nextflow
 
 /*
-This workflow is a minimised annotation process for the Talos pipeline.
+This workflow is the annotation process for the Talos pipeline.
 
-It takes multiple VCFs, merges them into a single VCF, and annotates the merged VCF with relevant annotations.
-
+It requires a single VCF, which can be single- or multi-sample. This is then annotated and reformatted for Talos.
 The specific annotations are:
-- gnomAD v4.1 frequencies, applied to the joint VCF using echtvar
+
+- gnomAD v4.1 frequencies and alphamissense annotations, applied to the joint VCF using echtvar
 - Transcript consequences, using BCFtools annotate
-- AlphaMissense, applied using Hail
-- MANE trancript IDs and corresponding proteins, applied using Hail
+- MANE trancript IDs and corresponding ENSP IDs, applied using Hail
+
+TOOD: Planned extension - multiple VCFs can be provided, instead of using the VCF splitting workflow.
 */
 
 nextflow.enable.dsl=2
 
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
-include { AnnotateGnomadAfWithEchtvar } from './modules/annotation/AnnotateGnomadAfWithEchtvar/main'
-include { CreateRoiFromGff3 } from './modules/annotation/CreateRoiFromGff3/main'
-include { FilterVcfToBedWithBcftools } from './modules/annotation/FilterVcfToBedWithBcftools/main'
-include { MakeSitesOnlyVcfWithBcftools } from './modules/annotation/MakeSitesOnlyVcfWithBcftools/main'
-include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
-include { ParseManeIntoJson } from './modules/annotation/ParseManeIntoJson/main'
-include { ReformatAnnotatedVcfIntoHailTable } from './modules/annotation/ReformatAnnotatedVcfIntoHailTable/main'
-include { TransferAnnotationsToMatrixTable } from './modules/annotation/TransferAnnotationsToMatrixTable/main'
+include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
+include { AnnotateWithEchtvar } from './modules/annotation/AnnotateWithEchtvar/main'
+include { NormaliseAndRegionFilterVcf } from './modules/annotation/NormaliseAndRegionFilterVcf/main'
+include { SplitVcf } from './modules/annotation/SplitVcf/main'
+
 
 workflow {
+    main:
+    // populate various input channels - these are downloaded by the large_files/gather_file.sh script
+    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
+    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
+    ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true)
 
-    // populate ref genome input channel
-    ch_ref_genome = channel.fromPath(
-    	params.ref_genome,
-    	checkIfExists: true,
-	)
+    // check that the JSON-format MANE data exists already, or prompt to run the prep workflow
+    if (!file(params.mane_json).exists()) {
+        println "MANE JSON not available, please run the Talos Prep workflow (talos_preparation.nf)"
+        exit 1
+    }
+
+    ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
 
     // Read the AlphaMissense HT as a channel, or prompt for generation using the prep workflow
-    if (!file(params.alphamissense_tar).exists()) {
-        println "AlphaMissense data must be provided in HT format, run the Talos Prep workflow (talos_preparation.nf)"
+    if (!file(params.alphamissense_zip).exists()) {
+        println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
-
-    ch_alphamissense_table = channel.fromPath(
-        params.alphamissense_tar,
-        checkIfExists: true
-    )
-
-    // generate the Region-of-interest BED file from Ensembl GFF3
-    // generates a per-gene BED file with ID annotations
-    // and a overlap-merged version of the same for more efficient region filtering
-    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
-    if (file(params.ensembl_bed).exists() && file(params.ensembl_merged_bed).exists()) {
-    	ch_bed = channel.fromPath(
-    		params.ensembl_bed,
-    		checkIfExists: true,
-		)
-    	ch_merged_bed = channel.fromPath(
-    		params.ensembl_merged_bed,
-    		checkIfExists: true,
-		)
     }
-    else {
-    	CreateRoiFromGff3(ch_gff)
-    	ch_bed = CreateRoiFromGff3.out.bed
-    	ch_merged_bed = CreateRoiFromGff3.out.merged_bed
-	}
 
-	// if a merged VCF is provided, don't implement a manual merge - start from an externally completed dataset
-	if (file(params.merged_vcf).exists()) {
-		ch_merged_vcf = channel.fromPath(params.merged_vcf, checkIfExists: true)
-		ch_merged_index = channel.fromPath("${params.merged_vcf}.tbi", checkIfExists: true)
+    ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
 
-		FilterVcfToBedWithBcftools(
-			ch_merged_vcf,
-			ch_merged_index,
-			ch_merged_bed,
-			ch_ref_genome,
-		)
-		ch_merged_tuple = FilterVcfToBedWithBcftools.out
-	}
-	else {
-		ch_vcfs = channel.fromPath("${params.input_vcf_dir}/*.${params.input_vcf_extension}", checkIfExists: true )
-		ch_tbis = ch_vcfs.map{ it -> file("${it}.tbi") }
-		MergeVcfsWithBcftools(
-			ch_vcfs.collect(),
-			ch_tbis.collect(),
-			ch_merged_bed,
-			ch_ref_genome,
-		)
-		ch_merged_tuple = MergeVcfsWithBcftools.out
-	}
+    // check the ensembl BED file has been generated
+    if (!file(params.ensembl_bed).exists()) {
+        println "Region-Of-Interest BED file has not been prepared, run the Talos Prep workflow (talos_preparation.nf)"
+        exit 1
+    }
+    ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
+    ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
 
-    // create a sites-only version of this VCF, just to pass less data around when annotating
-    MakeSitesOnlyVcfWithBcftools(
-        ch_merged_tuple
+    // see if sharded VCFs were provided
+    if (params.shards != null) {
+        ch_vcfs = Channel.fromPath("${params.shards}/*.${params.input_vcf_extension}")
+    } else {
+        ch_vcf = channel.fromPath(params.vcf, checkIfExists: true)
+        // decide whether to split and parallelise, or run as a single operation
+        // if config value is absent completely, skip this step
+        if ((params.vcf_split_n ?: 0) > 0) {
+            SplitVcf(ch_vcf)
+            ch_vcfs = SplitVcf.out.flatten()
+        } else {
+            ch_vcfs = ch_vcf
+        }
+    }
+
+	NormaliseAndRegionFilterVcf(
+        ch_vcfs,
+        ch_merged_bed.first(),
+        ch_ref_genome.first(),
     )
 
-    // read the whole-genome Zip file as an input channel
-    ch_gnomad_zip = channel.fromPath(
-		params.gnomad_zip,
-		checkIfExists: true
-    )
-
-    // and apply the annotation using echtvar
-    AnnotateGnomadAfWithEchtvar(
-        MakeSitesOnlyVcfWithBcftools.out,
-        ch_gnomad_zip,
+	AnnotateWithEchtvar(
+        NormaliseAndRegionFilterVcf.out,
+        ch_gnomad_zip.first(),
+        ch_alphamissense_zip.first(),
     )
 
     // annotate transcript consequences with bcftools csq
     AnnotateCsqWithBcftools(
-        AnnotateGnomadAfWithEchtvar.out,
-        ch_gff,
-        ch_ref_genome,
+        AnnotateWithEchtvar.out,
+        ch_gff.first(),
+        ch_ref_genome.first(),
     )
 
-    // pull and parse the MANE data into a Hail Table
-    if (file(params.mane_json).exists()) {
-    	ch_mane = channel.fromPath(
-			params.mane_json,
-			checkIfExists: true
-		)
-    }
-    else {
-    	ch_mane_summary = channel.fromPath(
-    		params.mane,
-    		checkIfExists: true
-		)
-    	ParseManeIntoJson(ch_mane_summary)
-    	ch_mane = ParseManeIntoJson.out.json
-    }
-
-    // reformat the annotations in the VCF, retain as a Hail Table
-    ReformatAnnotatedVcfIntoHailTable(
+    // reformat the annotations in the VCF, generate a Hail MatrixTable
+    AnnotatedVcfIntoMatrixTable(
         AnnotateCsqWithBcftools.out,
-        ch_alphamissense_table,
-        ch_bed,
-        ch_mane,
+        ch_bed.first(),
+        ch_mane.first(),
     )
 
-    // combine the join-VCF and annotations as a HailTable
-    TransferAnnotationsToMatrixTable(
-        ReformatAnnotatedVcfIntoHailTable.out,
-        ch_merged_tuple,
-    )
 }

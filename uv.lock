@@ -437,6 +437,19 @@ wheels = [
 ]
 
 [[package]]
+name = "clinvarbitration"
+version = "2.2.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cpg-flow" },
+    { name = "pyspark" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/17/9b/7fe60e08a41e56854a05389523c510b0ab04657afb8bc8bfcb56f97c057a/clinvarbitration-2.2.7.tar.gz", hash = "sha256:8d2643cc527bf3079807a7050a19aaec0d4052fd08b6d1623eb3fd7b20fd0652", size = 156827, upload-time = "2026-01-23T05:02:38.147Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/cb/56ef02fedbff9c1751459fd7a84206500f84d8436a96668144457182ff71/clinvarbitration-2.2.7-py3-none-any.whl", hash = "sha256:ed4f5c392c011c8f67aab1bc03cc0ba6011923370aa46dec446c47b40411e69d", size = 26250, upload-time = "2026-01-23T05:02:35.381Z" },
+]
+
+[[package]]
 name = "cloudpathlib"
 version = "0.22.0"
 source = { registry = "https://pypi.org/simple" }
@@ -535,7 +548,7 @@ wheels = [
 
 [[package]]
 name = "cpg-flow"
-version = "1.3.0"
+version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cpg-utils" },
@@ -552,9 +565,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "tornado" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7a/d7/d426a02d30ccee2182c8f00f120884ebf2b3908d9b977deb47d966c98ebc/cpg_flow-1.3.0.tar.gz", hash = "sha256:0d0846690ea3ff08b269d9986c6beb18c107284c3757b15c28efd6f06c405c67", size = 98590, upload-time = "2026-01-20T01:24:41.161Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/cc/60df84c96823ad998d84d56612d8b1bccc1e508c1511bfb1a3c246c39436/cpg_flow-1.3.1.tar.gz", hash = "sha256:7fdcefb0c2f35f62e8620f55393d1a2f2fe5ae4144b1ed0afffe5190401e1b19", size = 100549, upload-time = "2026-01-29T00:52:55.476Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/8d/e01da45a3a65ac47f6983353dc2a3595914c5fde8bd2d7b3ed8ae81efe7b/cpg_flow-1.3.0-py3-none-any.whl", hash = "sha256:01a2683fdaa57f5f803e49fec23aa0b584668268d28c0e4d899b86abb8af78c8", size = 73905, upload-time = "2026-01-20T01:24:39.017Z" },
+    { url = "https://files.pythonhosted.org/packages/96/b5/e606e482adee54c8e8f6123820aafaddfe5b2b582286b62355a8d344cf8c/cpg_flow-1.3.1-py3-none-any.whl", hash = "sha256:9f24dd95659ff6d54a60af8a0fcb5be7f76bb14cec9ad3b246fe8f63fada5b6d", size = 74792, upload-time = "2026-01-29T00:52:54.299Z" },
 ]
 
 [[package]]
@@ -2147,12 +2160,12 @@ wheels = [
 
 [[package]]
 name = "pyspark"
-version = "3.5.6"
+version = "3.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "py4j" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2e/62/36e50d38e5fe158e97cddec983b44f9417b1e205b02320e3c463b5f802fa/pyspark-3.5.6.tar.gz", hash = "sha256:f8b1c4360e41ab398c64904fae08740503bcb6bd389457d659fa6d9f2952cc48", size = 317359167, upload-time = "2025-05-27T08:24:20.82Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/90/cb80c8cf194958ab9a3242851c62fa5aef1a0b42f2d9642f1e2eca098005/pyspark-3.5.3.tar.gz", hash = "sha256:68b7cc0c0c570a7d8644f49f40d2da8709b01d30c9126cc8cf93b4f84f3d9747", size = 317304325, upload-time = "2024-09-24T00:28:04.861Z" }
 
 [[package]]
 name = "pytest"
@@ -2541,9 +2554,10 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "8.3.8"
+version = "9.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "clinvarbitration" },
     { name = "cloudpathlib", extra = ["all"] },
     { name = "cpg-utils" },
     { name = "cyvcf2" },
@@ -2580,8 +2594,9 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "bump-my-version", marker = "extra == 'test'" },
+    { name = "clinvarbitration", specifier = ">=2.2.7" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
-    { name = "cpg-flow", marker = "extra == 'cpg'", specifier = "~=1.2" },
+    { name = "cpg-flow", marker = "extra == 'cpg'", specifier = "~=1.3.1" },
     { name = "cpg-utils", specifier = ">=5.4.1" },
     { name = "cyvcf2", specifier = ">=0.30.18" },
     { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },

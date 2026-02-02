@@ -13,7 +13,7 @@ from talos.models import (
     ParticipantHPOPanels,
 )
 from talos.static_values import get_granular_date
-from talos.UnifiedPanelAppParser import (
+from talos.unified_panelapp_parser import (
     CUSTOM_PANEL_ID,
     ORDERED_MOIS,
     extract_participant_data_from_pedigree,
