@@ -1,0 +1,5 @@
+[
+    {"field": "am_class", "alias": "am_class", "missing_string": "."},
+    {"field": "am_score", "alias": "am_score", "missing_value": -2147483648, "multiplier": 2000000},
+    {"field": "am_transcript", "alias": "am_transcript", "missing_string": "."}
+]

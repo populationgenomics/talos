@@ -14,6 +14,43 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[9.0.0] - 2026-01-29
+
+### Changed
+
+The whole annotation pipeline has been changed (see PR #634). In brief:
+
+- instead of operating on the input data in one chunk, we allow for sharded input, or split single inputs
+- annotation is applied to each VCF fragment in parallel
+- candidate NF resourcing is applied to each stage
+- AlphaMissense results are annotated using echtvar instead of a Hail Table join
+- Data is loaded into a MatrixTable once per shard
+- Talos workflow can operate on one or more MTs, so no obligation to coalesce data
+
+Arguments:
+
+- some workflow arguments have been renamed, e.g. `cohort_output_dir` -> `output_dir`
+- `--matrix_table` has been removed, now the Talos workflow will find all `*.mt`s in the `output_dir` as input
+- I've tried to be more explicit that output/intermediate folders should be stored outside of this repository, so as not to block git updates.
+
+### Removed
+
+* all VCF merging steps - this workflow now requires a single VCF, or sharded VCFs representing a single callset
+
+[8.4.0] - 2026-01-27
+
+### Removed
+
+* ClinvArbitration data is no longer sourced from Zenodo
+
+### Added
+
+* A preparation workflow, used to download raw ClinVar data and generate annotation sources. Also downloads PanelApp.
+
+### Changed
+
+* The workflow now requires/expects a data dump to exist representing the current month's ClinVar/PanelApp content. If absent, the workflow will quit, and will request you run the prep workflow first.
+
 [8.3.8] - 2026-01-22
 
 ### Changed
@@ -21,7 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Jumps this codebase up to python 3.11, following a recent release of Hail 0.2.137
 * Docker base images. This is actually a regression to an earlier debian version (bullseye) to support the Hail requirement of Java==11
 * Further corrections to the de novo implementation, now confirmed tested on multiple test datasets
-
 
 [8.3.6] - 2026-01-16
 

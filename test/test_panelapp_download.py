@@ -1,4 +1,4 @@
-from talos.DownloadPanelApp import (
+from talos.download_panelapp import (
     PANELS_ENDPOINT,
     get_panels_and_hpo_terms,
     parse_panel,

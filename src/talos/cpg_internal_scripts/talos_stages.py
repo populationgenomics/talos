@@ -20,7 +20,7 @@ from talos.cpg_internal_scripts.cpg_flow_utils import (
     generate_dataset_prefix,
     query_for_latest_analysis,
 )
-from talos.cpg_internal_scripts.cpgflow_jobs import AnnotateMitoCsqUsingBcftools, MakeConfig
+from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito_csq, make_config, run_clinvarbitration
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -32,20 +32,22 @@ SV_ANALYSIS_TYPES = {
     'genome': 'single_dataset_sv_annotated',
 }
 
+THIS_MONTH = datetime.datetime.now().strftime('%y-%m')  # noqa: DTZ005
+
 
 @functools.cache
-def get_clinvar_tar() -> str:
+def get_clinvarbitration_folder(temp_folder: bool = False) -> Path:
     """
-    pulling out a helper method for getting the ClinVar tar file
+    get the folder to use for this run
+    sits in a bucket accessible to the operating dataset, in a folder named "clinvarbitration/YY-MM"
     """
-    if not (clinvar_tar := config.config_retrieve(['workflow', 'clinvar_data'], None)):
-        clinvar_tar = query_for_latest_analysis(
-            dataset=config.config_retrieve(['workflow', 'dataset']),
-            analysis_type='clinvarbitration',
-        )
-        if clinvar_tar is None:
-            raise ValueError('No ClinVar data found')
-    return clinvar_tar
+    return to_path(
+        join(
+            config.config_retrieve(['storage', 'default', 'tmp' if temp_folder else 'default']),
+            'clinvarbitration',
+            THIS_MONTH,
+        ),
+    )
 
 
 def set_up_job_with_resources(
@@ -115,6 +117,34 @@ def get_date_string() -> str:
     return config.config_retrieve(['workflow', 'date_folder_override'], get_granular_date())
 
 
+@stage.stage
+class GenerateNewClinvArbitration(stage.MultiCohortStage):
+    """If the monthly ClinvArbitration files don't exist, generate them."""
+
+    def expected_outputs(self, _multicohort: targets.MultiCohort) -> dict[str, Path]:
+        return {
+            'decisions': get_clinvarbitration_folder() / 'clinvar_decisions.ht',
+            'pm5': get_clinvarbitration_folder() / 'clinvar_decisions.pm5.ht',
+        }
+
+    def queue_jobs(
+        self,
+        multicohort: targets.MultiCohort,
+        _inputs: stage.StageInput,
+    ) -> stage.StageOutput:
+        """Go away and generate all the ClinvArbitration files."""
+        outputs = self.expected_outputs(multicohort)
+
+        # condensing into a single stage, but having to repeat the clinvar download would be frustrating - into tmp
+        tmp_files_folder = get_clinvarbitration_folder(temp_folder=True)
+        job = run_clinvarbitration.run_clinvarbitration_in_full(
+            clinvar_file_tmp=tmp_files_folder,
+            decisions=outputs['decisions'],
+            pm5=outputs['pm5'],
+        )
+        return self.make_outputs(multicohort, data=outputs, jobs=job)
+
+
 @stage.stage(analysis_type='panelapp')
 class DownloadPanelAppData(stage.MultiCohortStage):
     """
@@ -126,7 +156,7 @@ class DownloadPanelAppData(stage.MultiCohortStage):
             join(
                 config.config_retrieve(['storage', 'common', 'analysis']),
                 'panelapp_monthly',
-                f'panelapp_data_{datetime.datetime.now().strftime("%y-%m")}.json',  # noqa: DTZ005
+                f'panelapp_data_{THIS_MONTH}.json',
             ),
         )
 
@@ -170,7 +200,7 @@ class MakeRuntimeConfig(stage.CohortStage):
         _cohort_dataset_pass = check_for_dataset_centric_cohorts()
         expected_outputs = self.expected_outputs(cohort)
 
-        MakeConfig.create_config(
+        make_config.create_config(
             cohort=cohort,
             seqr_out=expected_outputs['seqr_lookup'],
             config_out=expected_outputs['config'],
@@ -209,7 +239,7 @@ class MakeHpoPedigree(stage.CohortStage):
         tech_string = '--tech long-read' if config.config_retrieve(['workflow', 'long_read'], False) else ''
         job.command(
             f"""
-            python -m talos.cpg_internal_scripts.MakeHpoPedigree \\
+            python -m talos.cpg_internal_scripts.make_hpo_pedigree \\
                 --dataset {query_dataset} \\
                 --output {job.output} \\
                 --type {seq_type} {tech_string}
@@ -258,7 +288,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.UnifiedPanelAppParser \\
+            python -m talos.unified_panelapp_parser \\
                 --input {panelapp_download} \\
                 --output {job.output} \\
                 --pedigree {local_ped} \\
@@ -276,7 +306,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
 # As a result we need to use the panelapp data in the annotation/labelling process
 # from that point it's just easier to cram the whole VCF -> MT -> VCF process into a single script, and in future maybe
 # negate the whole need to put that in a MT at all
-@stage.stage(required_stages=[MakeHpoPedigree, MakeRuntimeConfig, UnifiedPanelAppParser])
+@stage.stage(required_stages=[MakeHpoPedigree, MakeRuntimeConfig, UnifiedPanelAppParser, GenerateNewClinvArbitration])
 class AnnotateAndLabelMito(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path] | None:
         if not query_for_latest_analysis(
@@ -315,7 +345,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
             return self.make_outputs(cohort, data={}, jobs=None)
 
         # create the job which annotates the VCF
-        annotate_job = AnnotateMitoCsqUsingBcftools.make_bcftools_mito_jobs(
+        annotate_job = annotate_mito_csq.make_bcftools_mito_job(
             cohort_id=cohort.id,
             mito_vcf=mito_vcf,
             output=outputs['annotated'],
@@ -326,7 +356,8 @@ class AnnotateAndLabelMito(stage.CohortStage):
         runtime_config = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeRuntimeConfig, 'config'))
         pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
-        clinvar_tar = get_clinvar_tar()
+
+        clinvarbitration_ht = inputs.as_str(workflow.get_multicohort(), GenerateNewClinvArbitration, key='decisions')
 
         label_job = hail_batch.get_batch().new_bash_job(f'Reformat Mito VCF into MT: {cohort.dataset.name}')
         label_job.image(config.config_retrieve(['workflow', 'driver_image']))
@@ -340,14 +371,14 @@ class AnnotateAndLabelMito(stage.CohortStage):
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
-            tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR
+            gcloud storage cp -r {clinvarbitration_ht} "$BATCH_TMPDIR"
 
-            python -m talos.ReformatAndLabelMitoVcf \\
+            python -m talos.reformat_and_label_mito_vcf \\
                 --input {localised_vcf} \\
                 --output {label_job.output['vcf.bgz']} \\
                 --pedigree {pedigree} \\
                 --panelapp {panelapp_json} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht"
+                --clinvar "$BATCH_TMPDIR/clinvar_decisions.ht"
             """,
         )
         label_job.depends_on(annotate_job)
@@ -362,6 +393,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
         MakeHpoPedigree,
         MakeRuntimeConfig,
         AnnotateSpliceAi,
+        GenerateNewClinvArbitration,
     ],
 )
 class RunHailFiltering(stage.CohortStage):
@@ -415,10 +447,10 @@ class RunHailFiltering(stage.CohortStage):
             },
         )
 
-        # find the clinvar table, localise, and expand
-        clinvar_tar = get_clinvar_tar()
-
-        job.command(f'tar -xzf {hail_batch.get_batch().read_input(clinvar_tar)} -C $BATCH_TMPDIR')
+        # find the clinvar tables from previous stage, read in
+        clinvarbitration_hts = inputs.as_dict(target=workflow.get_multicohort(), stage=GenerateNewClinvArbitration)
+        job.command(f'gcloud storage cp -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR"')
+        job.command(f'gcloud storage cp -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR"')
 
         # read in the MT using gcloud, directly into batch tmp
         job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
@@ -426,13 +458,13 @@ class RunHailFiltering(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.RunHailFiltering \\
+            python -m talos.run_hail_filtering \\
                 --input "${{BATCH_TMPDIR}}/{cohort.id}.mt" \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
                 --output {job.output['vcf.bgz']} \\
-                --clinvar "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.ht" \\
-                --pm5 "${{BATCH_TMPDIR}}/clinvarbitration_data/clinvar_decisions.pm5.ht" \\
+                --clinvar "$BATCH_TMPDIR/clinvar_decisions.ht" \\
+                --pm5 "$BATCH_TMPDIR/clinvar_decisions.pm5.ht" \\
                 --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
             """,
         )
@@ -510,7 +542,7 @@ class RunHailFilteringSv(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.RunHailFilteringSv \\
+            python -m talos.run_hail_filtering_sv \\
                 --input {annotated_vcf} \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
@@ -621,7 +653,7 @@ class ValidateVariantInheritance(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.ValidateMOI \\
+            python -m talos.validate_moi \\
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
@@ -677,7 +709,7 @@ class HpoFlagging(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.HPOFlagging \\
+            python -m talos.hpo_flagging \\
                 --input {results_json} \\
                 --mane_json {mane_json} \\
                 --gen2phen {gene_to_phenotype} \\
@@ -746,7 +778,7 @@ class CreateTalosHtml(stage.CohortStage):
         # seqr_lookup can be missing/None here, that's ok
         job.command(
             f"""
-            python -m talos.CreateTalosHTML \\
+            python -m talos.create_talos_html \\
                 --input {results_json} \\
                 --panelapp {panelapp_data} \\
                 --output {job.output} \\
@@ -813,7 +845,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
-            python -m talos.cpg_internal_scripts.MinimiseOutputForSeqr \\
+            python -m talos.cpg_internal_scripts.minimise_output_for_seqr \\
                 --input {input_localised} \\
                 --output {job.out_json} \\
                 --pheno {job.pheno_json} \\
@@ -850,6 +882,6 @@ class UpdateIndexFile(stage.MultiCohortStage):
         expected_out = self.expected_outputs(cohort)
 
         dataset = config.config_retrieve(['workflow', 'dataset'])
-        job.command(f'python -m talos.cpg_internal_scripts.BuildReportIndexPage --dataset {dataset}')
+        job.command(f'python -m talos.cpg_internal_scripts.build_report_index --dataset {dataset}')
 
         return self.make_outputs(cohort, data=expected_out, jobs=job)

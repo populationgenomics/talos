@@ -4,7 +4,7 @@ process StartupChecks {
     publishDir params.output_dir, mode: 'copy'
 
     input:
-        path mt
+        path mts
         path pedigree
         path clinvar
         path talos_config
@@ -12,20 +12,18 @@ process StartupChecks {
     output:
         path "${params.cohort}_checked"
 
-    // untar the ClinvArbitration data directory so we can check its contents
-    """
-    set -e
-    export TALOS_CONFIG=${talos_config}
+    script:
+        def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
 
-    tar --no-same-owner -zxf ${clinvar}
+        """
+        set -e
+        export TALOS_CONFIG=${talos_config}
 
-	python -m talos.StartupChecks \\
-        --mt ${mt} \\
-        --pedigree ${pedigree} \\
-        --clinvar clinvarbitration_data/clinvar_decisions.ht \\
-                  clinvarbitration_data/clinvar_decisions.pm5.ht
+        python -m talos.startup_checks \\
+            --mt ${mt_string} \\
+            --pedigree ${pedigree} \\
+            --clinvar ${clinvar}
 
-    echo "success" > "${params.cohort}_checked"
-    rm -r clinvarbitration_data
-    """
+        echo "success" > "${params.cohort}_checked"
+        """
 }
