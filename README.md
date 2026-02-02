@@ -105,7 +105,7 @@ The parameter `processed_annotations` should point to a static directory where t
 
 ### **4. Run Annotation Workflow**
 
-This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--merged_vcf <path>` (AC/AF/AN values for each variant will be added to the VCF based on the subset of samples present. If you would like to provide this allele frequency data from an alternate source please raise an issue, and we can look into this):
+This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--vcf <path>` (AC/AF/AN values for each variant will be added to the VCF based on the subset of samples present. If you would like to provide this allele frequency data from an alternate source please raise an issue, and we can look into this):
 
 ```
 nextflow -c nextflow/annotation.config \
