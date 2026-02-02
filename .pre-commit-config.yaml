@@ -22,8 +22,8 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.13
     hooks:
-      - id: ruff
       - id: ruff-format
+      - id: ruff
 
   # Static type analysis (as much as it's possible in python using type hints)
   - repo: https://github.com/pre-commit/mirrors-mypy

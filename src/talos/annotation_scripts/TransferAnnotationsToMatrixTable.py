@@ -59,7 +59,10 @@ def main(
         hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
     else:
         logger.info('Using Batch backend for Hail')
-        init_batch()
+        init_batch(
+            driver_memory='highmem',
+            driver_cores=2,
+        )
 
     # read the VCF into a MatrixTable, or read the existing MatrixTable
     if input_path.endswith('.mt'):

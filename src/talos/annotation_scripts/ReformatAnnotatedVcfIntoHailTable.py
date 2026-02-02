@@ -269,7 +269,10 @@ def main(
 
     if checkpoint:
         logger.info(f'Using Hail Batch backend, checkpointing to {checkpoint}')
-        init_batch()
+        init_batch(
+            driver_memory='highmem',
+            driver_cores=2,
+        )
     else:
         logger.info('Using Hail Local backend, no checkpoints')
         hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)

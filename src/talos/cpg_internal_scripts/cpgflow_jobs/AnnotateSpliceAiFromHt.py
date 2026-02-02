@@ -29,7 +29,10 @@ def add_job(input_mt: str, output_mt: str, cohort_id: str) -> BashJob:
 
 
 def main(input_path: str, output_path: str):
-    hail_batch.init_batch()
+    hail_batch.init_batch(
+        driver_memory='highmem',
+        driver_cores=2,
+    )
 
     mt = hl.read_matrix_table(input_path)
 
