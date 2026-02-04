@@ -105,18 +105,24 @@ The parameter `processed_annotations` should point to a static directory where t
 
 ### **4. Run Annotation Workflow**
 
-This step pre-processes and annotates variants. This workflow only needs to be run once per dataset. This can either begin with single-sample VCFs, or a pre-merged multi-sample VCF. If you have a pre-merged VCF, pass into the workflow with `--vcf <path>` (AC/AF/AN values for each variant will be added to the VCF based on the subset of samples present. If you would like to provide this allele frequency data from an alternate source please raise an issue, and we can look into this):
+This step pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) able to be re-used with each iterative analysis. 
+
+The starting point for this workflow is one of the following:
+
+1. a pre-sharded multisample VCF, with each shard containing all samples. Provide the directory with `--shards [path]`
+2. a collection of single-sample VCFs, to be merged in the workflow. Provide the directory with `--ss_vcf_dir [path]`
+3. a single multisample VCF. Provide this with `--vcf [path]`
+
+All workflow outputs will be written to `--cohort_output_dir`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow/cohort_outputs`.
 
 ```
 nextflow -c nextflow/annotation.config \
   run nextflow/annotation.nf \
   [--large_files <path>] \
   [--processed_annotations <path>] \
-  [--vcf <path>] \
-  [--output_dir <path>]
+  [--vcf <path>] [--shards <path>] [--ss_vcf_dir <path>] \
+  [--cohort_output_dir <path>]
 ```
-
-`output_dir` will be used to contain all outputs from this workflow, and is specific to a callset. This argument should point to a directory outside this repository, though for demonstration purposes this will be created at `./nextflow/cohort_outputs`.
 
 ```txt
 ╰─➤  nextflow -c nextflow/annotation.config run nextflow/annotation.nf -with-report local_annotation.html
@@ -142,7 +148,7 @@ The `output_dir` argument should point to the directory created by the annotatio
 nextflow -c nextflow/talos.config \
   run nextflow/talos.nf \
   [--ext_id_map path/to/ext_id_map.tsv] \
-  [--output_dir <path>]
+  [--cohort_output_dir <path>]
 ```
 
 ```txt
