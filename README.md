@@ -105,7 +105,7 @@ The parameter `processed_annotations` should point to a static directory where t
 
 ### **4. Run Annotation Workflow**
 
-This step pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) able to be re-used with each iterative analysis. 
+This step pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) able to be re-used with each iterative analysis.
 
 The starting point for this workflow is one of the following:
 
