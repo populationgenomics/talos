@@ -14,6 +14,13 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[9.0.1] - 2026-020-05
+
+### Added 
+
+* re-adds the merge-from-single-sample-VCFs entrypoint
+  - single-sample VCF route leads into manual VCF sharding
+
 [9.0.0] - 2026-01-29
 
 ### Changed
