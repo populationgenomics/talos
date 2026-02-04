@@ -1,7 +1,7 @@
 process StartupChecks {
     container params.container
 
-    publishDir params.output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir, mode: 'copy'
 
     input:
         path mts

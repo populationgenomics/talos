@@ -2,7 +2,7 @@
 process ValidateMOI {
     container params.container
 
-    publishDir params.output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir, mode: 'copy'
 
     input:
         tuple path(labelled_vcf), path(labelled_vcf_index)

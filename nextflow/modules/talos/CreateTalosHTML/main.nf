@@ -3,7 +3,7 @@ process CreateTalosHTML {
     container params.container
 
     // generate the HTML report
-    publishDir params.output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir, mode: 'copy'
 
     input:
         path talos_result_json

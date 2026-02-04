@@ -61,8 +61,8 @@ workflow {
             ch_ss_vcfs = Channel.fromPath("${params.ss_vcf_dir}/*.${params.input_vcf_extension}")
             ch_ss_tbis = ch_ss_vcfs.map{ it -> file("${it}.tbi") }
             MergeVcfsWithBcftools(
-                ch_vcfs.collect(),
-                ch_tbis.collect(),
+                ch_ss_vcfs.collect(),
+                ch_ss_tbis.collect(),
                 ch_ref_genome,
             )
             ch_vcf = MergeVcfsWithBcftools.out.merged
