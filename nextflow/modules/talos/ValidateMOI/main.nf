@@ -14,7 +14,7 @@ process ValidateMOI {
 	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
 
     output:
-        path"${params.cohort}_results_${timestamp}.json"
+        path "${params.cohort}_results_${timestamp}.json"
 
 	script:
 		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
