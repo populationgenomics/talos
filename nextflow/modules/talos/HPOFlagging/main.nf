@@ -2,7 +2,7 @@ process HPOFlagging {
     container params.container
 
     // flag results in the result JSON which are good phenotypic matches
-    publishDir params.output_dir, mode: 'copy'
+    publishDir params.cohort_output_dir, mode: 'copy'
 
     input:
         path talos_result_json

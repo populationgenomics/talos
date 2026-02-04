@@ -9,8 +9,6 @@ The specific annotations are:
 - gnomAD v4.1 frequencies and alphamissense annotations, applied to the joint VCF using echtvar
 - Transcript consequences, using BCFtools annotate
 - MANE trancript IDs and corresponding ENSP IDs, applied using Hail
-
-TOOD: Planned extension - multiple VCFs can be provided, instead of using the VCF splitting workflow.
 */
 
 nextflow.enable.dsl=2
@@ -18,6 +16,7 @@ nextflow.enable.dsl=2
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
 include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
 include { AnnotateWithEchtvar } from './modules/annotation/AnnotateWithEchtvar/main'
+include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
 include { NormaliseAndRegionFilterVcf } from './modules/annotation/NormaliseAndRegionFilterVcf/main'
 include { SplitVcf } from './modules/annotation/SplitVcf/main'
 
@@ -34,15 +33,13 @@ workflow {
         println "MANE JSON not available, please run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
-
     ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
 
-    // Read the AlphaMissense HT as a channel, or prompt for generation using the prep workflow
+    // Read the AlphaMissense ZIP as a channel, or prompt for generation using the prep workflow
     if (!file(params.alphamissense_zip).exists()) {
         println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
-
     ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
 
     // check the ensembl BED file has been generated
@@ -53,11 +50,27 @@ workflow {
     ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
     ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
 
-    // see if sharded VCFs were provided
+    // see if sharded VCFs were provided - scatter tasks across those
     if (params.shards != null) {
         ch_vcfs = Channel.fromPath("${params.shards}/*.${params.input_vcf_extension}")
+
+    // otherwise start with single VCF
     } else {
-        ch_vcf = channel.fromPath(params.vcf, checkIfExists: true)
+        // merge from single-sample components
+        if (params.ss_vcf_dir != null) {
+            ch_ss_vcfs = Channel.fromPath("${params.ss_vcf_dir}/*.${params.input_vcf_extension}")
+            ch_ss_tbis = ch_ss_vcfs.map{ it -> file("${it}.tbi") }
+            MergeVcfsWithBcftools(
+                ch_ss_vcfs.collect(),
+                ch_ss_tbis.collect(),
+                ch_ref_genome,
+            )
+            ch_vcf = MergeVcfsWithBcftools.out.merged
+        // final option - a single VCF, pre-merged by user
+        } else {
+            ch_vcf = Channel.fromPath(params.vcf, checkIfExists: true)
+        }
+
         // decide whether to split and parallelise, or run as a single operation
         // if config value is absent completely, skip this step
         if ((params.vcf_split_n ?: 0) > 0) {
