@@ -27,7 +27,6 @@ include { ParseManeIntoJson } from './modules/prep/ParseManeIntoJson/main'
 
 workflow {
     main:
-
     def timestamp = new java.util.Date().format('yyyy-MM')
 
     ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
