@@ -170,7 +170,7 @@ class DownloadPanelAppData(stage.MultiCohortStage):
         # get the MANE json file - used to map gene Symbols <-> IDs
         mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
         job = set_up_job_with_resources(name='DownloadPanelAppData', cpu=1)
-        job.command(f'DownloadPanelApp --output {job.output} --mane {mane_json}')
+        job.command(f'python -m talos.download_panelapp --output {job.output} --mane {mane_json}')
 
         hail_batch.get_batch().write_output(job.output, output)
 
