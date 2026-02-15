@@ -439,8 +439,10 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
     # gene now present on each row
     return mt.annotate_rows(
         transcript_consequences=mt.transcript_consequences.filter(
-            lambda x: (mt.gene_ids == x.gene_id)
-            & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.mane_id.contains('NM'))),
+            lambda x: (
+                (mt.gene_ids == x.gene_id)
+                & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.mane_id.contains('NM')))
+            ),
         ),
     )
 
@@ -496,9 +498,7 @@ def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
                 (
                     hl.len(
                         mt.transcript_consequences.filter(
-                            lambda x: (
-                                hl.len(critical_consequences.intersection(hl.set(x.consequence.split('&')))) > 0
-                            ),
+                            lambda x: hl.len(critical_consequences.intersection(hl.set(x.consequence.split('&')))) > 0,
                         ),
                     )
                     > 0
@@ -570,8 +570,10 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     # overwrite the consequences with an intersection against a limited list
     filtered_mt = mt.annotate_rows(
         transcript_consequences=mt.transcript_consequences.filter(
-            lambda x: (hl.len(hl.set(x.consequence.split('&')).intersection(critical_consequences)) > 0)
-            | (x.biotype == 'snRNA'),
+            lambda x: (
+                (hl.len(hl.set(x.consequence.split('&')).intersection(critical_consequences)) > 0)
+                | (x.biotype == 'snRNA')
+            ),
         ),
     )
 
@@ -772,9 +774,7 @@ def csq_struct_to_string(tx_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpr
         return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|')
 
     csq = hl.empty_array(hl.tstr)
-    csq = csq.extend(
-        hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)),
-    )
+    csq = csq.extend(hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)))  # noqa: PLW0108
 
     # previous consequence filters may make this caution unnecessary
     return hl.or_missing(hl.len(csq) > 0, csq)

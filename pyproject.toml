@@ -87,11 +87,10 @@ fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN
 
 ignore = [
     "ANN001", # Missing type annotation for function argument
-    "ANN101", # Missing type annotation for self in method
-    "ANN102", # Missing type annotation for `cls` in classmethod
     "ANN201", # Missing return type annotation for public function
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "ANN204", # Missing type annotation for special method `__init__`
+    "COM812", # trailing comma missing, redundant when combined with the formatter
     "G004", # Logging statement uses f-string
     "PLW0603", # Using the global statement to update `<VAR>` is discouraged
     "S101", # Use of assert detected
