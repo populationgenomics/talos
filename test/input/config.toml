@@ -60,6 +60,7 @@ af_semi_rare = 0.01
 critical_csq = ['frameshift', 'splice_acceptor', 'splice_donor', 'start_lost', 'stop_gained', 'stop_lost']
 minimum_depth = 10
 spliceai = 0.5
+avi = 0.75
 
 [RunHailFiltering.de_novo]
 min_child_ab = 0.2
