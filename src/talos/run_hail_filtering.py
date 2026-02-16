@@ -520,7 +520,8 @@ def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
             ),
         )
 
-    # https://github.com/populationgenomics/talos/blob/93bf0455ab233b096a9687aa28d5faf405bac4ef/talos/RunHailFiltering.py#L270C73-L272C105
+    # SpliceAi annotations are now removed as standard, but may persist in private deployments
+    # If they're in the schema, pull them out so as to enable presentation in the JSON/HTML report
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorybooleanspliceai=hl.if_else(
@@ -528,6 +529,8 @@ def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
                 ONE_INT,
                 MISSING_INT,
             ),
+            splice_ai_csq=mt.splice_ai.splice_consequence,
+            splice_ai_delta=mt.splice_ai.delta_score,
         ),
     )
 
