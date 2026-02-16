@@ -476,7 +476,7 @@
                 if (variantData.info.alpha_missense_max && variantData.info.alpha_missense_max !== 'missing') {
                     html += 'AlphaMissense: ' + parseFloat(variantData.info.alpha_missense_max).toFixed(2) + '<br>';
                 }
-                if (variantData.info.avi_score !== 0.0) {
+                if (variantData.info.avi_score !== null && variantData.info.avi_score !== 'missing') {
                     html += 'AG AVI: ' + parseFloat(variantData.info.avi_score).toFixed(2) + '<br>';
                 }
                 if (variantData.info.splice_ai_delta) {
