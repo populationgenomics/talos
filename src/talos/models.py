@@ -37,6 +37,7 @@ MIN_HOM = 0.85
 
 # dictionary for translating all the previous aliases for categories to their more descriptive names
 CATEGORY_TRANSLATOR: dict[str, str] = {
+    'avi': 'High AVI score',
     '1': 'ClinVar P/LP',
     'clinvarplp': 'ClinVar P/LP',
     'ClinVarP/LP': 'ClinVar P/LP',

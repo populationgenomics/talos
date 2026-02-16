@@ -167,11 +167,14 @@ class AnnotateUsingEchtvar(stage.CohortStage):
         fragments = get_manifest_fragments(manifest)
         am_zip = inputs.as_str(target=workflow.get_multicohort(), stage=EncodeAlphamissense, key='zip')
 
+        use_avi = cohort.dataset.name in config.config_retrieve(['references', 'avi_datasets'], [])
+
         jobs = annotate_with_echtvar.make_echtvar_job(
             cohort_id=cohort.id,
             fragments=fragments,
             am_zip=am_zip,
             outputs=outputs,
+            use_avi=use_avi,
             job_attrs=self.get_job_attrs(cohort),
         )
 

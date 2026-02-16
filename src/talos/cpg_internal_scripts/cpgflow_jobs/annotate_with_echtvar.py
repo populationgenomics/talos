@@ -11,6 +11,7 @@ def make_echtvar_job(
     fragments: dict[str, Path],
     am_zip: str,
     outputs: dict[str, Path],
+    use_avi: bool,
     job_attrs: dict,
 ) -> list['BashJob']:
     """Create a job to annotate gnomAD frequencies and AlphaMissense using the Echtvar tool."""
@@ -18,6 +19,11 @@ def make_echtvar_job(
     batch = hail_batch.get_batch()
 
     gnomad_annotations = batch.read_input(config.config_retrieve(['references', 'echtvar_gnomad']))
+
+    avi_command = ''
+    if use_avi:
+        avi_annotations = batch.read_input(config.config_retrieve(['references', 'avi_zip']))
+        avi_command = f'-e {avi_annotations}'
 
     # collect all jobs
     all_jobs: list['BashJob'] = []  # noqa: UP037
@@ -37,14 +43,14 @@ def make_echtvar_job(
         job.image(config.config_retrieve(['images', 'echtvar']))
         job.command(f"""
         echtvar anno \\
-            -e {gnomad_annotations} \\
+            -e {gnomad_annotations} {avi_command} \\
             -e {am_local} \\
             -i "gnomad_AF_joint < 0.05" \\
             {local_vcf} \\
             {job.output}
         """)
 
-        job.storage('20Gi').memory('highmem').cpu(4)
+        job.storage('50Gi').memory('highmem').cpu(4)
         batch.write_output(job.output, str(outputs['fragment_template']).format(part=part))
         all_jobs.append(job)
 

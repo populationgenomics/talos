@@ -10,6 +10,7 @@ import hail as hl
 from talos.models import PanelApp
 from talos.run_hail_filtering import (
     annotate_category_alphamissense,
+    annotate_category_avi,
     annotate_category_high_impact,
     annotate_category_spliceai,
     annotate_clinvarbitration,
@@ -58,25 +59,11 @@ def test_spliceai(splice_score, classified, make_a_mt):
     """"""
 
     anno_matrix = make_a_mt.annotate_rows(
-        splice_ai=hl.Struct(delta_score=splice_score),
+        splice_ai=hl.Struct(delta_score=splice_score, splice_consequence='test'),
     )
 
     anno_matrix = annotate_category_spliceai(anno_matrix)
     assert anno_matrix.info.categorybooleanspliceai.collect() == [classified]
-
-
-@pytest.mark.skip(reason='category 5 currently inactive')
-@pytest.mark.parametrize(
-    'spliceai_score,flag',
-    [(0.1, 0), (0.11, 0), (0.3, 0), (0.49, 0), (0.5, 1), (0.69, 1), (0.9, 1)],
-)
-def test_category_5_assignment(spliceai_score: float, flag: int, make_a_mt):
-    """
-    we don't currently use category 5, but test the logic here anyway
-    """
-
-    matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(splice_ai_delta=spliceai_score))
-    assert matrix.info.categorybooleanspliceai.collect() == [flag]
 
 
 @pytest.mark.parametrize(
@@ -100,7 +87,6 @@ def test_alphamissense_assignment(am_class, classified, make_a_mt):
     )
 
     anno_matrix = annotate_category_alphamissense(anno_matrix)
-    anno_matrix.rows().show()
     assert anno_matrix.info.categorybooleanalphamissense.collect() == [classified]
 
 
@@ -224,18 +210,19 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,three,four,five,six,pm5,svdb,exomiser,zerostar,newgene,length',
+    'one,three,four,five,six,pm5,svdb,exomiser,zerostar,newgene,avi,length',
     [
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0),
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 0, 0, 1),
-        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
-        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
-        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 0, 0, 1),
-        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 0, 0, 1),
-        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 0, 0, 1),
-        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 0, 0, 1),
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1, 0, 1),
-        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 1, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0, 0),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 1, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'present', 0, 0, 0, 1),
+        (1, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0, 1),
+        (0, 1, 'missing', 0, 0, 'missing', 0, 'missing', 0, 0, 0, 1),
+        (0, 0, 'present', 0, 0, 'missing', 0, 'missing', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 1, 'missing', 0, 'missing', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'present', 0, 'missing', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1, 'missing', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 1, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 'missing', 0, 1, 0, 1),
     ],
 )
 def test_filter_to_classified(
@@ -249,6 +236,7 @@ def test_filter_to_classified(
     exomiser: str,
     zerostar: int,
     newgene: int,
+    avi: int,
     length: int,
     make_a_mt: hl.MatrixTable,  # via a pytest fixture
 ):
@@ -267,6 +255,7 @@ def test_filter_to_classified(
             categorydetailsexomiser=exomiser,
             categorybooleanclinvar0star=zerostar,
             categorybooleanclinvar0starnewgene=newgene,
+            categorybooleanavi=avi,
         ),
     )
     matrix = filter_to_categorised(anno_matrix)
@@ -346,6 +335,25 @@ def test_annotate_clinvar_0star_category(rating, stars, expected_flag, tmp_path,
 
     returned_table = annotate_clinvarbitration(make_a_mt, clinvar=table_path, new_genes=hl.literal({'ensga'}))
     assert returned_table.info.categorybooleanclinvar0star.collect() == [expected_flag]
+
+
+@pytest.mark.parametrize(
+    'avi,expected',
+    [
+        (0.0, 0),
+        (0.74, 0),
+        (0.75, 1),
+        (0.99, 1),
+        (99.9, 1),
+    ],
+)
+def test_annotate_avi_category(avi, expected, make_a_mt):
+    """Verify categorybooleanavi works correctly."""
+
+    anno_matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(avi_score=avi))
+
+    anno_matrix = annotate_category_avi(anno_matrix)
+    assert anno_matrix.info.categorybooleanavi.collect() == [expected]
 
 
 @pytest.mark.parametrize(

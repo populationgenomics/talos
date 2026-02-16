@@ -177,9 +177,6 @@ def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None, ignored: 
         ),
     )
 
-    logger.info('No exomiser table found, skipping annotation')
-    return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
-
 
 def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     """
@@ -442,8 +439,10 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
     # gene now present on each row
     return mt.annotate_rows(
         transcript_consequences=mt.transcript_consequences.filter(
-            lambda x: (mt.gene_ids == x.gene_id)
-            & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.mane_id.contains('NM'))),
+            lambda x: (
+                (mt.gene_ids == x.gene_id)
+                & ((x.biotype == 'protein_coding') | (x.biotype == 'snRNA') | (x.mane_id.contains('NM')))
+            ),
         ),
     )
 
@@ -499,9 +498,7 @@ def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
                 (
                     hl.len(
                         mt.transcript_consequences.filter(
-                            lambda x: (
-                                hl.len(critical_consequences.intersection(hl.set(x.consequence.split('&')))) > 0
-                            ),
+                            lambda x: hl.len(critical_consequences.intersection(hl.set(x.consequence.split('&')))) > 0,
                         ),
                     )
                     > 0
@@ -523,11 +520,37 @@ def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
             ),
         )
 
-    # https://github.com/populationgenomics/talos/blob/93bf0455ab233b096a9687aa28d5faf405bac4ef/talos/RunHailFiltering.py#L270C73-L272C105
+    # SpliceAi annotations are now removed as standard, but may persist in private deployments
+    # If they're in the schema, pull them out so as to enable presentation in the JSON/HTML report
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorybooleanspliceai=hl.if_else(
                 mt.splice_ai.delta_score >= config_retrieve(['RunHailFiltering', 'spliceai']),
+                ONE_INT,
+                MISSING_INT,
+            ),
+            splice_ai_csq=mt.splice_ai.splice_consequence,
+            splice_ai_delta=mt.splice_ai.delta_score,
+        ),
+    )
+
+
+def annotate_category_avi(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """Label variants with significant AVI scores"""
+
+    avi_threshold = config_retrieve(['RunHailFiltering', 'avi'], None)
+    # skip over MTs where this annotation is absent
+    if ('avi_score' not in mt.info) or (avi_threshold is None):
+        return mt.annotate_rows(
+            info=mt.info.annotate(
+                categorybooleanavi=MISSING_INT,
+            ),
+        )
+
+    return mt.annotate_rows(
+        info=mt.info.annotate(
+            categorybooleanavi=hl.if_else(
+                mt.info.avi_score >= avi_threshold,
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -550,8 +573,10 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
     # overwrite the consequences with an intersection against a limited list
     filtered_mt = mt.annotate_rows(
         transcript_consequences=mt.transcript_consequences.filter(
-            lambda x: (hl.len(hl.set(x.consequence.split('&')).intersection(critical_consequences)) > 0)
-            | (x.biotype == 'snRNA'),
+            lambda x: (
+                (hl.len(hl.set(x.consequence.split('&')).intersection(critical_consequences)) > 0)
+                | (x.biotype == 'snRNA')
+            ),
         ),
     )
 
@@ -752,9 +777,7 @@ def csq_struct_to_string(tx_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpr
         return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|')
 
     csq = hl.empty_array(hl.tstr)
-    csq = csq.extend(
-        hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)),
-    )
+    csq = csq.extend(hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)))  # noqa: PLW0108
 
     # previous consequence filters may make this caution unnecessary
     return hl.or_missing(hl.len(csq) > 0, csq)
@@ -777,6 +800,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorybooleanalphamissense == 1)
         | (mt.info.categorybooleanhighimpact == 1)
         | (mt.info.categorybooleanspliceai == 1)
+        | (mt.info.categorybooleanavi == 1)
         | (mt.info.categorysampledenovo != MISSING_STRING)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
         | (mt.info.categorybooleansvdb == 1)
@@ -1053,6 +1077,9 @@ def main(  # noqa: PLR0915
     mt = annotate_category_alphamissense(mt=mt)
     mt = annotate_category_high_impact(mt=mt)
     mt = annotate_category_spliceai(mt=mt)
+
+    # if avi, apply the avi category
+    mt = annotate_category_avi(mt=mt)
 
     # insert easy ignore of de novo filtering based on config, to overcome some data format issues
     if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']) or config_retrieve(
