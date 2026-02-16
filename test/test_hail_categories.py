@@ -9,10 +9,9 @@ import hail as hl
 
 from talos.models import PanelApp
 from talos.run_hail_filtering import (
-    MISSING_FLOAT_LO,
     annotate_category_alphamissense,
-    annotate_category_high_impact,
     annotate_category_avi,
+    annotate_category_high_impact,
     annotate_category_spliceai,
     annotate_clinvarbitration,
     filter_to_categorised,
@@ -342,15 +341,13 @@ def test_annotate_clinvar_0star_category(rating, stars, expected_flag, tmp_path,
     'avi,expected',
     [
         (0.0, 0),
-        # (MISSING_FLOAT_LO, 0),
-        # (hl.missing(t=hl.tfloat64), 0),
         (0.74, 0),
         (0.75, 1),
         (0.99, 1),
         (99.9, 1),
     ],
 )
-def test_annotate_avi_category(avi, expected, tmp_path, make_a_mt):
+def test_annotate_avi_category(avi, expected, make_a_mt):
     """Verify categorybooleanavi works correctly."""
 
     anno_matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(avi_score=avi))
