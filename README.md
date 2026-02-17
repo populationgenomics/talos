@@ -81,11 +81,11 @@ And a third data source (AlphaMissense) to be reformatted from the TSV into a Ha
 A separate sub-workflow, `talos_preparation.nf` handles the download and formatting of this data. Run this with:
 
 ```bash
-nextflow -c nextflow/preparation.config run nextflow/talos_preparation.nf [--processed_annotations <path>] -with-report                                                                                                                                                                                                                                                                                                                                             1 ↵
+ nextflow -c nextflow.config run preparation.nf [--processed_annotations <path>] -with-report
 
- N E X T F L O W   ~  version 25.10.2
+ N E X T F L O W   ~  version 25.10.4
 
-Launching `nextflow/talos_preparation.nf` [irreverent_crick] DSL2 - revision: 6aacf78940
+Launching `nextflow/preparation.nf` [irreverent_crick] DSL2 - revision: 6aacf78940
 
 Attempting to download ClinVar raw data, requires internet connection.
 If this step fails, try running gather_files.sh in the `large_files` directory.
