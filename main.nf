@@ -3,12 +3,12 @@
 /*
     Talos Unified Workflow
     ======================
-    
+
     This is the main entry point for the Talos pipeline. It orchestrates two distinct workflows:
-    
+
     1. ANNOTATION: Annotates VCF files with the prepared data.
     2. TALOS: Runs the core Talos analysis/filtering/reporting.
-    
+
     Usage:
     nextflow run nextflow/main.nf -entry [ANNOTATION, TALOS] [other params...]
 */
