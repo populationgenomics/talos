@@ -86,7 +86,7 @@ And a third data source (AlphaMissense) to be reformatted from the TSV into a Ha
 A separate sub-workflow, `talos_preparation.nf` handles the download and formatting of this data. Run this with:
 
 ```bash
- nextflow -c nextflow.config run preparation.nf [--processed_annotations <path>] -with-report
+nextflow -c nextflow.config run preparation.nf [--processed_annotations <path>] -with-report
 
  N E X T F L O W   ~  version 25.10.4
 
