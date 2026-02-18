@@ -36,6 +36,5 @@ workflow {
 
 	TALOS(
 		ch_mane,
-		ANNOTATION.out.mts,
 	)
 }

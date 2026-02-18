@@ -14,7 +14,6 @@ include { StartupChecks } from './modules/talos/StartupChecks/main'
 workflow TALOS {
 	take:
 		ch_mane
-		ch_mts
 
     main :
     // existence of these files is necessary for starting the workflow
@@ -28,8 +27,8 @@ workflow TALOS {
     ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true)
     ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true)
 
-//     // find all matrix tables in the cohort output directory - require at least one
-//     ch_mts = Channel.fromPath("${params.cohort_output_dir}/*.mt", type: 'dir', checkIfExists: true).collect()
+    // find all matrix tables in the cohort output directory - require at least one
+    ch_mts = Channel.fromPath("${params.cohort_output_dir}/*.mt", type: 'dir', checkIfExists: true).collect()
 
     // may not exist on the first run, will be populated using a dummy file
     ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true)
