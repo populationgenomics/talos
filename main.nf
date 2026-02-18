@@ -17,6 +17,15 @@
 include { ANNOTATION } from './nextflow/annotation'
 include { TALOS } from './nextflow/talos'
 
+workflow TALOS_ONLY {
+	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
+	ch_mts = Channel.fromPath("${params.cohort_output_dir}/*.mt", type: 'dir', checkIfExists: true).collect()
+	TALOS(
+		ch_mane,
+		ch_mts,
+	)
+}
+
 workflow {
 	ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
 	ch_ref_genome = Channel.fromPath(params.ref_genome, checkIfExists: true)
@@ -36,5 +45,6 @@ workflow {
 
 	TALOS(
 		ch_mane,
+		ANNOTATION.out.mts,
 	)
 }
