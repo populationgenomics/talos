@@ -129,15 +129,15 @@ nextflow -c nextflow.config run main.nf \
   [--vcf <path>] [--shards <path>] [--ss_vcf_dir <path>] \
   [--cohort_output_dir <path>] \
   --pedigree <path_to.ped>
-  
+
 ```
 
 ```bash
-nextflow -c nextflow.config run main.nf \ 
+nextflow -c nextflow.config run main.nf \
   --ss_vcf_dir nextflow/inputs/individual_vcfs \
   --cohort test \
   --pedigree nextflow/inputs/pedigree.ped \
-  --container talos:9.0.2                  
+  --container talos:9.0.2
 
  N E X T F L O W   ~  version 25.10.4
 
