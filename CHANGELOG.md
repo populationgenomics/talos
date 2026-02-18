@@ -33,7 +33,7 @@ Small updates to the expected reference data files (MANE & GFF3), though it is n
 
 ### Changed
 
-* The links for downloading MANE (1.4 -> 1.5) and Ensembl GFF (115 -> 116) have been updated. No major change expected. 
+* The links for downloading MANE (1.4 -> 1.5) and Ensembl GFF (115 -> 116) have been updated. No major change expected.
 
 [9.0.1] - 2026-02-05
 
