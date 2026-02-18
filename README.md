@@ -67,7 +67,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -t talos:9.0.2 .
+docker build -t talos:9.0.3 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -137,7 +137,7 @@ nextflow -c nextflow.config run main.nf \
   --ss_vcf_dir nextflow/inputs/individual_vcfs \
   --cohort test \
   --pedigree nextflow/inputs/pedigree.ped \
-  --container talos:9.0.2
+  --container talos:9.0.3
 
  N E X T F L O W   ~  version 25.10.4
 
