@@ -14,20 +14,19 @@ The data prepared in this workflow is:
 
 nextflow.enable.dsl=2
 
-include { AnnotateClinvarWithBcftools } from './modules/prep/AnnotateClinvarWithBcftools/main'
-include { CreateRoiFromGff3 } from './modules/prep/CreateRoiFromGff3/main'
-include { DownloadClinVarFiles } from './modules/prep/DownloadClinVarFiles/main'
-include { DownloadPanelApp } from './modules/prep/DownloadPanelApp/main'
-include { EncodeAlphaMissense } from './modules/prep/EncodeAlphaMissense/main'
-include { MakeClinvarbitrationPm5 } from './modules/prep/MakeClinvarbitrationPm5/main'
-include { ResummariseRawSubmissions } from './modules/prep/ResummariseRawSubmissions/main'
-include { ParseAlphaMissense } from './modules/prep/ParseAlphaMissense/main'
-include { ParseManeIntoJson } from './modules/prep/ParseManeIntoJson/main'
+include { AnnotateClinvarWithBcftools } from './nextflow/modules/prep/AnnotateClinvarWithBcftools/main'
+include { CreateRoiFromGff3 } from './nextflow/modules/prep/CreateRoiFromGff3/main'
+include { DownloadClinVarFiles } from './nextflow/modules/prep/DownloadClinVarFiles/main'
+include { DownloadPanelApp } from './nextflow/modules/prep/DownloadPanelApp/main'
+include { EncodeAlphaMissense } from './nextflow/modules/prep/EncodeAlphaMissense/main'
+include { MakeClinvarbitrationPm5 } from './nextflow/modules/prep/MakeClinvarbitrationPm5/main'
+include { ResummariseRawSubmissions } from './nextflow/modules/prep/ResummariseRawSubmissions/main'
+include { ParseAlphaMissense } from './nextflow/modules/prep/ParseAlphaMissense/main'
+include { ParseManeIntoJson } from './nextflow/modules/prep/ParseManeIntoJson/main'
 
 
 workflow {
     main:
-
     def timestamp = new java.util.Date().format('yyyy-MM')
 
     ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)

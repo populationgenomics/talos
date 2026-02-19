@@ -21,21 +21,14 @@ include { NormaliseAndRegionFilterVcf } from './modules/annotation/NormaliseAndR
 include { SplitVcf } from './modules/annotation/SplitVcf/main'
 
 
-workflow {
+workflow ANNOTATION {
+	take:
+		ch_gff
+		ch_mane
+		ch_ref_genome
+
     main:
-    // populate various input channels - these are downloaded by the large_files/gather_file.sh script
-    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
-    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
-    ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true)
-
-    // check that the JSON-format MANE data exists already, or prompt to run the prep workflow
-    if (!file(params.mane_json).exists()) {
-        println "MANE JSON not available, please run the Talos Prep workflow (talos_preparation.nf)"
-        exit 1
-    }
-    ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
-
-    // Read the AlphaMissense ZIP as a channel, or prompt for generation using the prep workflow
+    // populate various input channels - these are downloaded by the large_files/gather_file.sh script, or the prep wf
     if (!file(params.alphamissense_zip).exists()) {
         println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
@@ -49,6 +42,8 @@ workflow {
     }
     ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
     ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
+
+    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
 
     // see if sharded VCFs were provided - scatter tasks across those
     if (params.shards != null) {
@@ -107,4 +102,6 @@ workflow {
         ch_mane.first(),
     )
 
+    emit:
+    	mts = AnnotatedVcfIntoMatrixTable.out
 }
