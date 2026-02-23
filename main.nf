@@ -26,7 +26,7 @@ workflow TALOS_ONLY {
 	ch_inputs = Channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
-			row.cohort, 
+			row.cohort,
 			file("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
@@ -56,7 +56,7 @@ workflow {
 	}
 
 	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
-	
+
 	ch_inputs = Channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(row.cohort, row.path, row.type) }

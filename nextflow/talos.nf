@@ -57,7 +57,7 @@ workflow TALOS {
     ch_panel_app_inputs = StartupChecks.out
         .join(ch_mts)
         .map { cohort, check_file, mts, pedigree, config, history, ext, seqr ->
-            tuple(cohort, check_file, config, pedigree) 
+            tuple(cohort, check_file, config, pedigree)
         }
 
     UnifiedPanelAppParser(

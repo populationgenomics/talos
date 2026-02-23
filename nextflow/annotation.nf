@@ -81,9 +81,9 @@ workflow ANNOTATION {
 
     if ((params.vcf_split_n ?: 0) > 0) {
         SplitVcf(ch_to_split)
-        ch_vcfs = SplitVcf.out.flatMap { cohort, splits -> 
+        ch_vcfs = SplitVcf.out.flatMap { cohort, splits ->
             def split_list = splits instanceof Collection ? splits : [splits]
-            split_list.collect { tuple(cohort, it) } 
+            split_list.collect { tuple(cohort, it) }
         }
     } else {
         ch_vcfs = ch_to_split
