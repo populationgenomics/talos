@@ -1,16 +1,16 @@
 process StartupChecks {
     container params.container
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        path mts
+        tuple val(cohort), path(mts)
         path pedigree
         path clinvar
         path talos_config
 
     output:
-        path "${params.cohort}_checked"
+        tuple val(cohort), path("${cohort}_checked")
 
     script:
         def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
@@ -24,6 +24,6 @@ process StartupChecks {
             --pedigree ${pedigree} \\
             --clinvar ${clinvar}
 
-        echo "success" > "${params.cohort}_checked"
+        echo "success" > "${cohort}_checked"
         """
 }

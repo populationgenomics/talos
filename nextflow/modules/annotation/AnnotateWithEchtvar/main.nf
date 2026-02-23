@@ -2,14 +2,14 @@ process AnnotateWithEchtvar {
     container params.container
 
     input:
-        tuple path(vcf), path(tbi)
+        tuple val(cohort), path(vcf), path(tbi)
         path gnomad_zip
         path am_zip
 
-    publishDir params.cohort_output_dir
+    publishDir "${params.outdir}/${cohort}_outputs"
 
     output:
-        path("${vcf.simpleName}_echtvar.vcf.bgz")
+        tuple val(cohort), path("${vcf.simpleName}_echtvar.vcf.bgz")
 
     script:
         """

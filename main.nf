@@ -18,11 +18,18 @@ include { ANNOTATION } from './nextflow/annotation'
 include { TALOS } from './nextflow/talos'
 
 workflow TALOS_ONLY {
+	if (!params.input_tsv) {
+		println "Required --input_tsv argument not provided"
+		exit 1
+	}
 	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
-	ch_mts = Channel.fromPath("${params.cohort_output_dir}/*.mt", type: 'dir', checkIfExists: true).collect()
+	ch_inputs = Channel.fromPath(params.input_tsv)
+		.splitCsv(header: true, sep: '\t')
+		.map { row -> tuple(row.cohort, file("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir')) }
+
 	TALOS(
 		ch_mane,
-		ch_mts,
+		ch_inputs,
 	)
 }
 
@@ -35,12 +42,22 @@ workflow {
 		exit 1
 	}
 
+	if (!params.input_tsv) {
+		println "Required --input_tsv argument not provided"
+		exit 1
+	}
+
 	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
+	
+	ch_inputs = Channel.fromPath(params.input_tsv)
+		.splitCsv(header: true, sep: '\t')
+		.map { row -> tuple(row.cohort, row.path, row.type) }
 
 	ANNOTATION(
 		ch_gff,
 		ch_mane,
 		ch_ref_genome,
+		ch_inputs,
 	)
 
 	TALOS(

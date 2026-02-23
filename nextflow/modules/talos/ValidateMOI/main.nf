@@ -2,11 +2,10 @@
 process ValidateMOI {
     container params.container
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        tuple path(labelled_vcf), path(labelled_vcf_index)
-        path panelapp
+        tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp)
         path pedigree
         path talos_config
         path previous_results
@@ -14,7 +13,7 @@ process ValidateMOI {
 	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
 
     output:
-        path"${params.cohort}_results_${timestamp}.json"
+        tuple val(cohort), path("${cohort}_results_${timestamp}.json")
 
 	script:
 		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
@@ -25,6 +24,6 @@ process ValidateMOI {
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \
         --pedigree ${pedigree} \
-        --output ${params.cohort}_results_${timestamp}.json $history_arg
+        --output ${cohort}_results_${timestamp}.json $history_arg
     """
 }

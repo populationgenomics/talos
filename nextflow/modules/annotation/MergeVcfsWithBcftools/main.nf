@@ -1,15 +1,14 @@
 process MergeVcfsWithBcftools {
     container params.container
 
-    publishDir params.cohort_output_dir
+    publishDir "${params.outdir}/${cohort}_outputs"
 
     input:
-        path vcfs
-        path tbis
+        tuple val(cohort), path(vcfs), path(tbis)
         path ref_genome
 
     output:
-        path "${params.cohort}_merged.vcf.bgz", emit: merged
+        tuple val(cohort), path("${cohort}_merged.vcf.bgz")
 
     script:
         // should bump this check earlier tbh - if one VCF don't call this. Maybe just trust users

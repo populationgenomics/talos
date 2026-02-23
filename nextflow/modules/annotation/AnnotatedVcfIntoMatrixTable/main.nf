@@ -2,14 +2,14 @@ process AnnotatedVcfIntoMatrixTable {
     container params.container
 
     input:
-        path vcf
+        tuple val(cohort), path(vcf)
         path gene_bed
         path mane
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     output:
-        path "${vcf.simpleName}_annotations.mt"
+        tuple val(cohort), path("${vcf.simpleName}_annotations.mt")
 
     script:
         """

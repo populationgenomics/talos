@@ -2,8 +2,6 @@
 
 nextflow.enable.dsl=2
 
-// deactivated for now
-include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
@@ -19,16 +17,16 @@ workflow TALOS {
     main:
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true)
-    ch_runtime_config = Channel.fromPath(params.runtime_config, checkIfExists: true)
-    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true)
-    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true)
-    ch_pedigree = Channel.fromPath(params.pedigree, checkIfExists: true)
-    ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true)
-    ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true)
+    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true).first()
+    ch_runtime_config = Channel.fromPath(params.runtime_config, checkIfExists: true).first()
+    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true).first()
+    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true).first()
+    ch_pedigree = Channel.fromPath(params.pedigree, checkIfExists: true).first()
+    ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true).first()
+    ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true).first()
 
     // may not exist on the first run, will be populated using a dummy file
-    ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true)
+    ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
@@ -43,8 +41,8 @@ workflow TALOS {
     }
 
     // read in each Clinvar input source as channel
-    ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true)
-    ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true)
+    ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
+    ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
 
     String panelapp = "${params.processed_annotations}/panelapp_${current_month}.json"
 
@@ -52,7 +50,9 @@ workflow TALOS {
         println "PanelApp data for this month (${panelapp}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
-    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true)
+    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true).first()
+
+    ch_mane_first = ch_mane.first()
 
     // run pre-Talos startup checks
     StartupChecks(
@@ -64,27 +64,31 @@ workflow TALOS {
 
     // UnifiedPanelAppParser
     UnifiedPanelAppParser(
+        StartupChecks.out,
         ch_runtime_config,
     	ch_panelapp,
     	ch_pedigree,
     	ch_hpo_file,
-    	StartupChecks.out,
     )
 
+    ch_run_hail_inputs = ch_mts
+        .join(UnifiedPanelAppParser.out)
+        .join(StartupChecks.out)
+
     RunHailFiltering(
-        ch_mts,
-        UnifiedPanelAppParser.out,
+        ch_run_hail_inputs,
         ch_pedigree,
         ch_clinvar_all,
         ch_clinvar_pm5,
         ch_runtime_config,
-        StartupChecks.out,
     )
 
     // Validate MOI of all variants
+    ch_validate_moi_inputs = RunHailFiltering.out
+        .join(UnifiedPanelAppParser.out)
+
     ValidateMOI(
-        RunHailFiltering.out,
-        UnifiedPanelAppParser.out,
+        ch_validate_moi_inputs,
         ch_pedigree,
         ch_runtime_config,
         ch_previous_results,
@@ -93,16 +97,18 @@ workflow TALOS {
     // Flag any relevant HPO terms
     HPOFlagging(
         ValidateMOI.out,
-        ch_mane,
+        ch_mane_first,
         ch_gen2phen,
         ch_phenio,
         ch_runtime_config,
     )
 
     // Generate HTML report - only suited to single-report runs
+    ch_create_html_inputs = HPOFlagging.out
+        .join(UnifiedPanelAppParser.out)
+
     CreateTalosHTML(
-        HPOFlagging.out,
-        UnifiedPanelAppParser.out,
+        ch_create_html_inputs,
         ch_runtime_config,
         ch_opt_ids,
         ch_seqr_ids,

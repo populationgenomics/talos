@@ -1,21 +1,17 @@
 process RunHailFiltering {
     container params.container
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        path mts
-        path panelapp_data
+        tuple val(cohort), path(mts), path(panelapp_data), path(check_file)
         path pedigree
         path clinvar_all
         path clinvar_pm5
         path talos_config
-        path check_file
 
     output:
-        tuple \
-            path("${params.cohort}_small_variants_labelled.vcf.bgz"), \
-            path("${params.cohort}_small_variants_labelled.vcf.bgz.tbi")
+        tuple val(cohort), path("${cohort}_small_variants_labelled.vcf.bgz"), path("${cohort}_small_variants_labelled.vcf.bgz.tbi")
 
     script:
         def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
@@ -26,7 +22,7 @@ process RunHailFiltering {
             --input ${mt_string} \
             --panelapp ${panelapp_data} \
             --pedigree ${pedigree} \
-            --output ${params.cohort}_small_variants_labelled.vcf.bgz \
+            --output ${cohort}_small_variants_labelled.vcf.bgz \
             --clinvar ${clinvar_all} \
             --pm5 ${clinvar_pm5} \
             --checkpoint checkpoint
