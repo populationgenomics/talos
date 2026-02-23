@@ -5,10 +5,7 @@ process ValidateMOI {
     publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp)
-        path pedigree
-        path talos_config
-        path previous_results
+        tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp), path(pedigree), path(talos_config), path(previous_results)
 
 	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
 
@@ -17,6 +14,7 @@ process ValidateMOI {
 
 	script:
 		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
+
     """
     export TALOS_CONFIG=${talos_config}
 

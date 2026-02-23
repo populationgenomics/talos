@@ -4,11 +4,9 @@ process RunHailFiltering {
     publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        tuple val(cohort), path(mts), path(panelapp_data), path(check_file)
-        path pedigree
+        tuple val(cohort), path(mts), path(panelapp_data), path(check_file), path(pedigree), path(talos_config)
         path clinvar_all
         path clinvar_pm5
-        path talos_config
 
     output:
         tuple val(cohort), path("${cohort}_small_variants_labelled.vcf.bgz"), path("${cohort}_small_variants_labelled.vcf.bgz.tbi")

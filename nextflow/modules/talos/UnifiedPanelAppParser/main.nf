@@ -5,10 +5,8 @@ process UnifiedPanelAppParser {
     publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        tuple val(cohort), path(check_file)
-    	path talos_config
+        tuple val(cohort), path(check_file), path(talos_config), path(pedigree)
         path panelapp_cache
-        path pedigree
         path hpo
 
     output:

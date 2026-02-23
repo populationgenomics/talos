@@ -25,7 +25,15 @@ workflow TALOS_ONLY {
 	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
 	ch_inputs = Channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
-		.map { row -> tuple(row.cohort, file("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir')) }
+		.map { row -> tuple(
+			row.cohort, 
+			file("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
+			file(row.pedigree, checkIfExists: true),
+			file(row.config, checkIfExists: true),
+			file(row.history, checkIfExists: true),
+			file(row.ext_ids, checkIfExists: true),
+			file(row.seqr_map, checkIfExists: true),
+		) }
 
 	TALOS(
 		ch_mane,
@@ -53,6 +61,19 @@ workflow {
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(row.cohort, row.path, row.type) }
 
+	ch_talos_inputs = Channel.fromPath(params.input_tsv)
+		.splitCsv(header: true, sep: '\t')
+		.map { row -> tuple(
+			row.cohort,
+			row.path,
+			row.type,
+			file(row.pedigree, checkIfExists: true),
+			file(row.config, checkIfExists: true),
+			file(row.history, checkIfExists: true),
+			file(row.ext_ids, checkIfExists: true),
+			file(row.seqr_map, checkIfExists: true),
+		) }
+
 	ANNOTATION(
 		ch_gff,
 		ch_mane,
@@ -60,8 +81,12 @@ workflow {
 		ch_inputs,
 	)
 
+	ch_talos_combined = ANNOTATION.out.mts
+		.join(ch_talos_inputs)
+		.map { cohort, mts, inpath, intype, pedigree, config, history, ext, seqr -> tuple(cohort, mts, pedigree, config, history, ext, seqr) }
+
 	TALOS(
 		ch_mane,
-		ANNOTATION.out.mts,
+		ch_talos_combined,
 	)
 }

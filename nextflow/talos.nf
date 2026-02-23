@@ -18,15 +18,8 @@ workflow TALOS {
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
     ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true).first()
-    ch_runtime_config = Channel.fromPath(params.runtime_config, checkIfExists: true).first()
     ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true).first()
     ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true).first()
-    ch_pedigree = Channel.fromPath(params.pedigree, checkIfExists: true).first()
-    ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true).first()
-    ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true).first()
-
-    // may not exist on the first run, will be populated using a dummy file
-    ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
@@ -57,61 +50,71 @@ workflow TALOS {
     // run pre-Talos startup checks
     StartupChecks(
         ch_mts,
-        ch_pedigree,
         ch_clinvar_all,
-        ch_runtime_config,
     )
 
     // UnifiedPanelAppParser
+    ch_panel_app_inputs = StartupChecks.out
+        .join(ch_mts)
+        .map { cohort, check_file, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, check_file, config, pedigree) 
+        }
+
     UnifiedPanelAppParser(
-        StartupChecks.out,
-        ch_runtime_config,
+        ch_panel_app_inputs,
     	ch_panelapp,
-    	ch_pedigree,
     	ch_hpo_file,
     )
 
     ch_run_hail_inputs = ch_mts
         .join(UnifiedPanelAppParser.out)
         .join(StartupChecks.out)
+        .map { cohort, mts, pedigree, config, history, ext, seqr, panelapp_data, check_file ->
+            tuple(cohort, mts, panelapp_data, check_file, pedigree, config)
+        }
 
     RunHailFiltering(
         ch_run_hail_inputs,
-        ch_pedigree,
         ch_clinvar_all,
         ch_clinvar_pm5,
-        ch_runtime_config,
     )
 
     // Validate MOI of all variants
     ch_validate_moi_inputs = RunHailFiltering.out
         .join(UnifiedPanelAppParser.out)
+        .join(ch_mts)
+        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, labelled_vcf, labelled_vcf_index, panelapp_out, pedigree, config, history)
+        }
 
     ValidateMOI(
         ch_validate_moi_inputs,
-        ch_pedigree,
-        ch_runtime_config,
-        ch_previous_results,
     )
 
     // Flag any relevant HPO terms
+    ch_hpo_inputs = ValidateMOI.out
+        .join(ch_mts)
+        .map { cohort, talos_result_json, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, talos_result_json, config)
+        }
+
     HPOFlagging(
-        ValidateMOI.out,
+        ch_hpo_inputs,
         ch_mane_first,
         ch_gen2phen,
         ch_phenio,
-        ch_runtime_config,
     )
 
     // Generate HTML report - only suited to single-report runs
     ch_create_html_inputs = HPOFlagging.out
         .join(UnifiedPanelAppParser.out)
+        .join(ch_mts)
+        .map { cohort, result_json, panelapp_data, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, result_json, panelapp_data, config, ext, seqr)
+        }
 
     CreateTalosHTML(
-        ch_create_html_inputs,
-        ch_runtime_config,
-        ch_opt_ids,
-        ch_seqr_ids,
+        ch_create_html_inputs
     )
 
     emit:

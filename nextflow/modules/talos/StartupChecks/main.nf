@@ -4,10 +4,8 @@ process StartupChecks {
     publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-        tuple val(cohort), path(mts)
-        path pedigree
+        tuple val(cohort), path(mts), path(pedigree), path(talos_config), path(history), path(ext), path(seqr)
         path clinvar
-        path talos_config
 
     output:
         tuple val(cohort), path("${cohort}_checked")

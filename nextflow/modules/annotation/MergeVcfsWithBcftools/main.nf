@@ -25,7 +25,7 @@ process MergeVcfsWithBcftools {
         	-0 \
         	-Ou \
         	--no-version \
-        	-o "${params.cohort}_merged.vcf.bgz" \
+        	-o "${cohort}_merged.vcf.bgz" \
         	$input
         """
 }

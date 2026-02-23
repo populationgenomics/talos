@@ -69,7 +69,7 @@ workflow ANNOTATION {
         ch_vcf_dir_inputs,
         ch_ref_genome.first(),
     )
-    ch_merged_vcfs = MergeVcfsWithBcftools.out.merged
+    ch_merged_vcfs = MergeVcfsWithBcftools.out
 
     // Process single VCF
     ch_single_vcfs = ch_inputs_branched.single_vcf.map { cohort, path, type ->
@@ -79,11 +79,12 @@ workflow ANNOTATION {
     // Combine single VCFs and merged VCFs
     ch_to_split = ch_single_vcfs.mix(ch_merged_vcfs)
 
-    // decide whether to split and parallelise, or run as a single operation
-    // if config value is absent completely, skip this step
     if ((params.vcf_split_n ?: 0) > 0) {
         SplitVcf(ch_to_split)
-        ch_vcfs = SplitVcf.out.flatMap { cohort, splits -> splits.collect { tuple(cohort, it) } }
+        ch_vcfs = SplitVcf.out.flatMap { cohort, splits -> 
+            def split_list = splits instanceof Collection ? splits : [splits]
+            split_list.collect { tuple(cohort, it) } 
+        }
     } else {
         ch_vcfs = ch_to_split
     }
