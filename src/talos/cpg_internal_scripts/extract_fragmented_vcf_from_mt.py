@@ -47,6 +47,9 @@ VQSR_FILTERS = {
         'MONOALLELIC': {
             'Description': 'Variant is monoallelic?',
         },
+        'LowQual': {
+            'Description': 'Low Quality Variant...',
+        },
     },
 }
 
