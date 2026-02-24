@@ -6,8 +6,7 @@ process ValidateMOI {
 
     input:
         tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp), path(pedigree), path(talos_config), path(previous_results)
-
-	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
+        val timestamp
 
     output:
         tuple val(cohort), path("${cohort}_results_${timestamp}.json")

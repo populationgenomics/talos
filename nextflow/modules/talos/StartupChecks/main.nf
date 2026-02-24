@@ -1,7 +1,7 @@
 process StartupChecks {
     container params.container
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
+    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
         tuple val(cohort), path(mts), path(pedigree), path(talos_config), path(history), path(ext), path(seqr)

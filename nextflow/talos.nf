@@ -23,6 +23,7 @@ workflow TALOS {
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
+    def timestamp = new java.util.Date().format('yyyy-MM-dd')
 
     // check if clinvar and panelapp data exist using the timestamp
     String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
@@ -89,6 +90,7 @@ workflow TALOS {
 
     ValidateMOI(
         ch_validate_moi_inputs,
+        timestamp,
     )
 
     // Flag any relevant HPO terms
@@ -103,6 +105,7 @@ workflow TALOS {
         ch_mane_first,
         ch_gen2phen,
         ch_phenio,
+        timestamp,
     )
 
     // Generate HTML report
@@ -114,7 +117,8 @@ workflow TALOS {
         }
 
     CreateTalosHTML(
-        ch_create_html_inputs
+        ch_create_html_inputs,
+        timestamp,
     )
 
     emit:

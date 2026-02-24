@@ -4,7 +4,7 @@ process SplitVcf {
     input:
         tuple val(cohort), path(vcf)
 
-    publishDir "${params.outdir}/${cohort}_outputs"
+    // publishDir "${params.outdir}/${cohort}_outputs"
 
     output:
         tuple val(cohort), path("split_*.bgz")

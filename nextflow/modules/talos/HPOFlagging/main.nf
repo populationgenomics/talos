@@ -9,8 +9,7 @@ process HPOFlagging {
         path gene_symbol_map
         path gene_to_phenotype
         path phenio_db
-
-	def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
+        val timestamp
 
     output:
         tuple val(cohort), path("${cohort}_full_report_${timestamp}.json")

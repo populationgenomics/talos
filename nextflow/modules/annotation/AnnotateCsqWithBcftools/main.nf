@@ -6,8 +6,7 @@ process AnnotateCsqWithBcftools {
         path gff3
         path reference
 
-    // annotate this VCF with gnomAD data
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
+    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     output:
         tuple val(cohort), path("${vcf.simpleName}_csq.vcf.bgz")

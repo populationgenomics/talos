@@ -6,7 +6,7 @@ process AnnotateWithEchtvar {
         path gnomad_zip
         path am_zip
 
-    publishDir "${params.outdir}/${cohort}_outputs"
+    // publishDir "${params.outdir}/${cohort}_outputs"
 
     output:
         tuple val(cohort), path("${vcf.simpleName}_echtvar.vcf.bgz")

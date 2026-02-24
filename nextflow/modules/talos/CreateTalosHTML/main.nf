@@ -1,13 +1,11 @@
 process CreateTalosHTML {
     container params.container
 
-    // generate the HTML report
     publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
         tuple val(cohort), path(talos_result_json), path(panelapp_data), path(talos_config), path(ext_ids), path(seqr_ids)
-
-    def timestamp = new java.util.Date().format('yyyy-MM-dd_HH-mm')
+        val timestamp
 
     output:
         tuple val(cohort), path("${cohort}_report_${timestamp}.html")
