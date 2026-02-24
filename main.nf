@@ -27,7 +27,7 @@ workflow TALOS_ONLY {
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,
-			file("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
+			files("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
 			file(row.history, checkIfExists: true),
