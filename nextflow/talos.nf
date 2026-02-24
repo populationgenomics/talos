@@ -105,7 +105,7 @@ workflow TALOS {
         ch_phenio,
     )
 
-    // Generate HTML report - only suited to single-report runs
+    // Generate HTML report
     ch_create_html_inputs = HPOFlagging.out
         .join(UnifiedPanelAppParser.out)
         .join(ch_mts)

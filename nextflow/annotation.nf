@@ -54,13 +54,13 @@ workflow ANNOTATION {
 
     // Process shards
     ch_from_shards = ch_inputs_branched.shards.flatMap { cohort, path, type ->
-        def vcfs = file("${path}/*.${params.input_vcf_extension}")
+        def vcfs = files("${path}/*.${params.input_vcf_extension}")
         vcfs.collect { vcf -> tuple(cohort, vcf) }
     }
 
     // Process single-sample components
     ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, type ->
-        def vcfs = file("${path}/*.${params.input_vcf_extension}")
+        def vcfs = files("${path}/*.${params.input_vcf_extension}")
         def tbis = vcfs.collect { file("${it}.tbi") }
         tuple(cohort, vcfs, tbis)
     }
