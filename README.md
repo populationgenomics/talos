@@ -97,19 +97,19 @@ The parameter `processed_annotations` should point to a static directory where t
 ### **4. Run Annotation & Talos Combined Workflow**
 
 > **NEW IN 10.0.0**
-> Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters. 
+> Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
 The inputs for the Talos workflow are:
 - **cohort**: a collective name to identify the input/results, used in output directory and file naming
 - **path**: path to the Cohort's input data (VCF)
 - **type**: type of the input data, see below
 - **pedigree**: path to a Pedigree for the cohort, See details [here](docs/Pedigree.md)
-- **config**: default available, path to the Talos config - see [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters  
+- **config**: default available, path to the Talos config - see [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters
 - **history**: optional, path to previous results
 - **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
 - **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
 
-The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate. 
+The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
 
 The [annotation workflow](nextflow/annotation.nf) pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) re-used with each iterative analysis.
 
