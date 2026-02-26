@@ -10,40 +10,20 @@
     2. TALOS: Runs the core Talos analysis/filtering/reporting.
 
     Usage:
-    nextflow run nextflow/main.nf -entry [ANNOTATION, TALOS] [other params...]
+    nextflow run nextflow/main.nf --input_tsv [path] [other params...]
 */
 
 // Import specific workflows
 include { ANNOTATION } from './nextflow/annotation'
 include { TALOS } from './nextflow/talos'
 
-workflow TALOS_ONLY {
-	if (!params.input_tsv) {
-		println "Required --input_tsv argument not provided"
-		exit 1
-	}
-	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
-	ch_inputs = Channel.fromPath(params.input_tsv)
-		.splitCsv(header: true, sep: '\t')
-		.map { row -> tuple(
-			row.cohort,
-			files("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
-			file(row.pedigree, checkIfExists: true),
-			file(row.config, checkIfExists: true),
-			file(row.history, checkIfExists: true),
-			file(row.ext_ids, checkIfExists: true),
-			file(row.seqr_map, checkIfExists: true),
-		) }
-
-	TALOS(
-		ch_mane,
-		ch_inputs,
-	)
-}
 
 workflow {
-	ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
-	ch_ref_genome = Channel.fromPath(params.ref_genome, checkIfExists: true)
+	main:
+	if (file(workflow.outputDir).simpleName == file(params.processed_annotations).simpleName) {
+    	println "Output Directory (${workflow.outputDir}) is probably not set correctly, use config or `-output-dir`"
+		exit 1
+    }
 
 	if (!file(params.mane_json).exists()) {
 		println "MANE JSON not available, please run the Talos Prep workflow (--entry preparation)"
@@ -55,6 +35,8 @@ workflow {
 		exit 1
 	}
 
+	ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
+	ch_ref_genome = Channel.fromPath(params.ref_genome, checkIfExists: true)
 	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
 
 	ch_inputs = Channel.fromPath(params.input_tsv)
@@ -89,4 +71,21 @@ workflow {
 		ch_mane,
 		ch_talos_combined,
 	)
+
+	publish:
+		mts = ANNOTATION.out.mts
+    	html = TALOS.out.html
+		json = TALOS.out.json
+}
+
+output {
+	mts {
+		path { id, mts -> "${id}_outputs" }
+	}
+	html {
+		path { id, html -> "${id}_outputs" }
+	}
+	json {
+		path { id, json -> "${id}_outputs" }
+	}
 }

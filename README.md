@@ -130,17 +130,16 @@ nextflow \
   -c nextflow.config \
   run main.nf \
   --input_tsv nextflow/inputs/test.tsv \
-  --container talos:9.0.3
+  -output-dir <path_to_output_dir>
 ```
 
 >**For best results we advise repeating the Talos workflow on a regular cadence**
 ```bash
 nextflow \
   -c nextflow.config \
-  run main.nf \
+  run talos_only.nf \
   --input_tsv nextflow/inputs/test.tsv \
-  --container talos:9.0.3 \
-  -entry TALOS_ONLY
+  -output-dir <path_to_output_dir>
 ```
 
 ---
