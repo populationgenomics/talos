@@ -66,7 +66,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -t talos:9.0.3 .
+docker build -t talos:10.0.0 .
 ```
 
 ### **2. Download Annotation Resources**

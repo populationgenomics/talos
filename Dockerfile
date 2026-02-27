@@ -88,4 +88,4 @@ ENV PATH="/talos/.venv/bin:$PATH"
 
 COPY echtvar echtvar/
 
-ENV VERSION=9.0.3
+ENV VERSION=10.0.0
