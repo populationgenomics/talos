@@ -14,6 +14,19 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[10.0.0] - 2026-02-24
+
+I am utterly shameless about bumping the heck out of these versions. For external users this is a _very_ breaking change.
+
+### Removed
+
+* individual nextflow.config/cli parameters to control pedigree, vcf path(s), toml config, history file
+
+### Changed
+
+* NextFlow run operates from an input_tsv, containing all cohort-specific arguments as columns
+* Any number of cohorts can be provided as separate rows, making it far simpler for sites to run smaller per-family or per-individual analyses
+
 [9.0.3] - 2026-02-19
 
 This change includes a major* revision of the Nextflow implementation. Instead of 3 workflows each accessible through a standalone workflow file, this is now present as a top-level main.nf file, importing and executing sub-workflows. This was also used as an opportunity to merge all config files into a single file, harmonising variable/param names.

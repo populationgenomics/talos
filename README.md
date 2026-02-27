@@ -57,7 +57,6 @@ There are two primary workflows:
 * `preparation.nf`: downloads and formats data in preparation for Talos runs
 * `main.nf`: imports and executes the two sub-workflows which comprise the Talos runs
 
-
 ### **1. Install Requirements**
 
 - [Nextflow](https://www.nextflow.io/docs/latest/install.html)
@@ -67,7 +66,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -t talos:9.0.3 .
+docker build -t talos:10.0.0 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -83,124 +82,67 @@ In addition to the downloaded raw resources, Talos requires two other annotation
 
 And a third data source (AlphaMissense) to be reformatted from the TSV into a Hail Table.
 
-A separate sub-workflow, `talos_preparation.nf` handles the download and formatting of this data. Run this with:
+A separate sub-workflow, `preparation.nf` handles the download and formatting of this data:
 
 ```bash
-nextflow -c nextflow.config run preparation.nf [--processed_annotations <path>] -with-report
-
- N E X T F L O W   ~  version 25.10.4
-
-Launching `nextflow/preparation.nf` [irreverent_crick] DSL2 - revision: 6aacf78940
-
-Attempting to download ClinVar raw data, requires internet connection.
-If this step fails, try running gather_files.sh in the `large_files` directory.
-executor >  local (2)
-[b5/7767be] process > DownloadClinVarFiles (1)        [100%] 1 of 1 ✔
-[f4/64b952] process > ResummariseRawSubmissions (1)   [100%] 1 of 1 ✔
-[25/42f6eb] process > AnnotateClinvarWithBcftools (1) [100%] 1 of 1 ✔
-[53/08b3b2] process > MakeClinvarbitrationPm5 (1)     [100%] 1 of 1 ✔
-[f9/254c75] process > DownloadPanelApp (1)            [100%] 1 of 1 ✔
-Completed at: 02-Feb-2026 14:50:20
-Duration    : 5m 35s
-CPU hours   : 0.2
-Succeeded   : 3
+nextflow \
+    -c nextflow.config \
+    run preparation.nf \
+    [--processed_annotations <path>] \
+    [--large_files <path>]
 ```
 
 The parameter `processed_annotations` should point to a static directory where talos-generated files can be stored, and any future run of Talos will be able to access them. i.e. data prepared and written here is not linked to any individual underlying cohort or callset.
 
 ### **4. Run Annotation & Talos Combined Workflow**
 
-The [annotation workflow](nextflow/annotation.nf) pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) re-used with each iterative analysis. The starting point for this workflow is one of the following:
+> **NEW IN 10.0.0**
+> Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
-1. a pre-sharded multisample VCF, with each shard containing all samples. Provide the directory with `--shards [path]`
-2. a collection of single-sample VCFs, to be merged in the workflow. Provide the directory with `--ss_vcf_dir [path]`
-3. a single multisample VCF. Provide this with `--vcf [path]`
+The inputs for the Talos workflow are:
+- **cohort**: a collective name to identify the input/results, used in output directory and file naming
+- **path**: path to the Cohort's input data (VCF)
+- **type**: type of the input data, see below
+- **pedigree**: path to a Pedigree for the cohort, See details [here](docs/Pedigree.md)
+- **config**: default available, path to the Talos config - see [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters
+- **history**: optional, path to previous results
+- **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
+- **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
 
-The [talos workflow](nextflow/talos.nf) applies a series of filter- and labelling strategies to the annotated data, selecting variants likely to have clinical relevance.
+The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
 
-All workflow outputs will be written to `--cohort_output_dir`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow/cohort_outputs`.
+The [annotation workflow](nextflow/annotation.nf) pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) re-used with each iterative analysis.
 
-The [main.nf](main.nf) workflow can be used to run both the main workflows, or just the Talos workflow:
+#### Input Types 📂
 
-```
-nextflow -c nextflow.config run main.nf \
-  [--large_files <path>] \
-  [--processed_annotations <path>] \
-  [--vcf <path>] [--shards <path>] [--ss_vcf_dir <path>] \
-  [--cohort_output_dir <path>] \
-  --pedigree <path_to.ped>
+The input TSV uses two columns to locate variant input; `path` and `type`. `path` is the location of the input file or directory. `type` is one of 3 values, **vcf, shards, ss_vcf_dir**
 
-```
+1. **vcf** a single multisample VCF. This will be split into shards and processed in parallel.
+2. **shards** a directory of pre-sharded multisample VCF fragments, each shard containing all samples.
+3. **ss_vcf_dir** single-sample VCFs, to be merged in the workflow, then sharded. These are detected using a glob, with the file extension controlled by `params.input_vcf_extension` (defaults to "vcf.bgz")
+
+All results from the workflow will be written to a path pattern `{params.outdir}/{cohort}_outputs`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow`.
+
+The [main.nf](main.nf) workflow can be used to run both the main workflows, or where the data has been annotated previously, just the Talos workflow:
 
 ```bash
-nextflow -c nextflow.config run main.nf \
-  --ss_vcf_dir nextflow/inputs/individual_vcfs \
-  --cohort test \
-  --pedigree nextflow/inputs/pedigree.ped \
-  --container talos:9.0.3
-
- N E X T F L O W   ~  version 25.10.4
-
-Launching `main.nf` [drunk_lumiere] DSL2 - revision: 65fae8c181
-
-executor >  local (12)
-[83/9bb229] process > ANNOTATION:MergeVcfsWithBcftools (1)       [100%] 1 of 1 ✔
-[bd/82bc5a] process > ANNOTATION:SplitVcf (1)                    [100%] 1 of 1 ✔
-[a3/392dff] process > ANNOTATION:NormaliseAndRegionFilterVcf (1) [100%] 1 of 1 ✔
-[79/f47015] process > ANNOTATION:AnnotateWithEchtvar (1)         [100%] 1 of 1 ✔
-[31/c4947e] process > ANNOTATION:AnnotateCsqWithBcftools (1)     [100%] 1 of 1 ✔
-[3d/43c468] process > ANNOTATION:AnnotatedVcfIntoMatrixTable (1) [100%] 1 of 1 ✔
-[96/cc5cff] process > TALOS:StartupChecks (1)                    [100%] 1 of 1 ✔
-[0c/6e8396] process > TALOS:UnifiedPanelAppParser (1)            [100%] 1 of 1 ✔
-[b8/710728] process > TALOS:RunHailFiltering (1)                 [100%] 1 of 1 ✔
-[20/60f765] process > TALOS:ValidateMOI (1)                      [100%] 1 of 1 ✔
-[ed/d594f4] process > TALOS:HPOFlagging (1)                      [100%] 1 of 1 ✔
-[18/656d92] process > TALOS:CreateTalosHTML (1)                  [100%] 1 of 1 ✔
-Completed at: 18-Feb-2026 16:13:08
-Duration    : 2m 47s
-CPU hours   : 0.1
-Succeeded   : 12
+nextflow \
+  -c nextflow.config \
+  run main.nf \
+  --input_tsv nextflow/inputs/test.tsv \
+  -output-dir <path_to_output_dir>
 ```
 
-For best results we advise repeating the Talos workflow on a regular cadence. In situations where the data has been annotated previously, and you only want to access the Talos sub-workflow:
-
-```txt
-nextflow -c nextflow.config run main.nf \
-    --cohort test \
-    --cohort_output_dir <path to annotated outputs folder> \
-    --pedigree nextflow/inputs/pedigree.ped \
-    -entry TALOS_ONLY
-
- N E X T F L O W   ~  version 25.10.4
-
-Launching `main.nf` [ridiculous_shirley] DSL2 - revision: 65fae8c181
-
-executor >  local (6)
-[06/9a7fcd] process > TALOS_ONLY:TALOS:StartupChecks (1)         [100%] 1 of 1 ✔
-[c8/8fe264] process > TALOS_ONLY:TALOS:UnifiedPanelAppParser (1) [100%] 1 of 1 ✔
-[f0/f22e51] process > TALOS_ONLY:TALOS:RunHailFiltering (1)      [100%] 1 of 1 ✔
-[c2/479946] process > TALOS_ONLY:TALOS:ValidateMOI (1)           [100%] 1 of 1 ✔
-[de/64bd4e] process > TALOS_ONLY:TALOS:HPOFlagging (1)           [100%] 1 of 1 ✔
-[6c/7b3220] process > TALOS_ONLY:TALOS:CreateTalosHTML (1)       [100%] 1 of 1 ✔
-Completed at: 18-Feb-2026 16:58:39
-Duration    : 1m 11s
-CPU hours   : (a few seconds)
-Succeeded   : 6
+>**For best results we advise repeating the Talos workflow on a regular cadence**
+```bash
+nextflow \
+  -c nextflow.config \
+  run talos_only.nf \
+  --input_tsv nextflow/inputs/test.tsv \
+  -output-dir <path_to_output_dir>
 ```
 
 ---
-
-## **📥 Inputs**
-
-Talos requires the following inputs:
-
-| **Input type**         | **Description**                                                                                                                                                                                                                                                                                                                    |
-|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Variant data**       | Either: a set of individual sample VCFs, or a pre-merged multi-sample VCF. Using the example workflow, providing individual sample VCFs is only intended for relatively small numbers of samples per analysis. Using a  pre-merged, normalised multi-sample VCF will be  more efficient and scale to much larger sample numbers.   |
-| **Pedigree file**      | A `tsv` file describing family structure, and optionally phenotypic terms per-participant. See details [here](docs/Pedigree.md).                                                                                                                                                                                                   |
-| **Configuration file** | A `.toml` config file specifying all workflow settings. See [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters                                                                                               |
-| **Annotation files**   | Various, incuding [ClinvArbitration](https://github.com/populationgenomics/ClinvArbitration) data, gnomAD frequencies, Ensembl GTF, and MANE gene data. These are downloaded by running the [large_files setup script](large_files/gather_file.sh), or through the `talos_preparation` sub-workflow.                               |
-
 
 ## **🔬 Input Validation**
 The first step of the Talos workflow is a module called *StartupChecks*, which runs a number of input validations:
@@ -230,13 +172,11 @@ Talos produces structured outputs to support both manual review and downstream i
 
 - Includes variant-level and gene-level evidence, inheritance checks, and phenotype match tags
 
-
 ### **Optional Outputs:**
 
 - **HTML reports** summarising results for analysts or clinicians
 
 - **Simplified TSV** for Seqr ingestion via MinimiseOutputForSeqr
-
 
 ### **Reanalysis Metadata:**
 

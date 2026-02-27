@@ -2,23 +2,21 @@
 process UnifiedPanelAppParser {
     container params.container
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     input:
-    	path talos_config
+        tuple val(cohort), path(check_file), path(talos_config), path(pedigree)
         path panelapp_cache
-        path pedigree
         path hpo
-        path check_file
 
     output:
-        path "${params.cohort}_panelapp.json"
+        tuple val(cohort), path("${cohort}_panelapp.json")
 
     """
     export TALOS_CONFIG=${talos_config}
     python -m talos.unified_panelapp_parser \
         --input $panelapp_cache \
-        --output ${params.cohort}_panelapp.json \
+        --output ${cohort}_panelapp.json \
         --pedigree $pedigree \
         --hpo $hpo
     """

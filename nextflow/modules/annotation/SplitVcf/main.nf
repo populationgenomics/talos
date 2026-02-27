@@ -2,12 +2,12 @@ process SplitVcf {
     container params.container
 
     input:
-        path vcf
+        tuple val(cohort), path(vcf)
 
-    publishDir params.cohort_output_dir
+    // publishDir "${params.outdir}/${cohort}_outputs"
 
     output:
-        path("split_*.bgz")
+        tuple val(cohort), path("split_*.bgz")
 
     script:
     """

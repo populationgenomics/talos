@@ -2,8 +2,6 @@
 
 nextflow.enable.dsl=2
 
-// deactivated for now
-include { ConvertSpliceVarDb } from './modules/talos/ConvertSpliceVarDb/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
@@ -19,19 +17,13 @@ workflow TALOS {
     main:
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true)
-    ch_runtime_config = Channel.fromPath(params.runtime_config, checkIfExists: true)
-    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true)
-    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true)
-    ch_pedigree = Channel.fromPath(params.pedigree, checkIfExists: true)
-    ch_opt_ids = Channel.fromPath(params.ext_id_map, checkIfExists: true)
-    ch_seqr_ids = Channel.fromPath(params.seqr_lookup, checkIfExists: true)
-
-    // may not exist on the first run, will be populated using a dummy file
-    ch_previous_results = Channel.fromPath(params.previous_results, checkIfExists: true)
+    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true).first()
+    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true).first()
+    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
+    def timestamp = new java.util.Date().format('yyyy-MM-dd')
 
     // check if clinvar and panelapp data exist using the timestamp
     String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
@@ -43,8 +35,8 @@ workflow TALOS {
     }
 
     // read in each Clinvar input source as channel
-    ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true)
-    ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true)
+    ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
+    ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
 
     String panelapp = "${params.processed_annotations}/panelapp_${current_month}.json"
 
@@ -52,60 +44,81 @@ workflow TALOS {
         println "PanelApp data for this month (${panelapp}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
-    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true)
+    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true).first()
+
+    ch_mane_first = ch_mane.first()
 
     // run pre-Talos startup checks
     StartupChecks(
         ch_mts,
-        ch_pedigree,
         ch_clinvar_all,
-        ch_runtime_config,
     )
 
     // UnifiedPanelAppParser
+    ch_panel_app_inputs = StartupChecks.out
+        .join(ch_mts)
+        .map { cohort, check_file, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, check_file, config, pedigree)
+        }
+
     UnifiedPanelAppParser(
-        ch_runtime_config,
+        ch_panel_app_inputs,
     	ch_panelapp,
-    	ch_pedigree,
     	ch_hpo_file,
-    	StartupChecks.out,
     )
 
+    ch_run_hail_inputs = ch_mts
+        .join(UnifiedPanelAppParser.out)
+        .join(StartupChecks.out)
+        .map { cohort, mts, pedigree, config, history, ext, seqr, panelapp_data, check_file ->
+            tuple(cohort, mts, panelapp_data, check_file, pedigree, config)
+        }
+
     RunHailFiltering(
-        ch_mts,
-        UnifiedPanelAppParser.out,
-        ch_pedigree,
+        ch_run_hail_inputs,
         ch_clinvar_all,
         ch_clinvar_pm5,
-        ch_runtime_config,
-        StartupChecks.out,
     )
 
     // Validate MOI of all variants
+    ch_validate_moi_inputs = RunHailFiltering.out
+        .join(UnifiedPanelAppParser.out)
+        .join(ch_mts)
+        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, labelled_vcf, labelled_vcf_index, panelapp_out, pedigree, config, history)
+        }
+
     ValidateMOI(
-        RunHailFiltering.out,
-        UnifiedPanelAppParser.out,
-        ch_pedigree,
-        ch_runtime_config,
-        ch_previous_results,
+        ch_validate_moi_inputs,
+        timestamp,
     )
 
     // Flag any relevant HPO terms
+    ch_hpo_inputs = ValidateMOI.out
+        .join(ch_mts)
+        .map { cohort, talos_result_json, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, talos_result_json, config)
+        }
+
     HPOFlagging(
-        ValidateMOI.out,
-        ch_mane,
+        ch_hpo_inputs,
+        ch_mane_first,
         ch_gen2phen,
         ch_phenio,
-        ch_runtime_config,
+        timestamp,
     )
 
-    // Generate HTML report - only suited to single-report runs
+    // Generate HTML report
+    ch_create_html_inputs = HPOFlagging.out
+        .join(UnifiedPanelAppParser.out)
+        .join(ch_mts)
+        .map { cohort, result_json, panelapp_data, mts, pedigree, config, history, ext, seqr ->
+            tuple(cohort, result_json, panelapp_data, config, ext, seqr)
+        }
+
     CreateTalosHTML(
-        HPOFlagging.out,
-        UnifiedPanelAppParser.out,
-        ch_runtime_config,
-        ch_opt_ids,
-        ch_seqr_ids,
+        ch_create_html_inputs,
+        timestamp,
     )
 
     emit:

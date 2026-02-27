@@ -5,16 +5,14 @@ process NormaliseAndRegionFilterVcf {
     // also take a BED file of regions to focus analysis on/filter VCF to
     // ref_genome here is used to create parsimonious representations
     input:
-        path vcf
+        tuple val(cohort), path(vcf)
         path bed_file
         path ref_genome
 
-    publishDir params.cohort_output_dir, mode: 'copy'
+    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     output:
-        tuple \
-            path("${vcf.simpleName}_merged_filtered.vcf.bgz"), \
-            path("${vcf.simpleName}_merged_filtered.vcf.bgz.tbi")
+        tuple val(cohort), path("${vcf.simpleName}_merged_filtered.vcf.bgz"), path("${vcf.simpleName}_merged_filtered.vcf.bgz.tbi")
 
     script:
     """

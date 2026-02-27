@@ -1,0 +1,3 @@
+cohort	path	type	pedigree	config	history	ext_ids	seqr_map
+needs_merge	nextflow/inputs/individual_vcfs	ss_vcf_dir	nextflow/inputs/pedigree.ped	nextflow/inputs/config.toml	nextflow/assets/NO_HISTORY	nextflow/assets/NO_FILE	nextflow/assets/NO_SEQR_FILE
+premerged	nextflow/inputs/joint.vcf.bgz	vcf	nextflow/inputs/pedigree.ped	nextflow/inputs/config.toml	nextflow/assets/NO_HISTORY	nextflow/assets/NO_FILE	nextflow/assets/NO_SEQR_FILE
