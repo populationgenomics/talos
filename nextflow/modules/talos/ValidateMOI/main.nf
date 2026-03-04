@@ -2,8 +2,6 @@
 process ValidateMOI {
     container params.container
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp), path(pedigree), path(talos_config), path(previous_results)
         val timestamp

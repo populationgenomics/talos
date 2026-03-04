@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "https://raw.githubusercontent.com/populationgenomics/talos/main/nextflow_schema.json",
+  "title": "Talos pipeline parameters",
+  "description": "Nextflow configuration parameters for the Talos pipeline.",
+  "type": "object",
+  "definitions": {
+    "default": {
+      "title": "Default parameters",
+      "type": "object",
+      "description": "Parameters found in `nextflow.config`.",
+      "required": [
+        "input_tsv",
+        "processed_annotations",
+        "large_files"
+      ],
+      "properties": {
+        "input_tsv": {
+          "type": "string",
+          "description": "Input runs as a TSV of `cohort`, `path`, and `type`"
+        },
+        "processed_annotations": {
+          "type": "string",
+          "description": "Global output directories - should be changed for each deployment."
+        },
+        "large_files": {
+          "type": "string",
+          "description": "Large files directory"
+        },
+        "ref_genome": {
+          "type": "string",
+          "description": "Reference genome, default is in large_files."
+        },
+        "container": {
+          "type": "string",
+          "default": "talos:10.0.0",
+          "description": "Docker container used by processes."
+        },
+        "mane": {
+          "type": "string",
+          "description": "MANE transcript resource, default is in large_files."
+        },
+        "mane_json": {
+          "type": "string",
+          "description": "Result file from running ParseManeIntoJson on the MANE summary file, default is in processed_annotations."
+        },
+        "ensembl_gff": {
+          "type": "string",
+          "description": "Ensembl gene feature file, default is in large_files."
+        },
+        "ensembl_bed": {
+          "type": "string",
+          "description": "Result files from the CreateRoiFromGff3 nextflow module, default is in processed_annotations."
+        },
+        "ensembl_merged_bed": {
+          "type": "string",
+          "description": "Result files (merged bed) from the CreateRoiFromGff3 nextflow module, default is in processed_annotations."
+        },
+        "alphamissense_tsv": {
+          "type": "string",
+          "description": "AlphaMissense raw data, default is in large_files."
+        },
+        "alphamissense_zip": {
+          "type": "string",
+          "description": "AlphaMissense reformatted as an echtvar-compatible zip, default is in processed_annotations."
+        },
+        "submission_summary": {
+          "type": "string",
+          "default": "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/submission_summary.txt.gz",
+          "description": "ClinVar download URL for submission summary."
+        },
+        "variant_summary": {
+          "type": "string",
+          "default": "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz",
+          "description": "ClinVar download URL for variant summary."
+        },
+        "clinvar_blacklist": {
+          "type": "string",
+          "default": "'not' 'applicable'",
+          "description": "ClinVar blacklist."
+        },
+        "hpo": {
+          "type": "string",
+          "description": "HPO and Phenotype file, default is in large_files."
+        },
+        "gen2phen": {
+          "type": "string",
+          "description": "Genes to phenotype file, default is in large_files."
+        },
+        "phenio_db": {
+          "type": "string",
+          "description": "Phenio database, default is in large_files."
+        },
+        "input_vcf_extension": {
+          "type": "string",
+          "default": "vcf.bgz",
+          "description": "Input VCF extension and location logic."
+        },
+        "vcf_split_n": {
+          "type": "integer",
+          "default": 1000000,
+          "description": "Number of lines to split VCFs by."
+        },
+        "gnomad_zip": {
+          "type": "string",
+          "default": "${params.large_files}/gnomad_4.1_region_merged_GRCh38_whole_genome",
+          "description": "Echtvar-formatted annotation data for gnomAD, default is in large_files."
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/definitions/default"
+    }
+  ]
+}

@@ -1,8 +1,6 @@
 process MergeVcfsWithBcftools {
     container params.container
 
-//     publishDir "${params.outdir}/${cohort}_outputs"
-
     input:
         tuple val(cohort), path(vcfs), path(tbis)
         path ref_genome

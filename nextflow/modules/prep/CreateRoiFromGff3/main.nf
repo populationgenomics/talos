@@ -1,8 +1,7 @@
 process CreateRoiFromGff3 {
     container params.container
 
-    // this file is not downloaded at runtime - that presents issues for execution environments
-    // disconnected from the internet
+    // this file is not downloaded at runtime - that presents issues for offline execution environments
     input:
 		path gff
 

@@ -9,8 +9,6 @@ process NormaliseAndRegionFilterVcf {
         path bed_file
         path ref_genome
 
-    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     output:
         tuple val(cohort), path("${vcf.simpleName}_merged_filtered.vcf.bgz"), path("${vcf.simpleName}_merged_filtered.vcf.bgz.tbi")
 

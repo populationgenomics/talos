@@ -1,8 +1,6 @@
 process RunHailFiltering {
     container params.container
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(mts), path(panelapp_data), path(check_file), path(pedigree), path(talos_config)
         path clinvar_all

@@ -1,9 +1,6 @@
 process HPOFlagging {
     container params.container
 
-    // flag results in the result JSON which are good phenotypic matches
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(talos_result_json), path(talos_config)
         path gene_symbol_map

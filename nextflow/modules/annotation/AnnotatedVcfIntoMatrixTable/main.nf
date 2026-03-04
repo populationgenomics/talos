@@ -6,8 +6,6 @@ process AnnotatedVcfIntoMatrixTable {
         path gene_bed
         path mane
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     output:
         tuple val(cohort), path("${vcf.simpleName}_annotations.mt")
 
