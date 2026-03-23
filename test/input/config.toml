@@ -74,3 +74,6 @@ min_alt_depth = 5
 ## seqr_lookup: mapping of IDs in PED/VCF -> Seqr family ID
 #seqr_instance = "e.g. https://seqr.populationgenomics.org.au"
 #seqr_project = "DATASET_SEQR"
+
+[CreateTalosHTML]
+remove_solved_cases = true

@@ -224,9 +224,18 @@ class HTMLBuilder:
 
         # Process samples and variants
         self.samples: list[Sample] = []
+
+        # boolean to decide whether solved cases are retained in the final HTML
+        remove_solved_cases = config_retrieve(['CreateTalosHTML', 'remove_solved_cases'], True)
+
         for sample, content in results_dict.results.items():
-            # skip for now if there's nothing to show
+            # skip samples with no variants
             if not content.variants:
+                continue
+
+            # configurable, skip solved cases
+            if content.metadata.solved and remove_solved_cases:
+                logger.debug(f'Skipping {sample} as Solved based on config')
                 continue
 
             self.samples.append(
