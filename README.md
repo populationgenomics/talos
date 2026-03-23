@@ -96,7 +96,7 @@ The parameter `processed_annotations` should point to a static directory where t
 
 ### **4. Run Annotation & Talos Combined Workflow**
 
-> **NEW IN 10.0.1**
+> **NEW IN 10.0.0**
 > Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
 The inputs for the Talos workflow are:
