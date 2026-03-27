@@ -13,7 +13,7 @@ def extract_version_from_file(file_path: str) -> str | None:
     """
     with open(file_path) as f:
         content = f.read()
-    pattern = re.compile(r'^\s*ENV\s+VERSION\s*=\s*([^\s]+)', re.MULTILINE)
+    pattern = re.compile(r'^\s*ARG\s+VERSION\s*=\s*([^\s]+)', re.MULTILINE)
     match = pattern.search(content)
     return match.group(1) if match else None
 

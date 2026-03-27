@@ -124,4 +124,5 @@ workflow TALOS {
     emit:
     	json = HPOFlagging.out
     	html = CreateTalosHTML.out
+    	panelapp = UnifiedPanelAppParser.out
 }
