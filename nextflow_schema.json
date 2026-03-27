@@ -33,7 +33,7 @@
         },
         "container": {
           "type": "string",
-          "default": "talos:10.0.0",
+          "default": "talos:10.0.1",
           "description": "Docker container used by processes."
         },
         "mane": {
