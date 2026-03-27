@@ -22,6 +22,8 @@ process ResummariseRawSubmissions {
         -o "clinvarbitration_${timestamp}" \
         -b "${params.clinvar_blacklist}"
 
+    tabix "clinvarbitration_${timestamp}.vcf.bgz"
+
     # remove the byproduct TSV which was read into a HT
     rm -f clinvarbitration_${timestamp}.tsv
     """

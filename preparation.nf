@@ -77,7 +77,6 @@ workflow {
         // annotate the SNV VCF using BCFtools
         AnnotateClinvarWithBcftools(
             ResummariseRawSubmissions.out.vcf,
-            ResummariseRawSubmissions.out.vcf_idx,
             ch_ref_fa,
             ch_gff,
         )

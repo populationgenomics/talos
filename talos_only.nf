@@ -1,3 +1,4 @@
+#!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
 include { TALOS } from './nextflow/talos'
@@ -18,7 +19,7 @@ workflow {
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,
-			files("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
+			Channel.fromPath("${outputDir}/${row.cohort}_outputs/*.mt", checkIfExists: true),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
 			file(row.history, checkIfExists: true),
