@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talos — Run</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="/static/talos.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Talos</a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/">Runs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 id="run-title">Loading...</h2>
+            <a href="/" class="btn btn-outline-secondary btn-sm">Back to Runs</a>
+        </div>
+
+        <ul class="nav nav-tabs mb-3" id="report-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-pane" type="button" role="tab">Results</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata-pane" type="button" role="tab">Run Metadata</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="report-tabs-content">
+            <!-- Results Tab -->
+            <div class="tab-pane fade show active" id="results-pane" role="tabpanel">
+                <button class="btn btn-outline-info btn-sm mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#report-help">Help</button>
+                <div class="collapse" id="report-help">
+                    <div class="card card-body mb-3">
+                        <h5>Symbol Legend</h5>
+                        <p class="mb-1"><i class="bi bi-person-check-fill text-success"></i> Phenotype match (panel-based)</p>
+                        <p class="mb-1"><i class="bi bi-person-check-fill text-info"></i> Phenotype match (cohort-based)</p>
+                        <p class="mb-1"><i class="bi bi-person-check-fill" style="color:#FF5733"></i> Phenotype match (HPO-based)</p>
+                        <h5 class="mt-2">Decision Statuses</h5>
+                        <p class="mb-1"><span class="badge decision-badge pending">pending</span> Not yet reviewed</p>
+                        <p class="mb-1"><span class="badge decision-badge under_review">under review</span> Currently being investigated</p>
+                        <p class="mb-1"><span class="badge decision-badge reportable">reportable</span> Confirmed reportable</p>
+                        <p class="mb-1"><span class="badge decision-badge uncertain">uncertain</span> Needs more evidence</p>
+                        <p class="mb-1"><span class="badge decision-badge not_reportable">not reportable</span> Dismissed</p>
+                        <p class="mb-1"><span class="badge decision-badge solved">solved</span> Explains patient phenotype</p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-auto">
+                        <label for="phenotype-filter" class="form-label">Phenotype match</label>
+                        <select id="phenotype-filter" class="form-select form-select-sm" style="max-width:240px;">
+                            <option value="all" selected>All variants</option>
+                            <option value="has">With phenotype match</option>
+                            <option value="none">Without phenotype match</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label for="decision-filter" class="form-label">Decision status</label>
+                        <select id="decision-filter" class="form-select form-select-sm" style="max-width:240px;">
+                            <option value="all" selected>All</option>
+                            <option value="pending">Pending</option>
+                            <option value="under_review">Under review</option>
+                            <option value="reportable">Reportable</option>
+                            <option value="uncertain">Uncertain</option>
+                            <option value="not_reportable">Not reportable</option>
+                            <option value="solved">Solved</option>
+                            <option value="no_decision">No decision</option>
+                        </select>
+                    </div>
+                </div>
+
+                <table class="display" id="variant-table" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Individual</th>
+                            <th>Variant</th>
+                            <th>Gene (MOI)</th>
+                            <th>Categories</th>
+                            <th>First Tagged</th>
+                            <th>MANE CSQ</th>
+                            <th>ClinvArbitration</th>
+                            <th>Flags</th>
+                            <th>Decision</th>
+                        </tr>
+                        <tr>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                            <th><input type="text" placeholder="Search"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="variant-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Metadata Tab -->
+            <div class="tab-pane fade" id="metadata-pane" role="tabpanel">
+                <div id="metadata-content"><p class="text-muted">Loading...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/rowgroup/1.0.2/js/dataTables.rowGroup.min.js"></script>
+    <script>
+    // ---- Utility functions ----
+
+    function escapeHtml(unsafe) {
+        if (unsafe === undefined || unsafe === null) return '';
+        return String(unsafe).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function ucscUrl(v, pad) {
+        pad = pad || 20;
+        var p = parseInt(v.pos,10), rl = v.ref ? v.ref.length : 1;
+        return 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&highlight=hg38.chr'+v.chrom+':'+p+'-'+(rl+p-1)+'&position=chr'+v.chrom+':'+(p-pad)+'-'+(p+pad);
+    }
+
+    function spliceAiUrl(v) {
+        return 'https://spliceailookup.broadinstitute.org/#variant='+v.chrom+':'+v.pos+'-'+v.ref+'-'+v.alt+'&hg=38&distance=500&mask=0&precomputed=0';
+    }
+
+    function omimUrl(sym) {
+        return 'https://www.omim.org/search?index=entry&start=1&search='+encodeURIComponent(sym)+'&field=approved_gene_symbol';
+    }
+
+    function decipherUrl(id, prot) {
+        return 'https://www.deciphergenomics.org/gene/'+id+'/overview/'+(prot?'protein-genomic-info':'clinical-info');
+    }
+
+    function pedSymbol(sex, affected) {
+        var shape='diamond';
+        if(sex==='male'||sex==='1') shape='square';
+        else if(sex==='female'||sex==='2') shape='circle';
+        var ic='bi-question-'+shape;
+        if(affected==='2'||affected==='true'||affected===true) ic='bi-'+shape+'-fill';
+        else if(affected==='1'||affected==='false'||affected===false) ic='bi-'+shape;
+        return '<i class="'+ic+' text-small text-secondary"></i>';
+    }
+
+    function statusBadge(decision) {
+        if (!decision || !decision.status) return '<span class="badge decision-badge bg-light text-dark border">&mdash;</span>';
+        var s = decision.status;
+        return '<span class="badge decision-badge '+s+'">'+s.replace(/_/g,' ')+'</span>';
+    }
+
+    function shortenMoi(s) {
+        return (s||'').replace('Autosomal Recessive Homozygous','AR (Hom)')
+            .replace('Autosomal Recessive Comp-Het','AR (Comp-Het)')
+            .replace('Autosomal Dominant','AD')
+            .replace('X_Male','XLR (Male)');
+    }
+
+    // ---- Data store: each row stores its full data for child-row rendering ----
+    var ROW_DATA = {};
+
+    // ---- Build table rows ----
+
+    function buildVariantRows(samples) {
+        var html = '';
+        samples.forEach(function(sample) {
+            sample.variants.forEach(function(v) {
+                var rowId = sample.name + '|' + v.chrom + ':' + v.pos + ':' + v.ref + ':' + v.alt + ':' + v.gene;
+                ROW_DATA[rowId] = {variant: v, sample: sample};
+
+                var hasPhenotype = (v.pheno_matches.length || v.forced_matches.length || v.phenotype_matches.length) ? '1' : '0';
+                var decStatus = (v.decision && v.decision.status) ? v.decision.status : '';
+
+                html += '<tr data-row-id="'+escapeHtml(rowId)+'" data-has-phenotype="'+hasPhenotype+'" data-decision-status="'+escapeHtml(decStatus)+'">';
+
+                // Individual
+                html += '<td class="details-control" style="white-space:nowrap">';
+                html += '<button type="button" class="btn btn-link btn-sm p-0"><i class="bi-plus-square"></i></button> ';
+                html += escapeHtml(sample.ext_id);
+                if (sample.family_id) html += '<br><span class="text-muted">Family: '+escapeHtml(sample.family_id)+'</span>';
+                html += '</td>';
+
+                // Variant coords
+                html += '<td>'+escapeHtml(v.chrom)+':'+v.pos+'<br>'+escapeHtml(v.change.replace('->','>'));
+                if (v.var_type==='SmallVariant' && v.var_data.info) {
+                    var gnomadUrl = 'https://gnomad.broadinstitute.org/variant/'+v.chrom+'-'+v.pos+'-'+v.ref+'-'+v.alt+'?dataset=gnomad_r4';
+                    html += '<br><small class="text-muted">gnomAD v4 AC: <a href="'+gnomadUrl+'" target="_blank">'+escapeHtml(v.var_data.info.gnomad_ac)+'</a>';
+                    if (v.var_data.info.gnomad_af != null) html += ' | AF: '+(+v.var_data.info.gnomad_af).toFixed(4);
+                    html += '</small>';
+                }
+                html += '</td>';
+
+                // Gene (MOI)
+                html += '<td>';
+                v.genes.forEach(function(g) {
+                    html += '<a href="https://panelapp-aus.org/panels/entities/'+encodeURIComponent(g[1])+'" target="_blank">'+escapeHtml(g[1])+'</a> ';
+                });
+                if (v.pheno_matches.length) html += '<i class="bi-person-check-fill text-success ms-1" title="Panel match: '+escapeHtml(v.pheno_matches.join(', '))+'"></i>';
+                if (v.forced_matches.length) html += '<i class="bi-person-check-fill text-info ms-1" title="Cohort panels: '+escapeHtml(v.forced_matches.join(', '))+'"></i>';
+                if (v.phenotype_matches.length) html += '<i class="bi-person-check-fill ms-1" style="color:#FF5733" title="HPO match: '+escapeHtml(v.phenotype_matches.join(', '))+'"></i>';
+                html += '<br><span class="text-muted">'+escapeHtml(shortenMoi(v.reasons))+'</span></td>';
+
+                // Categories
+                html += '<td>'+escapeHtml(Object.keys(v.categories).join(', ').replace(/_/g,' '))+'</td>';
+
+                // First Tagged
+                html += '<td>'+escapeHtml(v.first_tagged)+'</td>';
+
+                // MANE CSQ
+                html += '<td>';
+                if (v.mane_csq) {
+                    html += escapeHtml(v.mane_csq);
+                    if (v.mane_hgvsps) {
+                        var parts = v.mane_hgvsps.split(' ', 2);
+                        html += '<br>'+escapeHtml(parts[1]||parts[0]);
+                    }
+                } else if (v.var_type==='SmallVariant') {
+                    html += '<span class="badge text-bg-warning">Non-canonical only</span>';
+                }
+                html += '</td>';
+
+                // ClinVar
+                html += '<td>';
+                if (v.var_data.info && v.var_data.info.clinvar_allele) {
+                    var sig = (v.var_data.info.clinvar_significance||'').replace('Pathogenic/Likely Pathogenic','(Likely) Pathogenic').replace('missing','');
+                    html += '<a href="http://www.ncbi.nlm.nih.gov/clinvar?term='+encodeURIComponent(v.var_data.info.clinvar_allele)+'[alleleid]" target="_blank">'+escapeHtml(sig)+'</a>';
+                    for (var s=0; s<(parseInt(v.var_data.info.clinvar_stars)||0); s++) html += '<i class="bi-star"></i>';
+                }
+                html += '</td>';
+
+                // Flags
+                html += '<td>';
+                (v.flags||[]).forEach(function(f) { html += '<span class="badge text-bg-warning">'+escapeHtml(f.replace(/_/g,' '))+'</span><br>'; });
+                html += '</td>';
+
+                // Decision
+                html += '<td>'+statusBadge(v.decision)+'</td>';
+
+                html += '</tr>';
+            });
+        });
+        return html;
+    }
+
+    // ---- Child row (detail expansion) ----
+
+    function formatChildRow(rowId) {
+        var d = ROW_DATA[rowId];
+        if (!d) return '';
+        var v = d.variant, s = d.sample;
+        var info = v.var_data.info || {};
+        var coords = v.var_data.coordinates || {};
+
+        var html = '<div class="child-row-content"><div class="row">';
+
+        // Left: variant details
+        html += '<div class="col-md-6"><div class="card"><div class="card-body"><h5 class="card-title">Variant Details</h5><dl class="row">';
+        html += '<dt class="col-sm-4">Coordinates</dt><dd class="col-sm-8">'+escapeHtml(v.chrom+':'+v.pos)+'<br>'+escapeHtml(v.change)+'</dd>';
+        html += '<dt class="col-sm-4">Source</dt><dd class="col-sm-8">'+escapeHtml(v.var_type)+'</dd>';
+
+        if (info.as_filterstatus) html += '<dt class="col-sm-4">Filter</dt><dd class="col-sm-8">'+escapeHtml(info.as_filterstatus)+'</dd>';
+
+        if (v.support_vars && v.support_vars.length) {
+            html += '<dt class="col-sm-4">Support variants</dt><dd class="col-sm-8">'+v.support_vars.map(escapeHtml).join('<br>')+'</dd>';
+        }
+
+        // Allele counts
+        html += '<dt class="col-sm-4">Allele Counts</dt><dd class="col-sm-8">';
+        html += 'Callset AC: '+escapeHtml(info.ac)+' / AN: '+escapeHtml(info.an);
+        if (v.var_type==='SmallVariant' && info.gnomad_ac!=null) {
+            var gid = [coords.chrom,coords.pos,coords.ref,coords.alt].join('-');
+            html += '<br>gnomAD 4.1: <a href="https://gnomad.broadinstitute.org/variant/'+encodeURIComponent(gid)+'?dataset=gnomad_r4" target="_blank">AC:'+info.gnomad_ac+' AF:'+(info.gnomad_af!=null?(+info.gnomad_af).toFixed(5):'N/A')+'</a>';
+        }
+        html += '</dd>';
+
+        // In silico
+        if (v.var_type==='SmallVariant') {
+            html += '<dt class="col-sm-4">In Silico</dt><dd class="col-sm-8">';
+            if (info.alpha_missense_max && info.alpha_missense_max!=='missing') html += 'AlphaMissense: '+(+info.alpha_missense_max).toFixed(2)+'<br>';
+            if (info.avi_score!=null && info.avi_score!=='missing') html += 'AVI: '+(+info.avi_score).toFixed(2)+'<br>';
+            if (info.splice_ai_delta) {
+                html += 'SpliceAI: <a href="'+spliceAiUrl(v)+'" target="_blank">'+(+info.splice_ai_delta).toFixed(2)+'</a>';
+                if (info.splice_ai_csq && info.splice_ai_csq!=='missing' && info.splice_ai_csq!=='No_consequence') html += ' ('+escapeHtml(info.splice_ai_csq)+')';
+            }
+            html += '</dd>';
+
+            // Links
+            html += '<dt class="col-sm-4">Links</dt><dd class="col-sm-8">';
+            html += '<a href="'+spliceAiUrl(v)+'" target="_blank">SpliceAI</a> | ';
+            html += '<a href="'+ucscUrl(v)+'" target="_blank">UCSC</a>';
+            var g0 = v.genes[0];
+            if (g0) {
+                html += ' | <a href="'+decipherUrl(g0[0],true)+'" target="_blank">Decipher</a>';
+                html += ' | <a href="'+omimUrl(g0[1])+'" target="_blank">OMIM</a>';
+            }
+            html += '</dd>';
+        }
+        html += '</dl></div></div></div>';
+
+        // Right: family info
+        html += '<div class="col-md-6"><div class="card"><div class="card-body"><h5 class="card-title">Family Information</h5><dl class="row">';
+        html += '<dt class="col-sm-4">Genotypes</dt><dd class="col-sm-8">';
+        Object.keys(v.genotypes).forEach(function(sid) {
+            var m = s.family_members[sid];
+            if (m && v.genotypes[sid]) {
+                var sex = m.sex && m.sex.value ? m.sex.value : m.sex;
+                html += pedSymbol(sex, m.affected)+' '+escapeHtml(s.family_display[sid]||sid)+' - '+escapeHtml(v.genotypes[sid])+'<br>';
+            }
+        });
+        html += '</dd>';
+
+        html += '<dt class="col-sm-4">Phenotypes</dt><dd class="col-sm-8">';
+        (s.phenotypes||[]).forEach(function(p) {
+            if (p.id && p.label) html += escapeHtml(p.id)+' - '+escapeHtml(p.label)+'<br>';
+        });
+        html += '</dd>';
+
+        html += '<dt class="col-sm-4">Panels</dt><dd class="col-sm-8">';
+        Object.keys(s.panel_details||{}).forEach(function(pid) {
+            var p = s.panel_details[pid];
+            if (p && p.name) html += escapeHtml(p.name)+' ('+escapeHtml(pid)+') v.'+escapeHtml(p.version||'N/A')+'<br>';
+        });
+        html += '</dd>';
+        html += '</dl></div></div></div>';
+
+        // Transcript consequences
+        var txc = v.transcript_consequences || [];
+        if (txc.length) {
+            html += '<div class="col-12 mt-3"><div class="card"><div class="card-body"><h5 class="card-title">Transcript Consequences</h5>';
+            html += '<div class="table-responsive"><table class="table table-sm table-striped"><thead class="table-dark"><tr>';
+            html += '<th>Gene</th><th>Transcript</th><th>Protein change</th><th>Consequence</th><th>Biotype</th><th>AlphaMissense</th></tr></thead><tbody>';
+            txc.forEach(function(c) {
+                html += '<tr><td>'+escapeHtml(c.gene)+'</td>';
+                html += '<td><small>'+escapeHtml(c.transcript||c.feature)+'</small></td>';
+                html += '<td><small>'+escapeHtml((c.amino_acid_change||'').trim())+'</small>';
+                if (c.mane_id) html += ' <span class="badge text-bg-info">MANE</span>';
+                html += '</td>';
+                html += '<td><small>'+escapeHtml(c.consequence)+'</small></td>';
+                html += '<td><small>'+escapeHtml(c.biotype)+'</small></td>';
+                html += '<td>'+escapeHtml(c.am_class||'');
+                if (c.am_pathogenicity && typeof c.am_pathogenicity==='number') html += ' ('+(c.am_pathogenicity).toFixed(2)+')';
+                html += '</td></tr>';
+            });
+            html += '</tbody></table></div></div></div></div>';
+        }
+
+        // Decision form
+        html += '<div class="col-12">' + formatDecisionForm(v) + '</div>';
+
+        html += '</div></div>';
+        return html;
+    }
+
+    function formatDecisionForm(v) {
+        var d = v.decision || {};
+        var html = '<div class="card mt-3"><div class="card-body"><h5 class="card-title">Analyst Decision</h5>';
+        html += '<form class="decision-form row g-2">';
+        html += '<input type="hidden" name="sample" value="'+escapeHtml(v.sample)+'">';
+        html += '<input type="hidden" name="chrom" value="'+escapeHtml(v.chrom)+'">';
+        html += '<input type="hidden" name="pos" value="'+v.pos+'">';
+        html += '<input type="hidden" name="ref" value="'+escapeHtml(v.ref)+'">';
+        html += '<input type="hidden" name="alt" value="'+escapeHtml(v.alt)+'">';
+        html += '<input type="hidden" name="gene" value="'+escapeHtml(v.gene)+'">';
+
+        html += '<div class="col-md-2"><label class="form-label">Status</label><select class="form-select form-select-sm" name="status">';
+        ['pending','under_review','reportable','uncertain','not_reportable','solved'].forEach(function(s) {
+            html += '<option value="'+s+'"'+(d.status===s?' selected':'')+'>'+s.replace(/_/g,' ')+'</option>';
+        });
+        html += '</select></div>';
+
+        html += '<div class="col-md-2"><label class="form-label">ACMG Class</label><select class="form-select form-select-sm" name="acmg_class">';
+        html += '<option value="">—</option>';
+        [['pathogenic','Pathogenic'],['likely_pathogenic','Likely Pathogenic'],['uncertain_significance','VUS'],['likely_benign','Likely Benign'],['benign','Benign']].forEach(function(p) {
+            html += '<option value="'+p[0]+'"'+(d.acmg_class===p[0]?' selected':'')+'>'+p[1]+'</option>';
+        });
+        html += '</select></div>';
+
+        html += '<div class="col-md-2"><label class="form-label">Analyst</label>';
+        html += '<input type="text" class="form-control form-control-sm" name="analyst" value="'+escapeHtml(d.analyst||localStorage.getItem('talos_analyst')||'')+'"></div>';
+
+        html += '<div class="col-md-4"><label class="form-label">Comment</label>';
+        html += '<input type="text" class="form-control form-control-sm" name="comment" value="'+escapeHtml(d.comment||'')+'"></div>';
+
+        html += '<div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary btn-sm">Save</button>';
+        if (d.id) html += ' <a href="/api/decisions/'+d.id+'/history" target="_blank" class="btn btn-outline-secondary btn-sm ms-1">History</a>';
+        html += '</div></form></div></div>';
+        return html;
+    }
+
+    // ---- Metadata rendering ----
+
+    function renderMetadata(meta) {
+        var html = '';
+        if (meta.variant_breakdown && Object.keys(meta.variant_breakdown).length) {
+            html += '<div class="card mb-3"><div class="card-header">Variant Breakdown</div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Category</th>';
+            var firstVals = meta.variant_breakdown[Object.keys(meta.variant_breakdown)[0]];
+            Object.keys(firstVals).forEach(function(k) { html += '<th>'+escapeHtml(k)+'</th>'; });
+            html += '</tr></thead><tbody>';
+            Object.keys(meta.variant_breakdown).forEach(function(cat) {
+                html += '<tr><td>'+escapeHtml(cat)+'</td>';
+                Object.values(meta.variant_breakdown[cat]).forEach(function(val) { html += '<td>'+escapeHtml(val)+'</td>'; });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div></div></div>';
+        }
+
+        if (meta.samples_with_no_variants && meta.samples_with_no_variants.length) {
+            html += '<div class="alert alert-warning">Samples with no candidate variants: '+escapeHtml(meta.samples_with_no_variants.join(', '))+'</div>';
+        }
+
+        if (meta.panels && Object.keys(meta.panels).length) {
+            html += '<div class="card mb-3"><div class="card-header">Panels</div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>ID</th><th>Version</th><th>Name</th></tr></thead><tbody>';
+            Object.values(meta.panels).forEach(function(p) { html += '<tr><td>'+p.id+'</td><td>'+escapeHtml(p.version)+'</td><td>'+escapeHtml(p.name)+'</td></tr>'; });
+            html += '</tbody></table></div></div></div>';
+        }
+
+        html += '<div class="card mb-3"><div class="card-header">Run Info</div><div class="card-body"><dl class="row mb-0">';
+        html += '<dt class="col-sm-3">Run Date</dt><dd class="col-sm-9">'+escapeHtml(meta.run_datetime)+'</dd>';
+        html += '<dt class="col-sm-3">Version</dt><dd class="col-sm-9">'+escapeHtml(meta.version)+'</dd>';
+        html += '<dt class="col-sm-3">Input File</dt><dd class="col-sm-9">'+escapeHtml(meta.input_file)+'</dd>';
+        html += '</dl></div></div>';
+
+        if (meta.family_breakdown && Object.keys(meta.family_breakdown).length) {
+            html += '<div class="card mb-3"><div class="card-header">Family Breakdown</div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Family Size</th><th>Count</th></tr></thead><tbody>';
+            Object.keys(meta.family_breakdown).sort().forEach(function(k) { html += '<tr><td>'+escapeHtml(k)+'</td><td>'+meta.family_breakdown[k]+'</td></tr>'; });
+            html += '</tbody></table></div></div></div>';
+        }
+        return html;
+    }
+
+    // ---- Main ----
+
+    $(document).ready(function() {
+        var runId = window.location.pathname.split('/').pop();
+
+        $.getJSON('/api/runs/'+runId+'/data', function(data) {
+            var run = data.run;
+            $('#run-title').html(escapeHtml(run.label)+' <small class="text-muted">'+escapeHtml(run.dataset)+'</small>');
+            document.title = 'Talos — '+run.label;
+
+            // build variant rows
+            $('#variant-tbody').html(buildVariantRows(data.samples));
+
+            // metadata tab
+            $('#metadata-content').html(renderMetadata(data.metadata));
+
+            // init DataTable
+            var phenotypeFilter = $('#phenotype-filter');
+            var decisionFilter = $('#decision-filter');
+
+            $.fn.dataTable.ext.search.push(function(settings, searchData, dataIndex) {
+                if (settings.nTable.id !== 'variant-table') return true;
+                var row = settings.aoData[dataIndex] && settings.aoData[dataIndex].nTr;
+                if (!row) return true;
+
+                var fv = phenotypeFilter.val();
+                if (fv && fv !== 'all') {
+                    var hp = row.getAttribute('data-has-phenotype');
+                    if (fv === 'has' && hp !== '1') return false;
+                    if (fv === 'none' && hp === '1') return false;
+                }
+
+                var dv = decisionFilter.val();
+                if (dv && dv !== 'all') {
+                    var ds = row.getAttribute('data-decision-status') || '';
+                    if (dv === 'no_decision' && ds) return false;
+                    if (dv !== 'no_decision' && ds !== dv) return false;
+                }
+                return true;
+            });
+
+            var table = $('#variant-table').DataTable({
+                paging: true,
+                pageLength: 50,
+                lengthMenu: [10, 25, 50, 100],
+                ordering: true,
+                searching: true,
+                rowGroup: {
+                    dataSrc: function(row) { return $('<div>').html(row[0]).text().trim() || 'Unknown'; },
+                    startRender: function(rows, group) {
+                        return $('<tr/>').append('<td colspan="100%">'+escapeHtml(group)+' ('+rows.count()+')</td>')
+                            .attr('data-name', group).addClass('group-start');
+                    }
+                }
+            });
+
+            // column search
+            $('#variant-table thead tr:eq(1) th input').on('click', function(e) { e.stopPropagation(); });
+            $('#variant-table thead tr:eq(1) th').each(function(i) {
+                $('input', this).on('keyup change', function() {
+                    if (table.column(i).search() !== this.value) table.column(i).search(this.value).draw();
+                });
+            });
+
+            phenotypeFilter.on('change', function() { table.draw(); });
+            decisionFilter.on('change', function() { table.draw(); });
+
+            // expand/collapse
+            $('#variant-table tbody').on('click', 'td.details-control', function() {
+                var tr = $(this).closest('tr');
+                var row = table.row(tr);
+                if (row.child.isShown()) {
+                    row.child.hide(); tr.removeClass('shown');
+                    $(this).find('i').removeClass('bi-dash-square').addClass('bi-plus-square');
+                } else {
+                    var rowId = tr.attr('data-row-id');
+                    row.child(formatChildRow(rowId)).show(); tr.addClass('shown');
+                    $(this).find('i').removeClass('bi-plus-square').addClass('bi-dash-square');
+                    // init tooltips in child
+                    tr.next().find('[data-bs-toggle="tooltip"]').each(function() { new bootstrap.Tooltip(this); });
+                }
+            });
+
+            // group collapse
+            $('#variant-table tbody').on('click', 'tr.group-start', function() {
+                var name = $(this).data('name');
+                var collapsed = $(this).hasClass('collapsed');
+                $(this).toggleClass('collapsed');
+                table.rows(function(idx, rowData) { return $('<div>').html(rowData[0]).text().trim() === name; })
+                    .nodes().to$().each(function() { this.style.display = collapsed ? '' : 'none'; });
+            });
+
+            // decision form submit
+            $('#variant-table tbody').on('submit', '.decision-form', function(e) {
+                e.preventDefault();
+                var form = $(this);
+                var formData = {};
+                form.serializeArray().forEach(function(item) { formData[item.name] = item.value; });
+                formData.pos = parseInt(formData.pos, 10);
+                if (!formData.acmg_class) formData.acmg_class = null;
+                if (formData.analyst) localStorage.setItem('talos_analyst', formData.analyst);
+
+                var btn = form.find('button[type="submit"]');
+                btn.prop('disabled', true).text('Saving...');
+
+                $.ajax({
+                    url: '/api/decisions',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData)
+                })
+                .done(function(resp) {
+                    var childTr = form.closest('tr');
+                    var parentTr = childTr.prev('tr');
+                    parentTr.find('.decision-badge').replaceWith(statusBadge(resp));
+                    parentTr.attr('data-decision-status', resp.status);
+                    // update ROW_DATA
+                    var rid = parentTr.attr('data-row-id');
+                    if (ROW_DATA[rid]) ROW_DATA[rid].variant.decision = resp;
+                    btn.prop('disabled', false).text('Save');
+                })
+                .fail(function(xhr) {
+                    var msg = 'Save failed';
+                    try { msg = JSON.parse(xhr.responseText).detail; } catch(ex) {}
+                    alert('Error: ' + msg);
+                    btn.prop('disabled', false).text('Save');
+                });
+            });
+
+            // tooltips
+            $('[data-bs-toggle="tooltip"]').each(function() { new bootstrap.Tooltip(this); });
+
+        }).fail(function(xhr) {
+            $('#run-title').text('Error loading run');
+            var msg = 'Failed to load run data';
+            try { msg = JSON.parse(xhr.responseText).detail; } catch(e) {}
+            $('#results-pane').html('<div class="alert alert-danger">'+escapeHtml(msg)+'</div>');
+        });
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+/* Talos web application styles */
+
+.decision-badge {
+    font-size: 0.8rem;
+    min-width: 6rem;
+    text-align: center;
+}
+
+.decision-badge.pending { background-color: #6c757d; }
+.decision-badge.under_review { background-color: #0d6efd; }
+.decision-badge.reportable { background-color: #198754; }
+.decision-badge.uncertain { background-color: #ffc107; color: #000; }
+.decision-badge.not_reportable { background-color: #dc3545; }
+.decision-badge.solved { background-color: #6f42c1; }
+
+.child-row-content {
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.child-row-content .card {
+    margin-bottom: 1rem;
+}
+
+.child-row-content .card h5 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.child-row-content dl {
+    margin-bottom: 0;
+}
+
+.child-row-content dt {
+    font-weight: 600;
+    min-width: 10rem;
+    float: left;
+    clear: left;
+}
+
+.child-row-content dd {
+    margin-left: 11rem;
+    margin-bottom: 0.25rem;
+}
+
+td.details-control {
+    cursor: pointer;
+}
+
+td.details-control::before {
+    content: '\25B6';
+    font-size: 0.8rem;
+}
+
+tr.shown td.details-control::before {
+    content: '\25BC';
+}
+
+.group-start {
+    cursor: pointer;
+    background-color: #e9ecef !important;
+    font-weight: 600;
+}
+
+.decision-form .form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.phenotype-icon {
+    font-size: 1.1rem;
+}
+
+.transcript-table {
+    font-size: 0.85rem;
+}
+
+.transcript-table th {
+    white-space: nowrap;
+}
+
+.mane-highlight {
+    font-weight: 600;
+    color: #0d6efd;
+}
