@@ -1,8 +1,6 @@
 process CreateTalosHTML {
     container params.container
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(talos_result_json), path(panelapp_data), path(talos_config), path(ext_ids), path(seqr_ids)
         val timestamp
@@ -16,8 +14,8 @@ process CreateTalosHTML {
         def seqr_arg = seqr_ids.name != 'NO_SEQR_FILE' ? "--seqr_ids $seqr_ids" : ''
 
         """
+        set -euo pipefail
         export TALOS_CONFIG=${talos_config}
-        mkdir ${cohort}_report
         python -m talos.create_talos_html \
             --input ${talos_result_json} \
             --panelapp ${panelapp_data} \

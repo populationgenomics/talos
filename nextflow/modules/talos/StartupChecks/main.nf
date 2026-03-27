@@ -1,8 +1,6 @@
 process StartupChecks {
     container params.container
 
-    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(mts), path(pedigree), path(talos_config), path(history), path(ext), path(seqr)
         path clinvar
@@ -14,7 +12,7 @@ process StartupChecks {
         def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
 
         """
-        set -e
+        set -euo pipefail
         export TALOS_CONFIG=${talos_config}
 
         python -m talos.startup_checks \\

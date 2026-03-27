@@ -13,6 +13,8 @@
     nextflow run nextflow/main.nf --input_tsv [path] [other params...]
 */
 
+nextflow.enable.dsl=2
+
 // Import specific workflows
 include { ANNOTATION } from './nextflow/annotation'
 include { TALOS } from './nextflow/talos'

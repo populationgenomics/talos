@@ -2,7 +2,6 @@ process CreateRoiFromGff3 {
     container params.container
 
     // this file is not downloaded at runtime - that presents issues for execution environments
-    // disconnected from the internet
     input:
 		path gff
 
@@ -15,6 +14,7 @@ process CreateRoiFromGff3 {
 
     script:
         """
+        set -euo pipefail
         python -m talos.annotation_scripts.create_roi_from_gff3 \
             --gff3 ${gff} \
             --unmerged_output unsorted_GRCh38.bed \

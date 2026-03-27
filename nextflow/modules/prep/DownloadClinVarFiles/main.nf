@@ -10,6 +10,7 @@ process DownloadClinVarFiles {
 
     shell:
     """
+    set -euo pipefail
     wget '!{params.submission_summary}' -O submissions_!{timestamp}.txt.gz
     wget '!{params.variant_summary}' -O variants_!{timestamp}.txt.gz
     wget '!{params.submission_summary}.md5' -O submissions.md5

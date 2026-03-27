@@ -13,6 +13,6 @@ process MakeClinvarbitrationPm5 {
     python3 -m clinvarbitration.scripts.clinvar_by_codon \
         -i "${annotated_snv}" \
         -o "clinvarbitration_${timestamp}.pm5"
-    rm clinvarbitration_${timestamp}.pm5.tsv
+    rm -f clinvarbitration_${timestamp}.pm5.tsv
     """
 }

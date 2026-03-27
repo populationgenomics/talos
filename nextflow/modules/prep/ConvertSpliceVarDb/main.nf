@@ -10,6 +10,7 @@ process ConvertSpliceVarDb {
 
 	script:
 		"""
+		set -euo pipefail
 		python -m talos.convert_splice_var_db \
 			--input ${svdb} \
 			--output svdb.ht

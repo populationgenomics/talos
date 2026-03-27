@@ -1,3 +1,5 @@
+nextflow.enable.dsl=2
+
 include { TALOS } from './nextflow/talos'
 
 workflow {

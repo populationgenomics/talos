@@ -2,7 +2,7 @@ process AnnotateClinvarWithBcftools {
     container params.container
 
     input:
-        path vcf
+        tuple path(vcf), path(vcf_idx)
         path ref_fa
         path gff3
 
@@ -11,6 +11,7 @@ process AnnotateClinvarWithBcftools {
 
     script:
     """
+    set -euo pipefail
     bcftools csq \
         --force \
         -f "${ref_fa}" \

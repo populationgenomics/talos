@@ -65,7 +65,7 @@ def get_hyperlink_section(cohort: targets.Cohort, seq_type: str, mapping_path: P
         # get the mapping of SG ID to Family ID
         sg_to_fam = cpg_flow_utils.query_for_sg_family_id_map(dataset)
 
-        # mix them up to get SG ID: Seqr ID. Allow for missing samples in a fault tolerant way
+        # mix them up to get SG ID: Seqr ID. Allow for missing samples in a fault-tolerant way
         cpg_to_seqr_id = {}
         for sg in cohort.get_sequencing_groups():
             if sg.id in sg_to_fam and sg_to_fam[sg.id] in mapping:

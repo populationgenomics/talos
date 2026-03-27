@@ -2,8 +2,6 @@
 process ValidateMOI {
     container params.container
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp), path(pedigree), path(talos_config), path(previous_results)
         val timestamp
@@ -15,8 +13,8 @@ process ValidateMOI {
 		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
 
     """
+    set -euo pipefail
     export TALOS_CONFIG=${talos_config}
-
     python -m talos.validate_moi \
         --labelled_vcf ${labelled_vcf} \
         --panelapp ${panelapp} \

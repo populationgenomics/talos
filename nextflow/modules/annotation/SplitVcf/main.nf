@@ -4,13 +4,12 @@ process SplitVcf {
     input:
         tuple val(cohort), path(vcf)
 
-    // publishDir "${params.outdir}/${cohort}_outputs"
-
     output:
         tuple val(cohort), path("split_*.bgz")
 
     script:
     """
+    set -euo pipefail
     # save the header
     bcftools view -h ${vcf} > header.txt
 

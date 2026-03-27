@@ -6,13 +6,12 @@ process AnnotateCsqWithBcftools {
         path gff3
         path reference
 
-    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     output:
         tuple val(cohort), path("${vcf.simpleName}_csq.vcf.bgz")
 
     script:
     """
+    set -euo pipefail
     bcftools index -t ${vcf}
     bcftools csq --force -f "${reference}" \
         --local-csq \

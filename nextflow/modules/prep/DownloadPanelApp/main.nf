@@ -10,6 +10,7 @@ process DownloadPanelApp {
 
     script:
     """
+    set -euo pipefail
     python -m talos.download_panelapp \
         --output panelapp_${timestamp}.json \
         --mane ${mane}

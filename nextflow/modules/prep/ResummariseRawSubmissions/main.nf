@@ -7,8 +7,7 @@ process ResummariseRawSubmissions {
         val timestamp
 
     output:
-        path "clinvarbitration_${timestamp}.vcf.bgz", emit: "vcf"
-        path "clinvarbitration_${timestamp}.vcf.bgz.tbi", emit: "vcf_idx"
+        tuple path("clinvarbitration_${timestamp}.vcf.bgz"), path("clinvarbitration_${timestamp}.vcf.bgz.tbi"), emit: "vcf"
         path "clinvarbitration_${timestamp}.ht", emit: "ht"
 
     // Generates
@@ -16,6 +15,7 @@ process ResummariseRawSubmissions {
     // clinvarbitration_XX.ht - a Hail Table containing the summarised data entries
     script:
     """
+    set -euo pipefail
     python3 -m clinvarbitration.scripts.resummarise_clinvar \
         -v "${variant_summary}" \
         -s "${submission_summary}" \
@@ -23,6 +23,6 @@ process ResummariseRawSubmissions {
         -b "${params.clinvar_blacklist}"
 
     # remove the byproduct TSV which was read into a HT
-    rm clinvarbitration_${timestamp}.tsv
+    rm -f clinvarbitration_${timestamp}.tsv
     """
 }
