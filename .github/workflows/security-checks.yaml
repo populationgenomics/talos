@@ -9,10 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     name: Pip Audit
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
       - uses: pypa/gh-action-pip-audit@v1.1.0
         with:
           inputs: .
           summary: true
           ignore-vulns: |
             GHSA-8qvm-5x2c-j2w7  # Denial of service in protobuf=3.20.2; hail pins this version.
+            CVE-2026-4539  # inefficient RegEx in pygments
+            CVE-2026-21883  # a vuln in bokeh, which is only relevant to bokeh server instances. Hard pin for Hail so can't resolve with pathed version

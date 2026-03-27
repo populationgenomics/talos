@@ -101,3 +101,6 @@ phenotype_match = ["AlphaMissense"]
 [HPOFlagging]
 semantic_match = true
 min_similarity = 14.0
+
+[CreateTalosHTML]
+remove_solved_cases = true

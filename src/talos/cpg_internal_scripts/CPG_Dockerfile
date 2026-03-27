@@ -65,4 +65,4 @@ COPY echtvar echtvar/
 
 RUN pip install --no-cache-dir ".[cpg]"
 
-ENV VERSION=10.0.0
+ENV VERSION=10.0.1

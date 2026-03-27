@@ -14,6 +14,12 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[10.0.1] - 2026-03-23
+
+### Fixed
+
+* Reinstates behaviour to remove solved cases from HTML reports. This is optional based on a config parameter, so cases being flagged as solved in the JSON, but displayed in the HTML, can be handled.
+
 [10.0.0] - 2026-02-24
 
 I am utterly shameless about bumping the heck out of these versions. For external users this is a _very_ breaking change.
