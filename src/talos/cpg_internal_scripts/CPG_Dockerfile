@@ -24,7 +24,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libcurl4-openssl-dev \
     liblzma-dev \
     libssl-dev \
-    make \
     zlib1g-dev
 
 RUN wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2
