@@ -28,7 +28,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     liblzma-dev \
     libssl-dev \
     make \
-    zlib1g-dev
+    zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2
 RUN tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
