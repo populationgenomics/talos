@@ -14,6 +14,8 @@ process CreateRoiFromGff3 {
 
     script:
         """
+        set -euo pipefail
+
         python -m talos.annotation_scripts.create_roi_from_gff3 \
             --gff3 ${gff} \
             --unmerged_output unsorted_GRCh38.bed \

@@ -121,7 +121,7 @@ The input TSV uses two columns to locate variant input; `path` and `type`. `path
 2. **shards** a directory of pre-sharded multisample VCF fragments, each shard containing all samples.
 3. **ss_vcf_dir** single-sample VCFs, to be merged in the workflow, then sharded. These are detected using a glob, with the file extension controlled by `params.input_vcf_extension` (defaults to "vcf.bgz")
 
-All results from the workflow will be written to a path pattern `{params.outdir}/{cohort}_outputs`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow`.
+All results from the workflow will be written to a path pattern `{workflow.outputDir}/{cohort}_outputs`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow`.
 
 The [main.nf](main.nf) workflow can be used to run both the main workflows, or where the data has been annotated previously, just the Talos workflow:
 

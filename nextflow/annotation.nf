@@ -1,5 +1,7 @@
 #!/usr/bin/env nextflow
 
+nextflow.enable.dsl=2
+
 /*
 This workflow is the annotation process for the Talos pipeline.
 
@@ -10,8 +12,6 @@ The specific annotations are:
 - Transcript consequences, using BCFtools annotate
 - MANE trancript IDs and corresponding ENSP IDs, applied using Hail
 */
-
-nextflow.enable.dsl=2
 
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
 include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
@@ -34,17 +34,17 @@ workflow ANNOTATION {
         println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
-    ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
+    ch_alphamissense_zip = Channel.fromPath(params.alphamissense_zip, checkIfExists: true)
 
     // check the ensembl BED file has been generated
     if (!file(params.ensembl_bed).exists()) {
         println "Region-Of-Interest BED file has not been prepared, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
-    ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
-    ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
+    ch_bed = Channel.fromPath(params.ensembl_bed, checkIfExists: true)
+    ch_merged_bed = Channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
 
-    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
+    ch_gnomad_zip = Channel.fromPath(params.gnomad_zip, checkIfExists: true)
 
     ch_inputs_branched = ch_inputs.branch {
         shards: it[2] == 'shards'

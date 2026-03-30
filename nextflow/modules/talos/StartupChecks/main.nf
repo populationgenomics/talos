@@ -12,7 +12,8 @@ process StartupChecks {
         def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
 
         """
-        set -e
+        set -euo pipefail
+
         export TALOS_CONFIG=${talos_config}
 
         python -m talos.startup_checks \\

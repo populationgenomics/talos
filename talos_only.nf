@@ -1,3 +1,7 @@
+#!/usr/bin/env nextflow
+
+nextflow.enable.dsl=2
+
 include { TALOS } from './nextflow/talos'
 
 workflow {
@@ -12,6 +16,11 @@ workflow {
 		exit 1
 	}
 	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
+
+	/*
+	NextFlow doesn't like the use of files("...", type: 'dir') here, as it scans for files at DAG setup time instead of
+	each time a new Stage is reached. This is intentional, as these files are not created by this workflow
+	*/
 	ch_inputs = Channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
@@ -32,6 +41,7 @@ workflow {
 	publish:
     	html = TALOS.out.html
 		json = TALOS.out.json
+		panelapp = TALOS.out.panelapp
 }
 
 output {
@@ -40,5 +50,8 @@ output {
 	}
 	json {
 		path { id, json -> "${id}_outputs" }
+	}
+	panelapp {
+		path { id, panelapp -> "${id}_outputs" }
 	}
 }

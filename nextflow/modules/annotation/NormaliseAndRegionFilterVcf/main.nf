@@ -14,6 +14,9 @@ process NormaliseAndRegionFilterVcf {
 
     script:
     """
+    set -euo pipefail
+
+    # multiple ways to reach this point, some do & some don't strictly index
     tabix ${vcf}
     bcftools norm \
     	-m -any \

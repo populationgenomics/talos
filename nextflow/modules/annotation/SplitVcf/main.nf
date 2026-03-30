@@ -9,6 +9,8 @@ process SplitVcf {
 
     script:
     """
+    set -euo pipefail
+
     # save the header
     bcftools view -h ${vcf} > header.txt
 

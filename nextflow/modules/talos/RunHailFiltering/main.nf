@@ -12,6 +12,8 @@ process RunHailFiltering {
     script:
         def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
         """
+        set -euo pipefail
+
         export TALOS_CONFIG=${talos_config}
 
         python -m talos.run_hail_filtering \

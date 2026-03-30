@@ -11,6 +11,8 @@ process AnnotateCsqWithBcftools {
 
     script:
     """
+    set -euo pipefail
+
     bcftools index -t ${vcf}
     bcftools csq --force -f "${reference}" \
         --local-csq \

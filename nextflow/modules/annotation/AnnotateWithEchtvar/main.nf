@@ -7,16 +7,18 @@ process AnnotateWithEchtvar {
         path am_zip
 
     output:
-        tuple val(cohort), path("${vcf.simpleName}_echtvar.vcf.bgz")
+        tuple val(cohort), path("${vcf.simpleName}_echtvar.vcf.bgz"), path("${vcf.simpleName}_echtvar.vcf.bgz.tbi")
 
     script:
         """
-        set -ex
+        set -euo pipefail
+
         echtvar anno \
             -e ${gnomad_zip} \
             -e ${am_zip} \
             -i "gnomad_AF_joint < 0.05" \
             ${vcf} \
             "${vcf.simpleName}_echtvar.vcf.bgz"
+        tabix "${vcf.simpleName}_echtvar.vcf.bgz"
         """
 }

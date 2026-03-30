@@ -11,7 +11,7 @@ process AnnotatedVcfIntoMatrixTable {
 
     script:
         """
-        set -ex
+        set -euo pipefail
 
         python -m talos.annotation_scripts.annotated_vcf_into_matrixtable \
             --input ${vcf} \

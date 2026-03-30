@@ -9,6 +9,8 @@ process EncodeAlphaMissense {
 
     script:
         """
+        set -euo pipefail
+
         echtvar encode alphamissense.zip /talos/echtvar/am_config.json ${vcf}
         """
 }

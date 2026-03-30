@@ -38,13 +38,13 @@ workflow TALOS {
     ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
     ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
 
-    String panelapp = "${params.processed_annotations}/panelapp_${current_month}.json"
+    String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
 
-    if (!file(panelapp).exists()) {
-        println "PanelApp data for this month (${panelapp}) doesn't exist, run the Talos Prep workflow"
+    if (!file(panelapp_path).exists()) {
+        println "PanelApp data for this month (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
-    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true).first()
+    ch_panelapp = Channel.fromPath(panelapp_path, checkIfExists: true).first()
 
     ch_mane_first = ch_mane.first()
 
@@ -124,4 +124,5 @@ workflow TALOS {
     emit:
     	json = HPOFlagging.out
     	html = CreateTalosHTML.out
+    	panelapp = UnifiedPanelAppParser.out
 }

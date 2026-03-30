@@ -14,6 +14,8 @@ process CreateTalosHTML {
         def seqr_arg = seqr_ids.name != 'NO_SEQR_FILE' ? "--seqr_ids $seqr_ids" : ''
 
         """
+        set -euo pipefail
+
         export TALOS_CONFIG=${talos_config}
         mkdir ${cohort}_report
         python -m talos.create_talos_html \
