@@ -26,10 +26,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl-dev \
     zlib1g-dev && \
     rm -rf /var/lib/apt/lists/* && \
-    rm -rf /var/cache/apt/*
-
-RUN wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2
-RUN tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
+    rm -rf /var/cache/apt/* && \
+    wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
+    tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
     cd bcftools-${BCFTOOLS_VERSION} && \
     ./configure --enable-libcurl --enable-s3 --enable-gcs && \
     make && \
