@@ -9,11 +9,11 @@ import sys
 def extract_version_from_file(file_path: str) -> str | None:
     """
     Extract the version from a Dockerfile by searching for a line like:
-    ENV VERSION=1.0.0
+    ARG VERSION=1.0.0
     """
     with open(file_path) as f:
         content = f.read()
-    pattern = re.compile(r'^\s*ENV\s+VERSION\s*=\s*([^\s]+)', re.MULTILINE)
+    pattern = re.compile(r'^\s*ARG\s+VERSION\s*=\s*([^\s]+)', re.MULTILINE)
     match = pattern.search(content)
     return match.group(1) if match else None
 
@@ -77,7 +77,7 @@ def main():
     current_version = extract_version_from_file(dockerfile_name)
     if current_version is None:
         # Throw an error here
-        raise NotImplementedError('The Dockerfile needs to contain a version string in the format "ENV VERSION=x.x.x"')
+        raise NotImplementedError('The Dockerfile needs to contain a version string in the format "ARG VERSION=x.x.x"')
 
     # Determine the next available tag based on current_version.
     new_tag = get_next_version_tag(container_name, current_version)
