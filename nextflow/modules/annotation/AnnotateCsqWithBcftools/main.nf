@@ -2,7 +2,7 @@ process AnnotateCsqWithBcftools {
     container params.container
 
     input:
-        tuple val(cohort), path(vcf)
+        tuple val(cohort), path(vcf), path(vcf_tbi)
         path gff3
         path reference
 
@@ -13,7 +13,6 @@ process AnnotateCsqWithBcftools {
     """
     set -euo pipefail
 
-    bcftools index -t ${vcf}
     bcftools csq --force -f "${reference}" \
         --local-csq \
         -g ${gff3} \

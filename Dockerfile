@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl-dev \
     make \
     zlib1g-dev && \
-    rm -rf /var/lib/apt/lists/* \
+    rm -rf /var/lib/apt/lists/* && \
     wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
     tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
     cd bcftools-${BCFTOOLS_VERSION} && \
@@ -47,7 +47,6 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
 
 ARG ECHTVAR_VERSION=v0.2.2
-ARG ECH_SHA=b66eb33ef787a712c911f8206243b310b03615720b00336430f399b9d197d235
 ARG VERSION=10.0.1
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
