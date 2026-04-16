@@ -103,7 +103,6 @@
         },
         "gnomad_zip": {
           "type": "string",
-          "default": "${params.large_files}/gnomad_4.1_region_merged_GRCh38_whole_genome",
           "description": "Echtvar-formatted annotation data for gnomAD, default is in large_files."
         }
       }
