@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 FROM base AS bcftools_compiler
 
-ARG BCFTOOLS_VERSION=1.23
+ARG BCFTOOLS_VERSION=1.23.1
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     gcc \
