@@ -21,7 +21,7 @@ process MergeVcfsWithBcftools {
         	--force-single \
         	-m none \
         	-0 \
-        	-Ou \
+        	-Oz \
         	--no-version \
         	-o "${cohort}_merged.vcf.bgz" \
         	$input
