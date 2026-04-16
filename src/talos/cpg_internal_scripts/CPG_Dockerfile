@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
         libcurl4-openssl-dev \
         liblzma-dev \
         libssl-dev \
+        make \
         zlib1g-dev && \
     wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
     tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
@@ -32,7 +33,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     make && \
     strip bcftools plugins/*.so && \
     make DESTDIR=/bcftools_install install && \
-    mv htslib-${BCFTOOLS_VERSION}/bgzip htslib-${BCFTOOLS_VERSION}/tabix /bcftools_install/usr/local/bin/
+    cd htslib-${BCFTOOLS_VERSION} && \
+    make && \
+    make DESTDIR=/bcftools_install install
 
 FROM base AS talos
 
