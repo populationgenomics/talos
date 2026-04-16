@@ -8,7 +8,7 @@ nextflow.enable.dsl=2
 
     This is the main entry point for the Talos pipeline. It orchestrates two distinct workflows:
 
-    1. ANNOTATION: Annotates VCF files with the prepared data.
+    1. ANNOTATION: Annotates VCF file(s) with the prepared data.
     2. TALOS: Runs the core Talos analysis/filtering/reporting.
 
     Usage:
@@ -67,7 +67,7 @@ workflow {
 
 	ch_talos_combined = ANNOTATION.out.mts
 		.join(ch_talos_inputs)
-		.map { cohort, mts, _inpath, intype, pedigree, config, history, ext, seqr -> tuple(cohort, mts, pedigree, config, history, ext, seqr) }
+		.map { cohort, mts, _inpath, _intype, pedigree, config, history, ext, seqr -> tuple(cohort, mts, pedigree, config, history, ext, seqr) }
 
 	TALOS(
 		ch_mane,
