@@ -15,13 +15,13 @@ workflow {
 		println "Required --input_tsv argument not provided"
 		exit 1
 	}
-	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
+	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
 
 	/*
 	NextFlow doesn't like the use of files("...", type: 'dir') here, as it scans for files at DAG setup time instead of
 	each time a new Stage is reached. This is intentional, as these files are not created by this workflow
 	*/
-	ch_inputs = Channel.fromPath(params.input_tsv)
+	ch_inputs = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,

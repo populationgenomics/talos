@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/populationgenomics/talos/main/nextflow_schema.json",
   "title": "Talos pipeline parameters",
   "description": "Nextflow configuration parameters for the Talos pipeline.",
@@ -33,7 +33,7 @@
         },
         "container": {
           "type": "string",
-          "default": "talos:10.0.0",
+          "default": "talos:10.0.1",
           "description": "Docker container used by processes."
         },
         "mane": {
