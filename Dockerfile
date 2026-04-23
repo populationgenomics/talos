@@ -3,23 +3,23 @@ FROM python:3.11-slim-bullseye AS base
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bzip2 \
-    ca-certificates \
-    gnupg \
-    libbz2-1.0 \
-    libcurl4 \
-    liblzma5 \
-    openjdk-11-jdk-headless \
-    procps \
-    wget \
-    zip \
-    zlib1g && \
+        bzip2 \
+        ca-certificates \
+        gnupg \
+        libbz2-1.0 \
+        libcurl4 \
+        liblzma5 \
+        openjdk-11-jdk-headless \
+        procps \
+        wget \
+        zip \
+        zlib1g && \
     rm -r /var/lib/apt/lists/* && \
     rm -r /var/cache/apt/*
 
 FROM base AS bcftools_compiler
 
-ARG BCFTOOLS_VERSION=1.22
+ARG BCFTOOLS_VERSION=1.23.1
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     gcc \
@@ -29,7 +29,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl-dev \
     make \
     zlib1g-dev && \
-    rm -rf /var/lib/apt/lists/* \
     wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
     tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
     cd bcftools-${BCFTOOLS_VERSION} && \
@@ -47,8 +46,7 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
 
 ARG ECHTVAR_VERSION=v0.2.2
-ARG ECH_SHA=b66eb33ef787a712c911f8206243b310b03615720b00336430f399b9d197d235
-ARG VERSION=10.0.1
+ARG VERSION=10.0.2
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
     chmod +x /bin/echtvar
@@ -67,13 +65,13 @@ WORKDIR /talos
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --all-extras --frozen --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev
 
 # Add in the additional requirements that are most likely to change.
 COPY LICENSE pyproject.toml uv.lock README.md ./
 COPY src src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --all-extras --frozen --no-dev
+    uv sync --frozen --no-dev
 
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"

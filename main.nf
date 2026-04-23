@@ -1,12 +1,14 @@
 #!/usr/bin/env nextflow
 
+nextflow.enable.dsl=2
+
 /*
     Talos Unified Workflow
     ======================
 
     This is the main entry point for the Talos pipeline. It orchestrates two distinct workflows:
 
-    1. ANNOTATION: Annotates VCF files with the prepared data.
+    1. ANNOTATION: Annotates VCF file(s) with the prepared data.
     2. TALOS: Runs the core Talos analysis/filtering/reporting.
 
     Usage:
@@ -35,15 +37,15 @@ workflow {
 		exit 1
 	}
 
-	ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
-	ch_ref_genome = Channel.fromPath(params.ref_genome, checkIfExists: true)
-	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
+	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
+	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true)
+	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
 
-	ch_inputs = Channel.fromPath(params.input_tsv)
+	ch_inputs = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(row.cohort, row.path, row.type) }
 
-	ch_talos_inputs = Channel.fromPath(params.input_tsv)
+	ch_talos_inputs = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,
@@ -65,7 +67,7 @@ workflow {
 
 	ch_talos_combined = ANNOTATION.out.mts
 		.join(ch_talos_inputs)
-		.map { cohort, mts, inpath, intype, pedigree, config, history, ext, seqr -> tuple(cohort, mts, pedigree, config, history, ext, seqr) }
+		.map { cohort, mts, _inpath, _intype, pedigree, config, history, ext, seqr -> tuple(cohort, mts, pedigree, config, history, ext, seqr) }
 
 	TALOS(
 		ch_mane,
@@ -76,16 +78,20 @@ workflow {
 		mts = ANNOTATION.out.mts
     	html = TALOS.out.html
 		json = TALOS.out.json
+		panelapp = TALOS.out.panelapp
 }
 
 output {
 	mts {
-		path { id, mts -> "${id}_outputs" }
+		path { id, _mts -> "${id}_outputs" }
 	}
 	html {
-		path { id, html -> "${id}_outputs" }
+		path { id, _html -> "${id}_outputs" }
 	}
 	json {
-		path { id, json -> "${id}_outputs" }
+		path { id, _json -> "${id}_outputs" }
+	}
+	panelapp {
+		path { id, _panelapp -> "${id}_outputs" }
 	}
 }

@@ -6,14 +6,12 @@ process AnnotatedVcfIntoMatrixTable {
         path gene_bed
         path mane
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     output:
         tuple val(cohort), path("${vcf.simpleName}_annotations.mt")
 
     script:
         """
-        set -ex
+        set -euo pipefail
 
         python -m talos.annotation_scripts.annotated_vcf_into_matrixtable \
             --input ${vcf} \

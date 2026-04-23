@@ -1,8 +1,6 @@
 process RunHailFiltering {
     container params.container
 
-    publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     input:
         tuple val(cohort), path(mts), path(panelapp_data), path(check_file), path(pedigree), path(talos_config)
         path clinvar_all
@@ -14,6 +12,8 @@ process RunHailFiltering {
     script:
         def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
         """
+        set -euo pipefail
+
         export TALOS_CONFIG=${talos_config}
 
         python -m talos.run_hail_filtering \

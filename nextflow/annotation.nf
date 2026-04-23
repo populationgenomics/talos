@@ -1,5 +1,7 @@
 #!/usr/bin/env nextflow
 
+nextflow.enable.dsl=2
+
 /*
 This workflow is the annotation process for the Talos pipeline.
 
@@ -10,8 +12,6 @@ The specific annotations are:
 - Transcript consequences, using BCFtools annotate
 - MANE trancript IDs and corresponding ENSP IDs, applied using Hail
 */
-
-nextflow.enable.dsl=2
 
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
 include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
@@ -53,13 +53,13 @@ workflow ANNOTATION {
     }
 
     // Process shards
-    ch_from_shards = ch_inputs_branched.shards.flatMap { cohort, path, type ->
+    ch_from_shards = ch_inputs_branched.shards.flatMap { cohort, path, _type ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
         vcfs.collect { vcf -> tuple(cohort, vcf) }
     }
 
     // Process single-sample components
-    ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, type ->
+    ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, _type ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
         def tbis = vcfs.collect { file("${it}.tbi") }
         tuple(cohort, vcfs, tbis)
@@ -72,7 +72,7 @@ workflow ANNOTATION {
     ch_merged_vcfs = MergeVcfsWithBcftools.out
 
     // Process single VCF
-    ch_single_vcfs = ch_inputs_branched.single_vcf.map { cohort, path, type ->
+    ch_single_vcfs = ch_inputs_branched.single_vcf.map { cohort, path, _type ->
         tuple(cohort, file(path, checkIfExists: true))
     }
 

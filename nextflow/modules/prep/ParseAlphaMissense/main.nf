@@ -9,6 +9,8 @@ process ParseAlphaMissense {
 
     script:
         """
+        set -euo pipefail
+
         python -m talos.annotation_scripts.parse_alphamissense \
             --input ${am_tsv} \
             --output alphamissense.vcf.gz
