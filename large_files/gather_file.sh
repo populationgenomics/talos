@@ -106,7 +106,6 @@ Downloading Echtvar from https://zenodo.org/records/15222100"
 # Monarch phenotype DB - another large download. 17GB decompressed
 COMPRESSED_PHENIO="phenio.db.gz"
 DECOMPRESSED_PHENIO="phenio.db"
-# if it doesn't exist, download it
 if [ ! -f "${DECOMPRESSED_PHENIO}" ]; then
   echo "[INFO] phenio.db not found, downloading..."
   start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
@@ -144,9 +143,9 @@ nAPOGEE="nAPOGEE_v1.0.0.txt.zip"
 nAPOGEE_decompressed="nAPOGEE_v1.0.0.txt"
 start_download "https://mitimpact.mcb2lab.org/cdn/nAPOGEE_v1.0.0.txt.zip"
 
-tAPOGEE="tAPOGEE_2024.0.1.txt.zip"
-tAPOGEE_decompressed="tAPOGEE_2024.0.1.txt"
-start_download "https://mitimpact.mcb2lab.org/cdn/tAPOGEE_2024.0.1.txt.zip"
+#tAPOGEE="tAPOGEE_2024.0.1.txt.zip"
+#tAPOGEE_decompressed="tAPOGEE_2024.0.1.txt"
+#start_download "https://mitimpact.mcb2lab.org/cdn/tAPOGEE_2024.0.1.txt.zip"
 
 MitImpact="MitImpact_db_3.1.3.txt.zip"
 MitImpact_decompressed="MitImpact_db_3.1.3.txt"
@@ -162,7 +161,7 @@ submission_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/submi
 variant_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz"
 
 start_download $submission_summary "submissions_${THIS_MONTH}.txt.gz"
-start_download $variant_summary "variants_${THIS_MONTH}.txt.gz"
+#start_download $variant_summary "variants_${THIS_MONTH}.txt.gz"
 
 await
 
@@ -180,9 +179,9 @@ fi
 if [ ! -f "${nAPOGEE_decompressed}" ] && [ -f "${nAPOGEE}" ]; then
     unzip ${nAPOGEE}
 fi
-if [ ! -f "${tAPOGEE_decompressed}" ] && [ -f "${tAPOGEE}" ]; then
-    unzip ${tAPOGEE}
-fi
+#if [ ! -f "${tAPOGEE_decompressed}" ] && [ -f "${tAPOGEE}" ]; then
+#    unzip ${tAPOGEE}
+#fi
 if [ ! -f "${MitImpact_decompressed}" ] && [ -f "${MitImpact}" ]; then
     unzip ${MitImpact}
 fi
