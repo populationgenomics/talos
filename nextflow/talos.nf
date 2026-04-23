@@ -17,9 +17,9 @@ workflow TALOS {
     main:
     // existence of these files is necessary for starting the workflow
     // we open them as a channel, and pass the channel through to the method
-    ch_hpo_file = Channel.fromPath(params.hpo, checkIfExists: true).first()
-    ch_gen2phen = Channel.fromPath(params.gen2phen, checkIfExists: true).first()
-    ch_phenio = Channel.fromPath(params.phenio_db, checkIfExists: true).first()
+    ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true).first()
+    ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true).first()
+    ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
@@ -35,16 +35,16 @@ workflow TALOS {
     }
 
     // read in each Clinvar input source as channel
-    ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
-    ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
+    ch_clinvar_all = channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
+    ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
 
-    String panelapp = "${params.processed_annotations}/panelapp_${current_month}.json"
+    String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
 
-    if (!file(panelapp).exists()) {
-        println "PanelApp data for this month (${panelapp}) doesn't exist, run the Talos Prep workflow"
+    if (!file(panelapp_path).exists()) {
+        println "PanelApp data for this month (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
-    ch_panelapp = Channel.fromPath(panelapp, checkIfExists: true).first()
+    ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
 
     ch_mane_first = ch_mane.first()
 
@@ -57,7 +57,7 @@ workflow TALOS {
     // UnifiedPanelAppParser
     ch_panel_app_inputs = StartupChecks.out
         .join(ch_mts)
-        .map { cohort, check_file, mts, pedigree, config, history, ext, seqr ->
+        .map { cohort, check_file, _mts, pedigree, config, _history, _ext, _seqr ->
             tuple(cohort, check_file, config, pedigree)
         }
 
@@ -70,7 +70,7 @@ workflow TALOS {
     ch_run_hail_inputs = ch_mts
         .join(UnifiedPanelAppParser.out)
         .join(StartupChecks.out)
-        .map { cohort, mts, pedigree, config, history, ext, seqr, panelapp_data, check_file ->
+        .map { cohort, mts, pedigree, config, _history, _ext, _seqr, panelapp_data, check_file ->
             tuple(cohort, mts, panelapp_data, check_file, pedigree, config)
         }
 
@@ -84,7 +84,7 @@ workflow TALOS {
     ch_validate_moi_inputs = RunHailFiltering.out
         .join(UnifiedPanelAppParser.out)
         .join(ch_mts)
-        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, mts, pedigree, config, history, ext, seqr ->
+        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, _mts, pedigree, config, history, _ext, _seqr ->
             tuple(cohort, labelled_vcf, labelled_vcf_index, panelapp_out, pedigree, config, history)
         }
 
@@ -96,7 +96,7 @@ workflow TALOS {
     // Flag any relevant HPO terms
     ch_hpo_inputs = ValidateMOI.out
         .join(ch_mts)
-        .map { cohort, talos_result_json, mts, pedigree, config, history, ext, seqr ->
+        .map { cohort, talos_result_json, _mts, _pedigree, config, _history, _ext, _seqr ->
             tuple(cohort, talos_result_json, config)
         }
 
@@ -112,7 +112,7 @@ workflow TALOS {
     ch_create_html_inputs = HPOFlagging.out
         .join(UnifiedPanelAppParser.out)
         .join(ch_mts)
-        .map { cohort, result_json, panelapp_data, mts, pedigree, config, history, ext, seqr ->
+        .map { cohort, result_json, panelapp_data, _mts, _pedigree, config, _history, ext, seqr ->
             tuple(cohort, result_json, panelapp_data, config, ext, seqr)
         }
 
@@ -124,4 +124,5 @@ workflow TALOS {
     emit:
     	json = HPOFlagging.out
     	html = CreateTalosHTML.out
+    	panelapp = UnifiedPanelAppParser.out
 }

@@ -9,13 +9,14 @@ process NormaliseAndRegionFilterVcf {
         path bed_file
         path ref_genome
 
-    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
-
     output:
         tuple val(cohort), path("${vcf.simpleName}_merged_filtered.vcf.bgz"), path("${vcf.simpleName}_merged_filtered.vcf.bgz.tbi")
 
     script:
     """
+    set -euo pipefail
+
+    # multiple ways to reach this point, some do & some don't strictly index
     tabix ${vcf}
     bcftools norm \
     	-m -any \

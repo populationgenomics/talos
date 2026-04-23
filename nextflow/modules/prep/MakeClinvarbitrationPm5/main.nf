@@ -9,10 +9,12 @@ process MakeClinvarbitrationPm5 {
         path "clinvarbitration_${timestamp}.pm5.ht"
 
     script:
-    """
-    python3 -m clinvarbitration.scripts.clinvar_by_codon \
-        -i "${annotated_snv}" \
-        -o "clinvarbitration_${timestamp}.pm5"
-    rm clinvarbitration_${timestamp}.pm5.tsv
-    """
+        """
+        set -euo pipefail
+
+        python3 -m clinvarbitration.scripts.clinvar_by_codon \
+            -i "${annotated_snv}" \
+            -o "clinvarbitration_${timestamp}.pm5"
+        rm clinvarbitration_${timestamp}.pm5.tsv
+        """
 }

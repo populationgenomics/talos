@@ -29,16 +29,16 @@ workflow {
     main:
     def timestamp = new java.util.Date().format('yyyy-MM')
 
-    ch_gff = Channel.fromPath(params.ensembl_gff, checkIfExists: true)
+    ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
 
     // generate the AlphaMissense HT - long running, stored in a separate folder
     if (!file(params.alphamissense_zip).exists()) {
-    	ch_alphamissense_tsv = Channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
+    	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
         ParseAlphaMissense(ch_alphamissense_tsv)
         EncodeAlphaMissense(ParseAlphaMissense.out)
         ch_alphamissense_zip = EncodeAlphaMissense.out
     } else {
-        ch_alphamissense_zip = Channel.fromPath(params.alphamissense_zip, checkIfExists: true)
+        ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
     }
 
     // does this month's clinvarbitration data exist?
@@ -46,16 +46,16 @@ workflow {
     String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.ht"
 
     if (file(current_clinvarbitration_pm5).exists()) {
-        ch_clinvar_all = Channel.fromPath(current_clinvarbitration_all)
-        ch_clinvar_pm5 = Channel.fromPath(current_clinvarbitration_pm5)
+        ch_clinvar_all = channel.fromPath(current_clinvarbitration_all)
+        ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5)
     } else {
         // new workflow elements to go and create it from raw data
         String subfile = "${params.large_files}/submissions_${timestamp}.txt.gz"
         String varfile = "${params.large_files}/variants_${timestamp}.txt.gz"
 
         if (file(subfile).exists() && file(varfile).exists()) {
-            ch_clinvar_sub = Channel.fromPath(subfile)
-            ch_clinvar_var = Channel.fromPath(varfile)
+            ch_clinvar_sub = channel.fromPath(subfile)
+            ch_clinvar_var = channel.fromPath(varfile)
         } else {
             println "Attempting to download ClinVar raw data, requires internet connection."
             println "If this step fails, try re-running gather_files.sh in the `large_files` directory."
@@ -72,7 +72,7 @@ workflow {
             timestamp,
         )
 
-        ch_ref_fa = Channel.fromPath(params.ref_genome, checkIfExists: true)
+        ch_ref_fa = channel.fromPath(params.ref_genome, checkIfExists: true)
 
         // annotate the SNV VCF using BCFtools
         AnnotateClinvarWithBcftools(
@@ -98,17 +98,17 @@ workflow {
         ch_bed = CreateRoiFromGff3.out.bed
         ch_merged_bed = CreateRoiFromGff3.out.merged_bed
     } else {
-        ch_merged_bed = Channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
-        ch_bed = Channel.fromPath(params.ensembl_bed, checkIfExists: true)
+        ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
+        ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
     }
 
     // pull and parse the MANE data into a Hail Table
     if (!file(params.mane_json).exists()) {
-        ch_mane_summary = Channel.fromPath(params.mane, checkIfExists: true)
+        ch_mane_summary = channel.fromPath(params.mane, checkIfExists: true)
         ParseManeIntoJson(ch_mane_summary)
         ch_mane_json = ParseManeIntoJson.out
     } else {
-        ch_mane_json = Channel.fromPath(params.mane_json, checkIfExists: true)
+        ch_mane_json = channel.fromPath(params.mane_json, checkIfExists: true)
     }
 
     String current_panelapp = "${params.processed_annotations}/panelapp_${timestamp}.json"
@@ -120,7 +120,7 @@ workflow {
         )
         panelapp_out = DownloadPanelApp.out
     } else {
-        panelapp_out = Channel.fromPath(current_panelapp, checkIfExists: true)
+        panelapp_out = channel.fromPath(current_panelapp, checkIfExists: true)
     }
 
     // use workflow outputs, not individual copies

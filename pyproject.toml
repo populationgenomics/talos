@@ -157,3 +157,8 @@ replace = "{new_version}"
 filename = "README.md"
 search = "{current_version}"
 replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "nextflow_schema.json"
+search = "talos:{current_version}"
+replace = "talos:{new_version}"
