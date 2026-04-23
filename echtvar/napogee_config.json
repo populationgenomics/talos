@@ -1,0 +1,5 @@
+[
+    {"field": "pathogenicity", "alias": "pathogenicity", "missing_string": "."},
+    {"field": "nAPOGEE_score", "alias": "nAPOGEE_score", "missing_value": -2147483648, "multiplier": 2000000},
+    {"field": "nAPOGEE_pp", "alias": "nAPOGEE_pp", "missing_value": -2147483648, "multiplier": 2000000},
+]
