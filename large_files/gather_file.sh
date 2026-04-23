@@ -137,6 +137,21 @@ start_download https://github.com/obophenotype/human-phenotype-ontology/releases
 
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/genes_to_phenotype.txt
 
+# mitochondrial annotations
+start_download https://www.mitomap.org/downloads/mitotip_scores.txt
+
+nAPOGEE="nAPOGEE_v1.0.0.txt.zip"
+nAPOGEE_decompressed="nAPOGEE_v1.0.0.txt"
+start_download "https://mitimpact.mcb2lab.org/cdn/nAPOGEE_v1.0.0.txt.zip"
+
+tAPOGEE="tAPOGEE_2024.0.1.txt.zip"
+tAPOGEE_decompressed="tAPOGEE_2024.0.1.txt"
+start_download "https://mitimpact.mcb2lab.org/cdn/tAPOGEE_2024.0.1.txt.zip"
+
+MitImpact="MitImpact_db_3.1.3.txt.zip"
+MitImpact_decompressed="MitImpact_db_3.1.3.txt"
+start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
+
 # AlphaMissense raw data
 AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
@@ -159,6 +174,17 @@ fi
 # same for the phenio files
 if [ ! -f "${DECOMPRESSED_PHENIO}" ] && [ -f "${COMPRESSED_PHENIO}" ]; then
     gunzip ${COMPRESSED_PHENIO}
+fi
+
+# same for the mito files
+if [ ! -f "${nAPOGEE_decompressed}" ] && [ -f "${nAPOGEE}" ]; then
+    unzip ${nAPOGEE}
+fi
+if [ ! -f "${tAPOGEE_decompressed}" ] && [ -f "${tAPOGEE}" ]; then
+    unzip ${tAPOGEE}
+fi
+if [ ! -f "${MitImpact_decompressed}" ] && [ -f "${MitImpact}" ]; then
+    unzip ${MitImpact}
 fi
 
 # Final status summary
