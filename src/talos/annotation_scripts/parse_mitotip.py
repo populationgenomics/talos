@@ -1,11 +1,8 @@
 """
-takes an alphamissense tsv as input, filters regions, and outputs a new... VCF file.
+takes the MitoTip tsv as input, outputs a new VCF file.
 
 input columns:
-#CHROM POS REF ALT genome uniprot_id transcript_id protein_variant am_pathogenicity am_class
-
-Using https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1
-- 613MB, containing all the pre-computed data we're interested in
+Position        rCRS    Alt     MitoTIP_Score   Quartile        Count   Percentage      Mitomap_Status
 """
 
 import gzip
@@ -13,11 +10,11 @@ from argparse import ArgumentParser
 from importlib import resources
 
 
-def main(input_am: str, output: str):
+def main(input_mitotip: str, output: str):
     with (
-        gzip.open(input_am, 'rt') as handle,
+        open(input_mitotip, 'r') as handle,
         gzip.open(output, 'wt') as out,
-        (resources.files('talos') / 'vcf_headers' / 'am_header.txt').open() as head_in,
+        (resources.files('talos') / 'vcf_headers' / 'mitotip_header.txt').open() as head_in,
     ):
         for line in head_in:
             out.write(line)
@@ -35,7 +32,7 @@ def main(input_am: str, output: str):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--input', help='input gzipped alphamissense tsv')
+    parser.add_argument('--input', help='Input mitotip text file')
     parser.add_argument('--output', help='output VCF')
     args = parser.parse_args()
-    main(input_am=args.input, output=args.output)
+    main(input_mitotip=args.input, output=args.output)
