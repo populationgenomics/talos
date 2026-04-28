@@ -929,7 +929,7 @@ class RecessiveAutosomalHomo(BaseMoi):
 
         for sample_id in principal.het_samples | principal.hom_samples:
             if sample_id not in principal.hom_samples:
-                # # removing this logging line, too self-evident
+                # not logging, self-evident
                 # self._log_sample_exclusion(principal, sample_id, 'sample_not_homozygous')
                 continue
 
@@ -1139,7 +1139,8 @@ class XRecessiveMale(BaseMoi):
 
         for sample_id in all_with_variant:
             if not self.pedigree.participants[sample_id].is_male:
-                self._log_sample_exclusion(principal, sample_id, 'sample_not_male')
+                # not logging, self-evident
+                # self._log_sample_exclusion(principal, sample_id, 'sample_not_male')
                 continue
 
             if not self.sample_passes_basic_checks(principal, sample_id, allow_support=False):
@@ -1200,10 +1201,11 @@ class XRecessiveFemaleHom(BaseMoi):
         for sample_id in all_with_variant:
             participant = self.pedigree.participants[sample_id]
             if not participant.is_female:
-                self._log_sample_exclusion(principal, sample_id, 'sample_not_female')
+                # not logging, self-evident
+                # self._log_sample_exclusion(principal, sample_id, 'sample_not_female')
                 continue
             if sample_id not in principal.hom_samples:
-                # # removing this logging line, too self-evident
+                # not logging, self-evident
                 # self._log_sample_exclusion(principal, sample_id, 'sample_not_homozygous')
                 continue
 
