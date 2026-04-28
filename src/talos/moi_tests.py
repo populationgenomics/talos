@@ -4,6 +4,7 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 """
 
 # mypy: ignore-errors
+# ruff: noqa: ERA001
 from abc import abstractmethod
 from dataclasses import dataclass
 from itertools import chain
