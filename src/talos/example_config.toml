@@ -100,6 +100,12 @@ phenotype_match = ['alphamissense']
 # the values here can either be the category ID (3, 6) or the longer term (e.g. "AlphaMissense")
 support_categories = ['alphamissense', 'clinvar0star']
 
+# Optional 'super logging' mode. When enabled, every variant filtered out by the MOI checks (frequency,
+# per-sample, family, comp-het partner) is recorded as one JSON line in super_logging_path. Off by default.
+# If super_logging_path ends in '.gz' the output is gzip-compressed. Intended for diagnostic runs only.
+#super_logging = true
+#super_logging_path = "exclusions.jsonl.gz"
+
 [RunHailFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]

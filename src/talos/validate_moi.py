@@ -19,6 +19,7 @@ from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.config import config_retrieve
+from talos.exclusion_log import get_exclusion_logger
 from talos.models import (
     FamilyMembers,
     MemberSex,
@@ -394,6 +395,9 @@ def main(
         """,
     )
 
+    # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
+    exclusion_logger = get_exclusion_logger()
+
     panelapp: PanelApp = read_json_from_path(
         panelapp_path,
         return_model=PanelApp,
@@ -506,6 +510,8 @@ def main(
     # validate the model against the schema, then write the result if successful
     with open(output, 'w') as out_file:
         out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
+
+    exclusion_logger.close()
 
 
 if __name__ == '__main__':

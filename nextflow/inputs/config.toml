@@ -45,6 +45,10 @@ min_proband_gq = 25
 min_alt_depth = 5
 
 [ValidateMOI]
+## opt-in enhanced logging to explain reasons for candidate variants being skipped
+#super_logging = true
+#super_logging_path = "exclusions.jsonl.gz"
+
 # callset AF filtering will only be applied to variants with this AC or higher
 min_callset_ac_to_filter = 10
 
