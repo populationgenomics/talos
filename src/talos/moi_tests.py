@@ -1063,10 +1063,12 @@ class XPseudoDominantFemale(BaseMoi):
         for sample_id in all_with_variant:
             participant = self.pedigree.participants[sample_id]
             if not participant.is_female:
-                self._log_sample_exclusion(principal, sample_id, 'sample_not_female')
+                # not logging, self-evident
+                # self._log_sample_exclusion(principal, sample_id, 'sample_not_female')
                 continue
             if sample_id not in principal.het_samples:
-                self._log_sample_exclusion(principal, sample_id, 'sample_not_heterozygous')
+                # not logging, self-evident
+                # self._log_sample_exclusion(principal, sample_id, 'sample_not_heterozygous')
                 continue
 
             if not self.sample_passes_basic_checks(principal, sample_id, allow_support=False):
@@ -1266,7 +1268,8 @@ class XRecessiveFemaleCH(BaseMoi):
         # if het/hom females are present, try and find support
         for sample_id in principal.het_samples | principal.hom_samples:
             if not self.pedigree.participants[sample_id].is_female:
-                self._log_sample_exclusion(principal, sample_id, 'sample_not_female')
+                # not logging, self-evident
+                # self._log_sample_exclusion(principal, sample_id, 'sample_not_female')
                 continue
 
             if not self.sample_passes_basic_checks(principal, sample_id, allow_support=True):
@@ -1345,7 +1348,6 @@ class Mitochondrial(BaseMoi):
         classifications = []
 
         # no need for a too-common test, we don't currently have pop. freq data
-
         for sample_id in principal.het_samples | principal.hom_samples:
             if self.pedigree.participants[sample_id].is_not_affected:
                 self._log_sample_exclusion(principal, sample_id, 'sample_not_affected')
