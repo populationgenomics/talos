@@ -559,7 +559,8 @@ class BaseMoi:
         Caller is responsible for any additional MOI-specific gates (sex, zygosity).
         """
         if self.pedigree.participants[sample_id].is_not_affected:
-            self._log_sample_exclusion(principal, sample_id, 'sample_not_affected')
+            # not logging, self-evident
+            # self._log_sample_exclusion(principal, sample_id, 'sample_not_affected')
             return False
         if not principal.sample_category_check(sample_id, allow_support=allow_support):
             self._log_sample_exclusion(
@@ -1350,7 +1351,8 @@ class Mitochondrial(BaseMoi):
         # no need for a too-common test, we don't currently have pop. freq data
         for sample_id in principal.het_samples | principal.hom_samples:
             if self.pedigree.participants[sample_id].is_not_affected:
-                self._log_sample_exclusion(principal, sample_id, 'sample_not_affected')
+                # not logging, self-evident
+                # self._log_sample_exclusion(principal, sample_id, 'sample_not_affected')
                 continue
 
             if not principal.sample_category_check(sample_id, allow_support=True):
