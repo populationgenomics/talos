@@ -78,6 +78,7 @@ workflow {
 		mts = ANNOTATION.out.mts
     	html = TALOS.out.html
 		json = TALOS.out.json
+		labelled = TALOS.out.labelled
 		panelapp = TALOS.out.panelapp
 }
 
@@ -93,5 +94,8 @@ output {
 	}
 	panelapp {
 		path { id, _panelapp -> "${id}_outputs" }
+	}
+	labelled {
+		path { id, _labelled, _labelled_idx -> "${id}_outputs" }
 	}
 }
