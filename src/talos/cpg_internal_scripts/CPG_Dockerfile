@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 FROM base AS talos
 
 ARG ECHTVAR_VERSION=v0.2.2
-ARG VERSION=10.0.2
+ARG VERSION=10.0.3
 
 COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
