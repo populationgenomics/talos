@@ -14,6 +14,13 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[10.0.3] - 2026-04-28
+
+### Added
+
+ * Added "Super Logging" functionality. Opt-in high rate logging to explain the rejection reason for each variant
+ * Typically Talos only logs results, not rejections. This logs misses, and explanations e.g. threshold failure, family test, insufficient read depth, comp-het with only support categories
+
 [10.0.2] - 2026-04-17
 
 ### Changed
