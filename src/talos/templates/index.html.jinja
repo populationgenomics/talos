@@ -19,13 +19,9 @@
     <script src="https://cdn.datatables.net/rowgroup/1.0.2/js/dataTables.rowGroup.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <style type="text/css">
+    <style>
         a {
             text-decoration: none;
-        }
-
-        .group-name {
-            font-weight: normal;
         }
 
         .child-row-content {
@@ -34,6 +30,18 @@
             margin-right: auto;
             text-align: left;
         }
+
+        /*Source https://stackoverflow.com/a/29682843*/
+        table.dataTable thead .sorting_asc {
+          background: url("http://cdn.datatables.net/1.10.0/images/sort_asc.png") no-repeat center left;
+        }
+        table.dataTable thead .sorting_desc {
+          background: url("http://cdn.datatables.net/1.10.0/images/sort_desc.png") no-repeat center left;
+        }
+        table.dataTable thead .sorting {
+          background: url("http://cdn.datatables.net/1.10.0/images/sort_both.png") no-repeat center left;
+        }
+
     </style>
   </head>
 
@@ -107,7 +115,10 @@
                             <span class="badge text-bg-warning">Low Read Depth</span> read depth (AD) for the sample is below the minimum threshold (default: 10)
                         </p>
                         <p class="mb-1">
-                            <span class="badge text-bg-warning">Ambiguous MOI</span> applied to AD Talos candidates that are P/LP in ClinVar but the gene is associated with both dominant and recessive disorders inheritance in PanelApp.
+                            <span class="badge text-bg-warning">Ambiguous Cat.1 MOI</span> applied to AD Talos candidates that are P/LP in ClinVar but the gene is associated with both dominant and recessive disorders inheritance in PanelApp.
+                        </p>
+                        <p class="mb-1">
+                            <span class="badge text-bg-warning">Affected female with heterozygous variant in XLR gene</span> for females, we evaluate biallelic genes under a pseudo-dominant model, to detect plausible variants in the event of skewed x-inactivation.
                         </p>
 
                     </div>
