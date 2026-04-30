@@ -1,8 +1,9 @@
 ##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
-##INFO=<ID=pathogenicity,Number=1,Type=String,Description="">
-##INFO=<ID=nAPOGEE_score,Number=1,Type=Float,Description="">
-##INFO=<ID=nAPOGEE_pp,Number=1,Type=Float,Description="">
+##INFO=<ID=napgee_pathogenicity,Number=1,Type=String,Description="">
+##INFO=<ID=clingen,Number=1,Type=String,Description="">
+##INFO=<ID=napogee_score,Number=1,Type=Float,Description="">
+##INFO=<ID=napogee_prob,Number=1,Type=Float,Description="">
 ##contig=<ID=chr1,length=248956422,assembly=GRCh38>
 ##contig=<ID=chr2,length=242193529,assembly=GRCh38>
 ##contig=<ID=chr3,length=198295559,assembly=GRCh38>

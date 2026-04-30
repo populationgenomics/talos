@@ -23,8 +23,8 @@ def main(input_mitimpact: str, output: str):
             (resources.files('talos') / 'vcf_headers' / 'mitimpact_header.txt').open() as head_in,
         ):
             # transcribe the required header
-            for line in head_in:
-                out.write(line)
+            for header_line in head_in:
+                out.write(header_line)
 
             # some real dancing around to get here:
             # a zipfile can contain multiple files, so we open the outer zip, then the inner file by name
@@ -48,7 +48,7 @@ def main(input_mitimpact: str, output: str):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--input', help='Input mitotip text file')
+    parser.add_argument('--input', help='Input zipped mitimpact text file')
     parser.add_argument('--output', help='output VCF')
     args = parser.parse_args()
     main(input_mitimpact=args.input, output=args.output)

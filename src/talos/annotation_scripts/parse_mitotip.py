@@ -13,7 +13,7 @@ from importlib import resources
 
 def main(input_mitotip: str, output: str):
     with (
-        open(input_mitotip, 'r') as handle,
+        open(input_mitotip) as handle,
         gzip.open(output, 'wt') as out,
         (resources.files('talos') / 'vcf_headers' / 'mitotip_header.txt').open() as head_in,
     ):

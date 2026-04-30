@@ -1,41 +1,55 @@
 """
-takes the nAPOGEE file (non-coding APOGEE scores for mitochondrial data)
+takes the MitoTip tsv as input, outputs a new VCF file.
 
-input columns:
-chr     start   ref     alt     molecule_type   gene_symbol     gene_position   gene_strand     functional_effect       HGVS_genomic    training_set_classification     ClinGen_classification_jan2025  nAPOGEE_score   nAPOGEE_oob_score       nAPOGEE_posterior_probability   pathogenicity_assessment
-
-Using https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1
-- 613MB, containing all the pre-computed data we're interested in
+input columns: LOADS. THERE'S LOADS OF COLUMNS
+relevant columns:
+chr start ref alt nAPOGEE_score APOGEE_oob_score nAPOGEE_posterior_probability pathogenicity_assessment
 """
 
 import gzip
+import io
+import zipfile
 from argparse import ArgumentParser
+from csv import DictReader
 from importlib import resources
 
 
-def main(input_am: str, output: str):
-    with (
-        gzip.open(input_am, 'rt') as handle,
-        gzip.open(output, 'wt') as out,
-        (resources.files('talos') / 'vcf_headers' / 'am_header.txt').open() as head_in,
-    ):
-        for line in head_in:
-            out.write(line)
+def main(input_napogee: str, output: str):
+    with zipfile.ZipFile(input_napogee, 'r') as napogee_opened:
+        filename = napogee_opened.namelist()[0]
+        with (
+            napogee_opened.open(filename, 'r') as handle,
+            gzip.open(output, 'wt') as out,
+            (resources.files('talos') / 'vcf_headers' / 'napogee_header.txt').open() as head_in,
+        ):
+            # transcribe the required header
+            for header_line in head_in:
+                out.write(header_line)
 
-        for line in handle:
-            if line.startswith('#'):
-                continue
+            # some real dancing around to get here:
+            # a zipfile can contain multiple files, so we open the outer zip, then the inner file by name
+            # that delivers bytes, so we need to pass that to a textWrapper to get at the contents
+            # that in turn can be eaten as a DictReader to get to the true contents
+            handle_data = io.TextIOWrapper(handle)
+            reader = DictReader(handle_data, delimiter='\t')
+            for line in reader:
+                chrom = line['Chr']
+                pos = line['Start']
+                ref = line['Ref']
+                alt = line['Alt']
+                prob = line['nAPOGEE_posterior_probability']
+                score = line['nAPOGEE_score']
+                napogee = line['pathogenicity_assessment']
+                clingen = line['ClinGen_classification_jan2025']
 
-            llist = line.rstrip().split()
-
-            out.write(
-                f'{llist[0]}\t{llist[1]}\t.\t{llist[2]}\t{llist[3]}\t60\tPASS\tam_class={llist[9]};am_score={llist[8]};am_transcript={llist[6].split(".")[0]}\n',
-            )
+                out.write(
+                    f'{chrom}\t{pos}\t.\t{ref}\t{alt}\t60\tPASS\tclingen={clingen};napogee_score={score};napogee={napogee};napogee_prob={prob}\n',
+                )
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--input', help='input gzipped alphamissense tsv')
+    parser.add_argument('--input', help='Input zipped napogee text file')
     parser.add_argument('--output', help='output VCF')
     args = parser.parse_args()
-    main(input_am=args.input, output=args.output)
+    main(input_napogee=args.input, output=args.output)
