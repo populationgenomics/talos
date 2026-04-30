@@ -7,6 +7,7 @@ Position        rCRS    Alt     MitoTIP_Score   Quartile        Count   Percenta
 
 import gzip
 from argparse import ArgumentParser
+from csv import DictReader
 from importlib import resources
 
 
@@ -19,15 +20,23 @@ def main(input_mitotip: str, output: str):
         for line in head_in:
             out.write(line)
 
-        for line in handle:
-            if line.startswith('#'):
+        dict_reader = DictReader(handle, delimiter='\t')
+
+        for tsv_line in dict_reader:
+            alt = tsv_line['Alt']
+
+            # not sure how to handle this ALT allele, skip these lines
+            if alt == ':':
                 continue
 
-            llist = line.rstrip().split()
+            # pull out the relevant fields to bake into a VCF
+            position = tsv_line['Position']
+            ref = tsv_line['rCRS']
+            score = tsv_line['MitoTIP_Score']
+            mm_status = tsv_line['Mitomap_Status']
 
-            out.write(
-                f'{llist[0]}\t{llist[1]}\t.\t{llist[2]}\t{llist[3]}\t60\tPASS\tam_class={llist[9]};am_score={llist[8]};am_transcript={llist[6].split(".")[0]}\n',
-            )
+            # write a VCF-format row
+            out.write(f'chrM\t{position}\t{ref}\t.\t{alt}\t60\tPASS\tmitotip={score};mitomap_status={mm_status}\n')
 
 
 if __name__ == '__main__':

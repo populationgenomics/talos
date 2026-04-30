@@ -1,8 +1,8 @@
 """
-takes an alphamissense tsv as input, filters regions, and outputs a new... VCF file.
+takes the nAPOGEE file (non-coding APOGEE scores for mitochondrial data)
 
 input columns:
-#CHROM POS REF ALT genome uniprot_id transcript_id protein_variant am_pathogenicity am_class
+chr     start   ref     alt     molecule_type   gene_symbol     gene_position   gene_strand     functional_effect       HGVS_genomic    training_set_classification     ClinGen_classification_jan2025  nAPOGEE_score   nAPOGEE_oob_score       nAPOGEE_posterior_probability   pathogenicity_assessment
 
 Using https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1
 - 613MB, containing all the pre-computed data we're interested in
