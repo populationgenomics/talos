@@ -19,9 +19,11 @@ include { CreateRoiFromGff3 } from './nextflow/modules/prep/CreateRoiFromGff3/ma
 include { DownloadClinVarFiles } from './nextflow/modules/prep/DownloadClinVarFiles/main'
 include { DownloadPanelApp } from './nextflow/modules/prep/DownloadPanelApp/main'
 include { EncodeAlphaMissense } from './nextflow/modules/prep/EncodeAlphaMissense/main'
+include { EncodeMitimpact } from './nextflow/modules/prep/EncodeMitimpact/main'
+include { EncodeMitotip } from './nextflow/modules/prep/EncodeMitotip/main'
+include { EncodeNapogee } from './nextflow/modules/prep/EncodeNapogee/main'
 include { MakeClinvarbitrationPm5 } from './nextflow/modules/prep/MakeClinvarbitrationPm5/main'
 include { ResummariseRawSubmissions } from './nextflow/modules/prep/ResummariseRawSubmissions/main'
-include { ParseAlphaMissense } from './nextflow/modules/prep/ParseAlphaMissense/main'
 include { ParseManeIntoJson } from './nextflow/modules/prep/ParseManeIntoJson/main'
 
 
@@ -34,11 +36,37 @@ workflow {
     // generate the AlphaMissense HT - long running, stored in a separate folder
     if (!file(params.alphamissense_zip).exists()) {
     	ch_alphamissense_tsv = channel.fromPath(params.alphamissense_tsv, checkIfExists: true)
-        ParseAlphaMissense(ch_alphamissense_tsv)
-        EncodeAlphaMissense(ParseAlphaMissense.out)
+        EncodeAlphaMissense(ch_alphamissense_tsv)
         ch_alphamissense_zip = EncodeAlphaMissense.out
     } else {
-        ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
+        ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip)
+    }
+
+    // generate/format the various Mitochondrial annotation sources
+    if (!file(params.mitimpact_zip).exists()) {
+    	ch_mitimpact_tsv = channel.fromPath(params.mitimpact_tsv, checkIfExists: true)
+        EncodeAlphaMissense(ch_mitimpact_tsv)
+        ch_mitimpact_zip = EncodeAlphaMissense.out
+    } else {
+        ch_mitimpact_zip = channel.fromPath(params.mitimpact_zip)
+    }
+
+    // generate/format the various Mitochondrial annotation sources
+    if (!file(params.mitotip_zip).exists()) {
+    	ch_mitotip_tsv = channel.fromPath(params.mitotip_tsv, checkIfExists: true)
+        EncodeAlphaMissense(ch_mitotip_tsv)
+        ch_mitotip_zip = EncodeAlphaMissense.out
+    } else {
+        ch_mitotip_zip = channel.fromPath(params.mitotip_zip)
+    }
+
+    // generate/format the various Mitochondrial annotation sources
+    if (!file(params.napogee_zip).exists()) {
+    	ch_napogee_tsv = channel.fromPath(params.napogee_tsv, checkIfExists: true)
+        EncodeAlphaMissense(ch_napogee_tsv)
+        ch_napogee_zip = EncodeAlphaMissense.out
+    } else {
+        ch_napogee_zip = channel.fromPath(params.napogee_zip)
     }
 
     // does this month's clinvarbitration data exist?
@@ -130,7 +158,10 @@ workflow {
         merged_bed = ch_merged_bed
         clinvar_all = ch_clinvar_all
         clinvar_pm5 = ch_clinvar_pm5
+        mitimpact = ch_mitimpact_zip
+        mitotip = ch_mitotip_zip
         mane_json = ch_mane_json
+        napogee = ch_napogee_zip
         panelapp_out = panelapp_out
 }
 
@@ -146,6 +177,12 @@ output {
     clinvar_pm5 {
     }
     mane_json {
+    }
+    mitimpact {
+    }
+    mitotip {
+    }
+    napogee {
     }
     panelapp_out {
     }
