@@ -2,15 +2,19 @@ process EncodeMitotip {
     container params.container
 
     input:
-        path vcf
+        path tsv
 
     output:
-        path "mitotip.zip"
+        tuple path("mitotip.vcf.gz"), path("mitotip.zip")
 
     script:
         """
         set -euo pipefail
 
-        echtvar encode mitotip.zip /talos/echtvar/mitotip_config.json ${vcf}
+        python -m talos.annotation_scripts.parse_mitotip \
+            --input ${tsv} \
+            --output mitotip.vcf.gz
+
+        echtvar encode mitotip.zip /talos/echtvar/mitotip_config.json mitotip.vcf.gz
         """
 }

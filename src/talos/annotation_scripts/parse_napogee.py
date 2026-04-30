@@ -33,10 +33,10 @@ def main(input_napogee: str, output: str):
             handle_data = io.TextIOWrapper(handle)
             reader = DictReader(handle_data, delimiter='\t')
             for line in reader:
-                chrom = line['Chr']
-                pos = line['Start']
-                ref = line['Ref']
-                alt = line['Alt']
+                chrom = line['chr']
+                pos = line['start']
+                ref = line['ref']
+                alt = line['alt']
                 prob = line['nAPOGEE_posterior_probability']
                 score = line['nAPOGEE_score']
                 napogee = line['pathogenicity_assessment']

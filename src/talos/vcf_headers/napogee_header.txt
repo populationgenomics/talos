@@ -1,6 +1,6 @@
 ##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
-##INFO=<ID=napgee_pathogenicity,Number=1,Type=String,Description="">
+##INFO=<ID=napogee,Number=1,Type=String,Description="">
 ##INFO=<ID=clingen,Number=1,Type=String,Description="">
 ##INFO=<ID=napogee_score,Number=1,Type=Float,Description="">
 ##INFO=<ID=napogee_prob,Number=1,Type=Float,Description="">

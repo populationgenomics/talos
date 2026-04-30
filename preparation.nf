@@ -45,8 +45,8 @@ workflow {
     // generate/format the various Mitochondrial annotation sources
     if (!file(params.mitimpact_zip).exists()) {
     	ch_mitimpact_tsv = channel.fromPath(params.mitimpact_tsv, checkIfExists: true)
-        EncodeAlphaMissense(ch_mitimpact_tsv)
-        ch_mitimpact_zip = EncodeAlphaMissense.out
+        EncodeMitimpact(ch_mitimpact_tsv)
+        ch_mitimpact_zip = EncodeMitimpact.out
     } else {
         ch_mitimpact_zip = channel.fromPath(params.mitimpact_zip)
     }
@@ -54,8 +54,8 @@ workflow {
     // generate/format the various Mitochondrial annotation sources
     if (!file(params.mitotip_zip).exists()) {
     	ch_mitotip_tsv = channel.fromPath(params.mitotip_tsv, checkIfExists: true)
-        EncodeAlphaMissense(ch_mitotip_tsv)
-        ch_mitotip_zip = EncodeAlphaMissense.out
+        EncodeMitotip(ch_mitotip_tsv)
+        ch_mitotip_zip = EncodeMitotip.out
     } else {
         ch_mitotip_zip = channel.fromPath(params.mitotip_zip)
     }
@@ -63,8 +63,8 @@ workflow {
     // generate/format the various Mitochondrial annotation sources
     if (!file(params.napogee_zip).exists()) {
     	ch_napogee_tsv = channel.fromPath(params.napogee_tsv, checkIfExists: true)
-        EncodeAlphaMissense(ch_napogee_tsv)
-        ch_napogee_zip = EncodeAlphaMissense.out
+        EncodeNapogee(ch_napogee_tsv)
+        ch_napogee_zip = EncodeNapogee.out
     } else {
         ch_napogee_zip = channel.fromPath(params.napogee_zip)
     }
