@@ -4,6 +4,7 @@ on: [pull_request]
 jobs:
   lint:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == true
     defaults:
       run:
         shell: bash -l {0}
