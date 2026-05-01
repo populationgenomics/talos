@@ -395,9 +395,10 @@ def main(
         """,
     )
 
+    # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
+    exclusion_logger = get_exclusion_logger()
+
     try:
-        # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
-        exclusion_logger = get_exclusion_logger()
 
         panelapp: PanelApp = read_json_from_path(
             panelapp_path,
