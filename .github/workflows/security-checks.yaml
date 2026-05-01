@@ -1,7 +1,6 @@
 name: Security Checks
 
-on:
-  pull_request:
+on: [pull_request]
 
 jobs:
   pip-audit:

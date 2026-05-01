@@ -1,8 +1,6 @@
 name: Autobuild dev image
-on:
-  pull_request:
 
-  workflow_dispatch:
+on: [pull_request, workflow_dispatch]
 
 permissions:
   id-token: write
