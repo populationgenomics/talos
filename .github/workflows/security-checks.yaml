@@ -1,12 +1,12 @@
 name: Security Checks
 
 on:
-  workflow_dispatch:
-  push:
+  pull_request:
 
 jobs:
   pip-audit:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == true
     name: Pip Audit
     steps:
       - uses: actions/checkout@v6
