@@ -53,8 +53,6 @@ workflow TALOS {
     }
     ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
 
-    ch_mane_first = ch_mane.first()
-
     // run pre-Talos startup checks
     StartupChecks(
         ch_mts,
@@ -137,7 +135,7 @@ workflow TALOS {
 
     HPOFlagging(
         ch_hpo_inputs,
-        ch_mane_first,
+        ch_mane,
         ch_gen2phen,
         ch_phenio,
         timestamp,

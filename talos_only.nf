@@ -15,7 +15,8 @@ workflow {
 		println "Required --input_tsv argument not provided"
 		exit 1
 	}
-	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
+	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
+	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
 
 	/*
 	NextFlow doesn't like the use of files("...", type: 'dir') here, as it scans for files at DAG setup time instead of
@@ -35,6 +36,8 @@ workflow {
 
 	TALOS(
 		ch_mane,
+		ch_gff,
+        ch_ref_genome,
 		ch_inputs,
 	)
 
