@@ -399,7 +399,6 @@ def main(
     exclusion_logger = get_exclusion_logger()
 
     try:
-
         panelapp: PanelApp = read_json_from_path(
             panelapp_path,
             return_model=PanelApp,

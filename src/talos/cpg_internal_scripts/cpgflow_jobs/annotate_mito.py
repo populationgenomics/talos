@@ -6,13 +6,13 @@ if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
 
 
-def make_bcftools_mito_job(
+def make_annotate_mito_job(
     cohort_id: str,
     mito_vcf: str,
     output: Path,
     job_attrs: dict,
 ) -> 'BashJob':
-    """"""
+    """Annotate a Mito VCF with bcftools csq, and various mito annotations using echtvar."""
 
     batch_instance = hail_batch.get_batch('Talos')
 
@@ -50,9 +50,25 @@ def make_bcftools_mito_job(
             -g {gff3_file} \\
             -B 10 \\
             --unify-chr-names 'chr,-,chr' \\
-            -Oz -o {csq_job.output} \\
+            -Oz -o bcftools_annotated.vcf.gz \\
             {local_mito_vcf}
         """,
+    )
+
+    # mito annotation sources formatted for echtvar
+    mitimpact = batch_instance.read_input(config.config_retrieve(['references', 'mitimpact']))
+    mitotip = batch_instance.read_input(config.config_retrieve(['references', 'mitotip']))
+    napogee = batch_instance.read_input(config.config_retrieve(['references', 'napogee']))
+
+    csq_job.command(
+        f"""
+        echtvar anno \
+            -e ${napogee} \
+            -e ${mitimpact} \
+            -e ${mitotip} \
+            bcftools_annotated.vcf.gz \
+            {csq_job.output}
+        """
     )
 
     batch_instance.write_output(csq_job.output, output)

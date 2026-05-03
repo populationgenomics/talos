@@ -103,7 +103,6 @@ workflow TALOS {
         ch_ref_genome,
         ch_gff,
         ch_clinvar_all,
-        ch_panelapp,
         ch_mitimpact,
         ch_mitotip,
         ch_napogee,

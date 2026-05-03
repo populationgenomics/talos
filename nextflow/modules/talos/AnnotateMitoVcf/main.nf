@@ -6,7 +6,6 @@ process AnnotateMitoVcf {
         path ref_fa
         path gff3
         path clinvar
-        path panelapp
         path mitimpact
         path mitotip
         path napogee
@@ -34,8 +33,8 @@ process AnnotateMitoVcf {
             -e ${napogee} \
             -e ${mitimpact} \
             -e ${mitotip} \
-            ${cohort}_mito_csq_annotated.vcf.bgz" \
-            ${cohort}_mito_all_annotated.vcf.bgz"
+            "${cohort}_mito_csq_annotated.vcf.bgz" \
+            "${cohort}_mito_all_annotated.vcf.bgz"
 
         export TALOS_CONFIG=${talos_config}
 
@@ -43,7 +42,7 @@ process AnnotateMitoVcf {
             --input "${cohort}_mito_all_annotated.vcf.bgz" \\
             --output "${cohort}_mito_labelled.vcf.bgz" \\
             --pedigree ${pedigree} \\
-            --panelapp ${panelapp} \\
+            --panelapp ${panelapp_data} \\
             --clinvar ${clinvar}
         """
 }
