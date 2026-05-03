@@ -37,9 +37,9 @@ workflow {
 		exit 1
 	}
 
-	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
-	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true)
-	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true)
+	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true).first()
+	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
+	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
 
 	ch_inputs = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
@@ -56,6 +56,7 @@ workflow {
 			file(row.history, checkIfExists: true),
 			file(row.ext_ids, checkIfExists: true),
 			file(row.seqr_map, checkIfExists: true),
+			file(row.mito, checkIfExists: true),
 		) }
 
 	ANNOTATION(
@@ -67,10 +68,12 @@ workflow {
 
 	ch_talos_combined = ANNOTATION.out.mts
 		.join(ch_talos_inputs)
-		.map { cohort, mts, _inpath, _intype, pedigree, config, history, ext, seqr -> tuple(cohort, mts, pedigree, config, history, ext, seqr) }
+		.map { cohort, mts, _inpath, _intype, pedigree, config, history, ext, seqr, mito -> tuple(cohort, mts, pedigree, config, history, ext, seqr, mito) }
 
 	TALOS(
 		ch_mane,
+		ch_gff,
+		ch_ref_genome,
 		ch_talos_combined,
 	)
 

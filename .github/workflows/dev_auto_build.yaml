@@ -1,10 +1,6 @@
 name: Autobuild dev image
-on:
-  push:
-    branches-ignore:
-      - main
 
-  workflow_dispatch:
+on: [pull_request, workflow_dispatch]
 
 permissions:
   id-token: write
@@ -60,7 +56,7 @@ jobs:
     environment: production
     needs:
       - get_next_version
-    if: ${{ needs.get_next_version.outputs.matrix != '{"include":[]}' && needs.get_next_version.outputs.matrix != '' && github.event_name == 'push' }}
+    if: ${{ needs.get_next_version.outputs.matrix != '{"include":[]}' && needs.get_next_version.outputs.matrix != '' && github.event_name == 'push'}} && github.event.pull_request.draft == false
     strategy:
       matrix: ${{ fromJson(needs.get_next_version.outputs.matrix) }}
     steps:

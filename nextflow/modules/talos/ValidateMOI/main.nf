@@ -2,7 +2,7 @@ process ValidateMOI {
     container params.container
 
     input:
-        tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(panelapp), path(pedigree), path(talos_config), path(previous_results)
+        tuple val(cohort), path(labelled_vcf), path(labelled_vcf_index), path(mito), path(panelapp), path(pedigree), path(talos_config), path(previous_results)
         val timestamp
 
     output:
@@ -10,6 +10,7 @@ process ValidateMOI {
 
 	script:
 		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
+		def mito_arg = mito.name != 'NO_MITO' ? "--labelled_mito $mito" : ''
 
         """
         set -euo pipefail
@@ -20,6 +21,6 @@ process ValidateMOI {
             --labelled_vcf ${labelled_vcf} \
             --panelapp ${panelapp} \
             --pedigree ${pedigree} \
-            --output ${cohort}_results_${timestamp}.json $history_arg
+            --output ${cohort}_results_${timestamp}.json $history_arg $mito_arg
         """
 }

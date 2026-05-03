@@ -106,7 +106,6 @@ Downloading Echtvar from https://zenodo.org/records/15222100"
 # Monarch phenotype DB - another large download. 17GB decompressed
 COMPRESSED_PHENIO="phenio.db.gz"
 DECOMPRESSED_PHENIO="phenio.db"
-# if it doesn't exist, download it
 if [ ! -f "${DECOMPRESSED_PHENIO}" ]; then
   echo "[INFO] phenio.db not found, downloading..."
   start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
@@ -136,6 +135,13 @@ start_download https://ftp.ensembl.org/pub/release-116/vertebrates/gff3/homo_sap
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/hp.obo
 
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/genes_to_phenotype.txt
+
+# mitochondrial annotations
+start_download https://www.mitomap.org/downloads/mitotip_scores.txt
+
+start_download "https://mitimpact.mcb2lab.org/cdn/nAPOGEE_v1.0.0.txt.zip"
+
+start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
 
 # AlphaMissense raw data
 AM="AlphaMissense_hg38.tsv.gz"

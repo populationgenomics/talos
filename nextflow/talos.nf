@@ -2,6 +2,7 @@
 
 nextflow.enable.dsl=2
 
+include { AnnotateMitoVcf } from './modules/talos/AnnotateMitoVcf/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
@@ -12,6 +13,8 @@ include { StartupChecks } from './modules/talos/StartupChecks/main'
 workflow TALOS {
 	take:
 		ch_mane
+		ch_gff
+		ch_ref_genome
 		ch_mts
 
     main:
@@ -20,6 +23,10 @@ workflow TALOS {
     ch_hpo_file = channel.fromPath(params.hpo, checkIfExists: true).first()
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true).first()
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
+
+    ch_mitimpact = channel.fromPath(params.mitimpact_zip, checkIfExists: true).first()
+    ch_mitotip = channel.fromPath(params.mitotip_zip, checkIfExists: true).first()
+    ch_napogee = channel.fromPath(params.napogee_zip, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
@@ -46,8 +53,6 @@ workflow TALOS {
     }
     ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
 
-    ch_mane_first = ch_mane.first()
-
     // run pre-Talos startup checks
     StartupChecks(
         ch_mts,
@@ -57,7 +62,7 @@ workflow TALOS {
     // UnifiedPanelAppParser
     ch_panel_app_inputs = StartupChecks.out
         .join(ch_mts)
-        .map { cohort, check_file, _mts, pedigree, config, _history, _ext, _seqr ->
+        .map { cohort, check_file, _mts, pedigree, config, _history, _ext, _seqr, _mito ->
             tuple(cohort, check_file, config, pedigree)
         }
 
@@ -70,7 +75,7 @@ workflow TALOS {
     ch_run_hail_inputs = ch_mts
         .join(UnifiedPanelAppParser.out)
         .join(StartupChecks.out)
-        .map { cohort, mts, pedigree, config, _history, _ext, _seqr, panelapp_data, check_file ->
+        .map { cohort, mts, pedigree, config, _history, _ext, _seqr, _mito, panelapp_data, check_file ->
             tuple(cohort, mts, panelapp_data, check_file, pedigree, config)
         }
 
@@ -80,12 +85,39 @@ workflow TALOS {
         ch_clinvar_pm5,
     )
 
+    // surprise! It's Mito data!
+    ch_mito_joined = ch_mts
+        .join(UnifiedPanelAppParser.out)
+        .join(StartupChecks.out)
+        .map { cohort, _mts, pedigree, config, _history, _ext, _seqr, mito, panelapp_data, check_file ->
+          tuple(cohort, mito, panelapp_data, pedigree, config)
+    }
+
+    ch_mito_branched = ch_mito_joined.branch {
+        real:     it[1].name != 'NO_MITO'
+        sentinel: true
+    }
+
+    AnnotateMitoVcf(
+        ch_mito_branched.real,
+        ch_ref_genome,
+        ch_gff,
+        ch_clinvar_all,
+        ch_mitimpact,
+        ch_mitotip,
+        ch_napogee,
+    )
+
+    ch_mito_resolved = AnnotateMitoVcf.out
+        .mix(ch_mito_branched.sentinel.map { cohort, mito, _pa, _ped, _cfg -> tuple(cohort, mito) })
+
     // Validate MOI of all variants
     ch_validate_moi_inputs = RunHailFiltering.out
         .join(UnifiedPanelAppParser.out)
         .join(ch_mts)
-        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, _mts, pedigree, config, history, _ext, _seqr ->
-            tuple(cohort, labelled_vcf, labelled_vcf_index, panelapp_out, pedigree, config, history)
+        .join(ch_mito_resolved)
+        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, _mts, pedigree, config, history, _ext, _seqr, _mito, anno_mito ->
+            tuple(cohort, labelled_vcf, labelled_vcf_index, anno_mito, panelapp_out, pedigree, config, history)
         }
 
     ValidateMOI(
@@ -96,13 +128,13 @@ workflow TALOS {
     // Flag any relevant HPO terms
     ch_hpo_inputs = ValidateMOI.out
         .join(ch_mts)
-        .map { cohort, talos_result_json, _mts, _pedigree, config, _history, _ext, _seqr ->
+        .map { cohort, talos_result_json, _mts, _pedigree, config, _history, _ext, _seqr, _mito ->
             tuple(cohort, talos_result_json, config)
         }
 
     HPOFlagging(
         ch_hpo_inputs,
-        ch_mane_first,
+        ch_mane,
         ch_gen2phen,
         ch_phenio,
         timestamp,
@@ -112,7 +144,7 @@ workflow TALOS {
     ch_create_html_inputs = HPOFlagging.out
         .join(UnifiedPanelAppParser.out)
         .join(ch_mts)
-        .map { cohort, result_json, panelapp_data, _mts, _pedigree, config, _history, ext, seqr ->
+        .map { cohort, result_json, panelapp_data, _mts, _pedigree, config, _history, ext, seqr, _mito ->
             tuple(cohort, result_json, panelapp_data, config, ext, seqr)
         }
 

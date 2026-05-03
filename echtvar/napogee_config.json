@@ -1,0 +1,6 @@
+[
+    {"field": "clingen", "alias": "clingen", "missing_string": "."},
+    {"field": "napogee", "alias": "napogee", "missing_string": "."},
+    {"field": "napogee_score", "alias": "napogee_score", "missing_value": -2147483648, "multiplier": 2000000},
+    {"field": "napogee_prob", "alias": "napogee_prob", "missing_value": -2147483648, "multiplier": 2000000},
+]

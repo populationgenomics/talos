@@ -398,120 +398,121 @@ def main(
     # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
     exclusion_logger = get_exclusion_logger()
 
-    panelapp: PanelApp = read_json_from_path(
-        panelapp_path,
-        return_model=PanelApp,
-    )
-
-    logger.info(f'Attempting to read history from {previous}')
-    previous_results: ResultData | None = read_json_from_path(
-        previous,
-        return_model=ResultData,
-        default=None,
-    )
-
-    result_list: list[ReportVariant] = []
-
-    # collect all sample IDs from each VCF type
-    small_vcf_samples: set[str] = set()
-    sv_vcf_samples: set[str] = set()
-    _mito_vcf_samples: set[str] = set()
-
-    # open the small variant VCF using a cyvcf2 reader
-    vcf_opened = VCFReader(labelled_vcf)
-    small_vcf_samples.update(set(vcf_opened.samples))
-
-    # optional SV behaviour
-    sv_opened = None
-    if labelled_sv:
-        sv_opened = VCFReader(labelled_sv)
-        sv_vcf_samples = set(sv_opened.samples)
-
-    all_samples = small_vcf_samples.union(sv_vcf_samples)
-
-    mito_opened = None
-    if labelled_mito:
-        mito_opened = VCFReader(labelled_mito)
-        mito_vcf_samples = set(mito_opened.samples)
-        all_samples |= mito_vcf_samples
-
-    # parse the pedigree from the file
-    ped = PedigreeParser(pedigree)
-
-    # slim down the pedigree to only samples we have in the pedigrees
-    ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
-
-    # reduce cohort to singletons, if the config says so
-    if config_retrieve('singletons', False):
-        logger.info('Reducing pedigree to affected singletons only')
-        ped.set_participants(ped.as_singletons())
-        ped.set_participants(ped.get_affected_members())
-
-    # set up the inheritance checks
-    moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
-
-    # obtain a set of all contigs with variants
-    for contig in canonical_contigs_from_vcf(vcf_opened):
-        # assemble {gene: [var1, var2, ..]}
-        contig_dict = gather_gene_dict_from_contig(
-            contig=contig,
-            variant_source=vcf_opened,
-            sv_source=sv_opened,
+    try:
+        panelapp: PanelApp = read_json_from_path(
+            panelapp_path,
+            return_model=PanelApp,
         )
 
-        result_list.extend(
-            apply_moi_to_variants(
-                variant_dict=contig_dict,
-                moi_lookup=moi_lookup,
-                panelapp_data=panelapp.genes,
-                pedigree=ped,
-            ),
+        logger.info(f'Attempting to read history from {previous}')
+        previous_results: ResultData | None = read_json_from_path(
+            previous,
+            return_model=ResultData,
+            default=None,
         )
 
-    if mito_opened:
-        contig_dict = gather_gene_dict_from_contig('chrM', variant_source=mito_opened)
-        result_list.extend(
-            apply_moi_to_variants(
-                variant_dict=contig_dict,
-                moi_lookup=moi_lookup,
-                panelapp_data=panelapp.genes,
-                pedigree=ped,
-            ),
+        result_list: list[ReportVariant] = []
+
+        # collect all sample IDs from each VCF type
+        small_vcf_samples: set[str] = set()
+        sv_vcf_samples: set[str] = set()
+        _mito_vcf_samples: set[str] = set()
+
+        # open the small variant VCF using a cyvcf2 reader
+        vcf_opened = VCFReader(labelled_vcf)
+        small_vcf_samples.update(set(vcf_opened.samples))
+
+        # optional SV behaviour
+        sv_opened = None
+        if labelled_sv:
+            sv_opened = VCFReader(labelled_sv)
+            sv_vcf_samples = set(sv_opened.samples)
+
+        all_samples = small_vcf_samples.union(sv_vcf_samples)
+
+        mito_opened = None
+        if labelled_mito:
+            mito_opened = VCFReader(labelled_mito)
+            mito_vcf_samples = set(mito_opened.samples)
+            all_samples |= mito_vcf_samples
+
+        # parse the pedigree from the file
+        ped = PedigreeParser(pedigree)
+
+        # slim down the pedigree to only samples we have in the pedigrees
+        ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
+
+        # reduce cohort to singletons, if the config says so
+        if config_retrieve('singletons', False):
+            logger.info('Reducing pedigree to affected singletons only')
+            ped.set_participants(ped.as_singletons())
+            ped.set_participants(ped.get_affected_members())
+
+        # set up the inheritance checks
+        moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
+
+        # obtain a set of all contigs with variants
+        for contig in canonical_contigs_from_vcf(vcf_opened):
+            # assemble {gene: [var1, var2, ..]}
+            contig_dict = gather_gene_dict_from_contig(
+                contig=contig,
+                variant_source=vcf_opened,
+                sv_source=sv_opened,
+            )
+
+            result_list.extend(
+                apply_moi_to_variants(
+                    variant_dict=contig_dict,
+                    moi_lookup=moi_lookup,
+                    panelapp_data=panelapp.genes,
+                    pedigree=ped,
+                ),
+            )
+
+        if mito_opened:
+            contig_dict = gather_gene_dict_from_contig('chrM', variant_source=mito_opened)
+            result_list.extend(
+                apply_moi_to_variants(
+                    variant_dict=contig_dict,
+                    moi_lookup=moi_lookup,
+                    panelapp_data=panelapp.genes,
+                    pedigree=ped,
+                ),
+            )
+
+        # create the full final output file
+        results_meta = ResultMeta(
+            family_breakdown=count_families(ped),
+            panels=panelapp.metadata,
+            version=__version__,
         )
 
-    # create the full final output file
-    results_meta = ResultMeta(
-        family_breakdown=count_families(ped),
-        panels=panelapp.metadata,
-        version=__version__,
-    )
+        # create a shell to store results in, adds participant metadata
+        results_model = prepare_results_shell(
+            results_meta=results_meta,
+            small_samples=small_vcf_samples,
+            sv_samples=sv_vcf_samples,
+            pedigree=ped,
+            panelapp=panelapp,
+        )
 
-    # create a shell to store results in, adds participant metadata
-    results_model = prepare_results_shell(
-        results_meta=results_meta,
-        small_samples=small_vcf_samples,
-        sv_samples=sv_vcf_samples,
-        pedigree=ped,
-        panelapp=panelapp,
-    )
+        # remove duplicate and invalid variants
+        filter_results_to_panels(results_model, result_list, panelapp)
 
-    # remove duplicate and invalid variants
-    filter_results_to_panels(results_model, result_list, panelapp)
+        # need some extra filtering here to tidy up exomiser categorisation
+        polish_exomiser_results(results_model)
 
-    # need some extra filtering here to tidy up exomiser categorisation
-    polish_exomiser_results(results_model)
+        # annotate previously seen results by building on previous analysis results
+        annotate_variant_dates_using_prior_results(results_model, previous_results)
 
-    # annotate previously seen results by building on previous analysis results
-    annotate_variant_dates_using_prior_results(results_model, previous_results)
+        generate_summary_stats(results_model)
 
-    generate_summary_stats(results_model)
-
-    # write the output to long term storage using Pydantic
-    # validate the model against the schema, then write the result if successful
-    with open(output, 'w') as out_file:
-        out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
-
-    exclusion_logger.close()
+        # write the output to long term storage using Pydantic
+        # validate the model against the schema, then write the result if successful
+        with open(output, 'w') as out_file:
+            out_file.write(ResultData.model_validate(results_model).model_dump_json(indent=4))
+    finally:
+        exclusion_logger.close()
 
 
 if __name__ == '__main__':
