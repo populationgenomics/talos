@@ -48,7 +48,7 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /us
 
 ARG ECHTVAR_VERSION=v0.2.2
 ARG ECH_SHA=b66eb33ef787a712c911f8206243b310b03615720b00336430f399b9d197d235
-ARG VERSION=10.0.1
+ARG VERSION=10.0.2
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
     chmod +x /bin/echtvar
