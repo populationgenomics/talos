@@ -20,7 +20,7 @@ classifiers=[
 ]
 
 dependencies=[
-    'hail==0.2.137',
+    'hail>=0.2.137',
     'clinvarbitration>=2.2.7',
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.4.1',
