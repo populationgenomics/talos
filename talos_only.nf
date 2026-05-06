@@ -15,6 +15,7 @@ workflow {
 		println "Required --input_tsv argument not provided"
 		exit 1
 	}
+	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true).first()
 	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
 	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
 
@@ -32,6 +33,7 @@ workflow {
 			file(row.history, checkIfExists: true),
 			file(row.ext_ids, checkIfExists: true),
 			file(row.seqr_map, checkIfExists: true),
+			file(row.mito, checkIfExists: true),
 		) }
 
 	TALOS(
