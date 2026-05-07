@@ -6,6 +6,11 @@ permissions:
   id-token: write
   contents: read
 
+# only build one set of images in the event of multiple pushes in quick succession
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
 env:
   PROJECT: 'cpg-common'
   DOCKER_BUILDKIT: 1
