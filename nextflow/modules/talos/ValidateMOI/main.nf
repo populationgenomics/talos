@@ -11,11 +11,14 @@ process ValidateMOI {
 	script:
 		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
 		def mito_arg = mito.name != 'NO_MITO' ? "--labelled_mito $mito" : ''
+		def mito_idx = mito.name != 'NO_MITO' ? "tabix $mito" : ''
 
         """
         set -euo pipefail
 
         export TALOS_CONFIG=${talos_config}
+
+        ${mito_idx}
 
         python -m talos.validate_moi \
             --labelled_vcf ${labelled_vcf} \
