@@ -112,10 +112,11 @@ def merge_output(
     Take each line, resolve overlapping regions, and write out to a new file.
     """
     contig = None
-    start: int
-    end: int
+    start: int = 1
+    end: int = 1
     with open(output, 'w') as handle:
         for this_chrom, this_start, this_end in unmerged_lines:
+            print(this_chrom, this_start, this_end)
             if contig is None:
                 contig = this_chrom
                 start = this_start
