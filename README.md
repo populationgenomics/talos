@@ -103,8 +103,8 @@ The inputs for the Talos workflow are:
 - **cohort**: a collective name to identify the input/results, used in output directory and file naming
 - **path**: path to the Cohort's input data (VCF)
 - **type**: type of the input data, see below
-- **pedigree**: path to a Pedigree for the cohort, See details [here](docs/Pedigree.md)
-- **config**: default available, path to the Talos config - see [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters
+- **pedigree**: path to a Pedigree for the cohort, See details [here](docs/docs/Pedigree.md)
+- **config**: default available, path to the Talos config - see [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/docs/Configuration.md) for a full breakdown of all config parameters
 - **history**: optional, path to previous results
 - **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
 - **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
@@ -159,9 +159,9 @@ This module will either run and complete, or run and fail, printing a collection
 
 ## **⚙️ Configuration**
 
-Talos as an application is configured through a single `TOML` file. This contains all thresholds and parameters for the steps of the Talos workflow. See [`example_config.toml`](src/talos/example_config.toml) as a baseline example, and [Configuration.md](docs/Configuration.md) for extended details on the role of each parameter, and its default value.
+Talos as an application is configured through a single `TOML` file. This contains all thresholds and parameters for the steps of the Talos workflow. See [`example_config.toml`](src/talos/example_config.toml) as a baseline example, and [Configuration.md](docs/docs/Configuration.md) for extended details on the role of each parameter, and its default value.
 
-Talos as a Nextflow workflow is configured through configuration files, one each for the [annotation](nextflow/annotation.config) and [talos](nextflow/talos.config) stages of the workflow. These configurations define the cohort name, paths to input and annotation resources, and runtime parameters. [NextflowConfiguration.md](docs/NextflowConfiguration.md) contains a full description of the default values and role in the analysis.
+Talos as a Nextflow workflow is configured through configuration files, one each for the [annotation](nextflow/annotation.config) and [talos](nextflow/talos.config) stages of the workflow. These configurations define the cohort name, paths to input and annotation resources, and runtime parameters. [NextflowConfiguration.md](docs/docs/NextflowConfiguration.md) contains a full description of the default values and role in the analysis.
 
 ## **📄 Outputs**
 
@@ -192,7 +192,7 @@ Only variants passing configured thresholds and logic modules are returned.
 ## **🔁 Reanalysis Mode**
 
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the config setting `params.previous_results`. See [History](docs/Reanalysis.md) for more information.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the config setting `params.previous_results`. See [History](docs/docs/Reanalysis.md) for more information.
 
 ### **How it works:**
 
@@ -214,7 +214,7 @@ By integrating the results of previous analyses with each new run, each variant 
 
 ## **🧬 Phenotype Matching**
 
-Talos supports phenotype-driven filtering using **HPO terms**. See [Pedigree.md](docs/Pedigree.md) for details on how to provide phenotype data in the pedigree file.
+Talos supports phenotype-driven filtering using **HPO terms**. See [Pedigree.md](docs/docs/Pedigree.md) for details on how to provide phenotype data in the pedigree file.
 
 ### **Matching Strategies:**
 
@@ -258,7 +258,7 @@ Talos prioritises variants using rule-based **logic modules**, each aligned with
 | ClinVar 0-star      | P/LP with 0 gold stars in ClinVar [Supporting category]                                                                              |
 | AlphaMissense       | AlphaMissense-predicted pathogenic missense variant  [Supporting category]                                                           |
 
-Each module can be configured through the `.toml` config file (see [Configuration.md](docs/Configuration.md))
+Each module can be configured through the `.toml` config file (see [Configuration.md](docs/docs/Configuration.md))
 
 ---
 
