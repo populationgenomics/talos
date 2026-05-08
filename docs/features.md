@@ -39,7 +39,7 @@ Talos is designed to support **automated, iterative reanalysis** of undiagnosed 
 
 1. Run full annotation + prioritisation once.
 2. In future cycles, keep ClinVar / PanelApp up to date using the prep workflow.
-3. Re-run prioritisation to surface **newly supported variants**.
+3. Re-run prioritisation to surface **newly supported variants**, feeding in the previous run's results each time to identify the first date each sample~variant combination was observed.
 
 By integrating prior results with each new run, every variant in the output includes:
 
