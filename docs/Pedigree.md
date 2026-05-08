@@ -26,7 +26,7 @@ Broadly this file is based on the [PLINK `.fam` file format](https://www.cog-gen
 
 ## Pedigree Module
 
-Talos contains a standalone [pedigree parser](../src/talos/pedigree_parser.py) to satisfy this need. Just what the world needed... Here the decision was driven by needing specific validation (e.g. allowing each row to contain only 6 columns, but validating the HPO terms if provided, providing data in a format Hail can parse) and specific functionality (being able to re-write the pedigree as a singletons).
+Talos contains a standalone [pedigree parser](https://github.com/populationgenomics/talos/blob/main/src/talos/pedigree_parser.py) to satisfy this need. Just what the world needed... Here the decision was driven by needing specific validation (e.g. allowing each row to contain only 6 columns, but validating the HPO terms if provided, providing data in a format Hail can parse) and specific functionality (being able to re-write the pedigree as a singletons).
 
 The parser can be used to read a pedigree file, and will return a `Pedigree` object containing parsed data from the file. The parser will also validate the file format, and raise an error if any issues are found.
 

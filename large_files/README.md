@@ -1,6 +1,6 @@
 # Large Files
 
-Talos requires a number of large files, for both the minimal test workflow, and real-world analyses. These files are too large to store in GitHub, so they are not included in this repository. Instead, a file [gather_files.sh](gather_files.sh) is provided, which will download the required files from various sources prior to running analyses.
+Talos requires a number of large files, for both the minimal test workflow, and real-world analyses. These files are too large to store in GitHub, so they are not included in this repository. Instead, a file [gather_files.sh](gather_file.sh) is provided, which will download the required files from various sources prior to running analyses.
 
 The `gather_files.sh` script will download the files to the local directory, wherever it is run. That can either be this `large_files` directory, or any other directory you choose. When running the [Annotation](../nextflow/annotation.nf) and [Talos](../nextflow/talos.nf) workflows, you can override the default `large_files` directory by setting the `--large_files` parameter when invoking the nextflow run command, indicating the directory where you have downloaded the files.
 

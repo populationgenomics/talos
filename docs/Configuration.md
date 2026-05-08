@@ -1,7 +1,7 @@
 # Configuration File
 
 Talos is controlled by a **single TOML** configuration file. A fully commented template lives at
-[`src/talos/example_config.toml`](../src/talos/example_config.toml).
+[`src/talos/example_config.toml`](https://github.com/populationgenomics/talos/blob/main/src/talos/example_config.toml).
 This document explains the configuration options, the default values, and sensible alternatives.
 
 ## Stages: `DownloadPanelApp`, `UnifiedPanelAppParser`

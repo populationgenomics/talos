@@ -14,6 +14,8 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!--changelog-start-->
+
 [10.0.3] - 2026-04-28
 
 ### Added
@@ -415,7 +417,7 @@ This is a far larger dataset than the previous gnomAD 2/3, and is expected to pr
 * Renamed `vcf_to_mt` to `VcfToMt`
 * The 'extended PED' file format is no longer used - instead we use a normal 6-col PED file, and a separate file with
   phenotypic data and external IDs for each participant in a GA4GH-compliant Cohort/Phenopacket format
-  * An adapter remains in [talos/CPG](src/talos/ConvertPedToPhenopackets.py) to convert the old format to the new format
+  * An adapter remains in [talos/CPG](https://github.com/populationgenomics/talos/blob/main/src/talos/ConvertPedToPhenopackets.py) to convert the old format to the new format
 
 ### Deprecated
 

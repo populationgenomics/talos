@@ -100,3 +100,6 @@ dmypy.json
 nextflow/cohort_outputs/
 nextflow/processed_annotations/
 work/
+
+# mkdocs
+site/
