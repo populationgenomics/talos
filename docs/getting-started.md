@@ -25,9 +25,6 @@ Build the Talos Docker image locally:
 docker build -t talos:10.0.4 .
 ```
 
-!!! tip "Using a published image"
-    The Centre for Population Genomics publishes Talos images to Artifact Registry. If your environment can pull from there, you can skip the local build and reference the published tag directly in `nextflow.config`.
-
 ---
 
 ## 2. Download annotation resources
@@ -59,33 +56,42 @@ nextflow \
 The `processed_annotations` parameter should point to a static directory where Talos-generated files will be stored. Files written here are reusable across all future Talos runs; they are not tied to any individual cohort or callset.
 
 !!! info "Recommended cadence"
-    Re-run `preparation.nf` on a regular schedule (e.g. monthly) so that ClinVar and PanelApp evidence stays current between Talos analyses.
+    Re-run `preparation.nf` on a regular schedule (e.g. monthly) so that ClinVar and PanelApp evidence stays current between Talos analyses. Talos is set up to complain and exit if ClinVar and PanelApp data wasn't prepared this month, as determined by the date built into the file names. 
 
 ---
 
 ## 4. Prepare your input TSV
 
-From version `10.0.0`, all per-cohort inputs are provided in a single TSV file via `--input_tsv`. Each row in the TSV represents one cohort, and the workflow runs them in parallel into separate output directories.
+From version `10.0.0` onwards, all per-cohort inputs are provided in a single TSV file via `--input_tsv`. Each row in the TSV represents one cohort, and the workflow runs them in parallel into separate output directories.
 
-| Column | Required | Description |
-| --- | --- | --- |
-| `cohort` | yes | Collective name used in output paths and file naming. |
-| `path` | yes | Path to the cohort's variant input. |
-| `type` | yes | One of `vcf`, `shards`, or `ss_vcf_dir` (see below). |
-| `pedigree` | yes | Path to the pedigree file. See [Pedigree & Phenotypes](Pedigree.md). |
-| `config` | yes | Path to the cohort's Talos TOML config. See [Configuration](Configuration.md). |
-| `history` | optional | Path to previous results, enabling reanalysis mode. |
-| `ext_ids` | optional | ID mapping for alternate IDs in the HTML report. |
-| `seqr_map` | optional | ID mapping for Seqr hyperlinks in the HTML report. |
-| `mito` | optional | Path to a joint-called mitochondrial VCF. |
+Various columns (history, ext_ids, seqr_map, mito) are optional. If they are not provided, NextFlow requires a real dummy file in their place - see the provided example input file [here](https://github.com/populationgenomics/talos/blob/main/nextflow/inputs/test.tsv)
+
+| Column     | Required | Description                                                                    |
+|:-----------|:---------|:-------------------------------------------------------------------------------|
+| `cohort`   | yes      | Collective name used in output paths and file naming.                          |
+| `path`     | yes      | Path to the cohort's variant input.                                            |
+| `type`     | yes      | One of `vcf`, `shards`, or `ss_vcf_dir` (see below).                           |
+| `pedigree` | yes      | Path to the pedigree file. See [Pedigree & Phenotypes](Pedigree.md).           |
+| `config`   | yes      | Path to the cohort's Talos TOML config. See [Configuration](Configuration.md). |
+| `history`  | optional | Path to previous results, enabling reanalysis mode.                            |
+| `ext_ids`  | optional | ID mapping for alternate IDs in the HTML report.                               |
+| `seqr_map` | optional | ID mapping for Seqr hyperlinks in the HTML report.                             |
+| `mito`     | optional | Path to a joint-called mitochondrial VCF.                                      |
 
 ### Input types
 
-| Type | Description |
-| --- | --- |
-| `vcf` | A single multi-sample VCF; split into shards and processed in parallel. |
-| `shards` | A directory of pre-sharded multi-sample VCF fragments, each shard containing all samples. |
-| `ss_vcf_dir` | A directory of single-sample VCFs, merged then sharded inside the workflow. The glob extension is controlled by `params.input_vcf_extension` (defaults to `vcf.bgz`). |
+<table>
+    <colgroup>
+        <col style="width: 8rem">
+        <col>
+    </colgroup>
+    <thead><tr><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+        <tr><td><code>vcf</code></td><td>A single multi-sample VCF; split into shards and processed in parallel.</td></tr>
+        <tr><td><code>shards</code></td><td>A directory of pre-sharded multi-sample VCF fragments, each shard containing all samples.</td></tr>
+        <tr><td><code>ss_vcf_dir</code></td><td>A directory of single-sample VCFs, merged then sharded inside the workflow. The glob extension is controlled by `params.input_vcf_extension` (defaults to `vcf.bgz`).</td></tr>
+    </tbody>
+</table>
 
 ---
 
