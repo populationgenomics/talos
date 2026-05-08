@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--changelog-start-->
 
+[11.0.0] - 2026-05-08
+
+### Changed
+
+  * Swapped out the standard BCFtools build for a CPG-fork. This fork contains a single change - coding and non-coding genes are both annotated equally. See related issue [here](https://github.com/samtools/bcftools/issues/2548).
+  * Added optional Mitochondrial annotation pathway to the NextFlow implementation, and included mito annotation resources in the prep workflow.
+
+> Breaking! Any Talos deployment using the `TSV` input model (version>=10) will need to add the additional column `mito`. See the example file [here](https://github.com/populationgenomics/talos/blob/main/nextflow/inputs/test.tsv), containing a real file to add in if no Mitochondrial data is used as input.
+
+### Added
+
+  * Full mkdocs build for the companion Docs site.
+  * Test fixtures and demonstration data now includes more non-coding variants and Mitochondrial data.
+
 [10.0.3] - 2026-04-28
 
 ### Added
