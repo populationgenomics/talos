@@ -21,7 +21,7 @@ FROM base AS bcftools_compiler
 
 ARG BCFTOOLS_VERSION=1.23.1
 
-# AS OF 10.0.5, Talos is building BCFtools from a private fork. This fork contains a single change - csq applies annotations
+# AS OF 11.0.0, Talos is building BCFtools from a private fork. This fork contains a single change - csq applies annotations
 # to both coding and non-coding genes in the event of overlapping genes. By default BCFtools skips non-coding gene annotation
 # if a coding transcript consequence was detected, but in practice this is masking clinically relevant non-coding gene variation
 # in cases where the non-coding gene overlaps with a non-clinically relevant coding gene.
@@ -61,7 +61,7 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/lib/ /usr/local/lib/
 RUN ldconfig
 
 ARG ECHTVAR_VERSION=v0.2.2
-ARG VERSION=10.0.5
+ARG VERSION=11.0.0
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
     chmod +x /bin/echtvar
