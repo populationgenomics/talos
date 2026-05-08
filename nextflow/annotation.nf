@@ -29,7 +29,7 @@ workflow ANNOTATION {
 		ch_inputs
 
     main:
-    // populate various input channels - these are downloaded by the large_files/gather_file.sh script, or the prep wf
+    // populate various input channels - these are downloaded by the large_files/gather_files.sh script, or the prep wf
     if (!file(params.alphamissense_zip).exists()) {
         println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
