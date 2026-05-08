@@ -95,7 +95,7 @@ workflow TALOS {
 
     ch_mito_branched = ch_mito_joined.branch {
         real:     it[1].name != 'NO_MITO'
-        sentinel: true
+        sentinel: it[1].name == 'NO_MITO'
     }
 
     AnnotateMitoVcf(
