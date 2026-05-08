@@ -29,4 +29,3 @@ Broadly this file is based on the [PLINK `.fam` file format](https://www.cog-gen
 Talos uses a companion library [MendelBrot](https://github.com/MattWellie/mendelbrot) to parse Pedigrees. Just what the world needed, yet another pedigree parsing utility... Here the decision was driven by needing specific validation (e.g. allowing for 6 or 7 column data, and validating the HPO terms if provided) and specific functionality (being able to re-write the pedigree as a singletons, or as a strict 6-column for Hail compatibility).
 
 The parser can be used to read a pedigree file, and will return a `Pedigree` object containing parsed data from the file. The parser will also validate the file format, and raise an error if any issues are found.
-
