@@ -161,9 +161,7 @@
               "ref": "G"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -201,8 +199,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -425,9 +421,7 @@
               "ref": "T"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -465,8 +459,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -525,9 +517,7 @@
               "ref": "A"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -563,8 +553,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -803,9 +791,7 @@
               "ref": "A"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -840,8 +826,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -900,9 +884,7 @@
               "ref": "CCTTCGGGG"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -937,8 +919,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1042,9 +1022,7 @@
               "ref": "C"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1079,8 +1057,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1169,9 +1145,7 @@
               "ref": "C"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1206,8 +1180,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1293,9 +1265,7 @@
               "ref": "T"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1332,8 +1302,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1421,9 +1389,7 @@
               "ref": "T"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1460,8 +1426,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1547,9 +1511,7 @@
               "ref": "A"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1579,8 +1541,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1636,9 +1596,7 @@
               "ref": "T"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1667,8 +1625,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
@@ -1739,9 +1695,7 @@
               "ref": "T"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1830,9 +1784,7 @@
               "ref": "G"
             },
             "ignored_categories": [
-              "exomiser",
               "Exomiser",
-              "svdb",
               "SpliceVarDB"
             ],
             "info": {
@@ -1870,8 +1822,6 @@
             },
             "support_categories": [
               "AlphaMissense",
-              "alphamissense",
-              "clinvar0star",
               "ClinVar 0-star"
             ],
             "transcript_consequences": [
