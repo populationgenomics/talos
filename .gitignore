@@ -101,5 +101,10 @@ nextflow/cohort_outputs/
 nextflow/processed_annotations/
 work/
 
+# CI fixture pipeline outputs and intermediate artifacts
+test/_run_output/
+tools/build_test_fixtures/_tmp_echtvar/
+tools/build_test_fixtures/locus_gff_overlap.tsv
+
 # mkdocs
 site/
