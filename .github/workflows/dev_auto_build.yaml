@@ -98,13 +98,6 @@ jobs:
           echo ":package: Link to image:" >> $GITHUB_STEP_SUMMARY
           echo "https://console.cloud.google.com/artifacts/docker/cpg-common/australia-southeast1/images-dev/${{ matrix.name }}/$digest?project=cpg-common" >> $GITHUB_STEP_SUMMARY
 
-      # The freshly-built image is still in the local Docker daemon. Re-tag to
-      # what nextflow.config's params.container expects, then run the test
-      # pipeline against the committed test/fixtures/ - no re-pull, no re-auth.
-      - name: 'Re-tag image for the Nextflow test profile'
-        run: |
-          docker tag "${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}" talos:11.0.0
-
       - name: 'Set up Java for Nextflow'
         uses: actions/setup-java@v4
         with:
@@ -117,9 +110,10 @@ jobs:
           sudo mv nextflow /usr/local/bin/
           nextflow -v
 
+      # The freshly-built image is still in the local Docker daemon.
       - name: 'Run Talos pipeline against test fixtures'
         run: |
-          nextflow run main.nf -c nextflow/test.config -ansi-log false
+          nextflow run main.nf -c nextflow/test.config -ansi-log false --container "${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}"
 
       - name: 'Validate result JSONs against expected snapshots'
         run: |
