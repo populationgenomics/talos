@@ -38,7 +38,7 @@ workflow {
 	}
 
 	if (!params.ensembl_gff) {
-		println "params.ensembl_gff (${params.ensembl_gff}) is not available, please re-run the preparation.nf workflow"
+		println "params.ensembl_gff (${params.ensembl_gff}) is not available, please re-run the input file download script & preparation.nf workflow"
 		exit 1
 	}
 
