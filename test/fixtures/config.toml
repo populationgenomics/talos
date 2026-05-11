@@ -48,9 +48,9 @@ clinvar_gnomad_max_af = 0.05
 clinvar_dominant_gnomad_max_af = 0.00005
 clinvar_callset_max_af = 0.05
 clinvar_dominant_callset_max_af = 0.05
-ignore_categories = ["Exomiser", "SpliceVarDB"]
-support_categories = ["AlphaMissense", "ClinVar 0-Star"]
-phenotype_match = ["AlphaMissense"]
+ignore_categories = ["exomiser", "splicevardb"]
+support_categories = ["alphamissense", "clinvar0star"]
+phenotype_match = ["alphamissense"]
 
 [HPOFlagging]
 # CI fixture-mode: phenio.db is a 0-byte placeholder. strict=true skips semsimian
