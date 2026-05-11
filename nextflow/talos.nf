@@ -24,10 +24,6 @@ workflow TALOS {
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true).first()
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
-    ch_mitimpact = channel.fromPath(params.mitimpact_zip, checkIfExists: true).first()
-    ch_mitotip = channel.fromPath(params.mitotip_zip, checkIfExists: true).first()
-    ch_napogee = channel.fromPath(params.napogee_zip, checkIfExists: true).first()
-
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
     def timestamp = new java.util.Date().format('yyyy-MM-dd')
@@ -98,14 +94,19 @@ workflow TALOS {
         sentinel: it[1].name == 'NO_MITO'
     }
 
+    ch_mito_for_annotation = ch_mito_branched.real
+        .map { cohort, mito, panelapp, ped, config ->
+            tuple(cohort, mito, panelapp, ped, config,
+                  file(params.mitimpact_zip, checkIfExists: true),
+                  file(params.mitotip_zip, checkIfExists: true),
+                  file(params.napogee_zip, checkIfExists: true))
+        }
+
     AnnotateMitoVcf(
-        ch_mito_branched.real,
+        ch_mito_for_annotation,
         ch_ref_genome,
         ch_gff,
         ch_clinvar_all,
-        ch_mitimpact,
-        ch_mitotip,
-        ch_napogee,
     )
 
     ch_mito_resolved = AnnotateMitoVcf.out

@@ -2,13 +2,10 @@ process AnnotateMitoVcf {
     container params.container
 
     input:
-        tuple val(cohort), path(vcf), path(panelapp_data), path(pedigree), path(talos_config)
+        tuple val(cohort), path(vcf), path(panelapp_data), path(pedigree), path(talos_config), path(mitimpact), path(mitotip), path(napogee)
         path ref_fa
         path gff3
         path clinvar
-        path mitimpact
-        path mitotip
-        path napogee
 
     output:
         tuple val(cohort), path("${cohort}_mito_labelled.vcf.bgz")
