@@ -36,7 +36,7 @@ def main(input_mitotip: str, output: str):
             mm_status = tsv_line['Mitomap_Status']
 
             # write a VCF-format row
-            out.write(f'chrM\t{position}\t{ref}\t.\t{alt}\t60\tPASS\tmitotip={score};mitomap_status={mm_status}\n')
+            out.write(f'chrM\t{position}\t.\t{ref}\t{alt}\t60\tPASS\tmitotip={score};mitomap_status={mm_status}\n')
 
 
 if __name__ == '__main__':
