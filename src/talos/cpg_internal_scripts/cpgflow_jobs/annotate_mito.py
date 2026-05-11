@@ -63,9 +63,9 @@ def make_annotate_mito_job(
     csq_job.command(
         f"""
         echtvar anno \
-            -e ${napogee} \
-            -e ${mitimpact} \
-            -e ${mitotip} \
+            -e {napogee} \
+            -e {mitimpact} \
+            -e {mitotip} \
             bcftools_annotated.vcf.gz \
             {csq_job.output}
         """
