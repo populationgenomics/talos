@@ -31,7 +31,7 @@ docker build -t talos:10.0.4 .
 
 Talos requires several large external resources (reference genome, gnomAD, AlphaMissense, phenotype data). These are expected in a `large_files/` directory.
 
-See [`large_files/README.md`](https://github.com/populationgenomics/talos/blob/main/large_files/README.md) in the repository for the full list of sources, and the helper script [`large_files/gather_files.sh`](https://github.com/populationgenomics/talos/blob/main/large_files/gather_file.sh), which performs the initial download.
+See [`large_files/README.md`](https://github.com/populationgenomics/talos/blob/main/large_files/README.md) in the repository for the full list of sources, and the helper script [`large_files/gather_files.sh`](https://github.com/populationgenomics/talos/blob/main/large_files/gather_files.sh), which performs the initial download.
 
 ---
 
