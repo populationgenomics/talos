@@ -22,7 +22,7 @@ You will need:
 Build the Talos Docker image locally:
 
 ```bash
-docker build -t talos:10.0.4 .
+docker build -t talos:11.0.0 .
 ```
 
 ---
