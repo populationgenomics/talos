@@ -30,10 +30,10 @@ workflow {
 			files("${workflow.outputDir}/${row.cohort}_outputs/*.mt", type: 'dir'),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
-			file(row.history, checkIfExists: true),
-			file(row.ext_ids, checkIfExists: true),
-			file(row.seqr_map, checkIfExists: true),
-			file(row.mito, checkIfExists: true),
+			file(row.history ?: "${projectDir}/nextflow/assets/NO_HISTORY", checkIfExists: true),
+			file(row.ext_ids ?: "${projectDir}/nextflow/assets/NO_FILE", checkIfExists: true),
+			file(row.seqr_map ?: "${projectDir}/nextflow/assets/NO_SEQR_FILE", checkIfExists: true),
+			file(row.mito ?: "${projectDir}/nextflow/assets/NO_MITO", checkIfExists: true),
 		) }
 
 	TALOS(
