@@ -1,0 +1,100 @@
+{
+  "ENST00000264161": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000264161",
+    "mane_id": "NM_001349",
+    "ensg": "ENSG00000115866",
+    "symbol": "DARS1"
+  },
+  "ENST00000357618": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000417404",
+    "mane_id": "NM_000410",
+    "ensg": "ENSG00000010704",
+    "symbol": "HFE"
+  },
+  "ENST00000534624": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000432083",
+    "mane_id": "NM_006597",
+    "ensg": "ENSG00000109971",
+    "symbol": "HSPA8"
+  },
+  "ENST00000374202": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000363318",
+    "mane_id": "NM_000206",
+    "ensg": "ENSG00000147168",
+    "symbol": "IL2RG"
+  },
+  "ENST00000371117": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000360158",
+    "mane_id": "NM_138694",
+    "ensg": "ENSG00000170927",
+    "symbol": "PKHD1"
+  },
+  "ENST00000452863": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000415516",
+    "mane_id": "NM_024426",
+    "ensg": "ENSG00000184937",
+    "symbol": "WT1"
+  },
+  "ENST00000396984": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000380180",
+    "mane_id": "NM_003526",
+    "ensg": "ENSG00000180596",
+    "symbol": "H2BC4"
+  },
+  "ENST00000274867": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000274867",
+    "mane_id": "NM_001201427",
+    "ensg": "ENSG00000146122",
+    "symbol": "DAAM2"
+  },
+  "ENST00000365668": {
+    "mane_status": "MANE Select",
+    "ensp": "",
+    "mane_id": "NR_003137",
+    "ensg": "ENSG00000202538",
+    "symbol": "RNU4-2"
+  },
+  "ENST00000410396": {
+    "mane_status": "MANE Select",
+    "ensp": "",
+    "mane_id": "NR_199791",
+    "ensg": "ENSG00000222328",
+    "symbol": "RNU2-2"
+  },
+  "ENST00000301030": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000301030",
+    "mane_id": "NM_013275",
+    "ensg": "ENSG00000167522",
+    "symbol": "ANKRD11"
+  },
+  "ENST00000278856": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000278856",
+    "mane_id": "NM_001369450",
+    "ensg": "ENSG00000133316",
+    "symbol": "WDR74"
+  },
+  "ENST00000308271": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000309262",
+    "mane_id": "NM_032236",
+    "ensg": "ENSG00000090686",
+    "symbol": "USP48"
+  },
+  "ENST00000313546": {
+    "mane_status": "MANE Select",
+    "ensp": "ENSP00000323302",
+    "mane_id": "NM_172240",
+    "ensg": "ENSG00000139323",
+    "symbol": "POC1B"
+  }
+}

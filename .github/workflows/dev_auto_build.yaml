@@ -97,3 +97,42 @@ jobs:
           digest=$(grep 'digest:' push.log | grep -o 'sha256:[0-9a-f]*')
           echo ":package: Link to image:" >> $GITHUB_STEP_SUMMARY
           echo "https://console.cloud.google.com/artifacts/docker/cpg-common/australia-southeast1/images-dev/${{ matrix.name }}/$digest?project=cpg-common" >> $GITHUB_STEP_SUMMARY
+
+      - name: 'Set up Java for Nextflow'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 'Install Nextflow'
+        uses: nf-core/setup-nextflow@v2
+
+      # The freshly-built image is still in the local Docker daemon.
+      - name: 'Run Talos pipeline against test fixtures'
+        run: |
+          nextflow run main.nf -c nextflow/test.config -ansi-log false --container "${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}"
+
+      - name: 'Validate result JSONs against expected snapshots'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for cohort in needs_merge premerged; do
+            actual_files=( test/_run_output/${cohort}_outputs/${cohort}_full_results_*.json )
+            if [ ${#actual_files[@]} -eq 0 ]; then
+              echo "::error::no result JSON found for cohort ${cohort}"
+              exit 1
+            fi
+            python test/fixtures/validate_results.py \
+              --actual "${actual_files[0]}" \
+              --expected "test/fixtures/expected_results/${cohort}.json"
+          done
+
+      - name: 'Upload pipeline outputs'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-outputs-${{ matrix.tag }}
+          path: |
+            test/_run_output/
+            .nextflow.log
+          retention-days: 7

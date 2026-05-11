@@ -1,0 +1,1203 @@
+{
+  "versions": [
+    {
+      "id": 3084,
+      "name": "Rhabdomyolysis and Metabolic Myopathy",
+      "version": "1.46"
+    },
+    {
+      "id": 3093,
+      "name": "Monogenic Diabetes",
+      "version": "0.224"
+    },
+    {
+      "id": 3101,
+      "name": "Rhabdomyolysis and Metabolic Myopathy",
+      "version": "1.46"
+    },
+    {
+      "id": 3099,
+      "name": "Syndromic Retinopathy",
+      "version": "0.259"
+    },
+    {
+      "id": 4126,
+      "name": "Transplant Co-Morbidity",
+      "version": "0.21"
+    },
+    {
+      "id": 3631,
+      "name": "Growth failure",
+      "version": "1.108"
+    },
+    {
+      "id": 51,
+      "name": "Autism",
+      "version": "0.250"
+    },
+    {
+      "id": 3124,
+      "name": "Retinitis pigmentosa",
+      "version": "0.246"
+    },
+    {
+      "id": 3139,
+      "name": "Mackenzie's Mission_Reproductive Carrier Screening",
+      "version": "0.111"
+    },
+    {
+      "id": 69,
+      "name": "Congenital diaphragmatic hernia",
+      "version": "1.18"
+    },
+    {
+      "id": 73,
+      "name": "Cerebral Palsy",
+      "version": "1.412"
+    },
+    {
+      "id": 3147,
+      "name": "Cone-rod Dystrophy",
+      "version": "0.69"
+    },
+    {
+      "id": 78,
+      "name": "Cholestasis",
+      "version": "1.10"
+    },
+    {
+      "id": 76,
+      "name": "Congenital Heart Defect",
+      "version": "0.540"
+    },
+    {
+      "id": 84,
+      "name": "Ciliopathies",
+      "version": "1.99"
+    },
+    {
+      "id": 3166,
+      "name": "Primary Ovarian Insufficiency_Premature Ovarian Failure",
+      "version": "0.414"
+    },
+    {
+      "id": 4191,
+      "name": "Cholestasis",
+      "version": "1.10"
+    },
+    {
+      "id": 99,
+      "name": "Differences of Sex Development",
+      "version": "1.56"
+    },
+    {
+      "id": 123,
+      "name": "Inflammatory bowel disease",
+      "version": "0.126"
+    },
+    {
+      "id": 126,
+      "name": "Incidentalome",
+      "version": "0.433"
+    },
+    {
+      "id": 4225,
+      "name": "Prepair 500+",
+      "version": "2.1"
+    },
+    {
+      "id": 137,
+      "name": "Mendeliome",
+      "version": "1.4865"
+    },
+    {
+      "id": 144,
+      "name": "Proteinuria",
+      "version": "0.239"
+    },
+    {
+      "id": 3729,
+      "name": "Hand and foot malformations",
+      "version": "0.93"
+    },
+    {
+      "id": 3730,
+      "name": "Hand and foot malformations",
+      "version": "0.93"
+    },
+    {
+      "id": 152,
+      "name": "Cancer Predisposition_Paediatric",
+      "version": "0.133"
+    },
+    {
+      "id": 3763,
+      "name": "Fetal anomalies",
+      "version": "1.577"
+    },
+    {
+      "id": 193,
+      "name": "Renal Ciliopathies and Nephronophthisis",
+      "version": "1.53"
+    },
+    {
+      "id": 194,
+      "name": "Renal Macrocystic Disease",
+      "version": "1.0"
+    },
+    {
+      "id": 202,
+      "name": "Genetic Epilepsy",
+      "version": "1.414"
+    },
+    {
+      "id": 203,
+      "name": "Mitochondrial disease",
+      "version": "1.23"
+    },
+    {
+      "id": 3274,
+      "name": "Polycystic liver disease",
+      "version": "1.8"
+    },
+    {
+      "id": 209,
+      "name": "Deafness_IsolatedAndComplex",
+      "version": "1.362"
+    },
+    {
+      "id": 221,
+      "name": "Additional findings_Adult",
+      "version": "2.0"
+    },
+    {
+      "id": 223,
+      "name": "Combined Immunodeficiency",
+      "version": "1.147"
+    },
+    {
+      "id": 3302,
+      "name": "Additional findings_Paediatric",
+      "version": "0.280"
+    },
+    {
+      "id": 235,
+      "name": "Severe Combined Immunodeficiency",
+      "version": "1.30"
+    },
+    {
+      "id": 239,
+      "name": "Bone Marrow Failure",
+      "version": "1.145"
+    },
+    {
+      "id": 250,
+      "name": "Intellectual disability syndromic and non-syndromic",
+      "version": "1.784"
+    },
+    {
+      "id": 258,
+      "name": "Skeletal dysplasia",
+      "version": "0.449"
+    },
+    {
+      "id": 262,
+      "name": "Proteinuria",
+      "version": "0.239"
+    },
+    {
+      "id": 263,
+      "name": "Renal Ciliopathies and Nephronophthisis",
+      "version": "1.53"
+    },
+    {
+      "id": 271,
+      "name": "Ataxia",
+      "version": "1.204"
+    },
+    {
+      "id": 275,
+      "name": "Congenital anomalies of the kidney and urinary tract (CAKUT)",
+      "version": "0.207"
+    },
+    {
+      "id": 3861,
+      "name": "Prepair 1000+",
+      "version": "2.17"
+    },
+    {
+      "id": 277,
+      "name": "Retinitis pigmentosa",
+      "version": "0.246"
+    },
+    {
+      "id": 3368,
+      "name": "Clefting disorders",
+      "version": "0.318"
+    },
+    {
+      "id": 298,
+      "name": "Leukodystrophy",
+      "version": "0.395"
+    },
+    {
+      "id": 3374,
+      "name": "Ataxia",
+      "version": "1.204"
+    },
+    {
+      "id": 3377,
+      "name": "Congenital Disorders of Glycosylation",
+      "version": "1.88"
+    },
+    {
+      "id": 317,
+      "name": "Hereditary Spastic Paraplegia",
+      "version": "1.149"
+    },
+    {
+      "id": 3931,
+      "name": "Genomic newborn screening: BabyScreen+",
+      "version": "1.148"
+    },
+    {
+      "id": 4455,
+      "name": "Infertility and Recurrent Pregnancy Loss",
+      "version": "1.157"
+    },
+    {
+      "id": 3465,
+      "name": "Congenital Disorders of Glycosylation",
+      "version": "1.88"
+    },
+    {
+      "id": 3469,
+      "name": "Metal Metabolism Disorders",
+      "version": "0.54"
+    },
+    {
+      "id": 3531,
+      "name": "Ataxia",
+      "version": "1.204"
+    },
+    {
+      "id": 4366,
+      "name": "Wilms Tumour",
+      "version": "1.1"
+    },
+    {
+      "id": 4092,
+      "name": "Hereditary Neuropathy",
+      "version": "1.190"
+    },
+    {
+      "id": 3070,
+      "name": "Hereditary Neuropathy",
+      "version": "1.190"
+    }
+  ],
+  "genes": {
+    "ENSG00000210191": {
+      "symbol": "MT-TL2",
+      "chrom": "M",
+      "mane_symbol": "",
+      "ensg": "ENSG00000210191",
+      "panels": {
+        "3084": {
+          "moi": "mitochondrial",
+          "date": "2026-03-31"
+        },
+        "3101": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "137": {
+          "moi": "mitochondrial",
+          "date": "2025-09-29"
+        },
+        "203": {
+          "moi": "mitochondrial",
+          "date": "2020-04-19"
+        },
+        "209": {
+          "moi": "mitochondrial",
+          "date": "2026-03-31"
+        },
+        "3377": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "3465": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "4092": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "3070": {
+          "moi": "mitochondrial",
+          "date": "2026-03-31"
+        }
+      }
+    },
+    "ENSG00000209082": {
+      "symbol": "MT-TL1",
+      "chrom": "M",
+      "mane_symbol": "",
+      "ensg": "ENSG00000209082",
+      "panels": {
+        "3093": {
+          "moi": "mitochondrial",
+          "date": "2026-02-05"
+        },
+        "73": {
+          "moi": "mitochondrial",
+          "date": "2023-07-21"
+        },
+        "137": {
+          "moi": "mitochondrial",
+          "date": "2025-09-29"
+        },
+        "203": {
+          "moi": "mitochondrial",
+          "date": "2020-04-19"
+        },
+        "3377": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "3465": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000139323": {
+      "symbol": "POC1B",
+      "chrom": "12",
+      "mane_symbol": "POC1B",
+      "ensg": "ENSG00000139323",
+      "panels": {
+        "3099": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-02-07"
+        },
+        "3124": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "3147": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-05-19"
+        },
+        "84": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "137": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        }
+      }
+    },
+    "ENSG00000010704": {
+      "symbol": "HFE",
+      "chrom": "6",
+      "mane_symbol": "HFE",
+      "ensg": "ENSG00000010704",
+      "panels": {
+        "4126": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2023-08-01"
+        },
+        "137": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "221": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-18"
+        },
+        "3377": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "3465": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "3469": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2021-01-22"
+        }
+      }
+    },
+    "ENSG00000184937": {
+      "symbol": "WT1",
+      "chrom": "11",
+      "mane_symbol": "WT1",
+      "ensg": "ENSG00000184937",
+      "panels": {
+        "4126": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2023-08-01"
+        },
+        "69": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-17"
+        },
+        "3166": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2020-06-17"
+        },
+        "99": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-17"
+        },
+        "126": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-17"
+        },
+        "144": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-17"
+        },
+        "152": {
+          "moi": "unknown",
+          "date": "2019-11-17"
+        },
+        "3763": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2021-10-24"
+        },
+        "221": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2023-06-05"
+        },
+        "262": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "1970-01-01"
+        },
+        "275": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "1970-01-01"
+        },
+        "3931": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2023-01-18"
+        },
+        "4455": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2025-07-25"
+        },
+        "4366": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2024-09-26"
+        }
+      }
+    },
+    "ENSG00000167522": {
+      "symbol": "ANKRD11",
+      "chrom": "16",
+      "mane_symbol": "ANKRD11",
+      "ensg": "ENSG00000167522",
+      "panels": {
+        "3631": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2021-07-19"
+        },
+        "51": {
+          "moi": "unknown",
+          "date": "2019-11-17"
+        },
+        "76": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-17"
+        },
+        "137": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-17"
+        },
+        "3729": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2021-09-22"
+        },
+        "3730": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "1970-01-01"
+        },
+        "3763": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2021-10-24"
+        },
+        "202": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2021-01-31"
+        },
+        "250": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-11-22"
+        },
+        "258": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2019-12-17"
+        },
+        "3368": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2020-09-16"
+        },
+        "3377": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000198899": {
+      "symbol": "MT-ATP6",
+      "chrom": "M",
+      "mane_symbol": "",
+      "ensg": "ENSG00000198899",
+      "panels": {
+        "3124": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "137": {
+          "moi": "mitochondrial",
+          "date": "2025-09-29"
+        },
+        "203": {
+          "moi": "mitochondrial",
+          "date": "2020-04-19"
+        },
+        "209": {
+          "moi": "mitochondrial",
+          "date": "2025-12-03"
+        },
+        "250": {
+          "moi": "mitochondrial",
+          "date": "2025-12-03"
+        },
+        "271": {
+          "moi": "mitochondrial",
+          "date": "2025-12-03"
+        },
+        "277": {
+          "moi": "mitochondrial",
+          "date": "2025-12-03"
+        },
+        "3374": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "3377": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "3465": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        },
+        "3531": {
+          "moi": "mitochondrial",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000202538": {
+      "symbol": "RNU4-2",
+      "chrom": "12",
+      "mane_symbol": "RNU4-2",
+      "ensg": "ENSG00000202538",
+      "panels": {
+        "3124": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "1970-01-01"
+        },
+        "137": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2024-04-05"
+        },
+        "3763": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2026-04-28"
+        },
+        "202": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2025-10-13"
+        },
+        "250": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2024-04-05"
+        },
+        "277": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2026-01-19"
+        },
+        "3377": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000115866": {
+      "symbol": "DARS",
+      "chrom": "2",
+      "mane_symbol": "DARS1",
+      "ensg": "ENSG00000115866",
+      "panels": {
+        "3139": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-04-19"
+        },
+        "137": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "3763": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2021-10-24"
+        },
+        "250": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-22"
+        },
+        "3861": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2022-06-01"
+        },
+        "298": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-05-04"
+        },
+        "3374": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "3377": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "317": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-05-04"
+        },
+        "4092": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000147168": {
+      "symbol": "IL2RG",
+      "chrom": "X",
+      "mane_symbol": "IL2RG",
+      "ensg": "ENSG00000147168",
+      "panels": {
+        "3139": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2020-04-19"
+        },
+        "123": {
+          "moi": "unknown",
+          "date": "2019-11-17"
+        },
+        "4225": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2023-11-03"
+        },
+        "137": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2019-11-17"
+        },
+        "223": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2019-11-18"
+        },
+        "3302": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2020-08-27"
+        },
+        "235": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2019-11-18"
+        },
+        "239": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "1970-01-01"
+        },
+        "3861": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2022-06-01"
+        },
+        "3931": {
+          "moi": "x-linked: hemizygous mutation in males, biallelic mutations in females",
+          "date": "2022-09-19"
+        }
+      }
+    },
+    "ENSG00000170927": {
+      "symbol": "PKHD1",
+      "chrom": "6",
+      "mane_symbol": "PKHD1",
+      "ensg": "ENSG00000170927",
+      "panels": {
+        "3139": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-04-19"
+        },
+        "78": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "84": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "4191": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "4225": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2023-11-03"
+        },
+        "137": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "3763": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2021-10-24"
+        },
+        "193": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-10-12"
+        },
+        "194": {
+          "moi": "both monoallelic and biallelic (but biallelic mutations cause a more severe disease form), autosomal or pseudoautosomal",
+          "date": "2019-11-17"
+        },
+        "3274": {
+          "moi": "both monoallelic and biallelic (but biallelic mutations cause a more severe disease form), autosomal or pseudoautosomal",
+          "date": "2020-08-04"
+        },
+        "3302": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-08-27"
+        },
+        "263": {
+          "moi": "both monoallelic and biallelic (but biallelic mutations cause a more severe disease form), autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "275": {
+          "moi": "both monoallelic and biallelic (but biallelic mutations cause a more severe disease form), autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "3861": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2022-06-01"
+        }
+      }
+    },
+    "ENSG00000146122": {
+      "symbol": "DAAM2",
+      "chrom": "6",
+      "mane_symbol": "DAAM2",
+      "ensg": "ENSG00000146122",
+      "panels": {
+        "137": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2020-12-07"
+        },
+        "144": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "2020-12-07"
+        },
+        "262": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        },
+        "275": {
+          "moi": "biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000222328": {
+      "symbol": "RNU2-2P",
+      "chrom": "11",
+      "mane_symbol": "RNU2-2",
+      "ensg": "ENSG00000222328",
+      "panels": {
+        "137": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2024-09-11"
+        },
+        "202": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2024-09-11"
+        },
+        "250": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "2024-09-11"
+        },
+        "3377": {
+          "moi": "both monoallelic and biallelic, autosomal or pseudoautosomal",
+          "date": "1970-01-01"
+        }
+      }
+    },
+    "ENSG00000090686": {
+      "symbol": "USP48",
+      "chrom": "1",
+      "mane_symbol": "USP48",
+      "ensg": "ENSG00000090686",
+      "panels": {
+        "137": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, imprinted status unknown",
+          "date": "2021-10-08"
+        },
+        "209": {
+          "moi": "monoallelic, autosomal or pseudoautosomal, not imprinted",
+          "date": "2021-10-08"
+        }
+      }
+    }
+  },
+  "hpos": {
+    "221": [],
+    "3302": [],
+    "271": [
+      {
+        "id": "HP:0001251",
+        "label": ""
+      }
+    ],
+    "51": [
+      {
+        "id": "HP:0000717",
+        "label": ""
+      }
+    ],
+    "152": [],
+    "73": [
+      {
+        "id": "HP:0100021",
+        "label": ""
+      }
+    ],
+    "78": [
+      {
+        "id": "HP:0001396",
+        "label": ""
+      }
+    ],
+    "84": [],
+    "3368": [
+      {
+        "id": "HP:0000202",
+        "label": ""
+      }
+    ],
+    "223": [
+      {
+        "id": "HP:0005387",
+        "label": ""
+      }
+    ],
+    "3147": [
+      {
+        "id": "HP:0000556",
+        "label": ""
+      }
+    ],
+    "69": [
+      {
+        "id": "HP:0000776",
+        "label": ""
+      }
+    ],
+    "76": [
+      {
+        "id": "HP:0001627",
+        "label": ""
+      }
+    ],
+    "209": [
+      {
+        "id": "HP:0000365",
+        "label": ""
+      }
+    ],
+    "99": [
+      {
+        "id": "HP:0000078",
+        "label": ""
+      }
+    ],
+    "3763": [],
+    "202": [
+      {
+        "id": "HP:0001250",
+        "label": ""
+      },
+      {
+        "id": "HP:0200134",
+        "label": ""
+      },
+      {
+        "id": "HP:0002353",
+        "label": ""
+      }
+    ],
+    "3931": [],
+    "3631": [
+      {
+        "id": "HP:0001508",
+        "label": ""
+      },
+      {
+        "id": "HP:0001510",
+        "label": ""
+      }
+    ],
+    "3729": [
+      {
+        "id": "HP:0005922",
+        "label": ""
+      },
+      {
+        "id": "HP:0001760",
+        "label": ""
+      }
+    ],
+    "3070": [
+      {
+        "id": "HP:0009830",
+        "label": ""
+      }
+    ],
+    "317": [
+      {
+        "id": "HP:0001257",
+        "label": ""
+      }
+    ],
+    "239": [
+      {
+        "id": "HP:0002715",
+        "label": ""
+      }
+    ],
+    "126": [],
+    "4455": [],
+    "123": [
+      {
+        "id": "HP:0004386",
+        "label": ""
+      }
+    ],
+    "250": [
+      {
+        "id": "HP:0001249",
+        "label": ""
+      },
+      {
+        "id": "HP:0012758",
+        "label": ""
+      }
+    ],
+    "275": [
+      {
+        "id": "HP:0000077",
+        "label": ""
+      }
+    ],
+    "298": [
+      {
+        "id": "HP:0002415",
+        "label": ""
+      },
+      {
+        "id": "HP:0002500",
+        "label": ""
+      },
+      {
+        "id": "HP:0011400",
+        "label": ""
+      }
+    ],
+    "3730": [
+      {
+        "id": "HP:0040064",
+        "label": ""
+      }
+    ],
+    "4191": [
+      {
+        "id": "HP:0001392",
+        "label": ""
+      }
+    ],
+    "3139": [],
+    "137": [],
+    "3465": [
+      {
+        "id": "HP:0001939",
+        "label": ""
+      }
+    ],
+    "3469": [
+      {
+        "id": "HP:0011031",
+        "label": ""
+      },
+      {
+        "id": "HP:0011030",
+        "label": ""
+      }
+    ],
+    "203": [
+      {
+        "id": "HP:0002151",
+        "label": ""
+      },
+      {
+        "id": "HP:0003287",
+        "label": ""
+      }
+    ],
+    "3093": [
+      {
+        "id": "HP:0000819",
+        "label": ""
+      }
+    ],
+    "3531": [
+      {
+        "id": "HP:0001337",
+        "label": ""
+      }
+    ],
+    "3101": [
+      {
+        "id": "HP:0003198",
+        "label": ""
+      },
+      {
+        "id": "HP:0001324",
+        "label": ""
+      }
+    ],
+    "3374": [
+      {
+        "id": "HP:0002180",
+        "label": ""
+      }
+    ],
+    "4092": [],
+    "3274": [
+      {
+        "id": "HP:0006557",
+        "label": ""
+      }
+    ],
+    "3861": [],
+    "4225": [],
+    "3166": [
+      {
+        "id": "HP:0008209",
+        "label": ""
+      }
+    ],
+    "3377": [],
+    "144": [
+      {
+        "id": "HP:0000093",
+        "label": ""
+      }
+    ],
+    "193": [
+      {
+        "id": "HP:0025361",
+        "label": ""
+      },
+      {
+        "id": "HP:0000107",
+        "label": ""
+      }
+    ],
+    "263": [
+      {
+        "id": "HP:0000107",
+        "label": ""
+      }
+    ],
+    "262": [
+      {
+        "id": "HP:0012212",
+        "label": ""
+      },
+      {
+        "id": "HP:0000790",
+        "label": ""
+      },
+      {
+        "id": "HP:0000093",
+        "label": ""
+      }
+    ],
+    "194": [
+      {
+        "id": "HP:0000107",
+        "label": ""
+      }
+    ],
+    "3124": [
+      {
+        "id": "HP:0000479",
+        "label": ""
+      }
+    ],
+    "277": [
+      {
+        "id": "HP:0000479",
+        "label": ""
+      }
+    ],
+    "3084": [
+      {
+        "id": "HP:0003201",
+        "label": ""
+      },
+      {
+        "id": "HP:0003546",
+        "label": ""
+      }
+    ],
+    "235": [
+      {
+        "id": "HP:0004430",
+        "label": ""
+      }
+    ],
+    "258": [
+      {
+        "id": "HP:0002652",
+        "label": ""
+      }
+    ],
+    "3099": [
+      {
+        "id": "HP:0000488",
+        "label": ""
+      }
+    ],
+    "4126": [],
+    "4366": []
+  },
+  "version": "2.2.0",
+  "date": "2026-05-09"
+}

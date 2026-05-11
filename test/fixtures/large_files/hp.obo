@@ -1,0 +1,348 @@
+format-version: 1.2
+data-version: hp/releases/2026-02-16
+subsetdef: hposlim_core "Core clinical terminology"
+subsetdef: secondary_consequence "Consequence of a disorder in another organ system."
+synonymtypedef: abbreviation "abbreviation"
+synonymtypedef: allelic_requirement "allelic_requirement"
+synonymtypedef: layperson "layperson term"
+synonymtypedef: obsolete_synonym "discarded/obsoleted synonym"
+synonymtypedef: plural_form "plural form"
+synonymtypedef: uk_spelling "UK spelling"
+default-namespace: human_phenotype
+idspace: dc http://purl.org/dc/elements/1.1/ 
+idspace: oboInOwl http://www.geneontology.org/formats/oboInOwl# 
+idspace: terms http://purl.org/dc/terms/ 
+remark: Please see license of HPO at http://www.human-phenotype-ontology.org
+ontology: hp.obo
+property_value: dc:creator "Human Phenotype Ontology Consortium" xsd:string
+property_value: dc:creator "Monarch Initiative" xsd:string
+property_value: dc:creator "Peter Robinson" xsd:string
+property_value: dc:creator "Sebastian Köhler" xsd:string
+property_value: dc:description "The Human Phenotype Ontology (HPO) provides a standardized vocabulary of phenotypic abnormalities and clinical features encountered in human disease." xsd:string
+property_value: dc:rights "Peter Robinson, Sebastian Koehler, The Human Phenotype Ontology Consortium, and The Monarch Initiative" xsd:string
+property_value: dc:subject "Phenotypic abnormalities encountered in human disease" xsd:string
+property_value: dc:title "Human Phenotype Ontology" xsd:string
+property_value: IAO:0000700 HP:0000001
+property_value: owl:versionInfo "2026-02-16" xsd:string
+property_value: terms:license https://hpo.jax.org/app/license
+logical-definition-view-relation: has_part
+
+
+[Term]
+id: HP:0000001
+name: All
+comment: Root of all terms in the Human Phenotype Ontology.
+xref: UMLS:C0444868
+
+
+[Term]
+id: HP:0000002
+name: Abnormality of body height
+def: "Deviation from the norm of height with respect to that which is expected according to age and gender norms." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormality of body height" EXACT layperson []
+xref: UMLS:C4025901
+is_a: HP:0001507 ! Growth abnormality
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2008-02-27T02:20:00Z" xsd:dateTime
+
+
+[Term]
+id: HP:0000118
+name: Phenotypic abnormality
+def: "A phenotypic abnormality." [https://orcid.org/0000-0002-0736-9199]
+comment: This is the root of the phenotypic abnormality subontology of the HPO.
+synonym: "Organ abnormality" EXACT []
+xref: UMLS:C4021819
+is_a: HP:0000001 ! All
+
+
+[Term]
+id: HP:0000707
+name: Abnormality of the nervous system
+alt_id: HP:0001333
+alt_id: HP:0006987
+def: "An abnormality of the nervous system." [https://orcid.org/0000-0002-0736-9199]
+comment: The nervous system comprises the neuraxis (brain, spinal cord, and ventricles), the autonomic nervous system, the enteric nervous system, and the peripheral nervous system.
+synonym: "Abnormality of the nervous system" EXACT layperson []
+synonym: "Brain and/or spinal cord issue" BROAD layperson []
+synonym: "Neurologic abnormalities" EXACT layperson []
+synonym: "Neurological abnormality" EXACT layperson []
+xref: SNOMEDCT_US:88425004
+xref: UMLS:C0497552
+is_a: HP:0000118 ! Phenotypic abnormality
+
+
+[Term]
+id: HP:0001507
+name: Growth abnormality
+alt_id: HP:0008904
+synonym: "Abnormal growth" EXACT layperson []
+synonym: "Growth abnormality" EXACT layperson []
+synonym: "Growth issue" EXACT layperson []
+xref: UMLS:C0262361
+is_a: HP:0000118 ! Phenotypic abnormality
+
+
+[Term]
+id: HP:0001510
+name: Growth delay
+alt_id: HP:0001434
+alt_id: HP:0001512
+alt_id: HP:0001514
+alt_id: HP:0001517
+alt_id: HP:0001532
+alt_id: HP:0008847
+alt_id: HP:0008870
+alt_id: HP:0008886
+alt_id: HP:0008893
+alt_id: HP:0008926
+def: "A deficiency or slowing down of growth pre- and postnatally." [https://orcid.org/0000-0002-0736-9199]
+comment: Poor or abnormally slow gains in weight or height in a child.
+synonym: "Delayed growth" EXACT layperson []
+synonym: "Growth deficiency" EXACT layperson []
+synonym: "Growth delay" EXACT layperson []
+synonym: "Growth failure" EXACT layperson []
+synonym: "Growth retardation" EXACT layperson []
+synonym: "Poor growth" EXACT layperson []
+synonym: "Retarded growth" EXACT layperson []
+synonym: "Very poor growth" RELATED layperson [https://orcid.org/0000-0002-5316-1399]
+xref: SNOMEDCT_US:276617005
+xref: SNOMEDCT_US:444896005
+xref: SNOMEDCT_US:59576002
+xref: UMLS:C0151686
+xref: UMLS:C0456070
+xref: UMLS:C0878787
+xref: UMLS:C1837385
+xref: UMLS:C3552463
+is_a: HP:0001507 ! Growth abnormality
+
+
+[Term]
+id: HP:0001626
+name: Abnormality of the cardiovascular system
+alt_id: HP:0003114
+alt_id: HP:0003116
+def: "Any abnormality of the cardiovascular system." [https://orcid.org/0000-0002-0736-9199]
+comment: The cardiovascular system consists of the heart, vasculature, and the lymphatic system.
+synonym: "Abnormality of the cardiovascular system" EXACT layperson []
+synonym: "Cardiovascular abnormality" EXACT layperson []
+synonym: "Cardiovascular disease" RELATED layperson []
+xref: SNOMEDCT_US:49601007
+xref: UMLS:C0007222
+xref: UMLS:C0243050
+is_a: HP:0000118 ! Phenotypic abnormality
+
+
+[Term]
+id: HP:0002011
+name: Morphological central nervous system abnormality
+alt_id: HP:0002405
+alt_id: HP:0002413
+alt_id: HP:0002481
+alt_id: HP:0007319
+def: "A structural abnormality of the central nervous system." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormality of the central nervous system" EXACT []
+synonym: "Central nervous system disease" RELATED []
+synonym: "Morphological abnormality of the central nervous system" EXACT []
+synonym: "Morphological abnormality of the CNS" EXACT abbreviation []
+xref: SNOMEDCT_US:23853001
+xref: UMLS:C0007682
+xref: UMLS:C4021765
+is_a: HP:0012639 ! Abnormal nervous system morphology
+
+
+[Term]
+id: HP:0002086
+name: Abnormality of the respiratory system
+def: "An abnormality of the respiratory system, which include the airways, lungs, and the respiratory muscles." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Respiratory abnormality" EXACT []
+xref: UMLS:C4018871
+is_a: HP:0000118 ! Phenotypic abnormality
+
+
+[Term]
+id: HP:0002597
+name: Abnormality of the vasculature
+def: "An abnormality of the vasculature." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormality of blood vessels" EXACT layperson [https://orcid.org/0000-0001-5208-3432]
+synonym: "Abnormality of the vasculature" EXACT layperson []
+synonym: "Vascular abnormalities" EXACT layperson []
+xref: UMLS:C0241657
+is_a: HP:0001626 ! Abnormality of the cardiovascular system
+
+
+[Term]
+id: HP:0002778
+name: Abnormal tracheal morphology
+def: "A structural anomaly of the trachea." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormal trachea morphology" EXACT []
+synonym: "Abnormality of the trachea" EXACT []
+synonym: "Tracheal disease" RELATED []
+xref: SNOMEDCT_US:47125007
+xref: UMLS:C0040580
+xref: UMLS:C4025678
+is_a: HP:0005607 ! Abnormal tracheobronchial morphology
+
+
+[Term]
+id: HP:0002779
+name: Tracheomalacia
+synonym: "Floppy windpipe" EXACT layperson [https://orcid.org/0000-0002-6548-5200]
+xref: SNOMEDCT_US:95434006
+xref: UMLS:C0948187
+is_a: HP:0002778 ! Abnormal tracheal morphology
+
+
+[Term]
+id: HP:0004322
+name: Short stature
+alt_id: HP:0001509
+alt_id: HP:0003501
+alt_id: HP:0003507
+alt_id: HP:0003512
+alt_id: HP:0003518
+alt_id: HP:0003519
+alt_id: HP:0008871
+alt_id: HP:0008882
+alt_id: HP:0008888
+alt_id: HP:0008913
+def: "A height below that which is expected according to age and gender norms. Although there is no universally accepted definition of short stature, many refer to \"short stature\" as height more than 2 standard deviations below the mean for age and gender (or below the 3rd percentile for age and gender dependent norms)." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Decreased body height" EXACT layperson []
+synonym: "Height less than 3rd percentile" EXACT []
+synonym: "Short stature" EXACT layperson []
+synonym: "Small stature" EXACT layperson []
+synonym: "Stature below 3rd percentile" EXACT []
+xref: SNOMEDCT_US:237836003
+xref: UMLS:C0349588
+is_a: HP:0000002 ! Abnormality of body height
+is_a: HP:0001510 ! Growth delay
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2008-02-27T03:19:00Z" xsd:dateTime
+
+
+[Term]
+id: HP:0005607
+name: Abnormal tracheobronchial morphology
+alt_id: HP:0005940
+synonym: "Tracheobronchial anomalies" EXACT []
+xref: Fyler:4232
+xref: UMLS:C4021631
+is_a: HP:0012252 ! Abnormal respiratory system morphology
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2008-03-28T09:03:00Z" xsd:dateTime
+
+
+[Term]
+id: HP:0009145
+name: Abnormal cerebral artery morphology
+def: "Any structural anomaly of a cerebral artery. The cerebral arteries comprise three main pairs of arteries and their branches, which supply the cerebrum of the brain. These are the anterior cerebral artery, the middle cerebral artery, and the posterior cerebral artery." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormality of cerebral artery" EXACT layperson []
+synonym: "Abnormality of the cerebral arteries" EXACT layperson []
+xref: UMLS:C4021520
+is_a: HP:0011004 ! Abnormal systemic arterial morphology
+is_a: HP:0100659 ! Abnormal cerebral vascular morphology
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2008-05-02T01:39:00Z" xsd:dateTime
+
+
+[Term]
+id: HP:0011004
+name: Abnormal systemic arterial morphology
+alt_id: HP:0002620
+alt_id: HP:0005114
+def: "An abnormality of the systemic arterial tree, which consists of the aorta and other systemic arteries." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormal systemic artery morphology" EXACT []
+synonym: "Abnormality of the systemic arterial tree" EXACT []
+synonym: "Arterial abnormalities" RELATED []
+synonym: "Systemic artery abnormality" EXACT []
+xref: Fyler:2600
+xref: SNOMEDCT_US:234119001
+xref: UMLS:C0151489
+xref: UMLS:C4021205
+is_a: HP:0033353 ! Abnormal blood vessel morphology
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2011-02-16T08:46:49Z" xsd:dateTime
+
+
+[Term]
+id: HP:0012252
+name: Abnormal respiratory system morphology
+def: "A structural anomaly of the respiratory system." [https://orcid.org/0000-0002-0736-9199]
+xref: Fyler:4235
+xref: UMLS:C4022992
+is_a: HP:0002086 ! Abnormality of the respiratory system
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2013-04-07T09:11:09Z" xsd:dateTime
+
+
+[Term]
+id: HP:0012443
+name: Abnormal brain morphology
+def: "A structural abnormality of the brain, which has as its parts the forebrain, midbrain, and hindbrain." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormal shape of brain" EXACT layperson [https://orcid.org/0000-0001-5208-3432]
+synonym: "Abnormality of brain morphology" EXACT []
+synonym: "Abnormality of the brain" EXACT layperson []
+xref: UMLS:C4021085
+is_a: HP:0002011 ! Morphological central nervous system abnormality
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2013-11-23T02:38:00Z" xsd:dateTime
+
+
+[Term]
+id: HP:0012639
+name: Abnormal nervous system morphology
+def: "A structural anomaly of the nervous system." [https://orcid.org/0000-0002-0736-9199]
+synonym: "Abnormal shape of nervous system" EXACT layperson [https://orcid.org/0000-0001-5208-3432]
+synonym: "Abnormality of nervous system morphology" EXACT []
+xref: Fyler:4135
+xref: Fyler:4300
+xref: UMLS:C4022810
+is_a: HP:0000707 ! Abnormality of the nervous system
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2014-01-19T08:03:08Z" xsd:dateTime
+
+
+[Term]
+id: HP:0025015
+name: Abnormal vascular morphology
+is_a: HP:0002597 ! Abnormality of the vasculature
+is_a: HP:0030680 ! Abnormal cardiovascular system morphology
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2016-08-12T11:24:56Z" xsd:dateTime
+
+
+[Term]
+id: HP:0030680
+name: Abnormal cardiovascular system morphology
+alt_id: HP:0001632
+alt_id: HP:0002564
+alt_id: HP:0002565
+def: "Any structural anomaly of the heart and blood vessels." []
+synonym: "Abnormality of cardiovascular system morphology" EXACT []
+synonym: "Cardiovascular malformations" EXACT []
+xref: UMLS:C4049796
+is_a: HP:0001626 ! Abnormality of the cardiovascular system
+property_value: terms:date "2015-12-28T18:00:14Z" xsd:dateTime
+
+
+[Term]
+id: HP:0033353
+name: Abnormal blood vessel morphology
+def: "Any structural anomaly of a blood vessel (artery, arteriole, capillary, venule, or vein)." []
+is_a: HP:0025015 ! Abnormal vascular morphology
+property_value: terms:creator https://orcid.org/0000-0002-0736-9199
+property_value: terms:date "2020-12-01T11:42:14Z" xsd:dateTime
+
+
+[Term]
+id: HP:0100659
+name: Abnormal cerebral vascular morphology
+def: "An anomaly of the cerebral blood vessels." [PMID:30335330]
+synonym: "Abnormality of the cerebral blood vessels" EXACT layperson [https://orcid.org/0000-0001-5208-3432]
+synonym: "Abnormality of the cerebral vasculature" EXACT []
+xref: UMLS:C4022001
+is_a: HP:0012443 ! Abnormal brain morphology
+is_a: HP:0025015 ! Abnormal vascular morphology
+property_value: terms:creator https://orcid.org/0009-0006-4530-3154
+property_value: terms:date "2010-12-30T11:39:15Z" xsd:dateTime
+

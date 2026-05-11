@@ -25,7 +25,8 @@ workflow TALOS {
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
-    def current_month = new java.util.Date().format('yyyy-MM')
+    // params.fixed_month overrides this (used by the test workflow to pin fixtures)
+    def current_month = params.fixed_month ?: new java.util.Date().format('yyyy-MM')
     def timestamp = new java.util.Date().format('yyyy-MM-dd')
 
     // check if clinvar and panelapp data exist using the timestamp

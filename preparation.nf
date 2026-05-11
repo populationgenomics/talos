@@ -29,7 +29,7 @@ include { ParseManeIntoJson } from './nextflow/modules/prep/ParseManeIntoJson/ma
 
 workflow {
     main:
-    def timestamp = new java.util.Date().format('yyyy-MM')
+    def timestamp = params.fixed_month ?: new java.util.Date().format('yyyy-MM')
 
     ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
 

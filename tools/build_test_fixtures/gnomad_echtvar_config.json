@@ -1,0 +1,189 @@
+[
+  {
+    "field": "AC_joint",
+    "alias": "gnomad_AC_joint",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Alternate allele count in joint dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "A"
+  },
+  {
+    "field": "AN_joint",
+    "alias": "gnomad_AN_joint",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Total number of alleles in joint dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "1"
+  },
+  {
+    "field": "AF_joint",
+    "alias": "gnomad_AF_joint",
+    "missing_value": 0,
+    "missing_string": "MISSING",
+    "description": "Alternate allele frequency in joint dataset",
+    "zigzag": false,
+    "multiplier": 2000000,
+    "ftype": "Float",
+    "number": "A"
+  },
+  {
+    "field": "AC_joint_XY",
+    "alias": "gnomad_AC_joint_XY",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Alternate allele count for XY samples in joint dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "A"
+  },
+  {
+    "field": "AF_joint_XY",
+    "alias": "gnomad_AF_joint_XY",
+    "missing_value": 0,
+    "missing_string": "MISSING",
+    "description": "Alternate allele frequency in XY samples in joint dataset",
+    "zigzag": false,
+    "multiplier": 2000000,
+    "ftype": "Float",
+    "number": "A"
+  },
+  {
+    "field": "AC_joint_XX",
+    "alias": "gnomad_AC_joint_XX",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Alternate allele count for XX samples in joint dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "A"
+  },
+  {
+    "field": "AF_joint_XX",
+    "alias": "gnomad_AF_joint_XX",
+    "missing_value": 0,
+    "missing_string": "MISSING",
+    "description": "Alternate allele frequency in XX samples in joint dataset",
+    "zigzag": false,
+    "multiplier": 2000000,
+    "ftype": "Float",
+    "number": "A"
+  },
+  {
+    "field": "fafmax_faf95_max_joint",
+    "alias": "gnomad_faf_95_joint",
+    "missing_value": 0,
+    "missing_string": "MISSING",
+    "description": "Maximum filtering allele frequency (using Poisson 95% CI) across genetic ancestry groups in joint dataset",
+    "zigzag": false,
+    "multiplier": 2000000,
+    "ftype": "Float",
+    "number": "A"
+  },
+  {
+    "field": "AC_exomes",
+    "alias": "gnomad_AC_exomes",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Alternate allele count in exomes dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "A"
+  },
+  {
+    "field": "AN_exomes",
+    "alias": "gnomad_AN_exomes",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Total number of alleles in exomes dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "1"
+  },
+  {
+    "field": "AF_exomes",
+    "alias": "gnomad_AF_exomes",
+    "missing_value": 0,
+    "missing_string": "MISSING",
+    "description": "Alternate allele frequency in exomes dataset",
+    "zigzag": false,
+    "multiplier": 2000000,
+    "ftype": "Float",
+    "number": "A"
+  },
+  {
+    "field": "AC_genomes",
+    "alias": "gnomad_AC_genomes",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Alternate allele count in genomes dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "A"
+  },
+  {
+    "field": "AN_genomes",
+    "alias": "gnomad_AN_genomes",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Total number of alleles in genomes dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "1"
+  },
+  {
+    "field": "AF_genomes",
+    "alias": "gnomad_AF_genomes",
+    "missing_value": 0,
+    "missing_string": "MISSING",
+    "description": "Alternate allele frequency in genomes dataset",
+    "zigzag": false,
+    "multiplier": 2000000,
+    "ftype": "Float",
+    "number": "A"
+  },
+  {
+    "field": "nhomalt_joint",
+    "alias": "gnomad_HomAlt_joint",
+    "missing_value": -2147483648,
+    "missing_string": "MISSING",
+    "description": "Count of homozygous individuals in joint dataset",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Integer",
+    "number": "A"
+  },
+  {
+    "field": "genomes_filters",
+    "alias": "gnomad_genomes_filters",
+    "missing_value": -1,
+    "missing_string": "PASS",
+    "description": "Filters' values from the genomes dataset.",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Categorical",
+    "number": "."
+  },
+  {
+    "field": "exomes_filters",
+    "alias": "gnomad_exomes_filters",
+    "missing_value": -1,
+    "missing_string": "PASS",
+    "description": "Filters' values from the exomes dataset.",
+    "zigzag": false,
+    "multiplier": 1,
+    "ftype": "Categorical",
+    "number": "."
+  }
+]

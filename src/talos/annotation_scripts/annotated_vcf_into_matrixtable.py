@@ -167,7 +167,7 @@ def annotate_all_transcript_consequences(
         transcript_consequences=hl.map(
             lambda x: x.annotate(
                 am_class=hl.if_else(
-                    x.transcript == mt.info.am_transcript,
+                    x.transcript == mt.info.am_transcript,  # todo fix
                     mt.info.am_class,
                     MISSING_STRING,
                 ),
