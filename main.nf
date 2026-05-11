@@ -37,6 +37,11 @@ workflow {
 		exit 1
 	}
 
+	if (!params.ensembl_gff) {
+		println "params.ensembl_gff (${params.ensembl_gff}) is not available, please re-run the preparation.nf workflow"
+		exit 1
+	}
+
 	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true).first()
 	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
 	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
