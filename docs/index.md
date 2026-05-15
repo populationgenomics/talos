@@ -8,6 +8,19 @@ A full description of the method and its validation in large clinical and resear
 
 ---
 
+## Latest Changes
+
+{%
+   include-markdown "../CHANGELOG.md"
+   start="<!--latest-start-->"
+   end="<!--latest-end-->"
+   comments=false
+%}
+
+[Full changelog](changelog.md)
+
+---
+
 ## Where to next
 
 <div class="grid cards" markdown>
