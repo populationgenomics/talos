@@ -66,7 +66,7 @@ def translate_category(cat: str) -> str:
     """Translate a category from config file to a more descriptive name. If not found, return the original."""
 
     # for full matching we need a comparison that strips out spaces and punctuation
-    search_key = CATEGORY_FLATTENER.sub('', cat)
+    search_key = CATEGORY_FLATTENER.sub('', cat).lower()
     return CATEGORY_TRANSLATOR.get(search_key, cat)
 
 
