@@ -37,9 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > NOTE! Since 10.0.0, Talos uses a `TSV` input file to drive analyses. As of this update, the optional columns (previous results as a history, seqr IDs, secondary IDs, now Mitochondrial VCF) are all truly optional. The workflow doesn't require them to be populated in the input file at all.
 
 ### Fixed
-  
-  * Swapped out the standard BCFtools build for a CPG-fork. 
-  * This fork contains a single change - coding and non-coding genes are both annotated equally. 
+
+  * Swapped out the standard BCFtools build for a CPG-fork.
+  * This fork contains a single change - coding and non-coding genes are both annotated equally.
   * In our local runs we have seen that the default behaviour of BCFtools (issue [here](https://github.com/samtools/bcftools/issues/2548)) lead to failure to annotate consequences in non-coding genes where they overlapped with a coding gene, even if the non-coding gene was of greater clinical relevance.
   * By moving to the CPG fork, we have altered this behaviour. This may result in slightly slower annotation times, but should always present both coding and non-coding gene annotations where appropriate.
 

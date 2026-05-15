@@ -59,7 +59,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'exomiser': 'Exomiser',
 }
 
-CATEGORY_FLATTENER = re.compile('[\W_]+', re.UNICODE)
+CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
 
 
 def translate_category(cat: str) -> str:
