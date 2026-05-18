@@ -116,7 +116,6 @@ def merge_output(
     end: int = 1
     with open(output, 'w') as handle:
         for this_chrom, this_start, this_end in unmerged_lines:
-            print(this_chrom, this_start, this_end)
             if contig is None:
                 contig = this_chrom
                 start = this_start

@@ -67,21 +67,21 @@ def test_spliceai(splice_score, classified, make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'am_class,classified',
+    'am_pathogenicity,classified',
     [
-        ('likely_pathogenic', 1),
-        ('not_pathogenic', 0),
-        ('', 0),
-        (hl.missing('tstr'), 0),
+        (1, 1),
+        (0, 0),
+        (0.88, 1),
+        (hl.missing('tfloat64'), 0),
     ],
 )
-def test_alphamissense_assignment(am_class, classified, make_a_mt):
+def test_alphamissense_assignment(am_pathogenicity, classified, make_a_mt):
     """"""
 
     anno_matrix = make_a_mt.annotate_rows(
         transcript_consequences=hl.array(
             [
-                hl.Struct(am_class=am_class),
+                hl.Struct(am_pathogenicity=am_pathogenicity),
             ],
         ),
     )

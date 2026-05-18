@@ -382,7 +382,10 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
     panelapp_data, all_hpos = extract_participant_data_from_pedigree(pedigree=pedigree, hpo_lookup=hpo_label_lookup)
 
     # chuck in the default Mendeliome metadata
-    panelapp_data.metadata = {DEFAULT_PANEL: cached_panelapp.versions[DEFAULT_PANEL]}
+    panelapp_data.metadata = {}
+    for panel_entry in cached_panelapp.versions:
+        if panel_entry.id == DEFAULT_PANEL:
+            panelapp_data.metadata[DEFAULT_PANEL] = panel_entry
 
     if hpo_graph is not None:
         # match HPO terms to panel IDs

@@ -416,7 +416,6 @@ def main(
         # collect all sample IDs from each VCF type
         small_vcf_samples: set[str] = set()
         sv_vcf_samples: set[str] = set()
-        _mito_vcf_samples: set[str] = set()
 
         # open the small variant VCF using a cyvcf2 reader
         vcf_opened = VCFReader(labelled_vcf)
@@ -433,8 +432,7 @@ def main(
         mito_opened = None
         if labelled_mito:
             mito_opened = VCFReader(labelled_mito)
-            mito_vcf_samples = set(mito_opened.samples)
-            all_samples |= mito_vcf_samples
+            all_samples |= set(mito_opened.samples)
 
         # parse the pedigree from the file
         ped = PedigreeParser(pedigree)
