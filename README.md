@@ -43,7 +43,7 @@ Talos is **not currently designed** for:
 
 - Analysing **short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
 
-    - Mitochondrial analysis has now been added to Talos, but is limited to ClinVar pathogenic variants only. 
+    - Mitochondrial analysis has now been added to Talos, but is limited to ClinVar pathogenic variants only.
 
 > Support for some of these variant types may be added in future releases.
 

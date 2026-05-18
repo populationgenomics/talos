@@ -32,13 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Completed the migration from publishDir directives to exclusively using Workflow Outputs (see https://nextflow.io/docs/latest/tutorials/workflow-outputs.html)
   * Removed some intermediate build layers from Dockerfiles
   * The Ensembl GFF3 file is now edited during the download script, to re-name chrMT -> chrM, which enables Mitochondrial analysis. This requires re-running the file download and preparation workflow.
+  * The AlphaMissense category now allows users to set a pathogenic threshold (config.toml -> `RunHailFiltering.am_pathogenicity`). Each run can now set a manual threshold instead of deferring to the low default value of 0.564.
 
 > NOTE! Since 10.0.0, Talos uses a `TSV` input file to drive analyses. As of this update, the optional columns (previous results as a history, seqr IDs, secondary IDs, now Mitochondrial VCF) are all truly optional. The workflow doesn't require them to be populated in the input file at all.
 
 ### Fixed
-  
-  * Swapped out the standard BCFtools build for a CPG-fork. 
-  * This fork contains a single change - coding and non-coding genes are both annotated equally. 
+
+  * Swapped out the standard BCFtools build for a CPG-fork.
+  * This fork contains a single change - coding and non-coding genes are both annotated equally.
   * In our local runs we have seen that the default behaviour of BCFtools (issue [here](https://github.com/samtools/bcftools/issues/2548)) lead to failure to annotate consequences in non-coding genes where they overlapped with a coding gene, even if the non-coding gene was of greater clinical relevance.
   * By moving to the CPG fork, we have altered this behaviour. This may result in slightly slower annotation times, but should always present both coding and non-coding gene annotations where appropriate.
 

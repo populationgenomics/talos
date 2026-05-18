@@ -2,6 +2,7 @@
 A home for all data models used in Talos
 """
 
+import re
 from enum import Enum
 from itertools import pairwise
 from typing import Any
@@ -40,7 +41,6 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'avi': 'High AVI score',
     '1': 'ClinVar P/LP',
     'clinvarplp': 'ClinVar P/LP',
-    'ClinVarP/LP': 'ClinVar P/LP',
     'clinvar0star': 'ClinVar 0-star',
     'clinvar0starnewgene': 'ClinVar Recent Gene',
     '3': 'High Impact',
@@ -59,10 +59,15 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'exomiser': 'Exomiser',
 }
 
+CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
+
 
 def translate_category(cat: str) -> str:
     """Translate a category from config file to a more descriptive name. If not found, return the original."""
-    return CATEGORY_TRANSLATOR.get(cat.lower(), cat)
+
+    # for full matching we need a comparison that strips out spaces and punctuation
+    search_key = CATEGORY_FLATTENER.sub('', cat).lower()
+    return CATEGORY_TRANSLATOR.get(search_key, cat)
 
 
 class FileTypes(Enum):
