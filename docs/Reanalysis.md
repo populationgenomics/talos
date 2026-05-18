@@ -9,6 +9,8 @@ For NextFlow, this is mediated through the `history` column in the input TSV.
 * We advise that with each completed run, the `history` parameter is updated to the latest full_results JSON in the output folder.
 * If the file does not exist or was not provided, all variant discovery dates will be set to the time of the current run.
 
+> NOTE! To clarify, Talos does not automatically perform re-analysis, and has no internal 'state'. For each run to iterate on the previous run's results, they must be fed into the new analysis using the config TSV. Providing previous result files will cause dates and variant observations to be carried across runs, but how to record/provide the appropriate file is a per-implementation decision. 
+
 ## Process
 
 During the run, Talos analyses data as standard. Once the result set has been generated, the previous file is loaded up and current results are compared to its contents:

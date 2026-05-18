@@ -1,6 +1,6 @@
 # Features
 
-Talos prioritises variants using a small set of rule-based **logic modules**, each aligned with specific ACMG/AMP evidence criteria. This page outlines the modules and the workflow features built on top of them.
+Talos prioritises variants using a small set of rule-based **logic modules**, each aligned with specific ACMG/AMP evidence criteria. These modules are each present in code, implemented in Hail Query, and some can be modified by altering thresholds in configuration files. This page outlines the modules and the workflow features built on top of them.
 
 ---
 
@@ -13,16 +13,16 @@ Talos prioritises variants using a small set of rule-based **logic modules**, ea
 
 ### Standard modules
 
-| Module | Description |
-| --- | --- |
-| **ClinVar P/LP** | Pathogenic or Likely Pathogenic by ClinVArbitration. |
-| **ClinVar Recent Gene** | P/LP in a PanelApp "new" gene (became Green within the recency window configured by `GeneratePanelData.within_x_months`, default 24). |
-| **High Impact** | Predicted high-impact protein consequences. |
-| **De Novo** | Confirmed de novo in an affected individual. |
-| **PM5** | Missense in a codon with a known pathogenic variant. |
-| **LofSV** | Predicted loss-of-function structural variant. |
-| **ClinVar 0-star** *(supporting)* | P/LP with 0 gold stars in ClinVar. |
-| **AlphaMissense** *(supporting)* | AlphaMissense-predicted pathogenic missense variant. |
+| Module                            | Description                                                                                                                           |
+|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| **ClinVar P/LP**                  | Pathogenic or Likely Pathogenic by ClinVArbitration.                                                                                  |
+| **ClinVar Recent Gene**           | P/LP in a PanelApp "new" gene (became Green within the recency window configured by `GeneratePanelData.within_x_months`, default 24). |
+| **High Impact**                   | Predicted high-impact protein consequences.                                                                                           |
+| **De Novo**                       | Confirmed de novo in an affected individual.                                                                                          |
+| **PM5**                           | Missense in a codon with a known pathogenic variant.                                                                                  |
+| **LofSV**                         | Predicted loss-of-function structural variant.                                                                                        |
+| **ClinVar 0-star** *(supporting)* | P/LP with 0 gold stars in ClinVar.                                                                                                    |
+| **AlphaMissense** *(supporting)*  | AlphaMissense-predicted pathogenic missense variant.                                                                                  |
 
 Each module is configurable through the `.toml` config file — see the [Configuration reference](Configuration.md).
 
@@ -75,6 +75,7 @@ Talos produces structured outputs to support both manual review and downstream i
 
 - A `*.json` file listing all candidate variants for each proband.
 - Includes variant-level and gene-level evidence, inheritance checks, and phenotype match tags.
+- One or more MatrixTables representing the annotated and reformatted input data. These are the starting point for subsequent runs of the workflow, skipping the annotation process.
 
 ### Optional outputs
 

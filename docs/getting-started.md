@@ -108,7 +108,7 @@ nextflow \
     -output-dir <path_to_output_dir>
 ```
 
-Results are written to `{workflow.outputDir}/{cohort}_outputs`. The annotation sub-workflow only needs to be run once per dataset — the resulting MatrixTable can be reused for every subsequent reanalysis cycle.
+Results are written to `{workflow.outputDir}/{cohort}_outputs`. The annotation sub-workflow only needs to be run once per dataset — the resulting MatrixTables can be reused for every subsequent reanalysis cycle.
 
 For subsequent cycles after the data has already been annotated, use the Talos-only entry point:
 
