@@ -6,6 +6,21 @@ While Talos can be used for one-off reanalysis of individual families or cohorts
 
 A full description of the method and its validation in large clinical and research cohorts is available in our preprint: [medRxiv 2025.05.19.25327921](https://www.medrxiv.org/content/10.1101/2025.05.19.25327921).
 
+> Note - whether you are a new Talos user, or have an implementation already, we encourage you to run the `preparation` workflow with each update!
+
+---
+
+## Latest Changes
+
+{%
+   include-markdown "../CHANGELOG.md"
+   start="<!--latest-start-->"
+   end="<!--latest-end-->"
+   comments=false
+%}
+
+[Full changelog](changelog.md)
+
 ---
 
 ## Where to next

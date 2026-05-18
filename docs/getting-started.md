@@ -7,7 +7,11 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 There are two primary entry points:
 
 - `preparation.nf` — downloads and formats data in preparation for Talos runs.
-- `main.nf` — imports and executes the two sub-workflows (annotation + Talos) that comprise a full run.
+- `main.nf` — imports and executes the two sub-workflows (`annotation` + `Talos`) that comprise a full run.
+
+And one secondary entrypoint:
+
+- `talos_only.nf` - runs the analysis portion of the workflow only, requires a previous completion of the `annotation` wf.
 
 ---
 
@@ -17,7 +21,6 @@ You will need:
 
 - [Nextflow](https://www.nextflow.io/docs/latest/install.html)
 - Docker (or a compatible container runtime)
-- Java 11 (required by the Hail dependency if running Talos outside the container)
 
 Build the Talos Docker image locally:
 
@@ -64,7 +67,7 @@ The `processed_annotations` parameter should point to a static directory where T
 
 From version `10.0.0` onwards, all per-cohort inputs are provided in a single TSV file via `--input_tsv`. Each row in the TSV represents one cohort, and the workflow runs them in parallel into separate output directories.
 
-Various columns (history, ext_ids, seqr_map, mito) are optional. If they are not provided, NextFlow requires a real dummy file in their place - see the provided example input file [here](https://github.com/populationgenomics/talos/blob/main/nextflow/inputs/test.tsv)
+The optional columns (history, ext_ids, seqr_map, mito) can be omitted completely. If they are not provided, NextFlow defaults to a real but empty dummy file. See the provided example input file [here](https://github.com/populationgenomics/talos/blob/main/nextflow/inputs/test.tsv)
 
 | Column     | Required | Description                                                                    |
 |:-----------|:---------|:-------------------------------------------------------------------------------|

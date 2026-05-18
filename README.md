@@ -13,9 +13,7 @@
 
 While Talos can be used for one-off reanalysis of individual families or cohorts, its core design is optimised for **routine, cohort-scale reanalysis**. By comparing current annotations with prior results, Talos highlights **variants that have become reportable due to newly available evidence**—such as new gene–disease or variant–disease relationships—since the last analysis cycle. This enables timely identification of new diagnoses driven by emerging knowledge, while maintaining a low manual review burden.
 
-
 Talos is specifically intended to identify **variants in established disease genes that are likely to explain the participant’s condition**. It is not designed to detect novel candidate genes or to interpret variants of uncertain significance outside the context of existing clinical knowledge. This focus improves specificity and supports use in diagnostic and research reanalysis workflows.
-
 
 A full description of the method and its validation in large clinical and research cohorts is available in our preprint:
 
@@ -32,7 +30,7 @@ Talos is designed to support **automated reanalysis of rare disease cohorts**, e
 
 - You want to detect **variants that have become reportable** due to updates in gene–disease or variant–disease knowledge
 
-- You aim to **minimise the number of variants requiring manual review** optimising for specificity over sensitivity
+- You aim to **minimise the number of variants requiring manual review** optimising for specificity over-sensitivity
 
 - You are working with **exome or genome sequencing data** from previously analysed research or clinical cohorts
 
@@ -43,7 +41,9 @@ Talos is **not currently designed** for:
 
 - Identifying **novel candidate disease genes** or gene discovery
 
-- Analysing **mitochondrial variants, short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
+- Analysing **short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
+
+    - Mitochondrial analysis has now been added to Talos, but is limited to ClinVar pathogenic variants only.
 
 > Support for some of these variant types may be added in future releases.
 
