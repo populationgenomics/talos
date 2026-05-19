@@ -146,8 +146,8 @@ def integrate_participant_data(
         new_entry = [
             pedigree_data[participant_id]['family_id'],
             sg_id,
-            sg_id_map.get(participant_pedigree['maternal_id'], '0'),
             sg_id_map.get(participant_pedigree['paternal_id'], '0'),
+            sg_id_map.get(participant_pedigree['maternal_id'], '0'),
             str(participant_pedigree['sex']),
             str(participant_pedigree['affected']),
             hpo_terms,

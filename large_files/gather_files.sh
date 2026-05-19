@@ -1,6 +1,7 @@
 # Script for gathering large inputs required by Talos
 # This runs a download from multiple different sources
 # Output file names created/expected by this script match the initial configuration file content in `talos.config` and `annotation.config`
+set -o pipefail
 
 TMX=$(command -v tmux)
 POLL_INTERVAL=1
@@ -81,9 +82,13 @@ await() {
   if [ -z $TMX ]; then
     wait
   else
+    # No downloads were started in tmux — nothing to wait on.
+    if [ -z "$TMX_WINDOW_ID" ]; then
+      return 0
+    fi
   last_pane_count=-1
     while true; do
-      pane_count=$($TMX list-panes -t "$TMX_WINDOW_ID" | wc -l)
+      pane_count=$($TMX list-panes -t "$TMX_WINDOW_ID" 2>/dev/null | wc -l)
       if [ $last_pane_count != $pane_count ]; then
         $TMX select-layout -t "$TMX_WINDOW_ID" even-vertical
         last_pane_count=$pane_count
@@ -106,7 +111,6 @@ Downloading Echtvar from https://zenodo.org/records/15222100"
 # Monarch phenotype DB - another large download. 17GB decompressed
 COMPRESSED_PHENIO="phenio.db.gz"
 DECOMPRESSED_PHENIO="phenio.db"
-# if it doesn't exist, download it
 if [ ! -f "${DECOMPRESSED_PHENIO}" ]; then
   echo "[INFO] phenio.db not found, downloading..."
   start_download https://data.monarchinitiative.org/monarch-kg/latest/phenio.db.gz
@@ -130,12 +134,21 @@ fi
 start_download https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5/MANE.GRCh38.v1.5.summary.txt.gz
 
 # Ensembl GFF3 data
+GFF3_ORIGINAL="Homo_sapiens.GRCh38.116.chr.gff3.gz"
+GFF3_chrM_RENAMED="Homo_sapiens.GRCh38.116.MTtoM.gff3.gz"
 start_download https://ftp.ensembl.org/pub/release-116/vertebrates/gff3/homo_sapiens/Homo_sapiens.GRCh38.116.chr.gff3.gz
 
 # Jax lab file for phenotype matching
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/hp.obo
 
 start_download https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-02-16/genes_to_phenotype.txt
+
+# mitochondrial annotations
+start_download https://www.mitomap.org/downloads/mitotip_scores.txt
+
+start_download "https://mitimpact.mcb2lab.org/cdn/nAPOGEE_v1.0.0.txt.zip"
+
+start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
 
 # AlphaMissense raw data
 AM="AlphaMissense_hg38.tsv.gz"
@@ -153,12 +166,20 @@ await
 
 #if compressed exists, but decompressed doesn't, gunzip it
 if [ ! -f "${GRCh38_decompressed}" ] && [ -f "${GRCh38}" ]; then
+    echo "Decompressing reference Fasta"
     gunzip ${GRCh38}
 fi
 
 # same for the phenio files
 if [ ! -f "${DECOMPRESSED_PHENIO}" ] && [ -f "${COMPRESSED_PHENIO}" ]; then
+    echo "Decompressing Phenio.db"
     gunzip ${COMPRESSED_PHENIO}
+fi
+
+# rinse the Ensembl GFF3 file through a chrMT -> chrM rename
+if [ ! -f "${GFF3_chrM_RENAMED}" ] && [ -f "${GFF3_ORIGINAL}" ]; then
+    echo "Renaming MT to M in ensembl GFF3 file"
+    gunzip -c "${GFF3_ORIGINAL}" | sed 's/^MT/M/' | gzip > "${GFF3_chrM_RENAMED}"
 fi
 
 # Final status summary

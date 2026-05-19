@@ -20,7 +20,7 @@ from talos.cpg_internal_scripts.cpg_flow_utils import (
     generate_dataset_prefix,
     query_for_latest_analysis,
 )
-from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito_csq, make_config, run_clinvarbitration
+from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito, make_config, run_clinvarbitration
 from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
@@ -345,7 +345,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
             return self.make_outputs(cohort, data={}, jobs=None)
 
         # create the job which annotates the VCF
-        annotate_job = annotate_mito_csq.make_bcftools_mito_job(
+        annotate_job = annotate_mito.make_annotate_mito_job(
             cohort_id=cohort.id,
             mito_vcf=mito_vcf,
             output=outputs['annotated'],

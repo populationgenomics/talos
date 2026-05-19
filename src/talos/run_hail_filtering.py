@@ -449,16 +449,15 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
 
 def annotate_category_alphamissense(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    applies the boolean Category6 flag
+    applies the boolean alphamissense category flag
     - AlphaMissense likely Pathogenic on at least one transcript
     - Thresholds of am_pathogenicity:
         'Likely benign' if am_pathogenicity < 0.34;
         'Likely pathogenic' if am_pathogenicity > 0.564;
         'ambiguous' otherwise.
 
-    If AM class attribute is missing, skip annotation (default to 0)
-    This is run prior to Cat2 annotation - we use C6==True as a replacement
-    for the previous approach of [CADD & REVEL predict damaging]
+    This has been changed in v11.0.0. Instead of deferring to the AlphaMissense team's pre-configured 0.564 threshold,
+    we now allow users to manually set a threshold score. This can be used to fine tune the threshold for specificity.
 
     Args:
         mt (hl.MatrixTable):
@@ -466,10 +465,12 @@ def annotate_category_alphamissense(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categorybooleanalphamissense set to 1 or 0
     """
 
+    am_pathogenic_threshold = hl.float64(config_retrieve(['RunHailFiltering', 'am_pathogenicity'], 0.564))
+
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorybooleanalphamissense=hl.if_else(
-                hl.len(mt.transcript_consequences.filter(lambda x: x.am_class == 'likely_pathogenic')) > 0,
+                hl.len(mt.transcript_consequences.filter(lambda x: x.am_pathogenicity >= am_pathogenic_threshold)) > 0,
                 ONE_INT,
                 MISSING_INT,
             ),

@@ -45,6 +45,8 @@ v4 = VepVariant(BaseFields('chr6:39887558', ['C', 'T']), [t], sample_data=de_nov
 # Cat 1, 3, dominant, WT1
 v5 = VepVariant(BaseFields('chr11:32392032', ['G', 'A']), [t], sample_data=de_novo)
 
+vrnu22 = VepVariant(BaseFields('chr11:62841775', ['T', 'C']), [t], sample_data=de_novo)
+
 # cats 1 5 3, POC1B, AR
 v6 = VepVariant(BaseFields('chr12:89470359', ['A', 'C']), [t], sample_data=comp_het)
 
@@ -61,7 +63,7 @@ v9 = VepVariant(BaseFields('chr11:123057736', ['A', 'AATC']), [t], sample_data=t
 v10 = VepVariant(BaseFields('chr16:89279566', ['CCTTCGGGG', 'C']), [t], sample_data=tricky_de_novo)
 
 # create a SneakyTable object, which will take a list of VepVariant objects
-sn = SneakyTable([vnorm, v1, v2a, v2b, v3a, v3b, v4, v5, v6, v7, v8, v9, v10], '', sample_schema)
+sn = SneakyTable([vnorm, v1, v2a, v2b, v3a, v3b, v4, v5, vrnu22, v6, v7, v8, v9, v10], '', sample_schema)
 
 # once the table is parsed using the JSON schema, convert to a Hail MatrixTable
 # using the row_major functionality - this takes the list of sample IDs, converts those

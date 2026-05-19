@@ -1,0 +1,4 @@
+[
+    {"field": "mitotip", "alias": "mitotip", "missing_value": -2147483648, "multiplier": 2000000},
+    {"field": "mitomap_status", "alias": "mitomap_status", "missing_string": "."}
+]

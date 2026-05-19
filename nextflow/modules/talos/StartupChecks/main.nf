@@ -2,7 +2,7 @@ process StartupChecks {
     container params.container
 
     input:
-        tuple val(cohort), path(mts), path(pedigree), path(talos_config), path(history), path(ext), path(seqr)
+        tuple val(cohort), path(mts), path(pedigree), path(talos_config), path(history), path(ext), path(seqr), path(mito)
         path clinvar
 
     output:
