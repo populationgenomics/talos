@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     cd bcftools && \
     autoheader && \
     autoconf && \
-    ./configure --enable-libcurl --enable-s3 --enable-gcs --with-htslib=/bcftools_install/usr/local && \
+    ./configure --enable-libcurl --enable-s3 --enable-gcs && \
     make && \
     strip bcftools plugins/*.so && \
     make DESTDIR=/bcftools_install install
