@@ -261,6 +261,8 @@ def main(
         init_batch(
             driver_memory='highmem',
             driver_cores=2,
+            worker_memory='highmem',
+            worker_cores=2,
         )
     else:
         logger.info('Using Hail Local backend, will use a local checkpoint.')
