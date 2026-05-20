@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="10.0.2"
+version="11.0.0"
 requires-python = ">=3.10,<3.12"
 license-files = ["LICENSE"]
 classifiers=[
@@ -20,8 +20,8 @@ classifiers=[
 ]
 
 dependencies=[
-    'hail>=0.2.137',
-    'clinvarbitration>=2.2.7',
+    'hail~=0.2.137',
+    'clinvarbitration~=2.2.7',
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.4.1',
     'cyvcf2>=0.30.18',
@@ -51,6 +51,11 @@ test = [
     'pytest',
     'pytest-httpx',
     'pytest-xdist>=3.6.0',
+]
+docs = [
+    'mkdocs>=1.6',
+    'mkdocs-material>=9.5',
+    'mkdocs-include-markdown-plugin>=6.2',
 ]
 
 [project.urls]
@@ -121,7 +126,7 @@ hail = ["hail", "hailtop"]
 "src/talos/cpg_internal_scripts/talos_stages.py" = ["ARG002"]
 
 [tool.bumpversion]
-current_version = "10.0.2"
+current_version = "11.0.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true
@@ -157,3 +162,13 @@ replace = "{new_version}"
 filename = "README.md"
 search = "{current_version}"
 replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "docs/getting-started.md"
+search = "talos:{current_version}"
+replace = "talos:{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "nextflow_schema.json"
+search = "talos:{current_version}"
+replace = "talos:{new_version}"

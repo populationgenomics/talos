@@ -14,15 +14,48 @@ Suggested headings per release (as appropriate) are:
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!--changelog-start-->
+<!--latest-start-->
+
+[11.0.0] - 2026-05-15
+
+### Added
+
+  * Added optional Mitochondrial annotation pathway to the NextFlow implementation, and included mito annotation resources in the prep workflow.
+  * Full mkdocs build for the companion Docs site.
+  * Test fixtures and demonstration data now includes more non-coding variants and Mitochondrial data.
+  * Added "Super Logging" functionality. Opt-in high rate logging to explain the rejection reason for each variant.
+  * Talos previously only logged results, not rejections. This logs misses, and explanations e.g. threshold failure, family test, insufficient read depth, comp-het with only support categories
+
+### Changed
+
+  * Completed the migration from publishDir directives to exclusively using Workflow Outputs (see https://nextflow.io/docs/latest/tutorials/workflow-outputs.html)
+  * Removed some intermediate build layers from Dockerfiles
+  * The Ensembl GFF3 file is now edited during the download script, to re-name chrMT -> chrM, which enables Mitochondrial analysis. This requires re-running the file download and preparation workflow.
+  * The AlphaMissense category now allows users to set a pathogenic threshold (config.toml -> `RunHailFiltering.am_pathogenicity`). Each run can now set a manual threshold instead of deferring to the low default value of 0.564.
+
+> NOTE! Since 10.0.0, Talos uses a `TSV` input file to drive analyses. As of this update, the optional columns (previous results as a history, seqr IDs, secondary IDs, now Mitochondrial VCF) are all truly optional. The workflow doesn't require them to be populated in the input file at all.
+
+### Fixed
+
+  * Swapped out the standard BCFtools build for a CPG-fork.
+  * This fork contains a single change - coding and non-coding genes are both annotated equally.
+  * In our local runs we have seen that the default behaviour of BCFtools (issue [here](https://github.com/samtools/bcftools/issues/2548)) lead to failure to annotate consequences in non-coding genes where they overlapped with a coding gene, even if the non-coding gene was of greater clinical relevance.
+  * By moving to the CPG fork, we have altered this behaviour. This may result in slightly slower annotation times, but should always present both coding and non-coding gene annotations where appropriate.
+
+> NOTE! For existing Talos users, obtaining this extra annotation will require the re-run of the annotation workflow. One example gene which is known to be obscured by this default behaviour was RNU2-2, but there may be others.
+
+<!--latest-end-->
+
 [10.0.1] - 2026-03-23
 
 ### Fixed
 
-* Reinstates behaviour to remove solved cases from HTML reports. This is optional based on a config parameter, so cases being flagged as solved in the JSON, but displayed in the HTML, can be handled.
+* Reinstates behaviour to remove solved cases from HTML reports. This is optional based on a config parameter, so cases being flagged as solved in the JSON, but displayed in the HTML, can be handled. This was never intentionally removed, but was lost in a report refactor.
 
 [10.0.0] - 2026-02-24
 
-I am utterly shameless about bumping the heck out of these versions. For external users this is a _very_ breaking change.
+For external users this is a _very_ breaking change, as it alters the files used to provide inputs to NextFlow.
 
 ### Removed
 
@@ -400,7 +433,7 @@ This is a far larger dataset than the previous gnomAD 2/3, and is expected to pr
 * Renamed `vcf_to_mt` to `VcfToMt`
 * The 'extended PED' file format is no longer used - instead we use a normal 6-col PED file, and a separate file with
   phenotypic data and external IDs for each participant in a GA4GH-compliant Cohort/Phenopacket format
-  * An adapter remains in [talos/CPG](src/talos/ConvertPedToPhenopackets.py) to convert the old format to the new format
+  * An adapter remains in [talos/CPG](https://github.com/populationgenomics/talos/blob/main/src/talos/ConvertPedToPhenopackets.py) to convert the old format to the new format
 
 ### Deprecated
 

@@ -1,7 +1,10 @@
 # **Talos**
 
+[![Docs](https://img.shields.io/badge/docs-populationgenomics.github.io%2Ftalos-blue)](https://populationgenomics.github.io/talos/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![Test](https://github.com/populationgenomics/automated-interpretation-pipeline/actions/workflows/test.yaml/badge.svg)
+
+> 📖 **Full documentation:** <https://populationgenomics.github.io/talos/>
 
 ## **Overview**
 
@@ -10,9 +13,7 @@
 
 While Talos can be used for one-off reanalysis of individual families or cohorts, its core design is optimised for **routine, cohort-scale reanalysis**. By comparing current annotations with prior results, Talos highlights **variants that have become reportable due to newly available evidence**—such as new gene–disease or variant–disease relationships—since the last analysis cycle. This enables timely identification of new diagnoses driven by emerging knowledge, while maintaining a low manual review burden.
 
-
 Talos is specifically intended to identify **variants in established disease genes that are likely to explain the participant’s condition**. It is not designed to detect novel candidate genes or to interpret variants of uncertain significance outside the context of existing clinical knowledge. This focus improves specificity and supports use in diagnostic and research reanalysis workflows.
-
 
 A full description of the method and its validation in large clinical and research cohorts is available in our preprint:
 
@@ -29,7 +30,7 @@ Talos is designed to support **automated reanalysis of rare disease cohorts**, e
 
 - You want to detect **variants that have become reportable** due to updates in gene–disease or variant–disease knowledge
 
-- You aim to **minimise the number of variants requiring manual review** optimising for specificity over sensitivity
+- You aim to **minimise the number of variants requiring manual review** optimising for specificity over-sensitivity
 
 - You are working with **exome or genome sequencing data** from previously analysed research or clinical cohorts
 
@@ -40,7 +41,9 @@ Talos is **not currently designed** for:
 
 - Identifying **novel candidate disease genes** or gene discovery
 
-- Analysing **mitochondrial variants, short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
+- Analysing **short tandem repeats (STRs), mosaic variants**, or variants outside standard clinical reporting regions
+
+    - Mitochondrial analysis has now been added to Talos, but is limited to ClinVar pathogenic variants only.
 
 > Support for some of these variant types may be added in future releases.
 
@@ -66,12 +69,12 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -t talos:10.0.2 .
+docker build -t talos:11.0.0 .
 ```
 
 ### **2. Download Annotation Resources**
 
-Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_file.sh) which will handle the initial download of all required resources.
+Talos requires several large external resources (e.g. reference genome, gnomAD, AlphaMissense, Phenotype data). These are expected in a `large_files` directory. See [large_files/README.md](large_files/README.md) for detail on where to obtain them, and a [script](large_files/gather_files.sh) which will handle the initial download of all required resources.
 
 ### **3. Run Preparation Workflow**
 
@@ -108,6 +111,7 @@ The inputs for the Talos workflow are:
 - **history**: optional, path to previous results
 - **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
 - **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
+- **mito**: optional, path to mitochondrial variants joint-called VCF
 
 The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
 
@@ -121,7 +125,7 @@ The input TSV uses two columns to locate variant input; `path` and `type`. `path
 2. **shards** a directory of pre-sharded multisample VCF fragments, each shard containing all samples.
 3. **ss_vcf_dir** single-sample VCFs, to be merged in the workflow, then sharded. These are detected using a glob, with the file extension controlled by `params.input_vcf_extension` (defaults to "vcf.bgz")
 
-All results from the workflow will be written to a path pattern `{params.outdir}/{cohort}_outputs`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow`.
+All results from the workflow will be written to a path pattern `{workflow.outputDir}/{cohort}_outputs`. This argument should point to a directory outside this repository, though for demonstration purposes the default is `./nextflow`.
 
 The [main.nf](main.nf) workflow can be used to run both the main workflows, or where the data has been annotated previously, just the Talos workflow:
 

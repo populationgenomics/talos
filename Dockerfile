@@ -3,52 +3,65 @@ FROM python:3.11-slim-bullseye AS base
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bzip2 \
-    ca-certificates \
-    gnupg \
-    libbz2-1.0 \
-    libcurl4 \
-    liblzma5 \
-    openjdk-11-jdk-headless \
-    procps \
-    wget \
-    zip \
-    zlib1g && \
+        bzip2 \
+        ca-certificates \
+        gnupg \
+        libbz2-1.0 \
+        libcurl4 \
+        liblzma5 \
+        openjdk-11-jdk-headless \
+        procps \
+        wget \
+        zip \
+        zlib1g && \
     rm -r /var/lib/apt/lists/* && \
     rm -r /var/cache/apt/*
 
 FROM base AS bcftools_compiler
 
-ARG BCFTOOLS_VERSION=1.22
+ARG BCFTOOLS_VERSION=1.23.1
 
+# AS OF 11.0.0, Talos is building BCFtools from a private fork. This fork contains a single change - csq applies annotations
+# to both coding and non-coding genes in the event of overlapping genes. By default BCFtools skips non-coding gene annotation
+# if a coding transcript consequence was detected, but in practice this is masking clinically relevant non-coding gene variation
+# in cases where the non-coding gene overlaps with a non-clinically relevant coding gene.
+# The change made is to always search for non-coding variation, but to mask non-coding consequences in otherwise coding transcripts
+# if a coding change was already detected.
 RUN apt-get update && apt-get install --no-install-recommends -y \
+    autoconf \
     gcc \
+    git \
     libbz2-dev \
     libcurl4-openssl-dev \
     liblzma-dev \
     libssl-dev \
     make \
     zlib1g-dev && \
-    rm -rf /var/lib/apt/lists/* \
-    wget https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
-    tar -xf bcftools-${BCFTOOLS_VERSION}.tar.bz2 && \
-    cd bcftools-${BCFTOOLS_VERSION} && \
+    wget https://github.com/samtools/htslib/releases/download/${BCFTOOLS_VERSION}/htslib-${BCFTOOLS_VERSION}.tar.bz2 && \
+    tar -xf htslib-${BCFTOOLS_VERSION}.tar.bz2 && \
+    cd htslib-${BCFTOOLS_VERSION} && \
+    ./configure --enable-libcurl && \
+    make && \
+    make DESTDIR=/bcftools_install install && \
+    cd .. && \
+    git clone https://github.com/populationgenomics/bcftools.git && \
+    cd bcftools && \
+    autoheader && \
+    autoconf && \
     ./configure --enable-libcurl --enable-s3 --enable-gcs && \
     make && \
     strip bcftools plugins/*.so && \
-    make DESTDIR=/bcftools_install install && \
-    cd htslib-${BCFTOOLS_VERSION} && \
-    make && \
     make DESTDIR=/bcftools_install install
 
 FROM base AS talos
 
 COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
+COPY --from=bcftools_compiler /bcftools_install/usr/local/lib/ /usr/local/lib/
+RUN ldconfig
 
 ARG ECHTVAR_VERSION=v0.2.2
-ARG ECH_SHA=b66eb33ef787a712c911f8206243b310b03615720b00336430f399b9d197d235
-ARG VERSION=10.0.2
+ARG VERSION=11.0.0
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
     chmod +x /bin/echtvar
@@ -67,13 +80,13 @@ WORKDIR /talos
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --all-extras --frozen --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev
 
 # Add in the additional requirements that are most likely to change.
 COPY LICENSE pyproject.toml uv.lock README.md ./
 COPY src src/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --all-extras --frozen --no-dev
+    uv sync --frozen --no-dev
 
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"

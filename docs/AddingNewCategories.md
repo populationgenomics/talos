@@ -17,9 +17,9 @@ This framework is designed to make the addition of new categories super simple. 
 
 1. Add new Category name/number and description to the config file (
    e.g. [here](https://github.com/populationgenomics/talos/blob/main/src/talos/example_config.toml#L61))
-2. Add a new category method in the [RunHailFiltering.py script](../reanalysis/RunHailFiltering.py), (
-   e.g. [here](https://github.com/populationgenomics/talos/blob/main/src/talos/RunHailFiltering.py#L410-L443)).
+2. Add a new category method in the [run_hail_filtering.py script](https://github.com/populationgenomics/talos/blob/main/src/talos/run_hail_filtering.py), (
+   e.g. [here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/run_hail_filtering.py#L450)).
    This method should stand independently, and contain all the logic to decide whether the label is applied or not. This encapsulation should also include the decision about whether a classification is Boolean (True/False once per variant, annotate with `0/1`), Sample (only relevant to a subset of Samples, annotate with a comma-delimited list of Sample IDs), or Support (a lesser level of significance). Name your category accordingly.
-3. Annotate the data using your new method, i.e. a new call [here](https://github.com/populationgenomics/talos/blob/main/src/talos/RunHailFiltering.py#L919)
-4. Add your new category to the filtering method [here](https://github.com/populationgenomics/talos/blob/main/src/talos/RunHailFiltering.py#L671)
-5. If required (details category), add some new parsing logic to the `create_small_variant` ingestion method [here](https://github.com/populationgenomics/talos/blob/bc9385a21fcd9a0292d37b9ecf0f2faccae24f9e/src/talos/utils.py#L362)
+3. Annotate the data using your new method, i.e. a new call [here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/run_hail_filtering.py#L1079)
+4. Add your new category to the filtering method [here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/run_hail_filtering.py#L786)
+5. If required (details category), add some new parsing logic to the `create_small_variant` ingestion method [e.g. here](https://github.com/populationgenomics/talos/blob/6e4b43d7e2fd51baf1ce4021630316df114fd156/src/talos/utils.py#L443)

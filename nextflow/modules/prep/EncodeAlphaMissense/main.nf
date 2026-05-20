@@ -2,13 +2,19 @@ process EncodeAlphaMissense {
     container params.container
 
     input:
-        path vcf
+        path tsv
 
     output:
-        path "alphamissense.zip"
+        tuple path("alphamissense.vcf.gz"), path("alphamissense.zip")
 
     script:
         """
-        echtvar encode alphamissense.zip /talos/echtvar/am_config.json ${vcf}
+        set -euo pipefail
+
+        python -m talos.annotation_scripts.parse_alphamissense \
+            --input ${tsv} \
+            --output alphamissense.vcf.gz
+
+        echtvar encode alphamissense.zip /talos/echtvar/am_config.json alphamissense.vcf.gz
         """
 }

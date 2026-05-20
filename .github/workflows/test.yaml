@@ -1,8 +1,10 @@
 name: CI_test
-on: [push]
+
+on: [pull_request]
 
 jobs:
   test:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     defaults:
       run:

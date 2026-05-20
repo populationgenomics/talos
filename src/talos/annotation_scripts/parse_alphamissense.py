@@ -17,7 +17,7 @@ def main(input_am: str, output: str):
     with (
         gzip.open(input_am, 'rt') as handle,
         gzip.open(output, 'wt') as out,
-        (resources.files('talos') / 'am_header.txt').open() as head_in,
+        (resources.files('talos') / 'vcf_headers' / 'am_header.txt').open() as head_in,
     ):
         for line in head_in:
             out.write(line)

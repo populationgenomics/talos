@@ -2,18 +2,17 @@ process AnnotateCsqWithBcftools {
     container params.container
 
     input:
-        tuple val(cohort), path(vcf)
+        tuple val(cohort), path(vcf), path(vcf_tbi)
         path gff3
         path reference
-
-    // publishDir "${params.outdir}/${cohort}_outputs", mode: 'copy'
 
     output:
         tuple val(cohort), path("${vcf.simpleName}_csq.vcf.bgz")
 
     script:
     """
-    bcftools index -t ${vcf}
+    set -euo pipefail
+
     bcftools csq --force -f "${reference}" \
         --local-csq \
         -g ${gff3} \

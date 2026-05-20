@@ -40,7 +40,7 @@ def make_echtvar_job(
             name=f'AnnotateWithEchtvar: {cohort_id}, {part}',
             attributes=job_attrs | {'tool': 'echtvar'},
         )
-        job.image(config.config_retrieve(['images', 'echtvar']))
+        job.image(config.config_retrieve(['workflow', 'driver_image']))
         job.command(f"""
         echtvar anno \\
             -e {gnomad_annotations} {avi_command} \\

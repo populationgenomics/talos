@@ -1,0 +1,5 @@
+[
+    {"field": "apogee2_score", "alias": "apogee2_score", "missing_value": -2147483648, "multiplier": 2000000},
+    {"field": "apogee2_probability", "alias": "apogee2_probability", "missing_value": -2147483648, "multiplier": 2000000},
+    {"field": "apogee2", "alias": "apogee2", "missing_string": "."}
+]

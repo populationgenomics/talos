@@ -1,5 +1,7 @@
 #!/usr/bin/env nextflow
 
+nextflow.enable.dsl=2
+
 /*
 This workflow is the annotation process for the Talos pipeline.
 
@@ -10,8 +12,6 @@ The specific annotations are:
 - Transcript consequences, using BCFtools annotate
 - MANE trancript IDs and corresponding ENSP IDs, applied using Hail
 */
-
-nextflow.enable.dsl=2
 
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
 include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
@@ -29,22 +29,22 @@ workflow ANNOTATION {
 		ch_inputs
 
     main:
-    // populate various input channels - these are downloaded by the large_files/gather_file.sh script, or the prep wf
+    // populate various input channels - these are downloaded by the large_files/gather_files.sh script, or the prep wf
     if (!file(params.alphamissense_zip).exists()) {
         println "AlphaMissense data must be encoded for echtvar, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
-    ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true)
+    ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true).first()
 
     // check the ensembl BED file has been generated
     if (!file(params.ensembl_bed).exists()) {
         println "Region-Of-Interest BED file has not been prepared, run the Talos Prep workflow (talos_preparation.nf)"
         exit 1
     }
-    ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
-    ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
+    ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true).first()
+    ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true).first()
 
-    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true)
+    ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true).first()
 
     ch_inputs_branched = ch_inputs.branch {
         shards: it[2] == 'shards'
@@ -53,13 +53,13 @@ workflow ANNOTATION {
     }
 
     // Process shards
-    ch_from_shards = ch_inputs_branched.shards.flatMap { cohort, path, type ->
+    ch_from_shards = ch_inputs_branched.shards.flatMap { cohort, path, _type ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
         vcfs.collect { vcf -> tuple(cohort, vcf) }
     }
 
     // Process single-sample components
-    ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, type ->
+    ch_vcf_dir_inputs = ch_inputs_branched.vcf_dir.map { cohort, path, _type ->
         def vcfs = files("${path}/*.${params.input_vcf_extension}")
         def tbis = vcfs.collect { file("${it}.tbi") }
         tuple(cohort, vcfs, tbis)
@@ -67,12 +67,12 @@ workflow ANNOTATION {
 
     MergeVcfsWithBcftools(
         ch_vcf_dir_inputs,
-        ch_ref_genome.first(),
+        ch_ref_genome,
     )
     ch_merged_vcfs = MergeVcfsWithBcftools.out
 
     // Process single VCF
-    ch_single_vcfs = ch_inputs_branched.single_vcf.map { cohort, path, type ->
+    ch_single_vcfs = ch_inputs_branched.single_vcf.map { cohort, path, _type ->
         tuple(cohort, file(path, checkIfExists: true))
     }
 
@@ -94,28 +94,28 @@ workflow ANNOTATION {
 
 	NormaliseAndRegionFilterVcf(
         ch_all_vcfs,
-        ch_merged_bed.first(),
-        ch_ref_genome.first(),
+        ch_merged_bed,
+        ch_ref_genome,
     )
 
 	AnnotateWithEchtvar(
         NormaliseAndRegionFilterVcf.out,
-        ch_gnomad_zip.first(),
-        ch_alphamissense_zip.first(),
+        ch_gnomad_zip,
+        ch_alphamissense_zip,
     )
 
     // annotate transcript consequences with bcftools csq
     AnnotateCsqWithBcftools(
         AnnotateWithEchtvar.out,
-        ch_gff.first(),
-        ch_ref_genome.first(),
+        ch_gff,
+        ch_ref_genome,
     )
 
     // reformat the annotations in the VCF, generate a Hail MatrixTable
     AnnotatedVcfIntoMatrixTable(
         AnnotateCsqWithBcftools.out,
-        ch_bed.first(),
-        ch_mane.first(),
+        ch_bed,
+        ch_mane,
     )
 
     emit:

@@ -1,3 +1,7 @@
+#!/usr/bin/env nextflow
+
+nextflow.enable.dsl=2
+
 include { TALOS } from './nextflow/talos'
 
 workflow {
@@ -11,27 +15,38 @@ workflow {
 		println "Required --input_tsv argument not provided"
 		exit 1
 	}
-	ch_mane = Channel.fromPath(params.mane_json, checkIfExists: true)
-	ch_inputs = Channel.fromPath(params.input_tsv)
+	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true).first()
+	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
+	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
+
+	/*
+	NextFlow doesn't like the use of files("...", type: 'dir') here, as it scans for files at DAG setup time instead of
+	each time a new Stage is reached. This is intentional, as these files are not created by this workflow
+	*/
+	ch_inputs = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,
-			files("${params.outdir}/${row.cohort}_outputs/*.mt", type: 'dir'),
+			files("${workflow.outputDir}/${row.cohort}_outputs/*.mt", type: 'dir'),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
-			file(row.history, checkIfExists: true),
-			file(row.ext_ids, checkIfExists: true),
-			file(row.seqr_map, checkIfExists: true),
+			file(row.history ?: "${projectDir}/nextflow/assets/NO_HISTORY", checkIfExists: true),
+			file(row.ext_ids ?: "${projectDir}/nextflow/assets/NO_FILE", checkIfExists: true),
+			file(row.seqr_map ?: "${projectDir}/nextflow/assets/NO_SEQR_FILE", checkIfExists: true),
+			file(row.mito ?: "${projectDir}/nextflow/assets/NO_MITO", checkIfExists: true),
 		) }
 
 	TALOS(
 		ch_mane,
+		ch_gff,
+        ch_ref_genome,
 		ch_inputs,
 	)
 
 	publish:
     	html = TALOS.out.html
 		json = TALOS.out.json
+		panelapp = TALOS.out.panelapp
 }
 
 output {
@@ -40,5 +55,8 @@ output {
 	}
 	json {
 		path { id, json -> "${id}_outputs" }
+	}
+	panelapp {
+		path { id, panelapp -> "${id}_outputs" }
 	}
 }
