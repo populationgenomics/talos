@@ -27,7 +27,7 @@ def make_bcftools_anno_jobs(
             name=f'AnnotateConsequenceWithBcftools: {cohort_id}, {part}',
             attributes=job_attrs | {'tool': 'bcftools'},
         )
-        job.image(config.config_retrieve(['images', 'driver_image']))
+        job.image(config.config_retrieve(['workflow', 'driver_image']))
         job.cpu(4).storage('20G')
 
         job.declare_resource_group(output={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'})
