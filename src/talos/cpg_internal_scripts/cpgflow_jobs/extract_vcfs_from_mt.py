@@ -34,6 +34,7 @@ def make_vcf_extraction_job(
 
     job = hail_batch.get_batch().new_job(f'ExtractDataFromDatasetMt: {cohort.id}', attributes=job_attrs)
     job.storage('10Gi')
+    job.spot(False)
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.command(
         f"""

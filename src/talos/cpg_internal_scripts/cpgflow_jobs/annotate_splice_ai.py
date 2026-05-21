@@ -30,6 +30,7 @@ def add_job(
         name=f'Incorporate SpliceAi results for {cohort_id}',
         attributes=job_attrs,
     )
+    job.spot(False)
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     job.command(f"""
     python -m talos.cpg_internal_scripts.cpgflow_jobs.annotate_splice_ai \\
