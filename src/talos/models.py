@@ -329,13 +329,19 @@ class SmallVariant(VariantCommon):
 
 
 class StructuralVariant(VariantCommon):
-    """
-    placeholder for any methods/data specific to Structural Variants
-    """
+    """Placeholder for any methods/data specific to Structural Variants."""
+
+
+class ShortTandemRepeat(VariantCommon):
+    """Sub-class designed to parse STR VCFs into a suitable common format."""
+
+    locus: str
+    sample_filter: dict[str, str] = Field(default_factory=dict, exclude=True)
+    sample_repeats: dict[str, tuple[int, int] | tuple[int]] = Field(default_factory=dict, exclude=True)
 
 
 # register all interchangeable models here
-VARIANT_MODELS = SmallVariant | StructuralVariant
+VARIANT_MODELS = SmallVariant | StructuralVariant | ShortTandemRepeat
 
 
 class ReportPanel(BaseModel):
