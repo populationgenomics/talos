@@ -106,6 +106,9 @@ support_categories = ['alphamissense', 'clinvar0star']
 #super_logging = true
 #super_logging_path = "exclusions.jsonl.gz"
 
+# any STR loci with unacceptably low signal-to-noise ratios
+noisy_strs = ['RUNX2']
+
 [RunHailFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
 csq_string = [ "consequence", "gene_id", "gene", "transcript", "mane_id", "mane", "biotype", "dna_change", "amino_acid_change", "codon", "ensp", "am_class", "am_pathogenicity",]

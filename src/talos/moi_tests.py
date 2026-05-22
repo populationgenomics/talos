@@ -14,7 +14,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.config import config_retrieve
 from talos.exclusion_log import get_exclusion_logger
-from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
+from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, ShortTandemRepeat, StructuralVariant
 from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
@@ -50,12 +50,14 @@ class GlobalFilter:
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
     }
 
-    def too_common(self, variant: SmallVariant | StructuralVariant, applied_moi: str | None = None) -> bool:  # noqa: PLR0911
+    def too_common(
+        self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
+    ) -> bool:  # noqa: PLR0911
         """
         Check if a variant is too common in the population
 
         Args:
-            variant (SmallVariant | StructuralVariant): the variant to check
+            variant (SmallVariant | ShortTandemRepeat | StructuralVariant): the variant to check
             applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
 
         Returns:
@@ -149,6 +151,9 @@ class GlobalFilter:
                 )
                 return True
 
+        elif isinstance(variant, ShortTandemRepeat):
+            return False
+
         else:
             raise ValueError('Variant type not recognised')
 
@@ -180,12 +185,14 @@ class DominantFilter:
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'dominant_gnomad_sv_max_af']),
     }
 
-    def too_common(self, variant: SmallVariant | StructuralVariant, applied_moi: str | None = None) -> bool:
+    def too_common(
+        self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
+    ) -> bool:
         """
         Check if a variant is too common in the population
 
         Args:
-            variant (SmallVariant | StructuralVariant): the variant to check
+            variant (SmallVariant | ShortTandemRepeat | StructuralVariant): the variant to check
             applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
 
         Returns:
@@ -260,6 +267,9 @@ class DominantFilter:
                     },
                 )
                 return True
+
+        elif isinstance(variant, ShortTandemRepeat):
+            return False
 
         else:
             raise ValueError('Variant type not recognised')
@@ -797,6 +807,9 @@ class DominantAutosomal(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
+            if isinstance(principal, ShortTandemRepeat):
+                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
@@ -872,6 +885,9 @@ class RecessiveAutosomalCH(BaseMoi):
                 partner_variants.append(partner)
 
             if partner_variants:
+                if isinstance(principal, ShortTandemRepeat):
+                    principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+
                 classifications.append(
                     ReportVariant(
                         sample=sample_id,
@@ -947,6 +963,9 @@ class RecessiveAutosomalHomo(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
+            if isinstance(principal, ShortTandemRepeat):
+                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
@@ -1011,6 +1030,9 @@ class XDominant(BaseMoi):
             ):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
+
+            if isinstance(principal, ShortTandemRepeat):
+                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
 
             classifications.append(
                 ReportVariant(
@@ -1092,6 +1114,9 @@ class XPseudoDominantFemale(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
+            if isinstance(principal, ShortTandemRepeat):
+                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
@@ -1159,6 +1184,9 @@ class XRecessiveMale(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
+            if isinstance(principal, ShortTandemRepeat):
+                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
@@ -1224,6 +1252,9 @@ class XRecessiveFemaleHom(BaseMoi):
             ):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
+
+            if isinstance(principal, ShortTandemRepeat):
+                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
 
             classifications.append(
                 ReportVariant(
@@ -1302,6 +1333,9 @@ class XRecessiveFemaleCH(BaseMoi):
 
             # add a single event with all valid comp-het partners.
             if partner_variants:
+                if isinstance(principal, ShortTandemRepeat):
+                    principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+
                 classifications.append(
                     ReportVariant(
                         sample=sample_id,

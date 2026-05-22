@@ -435,7 +435,7 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
 
     # if we detected any failing samples against these rules, fish them out
     if to_pop:
-        logger.info(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
+        logger.debug(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
         info_dict['categorysampledenovo'] = [sam for sam in info_dict['categorysampledenovo'] if sam not in to_pop]
 
 
@@ -454,6 +454,9 @@ def create_str_variant(
     # parse the info dict, and shove in a recognisable category label
     boolean_categories = ['categorybooleanstr']
     info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'categorybooleanstr': 1}
+
+    if info.get('locus') in config_retrieve(['ValidateMOI', 'noisy_strs'], []):
+        return None
 
     # shuffle the gene ID (ENSG) to match the location Hail classifiers put it
     info['gene_id'] = info.pop('gene')

@@ -328,7 +328,7 @@ def prepare_results_shell(
                 },
                 solved=bool(participant.sample_id in solved_cases or participant.family_id in solved_cases),
                 present_in_small=participant.sample_id in source_samples['small'],
-                present_in_sv=participant.sample_id in source_samples['sv'],
+                present_in_sv=participant.sample_id in source_samples.get('sv', set()),
             ),
         )
 
