@@ -70,6 +70,8 @@ def main(
     hail_batch.init_batch(
         driver_memory='highmem',
         driver_cores=2,
+        worker_memory='highmem',
+        worker_cores=2,
     )
 
     # read the dense MT and obtain the sites-only HT
