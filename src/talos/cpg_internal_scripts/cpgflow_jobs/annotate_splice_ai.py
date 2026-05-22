@@ -36,6 +36,7 @@ def add_job(
         --input {' '.join(input_mts)} \\
         --output {output_mt}
     """)
+    job.spot(False)
     return job
 
 

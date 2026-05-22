@@ -31,7 +31,10 @@ def make_bcftools_mito_job(
         attributes=job_attrs | {'tool': 'bcftools'},
     )
     csq_job.image(config.config_retrieve(['workflow', 'driver_image']))
-    csq_job.cpu(1).storage('10G')
+
+    csq_job.cpu(config.config_retrieve(['hardware', 'bcftools', 'cpu'], 4))
+    csq_job.memory(config.config_retrieve(['hardware', 'bcftools', 'memory'], 'highmem'))
+    csq_job.storage(config.config_retrieve(['hardware', 'bcftools', 'storage'], '20GiB'))
 
     # then run the csq command:
     # -g is the GFF3 file

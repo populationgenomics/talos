@@ -28,7 +28,10 @@ def make_bcftools_anno_jobs(
             attributes=job_attrs | {'tool': 'bcftools'},
         )
         job.image(config.config_retrieve(['images', 'bcftools']))
-        job.cpu(4).storage('20G')
+
+        job.cpu(config.config_retrieve(['hardware', 'bcftools', 'cpu'], 4))
+        job.memory(config.config_retrieve(['hardware', 'bcftools', 'memory'], 'highmem'))
+        job.storage(config.config_retrieve(['hardware', 'bcftools', 'storage'], '20GiB'))
 
         job.declare_resource_group(output={'vcf.bgz': '{root}.vcf.bgz', 'vcf.bgz.tbi': '{root}.vcf.bgz.tbi'})
 
