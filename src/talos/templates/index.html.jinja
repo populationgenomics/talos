@@ -394,7 +394,7 @@
 
         var html = '<div class="child-row-content"><div class="row">';
 
-        html += '<div class="col-md-6"><div class="card"><div class="card-body">';
+        html += '<div class="col-md-9"><div class="card"><div class="card-body">';
         html += '<h5 class="card-title">Variant Details</h5><dl class="row">';
 
         html += '<dt class="col-sm-4">Coordinates</dt><dd class="col-sm-8">';
@@ -549,6 +549,65 @@
                     }
                 }
                 html += '</dd>';
+            } else if (rowData.variantType === 'ShortTandemRepeat' && variantData.info) {
+                var strRepeats = variantData.info.sample_repeats;
+                var strDetails = variantData.info.sample_repeat_details;
+
+                if (strRepeats && strRepeats.length > 0) {
+                    html += '<dt class="col-sm-4">Repeat Counts</dt><dd class="col-sm-8">';
+                    strRepeats.forEach(function(count, i) {
+                        html += 'Allele ' + (i + 1) + ': ' + escapeHtml(String(count)) + '<br>';
+                    });
+                    html += '</dd>';
+                }
+
+                if (strDetails && Object.keys(strDetails).length > 0) {
+                    var maxRepeats = strRepeats && strRepeats.length > 0 ? Math.max.apply(null, strRepeats) : null;
+                    html += '<dt class="col-sm-4">Disease Classification</dt><dd class="col-sm-8">';
+                    html += '<table class="table table-sm table-bordered mb-0"><thead><tr>';
+                    html += '<th>Disease</th><th>MOI</th><th>Normal</th><th>Intermediate</th><th>Pathogenic</th><th>Classification</th>';
+                    html += '</tr></thead><tbody>';
+
+                    Object.keys(strDetails).forEach(function(disease) {
+                        var d = strDetails[disease];
+                        var norm = d.norm ? d.norm[0] + '–' + d.norm[1] : '—';
+                        var inter = d.inter ? d.inter[0] + '–' + d.inter[1] : '—';
+                        var pathThresh = d.pathogenic && d.pathogenic !== '.' ? '≥' + d.pathogenic : '—';
+
+                        var badge = '<span class="badge bg-secondary">UNCLASSIFIED</span>';
+                        if (maxRepeats !== null) {
+                            var pathNum = d.pathogenic && d.pathogenic !== '.' ? parseInt(d.pathogenic, 10) : null;
+                            if (pathNum !== null && maxRepeats >= pathNum) {
+                                badge = '<span class="badge bg-danger">PATHOGENIC</span>';
+                            } else if (d.inter && maxRepeats >= d.inter[0] && maxRepeats <= d.inter[1]) {
+                                badge = '<span class="badge bg-warning text-dark">INTERMEDIATE</span>';
+                            } else if (d.norm && maxRepeats >= d.norm[0] && maxRepeats <= d.norm[1]) {
+                                badge = '<span class="badge bg-success">NORMAL</span>';
+                            }
+                        }
+
+                        html += '<tr>';
+                        html += '<td>' + escapeHtml(disease) + '</td>';
+                        html += '<td>' + escapeHtml(d.moi || '—') + '</td>';
+                        html += '<td>' + escapeHtml(norm) + '</td>';
+                        html += '<td>' + escapeHtml(inter) + '</td>';
+                        html += '<td>' + escapeHtml(pathThresh) + '</td>';
+                        html += '<td>' + badge + '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table></dd>';
+                }
+
+                if (rowData.genes) {
+                    var strGenes = rowData.genes.split(',');
+                    var strFirst = strGenes[0] ? strGenes[0].split(':') : ['', ''];
+                    if (strFirst[1]) {
+                        html += '<dt class="col-sm-4">External Links</dt><dd class="col-sm-8">';
+                        html += '<a href="' + omimGeneUrl(strFirst[1]) + '" target="_blank">OMIM</a>';
+                        html += '</dd>';
+                    }
+                }
             }
 
             html += '</dl></div></div></div>';
