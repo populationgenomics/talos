@@ -26,6 +26,11 @@ FOUR_EXPECTED = 4
 FIVE_EXPECTED = 5
 
 
+class FakePanelApp:
+    def __init__(self):
+        self.str_genes: set[str] = set()
+
+
 def test_coord_sorting():
     """
     check that coord sorting methods work
@@ -132,8 +137,7 @@ def test_gene_dict(two_trio_variants_vcf):
     gene = ENSG00000075043
     """
     reader = VCFReader(two_trio_variants_vcf)
-    contig = 'chr20'
-    var_dict = gather_gene_dict_from_contig(contig=contig, variant_source=reader)
+    var_dict = gather_gene_dict_from_contig(contig='chr20', variant_sources={'small': reader}, panelapp=FakePanelApp())
     assert len(var_dict) == 1
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED
@@ -163,7 +167,7 @@ def test_phased_dict(phased_vcf_path):
     gene = ENSG00000075043
     """
     reader = VCFReader(phased_vcf_path)
-    var_dict = gather_gene_dict_from_contig(contig='chr20', variant_source=reader)
+    var_dict = gather_gene_dict_from_contig(contig='chr20', variant_sources={'small': reader}, panelapp=FakePanelApp())
     assert len(var_dict) == ONE_EXPECTED
     assert 'ENSG00000075043' in var_dict
     assert len(var_dict['ENSG00000075043']) == TWO_EXPECTED

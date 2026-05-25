@@ -575,7 +575,8 @@ class Variant:
             return f'{self.var_data.info["svtype"]} {self.var_data.info["svlen"]}bp'
 
         if isinstance(self.var_data, ShortTandemRepeat):
-            return f'STR {self.var_data.info["locus"]}, Repeats: {", ".join(map(str, self.var_data.info["sample_repeats"]))}'
+            repeats = ', '.join(map(str, self.var_data.info['sample_repeats']))
+            return f'STR {self.var_data.info["locus"]}, Repeats: {repeats}'
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 

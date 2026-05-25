@@ -288,8 +288,7 @@ def prepare_results_shell(
 
     Args:
         results_meta (): metadata for the results
-        small_samples (): samples in the Small VCF
-        sv_samples (): samples in the SV VCFs
+        source_samples (): samples indexed by variant type
         pedigree (): the Pedigree object, already reduced to samples in the callset
         panelapp (): dictionary of gene data
 
@@ -420,7 +419,7 @@ def main(
         # open the small variant VCF using a cyvcf2 reader - mandatory data source
         vcf_opened = VCFReader(labelled_vcf)
         source_samples: dict[str, set[str]] = {'small': set(vcf_opened.samples)}
-        source_vcfs: dict[str, VCFReader] = {'small': VCFReader(labelled_vcf)}
+        source_vcfs: dict[str, VCFReader] = {'small': vcf_opened}
 
         # optional SV behaviour
         if labelled_sv:
@@ -438,7 +437,7 @@ def main(
         if str_vcf:
             str_opened = VCFReader(str_vcf)
             source_vcfs['str'] = str_opened
-            source_samples['mito'] = set(str_opened.samples)
+            source_samples['str'] = set(str_opened.samples)
 
         # collect all unique samples across the various sources
         all_samples = set.union(*source_samples.values())

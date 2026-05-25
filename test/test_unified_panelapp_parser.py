@@ -98,7 +98,6 @@ def test_match_participants_to_panels():
         'genes': {},
         'participants': {
             'sam1': ParticipantHPOPanels(
-                external_id='',
                 family_id='',
                 hpo_terms=[HpoTerm(id='HP:1', label='1'), HpoTerm(id='HP:2', label='2')],
                 panels={99, 1, 3, 5},
@@ -106,7 +105,6 @@ def test_match_participants_to_panels():
                 matched_phenotypes=set(),
             ),
             'sam2': ParticipantHPOPanels(
-                external_id='',
                 family_id='',
                 hpo_terms=[HpoTerm(id='HP:1', label='1')],
                 panels={99, 1, 3},
@@ -115,6 +113,8 @@ def test_match_participants_to_panels():
             ),
         },
         'version': CURRENT_VERSION,
+        'str_genes': set(),
+        'str_symbols': set(),
     }
 
 

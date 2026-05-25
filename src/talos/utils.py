@@ -427,7 +427,7 @@ def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | t
         dict of each disease name and its related thresholds and ranges
     """
 
-    results = {}
+    results: dict[str, dict] = {}
 
     # missing value = no details, return an empty dict
     if detail_string == '.':
@@ -748,7 +748,6 @@ def gather_gene_dict_from_contig(
             logger.info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
             continue
         contig_variants += 1
-        variant_sources.get('sv')
         contig_dict[small_variant.info['gene_id']].append(small_variant)
 
     # parse the SV VCF if provided, but not a necessary part of processing

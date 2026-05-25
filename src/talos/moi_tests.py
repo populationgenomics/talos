@@ -23,12 +23,17 @@ SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
-def populate_str_info(var: VARIANT_MODELS, sample_id: str) -> None:
-    """Only act on STRs - for STRs, populate the info block with sample-specific info."""
-
+def get_str_var_data(var: VARIANT_MODELS, sample_id: str) -> VARIANT_MODELS:
+    """For STRs, return a shallow copy with a sample-scoped info dict. Other variant types pass through unchanged."""
     if isinstance(var, ShortTandemRepeat):
-        var.info['sample_repeats'] = var.sample_repeats[sample_id]
-        var.info['sample_repeat_details'] = var.sample_repeat_details[sample_id]
+        copy = var.model_copy(deep=False)
+        copy.info = {
+            **var.info,
+            'sample_repeats': var.sample_repeats[sample_id],
+            'sample_repeat_details': var.sample_repeat_details[sample_id],
+        }
+        return copy
+    return var
 
 
 @dataclass
@@ -59,7 +64,7 @@ class GlobalFilter:
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
     }
 
-    def too_common(
+    def too_common(  # noqa: PLR0911
         self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
     ) -> bool:
         """
@@ -816,15 +821,12 @@ class DominantAutosomal(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-            populate_str_info(principal, sample_id)
-
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -894,15 +896,12 @@ class RecessiveAutosomalCH(BaseMoi):
                 partner_variants.append(partner)
 
             if partner_variants:
-                # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-                populate_str_info(principal, sample_id)
-
                 classifications.append(
                     ReportVariant(
                         sample=sample_id,
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
-                        var_data=principal,
+                        var_data=get_str_var_data(principal, sample_id),
                         categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -972,15 +971,12 @@ class RecessiveAutosomalHomo(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-            populate_str_info(principal, sample_id)
-
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
@@ -1040,15 +1036,12 @@ class XDominant(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-            populate_str_info(principal, sample_id)
-
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -1123,15 +1116,12 @@ class XPseudoDominantFemale(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-            populate_str_info(principal, sample_id)
-
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -1193,15 +1183,12 @@ class XRecessiveMale(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-            populate_str_info(principal, sample_id)
-
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
@@ -1262,15 +1249,12 @@ class XRecessiveFemaleHom(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-            populate_str_info(principal, sample_id)
-
             classifications.append(
                 ReportVariant(
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
@@ -1342,15 +1326,12 @@ class XRecessiveFemaleCH(BaseMoi):
 
             # add a single event with all valid comp-het partners.
             if partner_variants:
-                # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
-                populate_str_info(principal, sample_id)
-
                 classifications.append(
                     ReportVariant(
                         sample=sample_id,
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
-                        var_data=principal,
+                        var_data=get_str_var_data(principal, sample_id),
                         categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -1422,7 +1403,7 @@ class Mitochondrial(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
