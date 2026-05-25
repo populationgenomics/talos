@@ -628,6 +628,22 @@ class ValidateVariantInheritance(stage.CohortStage):
             )['vcf.bgz']
             mito_vcf_arg = f'--labelled_mito {mito_vcf} '
 
+        # is this run going to include STR data?
+        str_vcf_arg = ''
+        if str_vcf := query_for_latest_analysis(
+            dataset=cohort.dataset.name,
+            analysis_type='vcf',
+            long_read=config.config_retrieve(['workflow', 'long_read'], False),
+            stage_name='MakeStripyJointCall',
+        ):
+            stripy_vcf = hail_batch.get_batch().read_input_group(
+                **{
+                    'vcf.bgz': str_vcf,
+                    'vcf.bgz.tbi': f'{str_vcf}.tbi',
+                },
+            )['vcf.bgz']
+            str_vcf_arg = f'--str {stripy_vcf} '
+
         labelled_vcf = hail_batch.get_batch().read_input_group(
             **{
                 'vcf.bgz': hail_inputs,
@@ -657,7 +673,7 @@ class ValidateVariantInheritance(stage.CohortStage):
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
-                --pedigree {pedigree} {sv_vcf_arg} {history_string} {mito_vcf_arg}
+                --pedigree {pedigree} {sv_vcf_arg} {history_string} {mito_vcf_arg} {str_vcf_arg}
             """,
         )
         expected_out = self.expected_outputs(cohort)

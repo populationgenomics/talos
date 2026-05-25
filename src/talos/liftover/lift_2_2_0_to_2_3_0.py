@@ -2,10 +2,6 @@
 code for lifting over models from 2.1.0 to 2.2.0
 """
 
-from loguru import logger
-
-from talos.static_values import get_granular_date
-
 
 def panelapp(data_dict: dict) -> dict:
     data_dict |= {'str_genes': set(), 'str_symbols': set()}

@@ -14,7 +14,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.config import config_retrieve
 from talos.exclusion_log import get_exclusion_logger
-from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, ShortTandemRepeat, StructuralVariant
+from talos.models import VARIANT_MODELS, ReportVariant, ShortTandemRepeat, SmallVariant, StructuralVariant
 from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
@@ -61,7 +61,7 @@ class GlobalFilter:
 
     def too_common(
         self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
-    ) -> bool:  # noqa: PLR0911
+    ) -> bool:
         """
         Check if a variant is too common in the population
 

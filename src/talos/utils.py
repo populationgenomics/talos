@@ -29,13 +29,13 @@ from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
     Coordinates,
+    PanelApp,
     ResultData,
     ShortTandemRepeat,
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
     translate_category,
-    PanelApp,
 )
 from talos.static_values import get_granular_date
 
@@ -424,27 +424,30 @@ def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | t
         detail_string: the single pipe-delimited String
 
     Returns:
-
+        dict of each disease name and its related thresholds and ranges
     """
-    if detail_string == '.':
-        return {}
 
     results = {}
 
+    # missing value = no details, return an empty dict
+    if detail_string == '.':
+        return results
+
+    # parse each disease's data separately
     for disease_block in detail_string.split('|'):
+        # split up the formatted string
         gene, moi, norm, inter, pathogenic = disease_block.split('__')
 
-        # # is there any point populating this? Assumption is that custom loci only contain a subset of the content
-        # if gene == 'NA':
-        #     continue
-
+        # try and detect the normal and intermediate ranges
         normal_range: None | tuple[int, int] = None
         if matchy := re.match(STR_RANGE, norm):
             normal_range = (int(matchy.group('min')), int(matchy.group('max')))
+
         inter_range: None | tuple[int, int] = None
         if matchy := re.match(STR_RANGE, inter):
             inter_range = (int(matchy.group('min')), int(matchy.group('max')))
 
+        # build the
         results[gene] = {
             'moi': moi,
             'norm': normal_range,

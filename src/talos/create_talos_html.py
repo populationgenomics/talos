@@ -28,8 +28,8 @@ from talos.models import (
     PanelDetail,
     ReportVariant,
     ResultData,
-    SmallVariant,
     ShortTandemRepeat,
+    SmallVariant,
     StructuralVariant,
 )
 from talos.utils import read_json_from_path

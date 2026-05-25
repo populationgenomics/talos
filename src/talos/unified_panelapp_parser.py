@@ -247,7 +247,7 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
         return 'Hemi_Mono_In_Female'
 
     # take the more lenient of the gene MOI options
-    return sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]  # noqa: PLW0108
+    return sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
 
 
 def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedPanelApp):
