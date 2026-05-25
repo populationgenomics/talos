@@ -54,6 +54,7 @@ class GlobalFilter:
     small_gnomad_hemi: ClassVar[int] = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
 
     # filters specific to SVs
+    # todo the field could have a different name
     sv_dict: ClassVar[dict[str, float]] = {
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
     }
