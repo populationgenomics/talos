@@ -106,7 +106,7 @@ support_categories = ['alphamissense', 'clinvar0star']
 #super_logging = true
 #super_logging_path = "exclusions.jsonl.gz"
 
-# any STR loci with unacceptably low signal-to-noise ratios
+# any STR loci with unacceptably low signal-to-noise ratios - this is the 'locus' name from STRipy, not the gene ID
 noisy_strs = ['RUNX2']
 
 [RunHailFiltering]

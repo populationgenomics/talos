@@ -464,6 +464,7 @@ def main(
             contig_dict = gather_gene_dict_from_contig(
                 contig=contig,
                 variant_sources=source_vcfs,
+                panelapp=panelapp,
             )
 
             result_list.extend(

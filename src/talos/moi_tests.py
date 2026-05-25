@@ -23,6 +23,14 @@ SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
+def populate_str_info(var: VARIANT_MODELS, sample_id: str) -> None:
+    """Only act on STRs - for STRs, populate the info block with sample-specific info."""
+
+    if isinstance(var, ShortTandemRepeat):
+        var.info['sample_repeats'] = var.sample_repeats[sample_id]
+        var.info['sample_repeat_details'] = var.sample_repeat_details[sample_id]
+
+
 @dataclass
 class GlobalFilter:
     """
@@ -807,8 +815,8 @@ class DominantAutosomal(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            if isinstance(principal, ShortTandemRepeat):
-                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+            populate_str_info(principal, sample_id)
 
             classifications.append(
                 ReportVariant(
@@ -885,8 +893,8 @@ class RecessiveAutosomalCH(BaseMoi):
                 partner_variants.append(partner)
 
             if partner_variants:
-                if isinstance(principal, ShortTandemRepeat):
-                    principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+                # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+                populate_str_info(principal, sample_id)
 
                 classifications.append(
                     ReportVariant(
@@ -963,8 +971,8 @@ class RecessiveAutosomalHomo(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            if isinstance(principal, ShortTandemRepeat):
-                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+            populate_str_info(principal, sample_id)
 
             classifications.append(
                 ReportVariant(
@@ -1031,8 +1039,8 @@ class XDominant(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            if isinstance(principal, ShortTandemRepeat):
-                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+            populate_str_info(principal, sample_id)
 
             classifications.append(
                 ReportVariant(
@@ -1114,8 +1122,8 @@ class XPseudoDominantFemale(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            if isinstance(principal, ShortTandemRepeat):
-                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+            populate_str_info(principal, sample_id)
 
             classifications.append(
                 ReportVariant(
@@ -1184,8 +1192,8 @@ class XRecessiveMale(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            if isinstance(principal, ShortTandemRepeat):
-                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+            populate_str_info(principal, sample_id)
 
             classifications.append(
                 ReportVariant(
@@ -1253,8 +1261,8 @@ class XRecessiveFemaleHom(BaseMoi):
                 self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
                 continue
 
-            if isinstance(principal, ShortTandemRepeat):
-                principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+            # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+            populate_str_info(principal, sample_id)
 
             classifications.append(
                 ReportVariant(
@@ -1333,8 +1341,8 @@ class XRecessiveFemaleCH(BaseMoi):
 
             # add a single event with all valid comp-het partners.
             if partner_variants:
-                if isinstance(principal, ShortTandemRepeat):
-                    principal.info['sample_repeats'] = principal.sample_repeats[sample_id]
+                # only act on STRs - for ShortTandemRepeat variants, pull the sample-specific calling details into info
+                populate_str_info(principal, sample_id)
 
                 classifications.append(
                     ReportVariant(

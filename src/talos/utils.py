@@ -35,6 +35,7 @@ from talos.models import (
     StructuralVariant,
     lift_up_model_version,
     translate_category,
+    PanelApp,
 )
 from talos.static_values import get_granular_date
 
@@ -77,6 +78,8 @@ PHASE_BROKEN: bool = False
 
 # not in use yet, if we want to reduce the number of TranscriptConsequence entries we store, this is a good start
 BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_gene_variant']
+
+STR_RANGE = re.compile(r'min(?P<min>[0-9]+)max(?P<max>[0-9]+)$')
 
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
@@ -410,6 +413,48 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
     info_dict['svdb_doi'] = doi_urls
 
 
+def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | tuple[int, int] | None]]:
+    """
+    Parse the pipe-delimited disease details for this sample & locus.
+    Each block is in the format "Disease__MOI__NormalRange__IntermediateRange__PathogenicThreshold".
+    Ranges can be missing: "."
+    Other values can be missing: "NA"
+
+    Args:
+        detail_string: the single pipe-delimited String
+
+    Returns:
+
+    """
+    if detail_string == '.':
+        return {}
+
+    results = {}
+
+    for disease_block in detail_string.split('|'):
+        gene, moi, norm, inter, pathogenic = disease_block.split('__')
+
+        # # is there any point populating this? Assumption is that custom loci only contain a subset of the content
+        # if gene == 'NA':
+        #     continue
+
+        normal_range: None | tuple[int, int] = None
+        if matchy := re.match(STR_RANGE, norm):
+            normal_range = (int(matchy.group('min')), int(matchy.group('max')))
+        inter_range: None | tuple[int, int] = None
+        if matchy := re.match(STR_RANGE, inter):
+            inter_range = (int(matchy.group('min')), int(matchy.group('max')))
+
+        results[gene] = {
+            'moi': moi,
+            'norm': normal_range,
+            'inter': inter_range,
+            'pathogenic': pathogenic,
+        }
+
+    return results
+
+
 def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_ratios: dict[str, float]) -> None:
     """
     apply some late checking on de novo attributes
@@ -470,11 +515,15 @@ def create_str_variant(
     # get repeat counts for each sample with a variant call
     vcf_repcn = dict(zip(samples, var.format('REPCN'), strict=True))
 
+    disease_details = dict(zip(samples, var.format('DISEASE_DETAILS'), strict=True))
+
     # dictionary to record repeat counts for called variants - tuple of length 1 | 2
     repeat_counts: dict[str, tuple[int, int] | tuple[int]] = {}
+    sample_disease_details: dict = {}
     for sample_id in het_samples | hom_samples:
         # strip out numpy.nan(float64) values, cast the real values as floats
         repeat_counts[sample_id] = tuple(int(value) for value in vcf_repcn[sample_id] if ~isnan(value))  # type: ignore[assignment]
+        sample_disease_details[sample_id] = parse_str_disease_details(disease_details[sample_id])
 
     return ShortTandemRepeat(
         coordinates=coordinates,
@@ -486,6 +535,7 @@ def create_str_variant(
         ignored_categories=ignored_categories,
         support_categories=get_categories_translated(),
         sample_repeats=repeat_counts,
+        sample_repeat_details=sample_disease_details,
     )
 
 
@@ -651,6 +701,7 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 def gather_gene_dict_from_contig(
     contig: str,
     variant_sources: dict[str, 'cyvcf2.VCFReader'],
+    panelapp: PanelApp,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -709,10 +760,16 @@ def gather_gene_dict_from_contig(
 
     # parse STR VCF if provided
     if variant_sources.get('str'):
+        # limit STRs to PanelApp green-evidence accepted repeat disorder genes
+        repeat_disorder_genes = panelapp.str_genes
         str_samples = variant_sources['str'].samples
         str_variants = 0
         for variant in variant_sources['str'](contig):
             if str_var := create_str_variant(var=variant, samples=str_samples):
+                # skip any which aren't accepted in PanelApp's repeat disorders panel
+                if str_var.info['gene_id'] not in repeat_disorder_genes:
+                    continue
+
                 str_variants += 1
                 contig_dict[str_var.info['gene_id']].append(str_var)
 
