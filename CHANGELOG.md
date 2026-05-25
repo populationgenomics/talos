@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Test fixtures and demonstration data now includes more non-coding variants and Mitochondrial data.
   * Added "Super Logging" functionality. Opt-in high rate logging to explain the rejection reason for each variant.
   * Talos previously only logged results, not rejections. This logs misses, and explanations e.g. threshold failure, family test, insufficient read depth, comp-het with only support categories
+  * STR data can now be handled. This is not currently implemented in Nextflow, but could be if there's appetite outside CPG.
 
 ### Changed
 
