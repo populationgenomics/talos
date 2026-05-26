@@ -630,11 +630,15 @@ class ValidateVariantInheritance(stage.CohortStage):
 
         # is this run going to include STR data?
         str_vcf_arg = ''
-        if str_vcf := query_for_latest_analysis(
-            dataset=cohort.dataset.name,
-            analysis_type='vcf',
-            long_read=config.config_retrieve(['workflow', 'long_read'], False),
-            stage_name='MakeStripyJointCall',
+        # screen out cohorts/datasets which we don't want to run STRs for
+        str_cohort = cohort.dataset.name in config.config_retrieve(['workflow', 'str_cohorts'], [])
+        if str_cohort and (
+            str_vcf := query_for_latest_analysis(
+                dataset=cohort.dataset.name,
+                analysis_type='vcf',
+                long_read=config.config_retrieve(['workflow', 'long_read'], False),
+                stage_name='MakeStripyJointCall',
+            )
         ):
             stripy_vcf = hail_batch.get_batch().read_input_group(
                 **{
