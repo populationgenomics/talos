@@ -57,6 +57,9 @@ docs = [
     'mkdocs-material>=9.5',
     'mkdocs-include-markdown-plugin>=6.2',
 ]
+stripy = [
+    'pysam'
+]
 
 [project.urls]
 Repository = "https://github.com/populationgenomics/talos"

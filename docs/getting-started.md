@@ -81,7 +81,10 @@ The optional columns (history, ext_ids, seqr_map, mito) can be omitted completel
 | `seqr_map` | optional | ID mapping for Seqr hyperlinks in the HTML report.                             |
 | `mito`     | optional | Path to a joint-called mitochondrial VCF.                                      |
 
-### Input types
+STR can be handled by Talos, but only data called by STRipy, and aggregated into a joint VCF format by the script `talos/scripts/stripy_json_to_vcf.py`.
+This is not yet exposed in the nextflow implementation, but may be in future.
+
+### Small-variant VCF input types
 
 <table>
     <colgroup>
