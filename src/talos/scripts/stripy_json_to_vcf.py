@@ -27,7 +27,6 @@ import pysam
 
 from cpg_utils import config, to_path
 
-
 CONTIG_ORDER = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 HEADER_LINES = [
     ('chr1', 248956422),
