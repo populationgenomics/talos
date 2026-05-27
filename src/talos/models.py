@@ -19,6 +19,7 @@ from talos.liftover.lift_1_2_0_to_2_0_0 import resultdata as rd_120_to_200
 from talos.liftover.lift_2_0_0_to_2_1_0 import panelapp as pa_200_to_210
 from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
 from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
+from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
@@ -27,8 +28,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.2.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0']
+CURRENT_VERSION = '2.3.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0', '2.3.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -443,6 +444,7 @@ class DownloadedPanelAppGenePanelDetail(BaseModel):
 
     moi: str
     date: str = Field(default_factory=str)
+    confidence: int = Field(default_factory=int)
 
 
 class DownloadedPanelAppGene(BaseModel):
@@ -559,6 +561,7 @@ class PedigreeMember(BaseModel):
 LIFTOVER_METHODS: dict = {
     DownloadedPanelApp: {
         '2.1.0_2.2.0': dl_pa_210_to_220,
+        '2.2.0_2.3.0': dl_pa_220_to_230,
     },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
