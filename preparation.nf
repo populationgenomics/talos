@@ -121,13 +121,15 @@ workflow {
     // generate the Region-of-interest BED file from Ensembl GFF3
     // generates a per-gene BED file with ID annotations
     // and a overlap-merged version of the same for more efficient region filtering
-    if (!file(params.ensembl_bed).exists() || !file(params.ensembl_merged_bed).exists()) {
+    if (!file(params.ensembl_bed).exists() || !file(params.ensembl_merged_bed).exists() || !file(params.ensembl_symbol_lookup).exists()) {
         CreateRoiFromGff3(ch_gff)
         ch_bed = CreateRoiFromGff3.out.bed
         ch_merged_bed = CreateRoiFromGff3.out.merged_bed
+        ch_symbol_lookup = CreateRoiFromGff3.out.json_lookup
     } else {
         ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true)
         ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true)
+        ch_symbol_lookup = channel.fromPath(params.ensembl_symbol_lookup, checkIfExists: true)
     }
 
     // pull and parse the MANE data into a Hail Table
@@ -156,6 +158,7 @@ workflow {
         alphamissense = ch_alphamissense_zip
         bed = ch_bed
         merged_bed = ch_merged_bed
+        symbol_lookup = ch_symbol_lookup
         clinvar_all = ch_clinvar_all
         clinvar_pm5 = ch_clinvar_pm5
         mitimpact = ch_mitimpact_zip
@@ -171,6 +174,8 @@ output {
     bed {
     }
     merged_bed {
+    }
+    symbol_lookup {
     }
     clinvar_all {
     }

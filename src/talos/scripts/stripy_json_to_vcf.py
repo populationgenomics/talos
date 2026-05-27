@@ -15,6 +15,9 @@ This script creates VCFs in the format expected by Talos. Specific fields used:
   - FORMAT/REPCN           - counts detected at each allele
   - FORMAT/STR_FILTER      - rule out quality-failed STR calls
   - FORMAT/DISEASE_DETAILS - dense formatted String, presenting each disease and corresponding thresholds
+
+This implementation of the STRipy VCF generator requires a symbol: ensg lookup dictionary
+This is now provided as an additional input from the prep script/module CreateRoiFromGff3
 """
 
 import argparse
