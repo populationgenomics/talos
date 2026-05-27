@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Removed some intermediate build layers from Dockerfiles
   * The Ensembl GFF3 file is now edited during the download script, to re-name chrMT -> chrM, which enables Mitochondrial analysis. This requires re-running the file download and preparation workflow.
   * The AlphaMissense category now allows users to set a pathogenic threshold (config.toml -> `RunHailFiltering.am_pathogenicity`). Each run can now set a manual threshold instead of deferring to the low default value of 0.564.
+  * PanelApp parsing can now pull Red, Amber, and Green genes. A config parameter `confidence_level` can be used to control this behaviour. N.b. MOI may not be as well curated for non-green genes.
 
 > NOTE! Since 10.0.0, Talos uses a `TSV` input file to drive analyses. As of this update, the optional columns (previous results as a history, seqr IDs, secondary IDs, now Mitochondrial VCF) are all truly optional. The workflow doesn't require them to be populated in the input file at all.
 
