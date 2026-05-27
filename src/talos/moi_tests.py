@@ -1086,6 +1086,7 @@ class XPseudoDominantFemale(BaseMoi):
 
         # all females which have a variant call
         all_with_variant = principal.het_samples.union(principal.hom_samples)
+        all_males = {sam for sam in all_with_variant if self.pedigree.participants[sam].is_male}
         for sample_id in all_with_variant:
             participant = self.pedigree.participants[sample_id]
             if not participant.is_female:
@@ -1104,16 +1105,23 @@ class XPseudoDominantFemale(BaseMoi):
             # as we're allowing for flexible 'penetrance' in females, we send all het and hom variants, but allow for a
             # partial penetrance check - the participants can have the variant, but not be affected. They may not be
             # affected without the variant call.
-            # There's a slight breakdown here as the males should be interpreted under a full penetrance model, and
-            # females under partial penetrance, but that's not trivial without creating a second familial check method.
-            # Leaving that aside now as the current implementation is pretty central to the algorithm. Will revisit if
-            # this is noisy.
+            # males are tested separately, with complete penetrance. Pool of samples is Males + proband.
+            if not self.single_variant_explains_disease_in_family(
+                sample_id=sample_id,
+                called_variants=all_males | {sample_id},
+            ):
+                self._log_sample_exclusion(
+                    principal, sample_id, 'pseudo_family_check_failed__male', stage='family_check'
+                )
+                continue
             if not self.single_variant_explains_disease_in_family(
                 sample_id=sample_id,
                 called_variants=all_with_variant,
                 partial_pen=True,
             ):
-                self._log_sample_exclusion(principal, sample_id, 'family_check_failed', stage='family_check')
+                self._log_sample_exclusion(
+                    principal, sample_id, 'pseudo_family_check_failed__all', stage='family_check'
+                )
                 continue
 
             classifications.append(
