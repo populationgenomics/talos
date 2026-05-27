@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from obonet import read_obo
@@ -6,6 +6,8 @@ from obonet import read_obo
 from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
+    DownloadedPanelAppGene,
+    DownloadedPanelAppGenePanelDetail,
     HpoTerm,
     PanelApp,
     PanelDetail,
@@ -188,9 +190,7 @@ def test_remove_blacklisted_genes():
     assert 'ENSG1' not in panelapp_data.genes
 
 
-def _make_downloaded_gene(ensg: str, panel_id: int, confidence: int, moi: str = 'biallelic'):
-    from talos.models import DownloadedPanelAppGene, DownloadedPanelAppGenePanelDetail
-
+def _make_downloaded_gene(ensg: str, panel_id: int, confidence: int, moi: str = 'biallelic') -> DownloadedPanelAppGene:
     return DownloadedPanelAppGene(
         symbol=ensg,
         chrom='1',
@@ -218,7 +218,6 @@ def test_fetch_genes_for_panels_excludes_low_confidence():
 
 def test_fetch_genes_for_panels_includes_amber_when_threshold_lowered():
     """lowering MIN_GENE_CONFIDENCE to 2 must include amber associations"""
-    from unittest.mock import patch
 
     panel_id = 137
     cached = DownloadedPanelApp(
