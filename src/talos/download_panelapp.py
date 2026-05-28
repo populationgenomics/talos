@@ -58,13 +58,8 @@ REALLY_OLD = '1970-01-01'
 PANELS_ENDPOINT = 'https://panelapp-aus.org/api/v1/panels'
 DEFAULT_PANEL = 137
 
-# by default, we only want to retain Green genes (confidence=3)
-# the panelapp value is a String, so we need to convert it
-GENE_CONFIDENCE: int = 3
-
 try:
     DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], DEFAULT_PANEL)
-    GENE_CONFIDENCE = config_retrieve(['GeneratePanelData', 'confidence_level'], GENE_CONFIDENCE)
     PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELS_ENDPOINT)
 except (ConfigError, KeyError):
     logger.warning('Config environment variable TALOS_CONFIG not set, or keys missing, falling back to Aussie PanelApp')
@@ -194,11 +189,6 @@ def parse_panel(
         if gene['entity_type'] != 'gene':
             continue
 
-        # remove any variants lower than the current confidence_level
-        confidence_level = int(gene['confidence_level'])
-        if confidence_level < GENE_CONFIDENCE:
-            continue
-
         symbol: str = gene['entity_name']
 
         chrom = ''
@@ -234,7 +224,7 @@ def parse_panel(
                 'mane_symbol': ensg_dict.get(each_ensg, '') if ensg_dict else '',
                 'moi': exact_moi,
                 'green_date': green_dates.get(symbol, REALLY_OLD),
-                'confidence_level': confidence_level,
+                'confidence_level': int(gene['confidence_level']),
             }
 
     return panel_gene_content
