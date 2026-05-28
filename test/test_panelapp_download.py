@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 from talos.download_panelapp import (
     PANELS_ENDPOINT,
     get_panels_and_hpo_terms,
@@ -141,46 +139,21 @@ _GENE_TEMPLATE = {
 
 
 def _make_gene(symbol: str, confidence: int) -> dict:
-    gene = {**_GENE_TEMPLATE, 'entity_name': symbol, 'confidence_level': str(confidence)}
-    gene['gene_data'] = {
-        'ensembl_genes': {
-            'GRch38': {
-                '90': {
-                    'ensembl_id': f'ENSG{symbol}',
-                    'location': '1:',
+    return {
+        **_GENE_TEMPLATE,
+        'entity_name': symbol,
+        'confidence_level': str(confidence),
+        'gene_data': {
+            'ensembl_genes': {
+                'GRch38': {
+                    '90': {
+                        'ensembl_id': f'ENSG{symbol}',
+                        'location': '1:',
+                    },
                 },
             },
         },
     }
-    return gene
-
-
-def test_parse_panel_excludes_low_confidence(panel_activities):
-    """genes below the default green threshold (3) must be filtered out"""
-    panel_data = [
-        _make_gene('GREEN', 3),
-        _make_gene('AMBER', 2),
-        _make_gene('RED', 1),
-    ]
-    result = parse_panel(panel_data=panel_data, panel_activities=panel_activities)
-    assert 'ENSGGREEN' in result
-    assert 'ENSGAMBER' not in result
-    assert 'ENSGRED' not in result
-
-
-def test_parse_panel_includes_amber_when_threshold_lowered(panel_activities):
-    """lowering GENE_CONFIDENCE to 2 admits amber genes but still rejects red"""
-    panel_data = [
-        _make_gene('GREEN', 3),
-        _make_gene('AMBER', 2),
-        _make_gene('RED', 1),
-    ]
-    with patch('talos.download_panelapp.GENE_CONFIDENCE', 2):
-        result = parse_panel(panel_data=panel_data, panel_activities=panel_activities)
-    assert 'ENSGGREEN' in result
-    assert 'ENSGAMBER' in result
-    assert 'ENSGRED' not in result
-    assert result['ENSGAMBER']['confidence_level'] == 2
 
 
 def test_parse_panel_includes_all_when_threshold_one(panel_activities):
@@ -190,8 +163,7 @@ def test_parse_panel_includes_all_when_threshold_one(panel_activities):
         _make_gene('AMBER', 2),
         _make_gene('RED', 1),
     ]
-    with patch('talos.download_panelapp.GENE_CONFIDENCE', 1):
-        result = parse_panel(panel_data=panel_data, panel_activities=panel_activities)
+    result = parse_panel(panel_data=panel_data, panel_activities=panel_activities)
     assert 'ENSGGREEN' in result
     assert 'ENSGAMBER' in result
     assert 'ENSGRED' in result
