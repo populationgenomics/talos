@@ -296,6 +296,7 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
             moi=moi,
             new=new_panels,
             panels=panel_intersection,
+            panel_confidences={pid: gene_data.panels[pid].confidence for pid in panel_intersection},
         )
 
 

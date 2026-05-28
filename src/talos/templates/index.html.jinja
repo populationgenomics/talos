@@ -714,7 +714,9 @@
         // Enable bootstrap tool tips
         var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
-            new bootstrap.Tooltip(tooltipTriggerEl);
+            new bootstrap.Tooltip(tooltipTriggerEl, {
+                html: tooltipTriggerEl.dataset.bsHtml === 'true',
+            });
         });
 
         phenotypeFilter.on('change', function () {

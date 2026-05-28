@@ -416,6 +416,7 @@ class PanelDetail(BaseModel):
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
     panels: set[int] = Field(default_factory=set)
+    panel_confidences: dict[int, int] = Field(default_factory=dict)
 
 
 class PanelShort(BaseModel):

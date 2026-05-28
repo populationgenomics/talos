@@ -17,7 +17,6 @@ process CreateTalosHTML {
         set -euo pipefail
 
         export TALOS_CONFIG=${talos_config}
-        mkdir ${cohort}_report
         python -m talos.create_talos_html \
             --input ${talos_result_json} \
             --panelapp ${panelapp_data} \

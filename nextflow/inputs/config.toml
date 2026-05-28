@@ -6,6 +6,12 @@ within_x_months = 24
 forbidden_genes = []
 forced_panels = [ 144,]
 
+# confidence level - set this to a lower value to allow non-green PanelApp genes into the analysis
+# 3 = Green only
+# 2 = Amber or Green only
+# 1 = Red, Amber, or Green
+confidence_level = 3
+
 [[GeneratePanelData.manual_overrides]]
 # this section permits the manual addition of genes to the panel data
 # each gene here will be folded into the panelapp data after standard API queries have taken place
