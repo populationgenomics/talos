@@ -1,3 +1,4 @@
+import copy
 import functools
 import json
 
@@ -91,11 +92,11 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
     dataset = cohort.dataset.name
     # start off with a fresh config dictionary, including generic content
     new_config = {
-        'GeneratePanelData': config.config_retrieve(['GeneratePanelData']),
-        'RunHailFiltering': config.config_retrieve(['RunHailFiltering']),
-        'RunHailFilteringSv': config.config_retrieve(['RunHailFilteringSv']),
-        'ValidateMOI': config.config_retrieve(['ValidateMOI']),
-        'HPOFlagging': config.config_retrieve(['HPOFlagging']),
+        'GeneratePanelData': copy.deepcopy(config.config_retrieve(['GeneratePanelData'])),
+        'RunHailFiltering': copy.deepcopy(config.config_retrieve(['RunHailFiltering'])),
+        'RunHailFilteringSv': copy.deepcopy(config.config_retrieve(['RunHailFilteringSv'])),
+        'ValidateMOI': copy.deepcopy(config.config_retrieve(['ValidateMOI'])),
+        'HPOFlagging': copy.deepcopy(config.config_retrieve(['HPOFlagging'])),
         'CreateTalosHTML': {},  # populate from a separate part of config
         'splice_ai_ht': config.config_retrieve(['references', 'splice_ai_ht']),
         'dataset': dataset,
