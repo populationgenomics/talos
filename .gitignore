@@ -3,7 +3,6 @@
 # hail logs
 hail*.log
 
-
 # scratch files
 /scratch/
 
@@ -100,3 +99,7 @@ dmypy.json
 nextflow/cohort_outputs/
 nextflow/processed_annotations/
 work/
+
+# Added by code-review-graph
+.code-review-graph/
+CLAUDE.md
