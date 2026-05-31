@@ -27,7 +27,7 @@ def make_bcftools_anno_jobs(
             name=f'AnnotateConsequenceWithBcftools: {cohort_id}, {part}',
             attributes=job_attrs | {'tool': 'bcftools'},
         )
-        job.image(config.config_retrieve(['images', 'bcftools']))
+        job.image(config.config_retrieve(['workflow', 'driver_image']))
 
         job.cpu(config.config_retrieve(['hardware', 'bcftools', 'cpu'], 4))
         job.memory(config.config_retrieve(['hardware', 'bcftools', 'memory'], 'highmem'))
