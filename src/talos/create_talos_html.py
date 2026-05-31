@@ -605,12 +605,17 @@ class Variant:
         # store if this variant is new in any of the other panels
         self.new_panels: set[str] = set()
 
+        # Panel IDs applied to this sample (base panel + HPO-matched + forced)
+        applied_panel_ids = match_ids | {html_builder.base_panel}
+
         # List of (gene_id, symbol, panel_confidence_tooltip_html)
         self.genes: list[tuple[str, str, str]] = []
         for gene_id in report_variant.gene.split(','):
             gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, PanelDetail(symbol=gene_id))
             tooltip_parts = []
             for panel_id, confidence in sorted(gene_panelapp_entry.panel_confidences.items()):
+                if panel_id not in applied_panel_ids:
+                    continue
                 panel_name = html_builder.panelapp.metadata.get(panel_id, PanelShort(id=panel_id)).name or str(panel_id)
                 tooltip_parts.append(f'{CONFIDENCE_EMOJI.get(confidence, "⚪")} {panel_name}')
             self.genes.append((gene_id, gene_panelapp_entry.symbol, '<br>'.join(tooltip_parts)))
