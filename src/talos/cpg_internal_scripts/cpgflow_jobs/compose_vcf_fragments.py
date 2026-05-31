@@ -28,7 +28,7 @@ def make_condense_jobs(
         --output {output!s} \\
         --script condense_script.sh \\
         --tmp {tmp_dir / 'compose_intermediates' / cohort_id!s}
-        
+
         bash condense_script.sh
         """,
     )
