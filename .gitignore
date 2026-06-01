@@ -3,7 +3,6 @@
 # hail logs
 hail*.log
 
-
 # scratch files
 /scratch/
 
@@ -97,7 +96,7 @@ dmypy.json
 #nextflow
 .nextflow/
 .nextflow.log*
-nextflow/cohort_outputs/
+nextflow/*test/
 nextflow/processed_annotations/
 work/
 

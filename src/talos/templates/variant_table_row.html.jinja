@@ -15,6 +15,7 @@
     data-support-vars='{{variant.support_vars_json|tojson}}'
     data-transcript-consequences='{{variant.transcript_consequences_json|tojson}}'
     data-has-phenotype="{{ 1 if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches else 0 }}"
+    data-max-confidence="{{ variant.max_confidence }}"
 >
     <td style="white-space: nowrap" class="details-control">
         {# Individual ID - Click to expand details #}
@@ -62,9 +63,19 @@
         {% endif %}
     </td>
     <td>
-        {# Gene symbol #}
-        {% for gene in variant.genes %}
+        {# Gene symbol + confidence indicator #}
+        {% if variant.max_confidence == 3 %}{% set conf_emoji = "🟢" %}
+        {% elif variant.max_confidence == 2 %}{% set conf_emoji = "🟡" %}
+        {% elif variant.max_confidence == 1 %}{% set conf_emoji = "🔴" %}
+        {% else %}{% set conf_emoji = "⚪" %}{% endif %}
+        {{ conf_emoji }}{% for gene in variant.genes %}
+        {% if gene[2] %}
+        <span data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" data-bs-title="{{ gene[2] }}">
+            <a href="https://panelapp-aus.org/panels/entities/{{gene[1]|urlencode}}" target="_blank">{{gene[1]|e}}</a>
+        </span>
+        {% else %}
         <a href="https://panelapp-aus.org/panels/entities/{{gene[1]|urlencode}}" target="_blank">{{gene[1]|e}}</a>
+        {% endif %}
         {% endfor %}
         {% if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches %}
         {% if variant.pheno_matches %}

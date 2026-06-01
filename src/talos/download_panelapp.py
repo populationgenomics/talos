@@ -59,13 +59,13 @@ PANELS_ENDPOINT = 'https://panelapp-aus.org/api/v1/panels'
 DEFAULT_PANEL = 137
 
 try:
-    PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELS_ENDPOINT)
     DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], DEFAULT_PANEL)
+    PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELS_ENDPOINT)
 except (ConfigError, KeyError):
     logger.warning('Config environment variable TALOS_CONFIG not set, or keys missing, falling back to Aussie PanelApp')
 
 # if this is a massive result, it returns over a number of pages
-GREEN_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/genes/?confidence_level=3'
+GENE_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}/genes'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
 MITO_BAD = 'MT'
 MITO_GOOD = 'M'
@@ -224,6 +224,7 @@ def parse_panel(
                 'mane_symbol': ensg_dict.get(each_ensg, '') if ensg_dict else '',
                 'moi': exact_moi,
                 'green_date': green_dates.get(symbol, REALLY_OLD),
+                'confidence_level': int(gene['confidence_level']),
             }
 
     return panel_gene_content
@@ -231,7 +232,7 @@ def parse_panel(
 
 async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, list[dict]]:
     """Async method to return data from a single panel"""
-    panel_url = GREEN_TEMPLATE.format(id=panel_id)
+    panel_url = GENE_TEMPLATE_URL.format(id=panel_id)
     panel_results: list[dict] = []
 
     while True:
@@ -367,6 +368,7 @@ def main(output: str, mane_path: str | None = None):
                 prev_gene_data.panels[panel_id] = DownloadedPanelAppGenePanelDetail(
                     moi=gene_data['moi'],
                     date=gene_data['green_date'],
+                    confidence=gene_data['confidence_level'],
                 )
                 # update if previous wasn't populated
                 prev_gene_data.mane_symbol = prev_gene_data.mane_symbol or gene_data['mane_symbol']
@@ -381,6 +383,7 @@ def main(output: str, mane_path: str | None = None):
                         panel_id: DownloadedPanelAppGenePanelDetail(
                             moi=gene_data['moi'],
                             date=gene_data['green_date'],
+                            confidence=gene_data['confidence_level'],
                         ),
                     },
                 )

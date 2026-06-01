@@ -6,6 +6,12 @@ within_x_months = 24
 forbidden_genes = []
 forced_panels = [ 144,]
 
+# confidence level - set this to a lower value to allow non-green PanelApp genes into the analysis
+# 3 = Green only
+# 2 = Amber or Green only
+# 1 = Red, Amber, or Green
+confidence_level = 3
+
 [[GeneratePanelData.manual_overrides]]
 # this section permits the manual addition of genes to the panel data
 # each gene here will be folded into the panelapp data after standard API queries have taken place
@@ -95,9 +101,7 @@ support_categories = ["alphamissense", "clinvar0star"]
 
 # variants where all applied categories are in this list are removed from the report unless the gene or variant is
 # flagged as being a good phenotypic fit for the specific case
-# This default value "6" (AlphaMissense) is redundant with the "support" category - variants which were only flagged by
-# AlphaMissense will be removed from consideration completely
-phenotype_match = ["AlphaMissense"]
+phenotype_match = ["alphamissense"]
 
 # un-comment this to apply a minimum GQ to all samples in the trio, including WT. This will reduce de Novo prediciton
 # if data was merged from single-sample VCFs (WTs/absent from single sample VCF will be inserted as WT/GQ=0)

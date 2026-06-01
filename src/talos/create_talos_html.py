@@ -23,7 +23,7 @@ from cloudpathlib.anypath import to_anypath
 from loguru import logger
 
 from talos.config import config_retrieve
-from talos.models import PanelApp, PanelDetail, ReportVariant, ResultData, SmallVariant, StructuralVariant
+from talos.models import PanelApp, PanelDetail, PanelShort, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -40,6 +40,8 @@ MEAN_SLASH_SAMPLE = 'Mean/sample'
 
 # reactive to different versions of gnomAD
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
+
+CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
 GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
 
 
@@ -603,11 +605,22 @@ class Variant:
         # store if this variant is new in any of the other panels
         self.new_panels: set[str] = set()
 
-        # List of (gene_id, symbol)
-        self.genes: list[tuple[str, str]] = []
+        # Panel IDs applied to this sample (base panel + HPO-matched + forced)
+        applied_panel_ids = match_ids | {html_builder.base_panel}
+
+        self.max_confidence: int = 0
+        # List of (gene_id, symbol, panel_confidence_tooltip_html)
+        self.genes: list[tuple[str, str, str]] = []
         for gene_id in report_variant.gene.split(','):
             gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, PanelDetail(symbol=gene_id))
-            self.genes.append((gene_id, gene_panelapp_entry.symbol))
+            tooltip_parts = []
+            for panel_id, confidence in sorted(gene_panelapp_entry.panel_confidences.items()):
+                if panel_id not in applied_panel_ids:
+                    continue
+                self.max_confidence = max(self.max_confidence, confidence)
+                panel_name = html_builder.panelapp.metadata.get(panel_id, PanelShort(id=panel_id)).name or str(panel_id)
+                tooltip_parts.append(f'{CONFIDENCE_EMOJI.get(confidence, "⚪")} {panel_name}')
+            self.genes.append((gene_id, gene_panelapp_entry.symbol, '<br>'.join(tooltip_parts)))
 
             # is this a new gene?
             new_panels = gene_panelapp_entry.new

@@ -121,16 +121,52 @@
                             <span class="badge text-bg-warning">Affected female with heterozygous variant in XLR gene</span> for females, we evaluate biallelic genes under a pseudo-dominant model, to detect plausible variants in the event of skewed x-inactivation.
                         </p>
 
+                        <h5>Confidence</h5>
+                        <p class="mb-1">
+                            Talos can include non-green PanelApp genes, depending on configuration.
+                            See <a href="https://panelapp-aus.org/#!Guidelines" target="_blank">PanelApp Guidelines</a> for the full meaning of each confidence level.
+                        </p>
+                        <p class="mb-1">
+                            Hovering over a gene symbol shows all panels that match this participant, with the RAG confidence for the gene on each panel.
+                        </p>
+                        <p class="mb-0">
+                            The coloured button next to the gene symbol shows the highest confidence level across matched panels, and can be filtered using the checkboxes above the table.
+                        </p>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label for="phenotype-filter" class="form-label">Phenotype match filter</label>
-                    <select id="phenotype-filter" class="form-select form-select-sm" style="max-width: 240px;">
-                        <option value="all" selected>All variants</option>
-                        <option value="has">With phenotype match</option>
-                        <option value="none">Without phenotype match</option>
-                    </select>
+                <div class="d-flex flex-wrap gap-4 mb-3">
+                    <div>
+                        <label for="phenotype-filter" class="form-label">Phenotype match filter</label>
+                        <select id="phenotype-filter" class="form-select form-select-sm" style="max-width: 240px;">
+                            <option value="all" selected>All variants</option>
+                            <option value="has">With phenotype match</option>
+                            <option value="none">Without phenotype match</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Panel confidence</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input conf-filter" type="checkbox" id="conf-3" value="3" checked>
+                                <label class="form-check-label" for="conf-3">🟢 Green</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input conf-filter" type="checkbox" id="conf-2" value="2" checked>
+                                <label class="form-check-label" for="conf-2">🟡 Amber</label>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input conf-filter" type="checkbox" id="conf-1" value="1" checked>
+                                <label class="form-check-label" for="conf-1">🔴 Red</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input conf-filter" type="checkbox" id="conf-0" value="0" checked>
+                                <label class="form-check-label" for="conf-0">⚪ Unknown</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <table class="display" id="variant-table">
@@ -380,6 +416,29 @@
             }
 
             return true;
+        });
+
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable !== $('#variant-table')[0]) {
+                return true;
+            }
+
+            var checkedValues = $('.conf-filter:checked').map(function() {
+                return this.value;
+            }).get();
+
+            if (checkedValues.length === 4) {
+                return true;
+            }
+
+            var aoData = settings.aoData[dataIndex];
+            var rowNode = aoData && aoData.nTr;
+            if (!rowNode) {
+                return true;
+            }
+
+            var conf = rowNode.getAttribute('data-max-confidence') || '0';
+            return checkedValues.indexOf(conf) !== -1;
         });
 
         function formatChildRow(rowData) {
@@ -714,10 +773,16 @@
         // Enable bootstrap tool tips
         var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
-            new bootstrap.Tooltip(tooltipTriggerEl);
+            new bootstrap.Tooltip(tooltipTriggerEl, {
+                html: tooltipTriggerEl.dataset.bsHtml === 'true',
+            });
         });
 
         phenotypeFilter.on('change', function () {
+            table.draw();
+        });
+
+        $('.conf-filter').on('change', function () {
             table.draw();
         });
 

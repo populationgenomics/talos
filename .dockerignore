@@ -5,5 +5,7 @@ build
 .coverage*
 .nextflow
 
-large_files
+large_files*
 nextflow/*_outputs
+nextflow/*test
+work
