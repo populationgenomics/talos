@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Test fixtures and demonstration data now includes more non-coding variants and Mitochondrial data.
   * Added "Super Logging" functionality. Opt-in high rate logging to explain the rejection reason for each variant.
   * Talos previously only logged results, not rejections. This logs misses, and explanations e.g. threshold failure, family test, insufficient read depth, comp-het with only support categories
+  * Using the "confidence_level" configuration setting can allow PanelApp genes with lower evidence levels (1 >= Red, 2 >= Amber) to be used in analysis. The default level remains 3/Green-only.
+  * The HTML report shows, for each gene, the panels it was found in, and the confidence level associated evidence level on each panel. Checkboxes can be used to filter to specific confidence levels. 
 
 ### Changed
 
