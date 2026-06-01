@@ -37,6 +37,7 @@ def add_job(
         --input {' '.join(input_mts)} \\
         --output {output_mt}
     """)
+    job.spot(False)
     return job
 
 
@@ -44,6 +45,8 @@ def main(input_paths: list[str], output_path: str):
     hail_batch.init_batch(
         driver_memory='highmem',
         driver_cores=2,
+        worker_memory='highmem',
+        worker_cores=2,
     )
 
     mts = [hl.read_matrix_table(input_path) for input_path in input_paths]
