@@ -21,6 +21,7 @@ from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
 from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
 from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
+from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -423,6 +424,7 @@ class PanelDetail(BaseModel):
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
     panels: set[int] = Field(default_factory=set)
+    panel_confidences: dict[int, int] = Field(default_factory=dict)
 
 
 class PanelShort(BaseModel):
@@ -453,6 +455,7 @@ class DownloadedPanelAppGenePanelDetail(BaseModel):
 
     moi: str
     date: str = Field(default_factory=str)
+    confidence: int = Field(default_factory=int)
 
 
 class DownloadedPanelAppGene(BaseModel):
@@ -571,7 +574,7 @@ class PedigreeMember(BaseModel):
 LIFTOVER_METHODS: dict = {
     DownloadedPanelApp: {
         '2.1.0_2.2.0': dl_pa_210_to_220,
-        '2.2.0_2.3.0': pa_220_to_230,
+        '2.2.0_2.3.0': dl_pa_220_to_230,
     },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,

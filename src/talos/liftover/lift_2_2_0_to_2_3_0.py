@@ -7,3 +7,13 @@ def panelapp(data_dict: dict) -> dict:
     data_dict |= {'str_genes': set(), 'str_symbols': set()}
     data_dict['version'] = '2.3.0'
     return data_dict
+
+
+def dl_panelapp(data_dict: dict) -> dict:
+    data_dict |= {'str_genes': set(), 'str_symbols': set()}
+    for _, gene_data in data_dict['genes'].items():
+        gene_data['panel_confidences'] = {}
+        for _, panel_data in gene_data['panels'].items():
+            panel_data['confidence'] = 3
+    data_dict['version'] = '2.3.0'
+    return data_dict

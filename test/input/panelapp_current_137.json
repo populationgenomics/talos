@@ -12,6 +12,7 @@
       },
       "entity_type": "gene",
       "entity_name": "ABCD",
+      "confidence_level": "3",
       "mode_of_inheritance": "Biallelic"
     },
     {
@@ -27,6 +28,7 @@
       },
       "entity_type": "gene",
       "entity_name": "EFGH",
+      "confidence_level": "3",
       "mode_of_inheritance": "Monoallelic"
     },
     {
@@ -42,6 +44,7 @@
       },
       "entity_type": "gene",
       "entity_name": "IJKL",
+      "confidence_level": "3",
       "mode_of_inheritance": "BOTH"
     },
     {
@@ -51,6 +54,7 @@
       },
       "entity_type": "gene",
       "entity_name": "RNU12",
+      "confidence_level": "3",
       "mode_of_inheritance": "SPECIFIC"
     },
     {
@@ -66,6 +70,7 @@
       },
       "entity_type": "not_gene",
       "entity_name": "SKIP",
+      "confidence_level": "3",
       "mode_of_inheritance": "Mystery"
     }
 ]

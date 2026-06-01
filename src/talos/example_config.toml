@@ -15,6 +15,12 @@ forbidden_genes = ['a', 'list', 'of', 'forbidden', 'genes']  # symbols, ENSG, or
 # must exist in the relevant panelapp instance
 forced_panels = [1, 2, 3]
 
+# confidence level - set this to a lower value to allow non-green PanelApp genes into the analysis
+# 3 = Green only
+# 2 = Amber or Green only
+# 1 = Red, Amber, or Green
+confidence_level = 3
+
 # integer, when parsing panel data, this value determines whether a gene is 'recent'
 # we find the date each gene became Green/Ready, and if that is within X months of today
 # we treat the gene as new. New/Recent genes are highlighted in the report with a Star next to the symbol

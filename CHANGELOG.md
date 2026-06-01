@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Test fixtures and demonstration data now includes more non-coding variants and Mitochondrial data.
   * Added "Super Logging" functionality. Opt-in high rate logging to explain the rejection reason for each variant.
   * Talos previously only logged results, not rejections. This logs misses, and explanations e.g. threshold failure, family test, insufficient read depth, comp-het with only support categories
+  * Using the "confidence_level" configuration setting can allow PanelApp genes with lower evidence levels (1 >= Red, 2 >= Amber) to be used in analysis. The default level remains 3/Green-only.
+  * The HTML report shows, for each gene, the panels it was found in, and the confidence level associated evidence level on each panel. Checkboxes can be used to filter to specific confidence levels.
   * STR data can now be handled. This is not currently implemented in Nextflow, but could be if there's appetite outside CPG.
 
 ### Changed
@@ -34,13 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Removed some intermediate build layers from Dockerfiles
   * The Ensembl GFF3 file is now edited during the download script, to re-name chrMT -> chrM, which enables Mitochondrial analysis. This requires re-running the file download and preparation workflow.
   * The AlphaMissense category now allows users to set a pathogenic threshold (config.toml -> `RunHailFiltering.am_pathogenicity`). Each run can now set a manual threshold instead of deferring to the low default value of 0.564.
+  * PanelApp parsing can now pull Red, Amber, and Green genes. A config parameter `confidence_level` can be used to control this behaviour. N.b. MOI may not be as well curated for non-green genes.
 
 > NOTE! Since 10.0.0, Talos uses a `TSV` input file to drive analyses. As of this update, the optional columns (previous results as a history, seqr IDs, secondary IDs, now Mitochondrial VCF) are all truly optional. The workflow doesn't require them to be populated in the input file at all.
 
 ### Fixed
 
   * Swapped out the standard BCFtools build for a CPG-fork.
-  * This fork contains a single change - coding and non-coding genes are both annotated equally.
+  * This fork contains a single change - coding and non-coding genes are both annotated equally. This behaviour has been upstreamed into BCFtools, but not yet released (see [this commit](https://github.com/samtools/bcftools/commit/90e602563503e6daa524a36a61218a974253d6be))
   * In our local runs we have seen that the default behaviour of BCFtools (issue [here](https://github.com/samtools/bcftools/issues/2548)) lead to failure to annotate consequences in non-coding genes where they overlapped with a coding gene, even if the non-coding gene was of greater clinical relevance.
   * By moving to the CPG fork, we have altered this behaviour. This may result in slightly slower annotation times, but should always present both coding and non-coding gene annotations where appropriate.
 

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from obonet import read_obo
@@ -6,6 +6,8 @@ from obonet import read_obo
 from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
+    DownloadedPanelAppGene,
+    DownloadedPanelAppGenePanelDetail,
     HpoTerm,
     PanelApp,
     PanelDetail,
@@ -17,6 +19,7 @@ from talos.unified_panelapp_parser import (
     CUSTOM_PANEL_ID,
     ORDERED_MOIS,
     extract_participant_data_from_pedigree,
+    fetch_genes_for_panels,
     get_simple_moi,
     match_hpos_to_panels,
     match_participants_to_panels,
@@ -185,3 +188,50 @@ def test_remove_blacklisted_genes():
     panelapp_data.genes = {'ENSG1': PanelDetail(symbol='GENE1', moi='Monoallelic', panels={1}, chrom='1')}
     remove_blacklisted_genes(panelapp_data, {'ENSG1'})
     assert 'ENSG1' not in panelapp_data.genes
+
+
+def _make_downloaded_gene(ensg: str, panel_id: int, confidence: int, moi: str = 'biallelic') -> DownloadedPanelAppGene:
+    return DownloadedPanelAppGene(
+        symbol=ensg,
+        chrom='1',
+        ensg=ensg,
+        panels={panel_id: DownloadedPanelAppGenePanelDetail(moi=moi, date='2020-01-01', confidence=confidence)},
+    )
+
+
+def test_fetch_genes_for_panels_excludes_low_confidence():
+    """genes whose panel association is below the default threshold must not appear in the output"""
+    panel_id = 137
+    cached = DownloadedPanelApp(
+        genes={
+            'GREEN': _make_downloaded_gene('GREEN', panel_id, confidence=3),
+            'AMBER': _make_downloaded_gene('AMBER', panel_id, confidence=2),
+        },
+    )
+    papp = PanelApp(participants={'S1': ParticipantHPOPanels(panels={panel_id})})
+
+    fetch_genes_for_panels(panelapp_data=papp, cached_panelapp=cached)
+
+    assert 'GREEN' in papp.genes
+    assert 'AMBER' not in papp.genes
+
+
+def test_fetch_genes_for_panels_includes_amber_when_threshold_lowered():
+    """lowering MIN_GENE_CONFIDENCE to 2 must include amber associations"""
+
+    panel_id = 137
+    cached = DownloadedPanelApp(
+        genes={
+            'GREEN': _make_downloaded_gene('GREEN', panel_id, confidence=3),
+            'AMBER': _make_downloaded_gene('AMBER', panel_id, confidence=2),
+            'RED': _make_downloaded_gene('RED', panel_id, confidence=1),
+        },
+    )
+    papp = PanelApp(participants={'S1': ParticipantHPOPanels(panels={panel_id})})
+
+    with patch('talos.unified_panelapp_parser.MIN_GENE_CONFIDENCE', 2):
+        fetch_genes_for_panels(panelapp_data=papp, cached_panelapp=cached)
+
+    assert 'GREEN' in papp.genes
+    assert 'AMBER' in papp.genes
+    assert 'RED' not in papp.genes

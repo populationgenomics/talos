@@ -47,9 +47,12 @@ IRRELEVANT_MOI = {'unknown', 'other'}
 # we consider a gene new, and worth flagging, if it was made Green in a panel within this time frame
 WITHIN_X_MONTHS = 6
 
+MIN_GENE_CONFIDENCE: int = 3
+
 try:
     DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], PANELAPP_BASE_PANEL)
     WITHIN_X_MONTHS = config_retrieve(['GeneratePanelData', 'within_x_months'], WITHIN_X_MONTHS)
+    MIN_GENE_CONFIDENCE = config_retrieve(['GeneratePanelData', 'confidence_level'], MIN_GENE_CONFIDENCE)
 except KeyError:
     logger.warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     DEFAULT_PANEL = PANELAPP_BASE_PANEL
@@ -247,7 +250,7 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
         return 'Hemi_Mono_In_Female'
 
     # take the more lenient of the gene MOI options
-    return sorted(simplified_mois, key=lambda x: ORDERED_MOIS.index(x))[0]
+    return sorted(simplified_mois, key=ORDERED_MOIS.index)[0]
 
 
 def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedPanelApp):
@@ -264,7 +267,13 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
     # now iterate over the genes we know about, and pull them into the panel details object
     for gene_data in cached_panelapp.genes.values():
         # check if this gene is in any of the panels we are interested in - retain the overlap
-        if not (panel_intersection := set(gene_data.panels.keys()).intersection(full_set_of_panels)):
+        # also enforce the confidence threshold: skip panel associations below the configured level
+        eligible_panels = {
+            panel_id
+            for panel_id, panel_detail in gene_data.panels.items()
+            if panel_detail.confidence >= MIN_GENE_CONFIDENCE
+        }
+        if not (panel_intersection := eligible_panels.intersection(full_set_of_panels)):
             continue
 
         # collect all the relevant MOIs based on the panels we're using
@@ -287,6 +296,7 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
             moi=moi,
             new=new_panels,
             panels=panel_intersection,
+            panel_confidences={pid: gene_data.panels[pid].confidence for pid in panel_intersection},
         )
 
 
