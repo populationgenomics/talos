@@ -132,6 +132,27 @@
                         <option value="none">Without phenotype match</option>
                     </select>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Panel confidence filter</label>
+                    <div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input conf-filter" type="checkbox" id="conf-3" value="3" checked>
+                            <label class="form-check-label" for="conf-3">🟢 Green</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input conf-filter" type="checkbox" id="conf-2" value="2" checked>
+                            <label class="form-check-label" for="conf-2">🟡 Yellow</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input conf-filter" type="checkbox" id="conf-1" value="1" checked>
+                            <label class="form-check-label" for="conf-1">🔴 Red</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input conf-filter" type="checkbox" id="conf-0" value="0" checked>
+                            <label class="form-check-label" for="conf-0">⚪ Unknown</label>
+                        </div>
+                    </div>
+                </div>
 
                 <table class="display" id="variant-table">
 
@@ -140,6 +161,7 @@
                             <th class="group-separator">Individual</th>
                             <th>Variant</th>
                             <th>Gene (MOI)</th>
+                            <th>Confidence</th>
                             <th>Categories</th>
                             <th>First Tagged</th>
                             <th>MANE CSQ</th>
@@ -150,6 +172,7 @@
                             <th><input type="text" placeholder="Search Individual"></th>
                             <th><input type="text" placeholder="Search Variant"></th>
                             <th><input type="text" placeholder="Search Gene (MOI)"></th>
+                            <th></th>
                             <th><input type="text" placeholder="Search Categories"></th>
                             <th><input type="text" placeholder="Search First Tagged"></th>
                             <th><input type="text" placeholder="Search MANE CSQ"></th>
@@ -380,6 +403,29 @@
             }
 
             return true;
+        });
+
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable !== $('#variant-table')[0]) {
+                return true;
+            }
+
+            var checkedValues = $('.conf-filter:checked').map(function() {
+                return this.value;
+            }).get();
+
+            if (checkedValues.length === 4) {
+                return true;
+            }
+
+            var aoData = settings.aoData[dataIndex];
+            var rowNode = aoData && aoData.nTr;
+            if (!rowNode) {
+                return true;
+            }
+
+            var conf = rowNode.getAttribute('data-max-confidence') || '0';
+            return checkedValues.indexOf(conf) !== -1;
         });
 
         function formatChildRow(rowData) {
@@ -720,6 +766,10 @@
         });
 
         phenotypeFilter.on('change', function () {
+            table.draw();
+        });
+
+        $('.conf-filter').on('change', function () {
             table.draw();
         });
 

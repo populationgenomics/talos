@@ -15,6 +15,7 @@
     data-support-vars='{{variant.support_vars_json|tojson}}'
     data-transcript-consequences='{{variant.transcript_consequences_json|tojson}}'
     data-has-phenotype="{{ 1 if variant.forced_matches or variant.phenotype_matches or variant.pheno_matches else 0 }}"
+    data-max-confidence="{{ variant.max_confidence }}"
 >
     <td style="white-space: nowrap" class="details-control">
         {# Individual ID - Click to expand details #}
@@ -102,6 +103,13 @@
         |replace("X_Male","XLR (Male)")
         | e }}
         </span>
+    </td>
+    <td class="text-center">
+        {# Highest panel confidence (applied panels only) #}
+        {% if variant.max_confidence == 3 %}🟢
+        {% elif variant.max_confidence == 2 %}🟡
+        {% elif variant.max_confidence == 1 %}🔴
+        {% else %}⚪{% endif %}
     </td>
     <td>
         {# Categories #}
