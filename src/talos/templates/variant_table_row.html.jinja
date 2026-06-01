@@ -63,8 +63,12 @@
         {% endif %}
     </td>
     <td>
-        {# Gene symbol #}
-        {% for gene in variant.genes %}
+        {# Gene symbol + confidence indicator #}
+        {% if variant.max_confidence == 3 %}{% set conf_emoji = "🟢" %}
+        {% elif variant.max_confidence == 2 %}{% set conf_emoji = "🟡" %}
+        {% elif variant.max_confidence == 1 %}{% set conf_emoji = "🔴" %}
+        {% else %}{% set conf_emoji = "⚪" %}{% endif %}
+        {{ conf_emoji }}{% for gene in variant.genes %}
         {% if gene[2] %}
         <span data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" data-bs-title="{{ gene[2] }}">
             <a href="https://panelapp-aus.org/panels/entities/{{gene[1]|urlencode}}" target="_blank">{{gene[1]|e}}</a>
@@ -103,13 +107,6 @@
         |replace("X_Male","XLR (Male)")
         | e }}
         </span>
-    </td>
-    <td class="text-center">
-        {# Highest panel confidence (applied panels only) #}
-        {% if variant.max_confidence == 3 %}🟢
-        {% elif variant.max_confidence == 2 %}🟡
-        {% elif variant.max_confidence == 1 %}🔴
-        {% else %}⚪{% endif %}
     </td>
     <td>
         {# Categories #}
