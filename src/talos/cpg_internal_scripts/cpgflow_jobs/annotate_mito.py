@@ -44,6 +44,11 @@ def make_annotate_mito_job(
     # --unify-chr-names 'chr,-,chr' strips the `chr` prefix from the Fasta and VCF, to match the GFF file
     csq_job.command(
         f"""
+        bcftools norm \
+            -m -any \
+            -f {fasta} \
+            -Ou {local_mito_vcf} \
+            --no-version | \
         bcftools csq \\
             --force \\
             -f {fasta} \\
@@ -54,7 +59,7 @@ def make_annotate_mito_job(
             -B 10 \\
             --unify-chr-names 'chr,-,chr' \\
             -Oz -o bcftools_annotated.vcf.gz \\
-            {local_mito_vcf}
+            -
         """,
     )
 
