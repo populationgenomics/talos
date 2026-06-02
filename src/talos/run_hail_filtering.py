@@ -43,7 +43,7 @@ CRITICAL_CSQ_DEFAULT = [
 MISSENSE = hl.str('missense')
 
 # decide whether to repartition the data before processing starts
-MAX_PARTITIONS = 10000
+MAX_PARTITIONS = 4000
 
 NUM_PED_COLS = 6
 

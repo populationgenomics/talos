@@ -50,7 +50,10 @@ def make_echtvar_job(
             {job.output}
         """)
 
-        job.storage('50Gi').memory('highmem').cpu(4)
+        job.cpu(config.config_retrieve(['hardware', 'echtvar', 'cpu'], 4))
+        job.memory(config.config_retrieve(['hardware', 'echtvar', 'memory'], 'highmem'))
+        job.storage(config.config_retrieve(['hardware', 'echtvar', 'storage'], '50GiB'))
+
         batch.write_output(job.output, str(outputs['fragment_template']).format(part=part))
         all_jobs.append(job)
 
