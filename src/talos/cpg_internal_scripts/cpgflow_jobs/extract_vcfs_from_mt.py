@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from random import randint
 
 from cpg_flow import targets, workflow
 from cpg_utils import config, hail_batch, to_path
@@ -41,6 +42,7 @@ def make_vcf_extraction_job(
     sgid_file_local = hail_batch.get_batch().read_input(id_file)
     job.command(
         f"""
+        job.command(f'sleep {randint(0, 1200)}')
         python -m talos.cpg_internal_scripts.extract_fragmented_vcf_from_mt \\
             --input {input_mt} \\
             --sgs {sgid_file_local} \\
