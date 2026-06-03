@@ -94,7 +94,7 @@ def main(
     Args:
         mt_path (str):
         sg_id_file (str): file containing SG IDs
-        output (str): write region-filtered VCF, stripped of INFO fields
+        output (str): write VCFs, stripped of INFO fields and annotations
     """
     hail_batch.init_batch(
         worker_memory=config.config_retrieve(['combiner', 'worker_memory'], 'highmem'),

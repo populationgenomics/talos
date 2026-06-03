@@ -16,7 +16,7 @@ def make_vcf_extraction_job(
     output: str,
     job_attrs: dict,
 ) -> 'BashJob':
-    """Create a Hail Batch job to extract VCF from a dataset MatrixTable."""
+    """Create a Hail Batch job to extract VCF from an AnnotateCohort MatrixTable."""
 
     # either get a mt from config, from metamist, or fail
     if not (
@@ -40,9 +40,9 @@ def make_vcf_extraction_job(
     job.spot(False)
     job.image(config.config_retrieve(['workflow', 'driver_image']))
     sgid_file_local = hail_batch.get_batch().read_input(id_file)
+    job.command(f'sleep {randint(0, 1200)}')
     job.command(
         f"""
-        job.command(f'sleep {randint(0, 1200)}')
         python -m talos.cpg_internal_scripts.extract_fragmented_vcf_from_mt \\
             --input {input_mt} \\
             --sgs {sgid_file_local} \\
