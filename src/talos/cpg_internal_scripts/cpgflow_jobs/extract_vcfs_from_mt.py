@@ -1,5 +1,5 @@
-from typing import TYPE_CHECKING
 from random import randint
+from typing import TYPE_CHECKING
 
 from cpg_flow import targets, workflow
 from cpg_utils import config, hail_batch, to_path
