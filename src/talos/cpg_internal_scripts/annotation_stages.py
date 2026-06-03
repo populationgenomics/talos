@@ -107,10 +107,7 @@ class EncodeAlphamissense(stage.MultiCohortStage):
 
 @stage.stage
 class ExtractVcfFromMt(stage.CohortStage):
-    """
-    Extract some plain calls from a joint-callset.
-    these calls are a region-filtered subset, limited to genic regions
-    """
+    """Extract some plain calls from a joint-callset."""
 
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
