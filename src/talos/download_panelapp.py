@@ -65,32 +65,10 @@ except (ConfigError, KeyError):
     logger.warning('Config environment variable TALOS_CONFIG not set, or keys missing, falling back to Aussie PanelApp')
 
 # if this is a massive result, it returns over a number of pages
-GENE_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}/genes'
+PANEL_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
 MITO_BAD = 'MT'
 MITO_GOOD = 'M'
-
-
-class CustomEncoder(json.JSONEncoder):
-    """
-    to be used as a JSON encoding class
-    - replaces all sets with lists
-    - replaces dataclass objects with a dictionary of the same
-    """
-
-    def default(self, o):
-        """
-        takes an arbitrary object, and forms a JSON representation
-        where the object doesn't have an easy string representation,
-        transform to a valid object: set -> list, class -> dict
-
-        Args:
-            o (): python object being JSON encoded
-        """
-
-        if isinstance(o, set):
-            return list(o)
-        return json.JSONEncoder.default(self, o)
 
 
 def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[HpoTerm]]:
@@ -109,12 +87,14 @@ def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[
     while True:
         endpoint_data = get_json_response(endpoint)
         for panel in endpoint_data['results']:
-            panels_by_hpo[int(panel['id'])] = []
+            panel_id = int(panel['id'])
+
+            panels_by_hpo[panel_id] = []
 
             # can be split over multiple strings, so join then search
             relevant_disorders = ' '.join(panel['relevant_disorders'] or [])
             for match in re.findall(HPO_RE, relevant_disorders):
-                panels_by_hpo[int(panel['id'])].append(HpoTerm(id=match, label=''))
+                panels_by_hpo[panel_id].append(HpoTerm(id=match, label=''))
 
         # cycle through additional pages
         if endpoint := endpoint_data['next']:
@@ -162,7 +142,7 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, str]:
 
 
 def parse_panel(
-    panel_data: list[dict],
+    panel_data: dict[str, str | list[dict]],
     panel_activities: list[dict],
     ensg_dict: dict[str, str] | None = None,
     symbol_dict: dict[str, str] | None = None,
@@ -185,34 +165,15 @@ def parse_panel(
     green_dates: dict[str, str] = parse_panel_activity(panel_activities)
 
     # iterate over the genes in this panel result
-    for gene in panel_data:
-        if gene['entity_type'] != 'gene':
-            continue
-
-        symbol: str = gene['entity_name']
-
-        chrom = ''
-        ensg: str | None = None
+    for gene in panel_data['genes']:
+        symbol: str = gene['symbol']
+        ensg: str = gene['ensg']
         mane_ensg = symbol_dict.get(symbol, '') if symbol_dict else ''
-
-        # for some reason the build is capitalised oddly in panelapp, so lower it
-        for build, content in gene['gene_data']['ensembl_genes'].items():
-            if build.lower() == 'grch38':
-                # the ensembl version may alter over time, but will be singular
-                ensembl_data = content[next(iter(content.keys()))]
-                ensg = ensembl_data['ensembl_id']
-                chrom = ensembl_data['location'].split(':')[0]
-
-                # step this down to M, for Hail
-                if chrom == MITO_BAD:
-                    chrom = MITO_GOOD
 
         # no ENSG at all, skip completely
         if not (mane_ensg or ensg):
             logger.info(f'Gene {symbol}/{ensg} removed for lack of chrom or ENSG annotation')
             continue
-
-        exact_moi = gene.get('mode_of_inheritance', 'unknown').lower()
 
         for each_ensg in [ensg, mane_ensg]:
             if not each_ensg:
@@ -220,32 +181,68 @@ def parse_panel(
 
             panel_gene_content[each_ensg] = {
                 'symbol': symbol,
-                'chrom': chrom,
+                'chrom': gene['chrom'],
                 'mane_symbol': ensg_dict.get(each_ensg, '') if ensg_dict else '',
-                'moi': exact_moi,
+                'moi': gene['moi'],
                 'green_date': green_dates.get(symbol, REALLY_OLD),
-                'confidence_level': int(gene['confidence_level']),
+                'confidence_level': gene['confidence_level'],
             }
 
     return panel_gene_content
 
 
-async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, list[dict]]:
-    """Async method to return data from a single panel"""
-    panel_url = GENE_TEMPLATE_URL.format(id=panel_id)
-    panel_results: list[dict] = []
+async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, dict[str, str | list[dict]]]:
+    """
+    Async method to return data from a single panel.
+    Does most of the initial parsing of panel data to reduce memory footprint.
 
-    while True:
-        async with session.get(panel_url) as resp:
-            response = await resp.json()
-            panel_results.extend(response['results'])
+    Args:
+        session: aiohttp ClientSession
+        panel_id: int, panel ID to search for
 
-            if response['next']:
-                panel_url = response['next']
-            else:
-                break
+    Returns:
+        dict, indexed by panel ID, containing panel genes, name, and version
+    """
+    panel_url = PANEL_TEMPLATE_URL.format(id=panel_id)
+    gene_results: list[dict] = []
 
-    return {panel_id: panel_results}
+    async with session.get(panel_url) as resp:
+        response = await resp.json()
+
+        # thin out the results, what do we need?
+        panel_name = response['name']
+        panel_version = response['version']
+        for gene in response['genes']:
+            # genes only here for now
+            if gene['entity_type'] != 'gene':
+                continue
+
+            chrom: str = ''
+            ensg: str | None = None
+
+            # for some reason the build is capitalised oddly in panelapp, so lower it
+            for build, content in gene['gene_data']['ensembl_genes'].items():
+                if build.lower() == 'grch38':
+                    # the ensembl version may alter over time, but will be singular
+                    ensembl_data = content[next(iter(content.keys()))]
+                    ensg = ensembl_data['ensembl_id']
+                    chrom = ensembl_data['location'].split(':')[0]
+
+                    # step this down to M, for Hail
+                    if chrom == MITO_BAD:
+                        chrom = MITO_GOOD
+
+            gene_results.append(
+                {
+                    'symbol': gene['entity_name'],
+                    'chrom': chrom,
+                    'ensg': ensg,
+                    'moi': gene.get('mode_of_inheritance', 'unknown').lower(),
+                    'confidence_level': int(gene['confidence_level']),
+                }
+            )
+
+    return {panel_id: {'name': panel_name, 'version': panel_version, 'genes': gene_results}}
 
 
 async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: int) -> dict:
@@ -320,9 +317,13 @@ def main(output: str, mane_path: str | None = None):
 
     all_panels = set(collected_panel_data.hpos.keys())
 
-    all_panel_data: dict[int, list[dict]] = asyncio.run(get_all_known_panels(all_panels))
+    async def _fetch_all() -> tuple[dict, dict]:
+        return await asyncio.gather(
+            get_all_known_panels(all_panels),
+            get_all_known_panels(all_panels, activities=True),
+        )
 
-    all_panel_activities: dict[int, list] = asyncio.run(get_all_known_panels(all_panels, activities=True))
+    all_panel_data, all_panel_activities = asyncio.run(_fetch_all())
 
     if mane_path:
         ensg_dict, symbol_dict = reorganise_mane_data(mane_path)
@@ -333,8 +334,8 @@ def main(output: str, mane_path: str | None = None):
 
     # iterate over the gathered panels
     for panel_id, panel_data in all_panel_data.items():
-        if not panel_data:
-            logger.warning(f'No Green Genes on panel {panel_id}')
+        if not panel_data['genes']:
+            logger.warning(f'No Genes on panel {panel_id}')
             zero_green_panels.append(panel_id)
             continue
 
@@ -351,14 +352,11 @@ def main(output: str, mane_path: str | None = None):
             symbol_dict=symbol_dict,
         )
 
-        # pop the first element's panel data, this will be the same for every gene given the nature of the query
-        one_panel_detail = panel_data[0]['panel']
-
         collected_panel_data.versions.append(
             PanelShort(
                 id=panel_id,
-                name=one_panel_detail['name'],
-                version=one_panel_detail['version'],
+                name=panel_data['name'],
+                version=panel_data['version'],
             ),
         )
 
