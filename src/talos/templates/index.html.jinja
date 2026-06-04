@@ -686,12 +686,26 @@
             return html;
         }
 
+        function initTooltips() {
+            var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
+                if (!bootstrap.Tooltip.getInstance(tooltipTriggerEl)) {
+                    new bootstrap.Tooltip(tooltipTriggerEl, {
+                        html: tooltipTriggerEl.dataset.bsHtml === 'true',
+                    });
+                }
+            });
+        }
+
         var table = $('#variant-table').DataTable({
             paging: true,
             pageLength: 50,
             lengthMenu: [10, 25, 50, 100],
             ordering: true,
             searching: true,
+            drawCallback: function() {
+                initTooltips();
+            },
             rowGroup: {
                 dataSrc: function (row) {
                     var cellHtml = row[0];
@@ -768,14 +782,6 @@
                 tr.addClass('shown');
                 $(this).find('i').removeClass('bi-plus-square').addClass('bi-dash-square');
             }
-        });
-
-        // Enable bootstrap tool tips
-        var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        [].slice.call(tooltipTriggerList).forEach(function(tooltipTriggerEl) {
-            new bootstrap.Tooltip(tooltipTriggerEl, {
-                html: tooltipTriggerEl.dataset.bsHtml === 'true',
-            });
         });
 
         phenotypeFilter.on('change', function () {
