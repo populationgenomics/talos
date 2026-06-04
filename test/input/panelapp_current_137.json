@@ -1,76 +1,34 @@
-[
+{
+  "name": "Mendeliome",
+  "version": 1,
+  "genes": [
     {
-      "gene_data": {
-        "ensembl_genes": {
-          "GRch38": {
-            "90": {
-              "ensembl_id": "ENSG00ABCD",
-              "location": "1:"
-            }
-          }
-        }
-      },
-      "entity_type": "gene",
-      "entity_name": "ABCD",
-      "confidence_level": "3",
-      "mode_of_inheritance": "Biallelic"
+      "symbol": "ABCD",
+      "chrom": "1",
+      "ensg": "ENSG00ABCD",
+      "moi": "Biallelic",
+      "confidence_level": 3
     },
     {
-      "gene_data": {
-        "ensembl_genes": {
-          "GRch38": {
-            "90": {
-              "ensembl_id": "ENSG00EFGH",
-              "location": "1:"
-            }
-          }
-        }
-      },
-      "entity_type": "gene",
-      "entity_name": "EFGH",
-      "confidence_level": "3",
-      "mode_of_inheritance": "Monoallelic"
+      "symbol": "EFGH",
+      "chrom": "1",
+      "ensg": "ENSG00EFGH",
+      "moi": "Monoallelic",
+      "confidence_level": 3
     },
     {
-      "gene_data": {
-        "ensembl_genes": {
-          "GRch38": {
-            "90": {
-              "ensembl_id": "ENSG00IJKL",
-              "location": "1:"
-            }
-          }
-        }
-      },
-      "entity_type": "gene",
-      "entity_name": "IJKL",
-      "confidence_level": "3",
-      "mode_of_inheritance": "BOTH"
+      "symbol": "IJKL",
+      "chrom": "1",
+      "ensg": "ENSG00IJKL",
+      "moi": "BOTH",
+      "confidence_level": 3
     },
     {
-      "gene_data": {
-        "ensembl_genes": {
-        }
-      },
-      "entity_type": "gene",
-      "entity_name": "RNU12",
-      "confidence_level": "3",
-      "mode_of_inheritance": "SPECIFIC"
-    },
-    {
-      "gene_data": {
-        "ensembl_genes": {
-          "GRch38": {
-            "90": {
-              "ensembl_id": "ENSG00SKIP",
-              "location": "1:"
-            }
-          }
-        }
-      },
-      "entity_type": "not_gene",
-      "entity_name": "SKIP",
-      "confidence_level": "3",
-      "mode_of_inheritance": "Mystery"
+      "symbol": "RNU12",
+      "chrom": "1",
+      "ensg": null,
+      "moi": "SPECIFIC",
+      "confidence_level": 3
     }
-]
+  ]
+}

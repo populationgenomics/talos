@@ -28,7 +28,6 @@ Optionally takes a MANE JSON file, which is used to map Ensembl IDs to gene symb
 """
 
 import asyncio
-import json
 import re
 from argparse import ArgumentParser
 
@@ -154,9 +153,6 @@ def parse_panel(
         panel_activities ():
         ensg_dict (dict): mapping Ensembl IDs to gene symbols, based on MANE data
         symbol_dict (dict): mapping gene symbols to Ensembl IDs, based on MANE data
-
-    Returns:
-
     """
 
     # this will contain a range of bits, indexed on ENSG
@@ -166,6 +162,10 @@ def parse_panel(
 
     # iterate over the genes in this panel result
     for gene in panel_data['genes']:
+        # please the linter
+        if not isinstance(gene, dict):
+            raise TypeError(f'Gene {gene} is not a dict')
+
         symbol: str = gene['symbol']
         ensg: str = gene['ensg']
         mane_ensg = symbol_dict.get(symbol, '') if symbol_dict else ''
