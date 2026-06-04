@@ -21,7 +21,7 @@ FROM base AS bcftools_compiler
 
 ARG BCFTOOLS_VERSION=1.23.1
 
-# AS OF 11.0.1, Talos is building BCFtools from a private fork. This fork contains a single change - csq applies annotations
+# AS OF 11.0.0, Talos is building BCFtools from a private fork. This fork contains a single change - csq applies annotations
 # to both coding and non-coding genes in the event of overlapping genes. By default BCFtools skips non-coding gene annotation
 # if a coding transcript consequence was detected, but in practice this is masking clinically relevant non-coding gene variation
 # in cases where the non-coding gene overlaps with a non-clinically relevant coding gene.
