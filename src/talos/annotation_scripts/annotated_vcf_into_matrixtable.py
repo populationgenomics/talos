@@ -278,6 +278,8 @@ def main(
     # read the VCF into a MatrixTable
     mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True, block_size=20)
 
+    mt = mt.filter_rows(mt.locus.contig == 'chrM', keep=False)
+
     # checkpoint locally to make everything downstream faster
     mt = mt.checkpoint(checkpoint or 'checkpoint.ht', overwrite=True)
 
