@@ -455,7 +455,6 @@ class RunHailFiltering(stage.CohortStage):
         # read in the MT using gcloud, directly into batch tmp
         job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
 
-        job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
             python -m talos.run_hail_filtering \\
@@ -465,7 +464,8 @@ class RunHailFiltering(stage.CohortStage):
                 --output {job.output['vcf.bgz']} \\
                 --clinvar "$BATCH_TMPDIR/clinvar_decisions.ht" \\
                 --pm5 "$BATCH_TMPDIR/clinvar_decisions.pm5.ht" \\
-                --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
+                --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt" \\
+                --config {runtime_config}
             """,
         )
         hail_batch.get_batch().write_output(job.output, str(expected_out).removesuffix('.vcf.bgz'))
@@ -650,14 +650,14 @@ class ValidateVariantInheritance(stage.CohortStage):
         ) and config.config_retrieve(['workflow', 'use_history'], True):
             history_string = f'--previous {hail_batch.get_batch().read_input(latest_results)}'
 
-        job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
             python -m talos.validate_moi \\
                 --labelled_vcf {labelled_vcf} \\
                 --output {job.output} \\
                 --panelapp {panelapp_data} \\
-                --pedigree {pedigree} {sv_vcf_arg} {history_string} {mito_vcf_arg}
+                --pedigree {pedigree} \\
+                --config {runtime_config} {sv_vcf_arg} {history_string} {mito_vcf_arg}
             """,
         )
         expected_out = self.expected_outputs(cohort)

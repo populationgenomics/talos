@@ -6,7 +6,7 @@ Takes the inputs (mandatory and optional) and checks if they are valid.
 
 import sys
 from argparse import ArgumentParser
-from os import getenv
+from os import environ, getenv
 
 import pendulum
 from cloudpathlib.anypath import to_anypath
@@ -331,5 +331,7 @@ if __name__ == '__main__':
     parser.add_argument('--pedigree', help='Path to the pedigree file.', default=None)
     parser.add_argument('--mt', help='Path to the MatrixTable.', nargs='+', required=True)
     parser.add_argument('--clinvar', help='Path to the ClinVar HailTable.', default=None, nargs='+')
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
+    environ['TALOS_CONFIG'] = args.config
     main(pedigree_path=args.pedigree, mt_paths=args.mt, clinvar_paths=args.clinvar)

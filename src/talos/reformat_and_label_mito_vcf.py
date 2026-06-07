@@ -9,6 +9,7 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 
 import sys
 from argparse import ArgumentParser
+from os import environ
 
 from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
@@ -123,7 +124,9 @@ def cli_main():
     parser.add_argument('--pedigree', help='Path to the pedigree file for the cohort', required=True)
     parser.add_argument('--clinvar', help='Path to a ClinvArbitration decisions HT', required=True)
     parser.add_argument('--batch', help='flag to use the batch hail backend', action='store_true')
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
+    environ['TALOS_CONFIG'] = args.config
 
     main(
         vcf_path=args.input,

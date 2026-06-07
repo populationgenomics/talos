@@ -6,13 +6,11 @@ One class (MoiRunner) to run all the appropriate MOIs on a variant
 # mypy: ignore-errors
 # ruff: noqa: ERA001
 from abc import abstractmethod
-from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar
 
 from mendelbrot.pedigree_parser import PedigreeParser
 
-from talos.config import config_retrieve
+from talos.config_types import ValidateMOIConfig
 from talos.exclusion_log import get_exclusion_logger
 from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
 from talos.static_values import get_granular_date
@@ -23,7 +21,6 @@ SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
 
 
-@dataclass
 class GlobalFilter:
     """
     A Filter class, used to apply to any non-ClinVar Pathogenic Variants
@@ -31,24 +28,18 @@ class GlobalFilter:
     A variant run through this method will return true based on the thresholds if it's 'too_common'
     """
 
-    # minimum variant AC to run callset frequency filters
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_max_af'])
-    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'callset_sv_max_af'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter to be used on small variants
-    small_dict: ClassVar[dict[str, float | int]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'gnomad_max_af']),
-        'gnomad_homalt': config_retrieve(['ValidateMOI', 'gnomad_max_homozygotes']),
-    }
-
-    # only to be applied on chrX/Y
-    small_gnomad_hemi: ClassVar[int] = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
-
-    # filters specific to SVs
-    sv_dict: ClassVar[dict[str, float]] = {
-        'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
-    }
+    def __init__(self, config: ValidateMOIConfig):
+        self.ac_threshold = config.min_callset_ac_to_filter
+        self.small_af = config.callset_max_af
+        self.sv_af = config.callset_sv_max_af
+        self.small_dict: dict[str, float | int] = {
+            'gnomad_af': config.gnomad_max_af,
+            'gnomad_homalt': config.gnomad_max_homozygotes,
+        }
+        self.small_gnomad_hemi = config.gnomad_max_hemizygotes
+        self.sv_dict: dict[str, float] = {
+            'gnomad_v2.1_sv_AF': config.gnomad_sv_max_af,
+        }
 
     def too_common(self, variant: SmallVariant | StructuralVariant, applied_moi: str | None = None) -> bool:  # noqa: PLR0911
         """
@@ -155,30 +146,25 @@ class GlobalFilter:
         return False
 
 
-@dataclass
 class DominantFilter:
     """
     Similar to the GlobalFilter, but with stricter thresholds
     This is designed to run on variants being considered for Dominant inheritance
     """
 
-    # minimum variant AC to run callset frequency filters
-    ac_min: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'dominant_callset_max_ac'])
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_max_af'])
-    sv_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'dominant_callset_sv_max_af'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict: ClassVar[dict[str, float | int]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_af']),
-        'gnomad_ac': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_ac']),
-        'gnomad_homalt': config_retrieve(['ValidateMOI', 'dominant_gnomad_max_homozygotes']),
-    }
-
-    # specific to SVs
-    sv_dict: ClassVar[dict[str, float]] = {
-        'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'dominant_gnomad_sv_max_af']),
-    }
+    def __init__(self, config: ValidateMOIConfig):
+        self.ac_min = config.min_callset_ac_to_filter
+        self.ac_threshold = config.dominant_callset_max_ac
+        self.small_af = config.dominant_callset_max_af
+        self.sv_af = config.dominant_callset_sv_max_af
+        self.small_dict: dict[str, float | int] = {
+            'gnomad_af': config.dominant_gnomad_max_af,
+            'gnomad_ac': config.dominant_gnomad_max_ac,
+            'gnomad_homalt': config.dominant_gnomad_max_homozygotes,
+        }
+        self.sv_dict: dict[str, float] = {
+            'gnomad_v2.1_sv_AF': config.dominant_gnomad_sv_max_af,
+        }
 
     def too_common(self, variant: SmallVariant | StructuralVariant, applied_moi: str | None = None) -> bool:
         """
@@ -267,20 +253,17 @@ class DominantFilter:
         return False
 
 
-@dataclass
 class ClinVarFilter:
     """
     This will apply more lenient filters to ClinVar Pathogenic variants
     """
 
-    # minimum variant AC to run callset frequency filters
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict: ClassVar[dict[str, float]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_gnomad_max_af']),
-    }
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_callset_max_af'])
+    def __init__(self, config: ValidateMOIConfig):
+        self.ac_threshold = config.min_callset_ac_to_filter
+        self.small_dict: dict[str, float] = {
+            'gnomad_af': config.clinvar_gnomad_max_af,
+        }
+        self.small_af = config.clinvar_callset_max_af
 
     def too_common(self, variant: SmallVariant, applied_moi: str | None = None) -> bool:
         """
@@ -329,21 +312,18 @@ class ClinVarFilter:
         return False
 
 
-@dataclass
 class ClinVarDominantFilter:
     """
     This will apply more lenient filters to ClinVar Pathogenic variants
     Designed to run on Dominant variants
     """
 
-    # minimum variant AC to run callset frequency filters
-    ac_threshold: ClassVar[int] = config_retrieve(['ValidateMOI', 'min_callset_ac_to_filter'])
-
-    # a lookup of the attribute name vs. the corresponding configurable filter
-    small_dict: ClassVar[dict[str, float]] = {
-        'gnomad_af': config_retrieve(['ValidateMOI', 'clinvar_dominant_gnomad_max_af']),
-    }
-    small_af: ClassVar[float] = config_retrieve(['ValidateMOI', 'clinvar_dominant_callset_max_af'])
+    def __init__(self, config: ValidateMOIConfig):
+        self.ac_threshold = config.min_callset_ac_to_filter
+        self.small_dict: dict[str, float] = {
+            'gnomad_af': config.clinvar_dominant_gnomad_max_af,
+        }
+        self.small_af = config.clinvar_dominant_callset_max_af
 
     def too_common(self, variant: SmallVariant, applied_moi: str | None = None) -> bool:
         """
@@ -398,7 +378,7 @@ class MOIRunner:
     This will be instantiated once per MOI, and run once per related gene, on the collection of all variants in the gene
     """
 
-    def __init__(self, pedigree: PedigreeParser, target_moi: str):
+    def __init__(self, pedigree: PedigreeParser, target_moi: str, config: ValidateMOIConfig):
         """
         for each possible MOI, choose the appropriate filters to apply
         ran into a situation where the ID of target_moi didn't match the
@@ -412,32 +392,35 @@ class MOIRunner:
         # for unknown, we catch all possible options?
         # should we be doing both checks for Monoallelic?
         if target_moi == 'Monoallelic':
-            self.filter_list = [DominantAutosomal(pedigree=pedigree)]
+            self.filter_list = [DominantAutosomal(pedigree=pedigree, config=config)]
         elif target_moi in ['Mono_And_Biallelic', 'Unknown']:
             self.filter_list = [
-                DominantAutosomal(pedigree=pedigree),
-                RecessiveAutosomalHomo(pedigree=pedigree),
-                RecessiveAutosomalCH(pedigree=pedigree),
+                DominantAutosomal(pedigree=pedigree, config=config),
+                RecessiveAutosomalHomo(pedigree=pedigree, config=config),
+                RecessiveAutosomalCH(pedigree=pedigree, config=config),
             ]
         elif target_moi == 'Biallelic':
             self.filter_list = [
-                RecessiveAutosomalHomo(pedigree=pedigree),
-                RecessiveAutosomalCH(pedigree=pedigree),
+                RecessiveAutosomalHomo(pedigree=pedigree, config=config),
+                RecessiveAutosomalCH(pedigree=pedigree, config=config),
             ]
 
         elif target_moi == 'Hemi_Mono_In_Female':
-            self.filter_list = [XRecessiveMale(pedigree=pedigree), XDominant(pedigree=pedigree)]
+            self.filter_list = [
+                XRecessiveMale(pedigree=pedigree, config=config),
+                XDominant(pedigree=pedigree, config=config),
+            ]
 
         elif target_moi == 'Hemi_Bi_In_Female':
             self.filter_list = [
-                XRecessiveMale(pedigree=pedigree),
-                XRecessiveFemaleHom(pedigree=pedigree),
-                XRecessiveFemaleCH(pedigree=pedigree),
-                XPseudoDominantFemale(pedigree=pedigree),
+                XRecessiveMale(pedigree=pedigree, config=config),
+                XRecessiveFemaleHom(pedigree=pedigree, config=config),
+                XRecessiveFemaleCH(pedigree=pedigree, config=config),
+                XPseudoDominantFemale(pedigree=pedigree, config=config),
             ]
         elif target_moi == 'Mitochondrial':
             self.filter_list = [
-                Mitochondrial(pedigree=pedigree),
+                Mitochondrial(pedigree=pedigree, config=config),
             ]
 
         else:
@@ -467,7 +450,7 @@ class BaseMoi:
     Definition of the MOI base class
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str):
+    def __init__(self, pedigree: PedigreeParser, applied_moi: str, config: ValidateMOIConfig):
         """
         base class
         """
@@ -475,10 +458,10 @@ class BaseMoi:
             raise ValueError('An applied MOI needs to reach the Base Class')
         self.pedigree = pedigree
         self.applied_moi = applied_moi
-        self.minimum_alt_depth = config_retrieve(['RunHailFiltering', 'min_alt_depth'], 5)
-        self.minimum_depth = config_retrieve(['RunHailFiltering', 'minimum_depth'], 10)
-        self.global_filter = GlobalFilter()
-        self.clinvar_filter = ClinVarFilter()
+        self.minimum_alt_depth = config.min_alt_depth
+        self.minimum_depth = config.minimum_depth
+        self.global_filter = GlobalFilter(config)
+        self.clinvar_filter = ClinVarFilter(config)
 
     @abstractmethod
     def run(
@@ -760,14 +743,14 @@ class BaseMoi:
 class DominantAutosomal(BaseMoi):
     """This class can also be called by the X-linked Dominant, in which case the Applied_MOI by name is overridden."""
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Autosomal Dominant'):
+    def __init__(self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'Autosomal Dominant'):
         """
         Simplest: AD MOI
         """
 
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
+        self.global_filter = DominantFilter(config)
+        self.clinvar_filter = ClinVarDominantFilter(config)
 
     def run(
         self,
@@ -820,9 +803,11 @@ class RecessiveAutosomalCH(BaseMoi):
     requires single hom variant, or compound het
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Autosomal Recessive Comp-Het'):
+    def __init__(
+        self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'Autosomal Recessive Comp-Het'
+    ):
         """ """
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
 
     def run(
         self,
@@ -901,9 +886,11 @@ class RecessiveAutosomalHomo(BaseMoi):
     requires single hom variant, or compound het
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Autosomal Recessive Homozygous'):
+    def __init__(
+        self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'Autosomal Recessive Homozygous'
+    ):
         """ """
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
 
     def run(
         self,
@@ -974,11 +961,11 @@ class XDominant(BaseMoi):
     re-implement here, but don't permit Male X-Homs
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_Dominant'):
+    def __init__(self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'X_Dominant'):
         """accept male hets and homs, and female hets without support."""
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
+        self.global_filter = DominantFilter(config)
+        self.clinvar_filter = ClinVarDominantFilter(config)
 
     def run(
         self,
@@ -1037,11 +1024,11 @@ class XPseudoDominantFemale(BaseMoi):
     Basically a Dominant MOI to be applied to Recessive genes, and results will be labelled as cautionary
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_PseudoDominant'):
+    def __init__(self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'X_PseudoDominant'):
         """Accept male hets and homs, and female hets without support/"""
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
+        self.global_filter = DominantFilter(config)
+        self.clinvar_filter = ClinVarDominantFilter(config)
 
     def run(
         self,
@@ -1123,11 +1110,11 @@ class XRecessiveMale(BaseMoi):
     effectively the same as AutosomalDominant?
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_Male'):
+    def __init__(self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'X_Male'):
         """Set parameters specific to male X tests."""
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
+        self.global_filter = DominantFilter(config)
+        self.clinvar_filter = ClinVarDominantFilter(config)
 
     def run(
         self,
@@ -1188,9 +1175,11 @@ class XRecessiveFemaleHom(BaseMoi):
     only consider HOM females
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_Recessive HOM Female'):
+    def __init__(
+        self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'X_Recessive HOM Female'
+    ):
         """Set parameters specific to recessive tests."""
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
 
     def run(
         self,
@@ -1254,9 +1243,11 @@ class XRecessiveFemaleCH(BaseMoi):
     ignore males, accept female comp-het only
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'X_RecessiveFemaleCompHet'):
+    def __init__(
+        self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'X_RecessiveFemaleCompHet'
+    ):
         """Set parameters specific to recessive tests on X in females, specific to Compound-Heterozygous pairs."""
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
 
     def run(
         self,
@@ -1336,16 +1327,16 @@ class Mitochondrial(BaseMoi):
     ignore males, accept female comp-het only
     """
 
-    def __init__(self, pedigree: PedigreeParser, applied_moi: str = 'Mitochondrial'):
+    def __init__(self, pedigree: PedigreeParser, config: ValidateMOIConfig, applied_moi: str = 'Mitochondrial'):
         """
         Set parameters specific to mitochondrial.
         Currently, Mito only works with ClinVar, which is given a partially-penetrant interpretation, so maternally
         inherited will never be disqualifying. This is basically a presence in proband test.
         """
-        super().__init__(pedigree=pedigree, applied_moi=applied_moi)
-        self.global_filter = DominantFilter()
-        self.clinvar_filter = ClinVarDominantFilter()
-        self.plasmy_threshold = config_retrieve(['ValidateMOI', 'heteroplasmy_min'], 0.2)
+        super().__init__(pedigree=pedigree, applied_moi=applied_moi, config=config)
+        self.global_filter = DominantFilter(config)
+        self.clinvar_filter = ClinVarDominantFilter(config)
+        self.plasmy_threshold = config.heteroplasmy_min
 
     def run(
         self,

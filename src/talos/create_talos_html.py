@@ -13,6 +13,7 @@ import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
+from os import environ
 from os.path import join
 from pathlib import Path
 from typing import Any
@@ -38,11 +39,7 @@ KNOWN_YEAR_PREFIX = re.compile(r'\d{2}\D')
 CDNA_SQUASH = re.compile(r'(?P<type>ins|del)(?P<bases>[ACGT]+)$')
 MEAN_SLASH_SAMPLE = 'Mean/sample'
 
-# reactive to different versions of gnomAD
-GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
-
 CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
-GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
 
 
 def parse_ids_from_file(ext_id_file: str | None) -> dict[str, str] | None:
@@ -651,12 +648,13 @@ class Variant:
         self.var_data.info['alpha_missense_max'] = max(am_scores) if am_scores else 'missing'
 
         # this is the weird gnomad callset ID
+        gnomad_sv_key = f'{config_retrieve(["RunHailFilteringSv", "gnomad_population"], "gnomad_v4.1")}_sv_svid'
         if (
             isinstance(self.var_data, StructuralVariant)
-            and GNOMAD_SV_KEY in self.var_data.info
-            and isinstance(self.var_data.info[GNOMAD_SV_KEY], str)
+            and gnomad_sv_key in self.var_data.info
+            and isinstance(self.var_data.info[gnomad_sv_key], str)
         ):
-            self.var_data.info['gnomad_key'] = self.var_data.info[GNOMAD_SV_KEY].split('v2.1_')[-1]  # type: ignore[union-attr]
+            self.var_data.info['gnomad_key'] = self.var_data.info[gnomad_sv_key].split('v2.1_')[-1]  # type: ignore[union-attr]
 
         # get the variant-level hyperlink
         if html_builder.link_engine:
@@ -733,7 +731,9 @@ def cli_main():
     parser.add_argument('--ext_ids', help='Optional, Mapping file for external IDs', default=None)
     parser.add_argument('--seqr_ids', help='Optional, Mapping file for Seqr IDs', default=None)
     parser.add_argument('--labels', help='Dict, SampleID: VariantID: [labels], optional', default=None)
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
+    environ['TALOS_CONFIG'] = args.config
     main(
         results=args.input,
         panelapp=args.panelapp,

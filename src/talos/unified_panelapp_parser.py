@@ -10,6 +10,7 @@ Takes as input:
 
 from argparse import ArgumentParser
 from collections import defaultdict
+from os import environ
 from string import punctuation
 
 import networkx as nx
@@ -73,7 +74,9 @@ def cli_main():
     parser.add_argument('--output', help='Path to write JSON output to', required=True)
     parser.add_argument('--pedigree', help='Pedigree file, optionally including HPO terms', required=True)
     parser.add_argument('--hpo', help='Localised copy of HPO obo file', required=False)
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
+    environ['TALOS_CONFIG'] = args.config
     main(panel_data=args.input, output_file=args.output, pedigree_path=args.pedigree, hpo_file=args.hpo)
 
 

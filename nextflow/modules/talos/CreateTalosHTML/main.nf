@@ -16,10 +16,11 @@ process CreateTalosHTML {
         """
         set -euo pipefail
 
-        export TALOS_CONFIG=${talos_config}
         python -m talos.create_talos_html \
             --input ${talos_result_json} \
             --panelapp ${panelapp_data} \
-            --output ${cohort}_report_${timestamp}.html $ext_id_arg $seqr_arg
+            --output ${cohort}_report_${timestamp}.html \
+            --config ${talos_config} \
+            $ext_id_arg $seqr_arg
         """
 }

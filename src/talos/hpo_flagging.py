@@ -11,6 +11,7 @@ Variants where all categories are on that list will be removed unless any of the
 
 from argparse import ArgumentParser
 from collections import defaultdict
+from os import environ
 
 from semsimian import Semsimian
 
@@ -182,7 +183,11 @@ def cli_main():
     parser.add_argument('--phenio', help='A phenio DB file')
     parser.add_argument('--output', help='Annotated output')
     parser.add_argument('--previous', help='Path to previous results', default=None)
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
+
+    # todo reeeeeally half baked implementation
+    environ['TALOS_CONFIG'] = args.config
     main(
         result_file=args.input,
         mane_json=args.mane_json,
