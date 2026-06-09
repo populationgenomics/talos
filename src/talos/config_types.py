@@ -78,6 +78,45 @@ class RunHailFilteringConfig:
 
 
 @dataclass
+class HtmlConfig:
+    dataset: str | None
+    sequencing_type: str | None
+    long_read: bool
+    long_read_defined: bool
+    gnomad_population: str
+    hyperlinks: bool
+    hyper_template: str | None
+    hyper_variant_template: str | None
+    hyper_external: bool
+    split_reports: bool
+    default_panel: int
+    forbidden_genes: set[str]
+    remove_solved_cases: bool
+
+    @classmethod
+    def from_config(cls, config_path: str) -> 'HtmlConfig':
+        raw = _load_raw(config_path)
+        rsv = raw.get('RunHailFilteringSv', {})
+        panel = raw.get('GeneratePanelData', {})
+        html = raw.get('CreateTalosHTML', {})
+        return cls(
+            dataset=raw.get('dataset'),
+            sequencing_type=raw.get('sequencing_type'),
+            long_read_defined=bool('long_read' in raw),
+            long_read=raw.get('long_read', False),
+            default_panel=panel.get('default_panel', 137),
+            forbidden_genes=set(panel.get('forbidden_genes', [])),
+            remove_solved_cases=html.get('remove_solved_cases', True),
+            hyperlinks='hyperlinks' in html,
+            hyper_template=html.get('hyperlinks', {}).get('template'),
+            hyper_variant_template=html.get('hyperlinks', {}).get('variant_template'),
+            hyper_external=html.get('hyperlinks', {}).get('external'),
+            split_reports=html.get('split_reports', False),
+            gnomad_population=rsv.get('gnomad_population', 'gnomad_v4.1'),
+        )
+
+
+@dataclass
 class ValidateMOIConfig:
     # GlobalFilter thresholds
     min_callset_ac_to_filter: int

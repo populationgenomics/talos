@@ -13,7 +13,6 @@ import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from dataclasses import dataclass
-from os import environ
 from os.path import join
 from pathlib import Path
 from typing import Any
@@ -23,7 +22,7 @@ import pandas as pd
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
 
-from talos.config import config_retrieve
+from talos.config_types import HtmlConfig, _load_raw
 from talos.models import PanelApp, PanelDetail, PanelShort, ReportVariant, ResultData, SmallVariant, StructuralVariant
 from talos.utils import read_json_from_path
 
@@ -170,6 +169,7 @@ class HTMLBuilder:
         self,
         results_dict: ResultData,
         panelapp_path: str,
+        config: HtmlConfig,
         subset_id: str | None = None,
         link_engine: 'LinkEngine | None' = None,
         ext_id_map: dict[str, str] | None = None,
@@ -179,6 +179,7 @@ class HTMLBuilder:
         Args:
             results_dict (ResultData): the results object
             panelapp_path (str): where to read panelapp data from
+            config (HtmlConfig): the html-relevant config parameters
             subset_id (str, optional): the subset ID to use for this report
             link_engine (LinkEngine, optional): the link engine to generate hyperlinks with
             ext_id_map (dict[str, str], optional): a mapping of sample IDs to external IDs, optional
@@ -190,17 +191,19 @@ class HTMLBuilder:
 
         self.ext_id_map = ext_id_map or {}
 
+        self.config: HtmlConfig = config
+
         # ID to use if this is a subset report
         self.subset_id = subset_id
 
         # get a hold of the base panel ID we're using
         # this is used to differentiate between new in base and new in other
-        self.base_panel: int = config_retrieve(['GeneratePanelData', 'default_panel'])
+        self.base_panel: int = config.default_panel
 
         self.panelapp: PanelApp = read_json_from_path(panelapp_path, return_model=PanelApp)
 
         # If it exists, read the forbidden genes as a list
-        self.forbidden_genes = set(config_retrieve(['GeneratePanelData', 'forbidden_genes'], []))
+        self.forbidden_genes = config.forbidden_genes
         logger.warning(f'There are {len(self.forbidden_genes)} forbidden genes')
 
         # take the link-generating instance (can be None)
@@ -224,16 +227,13 @@ class HTMLBuilder:
         # Process samples and variants
         self.samples: list[Sample] = []
 
-        # boolean to decide whether solved cases are retained in the final HTML
-        remove_solved_cases = config_retrieve(['CreateTalosHTML', 'remove_solved_cases'], True)
-
         for sample, content in results_dict.results.items():
             # skip samples with no variants
             if not content.variants:
                 continue
 
             # configurable, skip solved cases
-            if content.metadata.solved and remove_solved_cases:
+            if content.metadata.solved and config.remove_solved_cases:
                 logger.debug(f'Skipping {sample} as Solved based on config')
                 continue
 
@@ -275,13 +275,14 @@ class HTMLBuilder:
             ),
         }
 
-    def write_html(self, output_filepath: str):
+    def write_html(self, output_filepath: str, full_config: dict):
         """
         Uses the results to create the HTML tables
         writes all content to the output path
 
         Args:
             output_filepath (str): where to write the results to
+            full_config (dict): the full configuration, to be json-dumped
         """
 
         # if no variants were found, this can fail with a NoVariantsFoundException error
@@ -289,14 +290,9 @@ class HTMLBuilder:
         # (summary_table, zero_cat_samples, unused_ext_labels) = self.get_summary_stats()
 
         # if these attributes are in the config we'll end up with a more descriptive report title
-        dataset = config_retrieve('dataset', None)
-        seq_type = config_retrieve('sequencing_type', None)
-        if 'long_read' in config_retrieve([]):
-            long_read = 'long_read' if config_retrieve('long_read') else 'short-read'
-        else:
-            long_read = None
+        long_read = ('long_read' if self.config.long_read else 'short-read') if self.config.long_read_defined else None
 
-        extra_detail = ', '.join(x for x in [dataset, seq_type, long_read] if x)
+        extra_detail = ', '.join(x for x in [self.config.dataset, self.config.sequencing_type, long_read] if x)
 
         meta_tables_raw = self.read_metadata()
         meta_tables = {
@@ -356,8 +352,7 @@ class HTMLBuilder:
                 entry['sample_ext'] = self.ext_id_map.get(sam, sam) if isinstance(sam, str) else sam
                 unused_ext_labels.append(entry)
 
-        config_options = config_retrieve([])
-        config_json = json.dumps(config_options, indent=2, sort_keys=True)
+        config_json = json.dumps(full_config, indent=2, sort_keys=True)
 
         template_context = {
             # 'metadata': self.metadata,
@@ -648,7 +643,7 @@ class Variant:
         self.var_data.info['alpha_missense_max'] = max(am_scores) if am_scores else 'missing'
 
         # this is the weird gnomad callset ID
-        gnomad_sv_key = f'{config_retrieve(["RunHailFilteringSv", "gnomad_population"], "gnomad_v4.1")}_sv_svid'
+        gnomad_sv_key = f'{html_builder.config.gnomad_population}_sv_svid'
         if (
             isinstance(self.var_data, StructuralVariant)
             and gnomad_sv_key in self.var_data.info
@@ -733,11 +728,11 @@ def cli_main():
     parser.add_argument('--labels', help='Dict, SampleID: VariantID: [labels], optional', default=None)
     parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
-    environ['TALOS_CONFIG'] = args.config
     main(
         results=args.input,
         panelapp=args.panelapp,
         output=args.output,
+        config_path=args.config,
         ext_id_file=args.ext_ids,
         seqr_id_file=args.seqr_ids,
         external_labels=args.labels,
@@ -748,6 +743,7 @@ def main(
     results: str,
     panelapp: str,
     output: str,
+    config_path: str,
     ext_id_file: str | None = None,
     seqr_id_file: str | None = None,
     external_labels: str | None = None,
@@ -763,6 +759,10 @@ def main(
         external_labels (str | None): optional, path to a file containing external labels
     """
 
+    config_obj = HtmlConfig.from_config(config_path)
+
+    full_config = _load_raw(config_path)
+
     report_output_dir = Path(output).parent
 
     results_object = read_json_from_path(results, return_model=ResultData)
@@ -773,10 +773,13 @@ def main(
     labels_file: dict[str, dict] = read_json_from_path(external_labels, {})
 
     # set up the link builder, or None
-    if (link_section := config_retrieve(['CreateTalosHTML', 'hyperlinks'], None)) and seqr_id_file:
-        link_builder = LinkEngine(**link_section, lookup=seqr_id_file)
-    elif link_section:
-        link_builder = LinkEngine(**link_section, lookup=None)
+    if config_obj.hyperlinks and isinstance(config_obj.hyper_template, str):
+        link_builder = LinkEngine(
+            template=config_obj.hyper_template,
+            variant_template=config_obj.hyper_variant_template,
+            external=config_obj.hyper_external,
+            lookup=seqr_id_file,
+        )
     else:
         link_builder = None
 
@@ -784,6 +787,7 @@ def main(
     html = HTMLBuilder(
         results_dict=results_object,
         panelapp_path=panelapp,
+        config=config_obj,
         link_engine=link_builder,
         ext_id_map=external_id_map,
         ext_labels=labels_file,
@@ -793,11 +797,11 @@ def main(
     # catch this, but fail gracefully so that the process overall is a success
     try:
         logger.debug(f'Writing whole-cohort categorised variants to {output}')
-        html.write_html(output_filepath=output)
+        html.write_html(output_filepath=output, full_config=full_config)
     except NoVariantsFoundError:
         logger.warning('No Categorised variants found in this whole cohort')
 
-    if external_id_map is None or config_retrieve(['CreateTalosHTML', 'split_reports'], False) is False:
+    if external_id_map is None or config_obj.split_reports is False:
         return
 
     # we only need to do sub-reports if we can delineate by year
@@ -805,6 +809,7 @@ def main(
         html = HTMLBuilder(
             results_dict=data,
             panelapp_path=panelapp,
+            config=config_obj,
             subset_id=prefix,
             link_engine=link_builder,
             ext_id_map=external_id_map,
@@ -813,7 +818,7 @@ def main(
         try:
             output_filepath = join(report_output_dir, report)
             logger.debug(f'Attempting to create {report} at {output_filepath}')
-            html.write_html(output_filepath=output_filepath)
+            html.write_html(output_filepath=output_filepath, full_config=full_config)
         except NoVariantsFoundError:
             logger.info('No variants in that report, skipping')
 

@@ -9,6 +9,7 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 
 import sys
 from argparse import ArgumentParser
+
 from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
 
@@ -22,8 +23,8 @@ from talos.annotation_scripts.annotated_vcf_into_matrixtable import (
     MISSING_STRING,
     extract_and_split_csq_string,
 )
-from talos.config_types import RunHailFilteringConfig
 from talos.config import config_retrieve
+from talos.config_types import RunHailFilteringConfig
 from talos.models import PanelApp
 from talos.run_hail_filtering import (
     annotate_clinvarbitration,

@@ -18,7 +18,6 @@ from typing import Any
 
 from loguru import logger
 
-from talos.config import config_retrieve
 from talos.models import VARIANT_MODELS
 
 _logger: 'ExclusionLogger | None' = None
@@ -81,7 +80,6 @@ def create_exclusion_logger(log_path: str | None = None) -> ExclusionLogger:
 
 def get_exclusion_logger() -> ExclusionLogger:
     """Return the process-wide exclusion logger."""
-    global _logger
     if _logger is None:
         raise RuntimeError('Exclusion logger not initialized')
     return _logger

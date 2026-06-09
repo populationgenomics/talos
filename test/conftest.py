@@ -15,9 +15,8 @@ from loguru import logger
 
 import hail as hl
 
-from talos.config_types import HpoFlaggingConfig, ValidateMOIConfig, RunHailFilteringConfig
+from talos.config_types import HpoFlaggingConfig, RunHailFilteringConfig, ValidateMOIConfig
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
-
 
 # force this to come first
 PWD = Path(__file__).parent
