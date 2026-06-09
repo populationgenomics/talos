@@ -9,8 +9,6 @@ This process combines the AF/CSQs already applied with the MANE transcript/prote
 
 import sys
 from argparse import ArgumentParser
-from os import environ
-
 from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
 
@@ -24,6 +22,7 @@ from talos.annotation_scripts.annotated_vcf_into_matrixtable import (
     MISSING_STRING,
     extract_and_split_csq_string,
 )
+from talos.config_types import RunHailFilteringConfig
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.run_hail_filtering import (
@@ -126,7 +125,6 @@ def cli_main():
     parser.add_argument('--batch', help='flag to use the batch hail backend', action='store_true')
     parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
-    environ['TALOS_CONFIG'] = args.config
 
     main(
         vcf_path=args.input,
@@ -135,6 +133,7 @@ def cli_main():
         pedigree=args.pedigree,
         clinvar_path=args.clinvar,
         batch=args.batch,
+        config=args.config,
     )
 
 
@@ -145,6 +144,7 @@ def main(
     pedigree: str,
     clinvar_path: str,
     batch: bool,
+    config: str,
 ):
     """
     Takes a BCFtools-annotated Mito VCF, reorganises into a Talos-compatible MatrixTable
@@ -157,6 +157,8 @@ def main(
         clinvar_path (str): path to the clinvar data file
         batch (bool): if we should use the Hail Batch backend
     """
+
+    config_object = RunHailFilteringConfig.from_config(config)
 
     panel_data = read_json_from_path(panelapp, return_model=PanelApp)
 
@@ -255,7 +257,7 @@ def main(
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             **mt.gnomad,
-            csq=csq_struct_to_string(mt.transcript_consequences),
+            csq=csq_struct_to_string(mt.transcript_consequences, config=config_object),
             gene_id=mt.gene_ids,
         ),
     )

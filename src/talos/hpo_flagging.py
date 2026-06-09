@@ -11,32 +11,13 @@ Variants where all categories are on that list will be removed unless any of the
 
 from argparse import ArgumentParser
 from collections import defaultdict
-from os import environ
 
 from semsimian import Semsimian
 
-from talos.config import config_retrieve
+from talos.config_types import HpoFlaggingConfig
 from talos.models import ResultData
 from talos.static_values import get_granular_date
 from talos.utils import parse_mane_json_to_dict, read_json_from_path
-
-_SEMSIM_CLIENT: Semsimian | None = None
-
-
-def get_sem_client(phenio_db: str | None = None) -> Semsimian:
-    """
-    create or retrieve a Semsimian client
-
-    Args:
-        phenio_db (str | None): needs to be present for the first call
-
-    Returns:
-        Semsimian instance
-    """
-    global _SEMSIM_CLIENT
-    if _SEMSIM_CLIENT is None:
-        _SEMSIM_CLIENT = Semsimian(spo=None, predicates=['rdfs:subClassOf'], resource_path=phenio_db)
-    return _SEMSIM_CLIENT
 
 
 def parse_genes_to_hpo(g2p_file: str, ensg_map: dict[str, str], genes: set[str]) -> dict[str, set[str]]:
@@ -86,21 +67,25 @@ def find_genes_in_these_results(result_object: ResultData) -> set[str]:
     return ensgs
 
 
-def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, set[str]]):
+def annotate_phenotype_matches(
+    result_object: ResultData,
+    gen_phen: dict[str, set[str]],
+    config: HpoFlaggingConfig,
+    phenio_db: str | None = None,
+):
     """
-    for each variant, find any phenotype matches between the participant and gene HPO sets
-
-    checks config for HPOFlagging.strict (bool)
-    if strict, this will test for an exact overlap
-    if strict is False, this will be done semantically via Semsimian
+    For each variant, find any phenotype matches between the participant and gene HPO sets
+    always check for strict matches, optionally use the phenotype db for semantic matching via Semsimian
 
     Args:
         result_object (ResultData):
         gen_phen (dict): mapping of ENSGs to relevant HPO terms
+        config (HpoFlaggingConfig): all config settings for this module
+        phenio_db (str): path to a phenotype db, or None
     """
-    semantic_match = config_retrieve(['HPOFlagging', 'semantic_match'], False)
-
-    min_similarity: float = config_retrieve(['HPOFlagging', 'min_similarity'])
+    sem_client = None
+    if config.semantic_match:
+        sem_client = Semsimian(spo=None, predicates=['rdfs:subClassOf'], resource_path=phenio_db)
 
     for participant in result_object.results.values():
         participant_hpos_dict = {hpo.id: hpo.label for hpo in participant.metadata.phenotypes}
@@ -116,8 +101,8 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                 variant.phenotype_labels.add(f'{hpo_id}: {participant_hpos_dict[hpo_id]}')
 
             # optionally also use semantic matching for phenotypic similarity
-            if participant_hpos and gene_hpos and semantic_match:
-                termset_similarity = get_sem_client().termset_pairwise_similarity(participant_hpos, gene_hpos)
+            if participant_hpos and gene_hpos and sem_client:
+                termset_similarity = sem_client.termset_pairwise_similarity(participant_hpos, gene_hpos)
                 # Convert object terms (gene_phenotypes) to lookup dict
                 object_termset = {
                     term_dict['id']: term_dict['label']
@@ -129,7 +114,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                 pheno_matches = {
                     f'{match["object_id"]}: {object_termset[match["object_id"]]}'
                     for match in termset_similarity['subject_best_matches']['similarity'].values()
-                    if float(match['ancestor_information_content']) > min_similarity
+                    if float(match['ancestor_information_content']) > config.min_similarity
                 }
 
                 # skip if no matches - don't assign a date if there are no matches
@@ -142,16 +127,13 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                 variant.phenotype_labels = pheno_matches
 
 
-def remove_phenotype_required_variants(result_object: ResultData):
+def remove_phenotype_required_variants(result_object: ResultData, config: HpoFlaggingConfig):
     """
     remove any variants where a phenotype match is required but not found
 
     Args:
         result_object ():
     """
-
-    # for these categories, require a phenotype-gene match
-    cats_require_pheno_match = config_retrieve(['ValidateMOI', 'phenotype_match'], [])
 
     for participant in result_object.results.values():
         kept_variants = []
@@ -167,7 +149,7 @@ def remove_phenotype_required_variants(result_object: ResultData):
             if (
                 (not matched_variant)
                 and (len(variant.support_vars) == 0)
-                and (all(cat in cats_require_pheno_match for cat in variant.categories))
+                and (all(cat in config.phenotype_match for cat in variant.categories))
             ):
                 continue
             kept_variants.append(variant)
@@ -186,13 +168,12 @@ def cli_main():
     parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
 
-    # todo reeeeeally half baked implementation
-    environ['TALOS_CONFIG'] = args.config
     main(
         result_file=args.input,
         mane_json=args.mane_json,
         gen2phen=args.gen2phen,
         phenio=args.phenio,
+        config=args.config,
         out_path=args.output,
     )
 
@@ -202,6 +183,7 @@ def main(
     mane_json: str,
     gen2phen: str,
     phenio: str,
+    config: str,
     out_path: str,
 ):
     """
@@ -211,8 +193,12 @@ def main(
         mane_json (str): dictionary of all MANE genes we know about
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
+        config (str): path to TOML config file
         out_path (str): path to write the annotated results
     """
+
+    # load the config file into an object
+    hpo_config = HpoFlaggingConfig.from_config(config)
 
     gene_map = parse_mane_json_to_dict(mane_json)
 
@@ -225,16 +211,11 @@ def main(
     # for each gene, identify the HPO terms that are associated with it
     gen_phen_dict = parse_genes_to_hpo(gen2phen, gene_map, genes=relevant_ensgs)
 
-    # unless strict, set up the client with a phenio file
-    # this is a bit hacky, but means we don't need to pass the phenio path around
-    if not config_retrieve(['HPOFlagging', 'strict'], False):
-        _semsim = get_sem_client(phenio_db=phenio)
-
     # label phenotype matches, and write the results to a JSON file
-    annotate_phenotype_matches(results, gen_phen_dict)
+    annotate_phenotype_matches(results, gen_phen_dict, config=hpo_config, phenio_db=phenio)
 
     # remove any variants where a phenotype match is required but not found
-    remove_phenotype_required_variants(results)
+    remove_phenotype_required_variants(results, config=hpo_config)
 
     # validate the object
     validated_results = ResultData.model_validate(results)

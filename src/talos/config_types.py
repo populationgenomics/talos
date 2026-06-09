@@ -28,6 +28,24 @@ def _load_raw(config_path: str) -> dict:
 
 
 @dataclass
+class HpoFlaggingConfig:
+    min_similarity: int
+    phenotype_match: list[str]
+    semantic_match: bool
+
+    @classmethod
+    def from_config(cls, config_path: str) -> 'HpoFlaggingConfig':
+        raw = _load_raw(config_path)
+        hpo = raw.get('HPOFlagging', {})
+        vmi = raw.get('ValidateMOI', {})
+        return cls(
+            min_similarity=hpo['min_similarity'],
+            phenotype_match=vmi.get('phenotype_match', []),
+            semantic_match=hpo.get('semantic_match', True),
+        )
+
+
+@dataclass
 class RunHailFilteringConfig:
     af_semi_rare: float
     csq_string: list[str]

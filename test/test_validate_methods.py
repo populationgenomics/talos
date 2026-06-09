@@ -4,6 +4,7 @@ script testing methods within reanalysis/validate_categories.py
 
 from mendelbrot.pedigree_parser import PedigreeParser
 
+from talos.config_types import ValidateMOIConfig
 from talos.models import (
     Coordinates,
     PanelApp,
@@ -27,7 +28,7 @@ REP_SAM3_2 = ReportVariant(sample='sam3', var_data=VAR_2, categories={'2': get_g
 dirty_data = [REP_SAM1_1, REP_SAM3_1, REP_SAM3_2]
 
 
-def test_results_shell(pedigree_path: str):
+def test_results_shell(pedigree_path: str, config_path_fixture):
     """
 
     Returns:
@@ -49,12 +50,15 @@ def test_results_shell(pedigree_path: str):
             'mother_2': {'external_id': 'mother_2', 'hpo_terms': []},
         },
     )
+
+    config_object = ValidateMOIConfig.from_config(config_path_fixture)
     shell = prepare_results_shell(
         results_meta=ResultMeta(),
         small_samples={'male'},
         sv_samples={'female'},
         pedigree=PedigreeParser(pedigree_path=pedigree_path),
         panelapp=panelapp,
+        config=config_object,
     )
 
     # top level only has the two affected participants

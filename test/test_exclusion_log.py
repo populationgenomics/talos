@@ -79,7 +79,12 @@ def test_disabled_logger_writes_nothing(tmp_path, restore_exclusion_logger):  # 
     assert not out.exists()
 
 
-def test_frequency_filter_records_reason(tmp_path, pedigree_path, restore_exclusion_logger):  # noqa: ARG001
+def test_frequency_filter_records_reason(
+    tmp_path,
+    pedigree_path,
+    restore_exclusion_logger,
+    moi_config,
+):  # noqa: ARG001
     """A variant rejected for high gnomAD AF emits one frequency_filter record."""
     out = tmp_path / 'exclusions.jsonl'
     _enable_super_logging(out)
@@ -93,7 +98,7 @@ def test_frequency_filter_records_reason(tmp_path, pedigree_path, restore_exclus
         alt_depths={'male': 50},
         transcript_consequences=[],
     )
-    runner = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    runner = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     assert runner.run(principal=variant) == []
 
     exclusion_log.get_exclusion_logger().close()
@@ -108,7 +113,7 @@ def test_frequency_filter_records_reason(tmp_path, pedigree_path, restore_exclus
     assert rec['details']['value'] == 0.5
 
 
-def test_first_failure_short_circuit(tmp_path, pedigree_path, restore_exclusion_logger):  # noqa: ARG001
+def test_first_failure_short_circuit(tmp_path, pedigree_path, restore_exclusion_logger, moi_config):  # noqa: ARG001
     """A sample failing both depth and category checks records only the first failure."""
     out = tmp_path / 'exclusions.jsonl'
     _enable_super_logging(out)
@@ -123,7 +128,7 @@ def test_first_failure_short_circuit(tmp_path, pedigree_path, restore_exclusion_
         alt_depths={'male': 0},
         transcript_consequences=[],
     )
-    runner = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    runner = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     runner.run(principal=variant)
     exclusion_log.get_exclusion_logger().close()
     records = _read_records(out)
@@ -134,7 +139,7 @@ def test_first_failure_short_circuit(tmp_path, pedigree_path, restore_exclusion_
     assert sample_records[0]['reason'] == 'sample_not_categorised'
 
 
-def test_gz_path_writes_gzip(tmp_path, pedigree_path, restore_exclusion_logger):  # noqa: ARG001
+def test_gz_path_writes_gzip(tmp_path, pedigree_path, restore_exclusion_logger, moi_config):  # noqa: ARG001
     """Output path ending in .gz should produce a valid gzip stream."""
     out = tmp_path / 'exclusions.jsonl.gz'
     _enable_super_logging(out)
@@ -148,7 +153,7 @@ def test_gz_path_writes_gzip(tmp_path, pedigree_path, restore_exclusion_logger):
         alt_depths={'male': 50},
         transcript_consequences=[],
     )
-    DominantAutosomal(pedigree=PedigreeParser(pedigree_path)).run(principal=variant)
+    DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config).run(principal=variant)
     exclusion_log.get_exclusion_logger().close()
 
     records = _read_records(out)
@@ -156,7 +161,7 @@ def test_gz_path_writes_gzip(tmp_path, pedigree_path, restore_exclusion_logger):
     assert records[0]['reason'] == 'gnomad_af_too_high'
 
 
-def test_comp_het_partner_rejection_logged(tmp_path, pedigree_path, restore_exclusion_logger):  # noqa: ARG001
+def test_comp_het_partner_rejection_logged(tmp_path, pedigree_path, restore_exclusion_logger, moi_config):  # noqa: ARG001
     """A comp-het partner with too-high gnomAD AF should be recorded as a comp_het rejection."""
     out = tmp_path / 'exclusions.jsonl'
     _enable_super_logging(out)
@@ -195,7 +200,9 @@ def test_comp_het_partner_rejection_logged(tmp_path, pedigree_path, restore_excl
         boolean_categories=boolean_categories,
     )
     comp_het = {'male': {principal.coordinates.string_format: [partner]}}
-    RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path)).run(principal=principal, comp_het=comp_het)
+    RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config).run(
+        principal=principal, comp_het=comp_het
+    )
     exclusion_log.get_exclusion_logger().close()
 
     records = _read_records(out)
