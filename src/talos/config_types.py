@@ -111,6 +111,9 @@ class ValidateMOIConfig:
     ignore_categories: list[str] = field(default_factory=list)
     singletons: bool = False
 
+    # super logging trigger
+    super_logging_path: str | None = None
+
     @classmethod
     def from_config(cls, config_path: str) -> 'ValidateMOIConfig':
         raw = _load_raw(config_path)
@@ -141,4 +144,5 @@ class ValidateMOIConfig:
             solved_cases=vmi.get('solved_cases', []),
             ignore_categories=vmi.get('ignore_categories', []),
             singletons=raw.get('singletons', False),
+            super_logging_path=vmi.get('super_logging_path', None),
         )

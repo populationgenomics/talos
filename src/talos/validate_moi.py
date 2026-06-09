@@ -20,7 +20,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.config import config_retrieve
 from talos.config_types import ValidateMOIConfig
-from talos.exclusion_log import get_exclusion_logger
+from talos.exclusion_log import create_exclusion_logger
 from talos.models import (
     FamilyMembers,
     MemberSex,
@@ -405,7 +405,7 @@ def main(
     config = ValidateMOIConfig.from_config(config_path)
 
     # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
-    exclusion_logger = get_exclusion_logger()
+    exclusion_logger = create_exclusion_logger()
 
     try:
         panelapp: PanelApp = read_json_from_path(

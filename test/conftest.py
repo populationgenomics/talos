@@ -2,6 +2,7 @@
 A home for common test fixtures
 """
 
+from copy import deepcopy
 from os import environ
 from os.path import join
 from pathlib import Path
@@ -92,7 +93,7 @@ def fixture_validate_moi_config() -> ValidateMOIConfig:
     """
     a fixture to make a matrix table
     """
-    return ValidateMOIConfig.from_config(join(INPUT, 'config.toml'))
+    return deepcopy(ValidateMOIConfig.from_config(join(INPUT, 'config.toml')))
 
 
 @pytest.fixture(name='hpo_config', scope='session')
@@ -100,7 +101,7 @@ def fixture_hpo_config() -> HpoFlaggingConfig:
     """
     a fixture to make a matrix table
     """
-    return HpoFlaggingConfig.from_config(join(INPUT, 'config.toml'))
+    return deepcopy(HpoFlaggingConfig.from_config(join(INPUT, 'config.toml')))
 
 
 @pytest.fixture(name='hail_config', scope='session')
@@ -108,7 +109,7 @@ def fixture_hail_config() -> RunHailFilteringConfig:
     """
     a fixture to make a matrix table
     """
-    return RunHailFilteringConfig.from_config(join(INPUT, 'config.toml'))
+    return deepcopy(RunHailFilteringConfig.from_config(join(INPUT, 'config.toml')))
 
 
 @pytest.fixture(name='make_a_mt', scope='session')

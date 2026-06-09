@@ -27,17 +27,12 @@ _logger: 'ExclusionLogger | None' = None
 class ExclusionLogger:
     """Stream JSONL exclusion records. Disabled by default; configure to enable."""
 
-    def __init__(self) -> None:
-        self.enabled: bool = bool(config_retrieve(['ValidateMOI', 'super_logging'], False))
-        self.path: str | None = config_retrieve(['ValidateMOI', 'super_logging_path'], None)
+    def __init__(self, logging_path: str | None = None) -> None:
+        self.path: str | None = logging_path
         self._handle: Any = None
 
-        if self.enabled and not self.path:
-            logger.warning('super_logging enabled but super_logging_path not set; disabling super logging')
-            self.enabled = False
-
     def _open(self) -> None:
-        if self._handle is not None or not self.enabled:
+        if self._handle is not None:
             return
         assert self.path is not None
         opener = gzip.open if self.path.endswith('.gz') else open
@@ -55,7 +50,7 @@ class ExclusionLogger:
         reason: str,
         details: dict[str, Any] | None = None,
     ) -> None:
-        if not self.enabled:
+        if not self.path:
             return
         self._open()
         payload = {
@@ -76,17 +71,26 @@ class ExclusionLogger:
             self._handle = None
 
 
-def get_exclusion_logger() -> ExclusionLogger:
+def create_exclusion_logger(log_path: str | None = None) -> ExclusionLogger:
     """Return the process-wide exclusion logger, initialising it on first use."""
     global _logger
     if _logger is None:
-        _logger = ExclusionLogger()
+        _logger = ExclusionLogger(logging_path=log_path)
     return _logger
 
 
-def reset_exclusion_logger() -> None:
+def get_exclusion_logger() -> ExclusionLogger:
+    """Return the process-wide exclusion logger."""
+    global _logger
+    if _logger is None:
+        raise RuntimeError('Exclusion logger not initialized')
+    return _logger
+
+
+def reset_exclusion_logger(log_path: str | None = None) -> ExclusionLogger:
     """Close and reset the singleton. Intended for tests."""
     global _logger
     if _logger is not None:
         _logger.close()
-    _logger = None
+    _logger = ExclusionLogger(logging_path=log_path)
+    return _logger
