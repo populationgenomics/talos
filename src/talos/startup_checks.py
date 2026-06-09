@@ -6,7 +6,6 @@ Takes the inputs (mandatory and optional) and checks if they are valid.
 
 import sys
 from argparse import ArgumentParser
-from os import environ, getenv
 
 import pendulum
 from cloudpathlib.anypath import to_anypath
@@ -15,7 +14,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 import hail as hl
 
-from talos.config import config_check, config_retrieve
+from talos.config_types import _load_raw
 
 # collect all parsing errors as strings, print before crashing (unless everything passes...)
 LOG_ERRORS: list[str] = []
@@ -223,54 +222,47 @@ def validate_pedigree(pedigree_path: str | None):
         LOG_ERRORS.append(f'Pedigree file is empty or does not contain affected members: {ped_path}')
 
 
-def recursive_schema_validation(schema: dict, lead: list[str] | None = None, optional: bool = False):
+def recursive_schema_validation(config_content: dict, schema: dict, optional: bool = False):
     """
     Validate the schema against the provided configuration. Re-call this method at each level of the schema.
 
     Args:
+        config_content (dict): the raw config content to be checked
         schema (dict): the schema to use for validation
         lead (list[str] | None): the path to the current schema level, used for error messages and config retrieval
         optional (bool): if True, we will not raise an error if the key is missing, but will check the types if present
     """
-    # this is used to build the keys
-    if lead is None:
-        lead = []
 
     for key, value in schema.items():
-        if key not in config_retrieve(lead):
+        if key not in config_content:
             if not optional:
-                LOG_ERRORS.append(f'Missing required config key: {".".join([*lead, key])}')
+                LOG_ERRORS.append(f'Missing required config key: {key}')
             continue
         if isinstance(value, dict):
             # if the value is a dict, we need to recurse into it
-            recursive_schema_validation(schema=value, lead=[*lead, key], optional=optional)
+            recursive_schema_validation(config_content=config_content[key], schema=value, optional=optional)
             continue
 
-        key_path = [*lead, key]
+        # no failures here, just return
+        if optional:
+            return
 
-        CONFIG_ERRORS.extend(config_check(key=key_path, expected_type=value, optional=optional))
+        if not isinstance(config_content[key], value):
+            real_type = type(config_content[key])
+            CONFIG_ERRORS.append(f'config entry {key} was {real_type}, expected {value}')
 
 
-def check_config():
-    """
-    Configuration checks, we fire off a method to run recursively through the schema and check the types.
-    If the environment variable TALOS_CONFIG is not set, we will not be able to access, so it's a hard fail.
-    """
+def check_config(config_content: dict):
+    """Configuration checks, we fire off a method to run recursively through the schema and check the types."""
 
-    if (config_path := getenv('TALOS_CONFIG')) is None:
-        LOG_ERRORS.append("Environment variable TALOS_CONFIG is not set, config won't be accessible.")
-        return
-
-    logger.info(f'Checking config at {config_path}')
-
-    recursive_schema_validation(SCHEMA, optional=False)
-    recursive_schema_validation(SCHEMA_OPTIONAL, optional=True)
+    recursive_schema_validation(config_content, SCHEMA, optional=False)
+    recursive_schema_validation(config_content, SCHEMA_OPTIONAL, optional=True)
 
     # add the config-specific errors to the logging errors
     LOG_ERRORS.extend(CONFIG_ERRORS)
 
 
-def check_clinvar(clinvar_paths: list[str] | None):
+def check_clinvar(clinvar_paths: list[str] | None, clinvar_check_age: bool):
     """
     Check that the ClinVar HailTable exists and is readable.
     """
@@ -292,7 +284,7 @@ def check_clinvar(clinvar_paths: list[str] | None):
             LOG_ERRORS.append('ClinVar HailTable lacks a creation date')
             continue
         created = pendulum.from_format(hl.eval(clinvar_ht.globals.creation_date), 'YYYY-MM-DD')
-        if created < pendulum.now().subtract(months=2) and config_retrieve(['clinvar_check_age'], True):
+        if created < pendulum.now().subtract(months=2) and clinvar_check_age:
             LOG_ERRORS.append(
                 f'ClinVar HailTable {clinvar_path} is > 2 months old: {created.to_date_string()}, get a new one.'
                 f'Alternatively, disable this check by setting the config key "clinvar_check_age" to False.',
@@ -302,21 +294,23 @@ def check_clinvar(clinvar_paths: list[str] | None):
 def main(
     pedigree_path: str | None,
     mt_paths: list[str],
+    config_path: str,
     clinvar_paths: list[str] | None,
 ) -> None:
-    """
-    Main function to run all startup checks.
-    """
+    """Main function to run all startup checks."""
+
+    logger.info(f'Checking config at {config_path}')
+    config_content = _load_raw(config_path)
 
     # start up a hail runtime to check the MatrixTable and ClinVar HailTable
     hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # Run the checks on the pedigree, and on the Config file (picked up from the environment variable TALOS_CONFIG)
     validate_pedigree(pedigree_path)
-    check_config()
+    check_config(config_content)
 
     check_mt(mt_paths)
-    check_clinvar(clinvar_paths)
+    check_clinvar(clinvar_paths, clinvar_check_age=config_content.get('clinvar_check_age', True))
 
     if LOG_ERRORS:
         logger.error('One or more startup checks failed:')
@@ -333,5 +327,4 @@ if __name__ == '__main__':
     parser.add_argument('--clinvar', help='Path to the ClinVar HailTable.', default=None, nargs='+')
     parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
-    environ['TALOS_CONFIG'] = args.config
-    main(pedigree_path=args.pedigree, mt_paths=args.mt, clinvar_paths=args.clinvar)
+    main(pedigree_path=args.pedigree, mt_paths=args.mt, clinvar_paths=args.clinvar, config_path=args.config)
