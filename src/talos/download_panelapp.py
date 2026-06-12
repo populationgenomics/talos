@@ -378,7 +378,6 @@ def main(output: str, mane_path: str | None = None):
         )
 
         for gene, gene_data in parsed_panel_data.items():
-            print(gene_data)
             # already seen - update some attributes
             if prev_gene_data := collected_panel_data.genes.get(gene):
                 prev_gene_data.panels[panel_id] = DownloadedPanelAppGenePanelDetail(

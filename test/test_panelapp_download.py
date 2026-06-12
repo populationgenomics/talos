@@ -1,5 +1,6 @@
 from talos.download_panelapp import (
     PANELS_ENDPOINT,
+    get_latest_ensembl_data,
     get_panels_and_hpo_terms,
     parse_panel,
     parse_panel_activity,
@@ -204,3 +205,30 @@ def test_liftover_downloaded_panelapp_via_model():
     assert lifted['version'] == CURRENT_VERSION
     parsed = DownloadedPanelApp.model_validate(lifted)
     assert parsed.genes['ENSG001'].panels[137].confidence == 3
+
+
+def test_latest_ensembl_none():
+    assert get_latest_ensembl_data(None) is None
+
+
+def test_latest_ensembl_populated_none():
+    data = {
+        '1': {
+            'location': '1:123-456',
+        }
+    }
+    assert get_latest_ensembl_data(data) is None
+
+
+def test_latest_ensembl_populated():
+    data = {
+        '1': {
+            'ensembl_id': 'FISH',
+            'location': '1:123-456',
+        },
+        '100': {
+            'ensembl_id': 'CHIPS',
+            'location': '1:123-456',
+        },
+    }
+    assert get_latest_ensembl_data(data) == ('CHIPS', '1')
