@@ -204,7 +204,7 @@ def get_latest_ensembl_data(grch38_versions) -> tuple[str, str] | None:
     if not grch38_versions:
         return None
 
-    def sort_key(k):
+    def sort_key(k) -> tuple[int, str]:
         return (int(k), k) if k.isdigit() else (-1, k)
 
     latest_key = max(grch38_versions.keys(), key=sort_key)
