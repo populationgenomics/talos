@@ -240,12 +240,14 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
                 continue
 
             # find the latest available ensembl gene block
-            if latest_content := get_latest_ensembl_data(gene['gene_data'].get('ensembl_genes')):
+            if latest_content := get_latest_ensembl_data(gene['gene_data']['ensembl_genes'].get('GRch38', {})):
                 ensg, chrom = latest_content
                 if chrom == MITO_BAD:
                     chrom = MITO_GOOD
+
+            # Pydantic model won't tolerate None here, ENSG is pretty integral to downstream processes
             else:
-                ensg, chrom = None, None
+                continue
 
             gene_results.append(
                 {
@@ -376,6 +378,7 @@ def main(output: str, mane_path: str | None = None):
         )
 
         for gene, gene_data in parsed_panel_data.items():
+            print(gene_data)
             # already seen - update some attributes
             if prev_gene_data := collected_panel_data.genes.get(gene):
                 prev_gene_data.panels[panel_id] = DownloadedPanelAppGenePanelDetail(
