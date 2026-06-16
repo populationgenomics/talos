@@ -187,7 +187,7 @@ class MakeRuntimeConfig(stage.CohortStage):
 
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         prefix = generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             stage_name=self.name,
             hash_value=get_date_string(),
         )
@@ -215,7 +215,7 @@ class MakeHpoPedigree(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return (
             generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 stage_name=self.name,
                 hash_value=get_date_string(),
             )
@@ -260,7 +260,7 @@ class UnifiedPanelAppParser(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return (
             generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 stage_name=self.name,
                 hash_value=get_date_string(),
             )
@@ -319,7 +319,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
             return None
 
         prefix = generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             stage_name=self.name,
             hash_value=get_date_string(),
         )
@@ -404,7 +404,7 @@ class RunHailFiltering(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return (
             generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 stage_name=self.name,
                 hash_value=get_date_string(),
             )
@@ -479,7 +479,7 @@ class RunHailFilteringSv(stage.CohortStage):
     hail job to filter & label the SV MT
     """
 
-    def expected_outputs(self, cohort: targets.Cohort) -> Path:
+    def expected_outputs(self, cohort: targets.Cohort) -> Path | None:
         if (
             query_for_latest_analysis(
                 dataset=cohort.dataset.name,
@@ -490,13 +490,13 @@ class RunHailFilteringSv(stage.CohortStage):
         ):
             return (
                 generate_dataset_prefix(
-                    dataset=cohort.dataset.name,
+                    cohort=cohort,
                     stage_name=self.name,
                     hash_value=get_date_string(),
                 )
                 / 'labelled_svs.vcf.bgz'
             )
-        return {}
+        return None
 
     def queue_jobs(self, cohort: targets.Cohort, inputs: stage.StageInput) -> stage.StageOutput:
         # early skip if the stage has nothing to run on
@@ -573,7 +573,7 @@ class ValidateVariantInheritance(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return (
             generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 stage_name=self.name,
                 hash_value=get_date_string(),
             )
@@ -675,7 +675,7 @@ class HpoFlagging(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return (
             generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 stage_name=self.name,
                 hash_value=get_date_string(),
             )
@@ -732,18 +732,18 @@ class HpoFlagging(stage.CohortStage):
 class CreateTalosHtml(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         std_prefix = generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             stage_name=self.name,
             hash_value=get_date_string(),
         )
         web_prefix = generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             category='web',
             stage_name=self.name,
             hash_value=get_date_string(),
         )
         static_web_prefix = generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             category='web',
             stage_name=self.name,
             hash_value='talos_static',
@@ -808,7 +808,7 @@ class MinimiseOutputForSeqr(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path]:
         analysis_prefix = (
             generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 category='analysis',
                 stage_name=self.name,
                 hash_value=get_date_string(),

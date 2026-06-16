@@ -65,9 +65,8 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
 
     return utils.exists(
         cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             stage_name='AnnotateSpliceAi',
-            hash_value=cohort.id,
         )
         / f'{cohort.id}.mt',
     )
@@ -111,10 +110,9 @@ class ExtractVcfFromMt(stage.CohortStage):
 
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             category='tmp',
             stage_name=self.name,
-            hash_value=cohort.id,
         )
         return {
             'id_file': str(temp_prefix / f'{cohort.id}-SG-ids.txt'),
@@ -145,10 +143,9 @@ class AnnotateUsingEchtvar(stage.CohortStage):
 
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             category='tmp',
             stage_name=self.name,
-            hash_value=cohort.id,
         )
         return {
             'success': temp_prefix / 'success.txt',
@@ -186,10 +183,9 @@ class AnnotateWithBcftoolsCsq(stage.CohortStage):
 
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             category='tmp',
             stage_name=self.name,
-            hash_value=cohort.id,
         )
         return {
             'success': temp_prefix / 'success.txt',
@@ -223,10 +219,9 @@ class AnnotateWithBcftoolsCsq(stage.CohortStage):
 class AnnotatedVcfIntoMt(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(
-            dataset=cohort.dataset.name,
+            cohort=cohort,
             category='tmp',
             stage_name=self.name,
-            hash_value=cohort.id,
         )
         return {
             'success': temp_prefix / 'success.txt',
@@ -250,10 +245,9 @@ class AnnotatedVcfIntoMt(stage.CohortStage):
             bcftools_template=bcftools_template,
             checkpoint=str(
                 cpg_flow_utils.generate_dataset_prefix(
-                    dataset=cohort.dataset.name,
+                    cohort=cohort,
                     category='tmp',
                     stage_name=self.name,
-                    hash_value=cohort.id,
                 )
                 / f'{cohort.id}_{{part}}annotation_checkpoint',
             ),
@@ -274,9 +268,8 @@ class AnnotateSpliceAi(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> Path:
         return (
             cpg_flow_utils.generate_dataset_prefix(
-                dataset=cohort.dataset.name,
+                cohort=cohort,
                 stage_name=self.name,
-                hash_value=cohort.id,
             )
             / f'{cohort.id}.mt'
         )
