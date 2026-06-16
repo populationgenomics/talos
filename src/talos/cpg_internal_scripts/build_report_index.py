@@ -87,7 +87,7 @@ def get_project_analyses(project: str) -> dict[tuple[bool | str, bool], str]:
     Also... you can use a tuple as a dictionary key and that's cool.
     """
 
-    project_reports: dict[tuple[bool, bool], str] = {}
+    project_reports: dict[tuple[bool | str, bool], str] = {}
 
     all_analyses = query(REPORT_QUERY, variables={'project': project})['project']['analyses']
     for analysis in all_analyses:
