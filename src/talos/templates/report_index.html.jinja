@@ -32,7 +32,6 @@
     <th class="group-separator">Dataset</th>
     <th class="group-false">Exome/Genome</th>
     <th class="group-false">Short/Long Read</th>
-    <th class="group-false">Title</th>
     <th class="group-false sorter-shortDate" data-date-format="yyyy-mm-dd">Date</th>
     </tr>
 </thead>
@@ -49,10 +48,11 @@
     	{{ 'Exome' if report.is_exome  else 'Genome' }}
     </td>
     <td>
-    	{{ 'Long-Read' if report.is_long_read  else 'Short-Read' }}
-    </td>
-    <td>
-        {{report.title}}
+     {% if report.is_long_read %}
+        Long-Read ({{report.is_long_read}})
+     {% else %}
+        Short-Read
+     {% endif %}
     </td>
     <td>
         {{ report.date }}
