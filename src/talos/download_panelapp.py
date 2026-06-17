@@ -191,6 +191,28 @@ def parse_panel(
     return panel_gene_content
 
 
+def get_latest_ensembl_data(grch38_versions) -> tuple[str, str] | None:
+    """
+    Parsing method to choose the latest (highest version number) ensembl ID and contig
+
+    Args:
+        grch38_versions: the panel.gene_data.ensembl_genes data from the PanelApp API response
+
+    Returns:
+        either a String pair, the ensembl gene ID and the contig, or None
+    """
+    if not grch38_versions:
+        return None
+
+    def sort_key(k) -> tuple[int, str]:
+        return (int(k), k) if k.isdigit() else (-1, k)
+
+    latest_key = max(grch38_versions.keys(), key=sort_key)
+    if ensembl_id := grch38_versions[latest_key].get('ensembl_id'):
+        return ensembl_id, grch38_versions[latest_key]['location'].split(':')[0]
+    return None
+
+
 async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, dict[str, str | list[dict]]]:
     """
     Async method to return data from a single panel.
@@ -217,20 +239,15 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
             if gene['entity_type'] != 'gene':
                 continue
 
-            chrom: str = ''
-            ensg: str | None = None
+            # find the latest available ensembl gene block
+            if latest_content := get_latest_ensembl_data(gene['gene_data']['ensembl_genes'].get('GRch38', {})):
+                ensg, chrom = latest_content
+                if chrom == MITO_BAD:
+                    chrom = MITO_GOOD
 
-            # for some reason the build is capitalised oddly in panelapp, so lower it
-            for build, content in gene['gene_data']['ensembl_genes'].items():
-                if build.lower() == 'grch38':
-                    # the ensembl version may alter over time, but will be singular
-                    ensembl_data = content[next(iter(content.keys()))]
-                    ensg = ensembl_data['ensembl_id']
-                    chrom = ensembl_data['location'].split(':')[0]
-
-                    # step this down to M, for Hail
-                    if chrom == MITO_BAD:
-                        chrom = MITO_GOOD
+            # Pydantic model won't tolerate None here, ENSG is pretty integral to downstream processes
+            else:
+                continue
 
             gene_results.append(
                 {

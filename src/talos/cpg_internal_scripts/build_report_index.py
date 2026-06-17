@@ -16,6 +16,7 @@ from loguru import logger
 
 from metamist.graphql import gql, query
 
+COHORT_RE = re.compile(r'COH\d+')
 DATE_REGEX = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent.parent / 'templates'
@@ -56,9 +57,8 @@ class Report:
     dataset: str
     address: str
     is_exome: bool
-    is_long_read: bool
+    is_long_read: bool | str
     date: str
-    title: str
 
 
 @lru_cache(1)
@@ -72,21 +72,22 @@ def get_my_projects() -> set[str]:
     return all_projects
 
 
-def get_project_analyses(project: str) -> dict[tuple[bool, bool], str]:
+def get_project_analyses(project: str) -> dict[tuple[bool | str, bool], str]:
     """
     Find all the active analysis entries for this project, subdivide the analyses by long/short read and exome/genome
 
-    Create a dictionary indexed on a double boolean key:
-    - the file is long_read
+    Create a dictionary indexed on a double key:
+    - the file is long_read (either False, or the Cohort ID)
     - the file is exome
 
     This was chosen as in the CPG infrastructure, 'genome' is the default, so 'exome' is in the path if relevant.
-    Likewise for short-read vs. "long-read". This is not a perfect solution, but it works for now.
+    Long-read is a little more tricky, as we maintain separate callsets for each sequencer/library prep, so we can have
+    several live long-read analyses for a single project
 
     Also... you can use a tuple as a dictionary key and that's cool.
     """
 
-    project_reports: dict[tuple[bool, bool], str] = {}
+    project_reports: dict[tuple[bool | str, bool], str] = {}
 
     all_analyses = query(REPORT_QUERY, variables={'project': project})['project']['analyses']
     for analysis in all_analyses:
@@ -98,7 +99,15 @@ def get_project_analyses(project: str) -> dict[tuple[bool, bool], str]:
 
         output_path = outputs['path']
 
-        long = 'long_read' in output_path
+        if 'long_read' in output_path:
+            # bridging statement until all reports are reissued with new paths
+            try:
+                long = COHORT_RE.findall(output_path)[0]
+            except IndexError:
+                long = True
+        else:
+            long = False
+
         exome = 'exome' in output_path
 
         project_reports[(long, exome)] = output_path
@@ -106,36 +115,34 @@ def get_project_analyses(project: str) -> dict[tuple[bool, bool], str]:
     return project_reports
 
 
-def main(dataset: str = 'aip') -> None:
+def main(dataset: str) -> None:
     """
     Finds all existing reports, generates an HTML file as an index page.
     Args:
         dataset (str): The dataset to generate the index for, defaults to 'aip' for legacy reasons.
     """
 
-    parsed_reports = {cohort: get_project_analyses(cohort) for cohort in get_my_projects()}
+    parsed_reports = {each_dataset: get_project_analyses(each_dataset) for each_dataset in get_my_projects()}
 
     report_list: list[Report] = []
 
-    for cohort, cohort_results in parsed_reports.items():
-        for (long_read, exome), report_path in cohort_results.items():
+    for each_dataset, dataset_results in parsed_reports.items():
+        for (long_read, exome), report_path in dataset_results.items():
             # general - only one of these
             if report_path:
                 this_file_name = Path(report_path).name
                 trimmed_path = report_path.rstrip(this_file_name).rstrip('/')
 
                 for entry in list(map(str, to_anypath(trimmed_path).glob('*.html'))):
-                    report_address = entry.replace(WEB_BASE.format(cohort), WEB_URL_BASE.format(cohort))
-                    report_name = entry.split('/')[-1]
+                    report_address = entry.replace(WEB_BASE.format(each_dataset), WEB_URL_BASE.format(each_dataset))
                     if report_date := DATE_REGEX.search(report_address):
                         report_list.append(
                             Report(
-                                dataset=cohort,
+                                dataset=each_dataset,
                                 address=report_address,
                                 is_exome=exome,
                                 is_long_read=long_read,
                                 date=report_date.group(1),
-                                title=report_name,
                             ),
                         )
 
@@ -165,8 +172,8 @@ def cli_main():
     """
     Command line interface for the script.
     """
-    parser = ArgumentParser(description='Generate an index page for AIP reports')
-    parser.add_argument('--dataset', help='Dataset for the index page', default='aip')
+    parser = ArgumentParser(description='Generate an index page for Talos reports')
+    parser.add_argument('--dataset', help='Dataset for the index page')
     args = parser.parse_args()
     main(dataset=args.dataset)
 

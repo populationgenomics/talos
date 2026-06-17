@@ -2,7 +2,7 @@ from functools import cache
 
 import loguru
 
-from cpg_flow import workflow
+from cpg_flow import targets, workflow
 from cpg_utils import Path, config, to_path
 from metamist import graphql
 
@@ -72,23 +72,24 @@ def check_for_dataset_centric_cohorts() -> bool:
 
 @cache
 def generate_dataset_prefix(
-    dataset: str,
+    cohort: targets.Cohort | None = None,
+    dataset: str | None = None,
     category: str | None = None,
     stage_name: str | None = None,
     hash_value: str | None = None,
 ) -> Path:
     """
-    Generate a dictionary of prefixes for the current workflow and Stage.
+    Generate a prefix for the current workflow and Stage.
     Needed because CPG-Flow currently lacks the granularity we need for both exome/genome and short/long read
     This is intended to generate the exact same prefix as CPG-Flow would generate, so that we continue previous work
     """
 
-    # mandatory value in a cpg-flow config
-    workflow_name = config.config_retrieve(['workflow', 'name'], 'talos')
+    if cohort is None and dataset is None:
+        raise RuntimeError('Must populate either cohort or dataset when calling generate_dataset_prefix')
 
-    # generated from the included samples in the workflow
-    # or passed directly if provided, e.g. to target outputs to a date-specific folder, not a callset-specific one
-    hash_element = hash_value or workflow.get_workflow().output_version
+    # allow for a missing Cohort (index page case)
+    cohort_id = cohort.id if cohort else None
+    dataset = cohort.dataset.name if cohort else dataset
 
     # allow subdivision by short/long read, and exome/genome
     # the current protocol here is to treat short read and genome as standard, and insert clarifying elements if needed
@@ -97,7 +98,11 @@ def generate_dataset_prefix(
 
     # line up all the elements into an ordered list, and then join the non-None elements
     suffix = '/'.join(
-        [x for x in [long_read_element, exome_element, workflow_name, hash_element, stage_name] if isinstance(x, str)],
+        [
+            x
+            for x in [long_read_element, exome_element, 'talos', cohort_id, hash_value, stage_name]
+            if isinstance(x, str)
+        ],
     )
 
     return to_path(config.dataset_path(suffix=suffix, dataset=dataset, category=category))
