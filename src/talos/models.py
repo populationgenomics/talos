@@ -8,7 +8,7 @@ from itertools import pairwise
 from typing import Annotated, Any, Literal
 
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from talos.liftover.lift_1_0_0_to_1_0_1 import resultdata as rd_100_to_101
 from talos.liftover.lift_1_0_2_to_1_0_3 import resultdata as rd_102_to_103
@@ -435,7 +435,30 @@ class PanelShort(BaseModel):
     version: str = 'UNKNOWN'
 
 
-class PanelApp(BaseModel):
+class VersionedModel(BaseModel):
+    """
+    Base for the top-level persisted models (PanelApp, DownloadedPanelApp, ResultData).
+
+    A `mode='before'` validator co-locates the version liftover with the model, so callers
+    no longer have to remember to call `lift_up_model_version` before validating. It runs
+    *only* for a serialised payload that carries an older `version`; in-code construction
+    (no `version` field) and already-current data pass straight through untouched, which
+    keeps fresh objects safe from accidental migration.
+
+    Pre-1.0.0 data has no `version` field and is indistinguishable from fresh construction
+    here, so it is not auto-lifted - those payloads must still be passed through
+    `lift_up_model_version` explicitly.
+    """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _apply_liftover(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get('version') not in (None, CURRENT_VERSION):
+            return lift_up_model_version(data, cls)
+        return data
+
+
+class PanelApp(VersionedModel):
     # the PanelShort object contains id, but we use this in a few places to search for the name/version of a panel by id
     # having this as a dictionary of {id: {id: X, name: Y}} looks a bit wasteful, but simplifies code in a few places
     metadata: dict[int, PanelShort] = Field(default_factory=dict)
@@ -464,7 +487,7 @@ class DownloadedPanelAppGene(BaseModel):
     panels: dict[int, DownloadedPanelAppGenePanelDetail] = Field(default_factory=dict)
 
 
-class DownloadedPanelApp(BaseModel):
+class DownloadedPanelApp(VersionedModel):
     """ """
 
     # all panels and versions
@@ -524,7 +547,7 @@ class ParticipantResults(BaseModel):
     metadata: ParticipantMeta = Field(default_factory=ParticipantMeta)
 
 
-class ResultData(BaseModel):
+class ResultData(VersionedModel):
     """
     A representation of a result set
     """

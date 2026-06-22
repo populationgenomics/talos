@@ -30,7 +30,6 @@ from talos.models import (
     ResultData,
     SmallVariant,
     StructuralVariant,
-    lift_up_model_version,
     translate_category,
 )
 from talos.static_values import get_granular_date
@@ -695,9 +694,8 @@ def read_json_from_path(read_path: str | None = None, default: Any = None, retur
     with read_anypath.open() as handle:
         json_data = json.load(handle)
         if return_model:
-            # potentially walk-up model version
-            model_data = lift_up_model_version(json_data, return_model)
-            return return_model.model_validate(model_data)
+            # the model's own before-validator lifts an older serialised payload to the current schema
+            return return_model.model_validate(json_data)
         return json_data
 
 

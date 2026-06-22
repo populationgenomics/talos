@@ -145,6 +145,29 @@ def test_panelapp_1_2_0_to_2_0_0_is_not_liftable():
         lift_up_model_version(data, model=PanelApp)
 
 
+def test_model_validate_auto_lifts_versioned_payload(test_input_models_path):
+    """
+    the model's before-validator must transparently lift an older *versioned* payload, so
+    callers no longer need to invoke lift_up_model_version explicitly
+    """
+    with open(join(test_input_models_path, 'result_data_v_1_0_0.json'), encoding='utf-8') as handle:
+        data = json.load(handle)
+    assert data['version'] == '1.0.0'
+
+    # NB: no explicit lift_up_model_version call here
+    parsed = ResultData.model_validate(data)
+    assert parsed.version == CURRENT_VERSION
+
+
+def test_versionless_construction_is_not_lifted():
+    """
+    in-code construction carries no `version`, so the before-validator must leave it alone
+    (a naive always-lift validator would treat these as legacy None-version data and corrupt them)
+    """
+    for built in (ResultData(), PanelApp(), DownloadedPanelApp()):
+        assert built.version == CURRENT_VERSION
+
+
 def test_variant_union_discriminates_on_kind():
     """
     a ReportVariant must deserialise its var_data back into the correct subtype via the
