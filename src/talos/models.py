@@ -5,7 +5,7 @@ A home for all data models used in Talos
 import re
 from enum import Enum
 from itertools import pairwise
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -21,6 +21,7 @@ from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
 from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
 from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
+from talos.liftover.lift_2_3_0_to_2_4_0 import resultdata as rd_230_to_240
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -28,8 +29,8 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.3.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0', '2.3.0']
+CURRENT_VERSION = '2.4.0'
+ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0']
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -238,17 +239,18 @@ class VariantCommon(BaseModel):
 class SmallVariant(VariantCommon):
     """
     a representation of a small variant
-    note that transcript_consequences is not optional
-    we require that something specific to SmallVariant(s) is mandatory
-    this is in order to correctly deserialise the Small/Structural objects
-    into the appropriate types. If it is optional, Pydantic can coerce
-    everything as a SmallVariant
+
+    the `kind` literal is the discriminator for the SmallVariant/StructuralVariant union
+    (see VARIANT_MODELS). Deserialisation picks the subtype from this tag rather than from
+    the presence of a structural field, so transcript_consequences no longer has to be
+    mandatory to keep the two types distinct.
     """
 
+    kind: Literal['small'] = 'small'
     alt_depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     depths: dict[str, int] = Field(default_factory=dict, exclude=True)
     ab_ratios: dict[str, float] = Field(default_factory=dict, exclude=True)
-    transcript_consequences: list[dict[str, str | float | int]]
+    transcript_consequences: list[dict[str, str | float | int]] = Field(default_factory=list)
 
     def get_sample_flags(self, sample: str) -> set[str]:
         """
@@ -334,9 +336,12 @@ class StructuralVariant(VariantCommon):
     placeholder for any methods/data specific to Structural Variants
     """
 
+    kind: Literal['sv'] = 'sv'
+
 
 # register all interchangeable models here
-VARIANT_MODELS = SmallVariant | StructuralVariant
+# the union is discriminated on the `kind` tag, so a serialised variant is self-describing
+VARIANT_MODELS = Annotated[SmallVariant | StructuralVariant, Field(discriminator='kind')]
 
 
 class ReportPanel(BaseModel):
@@ -577,6 +582,7 @@ LIFTOVER_METHODS: dict = {
         '1.2.0_2.0.0': rd_120_to_200,
         '2.0.0_2.1.0': rd_200_to_210,
         '2.1.0_2.2.0': rd_210_to_220,
+        '2.3.0_2.4.0': rd_230_to_240,
     },
 }
 
