@@ -2,8 +2,6 @@
 code for lifting over models from 1.1.0 to 1.2.0
 """
 
-from talos.config import config_retrieve
-
 
 def resultdata(data_dict: dict) -> dict:
     """
@@ -21,10 +19,11 @@ def resultdata(data_dict: dict) -> dict:
             if 'sample_support' in variant:
                 _ = variant['var_data'].pop('sample_support')
 
-            # the list of categories which are being treated as support for this run
-            variant['var_data']['support_categories'] = config_retrieve(['ValidateMOI', 'support_categories'], [])
-            # the list of categories being ignored for this run
-            variant['var_data']['ignored_categories'] = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
+            # these fields did not exist before 1.2.0; default them to empty rather than reading live config.
+            # a historical document carries no record of the support/ignore categories used at the time, and a
+            # migration must be a pure function of the old document (not of whatever config happens to be loaded now)
+            variant['var_data']['support_categories'] = []
+            variant['var_data']['ignored_categories'] = []
 
     data_dict['version'] = '1.2.0'
     return data_dict
