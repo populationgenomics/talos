@@ -50,6 +50,7 @@ min_depth = 5
 max_depth = 1000
 min_proband_gq = 25
 min_alt_depth = 5
+apply_min_all_sample_gq = false
 
 [ValidateMOI]
 ## opt-in enhanced logging to explain reasons for candidate variants being skipped

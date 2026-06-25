@@ -748,7 +748,7 @@ def extract_csq(csq_contents: str) -> list[dict]:
     return txc_dicts
 
 
-def find_comp_hets(var_list: list[VARIANT_MODELS], pedigree: PedigreeParser) -> CompHetDict:
+def find_comp_hets(var_list: list[SmallVariant | StructuralVariant], pedigree: PedigreeParser) -> CompHetDict:
     """
     Find compound het pairs, variants provided in the format [var1, var2, ...]
 

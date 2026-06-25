@@ -33,21 +33,23 @@ def test_results_shell(pedigree_path: str):
     Returns:
 
     """
-    panelapp = PanelApp(
-        metadata={1: {'id': 1, 'name': 'lorem'}, 2: {'id': 2, 'name': 'ipsum'}, 3: {'id': 3, 'name': 'etc'}},
-        genes={'ENSG1': {'symbol': 'G1'}},
-        participants={
-            'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
-            'father_1': {'external_id': 'father_1', 'hpo_terms': []},
-            'mother_1': {'external_id': 'mother_1', 'hpo_terms': []},
-            'female': {
-                'panels': {1, 2},
-                'external_id': 'female',
-                'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
+    panelapp = PanelApp.model_validate(
+        {
+            'metadata': {1: {'id': 1, 'name': 'lorem'}, 2: {'id': 2, 'name': 'ipsum'}, 3: {'id': 3, 'name': 'etc'}},
+            'genes': {'ENSG1': {'symbol': 'G1'}},
+            'participants': {
+                'male': {'panels': {1, 3}, 'external_id': 'male', 'hpo_terms': [{'id': 'HPB', 'label': 'Boneitis!'}]},
+                'father_1': {'external_id': 'father_1', 'hpo_terms': []},
+                'mother_1': {'external_id': 'mother_1', 'hpo_terms': []},
+                'female': {
+                    'panels': {1, 2},
+                    'external_id': 'female',
+                    'hpo_terms': [{'id': 'HPF', 'label': 'HPFemale'}],
+                },
+                'father_2': {'external_id': 'father_2', 'hpo_terms': []},
+                'mother_2': {'external_id': 'mother_2', 'hpo_terms': []},
             },
-            'father_2': {'external_id': 'father_2', 'hpo_terms': []},
-            'mother_2': {'external_id': 'mother_2', 'hpo_terms': []},
-        },
+        }
     )
     shell = prepare_results_shell(
         results_meta=ResultMeta(),
@@ -58,38 +60,40 @@ def test_results_shell(pedigree_path: str):
     )
 
     # top level only has the two affected participants
-    expected = ResultData(
-        results={
-            'male': {
-                'metadata': {
-                    'ext_id': 'male',
-                    'family_id': 'family_1',
-                    'members': {
-                        'male': {'sex': 'male', 'affected': True},
-                        'father_1': {'sex': 'male', 'affected': False},
-                        'mother_1': {'sex': 'female', 'affected': False},
+    expected = ResultData.model_validate(
+        {
+            'results': {
+                'male': {
+                    'metadata': {
+                        'ext_id': 'male',
+                        'family_id': 'family_1',
+                        'members': {
+                            'male': {'sex': 'male', 'affected': True},
+                            'father_1': {'sex': 'male', 'affected': False},
+                            'mother_1': {'sex': 'female', 'affected': False},
+                        },
+                        'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
+                        'panel_details': {1: {'id': 1, 'name': 'lorem'}, 3: {'id': 3, 'name': 'etc'}},
+                        'present_in_small': True,
                     },
-                    'phenotypes': [{'id': 'HPB', 'label': 'Boneitis!'}],
-                    'panel_details': {1: {'id': 1, 'name': 'lorem'}, 3: {'id': 3, 'name': 'etc'}},
-                    'present_in_small': True,
+                },
+                'female': {
+                    'metadata': {
+                        'ext_id': 'female',
+                        'family_id': 'family_2',
+                        'members': {
+                            'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
+                            'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
+                            'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
+                        },
+                        'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
+                        'panel_details': {1: {'id': 1, 'name': 'lorem'}, 2: {'id': 2, 'name': 'ipsum'}},
+                        'solved': True,
+                        'present_in_sv': True,
+                    },
                 },
             },
-            'female': {
-                'metadata': {
-                    'ext_id': 'female',
-                    'family_id': 'family_2',
-                    'members': {
-                        'female': {'sex': 'female', 'affected': True, 'ext_id': 'female'},
-                        'father_2': {'sex': 'male', 'affected': False, 'ext_id': 'father_2'},
-                        'mother_2': {'sex': 'female', 'affected': False, 'ext_id': 'mother_2'},
-                    },
-                    'phenotypes': [{'id': 'HPF', 'label': 'HPFemale'}],
-                    'panel_details': {1: {'id': 1, 'name': 'lorem'}, 2: {'id': 2, 'name': 'ipsum'}},
-                    'solved': True,
-                    'present_in_sv': True,
-                },
-            },
-        },
+        }
     )
 
     assert shell.results == expected.results
@@ -100,29 +104,33 @@ def test_gene_clean_results_no_personal(caplog):
     tests the per-participant gene-filtering of results
     messy test, write and pass file paths
     """
-    results_holder = ResultData(
-        results={
-            'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1'}},
-            'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
-            'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3'}},
-        },
+    results_holder = ResultData.model_validate(
+        {
+            'results': {
+                'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1'}},
+                'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
+                'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3'}},
+            }
+        }
     )
 
-    panelapp = PanelApp(
-        metadata={
-            137: {'id': 137, 'version': '137'},
-            1: {'id': 1, 'version': '1', 'name': '1'},
-            2: {'id': 2, 'version': '2', 'name': '2'},
-            3: {'id': 3, 'version': '3', 'name': '3'},
-            4: {'id': 4, 'version': '4', 'name': '4'},
-        },
-        genes={
-            'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
-            'ENSG2': {'symbol': 'G2'},
-            'ENSG3': {'panels': {2}, 'symbol': 'G3'},
-            'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
-            'ENSG5': {'panels': {4}, 'symbol': 'G5'},
-        },
+    panelapp = PanelApp.model_validate(
+        {
+            'metadata': {
+                137: {'id': 137, 'version': '137'},
+                1: {'id': 1, 'version': '1', 'name': '1'},
+                2: {'id': 2, 'version': '2', 'name': '2'},
+                3: {'id': 3, 'version': '3', 'name': '3'},
+                4: {'id': 4, 'version': '4', 'name': '4'},
+            },
+            'genes': {
+                'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
+                'ENSG2': {'symbol': 'G2'},
+                'ENSG3': {'panels': {2}, 'symbol': 'G3'},
+                'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
+                'ENSG5': {'panels': {4}, 'symbol': 'G5'},
+            },
+        }
     )
 
     filter_results_to_panels(results_holder=results_holder, result_list=dirty_data, panelapp=panelapp)
@@ -141,33 +149,37 @@ def test_gene_clean_results_personal():
     tests the per-participant gene-filtering of results
     messy test, write and pass file paths
     """
-    results_holder = ResultData(
-        results={
-            'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1', 'panel_ids': {1}}},
-            'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
-            'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3', 'panel_ids': {1}}},
-        },
+    results_holder = ResultData.model_validate(
+        {
+            'results': {
+                'sam1': {'metadata': {'ext_id': 'sam1', 'family_id': 'family_1', 'panel_ids': {1}}},
+                'sam2': {'metadata': {'ext_id': 'sam2', 'family_id': 'family_2'}},
+                'sam3': {'metadata': {'ext_id': 'sam3', 'family_id': 'family_3', 'panel_ids': {1}}},
+            }
+        }
     )
-    panelapp = PanelApp(
-        metadata={
-            137: {'id': 137, 'version': '137'},
-            1: {'id': 1, 'version': '1', 'name': '1'},
-            2: {'id': 2, 'version': '2', 'name': '2'},
-            3: {'id': 3, 'version': '3', 'name': '3'},
-            4: {'id': 4, 'version': '4', 'name': '4'},
-        },
-        genes={
-            'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
-            'ENSG2': {'symbol': 'G2'},
-            'ENSG3': {'panels': {2}, 'symbol': 'G3'},
-            'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
-            'ENSG5': {'panels': {4}, 'symbol': 'G5'},
-        },
-        participants={
-            'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'HP1'}]},
-            'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'HP2'}]},
-            'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'HP3'}]},
-        },
+    panelapp = PanelApp.model_validate(
+        {
+            'metadata': {
+                137: {'id': 137, 'version': '137'},
+                1: {'id': 1, 'version': '1', 'name': '1'},
+                2: {'id': 2, 'version': '2', 'name': '2'},
+                3: {'id': 3, 'version': '3', 'name': '3'},
+                4: {'id': 4, 'version': '4', 'name': '4'},
+            },
+            'genes': {
+                'ENSG1': {'panels': {137, 1}, 'symbol': 'G1'},
+                'ENSG2': {'symbol': 'G2'},
+                'ENSG3': {'panels': {2}, 'symbol': 'G3'},
+                'ENSG4': {'panels': {3}, 'new': [3], 'symbol': 'G4'},
+                'ENSG5': {'panels': {4}, 'symbol': 'G5'},
+            },
+            'participants': {
+                'sam1': {'panels': {1}, 'hpo_terms': [{'id': 'HP1', 'label': 'HP1'}]},
+                'sam2': {'hpo_terms': [{'id': 'HP2', 'label': 'HP2'}]},
+                'sam3': {'panels': {3, 4}, 'hpo_terms': [{'id': 'HP3', 'label': 'HP3'}]},
+            },
+        }
     )
 
     filter_results_to_panels(results_holder, dirty_data, panelapp=panelapp)
