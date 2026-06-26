@@ -17,7 +17,7 @@ Talos is specifically intended to identify **variants in established disease gen
 
 A full description of the method and its validation in large clinical and research cohorts is available in our publication in Nature Medicine:
 
-[**https://www.nature.com/articles/s41591-026-04477-5**](https://www.medrxiv.org/content/10.1101/2025.05.19.25327921)
+[**https://www.nature.com/articles/s41591-026-04477-5**](https://www.nature.com/articles/s41591-026-04477-5)
 
 ---
 
