@@ -743,7 +743,6 @@ class CreateTalosHtml(stage.CohortStage):
             hash_value=get_date_string(),
         )
         static_web_prefix = generate_dataset_prefix(
-            cohort=cohort,
             category='web',
             stage_name=self.name,
             hash_value='talos_static',
