@@ -10,7 +10,7 @@ forced_panels = [ 144, 239]
 # 3 = Green only
 # 2 = Amber or Green only
 # 1 = Red, Amber, or Green
-confidence_level = 3
+confidence_level = 1
 
 [[GeneratePanelData.manual_overrides]]
 # this section permits the manual addition of genes to the panel data
