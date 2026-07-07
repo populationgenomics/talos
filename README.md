@@ -15,9 +15,9 @@ While Talos can be used for one-off reanalysis of individual families or cohorts
 
 Talos is specifically intended to identify **variants in established disease genes that are likely to explain the participant’s condition**. It is not designed to detect novel candidate genes or to interpret variants of uncertain significance outside the context of existing clinical knowledge. This focus improves specificity and supports use in diagnostic and research reanalysis workflows.
 
-A full description of the method and its validation in large clinical and research cohorts is available in our preprint:
+A full description of the method and its validation in large clinical and research cohorts is available in our publication in Nature Medicine:
 
-[**https://www.medrxiv.org/content/10.1101/2025.05.19.25327921**](https://www.medrxiv.org/content/10.1101/2025.05.19.25327921)
+[**https://www.nature.com/articles/s41591-026-04477-5**](https://www.nature.com/articles/s41591-026-04477-5)
 
 ---
 
@@ -69,7 +69,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -t talos:11.0.0 .
+docker build -t talos:11.0.3 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -270,18 +270,18 @@ Each module can be configured through the `.toml` config file (see [Configuratio
 
 If you use Talos in your research or clinical workflow, please cite:
 
-> Welland MJ, Ahlquist KD, De Fazio P, et al. _Scalable automated reanalysis of genomic data in research and clinical rare disease cohorts._ medRxiv 2025.05.19.25327921; https://doi.org/10.1101/2025.05.19.25327921
+> Welland MJ, Ahlquist KD, De Fazio P, et al. _Scalable automated reanalysis of genomic data in research and clinical rare disease cohorts._ Nat Med (2026). https://doi.org/10.1038/s41591-026-04477-5
 
 
 BibTeX:
 
 ```
-@article{welland2025talos,
+@article{welland2026talos,
   title     = {Scalable automated reanalysis of genomic data in research and clinical rare disease cohorts},
   author    = {Welland, Matthew J and Ahlquist, KD and De Fazio, Paul and Austin-Tse, Christina and Pais, Lynn and Wedd, Laura and Bryen, Samantha and Rius, Rocio and Franklin, Michael and Hall, Giles and et al.},
-  journal   = {medRxiv},
-  year      = {2025},
-  doi       = {10.1101/2025.05.19.25327921},
-  url       = {https://www.medrxiv.org/content/10.1101/2025.05.19.25327921},
+  journal   = {Nature Medicine},
+  year      = {2026},
+  doi       = {10.1038/s41591-026-04477-5},
+  url       = {https://doi.org/10.1038/s41591-026-04477-5},
 }
 ```

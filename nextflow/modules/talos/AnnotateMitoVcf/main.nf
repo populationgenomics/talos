@@ -14,6 +14,11 @@ process AnnotateMitoVcf {
         """
         set -euo pipefail
 
+        bcftools norm \
+            -m -any \
+            -f "${ref_fa}" \
+            -Ou ${vcf} \
+            --no-version | \
         bcftools csq \
             --force \
             -f "${ref_fa}" \
@@ -24,7 +29,7 @@ process AnnotateMitoVcf {
             -B 10 \
             --unify-chr-names 'chr,-,chr' \
             -Oz -o "${cohort}_mito_csq_annotated.vcf.bgz" \
-            ${vcf}
+            -
 
         echtvar anno \
             -e ${napogee} \

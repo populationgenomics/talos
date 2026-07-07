@@ -1,5 +1,6 @@
 from talos.download_panelapp import (
     PANELS_ENDPOINT,
+    get_latest_ensembl_data,
     get_panels_and_hpo_terms,
     parse_panel,
     parse_panel_activity,
@@ -59,7 +60,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
             'symbol': 'ABCD',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'biallelic',
+            'moi': 'Biallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
@@ -67,7 +68,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
             'symbol': 'EFGH',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'monoallelic',
+            'moi': 'Monoallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
@@ -75,7 +76,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
             'symbol': 'IJKL',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'both',
+            'moi': 'BOTH',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
@@ -91,7 +92,7 @@ def test_parse_panel_with_mane(latest_mendeliome, panel_activities):
             'symbol': 'ABCD',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'biallelic',
+            'moi': 'Biallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
@@ -99,7 +100,7 @@ def test_parse_panel_with_mane(latest_mendeliome, panel_activities):
             'symbol': 'ABCD',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'biallelic',
+            'moi': 'Biallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
@@ -107,7 +108,7 @@ def test_parse_panel_with_mane(latest_mendeliome, panel_activities):
             'symbol': 'EFGH',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'monoallelic',
+            'moi': 'Monoallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
@@ -115,55 +116,33 @@ def test_parse_panel_with_mane(latest_mendeliome, panel_activities):
             'symbol': 'IJKL',
             'chrom': '1',
             'mane_symbol': '',
-            'moi': 'both',
+            'moi': 'BOTH',
             'green_date': '1970-01-01',
             'confidence_level': 3,
         },
     }
 
 
-_GENE_TEMPLATE = {
-    'gene_data': {
-        'ensembl_genes': {
-            'GRch38': {
-                '90': {
-                    'ensembl_id': 'ENSG{symbol}',
-                    'location': '1:',
-                },
-            },
-        },
-    },
-    'entity_type': 'gene',
-    'mode_of_inheritance': 'Biallelic',
-}
+_GENE_TEMPLATE = {'chrom': '1', 'moi': 'Biallelic', 'confidence_level': 3}
 
 
 def _make_gene(symbol: str, confidence: int) -> dict:
     return {
         **_GENE_TEMPLATE,
-        'entity_name': symbol,
-        'confidence_level': str(confidence),
-        'gene_data': {
-            'ensembl_genes': {
-                'GRch38': {
-                    '90': {
-                        'ensembl_id': f'ENSG{symbol}',
-                        'location': '1:',
-                    },
-                },
-            },
-        },
+        'symbol': symbol,
+        'ensg': f'ENSG{symbol}',
+        'confidence_level': confidence,
     }
 
 
 def test_parse_panel_includes_all_when_threshold_one(panel_activities):
     """setting GENE_CONFIDENCE to 1 admits red, amber, and green genes"""
-    panel_data = [
+    panel_genes = [
         _make_gene('GREEN', 3),
         _make_gene('AMBER', 2),
         _make_gene('RED', 1),
     ]
-    result = parse_panel(panel_data=panel_data, panel_activities=panel_activities)
+    result = parse_panel(panel_data={'genes': panel_genes}, panel_activities=panel_activities)
     assert 'ENSGGREEN' in result
     assert 'ENSGAMBER' in result
     assert 'ENSGRED' in result
@@ -226,3 +205,30 @@ def test_liftover_downloaded_panelapp_via_model():
     assert lifted['version'] == CURRENT_VERSION
     parsed = DownloadedPanelApp.model_validate(lifted)
     assert parsed.genes['ENSG001'].panels[137].confidence == 3
+
+
+def test_latest_ensembl_none():
+    assert get_latest_ensembl_data(None) is None
+
+
+def test_latest_ensembl_populated_none():
+    data = {
+        '1': {
+            'location': '1:123-456',
+        }
+    }
+    assert get_latest_ensembl_data(data) is None
+
+
+def test_latest_ensembl_populated():
+    data = {
+        '1': {
+            'ensembl_id': 'FISH',
+            'location': '1:123-456',
+        },
+        '100': {
+            'ensembl_id': 'CHIPS',
+            'location': '1:123-456',
+        },
+    }
+    assert get_latest_ensembl_data(data) == ('CHIPS', '1')

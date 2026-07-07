@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 """
-Takes a MatrixTable and an output path
-Writes the VCF out in shards, each fragment containing a full header-per-shard
+Takes a MatrixTable, file containing SG IDs, and an output path
 
-This script also takes a BED file as input; output contains only the variants that overlap with the BED file
+Reads the MT, filters to SG IDs in the file
+
+Writes the VCF out in shards, each fragment containing a full header-per-shard
 
 All existing INFO fields are dropped, and replaced with just the callset AC / AN / AF
 """
@@ -15,7 +16,7 @@ import loguru
 
 import hail as hl
 
-from cpg_utils import config, hail_batch
+from cpg_utils import config, hail_batch, to_path
 
 # Update the VQSR header elements so 3rd party tools can read the VCF reliably
 VQSR_FILTERS = {
@@ -54,35 +55,59 @@ VQSR_FILTERS = {
 }
 
 
+def filter_mt_to_sgids(
+    mt: hl.MatrixTable,
+    sgid_file: str,
+) -> hl.MatrixTable:
+    """Read the full MatrixTable, and subset to a collection of SG IDs in a text file."""
+
+    # read SG IDs from a file
+    id_file = to_path(sgid_file)
+    if not id_file.exists():
+        raise ValueError(f'Sample ID file {id_file} does not exist')
+
+    id_list = {each.strip() for each in id_file.read_text().splitlines()}
+
+    mt_sample_ids = set(mt.s.collect())
+
+    # fail if there
+    if sample_ids_not_in_mt := id_list - mt_sample_ids:
+        raise ValueError(
+            f'Found {len(sample_ids_not_in_mt)}/{len(id_list)} IDs in the requested subset not in the callset.\n'
+            f"IDs that aren't in the callset: {sample_ids_not_in_mt}\n"
+            f'All callset sample IDs: {mt_sample_ids}',
+        )
+
+    loguru.logger.info(f'Found {len(mt_sample_ids)} samples in mt, subsetting to {len(id_list)} samples.')
+
+    mt = mt.filter_cols(hl.literal(id_list).contains(mt.s))
+    return mt.filter_rows(hl.agg.any(mt.GT.is_non_ref()))
+
+
 def main(
     mt_path: str,
+    sg_id_file: str,
     output: str,
-    bed: str | None,
 ) -> None:
     """
 
     Args:
         mt_path (str):
-        output (str): write region-filtered VCF, stripped of INFO fields
-        bed (str): Region BED file
+        sg_id_file (str): file containing SG IDs
+        output (str): write VCFs, stripped of INFO fields and annotations
     """
-
     hail_batch.init_batch(
-        driver_memory='highmem',
-        driver_cores=2,
-        worker_memory='highmem',
-        worker_cores=2,
+        worker_memory=config.config_retrieve(['combiner', 'worker_memory'], 'highmem'),
+        worker_cores=config.config_retrieve(['combiner', 'worker_cores'], 2),
+        driver_memory=config.config_retrieve(['combiner', 'driver_memory'], 'highmem'),
+        driver_cores=config.config_retrieve(['combiner', 'driver_cores'], 2),
     )
 
     # read the dense MT and obtain the sites-only HT
     mt = hl.read_matrix_table(mt_path)
 
-    if bed:
-        # remote-read of the BED file, skipping any contigs not in the reference genome
-        # the Ensembl data wasn't filtered to remove non-standard contigs
-        limited_region = hl.import_bed(bed, reference_genome=config.genome_build(), skip_invalid_intervals=True)
-        # filter to overlaps with the BED file
-        mt = mt.filter_rows(hl.is_defined(limited_region[mt.locus]))
+    # filter the MT to a specific set of SG IDs
+    mt = filter_mt_to_sgids(mt, sg_id_file)
 
     # replace the existing INFO block to just have AC/AN/AF - no other carry-over. Allow for this to be missing.
     if 'AF' not in mt.info:
@@ -130,13 +155,14 @@ if __name__ == '__main__':
         required=True,
     )
     parser.add_argument(
+        '--sgs',
+        help='Path to the SG ID file',
+        required=True,
+    )
+    parser.add_argument(
         '--output',
         help='Path to write the resulting VCF',
         required=True,
     )
-    parser.add_argument(
-        '--bed',
-        help='Region BED file',
-    )
     args = parser.parse_args()
-    main(mt_path=args.input, output=args.output, bed=args.bed)
+    main(mt_path=args.input, sg_id_file=args.sgs, output=args.output)
