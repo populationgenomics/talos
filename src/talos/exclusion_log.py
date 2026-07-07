@@ -79,9 +79,10 @@ def create_exclusion_logger(log_path: str | None = None) -> ExclusionLogger:
 
 
 def get_exclusion_logger() -> ExclusionLogger:
-    """Return the process-wide exclusion logger."""
+    """Return the process-wide exclusion logger, defaulting to disabled if never configured."""
+    global _logger
     if _logger is None:
-        raise RuntimeError('Exclusion logger not initialized')
+        _logger = ExclusionLogger()
     return _logger
 
 
