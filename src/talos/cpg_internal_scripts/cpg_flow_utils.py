@@ -87,7 +87,6 @@ def generate_dataset_prefix(
     if cohort is None and dataset is None:
         raise RuntimeError('Must populate either cohort or dataset when calling generate_dataset_prefix')
 
-    # allow for a missing Cohort (index page case)
     cohort_id = cohort.id if cohort else None
     dataset = cohort.dataset.name if cohort else dataset
 
