@@ -86,7 +86,6 @@ jobs:
       - name: 'build image with get_next_version'
         run: |
           docker build . -f src/talos/cpg_internal_scripts/CPG_Dockerfile \
-          --build-arg VERSION=${{ needs.get_next_version.outputs.next_version }} \
           --tag ${{ env.IMAGES_PREFIX }}/talos:${{ needs.get_next_version.outputs.next_version }}
 
       - name: 'Push to dev artifactory'
