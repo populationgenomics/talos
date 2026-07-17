@@ -54,6 +54,8 @@ VQSR_FILTERS = {
     },
 }
 
+CANONICAL_CONTIGS = {f'chr{x}' for x in list(range(1, 23))} | {'chrX', 'chrY'}
+
 
 def filter_mt_to_sgids(
     mt: hl.MatrixTable,
@@ -84,6 +86,12 @@ def filter_mt_to_sgids(
     return mt.filter_rows(hl.agg.any(mt.GT.is_non_ref()))
 
 
+def filter_mt_to_contigs(mt: hl.MatrixTable) -> hl.MatrixTable:
+    """Strict filter to just the non-Mito contigs."""
+    contig_literal = hl.literal(CANONICAL_CONTIGS)
+    return mt.filter_rows(contig_literal.contains(mt.locus.contig))
+
+
 def main(
     mt_path: str,
     sg_id_file: str,
@@ -108,6 +116,9 @@ def main(
 
     # filter the MT to a specific set of SG IDs
     mt = filter_mt_to_sgids(mt, sg_id_file)
+
+    # filter out chrM in this context
+    mt = filter_mt_to_contigs(mt)
 
     # replace the existing INFO block to just have AC/AN/AF - no other carry-over. Allow for this to be missing.
     if 'AF' not in mt.info:

@@ -176,7 +176,7 @@ def cli_main():
     parser.add_argument(
         '--merged_output',
         help='Path to output file, regions merged',
-        required=False,
+        required=True,
     )
     parser.add_argument(
         '--flanking',
