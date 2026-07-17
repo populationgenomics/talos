@@ -37,7 +37,7 @@ import aiohttp
 from dateutil.parser import parse
 from loguru import logger
 
-from talos.config import ConfigError, config_retrieve
+from talos.config_types import PanelAppConfig
 from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
@@ -56,24 +56,13 @@ HPO_RE = re.compile(r'HP:\d+')
 ACTIVITY_CONTENT = {'green list (high evidence)', 'expert review green'}
 
 REALLY_OLD = '1970-01-01'
-PANELS_ENDPOINT = 'https://panelapp-aus.org/api/v1/panels'
-DEFAULT_PANEL = 137
-
-try:
-    DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], DEFAULT_PANEL)
-    PANELS_ENDPOINT = config_retrieve(['GeneratePanelData', 'panelapp'], PANELS_ENDPOINT)
-except (ConfigError, KeyError):
-    logger.warning('Config environment variable TALOS_CONFIG not set, or keys missing, falling back to Aussie PanelApp')
 
 # if this is a massive result, it returns over a number of pages
-PANEL_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}'
-ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
-STR_TEMPLATE = f'{PANELS_ENDPOINT}/3597/strs?confidence_level=3'
 MITO_BAD = 'MT'
 MITO_GOOD = 'M'
 
 
-def get_panels_and_hpo_terms(endpoint: str = PANELS_ENDPOINT) -> dict[int, list[HpoTerm]]:
+def get_panels_and_hpo_terms(endpoint: str) -> dict[int, list[HpoTerm]]:
     """
     query panelapp, collect each panel by its HPO terms
 
@@ -216,22 +205,24 @@ def get_latest_ensembl_data(grch38_versions) -> tuple[str, str] | None:
     return None
 
 
-async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dict[int, dict[str, str | list[dict]]]:
+async def get_single_panel(
+    session: aiohttp.ClientSession, endpoint: str, panel_id: int
+) -> dict[int, dict[str, str | list[dict]]]:
     """
     Async method to return data from a single panel.
     Does most of the initial parsing of panel data to reduce memory footprint.
 
     Args:
         session: aiohttp ClientSession
+        endpoint: panelapp endpoint
         panel_id: int, panel ID to search for
 
     Returns:
         dict, indexed by panel ID, containing panel genes, name, and version
     """
-    panel_url = PANEL_TEMPLATE_URL.format(id=panel_id)
     gene_results: list[dict] = []
 
-    async with session.get(panel_url) as resp:
+    async with session.get(f'{endpoint}/{panel_id}') as resp:
         response = await resp.json()
 
         # thin out the results, what do we need?
@@ -265,15 +256,16 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
     return {panel_id: {'name': panel_name, 'version': panel_version, 'genes': gene_results}}
 
 
-async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: int) -> dict:
+async def get_single_panel_activities(session: aiohttp.ClientSession, endpoint: str, panel_id: int) -> dict:
     """Async method to get activities from a single panel"""
 
-    async with session.get(ACTIVITY_TEMPLATE.format(id=panel_id)) as resp:
+    activity_endpoint = f'{endpoint}/{panel_id}/activities'
+    async with session.get(activity_endpoint) as resp:
         reponse = await resp.json()
         return {panel_id: reponse}
 
 
-async def get_all_known_panels(panel_ids: set[int], activities: bool = False) -> dict:
+async def get_all_known_panels(panel_ids: set[int], endpoint: str, activities: bool = False) -> dict:
     """Take all the panel IDs, asynchronously query for them. If panelapp dies it dies."""
 
     tasks = []
@@ -281,9 +273,9 @@ async def get_all_known_panels(panel_ids: set[int], activities: bool = False) ->
     async with aiohttp.ClientSession() as session:
         for panel_id in panel_ids:
             if activities:
-                tasks.append(asyncio.ensure_future(get_single_panel_activities(session, panel_id)))
+                tasks.append(asyncio.ensure_future(get_single_panel_activities(session, endpoint, panel_id)))
             else:
-                tasks.append(asyncio.ensure_future(get_single_panel(session, panel_id)))
+                tasks.append(asyncio.ensure_future(get_single_panel(session, endpoint, panel_id)))
 
         all_panel_details = await asyncio.gather(*tasks)
 
@@ -314,11 +306,12 @@ def reorganise_mane_data(mane_path: str) -> tuple[dict[str, str], dict[str, str]
     return ensg_as_primary, symbol_as_primary
 
 
-def parse_repeat_disorders() -> tuple[set[str], set[str]]:
+def parse_repeat_disorders(panelapp_instance: str) -> tuple[set[str], set[str]]:
     """Parse panel 3597 - find all genes with a green association to a STR disorder."""
     str_genes: set[str] = set()
     str_symbols: set[str] = set()
-    for each_result in get_json_response(STR_TEMPLATE)['results']:
+    endpoint = f'{panelapp_instance}/3597/strs?confidence_level=3'
+    for each_result in get_json_response(endpoint)['results']:
         str_association = each_result['gene_data']
         str_symbols.add(str_association['gene_symbol'])
 
@@ -336,29 +329,33 @@ def cli_main():
     logger.info('Starting PanelApp parsing')
     parser = ArgumentParser()
     parser.add_argument('--output', help='Where to write Panel data', required=True)
+    parser.add_argument('--config', help='Config file path', required=True)
     parser.add_argument('--mane', help='MANE JSON data', default=None)
     args = parser.parse_args()
-    main(output=args.output, mane_path=args.mane)
+    main(output=args.output, config=args.config, mane_path=args.mane)
 
 
-def main(output: str, mane_path: str | None = None):
+def main(output: str, config: str, mane_path: str | None = None):
     """
     query PanelApp - get EVERYTHING
 
     Args:
         output (str): path to an output destination
+        config (str): path to config file
         mane_path (str): path to a MANE JSON file, optional
     """
 
+    config_object = PanelAppConfig.from_config(config)
+
     # set up a collection object - loaded method execution
-    collected_panel_data = DownloadedPanelApp(hpos=get_panels_and_hpo_terms())
+    collected_panel_data = DownloadedPanelApp(hpos=get_panels_and_hpo_terms(endpoint=config_object.panelapp_instance))
 
     all_panels = set(collected_panel_data.hpos.keys())
 
     async def _fetch_all() -> tuple[dict, dict]:
         return await asyncio.gather(
-            get_all_known_panels(all_panels),
-            get_all_known_panels(all_panels, activities=True),
+            get_all_known_panels(all_panels, endpoint=config_object.panelapp_instance),
+            get_all_known_panels(all_panels, endpoint=config_object.panelapp_instance, activities=True),
         )
 
     all_panel_data, all_panel_activities = asyncio.run(_fetch_all())
@@ -430,7 +427,7 @@ def main(output: str, mane_path: str | None = None):
         del collected_panel_data.hpos[panel_id]
 
     # query panelapp for the repeat disorders panel
-    str_genes, str_symbols = parse_repeat_disorders()
+    str_genes, str_symbols = parse_repeat_disorders(config_object.panelapp_instance)
 
     # populate the panelapp object
     collected_panel_data.str_genes = str_genes

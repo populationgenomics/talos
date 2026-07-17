@@ -1,5 +1,4 @@
 from talos.download_panelapp import (
-    PANELS_ENDPOINT,
     get_latest_ensembl_data,
     get_panels_and_hpo_terms,
     parse_panel,
@@ -18,9 +17,9 @@ from talos.models import (
 def test_panel_hpo_query(httpx_mock, panels_and_hpos):
     """check that the default parsing delivers correct data"""
 
-    httpx_mock.add_response(url=PANELS_ENDPOINT, json=panels_and_hpos)
+    httpx_mock.add_response(url='https://PANELS!', json=panels_and_hpos)
 
-    parsed_response = get_panels_and_hpo_terms()
+    parsed_response = get_panels_and_hpo_terms(endpoint='https://PANELS!')
 
     assert parsed_response == {
         3149: [HpoTerm(id='HP:0011516', label='')],

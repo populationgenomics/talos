@@ -185,3 +185,31 @@ class ValidateMOIConfig:
             singletons=raw.get('singletons', False),
             super_logging_path=vmi.get('super_logging_path', None),
         )
+
+
+@dataclass
+class PanelAppConfig:
+    default_panel: int
+    panelapp_instance: str
+    within_x_months: int
+    confidence_level: int
+    forced_panels: list[int]
+    forbidden_genes: list[str]
+    require_pheno_match: list[str]
+    manual_overrides: list
+
+    @classmethod
+    def from_config(cls, config_path: str) -> 'PanelAppConfig':
+        raw = _load_raw(config_path)
+        pap = raw.get('PanelApp', {})
+        gpd = raw.get('GeneratePanelData', {})
+        return cls(
+            default_panel=gpd['default_panel'],
+            panelapp_instance=gpd['panelapp'],
+            within_x_months=gpd['within_x_months'],
+            confidence_level=gpd['confidence_level'],
+            forced_panels=gpd.get('forced_panels', []),
+            forbidden_genes=gpd.get('forbidden_genes', []),
+            manual_overrides=pap.get('manual_overrides', []),
+            require_pheno_match=gpd.get('require_pheno_match', []),
+        )
