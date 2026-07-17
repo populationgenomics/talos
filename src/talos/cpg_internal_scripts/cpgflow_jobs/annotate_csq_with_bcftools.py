@@ -44,6 +44,7 @@ def make_bcftools_anno_jobs(
             f"""
             bcftools index -t {local_vcf}
             bcftools csq --force -f {fasta} \\
+                --greedy 1 \\
                 --local-csq \\
                 --threads 4 \\
                 -g {gff3_file} \\

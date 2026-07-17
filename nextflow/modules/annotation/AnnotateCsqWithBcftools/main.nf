@@ -14,6 +14,7 @@ process AnnotateCsqWithBcftools {
     set -euo pipefail
 
     bcftools csq --force -f "${reference}" \
+        --greedy 1 \
         --local-csq \
         -g ${gff3} \
         --unify-chr-names 'chr,-,chr' \
