@@ -23,7 +23,16 @@ from cloudpathlib.anypath import to_anypath
 from loguru import logger
 
 from talos.config_types import HtmlConfig, _load_raw
-from talos.models import PanelApp, PanelDetail, PanelShort, ReportVariant, ResultData, SmallVariant, StructuralVariant
+from talos.models import (
+    PanelApp,
+    PanelDetail,
+    PanelShort,
+    ReportVariant,
+    ResultData,
+    ShortTandemRepeat,
+    SmallVariant,
+    StructuralVariant,
+)
 from talos.utils import read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -153,7 +162,7 @@ def variant_in_forbidden_gene(variant_obj: ReportVariant, forbidden_genes):
         if gene_id in forbidden_genes:
             return True
 
-    if isinstance(variant_obj.var_data, StructuralVariant):
+    if isinstance(variant_obj.var_data, (ShortTandemRepeat, StructuralVariant)):
         return False
 
     # Allow for exclusion by Symbol too
@@ -559,6 +568,11 @@ class Variant:
             return f'{self.ref}->{self.alt}'
         if isinstance(self.var_data, StructuralVariant):
             return f'{self.var_data.info["svtype"]} {self.var_data.info["svlen"]}bp'
+
+        if isinstance(self.var_data, ShortTandemRepeat):
+            locus = self.var_data.locus or self.var_data.info.get('locus')
+            repeats = ', '.join(map(str, self.var_data.info['sample_repeats']))
+            return f'STR {locus}, Repeats: {repeats}'
 
         raise ValueError(f'Unknown variant type: {self.var_data.__class__.__name__}')
 

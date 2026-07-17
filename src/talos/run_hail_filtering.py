@@ -762,7 +762,7 @@ def csq_struct_to_string(tx_expr: hl.expr.StructExpression, config: RunHailFilte
         return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in config.csq_string], '|')
 
     csq = hl.empty_array(hl.tstr)
-    csq = csq.extend(hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)))  # noqa: PLW0108
+    csq = csq.extend(hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)))
 
     # previous consequence filters may make this caution unnecessary
     return hl.or_missing(hl.len(csq) > 0, csq)

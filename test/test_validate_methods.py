@@ -52,10 +52,10 @@ def test_results_shell(pedigree_path: str, config_path_fixture):
     )
 
     config_object = ValidateMOIConfig.from_config(config_path_fixture)
+    source_samples = {'small': {'male'}, 'sv': {'female'}}
     shell = prepare_results_shell(
         results_meta=ResultMeta(),
-        small_samples={'male'},
-        sv_samples={'female'},
+        source_samples=source_samples,
         pedigree=PedigreeParser(pedigree_path=pedigree_path),
         panelapp=panelapp,
         config=config_object,

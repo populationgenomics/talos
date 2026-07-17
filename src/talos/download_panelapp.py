@@ -25,6 +25,8 @@ Optionally takes a MANE JSON file, which is used to map Ensembl IDs to gene symb
 - attempt to find alternative gene symbols for the ENSG ID
 - attempt to find alternative Ensembl IDs for the gene symbol
 - record all variations
+
+STR-specific feature - parses the PanelApp Repeat Disorders panel
 """
 
 import asyncio
@@ -66,6 +68,7 @@ except (ConfigError, KeyError):
 # if this is a massive result, it returns over a number of pages
 PANEL_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
+STR_TEMPLATE = f'{PANELS_ENDPOINT}/3597/strs?confidence_level=3'
 MITO_BAD = 'MT'
 MITO_GOOD = 'M'
 
@@ -311,6 +314,24 @@ def reorganise_mane_data(mane_path: str) -> tuple[dict[str, str], dict[str, str]
     return ensg_as_primary, symbol_as_primary
 
 
+def parse_repeat_disorders() -> tuple[set[str], set[str]]:
+    """Parse panel 3597 - find all genes with a green association to a STR disorder."""
+    str_genes: set[str] = set()
+    str_symbols: set[str] = set()
+    for each_result in get_json_response(STR_TEMPLATE)['results']:
+        str_association = each_result['gene_data']
+        str_symbols.add(str_association['gene_symbol'])
+
+        for build, content in str_association['ensembl_genes'].items():
+            if build.lower() == 'grch38':
+                # the ensembl version may alter over time, but will be singular
+                ensembl_data = content[next(iter(content.keys()))]
+                ensg = ensembl_data['ensembl_id']
+                str_genes.add(ensg)
+
+    return str_genes, str_symbols
+
+
 def cli_main():
     logger.info('Starting PanelApp parsing')
     parser = ArgumentParser()
@@ -407,6 +428,13 @@ def main(output: str, mane_path: str | None = None):
     for panel_id in zero_green_panels:
         logger.info(f'Removing panel {panel_id} from hpo matching - no green genes')
         del collected_panel_data.hpos[panel_id]
+
+    # query panelapp for the repeat disorders panel
+    str_genes, str_symbols = parse_repeat_disorders()
+
+    # populate the panelapp object
+    collected_panel_data.str_genes = str_genes
+    collected_panel_data.str_symbols = str_symbols
 
     with open(output, 'w') as output_file:
         output_file.write(collected_panel_data.model_dump_json(indent=4))
