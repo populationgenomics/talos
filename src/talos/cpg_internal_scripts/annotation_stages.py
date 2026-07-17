@@ -27,10 +27,10 @@ from functools import cache
 import loguru
 from sortedcontainers import SortedDict
 
-from cpg_flow import stage, targets, utils, workflow
+from cpg_flow import stage, targets, workflow
 from cpg_flow.stage import StageInput, StageOutput
 from cpg_flow.targets import MultiCohort
-from cpg_utils import Path, config, to_path
+from cpg_utils import Path, config, existence_checks, to_path
 
 from talos.cpg_internal_scripts import cpg_flow_utils
 from talos.cpg_internal_scripts.cpgflow_jobs import (
@@ -63,7 +63,7 @@ def does_final_file_path_exist(cohort: targets.Cohort) -> bool:
     if config.config_retrieve(['workflow', 'force_rerun'], False):
         return False
 
-    return utils.exists(
+    return existence_checks.exists(
         cpg_flow_utils.generate_dataset_prefix(
             cohort=cohort,
             stage_name='AnnotateSpliceAi',
