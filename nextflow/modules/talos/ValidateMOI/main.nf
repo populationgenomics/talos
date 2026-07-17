@@ -16,14 +16,14 @@ process ValidateMOI {
         """
         set -euo pipefail
 
-        export TALOS_CONFIG=${talos_config}
-
         ${mito_idx}
 
         python -m talos.validate_moi \
             --labelled_vcf ${labelled_vcf} \
             --panelapp ${panelapp} \
             --pedigree ${pedigree} \
-            --output ${cohort}_results_${timestamp}.json $history_arg $mito_arg
+            --output ${cohort}_results_${timestamp}.json \
+            --config ${talos_config} \
+            $history_arg $mito_arg
         """
 }

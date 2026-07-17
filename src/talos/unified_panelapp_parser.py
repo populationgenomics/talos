@@ -20,7 +20,7 @@ from networkx import dfs_successors
 from networkx.exception import NetworkXError
 from obonet import read_obo
 
-from talos.config import config_retrieve
+from talos.config_types import PanelAppConfig
 from talos.models import (
     DownloadedPanelApp,
     HpoTerm,
@@ -31,7 +31,6 @@ from talos.models import (
 )
 from talos.utils import read_json_from_path
 
-PANELAPP_BASE_PANEL = 137
 X_CHROMOSOME = {'X'}
 # most lenient to most conservative. Usage = if we have two MOIs for the same gene, take the broadest
 ORDERED_MOIS = [
@@ -43,22 +42,6 @@ ORDERED_MOIS = [
     'Mitochondrial',
 ]
 IRRELEVANT_MOI = {'unknown', 'other'}
-
-# we consider a gene new, and worth flagging, if it was made Green in a panel within this time frame
-WITHIN_X_MONTHS = 6
-
-MIN_GENE_CONFIDENCE: int = 3
-
-try:
-    DEFAULT_PANEL = config_retrieve(['GeneratePanelData', 'default_panel'], PANELAPP_BASE_PANEL)
-    WITHIN_X_MONTHS = config_retrieve(['GeneratePanelData', 'within_x_months'], WITHIN_X_MONTHS)
-    MIN_GENE_CONFIDENCE = config_retrieve(['GeneratePanelData', 'confidence_level'], MIN_GENE_CONFIDENCE)
-except KeyError:
-    logger.warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
-    DEFAULT_PANEL = PANELAPP_BASE_PANEL
-
-# create a datetime threshold
-NEW_THRESHOLD = pendulum.now().subtract(months=WITHIN_X_MONTHS)
 
 # expired data check - raise errors when the downloaded PanelApp data is 2+ months old, request a refresh
 EXPIRED_DOWNLOAD = pendulum.now().subtract(months=2)
@@ -73,13 +56,21 @@ def cli_main():
     parser.add_argument('--output', help='Path to write JSON output to', required=True)
     parser.add_argument('--pedigree', help='Pedigree file, optionally including HPO terms', required=True)
     parser.add_argument('--hpo', help='Localised copy of HPO obo file', required=False)
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
-    main(panel_data=args.input, output_file=args.output, pedigree_path=args.pedigree, hpo_file=args.hpo)
+    main(
+        panel_data=args.input,
+        output_file=args.output,
+        pedigree_path=args.pedigree,
+        hpo_file=args.hpo,
+        config=args.config,
+    )
 
 
 def extract_participant_data_from_pedigree(
     pedigree: PedigreeParser,
     hpo_lookup: dict[str, str],
+    default_panel: int,
 ) -> tuple[PanelApp, set[str]]:
     """
     read the extended pedigree file, pull out family details and HPO terms
@@ -87,6 +78,7 @@ def extract_participant_data_from_pedigree(
     Args:
         pedigree (str): PedigreeParser object, optionally including HPO terms
         hpo_lookup (dict): lookup of all HPO terms in the currently loaded ontology
+        default_panel (int): Base panel for this analysis
 
     Returns:
         a PanelApp shell, and a set of all HPO terms
@@ -103,7 +95,7 @@ def extract_participant_data_from_pedigree(
             hpo_terms=[
                 HpoTerm(id=hpo_term, label=hpo_lookup.get(hpo_term, hpo_term)) for hpo_term in participant.hpo_terms
             ],
-            panels={DEFAULT_PANEL},
+            panels={default_panel},
         )
         all_hpos.update(participant.hpo_terms)
 
@@ -157,7 +149,13 @@ def match_hpos_to_panels(
     return dict(hpo_to_panels)
 
 
-def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cached_panelapp: DownloadedPanelApp):
+def match_participants_to_panels(
+    panelapp_data: PanelApp,
+    hpo_panels: dict,
+    cached_panelapp: DownloadedPanelApp,
+    default_panel: int,
+    forced_panel_list: list[int],
+):
     """
     take the two maps of Participants: HPOs, and HPO: Panels
     blend the two to find panels per participant
@@ -169,11 +167,13 @@ def match_participants_to_panels(panelapp_data: PanelApp, hpo_panels: dict, cach
         panelapp_data (PanelApp): CPG ID to phenotype details
         hpo_panels (dict): lookup of panels per HPO term
         cached_panelapp (DownloadedPanelApp): pre-downloaded PanelApp data, steal versions from here
+        default_panel (int): default panel id
+        forced_panel_list (list[int]): list of panel IDs to force
     """
 
-    forced_panels: set[int] = set(config_retrieve(['GeneratePanelData', 'forced_panels'], []))
+    forced_panels: set[int] = set(forced_panel_list)
 
-    all_panels_in_this_analysis: set[int] = {DEFAULT_PANEL} | forced_panels
+    all_panels_in_this_analysis: set[int] = {default_panel} | forced_panels
 
     for party_data in panelapp_data.participants.values():
         for hpo_term in party_data.hpo_terms:
@@ -253,7 +253,12 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
     return sorted(simplified_mois, key=ORDERED_MOIS.index)[0]
 
 
-def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedPanelApp):
+def fetch_genes_for_panels(
+    panelapp_data: PanelApp,
+    cached_panelapp: DownloadedPanelApp,
+    min_confidence: int,
+    date_threshold: pendulum.DateTime,
+):
     """
     Now that we know which panels will be in the analysis, get the corresponding genes and consensus MOI for each
     """
@@ -269,9 +274,7 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
         # check if this gene is in any of the panels we are interested in - retain the overlap
         # also enforce the confidence threshold: skip panel associations below the configured level
         eligible_panels = {
-            panel_id
-            for panel_id, panel_detail in gene_data.panels.items()
-            if panel_detail.confidence >= MIN_GENE_CONFIDENCE
+            panel_id for panel_id, panel_detail in gene_data.panels.items() if panel_detail.confidence >= min_confidence
         }
         if not (panel_intersection := eligible_panels.intersection(full_set_of_panels)):
             continue
@@ -286,7 +289,7 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
         new_panels = {
             panel_id
             for panel_id in panel_intersection
-            if pendulum.from_format(gene_data.panels[panel_id].date, 'YYYY-MM-DD') > NEW_THRESHOLD
+            if pendulum.from_format(gene_data.panels[panel_id].date, 'YYYY-MM-DD') > date_threshold
         }
 
         # add the gene to the panel details object
@@ -344,18 +347,15 @@ def update_moi_from_config(
             )
 
 
-def remove_blacklisted_genes(panelapp_data: PanelApp, forbidden_genes: set[str] | None = None):
+def remove_blacklisted_genes(panelapp_data: PanelApp, forbidden_genes: list[str]):
     """Remove any genes blacklisted in the config."""
-    if not forbidden_genes:
-        return
-
     # if any genes are blacklisted in config, remove them here
     genes_to_remove = set(forbidden_genes).intersection(set(panelapp_data.genes.keys()))
     for gene in genes_to_remove:
         del panelapp_data.genes[gene]
 
 
-def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | None = None):
+def main(panel_data: str, output_file: str, pedigree_path: str, config: str, hpo_file: str | None = None):
     """
     Loads the pre-downloaded PanelApp content
 
@@ -367,8 +367,11 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
         panel_data (str): Path to a monthly cache of PanelApp data, acquired by download_panelapp.py
         output_file (str): Where to write the output file
         pedigree_path (str): Path to a Pedigree, optionally including HPO terms
+        config (str): Path to a config file
         hpo_file (str): path to a networkx OBO file containing an HPO ontology tree... or None if you're not using one
     """
+
+    config_object = PanelAppConfig.from_config(config)
 
     cached_panelapp: DownloadedPanelApp = read_json_from_path(panel_data, return_model=DownloadedPanelApp)
 
@@ -389,13 +392,17 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
         hpo_label_lookup = {id_: data.get('name') for id_, data in hpo_graph.nodes(data=True)}
 
     # extract participant metadata from the Cohort, and collect each unique HPO term
-    panelapp_data, all_hpos = extract_participant_data_from_pedigree(pedigree=pedigree, hpo_lookup=hpo_label_lookup)
+    panelapp_data, all_hpos = extract_participant_data_from_pedigree(
+        pedigree=pedigree,
+        hpo_lookup=hpo_label_lookup,
+        default_panel=config_object.default_panel,
+    )
 
     # chuck in the default Mendeliome metadata
     panelapp_data.metadata = {}
     for panel_entry in cached_panelapp.versions:
-        if panel_entry.id == DEFAULT_PANEL:
-            panelapp_data.metadata[DEFAULT_PANEL] = panel_entry
+        if panel_entry.id == config_object.default_panel:
+            panelapp_data.metadata[config_object.default_panel] = panel_entry
 
     if hpo_graph is not None:
         # match HPO terms to panel IDs
@@ -407,25 +414,40 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
         )
 
         # associate those panels with participants in the cohort
-        match_participants_to_panels(panelapp_data, hpo_to_panels, cached_panelapp)
+        match_participants_to_panels(
+            panelapp_data,
+            hpo_to_panels,
+            cached_panelapp,
+            default_panel=config_object.default_panel,
+            forced_panel_list=config_object.forced_panels,
+        )
+
+    date_threshold = pendulum.now().subtract(months=config_object.within_x_months)
 
     # now that we have the panels to use, go get them, and assign a single MOI to each gene
-    fetch_genes_for_panels(panelapp_data=panelapp_data, cached_panelapp=cached_panelapp)
+    fetch_genes_for_panels(
+        panelapp_data=panelapp_data,
+        cached_panelapp=cached_panelapp,
+        min_confidence=config_object.confidence_level,
+        date_threshold=date_threshold,
+    )
 
     # optionally shove in some extra gene content from configuration as a custom panel
-    if custom_content := config_retrieve(['PanelApp', 'manual_overrides'], []):
-        update_moi_from_config(panelapp_data, custom_content)
+    if config_object.manual_overrides:
+        update_moi_from_config(panelapp_data, config_object.manual_overrides)
 
     # if any genes are blacklisted in config, remove them here
-    if forbidden_genes := config_retrieve(['GeneratePanelData', 'forbidden_genes'], None):
-        remove_blacklisted_genes(panelapp_data, forbidden_genes)
+    if config_object.forbidden_genes:
+        remove_blacklisted_genes(panelapp_data, config_object.forbidden_genes)
 
     # if any genes require a phenotype match, but didn't find one (only on base panel), remove them from consideration
-    if pheno_match := config_retrieve(['GeneratePanelData', 'require_pheno_match'], []):
+    if config_object.require_pheno_match:
         genes_to_remove = set()
         for ensg, gene_details in panelapp_data.genes.items():
             # check for a match to either the ENSG ID or the gene symbol in the list from config
-            if (ensg in pheno_match or gene_details.symbol in pheno_match) and gene_details.panels == {DEFAULT_PANEL}:
+            if (
+                ensg in config_object.require_pheno_match or gene_details.symbol in config_object.require_pheno_match
+            ) and gene_details.panels == {config_object.default_panel}:
                 genes_to_remove.add(ensg)
 
         panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}

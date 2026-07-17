@@ -14,12 +14,11 @@ process StartupChecks {
         """
         set -euo pipefail
 
-        export TALOS_CONFIG=${talos_config}
-
         python -m talos.startup_checks \\
             --mt ${mt_string} \\
             --pedigree ${pedigree} \\
-            --clinvar ${clinvar}
+            --clinvar ${clinvar} \\
+            --config ${talos_config}
 
         echo "success" > "${cohort}_checked"
         """

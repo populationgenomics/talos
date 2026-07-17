@@ -19,7 +19,8 @@ from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.config import config_retrieve
-from talos.exclusion_log import get_exclusion_logger
+from talos.config_types import ValidateMOIConfig
+from talos.exclusion_log import create_exclusion_logger
 from talos.models import (
     FamilyMembers,
     MemberSex,
@@ -55,7 +56,9 @@ MALE_FEMALE = {
 }
 
 
-def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dict[str, MOIRunner]:
+def set_up_moi_filters(
+    panelapp_data: PanelApp, pedigree: PedigreeParser, config: ValidateMOIConfig
+) -> dict[str, MOIRunner]:
     """
     parse the panelapp data, and find all MOIs in this dataset
     for each unique MOI, set up a MOI filter instance
@@ -95,7 +98,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
         # if we haven't seen this MOI before, set up the appropriate filter
         if gene_moi not in moi_dictionary:
             # get a MOIRunner with the relevant filters
-            moi_dictionary[gene_moi] = MOIRunner(pedigree=pedigree, target_moi=gene_moi)
+            moi_dictionary[gene_moi] = MOIRunner(pedigree=pedigree, target_moi=gene_moi, config=config)
 
     return moi_dictionary
 
@@ -282,6 +285,7 @@ def prepare_results_shell(
     source_samples: dict[str, set[str]],
     pedigree: PedigreeParser,
     panelapp: PanelApp,
+    config: ValidateMOIConfig,
 ) -> ResultData:
     """
     Creates a ResultData object, with participant metadata filled out
@@ -300,7 +304,7 @@ def prepare_results_shell(
     results_shell = ResultData(metadata=results_meta)
 
     # find the solved cases in this project
-    solved_cases = config_retrieve(['ValidateMOI', 'solved_cases'], [])
+    solved_cases = config.solved_cases
 
     for participant in pedigree.participants.values():
         if not participant.is_affected:
@@ -344,6 +348,7 @@ def cli_main():
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
     parser.add_argument('--previous', help='Path to previous results', default=None)
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
 
     main(
@@ -355,6 +360,7 @@ def cli_main():
         labelled_mito=args.labelled_mito,
         str_vcf=args.str,
         previous=args.previous,
+        config_path=args.config,
     )
 
 
@@ -363,6 +369,7 @@ def main(
     output: str,
     panelapp_path: str,
     pedigree: str,
+    config_path: str,
     labelled_sv: str | None = None,
     labelled_mito: str | None = None,
     str_vcf: str | None = None,
@@ -397,8 +404,10 @@ def main(
         """,
     )
 
+    config = ValidateMOIConfig.from_config(config_path)
+
     # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
-    exclusion_logger = get_exclusion_logger()
+    exclusion_logger = create_exclusion_logger()
 
     # shove everything in a try-except to make sure the global logger is closed down
     try:
@@ -449,13 +458,13 @@ def main(
         ped.set_participants(ped.strip_pedigree_to_samples(all_samples))
 
         # reduce cohort to singletons, if the config says so
-        if config_retrieve('singletons', False):
+        if config.singletons:
             logger.info('Reducing pedigree to affected singletons only')
             ped.set_participants(ped.as_singletons())
             ped.set_participants(ped.get_affected_members())
 
         # set up the inheritance checks
-        moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped)
+        moi_lookup = set_up_moi_filters(panelapp_data=panelapp, pedigree=ped, config=config)
 
         # obtain a set of all contigs with variants
         for contig in canonical_contigs_from_vcf(vcf_opened):
@@ -488,6 +497,7 @@ def main(
             source_samples=source_samples,
             pedigree=ped,
             panelapp=panelapp,
+            config=config,
         )
 
         # remove duplicate and invalid variants

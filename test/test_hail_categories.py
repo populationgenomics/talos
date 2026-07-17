@@ -7,6 +7,7 @@ import pytest
 
 import hail as hl
 
+from talos.config_types import RunHailFilteringConfig
 from talos.models import PanelApp
 from talos.run_hail_filtering import (
     annotate_category_alphamissense,
@@ -31,7 +32,7 @@ hl_locus = hl.Locus(contig='chr1', position=1, reference_genome='GRCh38')
         (1, 'frameshift', ONE_EXPECTED),
     ],
 )
-def test_highimpact(clinvar_talos, consequence_terms, classified, make_a_mt):
+def test_highimpact(clinvar_talos, consequence_terms, classified, make_a_mt, config_path_fixture):
     """"""
 
     anno_matrix = make_a_mt.annotate_rows(
@@ -43,7 +44,8 @@ def test_highimpact(clinvar_talos, consequence_terms, classified, make_a_mt):
         ),
     )
 
-    anno_matrix = annotate_category_high_impact(anno_matrix)
+    config = RunHailFilteringConfig.from_config(config_path_fixture)
+    anno_matrix = annotate_category_high_impact(anno_matrix, config=config)
     assert anno_matrix.info.categorybooleanhighimpact.collect() == [classified]
 
 
@@ -55,14 +57,15 @@ def test_highimpact(clinvar_talos, consequence_terms, classified, make_a_mt):
         (1.0, ONE_EXPECTED),
     ],
 )
-def test_spliceai(splice_score, classified, make_a_mt):
+def test_spliceai(splice_score, classified, make_a_mt, config_path_fixture):
     """"""
 
     anno_matrix = make_a_mt.annotate_rows(
         splice_ai=hl.Struct(delta_score=splice_score, splice_consequence='test'),
     )
 
-    anno_matrix = annotate_category_spliceai(anno_matrix)
+    config = RunHailFilteringConfig.from_config(config_path_fixture)
+    anno_matrix = annotate_category_spliceai(anno_matrix, config=config)
     assert anno_matrix.info.categorybooleanspliceai.collect() == [classified]
 
 
@@ -75,7 +78,7 @@ def test_spliceai(splice_score, classified, make_a_mt):
         (hl.missing('tfloat64'), 0),
     ],
 )
-def test_alphamissense_assignment(am_pathogenicity, classified, make_a_mt):
+def test_alphamissense_assignment(am_pathogenicity, classified, make_a_mt, config_path_fixture):
     """"""
 
     anno_matrix = make_a_mt.annotate_rows(
@@ -86,11 +89,12 @@ def test_alphamissense_assignment(am_pathogenicity, classified, make_a_mt):
         ),
     )
 
-    anno_matrix = annotate_category_alphamissense(anno_matrix)
+    config = RunHailFilteringConfig.from_config(config_path_fixture)
+    anno_matrix = annotate_category_alphamissense(anno_matrix, config=config)
     assert anno_matrix.info.categorybooleanalphamissense.collect() == [classified]
 
 
-def annotate_c6_missing(make_a_mt, caplog):
+def annotate_c6_missing(make_a_mt, caplog, config_path_fixture):
     """
     test what happens if the am_class attribute is missing
 
@@ -106,7 +110,8 @@ def annotate_c6_missing(make_a_mt, caplog):
         ),
     )
 
-    anno_matrix = annotate_category_alphamissense(anno_matrix)
+    config = RunHailFilteringConfig.from_config(config_path_fixture)
+    anno_matrix = annotate_category_alphamissense(anno_matrix, config=config)
     assert anno_matrix.info.categorybooleanalphamissense.collect() == [0]
     assert 'AlphaMissense class not found, skipping annotation' in caplog.text
 
@@ -144,6 +149,7 @@ def test_filter_rows_for_rare(
     clinvar: int,
     length: int,
     make_a_mt,
+    config_path_fixture,
 ):
     """
     annotate categories and test for retention
@@ -152,7 +158,9 @@ def test_filter_rows_for_rare(
         gnomad=hl.Struct(gnomad_AF=genomes),
         info=make_a_mt.info.annotate(clinvar_talos=clinvar),
     )
-    matrix = filter_to_population_rare(anno_matrix)
+
+    config = RunHailFilteringConfig.from_config(config_path_fixture)
+    matrix = filter_to_population_rare(anno_matrix, config)
     assert matrix.count_rows() == length
 
 
@@ -347,12 +355,12 @@ def test_annotate_clinvar_0star_category(rating, stars, expected_flag, tmp_path,
         (99.9, 1),
     ],
 )
-def test_annotate_avi_category(avi, expected, make_a_mt):
+def test_annotate_avi_category(avi, expected, make_a_mt, hail_config):
     """Verify categorybooleanavi works correctly."""
 
     anno_matrix = make_a_mt.annotate_rows(info=make_a_mt.info.annotate(avi_score=avi))
 
-    anno_matrix = annotate_category_avi(anno_matrix)
+    anno_matrix = annotate_category_avi(anno_matrix, config=hail_config)
     assert anno_matrix.info.categorybooleanavi.collect() == [expected]
 
 

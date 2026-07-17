@@ -14,8 +14,6 @@ process RunHailFiltering {
         """
         set -euo pipefail
 
-        export TALOS_CONFIG=${talos_config}
-
         python -m talos.run_hail_filtering \
             --input ${mt_string} \
             --panelapp ${panelapp_data} \
@@ -23,6 +21,7 @@ process RunHailFiltering {
             --output ${cohort}_small_variants_labelled.vcf.bgz \
             --clinvar ${clinvar_all} \
             --pm5 ${clinvar_pm5} \
-            --checkpoint checkpoint
+            --checkpoint checkpoint \
+            --config ${talos_config}
         """
 }

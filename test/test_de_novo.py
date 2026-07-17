@@ -16,7 +16,7 @@ from talos.run_hail_filtering import annotate_category_de_novo
         (0, 'inframe_insertion', 'protein_coding', ['male']),
     ],
 )
-def test_dn_working(clinvar_talos, consequence, biotype, result, make_a_de_novo_mt, pedigree_path):
+def test_dn_working(clinvar_talos, consequence, biotype, result, make_a_de_novo_mt, pedigree_path, hail_config):
     """check that the de novo annotation works"""
     dn_matrix = make_a_de_novo_mt.annotate_rows(
         info=make_a_de_novo_mt.info.annotate(clinvar_talos=clinvar_talos),
@@ -26,12 +26,12 @@ def test_dn_working(clinvar_talos, consequence, biotype, result, make_a_de_novo_
             ],
         ),
     )
-    dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path))
+    dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path), config=hail_config)
 
     assert dn_matrix.info.categorysampledenovo.collect() == result
 
 
-def test_dn_bch_one(make_a_bch_de_novo_mt, pedigree_path):
+def test_dn_bch_one(make_a_bch_de_novo_mt, pedigree_path, hail_config):
     """check that the de novo annotation works"""
     dn_matrix = make_a_bch_de_novo_mt.annotate_rows(
         info=make_a_bch_de_novo_mt.info.annotate(clinvar_talos=1),
@@ -42,6 +42,6 @@ def test_dn_bch_one(make_a_bch_de_novo_mt, pedigree_path):
         ),
     )
 
-    dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path))
+    dn_matrix = annotate_category_de_novo(dn_matrix, pedigree_data=PedigreeParser(pedigree_path), config=hail_config)
 
     assert dn_matrix.info.categorysampledenovo.collect() == ['male']

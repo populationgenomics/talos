@@ -18,7 +18,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 import hail as hl
 
-from talos.config import config_retrieve
+from talos.config_types import RunHailFilteringConfig
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
 
@@ -30,16 +30,6 @@ ONE_INT = hl.int32(1)
 BENIGN = hl.str('benign')
 PATHOGENIC = hl.str('Pathogenic/Likely Pathogenic')
 SPLICE_ALTERING = hl.str('splice-altering')
-ADDITIONAL_CSQ_DEFAULT = ['missense', 'inframe_deletion', 'inframe_insertion']
-CRITICAL_CSQ_DEFAULT = [
-    'frameshift',
-    'splice_acceptor',
-    'splice_donor',
-    'start_lost',
-    'stop_gained',
-    'stop_lost',
-    'transcript_ablation',
-]
 MISSENSE = hl.str('missense')
 
 # decide whether to repartition the data before processing starts
@@ -379,7 +369,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_t
     )
 
 
-def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
+def filter_to_population_rare(mt: hl.MatrixTable, config: RunHailFilteringConfig) -> hl.MatrixTable:
     """
     run the rare filter, using Gnomad Exomes and Genomes
     allow clinvar pathogenic to slip through this filter
@@ -387,9 +377,8 @@ def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
     # 'semi-rare' as dominant filters will be more strictly filtered later
-    rare_af_threshold = config_retrieve(['RunHailFiltering', 'af_semi_rare'])
     return mt.filter_rows(
-        (hl.or_else(mt.gnomad.gnomad_AF, MISSING_FLOAT_LO) < rare_af_threshold) | (mt.info.clinvar_talos == ONE_INT),
+        (hl.or_else(mt.gnomad.gnomad_AF, MISSING_FLOAT_LO) < config.af_semi_rare) | (mt.info.clinvar_talos == ONE_INT),
     )
 
 
@@ -447,7 +436,7 @@ def split_rows_by_gene_and_filter_to_green(mt: hl.MatrixTable, green_genes: hl.S
     )
 
 
-def annotate_category_alphamissense(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_alphamissense(mt: hl.MatrixTable, config: RunHailFilteringConfig) -> hl.MatrixTable:
     """
     applies the boolean alphamissense category flag
     - AlphaMissense likely Pathogenic on at least one transcript
@@ -465,7 +454,7 @@ def annotate_category_alphamissense(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categorybooleanalphamissense set to 1 or 0
     """
 
-    am_pathogenic_threshold = hl.float64(config_retrieve(['RunHailFiltering', 'am_pathogenicity'], 0.564))
+    am_pathogenic_threshold = hl.float64(config.am_pathogenicity)
 
     return mt.annotate_rows(
         info=mt.info.annotate(
@@ -478,7 +467,7 @@ def annotate_category_alphamissense(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_high_impact(mt: hl.MatrixTable, config: RunHailFilteringConfig) -> hl.MatrixTable:
     """
     applies the boolean Category3 flag
     - Critical protein consequence on at least one transcript
@@ -490,7 +479,7 @@ def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
         same variants, categorybooleanhighimpact set to 1 or 0
     """
 
-    critical_consequences = hl.set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT))
+    critical_consequences = hl.set(config.critical_csq)
 
     # First check if we have any HIGH consequences
     return mt.annotate_rows(
@@ -511,7 +500,7 @@ def annotate_category_high_impact(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_spliceai(mt: hl.MatrixTable, config: RunHailFilteringConfig) -> hl.MatrixTable:
     """Label variant with significant spliceAi scores"""
     # skip over MTs where this annotation is absent
     if 'splice_ai' not in mt.row_value:
@@ -526,7 +515,7 @@ def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorybooleanspliceai=hl.if_else(
-                mt.splice_ai.delta_score >= config_retrieve(['RunHailFiltering', 'spliceai']),
+                mt.splice_ai.delta_score >= config.spliceai,
                 ONE_INT,
                 MISSING_INT,
             ),
@@ -536,10 +525,10 @@ def annotate_category_spliceai(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def annotate_category_avi(mt: hl.MatrixTable) -> hl.MatrixTable:
+def annotate_category_avi(mt: hl.MatrixTable, config: RunHailFilteringConfig) -> hl.MatrixTable:
     """Label variants with significant AVI scores"""
 
-    avi_threshold = config_retrieve(['RunHailFiltering', 'avi'], None)
+    avi_threshold = config.avi
     # skip over MTs where this annotation is absent
     if ('avi_score' not in mt.info) or (avi_threshold is None):
         return mt.annotate_rows(
@@ -559,7 +548,7 @@ def annotate_category_avi(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
+def filter_by_consequence(mt: hl.MatrixTable, config: RunHailFilteringConfig) -> hl.MatrixTable:
     """
     - reduce the per-row transcript CSQ to a limited group
     - reduce the rows to ones where there are remaining tx consequences
@@ -567,9 +556,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 
     # at time of writing this is VEP HIGH + missense_variant
     # update without updating the dictionary content
-    critical_consequences = set(config_retrieve(['RunHailFiltering', 'critical_csq'], CRITICAL_CSQ_DEFAULT)) | set(
-        config_retrieve(['RunHailFiltering', 'additional_csq'], ADDITIONAL_CSQ_DEFAULT),
-    )
+    critical_consequences = set(config.critical_csq) | set(config.additional_csq)
 
     # overwrite the consequences with an intersection against a limited list
     filtered_mt = mt.annotate_rows(
@@ -591,6 +578,7 @@ def filter_by_consequence(mt: hl.MatrixTable) -> hl.MatrixTable:
 def annotate_category_de_novo(
     mt: hl.MatrixTable,
     pedigree_data: PedigreeParser,
+    config: RunHailFilteringConfig,
 ) -> hl.MatrixTable:
     """
     Category based on de novo MOI, restricted to a group of consequences
@@ -611,7 +599,7 @@ def annotate_category_de_novo(
     """
 
     # modifiable through config
-    de_novo_config = config_retrieve(['RunHailFiltering', 'de_novo'])
+    de_novo_config = config.de_novo
     min_depth: int = de_novo_config.get('min_depth', 5)
     max_depth: int = de_novo_config.get('max_depth', 1000)
     min_proband_gq: int = de_novo_config.get('min_proband_gq', 25)
@@ -623,7 +611,7 @@ def annotate_category_de_novo(
 
     logger.info('Running de novo search')
 
-    de_novo_matrix = filter_by_consequence(mt)
+    de_novo_matrix = filter_by_consequence(mt, config)
 
     # choose whether to apply this filter to all entries
     if de_novo_config.get('apply_min_all_sample_gq', True):
@@ -752,7 +740,7 @@ def annotate_category_de_novo(
     )
 
 
-def csq_struct_to_string(tx_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpression:
+def csq_struct_to_string(tx_expr: hl.expr.StructExpression, config: RunHailFilteringConfig) -> hl.expr.ArrayExpression:
     """
     Taken shamelessly from the gnomad library source code
     Given a CSQ Struct, returns an array of CSQ strings
@@ -771,11 +759,7 @@ def csq_struct_to_string(tx_expr: hl.expr.StructExpression) -> hl.expr.ArrayExpr
     def get_csq_from_struct(element: hl.expr.StructExpression) -> hl.expr.StringExpression:
         # Most fields are 1-1, just lowercase
         fields = dict(element)
-
-        # pull the required fields and ordering from config
-        csq_fields = config_retrieve(['RunHailFiltering', 'csq_string'])
-
-        return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in csq_fields], '|')
+        return hl.delimit([hl.or_else(hl.str(fields.get(f, '')), '') for f in config.csq_string], '|')
 
     csq = hl.empty_array(hl.tstr)
     csq = csq.extend(hl.or_else(tx_expr.map(lambda x: get_csq_from_struct(x)), hl.empty_array(hl.tstr)))
@@ -809,7 +793,7 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
+def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str, config: RunHailFilteringConfig):
     """
     write the remaining MatrixTable content to file as a VCF
     generate a custom header containing the CSQ contents which
@@ -825,7 +809,7 @@ def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
     header_path = 'additional_header.txt'
 
     # generate a CSQ string specific to the config file for decoding later
-    csq_contents = '|'.join(config_retrieve(['RunHailFiltering', 'csq_string']))
+    csq_contents = '|'.join(config.csq_string)
 
     # write this custom header locally
     with open(header_path, 'w') as handle:
@@ -940,6 +924,7 @@ def cli_main():
     parser.add_argument('--exomiser', help='HT containing exomiser variant selections, optional', default=None)
     parser.add_argument('--svdb', help='HT containing SpliceVarDB annotations, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
+    parser.add_argument('--config', required=True, help='Path to TOML config file')
     args = parser.parse_args()
     main(
         mt_paths=args.input,
@@ -951,6 +936,7 @@ def cli_main():
         exomiser=args.exomiser,
         svdb=args.svdb,
         checkpoint=args.checkpoint,
+        config_path=args.config,
     )
 
 
@@ -960,6 +946,7 @@ def main(  # noqa: PLR0915
     pedigree: str,
     vcf_out: str,
     clinvar: str,
+    config_path: str,
     pm5: str | None = None,
     exomiser: str | None = None,
     svdb: str | None = None,
@@ -989,6 +976,8 @@ def main(  # noqa: PLR0915
     ███      ███     ███   ███      █  ███     ███  ███     ███
    █████    █████   █████ ███████████    ███████     █████████ """,
     )
+    config = RunHailFilteringConfig.from_config(config_path)
+
     hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
 
     # read the parsed panelapp data
@@ -1029,10 +1018,10 @@ def main(  # noqa: PLR0915
     mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar, new_genes=new_green_genes_expression)
 
     # remove common-in-gnomad variants (also includes ClinVar annotation)
-    mt = filter_to_population_rare(mt=mt)
+    mt = filter_to_population_rare(mt=mt, config=config)
 
     # reduce cohort to affected singletons, if the config says so
-    if config_retrieve('singletons', False):
+    if config.singletons:
         logger.info('Reducing pedigree to affected singletons only')
         pedigree_data.set_participants(pedigree_data.as_singletons())
         pedigree_data.set_participants(pedigree_data.get_affected_members())
@@ -1059,7 +1048,7 @@ def main(  # noqa: PLR0915
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean')
 
     # these categories are ignored early, to prevent an expensive join
-    ignored_categories = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
+    ignored_categories = config.ignore_categories
 
     # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
     mt = annotate_exomiser(mt=mt, exomiser=exomiser, ignored=bool('exomiser' in ignored_categories))
@@ -1075,22 +1064,19 @@ def main(  # noqa: PLR0915
     # 1 was applied earlier during the integration of clinvar data
     # for cat. 4, pre-filter the variants by tx-consequential or C5==1
     logger.info('Applying categories')
-    mt = annotate_category_alphamissense(mt=mt)
-    mt = annotate_category_high_impact(mt=mt)
-    mt = annotate_category_spliceai(mt=mt)
+    mt = annotate_category_alphamissense(mt=mt, config=config)
+    mt = annotate_category_high_impact(mt=mt, config=config)
+    mt = annotate_category_spliceai(mt=mt, config=config)
 
     # if avi, apply the avi category
-    mt = annotate_category_avi(mt=mt)
+    mt = annotate_category_avi(mt=mt, config=config)
 
     # insert easy ignore of de novo filtering based on config, to overcome some data format issues
-    if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']) or config_retrieve(
-        'singletons',
-        False,
-    ):
+    if any(to_ignore in ignored_categories for to_ignore in ['de_novo', 'denovo', '4']) or config.singletons:
         logger.info('Skipping de novo annotation, category 4 will not be used during this analysis')
         mt = mt.annotate_rows(info=mt.info.annotate(categorysampledenovo=MISSING_STRING))
     else:
-        mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data)
+        mt = annotate_category_de_novo(mt=mt, pedigree_data=pedigree_data, config=config)
 
     # if a clinvar-codon table is supplied, use that for PM5
     mt = annotate_codon_clinvar(mt=mt, pm5_path=pm5)
@@ -1104,12 +1090,12 @@ def main(  # noqa: PLR0915
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             **mt.gnomad,
-            csq=csq_struct_to_string(mt.transcript_consequences),
+            csq=csq_struct_to_string(mt.transcript_consequences, config),
             gene_id=mt.gene_ids,
         ),
     )
 
-    write_matrix_to_vcf(mt=mt, vcf_out=vcf_out)
+    write_matrix_to_vcf(mt=mt, vcf_out=vcf_out, config=config)
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ tests relating to the MOI filters
 import pytest
 from mendelbrot.pedigree_parser import PedigreeParser
 
+from talos.config_types import ValidateMOIConfig
 from talos.models import Coordinates, SmallVariant
 from talos.moi_tests import (
     BaseMoi,
@@ -44,11 +45,12 @@ TWO_RESULTS = 2
         ),
     ),
 )
-def test_moi_runner(moi_string: str, filters: list[str], pedigree_path):
+def test_moi_runner(moi_string: str, filters: list[str], pedigree_path, config_path_fixture):
     """
     check that the right methods are associated with each MOI
     """
-    test_runner = MOIRunner(pedigree=PedigreeParser(pedigree_path), target_moi=moi_string)
+    config = ValidateMOIConfig.from_config(config_path_fixture)
+    test_runner = MOIRunner(pedigree=PedigreeParser(pedigree_path), target_moi=moi_string, config=config)
 
     # the imported (uninstantiated) objects don't have __class__
     # and the instantiated objects don't have a __name__
@@ -56,13 +58,13 @@ def test_moi_runner(moi_string: str, filters: list[str], pedigree_path):
         assert each_filter.__class__.__name__ in filters
 
 
-def test_dominant_autosomal_fails_on_depth(pedigree_path):
+def test_dominant_autosomal_fails_on_depth(pedigree_path, moi_config):
     """
     test case for autosomal dominant depth failure
     """
 
     info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0, 'gene_id': 'TEST1'}
-    dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
 
     # passes with heterozygous
     shallow_variant = SmallVariant(
@@ -76,7 +78,7 @@ def test_dominant_autosomal_fails_on_depth(pedigree_path):
     assert len(results) == 0
 
 
-def test_dominant_autosomal_passes(pedigree_path):
+def test_dominant_autosomal_passes(pedigree_path, moi_config):
     """
     test case for autosomal dominant
     :return:
@@ -95,7 +97,7 @@ def test_dominant_autosomal_passes(pedigree_path):
     # attributes relating to categorisation
     boolean_categories = ['categorybooleanclinvarplp']
 
-    dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
 
     # passes with heterozygous
     passing_variant = SmallVariant(
@@ -142,21 +144,21 @@ def test_dominant_autosomal_passes(pedigree_path):
         {'gnomad_hom': 2, 'ac': 10, 'af': 0.0001},
     ],
 )
-def test_dominant_autosomal_fails(info, pedigree_path):
+def test_dominant_autosomal_fails(info, pedigree_path, moi_config):
     """
     test case for autosomal dominant
     :param info: info dict for the variant
     :return:
     """
 
-    dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    dom = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
 
     # fails due to high af
     failing_variant = SmallVariant(info=info, het_samples={'male'}, coordinates=TEST_COORDS, transcript_consequences=[])
     assert not dom.run(principal=failing_variant)
 
 
-def test_recessive_autosomal_hom_passes(pedigree_path):
+def test_recessive_autosomal_hom_passes(pedigree_path, moi_config):
     """
     check that when the info values are defaults (0)
     we accept a homozygous variant as a Recessive
@@ -171,13 +173,13 @@ def test_recessive_autosomal_hom_passes(pedigree_path):
         info={'categorybooleanclinvarplp': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Recessive Homozygous'
 
 
-def test_recessive_autosomal_hom_fails_alt_reads(pedigree_path):
+def test_recessive_autosomal_hom_fails_alt_reads(pedigree_path, moi_config):
     """
     check that when the info values are defaults (0)
     we accept a homozygous variant as a Recessive
@@ -192,12 +194,12 @@ def test_recessive_autosomal_hom_fails_alt_reads(pedigree_path):
         info={'categorybooleanclinvarplp': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant)
     assert not results
 
 
-def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path):
+def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path, moi_config):
     """
     check that when the info values are defaults (0)
     we accept a homozygous variant as a Recessive
@@ -213,14 +215,14 @@ def test_recessive_autosomal_hom_passes_with_ab_flag(pedigree_path):
         info={'categorybooleanclinvarplp': True, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Recessive Homozygous'
     assert passing_variant.get_sample_flags('male') == {'AB Ratio'}
 
 
-def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
+def test_recessive_autosomal_comp_het_male_passes(pedigree_path, moi_config):
     """
     check that when the info values are defaults (0)
     and the comp-het test is always True
@@ -248,13 +250,13 @@ def test_recessive_autosomal_comp_het_male_passes(pedigree_path):
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Recessive Comp-Het'
 
 
-def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
+def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path, moi_config):
     """
     check that when one variant is support only, and the other is full, both reach the report
     """
@@ -287,14 +289,14 @@ def test_recessive_autosomal_comp_het_male_passes_with_support(pedigree_path):
             TEST_COORDS2.string_format: [passing_variant],
         },
     }
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant, comp_het=comp_hets)
     results.extend(rec.run(passing_variant2, comp_het=comp_hets))
     assert len(results) == TWO_RESULTS
     assert results[0].reasons == 'Autosomal Recessive Comp-Het'
 
 
-def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
+def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path, moi_config):
     """
     check that when one variant is support only, and the other is full, both reach the report
     """
@@ -327,13 +329,13 @@ def test_recessive_autosomal_comp_het_male_fails_both_support(pedigree_path):
             TEST_COORDS2.string_format: [passing_variant],
         },
     }
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant, comp_het=comp_hets)
     results.extend(rec.run(passing_variant2, comp_het=comp_hets))
     assert len(results) == 0
 
 
-def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
+def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path, moi_config):
     """
     info values are defaults (0) & comp-het test is always True we accept a heterozygous variant as a Comp-Het
     """
@@ -359,7 +361,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
         transcript_consequences=[],
     )
     comp_hets = {'male': {TEST_COORDS.string_format: [passing_variant2]}}
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Recessive Comp-Het'
@@ -367,7 +369,7 @@ def test_recessive_autosomal_comp_het_male_passes_partner_flag(pedigree_path):
     assert results[0].support_vars == {'passing2'}
 
 
-def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
+def test_recessive_autosomal_comp_het_female_passes(pedigree_path, moi_config):
     """
     info values are defaults (0) & comp-het test is always True we accept a heterozygous variant as a Comp-Het
     """
@@ -392,7 +394,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
         transcript_consequences=[],
     )
     comp_hets = {'female': {TEST_COORDS.string_format: [passing_variant2]}}
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Recessive Comp-Het'
@@ -400,7 +402,7 @@ def test_recessive_autosomal_comp_het_female_passes(pedigree_path):
     assert results[0].support_vars == {'passing2'}
 
 
-def test_recessive_autosomal_comp_het_fails_no_ch_return(pedigree_path):
+def test_recessive_autosomal_comp_het_fails_no_ch_return(pedigree_path, moi_config):
     """
     check that when the info values are defaults (0) & comp-het test is always False we have no accepted MOI
     """
@@ -412,11 +414,11 @@ def test_recessive_autosomal_comp_het_fails_no_ch_return(pedigree_path):
         coordinates=TEST_COORDS,
         transcript_consequences=[],
     )
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     assert not rec.run(failing_variant)
 
 
-def test_recessive_autosomal_comp_het_fails_no_paired_call(pedigree_path):
+def test_recessive_autosomal_comp_het_fails_no_paired_call(pedigree_path, moi_config):
     """
     check that when the info values are defaults (0) & comp-het test is False we have no accepted MOI
     """
@@ -440,7 +442,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(pedigree_path):
         transcript_consequences=[],
     )
 
-    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     assert not rec.run(
         failing_variant,
         comp_het={'male': {TEST_COORDS2.string_format: [failing_variant2]}},
@@ -448,7 +450,7 @@ def test_recessive_autosomal_comp_het_fails_no_paired_call(pedigree_path):
 
 
 @pytest.mark.parametrize('info', [{'gnomad_hom': 3, 'gene_id': 'TEST1', 'ac': 10, 'af': 0.0001}])  # threshold is 2
-def test_recessive_autosomal_hom_fails(info, pedigree_path):
+def test_recessive_autosomal_hom_fails(info, pedigree_path, moi_config):
     """
     check that when the info values are failures we have no confirmed MOI
     """
@@ -459,11 +461,11 @@ def test_recessive_autosomal_hom_fails(info, pedigree_path):
         coordinates=TEST_COORDS,
         transcript_consequences=[],
     )
-    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path))
+    rec = RecessiveAutosomalHomo(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     assert not rec.run(failing_variant)
 
 
-def test_x_dominant_female_and_male_het_passes(pedigree_path):
+def test_x_dominant_female_and_male_het_passes(pedigree_path, moi_config):
     """
     check that a male and female are accepted as dominant hets
     """
@@ -476,14 +478,14 @@ def test_x_dominant_female_and_male_het_passes(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
     )
-    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path))
+    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_dom.run(passing_variant)
 
     assert len(results) == TWO_EXPECTED
     assert results[0].reasons == 'X_Dominant'
 
 
-def test_x_dominant_female_hom_passes(pedigree_path):
+def test_x_dominant_female_hom_passes(pedigree_path, moi_config):
     """
     check that a female is accepted as a hom
     """
@@ -497,13 +499,13 @@ def test_x_dominant_female_hom_passes(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
     )
-    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path))
+    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_dom.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'X_Dominant'
 
 
-def test_x_dominant_male_hom_passes(pedigree_path):
+def test_x_dominant_male_hom_passes(pedigree_path, moi_config):
     """
     check that a male is accepted as a het
     """
@@ -516,7 +518,7 @@ def test_x_dominant_male_hom_passes(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
     )
-    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path))
+    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_dom.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'X_Dominant'
@@ -530,7 +532,7 @@ def test_x_dominant_male_hom_passes(pedigree_path):
         ({'gnomad_ac': 11, 'gene_id': 'TEST1', 'categorybooleanclinvarplp': False, 'ac': 10, 'af': 0.0001}, 0),
     ],
 )
-def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
+def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path, moi_config):
     """
     check for info dict exclusions
     """
@@ -543,11 +545,12 @@ def test_x_dominant_info_fails(info: dict, wins: int, pedigree_path):
         alt_depths={'male': 100},
         depths={'male': 100},
     )
-    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path))
+
+    x_dom = XDominant(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     assert len(x_dom.run(passing_variant)) == wins
 
 
-def test_x_dominant_female_inactivation_passes(pedigree_path):
+def test_x_dominant_female_inactivation_passes(pedigree_path, moi_config):
     """
     check that a het female, but not a het male, is accepted as dominant
     current test implementation doesn't include family consideration
@@ -571,14 +574,14 @@ def test_x_dominant_female_inactivation_passes(pedigree_path):
         coordinates=TEST_COORDS_X_1,
         transcript_consequences=[],
     )
-    x_dom = XPseudoDominantFemale(pedigree=PedigreeParser(pedigree_path))
+    x_dom = XPseudoDominantFemale(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_dom.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'X_PseudoDominant'
     assert 'Affected female with heterozygous variant in XLR gene' in results[0].flags
 
 
-def test_x_recessive_male_hom_passes(pedigree_path):
+def test_x_recessive_male_hom_passes(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         hom_samples={'female', 'male'},
         coordinates=TEST_COORDS_X_1,
@@ -589,13 +592,13 @@ def test_x_recessive_male_hom_passes(pedigree_path):
         info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_rec.run(passing_variant, comp_het={})
     assert len(results) == 1
     assert results[0].reasons == 'X_Male'
 
 
-def test_x_recessive_female_hom_passes(pedigree_path):
+def test_x_recessive_female_hom_passes(pedigree_path, moi_config):
     """
     :return:
     """
@@ -610,13 +613,13 @@ def test_x_recessive_female_hom_passes(pedigree_path):
         info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    x_rec = XRecessiveFemaleHom(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveFemaleHom(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_rec.run(passing_variant, comp_het={})
     assert len(results) == 1
     assert results[0].reasons == 'X_Recessive HOM Female'
 
 
-def test_x_recessive_male_het_passes(pedigree_path):
+def test_x_recessive_male_het_passes(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'male'},
         coordinates=TEST_COORDS_X_1,
@@ -627,13 +630,13 @@ def test_x_recessive_male_het_passes(pedigree_path):
         info={'gene_id': 'TEST1', 'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveMale(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_rec.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'X_Male'
 
 
-def test_x_recessive_female_het_passes(pedigree_path):
+def test_x_recessive_female_het_passes(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
@@ -655,14 +658,14 @@ def test_x_recessive_female_het_passes(pedigree_path):
         transcript_consequences=[],
     )
     comp_hets = {'female': {'X-1-G-T': [passing_variant_2]}}
-    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     assert len(results) == 1
     assert results[0].reasons == 'X_RecessiveFemaleCompHet'
     assert results[0].support_vars == {'passing2'}
 
 
-def test_x_recessive_female_het_passes_one_support(pedigree_path):
+def test_x_recessive_female_het_passes_one_support(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
@@ -691,7 +694,7 @@ def test_x_recessive_female_het_passes_one_support(pedigree_path):
             TEST_COORDS_X_2.string_format: [passing_variant],
         },
     }
-    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
     assert len(results) == TWO_RESULTS
@@ -699,7 +702,7 @@ def test_x_recessive_female_het_passes_one_support(pedigree_path):
     assert results[0].support_vars == {'passing2'}
 
 
-def test_x_recessive_female_het_fails_both_support(pedigree_path):
+def test_x_recessive_female_het_fails_both_support(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
@@ -728,13 +731,13 @@ def test_x_recessive_female_het_fails_both_support(pedigree_path):
             TEST_COORDS_X_2.string_format: [passing_variant],
         },
     }
-    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = x_rec.run(passing_variant, comp_het=comp_hets)
     results.extend(x_rec.run(passing_variant_2, comp_het=comp_hets))
     assert len(results) == 0
 
 
-def test_het_de_novo_passes(pedigree_path):
+def test_het_de_novo_passes(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
@@ -745,14 +748,14 @@ def test_het_de_novo_passes(pedigree_path):
         info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    dom_a = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    dom_a = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = dom_a.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Dominant'
     assert not results[0].flags
 
 
-def test_het_de_novo_het_passes_flagged(pedigree_path):
+def test_het_de_novo_het_passes_flagged(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
@@ -763,13 +766,13 @@ def test_het_de_novo_het_passes_flagged(pedigree_path):
         info={'gene_id': 'TEST1', 'categorysample4': ['female'], 'ac': 10, 'af': 0.0001},
         transcript_consequences=[],
     )
-    dom_a = DominantAutosomal(pedigree=PedigreeParser(pedigree_path))
+    dom_a = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     results = dom_a.run(passing_variant)
     assert len(results) == 1
     assert results[0].reasons == 'Autosomal Dominant'
 
 
-def test_x_recessive_female_het_fails(pedigree_path):
+def test_x_recessive_female_het_fails(pedigree_path, moi_config):
     passing_variant = SmallVariant(
         het_samples={'female'},
         coordinates=TEST_COORDS_X_1,
@@ -791,11 +794,11 @@ def test_x_recessive_female_het_fails(pedigree_path):
         transcript_consequences=[],
     )
     comp_hets = {'female': {'x-2-A-C': [passing_variant_2]}}
-    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path))
+    x_rec = XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path), config=moi_config)
     assert not x_rec.run(passing_variant, comp_het=comp_hets)
 
 
-def test_x_recessive_female_het_no_pair_fails(pedigree_path):
+def test_x_recessive_female_het_no_pair_fails(pedigree_path, moi_config):
     """ """
 
     passing_variant = SmallVariant(
@@ -813,38 +816,38 @@ def test_x_recessive_female_het_no_pair_fails(pedigree_path):
         },
         transcript_consequences=[],
     )
-    assert not XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path)).run(passing_variant)
+    assert not XRecessiveFemaleCH(pedigree=PedigreeParser(pedigree_path), config=moi_config).run(passing_variant)
 
 
-def test_check_familial_inheritance_simple(pedigree_path):
+def test_check_familial_inheritance_simple(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method
     trio male, mother_1, father_1; only 'male' is affected
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
     assert base_moi.single_variant_explains_disease_in_family(sample_id='male', called_variants={'male'})
 
 
-def test_check_familial_inheritance_mother_fail(pedigree_path):
+def test_check_familial_inheritance_mother_fail(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
     assert not base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
         called_variants={'male', 'mother_1'},
     )
 
 
-def test_check_familial_inheritance_mother_passes(pedigree_path):
+def test_check_familial_inheritance_mother_passes(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method
     mother in variant calls, but partial penetrance
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
 
     assert base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
@@ -853,25 +856,25 @@ def test_check_familial_inheritance_mother_passes(pedigree_path):
     )
 
 
-def test_check_familial_inheritance_father_fail(pedigree_path):
+def test_check_familial_inheritance_father_fail(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
     assert not base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
         called_variants={'male', 'father_1'},
     )
 
 
-def test_check_familial_inheritance_father_passes(pedigree_path):
+def test_check_familial_inheritance_father_passes(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method
     father in variant calls, but partial penetrance
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
 
     result = base_moi.single_variant_explains_disease_in_family(
         sample_id='male',
@@ -881,13 +884,13 @@ def test_check_familial_inheritance_father_passes(pedigree_path):
     assert result
 
 
-def test_check_familial_inheritance_top_down(pedigree_path):
+def test_check_familial_inheritance_top_down(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method
     father in variant calls, but partial penetrance
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
     assert base_moi.single_variant_explains_disease_in_family(
         sample_id='father_1',
         called_variants={'male', 'father_1'},
@@ -895,22 +898,22 @@ def test_check_familial_inheritance_top_down(pedigree_path):
     )
 
 
-def test_check_familial_inheritance_no_calls(pedigree_path):
+def test_check_familial_inheritance_no_calls(pedigree_path, moi_config):
     """
     test the check_familial_inheritance method where there are no calls
     we lazily pass this - the assumption is that we're only assessing samples with variants
     this method checks parents as a trio, not the sample in question
     """
 
-    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = BaseMoi(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
     assert base_moi.single_variant_explains_disease_in_family(sample_id='male', called_variants=set(), partial_pen=True)
 
 
-def test_genotype_calls(pedigree_path):
+def test_genotype_calls(pedigree_path, moi_config):
     """
     test the manual genotype assignments
     """
-    base_moi = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), applied_moi='applied')
+    base_moi = DominantAutosomal(pedigree=PedigreeParser(pedigree_path), applied_moi='applied', config=moi_config)
 
     info_dict = {'gnomad_af': 0.0001, 'gnomad_ac': 0, 'gnomad_hom': 0, 'gene_id': 'TEST1'}
     variant = SmallVariant(
@@ -943,10 +946,10 @@ def test_genotype_calls(pedigree_path):
     assert base_moi.get_family_genotypes(variant_missing, 'male') == {'father_1': 'WT', 'male': 'WT', 'mother_1': 'WT'}
 
 
-def test_too_common_in_population_passes_cat1():
+def test_too_common_in_population_passes_cat1(moi_config):
     """this should return false, i.e. would not be removed"""
     info = {'categorybooleanclinvarplp': True, 'ac': 10, 'af': 0.0001}
-    assert not ClinVarFilter().too_common(
+    assert not ClinVarFilter(moi_config).too_common(
         variant=SmallVariant(
             info=info,
             coordinates=TEST_COORDS,
@@ -955,10 +958,10 @@ def test_too_common_in_population_passes_cat1():
     )
 
 
-def test_too_common_in_population_passes_below_thresholds():
+def test_too_common_in_population_passes_below_thresholds(moi_config):
     """should return false, i.e. attributes are below thresholds"""
     info = {'gnomad_af': 0.0, 'ac': 10, 'af': 0.0001}
-    assert not ClinVarFilter().too_common(
+    assert not ClinVarFilter(moi_config).too_common(
         variant=SmallVariant(
             info=info,
             coordinates=TEST_COORDS,
@@ -967,10 +970,10 @@ def test_too_common_in_population_passes_below_thresholds():
     )
 
 
-def test_too_common_in_population_true():
+def test_too_common_in_population_true(moi_config):
     """should return true, i.e. attributes above threshold"""
     info = {'gnomad_af': 0.1}
-    assert ClinVarFilter().too_common(
+    assert ClinVarFilter(moi_config).too_common(
         variant=SmallVariant(
             info=info,
             coordinates=TEST_COORDS,
@@ -979,10 +982,10 @@ def test_too_common_in_population_true():
     )
 
 
-def test_too_common_in_population_true_multi():
+def test_too_common_in_population_true_multi(moi_config):
     """should return true, i.e. attributes above thresholds, even if others are below"""
     info = {'gnomad_af': 0.0, 'ac': 11, 'af': 0.1}
-    assert ClinVarFilter().too_common(
+    assert ClinVarFilter(moi_config).too_common(
         variant=SmallVariant(
             info=info,
             coordinates=TEST_COORDS,

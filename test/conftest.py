@@ -2,6 +2,7 @@
 A home for common test fixtures
 """
 
+from copy import deepcopy
 from os import environ
 from os.path import join
 from pathlib import Path
@@ -14,6 +15,7 @@ from loguru import logger
 
 import hail as hl
 
+from talos.config_types import HpoFlaggingConfig, RunHailFilteringConfig, ValidateMOIConfig
 from talos.data_model import BaseFields, Entry, SneakyTable, TXFields, VepVariant
 
 # force this to come first
@@ -75,6 +77,38 @@ def fixture_hail_cleanup():
     # remove all hail log files
     for filename in log_files:
         filename.unlink()
+
+
+@pytest.fixture(name='config_path_fixture', scope='session')
+def fixture_config_path() -> str:
+    """
+    a fixture to make a matrix table
+    """
+    return join(INPUT, 'config.toml')
+
+
+@pytest.fixture(name='moi_config', scope='session')
+def fixture_validate_moi_config() -> ValidateMOIConfig:
+    """
+    a fixture to make a matrix table
+    """
+    return deepcopy(ValidateMOIConfig.from_config(join(INPUT, 'config.toml')))
+
+
+@pytest.fixture(name='hpo_config', scope='session')
+def fixture_hpo_config() -> HpoFlaggingConfig:
+    """
+    a fixture to make a matrix table
+    """
+    return deepcopy(HpoFlaggingConfig.from_config(join(INPUT, 'config.toml')))
+
+
+@pytest.fixture(name='hail_config', scope='session')
+def fixture_hail_config() -> RunHailFilteringConfig:
+    """
+    a fixture to make a matrix table
+    """
+    return deepcopy(RunHailFilteringConfig.from_config(join(INPUT, 'config.toml')))
 
 
 @pytest.fixture(name='make_a_mt', scope='session')
