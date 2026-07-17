@@ -14,13 +14,26 @@ from mendelbrot.pedigree_parser import PedigreeParser
 
 from talos.config import config_retrieve
 from talos.exclusion_log import get_exclusion_logger
-from talos.models import VARIANT_MODELS, ReportVariant, SmallVariant, StructuralVariant
+from talos.models import VARIANT_MODELS, ReportVariant, ShortTandemRepeat, SmallVariant, StructuralVariant
 from talos.static_values import get_granular_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
 HEMI_CHROMS = {'chrX, chrY'}
 SV_HEMI = {'male_n_hemialt'}
 SV_HOMS = {'male_n_homalt', 'female_n_homalt'}
+
+
+def get_str_var_data(var: VARIANT_MODELS, sample_id: str) -> VARIANT_MODELS:
+    """For STRs, return a shallow copy with a sample-scoped info dict. Other variant types pass through unchanged."""
+    if isinstance(var, ShortTandemRepeat):
+        copy = var.model_copy(deep=False)
+        copy.info = {
+            **var.info,
+            'sample_repeats': var.sample_repeats[sample_id],
+            'sample_repeat_details': var.sample_repeat_details[sample_id],
+        }
+        return copy
+    return var
 
 
 @dataclass
@@ -46,16 +59,19 @@ class GlobalFilter:
     small_gnomad_hemi: ClassVar[int] = config_retrieve(['ValidateMOI', 'gnomad_max_hemizygotes'])
 
     # filters specific to SVs
+    # todo the field could have a different name
     sv_dict: ClassVar[dict[str, float]] = {
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'gnomad_sv_max_af']),
     }
 
-    def too_common(self, variant: SmallVariant | StructuralVariant, applied_moi: str | None = None) -> bool:  # noqa: PLR0911
+    def too_common(  # noqa: PLR0911
+        self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
+    ) -> bool:
         """
         Check if a variant is too common in the population
 
         Args:
-            variant (SmallVariant | StructuralVariant): the variant to check
+            variant (SmallVariant | ShortTandemRepeat | StructuralVariant): the variant to check
             applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
 
         Returns:
@@ -149,6 +165,9 @@ class GlobalFilter:
                 )
                 return True
 
+        elif isinstance(variant, ShortTandemRepeat):
+            return False
+
         else:
             raise ValueError('Variant type not recognised')
 
@@ -180,12 +199,14 @@ class DominantFilter:
         'gnomad_v2.1_sv_AF': config_retrieve(['ValidateMOI', 'dominant_gnomad_sv_max_af']),
     }
 
-    def too_common(self, variant: SmallVariant | StructuralVariant, applied_moi: str | None = None) -> bool:
+    def too_common(
+        self, variant: SmallVariant | ShortTandemRepeat | StructuralVariant, applied_moi: str | None = None
+    ) -> bool:
         """
         Check if a variant is too common in the population
 
         Args:
-            variant (SmallVariant | StructuralVariant): the variant to check
+            variant (SmallVariant | ShortTandemRepeat | StructuralVariant): the variant to check
             applied_moi (str | None): MOI under which this filter is being applied (for exclusion logging only)
 
         Returns:
@@ -260,6 +281,9 @@ class DominantFilter:
                     },
                 )
                 return True
+
+        elif isinstance(variant, ShortTandemRepeat):
+            return False
 
         else:
             raise ValueError('Variant type not recognised')
@@ -802,7 +826,7 @@ class DominantAutosomal(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -877,7 +901,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         sample=sample_id,
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
-                        var_data=principal,
+                        var_data=get_str_var_data(principal, sample_id),
                         categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -952,7 +976,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
@@ -1017,7 +1041,7 @@ class XDominant(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -1105,7 +1129,7 @@ class XPseudoDominantFemale(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -1172,7 +1196,7 @@ class XRecessiveMale(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
@@ -1238,7 +1262,7 @@ class XRecessiveFemaleHom(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
@@ -1315,7 +1339,7 @@ class XRecessiveFemaleCH(BaseMoi):
                         sample=sample_id,
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
-                        var_data=principal,
+                        var_data=get_str_var_data(principal, sample_id),
                         categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
@@ -1387,7 +1411,7 @@ class Mitochondrial(BaseMoi):
                     sample=sample_id,
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
-                    var_data=principal,
+                    var_data=get_str_var_data(principal, sample_id),
                     categories={key: get_granular_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),

@@ -191,7 +191,11 @@ def annotate_all_transcript_consequences(
                     mane[x.transcript]['mane_id'],
                     MISSING_STRING,
                 ),
-                gene_id=ensgs[mt.locus.contig].get(x.gene, x.gene),
+                gene_id=hl.if_else(
+                    ensgs.contains(mt.locus.contig),
+                    ensgs[mt.locus.contig].get(x.gene, x.gene),
+                    x.gene,
+                ),
             ),
             mt.transcript_consequences,
         ),

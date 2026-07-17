@@ -21,6 +21,7 @@ from talos.liftover.lift_2_0_0_to_2_1_0 import resultdata as rd_200_to_210
 from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
 from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
+from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -330,13 +331,20 @@ class SmallVariant(VariantCommon):
 
 
 class StructuralVariant(VariantCommon):
-    """
-    placeholder for any methods/data specific to Structural Variants
-    """
+    """Placeholder for any methods/data specific to Structural Variants."""
+
+
+class ShortTandemRepeat(VariantCommon):
+    """Sub-class designed to parse STR VCFs into a suitable common format."""
+
+    locus: str
+    sample_filter: dict[str, str] = Field(default_factory=dict, exclude=True)
+    sample_repeats: dict[str, tuple[int, int] | tuple[int]] = Field(default_factory=dict, exclude=True)
+    sample_repeat_details: dict[str, dict] = Field(default_factory=dict, exclude=True)
 
 
 # register all interchangeable models here
-VARIANT_MODELS = SmallVariant | StructuralVariant
+VARIANT_MODELS = SmallVariant | StructuralVariant | ShortTandemRepeat
 
 
 class ReportPanel(BaseModel):
@@ -438,6 +446,8 @@ class PanelApp(BaseModel):
     participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     creation_date: str = Field(default=get_granular_date())
+    str_genes: set[str] = Field(default_factory=set)
+    str_symbols: set[str] = Field(default_factory=set)
 
 
 class DownloadedPanelAppGenePanelDetail(BaseModel):
@@ -468,6 +478,8 @@ class DownloadedPanelApp(BaseModel):
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     date: str = Field(default=get_granular_date())
+    str_genes: set[str] = Field(default_factory=set)
+    str_symbols: set[str] = Field(default_factory=set)
 
 
 class ResultMeta(BaseModel):
@@ -567,6 +579,7 @@ LIFTOVER_METHODS: dict = {
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
+        '2.2.0_2.3.0': pa_220_to_230,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,

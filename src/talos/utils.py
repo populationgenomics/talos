@@ -12,6 +12,7 @@ import string
 import zoneinfo
 from collections import defaultdict
 from datetime import datetime
+from functools import cache
 from itertools import chain, combinations, combinations_with_replacement, islice
 from random import choices
 from typing import TYPE_CHECKING, Any
@@ -21,13 +22,16 @@ from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
 from mendelbrot.pedigree_parser import PedigreeParser
+from numpy import isnan
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
     Coordinates,
+    PanelApp,
     ResultData,
+    ShortTandemRepeat,
     SmallVariant,
     StructuralVariant,
     lift_up_model_version,
@@ -74,6 +78,8 @@ PHASE_BROKEN: bool = False
 
 # not in use yet, if we want to reduce the number of TranscriptConsequence entries we store, this is a good start
 BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_gene_variant']
+
+STR_RANGE = re.compile(r'min(?P<min>[0-9]+)max(?P<max>[0-9]+)$')
 
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
@@ -132,6 +138,14 @@ def generator_chunks(generator, size):
     iterator = iter(generator)
     for first in iterator:
         yield list(chain([first], islice(iterator, size - 1)))
+
+
+@cache
+def get_categories_translated(conf_string: str = 'support_categories') -> set[str]:
+    """One central method to parse categories from config."""
+    support_categories = {word.lower() for word in config_retrieve(['ValidateMOI', conf_string], [])}
+    support_categories.update({translate_category(x) for x in support_categories})
+    return support_categories
 
 
 @retry(
@@ -399,6 +413,51 @@ def organise_svdb_doi(info_dict: dict[str, Any]):
     info_dict['svdb_doi'] = doi_urls
 
 
+def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | tuple[int, int] | None]]:
+    """
+    Parse the pipe-delimited disease details for this sample & locus.
+    Each block is in the format "Disease__MOI__NormalRange__IntermediateRange__PathogenicThreshold".
+    Ranges can be missing: "."
+    Other values can be missing: "NA"
+
+    Args:
+        detail_string: the single pipe-delimited String
+
+    Returns:
+        dict of each disease name and its related thresholds and ranges
+    """
+
+    results: dict[str, dict] = {}
+
+    # missing value = no details, return an empty dict
+    if detail_string == '.':
+        return results
+
+    # parse each disease's data separately
+    for disease_block in detail_string.split('|'):
+        # split up the formatted string
+        gene, moi, norm, inter, pathogenic = disease_block.split('__')
+
+        # try and detect the normal and intermediate ranges
+        normal_range: None | tuple[int, int] = None
+        if matchy := re.match(STR_RANGE, norm):
+            normal_range = (int(matchy.group('min')), int(matchy.group('max')))
+
+        inter_range: None | tuple[int, int] = None
+        if matchy := re.match(STR_RANGE, inter):
+            inter_range = (int(matchy.group('min')), int(matchy.group('max')))
+
+        # build the
+        results[gene] = {
+            'moi': moi,
+            'norm': normal_range,
+            'inter': inter_range,
+            'pathogenic': pathogenic,
+        }
+
+    return results
+
+
 def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_ratios: dict[str, float]) -> None:
     """
     apply some late checking on de novo attributes
@@ -424,8 +483,63 @@ def organise_de_novo(info_dict: dict[str, Any], alt_depths: dict[str, int], ab_r
 
     # if we detected any failing samples against these rules, fish them out
     if to_pop:
-        logger.info(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
+        logger.debug(f'Removing de novo status for {len(to_pop)} samples: {", ".join(to_pop)}')
         info_dict['categorysampledenovo'] = [sam for sam in info_dict['categorysampledenovo'] if sam not in to_pop]
+
+
+def create_str_variant(
+    var: 'cyvcf2.Variant',
+    samples: list[str],
+) -> ShortTandemRepeat | None:
+    """Takes a variant row from an STR 'joint-call', and parses into a Variant object."""
+
+    ignored_categories = get_categories_translated('ignore_categories')
+    if 'categorybooleanstr' in ignored_categories:
+        return None
+
+    coordinates = Coordinates(chrom=var.CHROM.replace('chr', ''), pos=var.POS, ref='STR', alt=var.ID)
+
+    # parse the info dict, and shove in a recognisable category label
+    boolean_categories = ['categorybooleanstr']
+    info: dict[str, Any] = {x.lower(): y for x, y in var.INFO} | {'categorybooleanstr': 1}
+
+    if info.get('locus') in config_retrieve(['ValidateMOI', 'noisy_strs'], []):
+        return None
+
+    # shuffle the gene ID (ENSG) to match the location Hail classifiers put it
+    info['gene_id'] = info.pop('gene')
+
+    het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
+
+    # no samples with an STR call, reject the whole variant row
+    if not (het_samples or hom_samples):
+        return None
+
+    # get repeat counts for each sample with a variant call
+    vcf_repcn = dict(zip(samples, var.format('REPCN'), strict=True))
+
+    disease_details = dict(zip(samples, var.format('DISEASE_DETAILS'), strict=True))
+
+    # dictionary to record repeat counts for called variants - tuple of length 1 | 2
+    repeat_counts: dict[str, tuple[int, int] | tuple[int]] = {}
+    sample_disease_details: dict = {}
+    for sample_id in het_samples | hom_samples:
+        # strip out numpy.nan(float64) values, cast the real values as floats
+        repeat_counts[sample_id] = tuple(int(value) for value in vcf_repcn[sample_id] if ~isnan(value))  # type: ignore[assignment]
+        sample_disease_details[sample_id] = parse_str_disease_details(disease_details[sample_id])
+
+    return ShortTandemRepeat(
+        coordinates=coordinates,
+        locus=var.ID,
+        info=info,
+        het_samples=het_samples,
+        hom_samples=hom_samples,
+        boolean_categories=boolean_categories,
+        ignored_categories=ignored_categories,
+        support_categories=get_categories_translated(),
+        sample_repeats=repeat_counts,
+        sample_repeat_details=sample_disease_details,
+    )
 
 
 def create_small_variant(
@@ -454,10 +568,8 @@ def create_small_variant(
         ),
     )
 
-    # optionally - ignore some categories from this analysis
-    # keep it super flexible, lower case and a translated version
-    ignored_categories = {word.lower() for word in config_retrieve(['ValidateMOI', 'ignore_categories'], [])}
-    ignored_categories.update({translate_category(x) for x in ignored_categories})
+    # optionally - ignore some categories from this analysis. Super flexible, lower case and a translated version.
+    ignored_categories = get_categories_translated('ignore_categories')
 
     # set the class attributes - skipping over categories we've chosen to ignore
     boolean_categories = [
@@ -470,10 +582,6 @@ def create_small_variant(
         for key in info
         if key.startswith('categorysample') and key.replace('categorysample', '') not in ignored_categories
     ]
-
-    # the categories to be treated as support-only for this runtime - make it a set
-    support_categories = {word.lower() for word in config_retrieve(['ValidateMOI', 'support_categories'], [])}
-    support_categories.update({translate_category(x) for x in support_categories})
 
     # overwrite with true booleans
     for cat in boolean_categories:
@@ -522,7 +630,7 @@ def create_small_variant(
         boolean_categories=boolean_categories,
         sample_categories=sample_categories,
         ignored_categories=ignored_categories,
-        support_categories=support_categories,
+        support_categories=get_categories_translated(),
         phased=phased,
         alt_depths=alt_depths,
         depths=depths,
@@ -595,8 +703,8 @@ def canonical_contigs_from_vcf(reader) -> set[str]:
 
 def gather_gene_dict_from_contig(
     contig: str,
-    variant_source: 'cyvcf2.VCFReader',
-    sv_source: 'cyvcf2.VCFReader | None' = None,
+    variant_sources: dict[str, 'cyvcf2.VCFReader'],
+    panelapp: PanelApp,
 ) -> GeneDict:
     """
     takes a cyvcf2.VCFReader instance, and a specified chromosome
@@ -606,8 +714,8 @@ def gather_gene_dict_from_contig(
 
     Args:
         contig (): contig name from VCF header
-        variant_source (): the VCF reader instance
-        sv_source (): an optional list of SV VCFs
+        variant_sources (): dict mapping each variant type to a VCF reader instance
+                            known types: small, sv, mito (chrM only), str
 
     Returns:
         A lookup in the form
@@ -631,35 +739,54 @@ def gather_gene_dict_from_contig(
     contig_dict = defaultdict(list)
 
     # iterate over all variants on this contig and store by unique key
-    # if contig has no variants, prints an error and returns []
-    for variant in variant_source(contig):
-        if (small_variant := create_small_variant(var=variant, samples=variant_source.samples)) is None:
+    small_samples = variant_sources['small'].samples
+    for variant in variant_sources['small'](contig):
+        if (small_variant := create_small_variant(var=variant, samples=small_samples)) is None:
             continue
 
         if small_variant.coordinates.string_format in blacklist:
             logger.info(f'Skipping blacklisted variant: {small_variant.coordinates.string_format}')
             continue
-
-        # update the variant count
         contig_variants += 1
-
-        # update the gene index dictionary
         contig_dict[small_variant.info['gene_id']].append(small_variant)
 
     # parse the SV VCF if provided, but not a necessary part of processing
-    if sv_source:
+    if variant_sources.get('sv'):
+        sv_samples = variant_sources['sv'].samples
         structural_variants = 0
-        for variant in sv_source(contig):
-            # create an abstract SV variant
-            structural_variant = create_structural_variant(var=variant, samples=sv_source.samples)
-
-            # update the variant count
+        for variant in variant_sources['sv'](contig):
+            structural_variant = create_structural_variant(var=variant, samples=sv_samples)
             structural_variants += 1
-
-            # update the gene index dictionary
             contig_dict[structural_variant.info['gene_id']].append(structural_variant)
-
         logger.info(f'Contig {contig} contained {structural_variants} SVs')
+
+    # parse STR VCF if provided
+    if variant_sources.get('str'):
+        # limit STRs to PanelApp green-evidence accepted repeat disorder genes
+        repeat_disorder_genes = panelapp.str_genes
+        str_samples = variant_sources['str'].samples
+        str_variants = 0
+        for variant in variant_sources['str'](contig):
+            if str_var := create_str_variant(var=variant, samples=str_samples):
+                # skip any which aren't accepted in PanelApp's repeat disorders panel
+                if str_var.info['gene_id'] not in repeat_disorder_genes:
+                    continue
+
+                str_variants += 1
+                contig_dict[str_var.info['gene_id']].append(str_var)
+
+        logger.info(f'Contig {contig} contained {str_variants} STRs')
+
+    # special segment for mito data - if Mito is provided and chrM is being searched, provide variants
+    if contig == 'chrM' and variant_sources.get('mito'):
+        mito_samples = variant_sources['mito'].samples
+        mito_variants = 0
+        for variant in variant_sources['mito'](contig):
+            if mito_var := create_small_variant(var=variant, samples=mito_samples):
+                mito_variants += 1
+                contig_dict[mito_var.info['gene_id']].append(mito_var)
+
+        logger.info(f'Mito VCF contained {mito_variants} variants')
 
     logger.info(f'Contig {contig} contained {contig_variants} variants, in {len(contig_dict)} genes')
 
