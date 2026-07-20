@@ -49,10 +49,10 @@ def test_results_shell(pedigree_path: str):
             'mother_2': {'external_id': 'mother_2', 'hpo_terms': []},
         },
     )
+    source_samples = {'small': {'male'}, 'sv': {'female'}}
     shell = prepare_results_shell(
         results_meta=ResultMeta(),
-        small_samples={'male'},
-        sv_samples={'female'},
+        source_samples=source_samples,
         pedigree=PedigreeParser(pedigree_path=pedigree_path),
         panelapp=panelapp,
     )

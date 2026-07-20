@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 permissions:
   id-token: write
@@ -18,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     outputs:
-      matrix: ${{ steps.get_next_version.outputs.next_version }}
+      next_version: ${{ steps.get_next_version.outputs.next_version }}
     steps:
       - name: 'Checkout repo'
         uses: actions/checkout@v4
@@ -55,13 +56,12 @@ jobs:
     environment: production
     needs:
       - get_next_version
-    if: ${{ needs.get_next_version.outputs.matrix != '{"include":[]}' && needs.get_next_version.outputs.matrix != '' }}
-    strategy:
-      matrix: ${{ fromJson(needs.get_next_version.outputs.matrix) }}
+    if: ${{ needs.get_next_version.outputs.next_version != '' && github.event.pull_request.draft == false }}
     env:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
       CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+      TAG: ${{ needs.get_next_version.outputs.next_version }}${{ github.ref == 'refs/heads/dev' && '_dev' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,9 +84,8 @@ jobs:
       - name: 'build image'
         run: |
           docker build . -f src/talos/cpg_internal_scripts/CPG_Dockerfile \
-          --build-arg VERSION=${{ matrix.tag }} \
-          --tag ${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}
+          --tag ${{ env.IMAGES_PREFIX }}/talos:${{ env.TAG }}
 
       - name: 'push image'
         run: |
-          docker push "${{ env.IMAGES_PREFIX }}/${{ matrix.name }}:${{ matrix.tag }}"
+          docker push "${{ env.IMAGES_PREFIX }}/talos:${{ env.TAG }}"

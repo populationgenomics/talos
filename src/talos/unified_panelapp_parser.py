@@ -430,6 +430,10 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
 
         panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}
 
+    # add in the STR content
+    panelapp_data.str_genes = cached_panelapp.str_genes
+    panelapp_data.str_symbols = cached_panelapp.str_symbols
+
     # validate and write using pydantic
     valid_cohort_details = PanelApp.model_validate(panelapp_data)
     with open(output_file, 'w', encoding='utf-8') as handle:

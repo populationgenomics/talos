@@ -9,6 +9,7 @@ Parses a GFF3 file, and generates a BED file of gene regions, plus padding, gene
 """
 
 import gzip
+import json
 import re
 from argparse import ArgumentParser
 
@@ -31,7 +32,13 @@ TYPES_TO_KEEP: set[str] = {'gene', 'ncRNA_gene', 'snRNA'}
 CANONICAL_CONTIGS = [f'chr{x}' for x in list(range(1, 23))] + ['chrX', 'chrY', 'chrM']
 
 
-def main(gff3_file: str, unmerged_output: str, merged_output: str, flanking: int = 2000):
+def main(
+    gff3_file: str,
+    unmerged_output: str,
+    merged_output: str,
+    flanking: int = 2000,
+    json_output: str | None = None,
+):
     """
     Read the GFF3 file, and generate a BED file of gene regions, plus padding
     Args:
@@ -39,21 +46,29 @@ def main(gff3_file: str, unmerged_output: str, merged_output: str, flanking: int
         unmerged_output (str): path to the intended BED output file
         merged_output (str): path to generate a BED file with merged overlapping rows
         flanking (int): number of bases to add before and after each gene
+        json_output (str | None): optional, path to write a Symbol: ENSG dictionary
     """
 
-    unmerged_lines = generate_bed_lines(gff3_file, unmerged_output, flanking)
+    unmerged_lines, as_dict = generate_bed_lines(gff3_file, unmerged_output, flanking)
     merge_output(unmerged_lines, merged_output)
+
+    # if a json version was requested, write that out
+    if json_output is not None:
+        with open(json_output, 'w') as write_handle:
+            json.dump(as_dict, write_handle, indent=4)
 
 
 def generate_bed_lines(
     gff3_file: str,
     output: str,
     flanking: int = FLANKING_REGION,
-) -> list[tuple[str, int, int]]:
+) -> tuple[list[tuple[str, int, int]], dict[str, str]]:
     """
     Generate the new BED file, and return the lines as a list of lists for merging.
     """
     output_lines: list[tuple[str, int, int]] = []
+    output_as_dict: dict[str, str] = {}
+
     # open and iterate over the GFF3 file
     with gzip.open(gff3_file, 'rt') as handle, open(output, 'w') as write_handle:
         for line in handle:
@@ -85,6 +100,8 @@ def generate_bed_lines(
                 print(f'Failed to extract gene name from {line_as_list[DETAILS_INDEX]}')
                 continue
 
+            output_as_dict[gene_name] = gene_id
+
             # write the line to the output
             output_list = [
                 f'chr{line_as_list[CHROM_INDEX]}',
@@ -100,7 +117,7 @@ def generate_bed_lines(
                     int(line_as_list[END_INDEX]) + flanking,
                 ),
             )
-    return output_lines
+    return output_lines, output_as_dict
 
 
 def merge_output(
@@ -159,12 +176,17 @@ def cli_main():
     parser.add_argument(
         '--merged_output',
         help='Path to output file, regions merged',
-        required=False,
+        required=True,
     )
     parser.add_argument(
         '--flanking',
         help='Regions to add to each gene',
         default=FLANKING_REGION,
+    )
+    parser.add_argument(
+        '--json_output',
+        help='Write a {Gene Symbol: ENSG, } dictionary in JSON format.',
+        required=False,
     )
     args = parser.parse_args()
     main(
@@ -172,6 +194,7 @@ def cli_main():
         unmerged_output=args.unmerged_output,
         merged_output=args.merged_output,
         flanking=args.flanking,
+        json_output=args.json_output,
     )
 
 

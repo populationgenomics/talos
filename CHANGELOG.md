@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[11.1.0] - 2026-07
+
+### Removed
+
+  * All references to the private build of BCFtools. the `--greedy` behaviour is now released as standard in BCFtools 1.24
+
+### Added
+
+  * STR functionality! This is currently specific to STRipy data, with a script to translate STRipy JSON data into a pseudo-joint called VCF
+  * If there is appetite for STR functionality, this could be expanded to other STR callers.
+
+<!--latest-end-->
+
 [11.0.0] - 2026-05-15
 
 ### Added
@@ -47,8 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * By moving to the CPG fork, we have altered this behaviour. This may result in slightly slower annotation times, but should always present both coding and non-coding gene annotations where appropriate.
 
 > NOTE! For existing Talos users, obtaining this extra annotation will require the re-run of the annotation workflow. One example gene which is known to be obscured by this default behaviour was RNU2-2, but there may be others.
-
-<!--latest-end-->
 
 [10.0.1] - 2026-03-23
 

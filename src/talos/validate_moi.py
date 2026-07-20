@@ -279,8 +279,7 @@ def count_families(pedigree: PedigreeParser) -> dict:
 
 def prepare_results_shell(
     results_meta: ResultMeta,
-    small_samples: set[str],
-    sv_samples: set[str],
+    source_samples: dict[str, set[str]],
     pedigree: PedigreeParser,
     panelapp: PanelApp,
 ) -> ResultData:
@@ -289,8 +288,7 @@ def prepare_results_shell(
 
     Args:
         results_meta (): metadata for the results
-        small_samples (): samples in the Small VCF
-        sv_samples (): samples in the SV VCFs
+        source_samples (): samples indexed by variant type
         pedigree (): the Pedigree object, already reduced to samples in the callset
         panelapp (): dictionary of gene data
 
@@ -328,8 +326,8 @@ def prepare_results_shell(
                     if panel_id in panelapp.metadata
                 },
                 solved=bool(participant.sample_id in solved_cases or participant.family_id in solved_cases),
-                present_in_small=participant.sample_id in small_samples,
-                present_in_sv=participant.sample_id in sv_samples,
+                present_in_small=participant.sample_id in source_samples['small'],
+                present_in_sv=participant.sample_id in source_samples.get('sv', set()),
             ),
         )
 
@@ -339,8 +337,9 @@ def prepare_results_shell(
 def cli_main():
     parser = ArgumentParser(description='Startup commands for the MOI testing phase of Talos')
     parser.add_argument('--labelled_vcf', help='Category-labelled VCF')
-    parser.add_argument('--labelled_sv', help='Category-labelled SV VCF', default=None)
-    parser.add_argument('--labelled_mito', help='Category-labelled Mito VCF', default=None)
+    parser.add_argument('--labelled_sv', help='Optional, Category-labelled SV VCF', default=None)
+    parser.add_argument('--labelled_mito', help='Optional, Category-labelled Mito VCF', default=None)
+    parser.add_argument('--str', help='Optional, VCF containing STR data', default=None)
     parser.add_argument('--output', help='Prefix to write JSON results to', required=True)
     parser.add_argument('--panelapp', help='QueryPanelApp JSON', required=True)
     parser.add_argument('--pedigree', help='Path to PED file', required=True)
@@ -354,6 +353,7 @@ def cli_main():
         pedigree=args.pedigree,
         labelled_sv=args.labelled_sv,
         labelled_mito=args.labelled_mito,
+        str_vcf=args.str,
         previous=args.previous,
     )
 
@@ -365,6 +365,7 @@ def main(
     pedigree: str,
     labelled_sv: str | None = None,
     labelled_mito: str | None = None,
+    str_vcf: str | None = None,
     previous: str | None = None,
 ):
     """
@@ -378,6 +379,7 @@ def main(
         labelled_vcf (str): VCF output from Hail Labelling stage
         labelled_sv (str | None): optional second VCF (SV)
         labelled_mito (str | None): optional Mitochondrial VCF
+        str_vcf (str | None): optional STR 'joint-call' VCF
         output (str): location to write output file
         panelapp_path (str): location of PanelApp data JSON
         pedigree (str): location of PED file
@@ -398,6 +400,7 @@ def main(
     # initialise the optional MOI-stage exclusion logger; no-op when disabled in config
     exclusion_logger = get_exclusion_logger()
 
+    # shove everything in a try-except to make sure the global logger is closed down
     try:
         panelapp: PanelApp = read_json_from_path(
             panelapp_path,
@@ -413,26 +416,31 @@ def main(
 
         result_list: list[ReportVariant] = []
 
-        # collect all sample IDs from each VCF type
-        small_vcf_samples: set[str] = set()
-        sv_vcf_samples: set[str] = set()
-
-        # open the small variant VCF using a cyvcf2 reader
+        # open the small variant VCF using a cyvcf2 reader - mandatory data source
         vcf_opened = VCFReader(labelled_vcf)
-        small_vcf_samples.update(set(vcf_opened.samples))
+        source_samples: dict[str, set[str]] = {'small': set(vcf_opened.samples)}
+        source_vcfs: dict[str, VCFReader] = {'small': vcf_opened}
 
         # optional SV behaviour
-        sv_opened = None
         if labelled_sv:
             sv_opened = VCFReader(labelled_sv)
-            sv_vcf_samples = set(sv_opened.samples)
+            source_samples['sv'] = set(sv_opened.samples)
+            source_vcfs['sv'] = sv_opened
 
-        all_samples = small_vcf_samples.union(sv_vcf_samples)
-
-        mito_opened = None
+        # optional mito behaviour
         if labelled_mito:
             mito_opened = VCFReader(labelled_mito)
-            all_samples |= set(mito_opened.samples)
+            source_vcfs['mito'] = mito_opened
+            source_samples['mito'] = set(mito_opened.samples)
+
+        # optional str behaviour
+        if str_vcf:
+            str_opened = VCFReader(str_vcf)
+            source_vcfs['str'] = str_opened
+            source_samples['str'] = set(str_opened.samples)
+
+        # collect all unique samples across the various sources
+        all_samples = set.union(*source_samples.values())
 
         # parse the pedigree from the file
         ped = PedigreeParser(pedigree)
@@ -454,21 +462,10 @@ def main(
             # assemble {gene: [var1, var2, ..]}
             contig_dict = gather_gene_dict_from_contig(
                 contig=contig,
-                variant_source=vcf_opened,
-                sv_source=sv_opened,
+                variant_sources=source_vcfs,
+                panelapp=panelapp,
             )
 
-            result_list.extend(
-                apply_moi_to_variants(
-                    variant_dict=contig_dict,
-                    moi_lookup=moi_lookup,
-                    panelapp_data=panelapp.genes,
-                    pedigree=ped,
-                ),
-            )
-
-        if mito_opened:
-            contig_dict = gather_gene_dict_from_contig('chrM', variant_source=mito_opened)
             result_list.extend(
                 apply_moi_to_variants(
                     variant_dict=contig_dict,
@@ -488,8 +485,7 @@ def main(
         # create a shell to store results in, adds participant metadata
         results_model = prepare_results_shell(
             results_meta=results_meta,
-            small_samples=small_vcf_samples,
-            sv_samples=sv_vcf_samples,
+            source_samples=source_samples,
             pedigree=ped,
             panelapp=panelapp,
         )

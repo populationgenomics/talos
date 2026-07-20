@@ -591,7 +591,7 @@ wheels = [
 
 [[package]]
 name = "cpg-utils"
-version = "5.4.2"
+version = "5.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
@@ -600,13 +600,15 @@ dependencies = [
     { name = "deprecated" },
     { name = "frozendict" },
     { name = "google-auth" },
+    { name = "google-auth-oauthlib" },
     { name = "google-cloud-artifact-registry" },
     { name = "google-cloud-secret-manager" },
+    { name = "metamist" },
     { name = "requests" },
     { name = "tabulate" },
     { name = "toml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/55/e069ef106f576e3e7916f4801d56dc2efd867387ff4fc0b6593815a54f47/cpg_utils-5.4.2.tar.gz", hash = "sha256:eb6f0808655e836171db279b44db3bff66b4e7a9b3a8629caf630483e7cc5bc6", size = 43646, upload-time = "2025-08-13T01:56:47.044Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/9e/145494610bd318645f834a0d8f7e7b0f819f77337b334254bb9ccfa89bd3/cpg_utils-5.7.0.tar.gz", hash = "sha256:aba177361a73003836de4a8c310dadccf6e7bff16760bf51bbb263a133d2d421", size = 51003, upload-time = "2026-06-30T21:32:18.12Z" }
 
 [[package]]
 name = "cryptography"
@@ -2321,6 +2323,26 @@ wheels = [
 ]
 
 [[package]]
+name = "pysam"
+version = "0.24.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/09/9b/e856ad525ed0847810cca936ee551b8e0a709525fea34e0e0e723173f62d/pysam-0.24.0.tar.gz", hash = "sha256:db0f86c15532ef5dad263748324f45d9a639668e3497d8cabce54ef47a1a78d9", size = 5201690, upload-time = "2026-04-27T12:26:50.879Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/25/ed/5b642a89de9a4cf5ce21f70b4c2c2cd10720ef12cb6ef60b005ecf9dcb08/pysam-0.24.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d06a94e2886cb8affba77bc4fe337513f29387113d708d14609765aa8bb143d3", size = 6217780, upload-time = "2026-04-27T12:25:00.598Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/39/2c9aea082383c8d41d0d8b8f9907dc6273f8cee47a8c83d0c8bad02488b4/pysam-0.24.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:4d3260795e066f659ea94e6b7cac07727ef2877b874f69029b6a2e48551d72bd", size = 5946970, upload-time = "2026-04-27T12:25:02.783Z" },
+    { url = "https://files.pythonhosted.org/packages/12/0b/d9c1155257f2c2d0d8a33d15011964bf0c9ad927f85fa57f00965b0c1cfc/pysam-0.24.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9b299f6128601356e25ca94040eef9dadb1e196aa2f36736c93948aaa821c4bc", size = 22114024, upload-time = "2026-04-27T12:25:04.779Z" },
+    { url = "https://files.pythonhosted.org/packages/21/48/92dddc8df65b576c9d30752650c89301b5222d4ac10187724796cedfd723/pysam-0.24.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:98a40440b16bbf67b696914a10acc241a0cd0fa02dcb14aee8e614eb2c5d8b37", size = 22675883, upload-time = "2026-04-27T12:25:07.582Z" },
+    { url = "https://files.pythonhosted.org/packages/07/ff/eee9caac42c255150cc7eae19afa71bd2bb8347fd9895196f7daae2ccd62/pysam-0.24.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:8e4f5f1ebf3bdcad4c3b8f3a656ec2afdc44f0efc96ce8523858556e95d8ca9a", size = 22056750, upload-time = "2026-04-27T12:25:10.127Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/7f/da483a98b11690f3c4b24f4aa12b7e0d0d1e19da8b8ab45785c129240eae/pysam-0.24.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:fcce1edc48a9d8610958296c0aaf3e28723d143113bcd9b7c13b5cd821300d2a", size = 22364034, upload-time = "2026-04-27T12:25:12.709Z" },
+    { url = "https://files.pythonhosted.org/packages/68/b3/1d586b4db6ff7220ac1df4b9588fae7c2622680ca51d53aa7cf32ee73604/pysam-0.24.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:48524b2132158ffeca7ca21c52490e92dca6687446faad95522db2354e376641", size = 8711987, upload-time = "2026-04-27T12:25:15.415Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/29/5fe6f53416cfc17cbe1440f5f55b655e5dcb64b67e18cae9b0a38366db0b/pysam-0.24.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:58e347406cec254bd68ac0f50da1e772273c3c891f65eab4b54641f2a89e8644", size = 8441919, upload-time = "2026-04-27T12:25:17.984Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/75/69379edfcd26c88f749e29b5d3aee9044fbd201c1a678371e7ccd9010937/pysam-0.24.0-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ed1f202fe27f2bd677b3d210616890a8cbf043043ea89404ada3c121a5e9a20e", size = 25122944, upload-time = "2026-04-27T12:25:20.982Z" },
+    { url = "https://files.pythonhosted.org/packages/13/6d/2e2a80cda66b152ec143ceb1784e56d8abc6abeeeb65f8ef6aa52c731038/pysam-0.24.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8de0b19109da0c4aa8e44c6fef2fae97f0e616f3cdf5be0f1b74f7946b8de262", size = 25697041, upload-time = "2026-04-27T12:25:24.566Z" },
+    { url = "https://files.pythonhosted.org/packages/91/70/852f6917e9d7592482db2c43ccd91fa57158cf20ba07c31e9a477af84b9d/pysam-0.24.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:d528fc09a44c85b7d4018ba8be543e1cc2e7a4d06eeb779a28ac34947e182f5a", size = 25069351, upload-time = "2026-04-27T12:25:27.617Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/6b/0596765a59253958488fc7a8816df347d815ac3850a7a9cab785c1b1e184/pysam-0.24.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:1e9f20388c80dd0e4c09dfd7fe38adc9fdf771ec665e071e1b7350dc8da2d692", size = 25378507, upload-time = "2026-04-27T12:25:30.504Z" },
+]
+
+[[package]]
 name = "pyspark"
 version = "3.5.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2728,7 +2750,7 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "11.0.0"
+version = "11.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "clinvarbitration" },
@@ -2762,6 +2784,9 @@ docs = [
     { name = "mkdocs-include-markdown-plugin" },
     { name = "mkdocs-material" },
 ]
+stripy = [
+    { name = "pysam" },
+]
 test = [
     { name = "bump-my-version" },
     { name = "pre-commit" },
@@ -2776,7 +2801,7 @@ requires-dist = [
     { name = "clinvarbitration", specifier = "~=2.2.7" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
     { name = "cpg-flow", marker = "extra == 'cpg'", specifier = "~=1.3" },
-    { name = "cpg-utils", specifier = ">=5.4.1" },
+    { name = "cpg-utils", specifier = "~=5.7" },
     { name = "cyvcf2", specifier = ">=0.30.18" },
     { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },
     { name = "grpcio-status", specifier = ">=1.48,<1.50" },
@@ -2792,6 +2817,7 @@ requires-dist = [
     { name = "pendulum", specifier = ">=3.1.0" },
     { name = "pre-commit", marker = "extra == 'test'" },
     { name = "pydantic", specifier = ">=2.5.2" },
+    { name = "pysam", marker = "extra == 'stripy'" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pytest-httpx", marker = "extra == 'test'" },
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.6.0" },
@@ -2801,7 +2827,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=9.0.0" },
     { name = "toml", specifier = "==0.10.2" },
 ]
-provides-extras = ["cpg", "test", "docs"]
+provides-extras = ["cpg", "test", "docs", "stripy"]
 
 [[package]]
 name = "tenacity"

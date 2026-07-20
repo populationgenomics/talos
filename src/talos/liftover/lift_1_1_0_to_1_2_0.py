@@ -2,8 +2,6 @@
 code for lifting over models from 1.1.0 to 1.2.0
 """
 
-from talos.config import config_retrieve
-
 
 def resultdata(data_dict: dict) -> dict:
     """
@@ -22,9 +20,9 @@ def resultdata(data_dict: dict) -> dict:
                 _ = variant['var_data'].pop('sample_support')
 
             # the list of categories which are being treated as support for this run
-            variant['var_data']['support_categories'] = config_retrieve(['ValidateMOI', 'support_categories'], [])
+            variant['var_data']['support_categories'] = []
             # the list of categories being ignored for this run
-            variant['var_data']['ignored_categories'] = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
+            variant['var_data']['ignored_categories'] = []
 
     data_dict['version'] = '1.2.0'
     return data_dict
