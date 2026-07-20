@@ -113,7 +113,7 @@ support_categories = ['alphamissense', 'clinvar0star']
 #super_logging_path = "exclusions.jsonl.gz"
 
 # any STR loci with unacceptably low signal-to-noise ratios - this is the 'locus' name from STRipy, not the gene ID
-noisy_strs = ['RUNX2']
+noisy_strs = ['ARX_1', 'ARX_2', 'HOXA13_1', 'HOXA13_2',  'HOXA13_3', 'TCF4', 'RUNX2']
 
 [RunHailFiltering]
 # variables affecting how the VCF variants are parsed, and AnalysisVariant objects are populated
