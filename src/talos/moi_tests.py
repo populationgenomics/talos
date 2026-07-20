@@ -583,6 +583,15 @@ class BaseMoi:
         Returns True if the sample passes; otherwise logs the first failing reason and returns False.
         Caller is responsible for any additional MOI-specific gates (sex, zygosity).
         """
+        if sample_id not in self.pedigree.participants:
+            self._log_sample_exclusion(
+                principal,
+                sample_id,
+                'participant_not_in_pedigree',
+                details={'allow_support': allow_support},
+            )
+            return False
+
         if self.pedigree.participants[sample_id].is_not_affected:
             # not logging, self-evident
             # self._log_sample_exclusion(principal, sample_id, 'sample_not_affected')
