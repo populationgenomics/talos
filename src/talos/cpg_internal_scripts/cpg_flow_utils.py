@@ -9,12 +9,28 @@ from metamist import graphql
 LONG_READ_STRING = 'LongRead'
 METAMIST_ANALYSIS_QUERY = graphql.gql(
     """
-    query MyQuery($dataset: String!, $type: String!) {
+    query MyQuery($dataset: String!, $type: String!, $meta: JSON) {
         project(name: $dataset) {
             analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED}) {
                 output
                 timestampCompleted
                 meta
+            }
+        }
+    }
+""",
+)
+LRS_ANALYSIS_QUERY = graphql.gql(
+    """
+    query MyQuery($dataset: String!, $type: String!, $meta: JSON) {
+        project(name: $dataset) {
+            analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED}) {
+                output
+                timestampCompleted
+                meta
+            }
+            sequencingGroups {
+              id
             }
         }
     }
@@ -153,13 +169,18 @@ def query_for_latest_analysis(
     """
 
     # swapping to a string we can freely modify
-    query_dataset = dataset
-    if config.config_retrieve(['workflow', 'access_level']) == 'test' and 'test' not in query_dataset:
-        query_dataset += '-test'
+    query_dataset = config.dataset_for_access_level(dataset)
 
     loguru.logger.info(f'Querying for {analysis_type} in {query_dataset}')
 
-    result = graphql.query(METAMIST_ANALYSIS_QUERY, variables={'dataset': query_dataset, 'type': analysis_type})
+    result = graphql.query(
+        METAMIST_ANALYSIS_QUERY,
+        variables={
+            'dataset': query_dataset,
+            'type': analysis_type,
+            'meta': {'stage': stage_name} if stage_name else {},
+        },
+    )
 
     # get all the relevant entries, and bin by date
     analysis_by_date = {}
@@ -181,10 +202,69 @@ def query_for_latest_analysis(
                 )
                 continue
 
-            if stage_name is not None and analysis['meta'].get('stage') != stage_name:
+            analysis_by_date[analysis['timestampCompleted']] = analysis['output']
+
+    if not analysis_by_date:
+        loguru.logger.warning(f'No Analysis Entries found for dataset {query_dataset}')
+        return None
+
+    # return the latest, determined by a sort on timestamp
+    # 2023-10-10... > 2023-10-09..., so sort on strings
+    return analysis_by_date[sorted(analysis_by_date)[-1]]
+
+@cache
+def query_for_latest_lrs_mt(
+    cohort: targets.Cohort,
+    sequencing_type: str = 'all',
+    stage_name: str | None = 'ExportSnpsIndelsVcfToMt',
+    overlap: str = 'any',
+) -> str | None:
+    """
+    Query for the latest analysis object for LRS data in the requested project.
+
+    Args:
+        cohort (str):          cohort object to use for SG IDs and dataset name
+        sequencing_type (str): optional, if set, only return entries with meta.sequencing_type == this
+        stage_name (str):      optional, if set, will only return entries with meta.stage == this
+        overlap (str):         mechanic for SG ID matching; "exact" = SG IDs in Cohort and Analysis must match exactly.
+    Returns:
+        str, the path to the latest object for the given type, or log a warning and return None
+    """
+
+    query_dataset = config.dataset_for_access_level(cohort.dataset.name)
+
+    loguru.logger.info(f'Querying for matrix table in {query_dataset}')
+
+    result = graphql.query(
+        LRS_ANALYSIS_QUERY,
+        variables={
+            'dataset': query_dataset,
+            'type': 'matrixtable',
+            'meta': {'stage': stage_name} if stage_name else {},
+        },
+    )
+
+    cohort_sgids = set(cohort.get_sequencing_group_ids())
+
+    # get all the relevant entries, and bin by date
+    analysis_by_date = {}
+    for analysis in result['project']['analyses']:
+        if isinstance(analysis('outputs'), dict) and (sequencing_type in {'all', analysis['meta'].get('sequencing_type')}):
+
+            # manually implementing an XOR check - long read (bool) and LongRead in output must match
+            if 'long_read' not in analysis['outputs']['path']:
+                loguru.logger.debug(f'Skipping {analysis["outputs"]} in dataset {query_dataset} - not long read.')
                 continue
 
-            analysis_by_date[analysis['timestampCompleted']] = analysis['output']
+            analysis_sgids = {sgid['id'] for sgid in analysis['sequencingGroups']}
+
+            # restrict on common samples, complete or partial overlap
+            if overlap == 'exact' and cohort_sgids != analysis_sgids:
+                continue
+            if overlap == 'any' and not cohort_sgids & analysis_sgids:
+                continue
+
+            analysis_by_date[analysis['timestampCompleted']] = analysis['outputs']['path']
 
     if not analysis_by_date:
         loguru.logger.warning(f'No Analysis Entries found for dataset {query_dataset}')

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from cpg_flow import targets, workflow
 from cpg_utils import config, hail_batch, to_path
 
-from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis
+from talos.cpg_internal_scripts.cpg_flow_utils import query_for_latest_analysis, query_for_latest_lrs_mt
 
 if TYPE_CHECKING:
     from hailtop.batch.job import BashJob
@@ -17,17 +17,26 @@ def make_vcf_extraction_job(
     job_attrs: dict,
 ) -> 'BashJob':
     """Create a Hail Batch job to extract VCF from an AnnotateCohort MatrixTable."""
+    long_read = config.config_retrieve(['workflow', 'long_read'], False)
 
+    if long_read:
+        input_mt = query_for_latest_lrs_mt(
+            cohort=cohort,
+            sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
+            stage_name='ExportSnpsIndelsVcfToMt',
+            overlap=config.config_retrieve(['workflow', 'overlap'], 'any'),
+        )
     # either get a mt from config, from metamist, or fail
-    if not (
-        input_mt := query_for_latest_analysis(
+    else:
+        input_mt = query_for_latest_analysis(
             dataset=workflow.get_multicohort().analysis_dataset.name,
             analysis_type='matrixtable',
             sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
-            long_read=config.config_retrieve(['workflow', 'long_read'], False),
+            long_read=long_read,
             stage_name='AnnotateCohort',
         )
-    ):
+
+    if input_mt is None:
         raise ValueError(f'No MatrixTable found in Metamist for {cohort.id}')
 
     # write all SG IDs in this Cohort to a file
