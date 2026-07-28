@@ -321,7 +321,7 @@ def query_for_latest_lrs_mt(
         output_path = analysis['output']
 
         # manually implementing an XOR check - long read (bool) and LongRead in output must match
-        if 'long_read' not in output_path:
+        if LONG_READ_STRING not in output_path:
             loguru.logger.debug(f'Skipping {output_path} in dataset {query_dataset} - not long read.')
             continue
 
