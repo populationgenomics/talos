@@ -250,12 +250,15 @@ def query_for_latest_lrs_mt(
     # get all the relevant entries, and bin by date
     analysis_by_date = {}
     for analysis in result['project']['analyses']:
-        if isinstance(analysis('outputs'), dict) and (
+        output_block = analysis['outputs']
+
+        if isinstance(output_block, dict) and (
             sequencing_type in {'all', analysis['meta'].get('sequencing_type')}
         ):
+            output_path = output_block['path']
             # manually implementing an XOR check - long read (bool) and LongRead in output must match
-            if 'long_read' not in analysis['outputs']['path']:
-                loguru.logger.debug(f'Skipping {analysis["outputs"]} in dataset {query_dataset} - not long read.')
+            if 'long_read' not in output_path:
+                loguru.logger.debug(f'Skipping {output_block} in dataset {query_dataset} - not long read.')
                 continue
 
             analysis_sgids = {sgid['id'] for sgid in analysis['sequencingGroups']}
@@ -266,7 +269,7 @@ def query_for_latest_lrs_mt(
             if overlap == 'any' and not cohort_sgids & analysis_sgids:
                 continue
 
-            analysis_by_date[analysis['timestampCompleted']] = analysis['outputs']['path']
+            analysis_by_date[analysis['timestampCompleted']] = output_path
 
     if not analysis_by_date:
         loguru.logger.warning(f'No Analysis Entries found for dataset {query_dataset}')
