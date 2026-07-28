@@ -252,9 +252,7 @@ def ideal_query_for_latest_lrs_mt(
     for analysis in result['project']['analyses']:
         output_block = analysis['outputs']
 
-        if isinstance(output_block, dict) and (
-            sequencing_type in {'all', analysis['meta'].get('sequencing_type')}
-        ):
+        if isinstance(output_block, dict) and (sequencing_type in {'all', analysis['meta'].get('sequencing_type')}):
             output_path = output_block['path']
             # manually implementing an XOR check - long read (bool) and LongRead in output must match
             if 'long_read' not in output_path:
@@ -280,20 +278,20 @@ def ideal_query_for_latest_lrs_mt(
     return analysis_by_date[sorted(analysis_by_date)[-1]]
 
 
-
 @cache
 def query_for_latest_lrs_mt(
     cohort: targets.Cohort,
-    sequencing_type: str = 'all',
     stage_name: str | None = 'ExportSnpsIndelsVcfToMt',
     overlap: str = 'any',
 ) -> str | None:
     """
     Query for the latest analysis object for LRS data in the requested project.
 
+    This almost-duplicate of query_for_latest_analysis is required until the `outputs` analysis block is registered
+    correctly for MTs. See https://github.com/populationgenomics/metamist/pull/1306.
+
     Args:
         cohort (str):          cohort object to use for SG IDs and dataset name
-        sequencing_type (str): optional, if set, only return entries with meta.sequencing_type == this
         stage_name (str):      optional, if set, will only return entries with meta.stage == this
         overlap (str):         mechanic for SG ID matching; "exact" = SG IDs in Cohort and Analysis must match exactly.
     Returns:
