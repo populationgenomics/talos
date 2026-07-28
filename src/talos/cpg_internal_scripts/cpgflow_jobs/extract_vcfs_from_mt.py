@@ -22,7 +22,6 @@ def make_vcf_extraction_job(
     if long_read:
         input_mt = query_for_latest_lrs_mt(
             cohort=cohort,
-            sequencing_type=config.config_retrieve(['workflow', 'sequencing_type']),
             stage_name='ExportSnpsIndelsVcfToMt',
             overlap=config.config_retrieve(['workflow', 'overlap'], 'any'),
         )
