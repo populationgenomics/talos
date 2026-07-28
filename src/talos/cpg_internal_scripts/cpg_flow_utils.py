@@ -11,7 +11,7 @@ METAMIST_ANALYSIS_QUERY = graphql.gql(
     """
     query MyQuery($dataset: String!, $type: String!, $meta: JSON) {
         project(name: $dataset) {
-            analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED}) {
+            analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED}, meta: $meta) {
                 output
                 timestampCompleted
                 meta
@@ -24,13 +24,13 @@ LRS_ANALYSIS_QUERY = graphql.gql(
     """
     query MyQuery($dataset: String!, $type: String!, $meta: JSON) {
         project(name: $dataset) {
-            analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED}) {
-                output
-                timestampCompleted
+            analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED},  meta: $meta) {
                 meta
-            }
-            sequencingGroups {
-              id
+                output
+                sequencingGroups {
+                  id
+                }
+                timestampCompleted
             }
         }
     }
@@ -212,6 +212,7 @@ def query_for_latest_analysis(
     # 2023-10-10... > 2023-10-09..., so sort on strings
     return analysis_by_date[sorted(analysis_by_date)[-1]]
 
+
 @cache
 def query_for_latest_lrs_mt(
     cohort: targets.Cohort,
@@ -249,8 +250,9 @@ def query_for_latest_lrs_mt(
     # get all the relevant entries, and bin by date
     analysis_by_date = {}
     for analysis in result['project']['analyses']:
-        if isinstance(analysis('outputs'), dict) and (sequencing_type in {'all', analysis['meta'].get('sequencing_type')}):
-
+        if isinstance(analysis('outputs'), dict) and (
+            sequencing_type in {'all', analysis['meta'].get('sequencing_type')}
+        ):
             # manually implementing an XOR check - long read (bool) and LongRead in output must match
             if 'long_read' not in analysis['outputs']['path']:
                 loguru.logger.debug(f'Skipping {analysis["outputs"]} in dataset {query_dataset} - not long read.')
