@@ -154,6 +154,16 @@ start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
 AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
 
+# Structural Variant annotation resources
+# gnomAD v4 SV population frequencies, pre-formatted by the GATK-SV team as a bgzip-compressed BED-like TSV
+# columns: chrom, start, end, name (SVID), svtype, SVTYPE, SVLEN, AF, MALE_AF, FEMALE_AF, then per-population AFs
+start_download "https://storage.googleapis.com/gatk-sv-resources-public/gnomad_AF/gnomad_v4_SV.Freq.tsv.gz"
+
+# MANE GTF, used by GATK SVAnnotate for gene consequences.
+# SVAnnotate requires one transcript per gene, which MANE Select satisfies by construction.
+# This is the same MANE release as the summary file above, so the gene symbols agree with RunHailFilteringSv
+start_download "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5/MANE.GRCh38.v1.5.ensembl_genomic.gtf.gz"
+
 THIS_MONTH=$(date '+%Y-%m')
 
 submission_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/submission_summary.txt.gz"
@@ -161,6 +171,11 @@ variant_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_
 
 start_download $submission_summary "submissions_${THIS_MONTH}.txt.gz"
 start_download $variant_summary "variants_${THIS_MONTH}.txt.gz"
+
+# SvAfotate input
+SVA="SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz"
+start_download "https://zenodo.org/records/11642574/files/SVAFotate_core_SV_popAFs.GRCh38.v4.1.bed.gz?download=1" "${SVA}"
+
 
 await
 
