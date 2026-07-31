@@ -106,6 +106,7 @@ workflow {
 		ch_gff,
 		ch_ref_genome,
 		ch_talos_combined,
+		ch_sv_annotated,
 	)
 
 	publish:
