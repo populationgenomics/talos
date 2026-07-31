@@ -1,12 +1,10 @@
 # SVAFotate, used to annotate Structural Variants with gnomAD population frequencies.
 #
 # This is built as a standalone image rather than being added to the main Talos container.
-# SVAFotate pins cyvcf2==0.30.4, pandas==1.2.3 and numpy==1.22.3, which conflict with Talos's
-# own requirements (cyvcf2>=0.30.18, and the numpy/pandas versions required by hail~=0.2.137).
+# SVAFotate requires a compatible pyranges and numpy build, so numpy has a version ceiling
+# (pandas >3 returns a str dtype for string columns, breaking pyranges 0.1.4)
 #
-# Python 3.9 is deliberate - pandas 1.2.3 predates CPython 3.10 support and has no wheels for it.
-#
-# build with "docker build -f SVAFotate_Dockerfile -t svafotate:0.1.0 ."
+# build with "docker build -f docker/SVAFotate_Dockerfile -t svafotate:0.1.0 ."
 
 FROM python:3.11-slim-bullseye
 
@@ -34,7 +32,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN pip install --upgrade pip setuptools && \
     pip install --no-cache-dir \
         numpy \
-        pandas \
+        'pandas<3' \
         pyranges \
         ncls \
         cyvcf2 && \

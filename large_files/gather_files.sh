@@ -155,9 +155,16 @@ AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
 
 # Structural Variant annotation resources
-# gnomAD v4 SV population frequencies, pre-formatted by the GATK-SV team as a bgzip-compressed BED-like TSV
-# columns: chrom, start, end, name (SVID), svtype, SVTYPE, SVLEN, AF, MALE_AF, FEMALE_AF, then per-population AFs
-start_download "https://storage.googleapis.com/gatk-sv-resources-public/gnomad_AF/gnomad_v4_SV.Freq.tsv.gz"
+# SVAFotate population frequency BED - native GRCh38 gnomAD v4.1, merged with CCDG, TOPMed and 1000G.
+# Contigs are Ensembl-style (1, not chr1) and must stay that way: SVAFotate strips the `chr` prefix from the
+# query VCF but not from this file, so adding one here silently zeroes every frequency. See docs.
+SVA="SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz"
+start_download "https://zenodo.org/records/11642574/files/SVAFotate_core_SV_popAFs.GRCh38.v4.1.bed.gz?download=1" "${SVA}"
+
+# Non-coding elements BED, used by GATK SVAnnotate to add PREDICTED_NONCODING_* annotations.
+# 4 columns and no header, despite SVAnnotate's help describing 6 columns with a header - it reads it fine.
+# Contigs are UCSC-style, matching ref.fa. Left uncompressed, SVAnnotate has no gzip codec for it.
+start_download "https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/sv-resources/resources/v1/noncoding.sort.hg38.bed"
 
 # MANE GTF, used by GATK SVAnnotate for gene consequences.
 # SVAnnotate requires one transcript per gene, which MANE Select satisfies by construction.
@@ -171,10 +178,6 @@ variant_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_
 
 start_download $submission_summary "submissions_${THIS_MONTH}.txt.gz"
 start_download $variant_summary "variants_${THIS_MONTH}.txt.gz"
-
-# SvAfotate input
-SVA="SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz"
-start_download "https://zenodo.org/records/11642574/files/SVAFotate_core_SV_popAFs.GRCh38.v4.1.bed.gz?download=1" "${SVA}"
 
 
 await
