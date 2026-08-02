@@ -5,6 +5,7 @@ nextflow.enable.dsl=2
 include { AnnotateMitoVcf } from './modules/talos/AnnotateMitoVcf/main'
 include { UnifiedPanelAppParser } from './modules/talos/UnifiedPanelAppParser/main'
 include { RunHailFiltering } from './modules/talos/RunHailFiltering/main'
+include { RunHailFilteringSv } from './modules/talos/RunHailFilteringSv/main'
 include { ValidateMOI } from './modules/talos/ValidateMOI/main'
 include { HPOFlagging } from './modules/talos/HPOFlagging/main'
 include { CreateTalosHTML } from './modules/talos/CreateTalosHTML/main'
@@ -16,6 +17,7 @@ workflow TALOS {
 		ch_gff
 		ch_ref_genome
 		ch_mts
+		ch_sv_annotated
 
     main:
     // existence of these files is necessary for starting the workflow
@@ -81,6 +83,29 @@ workflow TALOS {
         ch_clinvar_pm5,
     )
 
+    // filter & label any annotated SV VCFs. ch_sv_annotated only carries cohorts that had SV data, so this
+    // inner join naturally restricts the process to those cohorts
+    ch_run_hail_sv_inputs = ch_sv_annotated
+        .join(UnifiedPanelAppParser.out)
+        .join(ch_mts)
+        .map { cohort, sv_vcf, sv_idx, panelapp_data, _mts, pedigree, config, _history, _ext, _seqr, _mito ->
+            tuple(cohort, sv_vcf, sv_idx, panelapp_data, pedigree, config)
+        }
+
+    RunHailFilteringSv(
+        ch_run_hail_sv_inputs,
+        ch_mane,
+    )
+
+    // re-attach a NO_SV sentinel for every cohort without SV data, so ValidateMOI runs for all cohorts.
+    // `remainder: true` keeps the cohorts that produced no labelled SV VCF, filling the missing paths with null
+    ch_sv_resolved = ch_mts
+        .map { row -> [row[0]] }
+        .join(RunHailFilteringSv.out, remainder: true)
+        .map { cohort, sv_vcf, _sv_idx ->
+            tuple(cohort, sv_vcf ?: file("${projectDir}/nextflow/assets/NO_SV"))
+        }
+
     // surprise! It's Mito data!
     ch_mito_joined = ch_mts
         .join(UnifiedPanelAppParser.out)
@@ -117,8 +142,9 @@ workflow TALOS {
         .join(UnifiedPanelAppParser.out)
         .join(ch_mts)
         .join(ch_mito_resolved)
-        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, _mts, pedigree, config, history, _ext, _seqr, _mito, anno_mito ->
-            tuple(cohort, labelled_vcf, labelled_vcf_index, anno_mito, panelapp_out, pedigree, config, history)
+        .join(ch_sv_resolved)
+        .map { cohort, labelled_vcf, labelled_vcf_index, panelapp_out, _mts, pedigree, config, history, _ext, _seqr, _mito, anno_mito, anno_sv ->
+            tuple(cohort, labelled_vcf, labelled_vcf_index, anno_sv, anno_mito, panelapp_out, pedigree, config, history)
         }
 
     ValidateMOI(
@@ -158,5 +184,6 @@ workflow TALOS {
     	json = HPOFlagging.out
     	html = CreateTalosHTML.out
     	labelled = RunHailFiltering.out
+    	labelled_sv = RunHailFilteringSv.out
     	panelapp = UnifiedPanelAppParser.out
 }

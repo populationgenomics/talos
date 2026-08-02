@@ -15,18 +15,17 @@ process AnnotateSvWithGatk {
         """
         set -euo pipefail
 
-        # SVAnnotate has no codec for a gzipped GTF, so it has to be decompressed first.
-        # No further preparation is needed - the MANE GTF is one MANE Select transcript per gene, which
-        # satisfies SVAnnotate's canonical-transcript constraint as downloaded.
+        # SVAnnotate has no codec for a gzipped GTF, and fails with "no suitable codecs found", so decompress
+        # it to a scratch file first - uncompressed, it is read with EnsemblGtfCodec
         gzip -dc ${mane_gtf} > mane.gtf
 
         # --non-coding-bed adds PREDICTED_NONCODING_BREAKPOINT and PREDICTED_NONCODING_SPAN. Talos reads
         # neither today, so these are carried for provenance and future use only - PREDICTED_LOF is unaffected.
         gatk SVAnnotate \
             -V ${vcf} \
-            -O ${cohort}_sv_consequences.vcf.gz \
             --protein-coding-gtf mane.gtf \
             --non-coding-bed ${noncoding_bed} \
-            --sequence-dictionary ${ref_dict}
+            --sequence-dictionary ${ref_dict} \
+            -O ${cohort}_sv_gatk.vcf.gz
         """
 }
