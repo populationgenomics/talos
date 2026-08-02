@@ -26,6 +26,6 @@ process AnnotateSvWithGatk {
             --protein-coding-gtf mane.gtf \
             --non-coding-bed ${noncoding_bed} \
             --sequence-dictionary ${ref_dict} \
-            -O ${cohort}_sv_gatk.vcf.gz
+            -O ${cohort}_sv_consequences.vcf.gz
         """
 }

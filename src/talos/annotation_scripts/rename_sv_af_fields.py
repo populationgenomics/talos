@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 
 """
-Rename SVAFotate's population frequency annotations to the field names Talos expects.
+Rename SVAFotate's population-frequency INFO fields to the names talos.run_hail_filtering_sv reads.
 
 SVAFotate writes `Max_AF`, and with `-a best` also `Best_gnomAD_ID` and `gnomAD_Count`.
-`talos.run_hail_filtering_sv` reads `{prefix}_sv_AF` and `{prefix}_sv_SVID`. The prefix is read from the
-same config key the filtering script uses, so the two cannot drift apart.
+`talos.run_hail_filtering_sv` reads `{prefix}_sv_AF` and `{prefix}_sv_SVID`, where `{prefix}` is
+`RunHailFilteringSv.gnomad_population`. Reading that prefix from the same config key both sides use keeps the
+written and expected field names from drifting apart.
 
 The original SVAFotate fields are left in place as provenance.
 
-Two details of SVAFotate's output are load-bearing here:
+Three details of SVAFotate's output are load-bearing here:
 
+- use `Max_AF`, not `Best_gnomAD_AF`. `Max_AF` is the maximum frequency across all qualifying matches, which
+  is the conservative choice for rare-disease filtering - under-filtering a common variant is a worse outcome
+  than losing a rare one.
 - `Best_gnomAD_ID` reports the highest-ranked *candidate* overlap whether or not it cleared the reciprocal
   overlap threshold passed to `svafotate --minf`. Copying it unconditionally would attach a gnomAD SVID to
   nearly every variant in the callset, so the SVID is only carried across when `gnomAD_Count` shows a
@@ -35,28 +39,39 @@ SVAFOTATE_AF = 'Max_AF'
 SVAFOTATE_SVID = 'Best_gnomAD_ID'
 SVAFOTATE_COUNT = 'gnomAD_Count'
 
-# the fields run_hail_filtering_sv reads
+# the names run_hail_filtering_sv reads, derived from the configured population prefix
 TALOS_AF = f'{GNOMAD_POP}_sv_AF'
 TALOS_SVID = f'{GNOMAD_POP}_sv_SVID'
 
 
-def rename_annotations(input_path: str, output_path: str):
+def cli_main():
     """
-    Copy SVAFotate's AF and SVID annotations into the field names Talos reads
+    main method wrapper for console script execution
+    """
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument('--input', required=True, help='SVAFotate-annotated VCF')
+    parser.add_argument('--output', required=True, help='Where to write the renamed VCF')
+    args = parser.parse_args()
+    main(vcf_in=args.input, vcf_out=args.output)
+
+
+def main(vcf_in: str, vcf_out: str):
+    """
+    Copy SVAFotate's Max_AF/Best_gnomAD_ID into the field names Talos reads, and write the VCF back out.
 
     Args:
-        input_path (str): VCF annotated by SVAFotate
-        output_path (str): where to write the renamed VCF
+        vcf_in (str): path to the SVAFotate-annotated VCF
+        vcf_out (str): path to write the renamed VCF to
     """
 
-    vcf = VCF(input_path)
+    vcf = VCF(vcf_in)
 
     vcf.add_info_to_header(
         {
             'ID': TALOS_AF,
             'Number': '1',
             'Type': 'Float',
-            'Description': f'{GNOMAD_POP} SV allele frequency, from SVAFotate {SVAFOTATE_AF}',
+            'Description': f'{GNOMAD_POP} SV allele frequency, copied from SVAFotate {SVAFOTATE_AF}',
         },
     )
     vcf.add_info_to_header(
@@ -68,7 +83,7 @@ def rename_annotations(input_path: str, output_path: str):
         },
     )
 
-    writer = Writer(output_path, vcf)
+    writer = Writer(vcf_out, vcf)
 
     variants = 0
     with_af = 0
@@ -77,18 +92,16 @@ def rename_annotations(input_path: str, output_path: str):
     for variant in vcf:
         variants += 1
 
-        max_af = variant.INFO.get(SVAFOTATE_AF)
-        if max_af is not None:
-            variant.INFO[TALOS_AF] = max_af
-            if max_af > 0:
-                with_af += 1
+        # a variant SVAFotate left without Max_AF had no candidate at all, which is frequency zero
+        max_af = variant.INFO.get(SVAFOTATE_AF, 0.0)
+        variant.INFO[TALOS_AF] = max_af
+        if max_af > 0:
+            with_af += 1
 
         # only carry the SVID across if a match actually cleared the overlap threshold
-        if variant.INFO.get(SVAFOTATE_COUNT):
-            best_id = variant.INFO.get(SVAFOTATE_SVID)
-            if best_id is not None:
-                variant.INFO[TALOS_SVID] = best_id
-                with_svid += 1
+        if variant.INFO.get(SVAFOTATE_COUNT, 0) > 0 and (svid := variant.INFO.get(SVAFOTATE_SVID)):
+            variant.INFO[TALOS_SVID] = svid
+            with_svid += 1
 
         writer.write_record(variant)
 
@@ -100,19 +113,10 @@ def rename_annotations(input_path: str, output_path: str):
 
     if variants and not with_af:
         logger.warning(
-            f'No variant received a non-zero {TALOS_AF}. Every variant will look rare to downstream '
+            f'No variant carried a non-zero {SVAFOTATE_AF}. Every variant will look rare to downstream '
             'filtering. Check that the SVAFotate reference BED uses Ensembl-style contig names (1, not chr1) '
             'and that the requested source was present in it.',
         )
-
-
-def cli_main():
-    parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--input', required=True, help='VCF annotated by SVAFotate')
-    parser.add_argument('--output', required=True, help='Path to write the renamed VCF')
-    args = parser.parse_args()
-
-    rename_annotations(input_path=args.input, output_path=args.output)
 
 
 if __name__ == '__main__':
