@@ -98,12 +98,13 @@ workflow TALOS {
     )
 
     // re-attach a NO_SV sentinel for every cohort without SV data, so ValidateMOI runs for all cohorts.
-    // `remainder: true` keeps the cohorts that produced no labelled SV VCF, filling the missing paths with null
+    // `remainder: true` keeps the cohorts that produced no labelled SV VCF, but those remainder emissions are
+    // only [cohort, null] - two elements, not the three a matched cohort emits - so index instead of destructure
     ch_sv_resolved = ch_mts
         .map { row -> [row[0]] }
         .join(RunHailFilteringSv.out, remainder: true)
-        .map { cohort, sv_vcf, _sv_idx ->
-            tuple(cohort, sv_vcf ?: file("${projectDir}/nextflow/assets/NO_SV"))
+        .map { items ->
+            tuple(items[0], items[1] ?: file("${projectDir}/nextflow/assets/NO_SV"))
         }
 
     // surprise! It's Mito data!

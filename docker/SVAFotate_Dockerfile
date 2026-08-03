@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
         liblzma-dev \
         libssl-dev \
         make \
+        procps \
         zlib1g-dev && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/*

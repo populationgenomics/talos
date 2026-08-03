@@ -116,7 +116,8 @@ VARIANTS = [
     # -f 0.5 - and the highest-ranked candidate, gnomAD-SV_v3_DEL_chr1_7b67fb38 at OFP 0.13, is exactly the
     # spurious Best_gnomAD_ID the rename has to withhold. Rare in gnomAD and rare in the callset, so this is
     # the one variant expected to survive to the report as CategoryBooleanSV1
-    SV('lof_del_padi6', 17372196, 17401699, 'DEL', 29503, ['0/1', '0/0', '0/1'], callset_af=0.001),
+    # --- this was correctly detected as Cat. SV1, but the gene is Biallelic.
+    SV('lof_del_padi6', 17372196, 17401699, 'DEL', 29503, ['1/1', '0/0', '0/0'], callset_af=0.001),
     # matches gnomAD-SV_v3_DEL_chr1_143f6519 (BED 1:509967-690000) exactly, AF 0.2238. It carries
     # PREDICTED_LOF=OR4F16, so it survives the LoF filter and has to be dropped on gnomAD frequency by
     # filter_matrix_by_af - it is rare in the callset, so nothing else can catch it
