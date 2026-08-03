@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[11.1.1] - 2026-08
+
+### Added
+
+  * A full SV annotation, filtration, and labelling workflow
+  * A separate Dockerfile to contain the new tool
+  * Dockerfiles are all centralised into the `/docker` root folder
+
+<!--latest-end-->
+
 [11.1.0] - 2026-07
 
 ### Removed
@@ -27,8 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   * STR functionality! This is currently specific to STRipy data, with a script to translate STRipy JSON data into a pseudo-joint called VCF
   * If there is appetite for STR functionality, this could be expanded to other STR callers.
-
-<!--latest-end-->
 
 [11.0.0] - 2026-05-15
 
