@@ -332,11 +332,11 @@ assumed this would be slow under `linux/amd64` emulation and used a hand-built d
 The main Talos image needs **no changes**. GATK is already published upstream (and bundling Java 17 would be
 required otherwise); SVAFotate's dependencies are irreconcilable with Talos's.
 
-| Container | Provenance |
-|-----------|------------|
-| `params.container` | existing Talos image |
-| `params.gatk_container` | `broadinstitute/gatk:4.6.2.0`, pulled from the public registry |
-| `params.svafotate_container` | built locally from `docker/SVAFotate_Dockerfile` |
+| Container                    | Provenance                                                     |
+|------------------------------|----------------------------------------------------------------|
+| `params.container`           | existing Talos image                                           |
+| `params.gatk_container`      | `broadinstitute/gatk:4.6.2.0`, pulled from the public registry |
+| `params.svafotate_container` | built locally from `docker/SVAFotate_Dockerfile`               |
 
 SVAFotate pins `cyvcf2==0.30.4` (Talos needs `>=0.30.18`) and `pandas==1.2.3`/`numpy==1.22.3` (Talos needs
 newer, per `hail~=0.2.137`). Those pins are not reproduced in the image — current releases work, which avoids
@@ -350,12 +350,12 @@ being held to a Python 3.9 base. The sole constraint is [`pandas<3`](#pandas3-is
 
 In the `process { withName: ... }` block in `nextflow.config`:
 
-| Process | Memory | CPUs |
-|---------|--------|------|
-| `CreateSequenceDictionary` | 4 GB | 1 |
-| `AnnotateSvWithGatk` | 4 GB | 1 |
-| `AnnotateSvWithSvafotate` | 16 GB | 4 |
-| `RenameSvAfFields` | 2 GB | 1 |
+| Process                     | Memory | CPUs |
+|-----------------------------|--------|------|
+| `CreateSequenceDictionary`  | 4 GB   | 1    |
+| `AnnotateSvWithGatk`        | 4 GB   | 1    |
+| `AnnotateSvWithSvafotate`   | 16 GB  | 4    |
+| `RenameSvAfFields`          | 2 GB   | 1    |
 
 Only the SVAFotate figure is informed by measurement, and only as a floor — see
 [what's left, item 2](#2-resource-sizing-and-svafotates-memory-floor).
@@ -379,10 +379,10 @@ removed.
 
 ## Testing
 
-| File | Needs | Covers |
-|------|-------|--------|
-| `test/test_hail_filtering_sv.py` | Hail only | `rearrange_annotations()`, both blanket filters, the hemizygous fix, both `MALE_AF`/`AF_MALE` spellings |
-| `test/test_rename_sv_af_fields.py` | nothing | the `gnomAD_Count` gate, `Max_AF` over `Best_gnomAD_AF`, the all-zero warning |
+| File                                     | Needs                 | Covers                                                                                                                                                                           |
+|------------------------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `test/test_hail_filtering_sv.py`         | Hail only             | `rearrange_annotations()`, both blanket filters, the hemizygous fix, both `MALE_AF`/`AF_MALE` spellings                                                                          |
+| `test/test_rename_sv_af_fields.py`       | nothing               | the `gnomAD_Count` gate, `Max_AF` over `Best_gnomAD_AF`, the all-zero warning                                                                                                    |
 | `test/test_sv_annotation_integration.py` | `svafotate` on `PATH` | behaviours only the real tool exhibits, including the [prefixed-BED regression guard](#do-not-rewrite-the-svafotate-beds-contigs). Skipped when absent, so unit CI is unaffected |
 
 To run the integration tests, put a shim on `PATH` that shells out to the container:
@@ -417,16 +417,16 @@ The chain has been run process by process against the **real** reference data �
 non-coding BED, a `ref.dict` built from the real `ref.fa`, and a chr1 slice of the real SVAFotate BED — using
 the eight-variant fixture, and on through `RunHailFilteringSv`:
 
-| Variant | Outcome |
-|---------|---------|
-| `lof_del_padi6` | `PREDICTED_LOF=PADI6`, no qualifying gnomAD match, rare in callset — **the only survivor**, labelled `categorybooleansv1=1` with `lof_ensg=ENSG00000276747` |
-| `common_del` | `PREDICTED_LOF=OR4F16`, `gnomad_v4.1_sv_AF=0.2238` — dropped by `filter_matrix_by_af` |
-| `inv_common_in_callset` | `PREDICTED_LOF=TNFRSF18`, gnomAD AF 8e-06 but callset AF 0.2 — dropped by `filter_matrix_by_ac` |
-| `small_del_in_large` | `Max_AF=0`, `gnomAD_Count=0`, spurious `Best_gnomAD_ID` at OFP 0.003 withheld by the rename |
-| `dup_two_matches` | four overlapping gnomAD DUPs, `Max_AF` took the highest (0.704181) |
-| `intragenic_dup_gja9` | `PREDICTED_INTRAGENIC_EXON_DUP=GJA9`, no `PREDICTED_LOF`, dropped |
-| `ins_end_eq_pos` | matched `gnomAD-SV_v3_INS_chr1_3f94b1dc` at OFP 1 via `--ins`, `PREDICTED_INTRONIC`, dropped |
-| `bnd_1` | `PREDICTED_BREAKEND_EXONIC` and `PREDICTED_INTRONIC` but no `PREDICTED_LOF`, dropped |
+| Variant                 | Outcome                                                                                                                                                     |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `lof_del_padi6`         | `PREDICTED_LOF=PADI6`, no qualifying gnomAD match, rare in callset — **the only survivor**, labelled `categorybooleansv1=1` with `lof_ensg=ENSG00000276747` |
+| `common_del`            | `PREDICTED_LOF=OR4F16`, `gnomad_v4.1_sv_AF=0.2238` — dropped by `filter_matrix_by_af`                                                                       |
+| `inv_common_in_callset` | `PREDICTED_LOF=TNFRSF18`, gnomAD AF 8e-06 but callset AF 0.2 — dropped by `filter_matrix_by_ac`                                                             |
+| `small_del_in_large`    | `Max_AF=0`, `gnomAD_Count=0`, spurious `Best_gnomAD_ID` at OFP 0.003 withheld by the rename                                                                 |
+| `dup_two_matches`       | four overlapping gnomAD DUPs, `Max_AF` took the highest (0.704181)                                                                                          |
+| `intragenic_dup_gja9`   | `PREDICTED_INTRAGENIC_EXON_DUP=GJA9`, no `PREDICTED_LOF`, dropped                                                                                           |
+| `ins_end_eq_pos`        | matched `gnomAD-SV_v3_INS_chr1_3f94b1dc` at OFP 1 via `--ins`, `PREDICTED_INTRONIC`, dropped                                                                |
+| `bnd_1`                 | `PREDICTED_BREAKEND_EXONIC` and `PREDICTED_INTRONIC` but no `PREDICTED_LOF`, dropped                                                                        |
 
 Earlier, under Nextflow with a harness mirroring `main.nf`: the annotating run chains all three processes and
 publishes to `{cohort}_outputs/`; the gated run executes zero processes (`completed=0, cached=0`) with a clean
@@ -446,10 +446,10 @@ An earlier revision predicted BNDs would evade frequency filtering and inflate o
 true, and the mechanism is upstream of the AF filter entirely: `SVAnnotate` does not assign `PREDICTED_LOF` to a
 BND.
 
-| BND placement | Annotation produced |
-|---------------|---------------------|
-| breakends flanking `PADI6` | `PREDICTED_INTERGENIC;PREDICTED_NEAREST_TSS=PADI6` |
-| both breakends inside the gene body | `PREDICTED_INTRONIC=PADI6,RCC2` |
+| BND placement                                     | Annotation produced                                       |
+|---------------------------------------------------|-----------------------------------------------------------|
+| breakends flanking `PADI6`                        | `PREDICTED_INTERGENIC;PREDICTED_NEAREST_TSS=PADI6`        |
+| both breakends inside the gene body               | `PREDICTED_INTRONIC=PADI6,RCC2`                           |
 | one breakend intronic, one exonic in another gene | `PREDICTED_INTRONIC=PADI6;PREDICTED_BREAKEND_EXONIC=GJA9` |
 
 Since rows with an empty `PREDICTED_LOF` are dropped outright, BNDs never reach the frequency filter, and the
