@@ -2,13 +2,27 @@
 
 A Nextflow workflow which annotates a joint-called Structural Variant VCF with:
 
-- **gene consequences**, using [GATK `SVAnnotate`](https://gatk.broadinstitute.org/hc/en-us/articles/13832752531611-SVAnnotate)
-  against the MANE GTF
+- **gene consequences**, using [GATK `SVAnnotate`](https://gatk.broadinstitute.org/hc/en-us/articles/13832752531611-SVAnnotate) against the MANE GTF
 - **population allele frequencies**, using [SVAFotate](https://github.com/fakedrtom/SVAFotate) against gnomAD-SV
 
-`SV_ANNOTATION` publishes an annotated VCF per cohort, `RunHailFilteringSv` labels it `CategoryBooleanSV1`, and
-`ValidateMOI` folds the result into the report. **The code is complete and has been run against the real
-reference data.** What remains is [open questions about real callsets](#whats-left), not missing modules.
+This is a re-implementation of the same core steps we (CPG) use internally. Our internal usage centres around the 
+GATK-SV workflow, and our CPG-Flow wrapped implementation of it. The terminal stage of this workflow is [Annotation](https://github.com/populationgenomics/cpg-flow-gatk-sv/blob/main/src/cpg_flow_gatk_sv/multisample_workflow.py#L701), 
+which is done using GATK's SvAnnotate tool for consequence prediction, and a complex interval-overlap-resolution step
+to match variants to gnomAD frequencies. 
+
+Instead of re-implementing the exact process here, I've split the annotation into two phases:
+
+  - Consequence: handled using SVAnnotate, and exact replica of the GATK-SV process
+  - Pop.Freq: handled using [SVAFotate](https://github.com/fakedrtom/SVAFotate)
+
+These two steps, and pre-processing of relevant input files, are engaged only if an SV file is included in the input
+TSV file, with the same core conceit as small variants and Mito data - a single joint-called VCF should contain the whole
+group of Samples being processed, which should also match the Pedigree and Small-variant data.
+
+A separate sub-workflow, `SV_ANNOTATION` has been created to handle these steps. `SV_ANNOTATION` publishes an annotated 
+VCF per cohort, `RunHailFilteringSv` filters and labels it with `CategoryBooleanSV1`, and `ValidateMOI` folds the result
+into the report. **The code is complete and has been run against the real reference data.** 
+What remains is [open questions about real callsets](#whats-left), not missing modules.
 
 Existed before this work: `talos.run_hail_filtering_sv`, but wired only into the CPG-internal `cpg-flow` path,
 consuming a VCF annotated by a separate upstream GATK-SV run. This module makes the open-source SV path
@@ -25,8 +39,6 @@ run under Nextflow, but `nextflow run . --input_tsv nextflow/inputs/test_sv.tsv`
 to finish. `talos.nf`'s new joins — the inner join onto `ch_sv_annotated`, and the `remainder: true` re-attach
 of the `NO_SV` sentinel — are therefore unexercised by Nextflow itself.
 
-**Next step:** run it. Note this needs enough memory for SVAFotate, per the item below.
-
 ### 2. Resource sizing, and SVAFotate's memory floor
 
 !!! danger "SVAFotate needs more than 8 GB, and dies without a traceback"
@@ -38,12 +50,20 @@ of the `NO_SV` sentinel — are therefore unexercised by Nextflow itself.
     rather than an error, which reads like a plumbing bug. If `AnnotateSvWithSvafotate` produces no VCF and no
     message, suspect memory first.
 
-`AnnotateSvWithSvafotate` requests 16 GB. That is plausible but unverified from above — 8 GB is confirmed
-insufficient and the true requirement has not been bracketed. A single contig's worth of BED (280k rows,
-37 MB gzipped) runs comfortably in 8 GB, so the requirement scales with reference size, not callset size.
+The mitigation is to pre-trim the reference BED to gnomAD-only data rows before annotating, leaving columns
+untouched — see [the gnomAD pre-filter](#the-bed-is-pre-filtered-to-gnomad-rows). gnomAD is the only source
+this workflow consumes, so results are unaffected. Local runs succeed under this, and
+`AnnotateSvWithSvafotate` requests 20 GB.
 
-**Next step:** confirm 16 GB on the target executor. The other three `withName` values are guesses taken
-against an eight-variant fixture.
+**The trim is a mitigation, not a fix.** The filtered BED is 325 MB against the shipped 469 MB — a ~30%
+reduction, not an order of magnitude — so the floor has moved but not collapsed. 8 GB against the full BED is
+confirmed insufficient; nothing between 8 and 20 GB has been tried against the filtered one. A single contig's
+worth of BED (280k rows, 37 MB gzipped) runs comfortably in 8 GB, so the requirement scales with reference
+size, not callset size, and a real callset may still need more than a toy VCF does. This remains one of the
+longest-running steps.
+
+**Next step:** bisect the real floor against the filtered BED on the target executor. The other three
+`withName` values are guesses taken against an eight-variant fixture.
 
 ### 3. Whether real input VCFs satisfy the output contract
 
@@ -78,12 +98,12 @@ least stable.
 
 - **Non-coding annotations are inert.** `PREDICTED_NONCODING_BREAKPOINT` and `PREDICTED_NONCODING_SPAN` are
   produced and published, but nothing reads them. `DNase` is 98.9% of the BED, so it is too common to filter on
-- **`MANE_Plus_Clinical` transcripts.** The unfiltered GTF works, but 73 genes have more than one transcript and
-  `GNAS` has three, over SVAnnotate's documented limit. If a gene annotation ever looks wrong, filtering to
+- **`MANE_Plus_Clinical` transcripts.** The unfiltered GTF works, but 72 genes carry two transcripts and `GNAS`
+  carries three — over SVAnnotate's documented limit. If a gene annotation ever looks wrong, filtering to
   `tag "MANE_Select"` is the first thing to try
 - **SVAFotate pinning.** No releases or tags upstream, so `docker/SVAFotate_Dockerfile` pins commit
-  `30b5004a0f4d26959c6b9a82f165651585293626` (2026-07-16). Version bumps are a manual SHA change with no
-  changelog
+  `30b5004a0f4d26959c6b9a82f165651585293626`, last verified 2026-07-30. Version bumps are a manual SHA change
+  with no changelog
 - **Uncovered by tests:** a DEL abutting a multi-megabase DEL, and any variant off chr1
 
 ## Traps
@@ -103,6 +123,9 @@ raised**, making an entire callset look rare. Verified both directions against t
 The optional `--target` BED *is* prefix-stripped on read (`svafotate_main.py:590`), so it tolerates either
 style.
 
+The [gnomAD pre-filter](#the-bed-is-pre-filtered-to-gnomad-rows) selects rows and rewrites nothing, so contigs
+pass through untouched. Any future preprocessing of this BED must keep that property.
+
 ### `Best_gnomAD_ID` is populated even when nothing matched
 
 `-a best` reports the highest-ranked *candidate* overlap regardless of whether it cleared `-f`. A naive rename
@@ -120,6 +143,11 @@ Without it, `Max_AF` becomes the maximum across all four callsets the BED merges
 It also removes a matching hazard. SVAFotate requires an **identical** `SVTYPE` string, and the BED's vocabulary
 includes `MEI` — which would never match a query `INS`. gnomAD-sourced rows contain no `MEI` at all (gnomAD calls
 mobile elements as `INS`), so scoping to gnomAD removes that mismatch class entirely.
+
+Since the [pre-filter](#the-bed-is-pre-filtered-to-gnomad-rows) already drops every non-gnomAD row, `-s gnomAD`
+is now belt-and-braces rather than the only thing scoping the source. Keep both. They exist for different
+reasons — the flag for correctness, the pre-filter for memory — and dropping either as "redundant" silently
+changes what `Max_AF` means the moment the other is touched.
 
 ### Use `Max_AF`, not `Best_gnomAD_AF`
 
@@ -187,6 +215,10 @@ flat rename cannot express.
 The SV VCF is supplied per cohort as an **`sv` column in the input TSV**, following the same sentinel
 convention as `mito`: a cohort with no SV data gets `nextflow/assets/NO_SV`.
 
+**The input VCF must be indexed.** `sv_annotation.nf` picks up `{sv}.tbi` with `checkIfExists: true`, so an
+un-indexed input fails while channels are being built, before any process runs. The `complete` branch requires
+the same of the previously published VCF.
+
 `main.nf` reads the TSV header eagerly and only calls `SV_ANNOTATION` when an `sv` column exists, because the
 workflow body exits if the MANE GTF or SVAFotate BED are missing — an SNV-only user must never be made to
 download 478 MB of SV reference data.
@@ -219,8 +251,10 @@ degrading:
 
 `MALE_AF`/`FEMALE_AF` deserve emphasis: `rearrange_annotations()` branches on `AF_MALE` and otherwise reads
 `mt.info.MALE_AF` directly, so a VCF carrying neither raises. They must be arrays because
-`filter_matrix_by_ac()` subscripts them as `mt.info.male_af[0]`, and that is the only filter BNDs and
-frequency-null variants are subject to.
+`filter_matrix_by_ac()` subscripts them as `mt.info.male_af[0]`, and that is the only filter a variant with a
+null gnomAD AF is subject to. It is *not* the last line of defence for BNDs: the empty-`PREDICTED_LOF` filter
+runs before `rearrange_annotations()`, so BNDs are already gone — see
+[Breakends are dropped, not flooded](#breakends-are-dropped-not-flooded).
 
 Defaulted if absent: `ALGORITHMS` (to `['gCNV']`), and `STATUS`/`CHR2`/`END2` (to a null string).
 
@@ -245,27 +279,53 @@ What SVAFotate can express is narrower than ideal:
   `END` by `SVLEN`. Inserted sequence content is never compared
 - `-l/--lim` caps reference SV size, but only with `--cov` or `--uniq`
 
-The invocation:
+The invocation — note `-b` takes the [pre-filtered BED](#the-bed-is-pre-filtered-to-gnomad-rows), not the
+shipped one:
 
 ```bash
-svafotate annotate -v "${vcf}" -o "${cohort}_sv_popaf.vcf" -b "${svafotate_bed}" \
+svafotate annotate -v "${vcf}" -o "${cohort}_sv_popaf.vcf" -b new_af_file.bed.gz \
     -s gnomAD -f "${params.sv_overlap_fraction}" -a best --ins --cpu "${task.cpus}"
 ```
 
 It writes an uncompressed VCF — the SVAFotate image has no htslib CLI, so `RenameSvAfFields` handles bgzip and
 tabix in the Talos container.
 
+### The BED is pre-filtered to gnomAD rows
+
+`AnnotateSvWithSvafotate` does not hand SVAFotate the shipped BED. It first makes a single streaming pass —
+`zcat | awk -F'\t' 'NR == 1 || $6 == "gnomAD"' | gzip` — and annotates against the result, to hold down the
+footprint described in [what's left, item 2](#2-resource-sizing-and-svafotates-memory-floor). Rows are
+selected; columns and contig names are untouched.
+
+Four details of that one line have already cost debugging time:
+
+- **do not reach for `zcat ... | head -1` to grab the header.** `head` exits after one line, `zcat` takes
+  SIGPIPE on the rest of a multi-GB stream, and `set -o pipefail` turns that into exit 141
+- **`NR == 1 ||` is load-bearing.** The header's own column names contain the string `gnomAD`, so a bare
+  `grep gnomAD` emits it twice — once as a header, once as a data row
+- **`$6` must be escaped as `\$6`.** Nextflow script blocks are Groovy GStrings, so a bare `$6` interpolates
+  away and awk dies on `NR == 1 ||  == "gnomAD"`
+- **`-F'\t'` is set explicitly** because awk's default separator collapses runs of whitespace, so a future BED
+  carrying an empty field before `SOURCE` would shift the column numbering silently
+
+The pass re-runs per cohort, per run, and it is a pure function of a static reference file — so it is a
+candidate for the `CreateSequenceDictionary` treatment: computed once into `processed_annotations` and gated on
+existence. Not done, because a ~30% trim that leaves the process at 20 GB may not be the right shape at all;
+worth revisiting once the real memory floor is known.
+
 ## Reference data
 
-All plain downloads, already in `large_files/gather_files.sh`. No derived files beyond the sequence dictionary.
+All plain downloads, already in `large_files/gather_files.sh`. The only persistent derived file is the sequence
+dictionary; the [gnomAD-only BED](#the-bed-is-pre-filtered-to-gnomad-rows) is rebuilt inside the task and never
+leaves the work directory.
 
 | Resource | Filename in `large_files/` | Size | Consumed by |
 |----------|---------------------------|------|-------------|
-| SVAFotate popAF BED | `SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz` | 469 MB | `AnnotateSvWithSvafotate` |
+| SVAFotate popAF BED | `SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz` | 469 MB (325 MB once filtered) | `AnnotateSvWithSvafotate` |
 | MANE Ensembl GTF | `MANE.GRCh38.v1.5.ensembl_genomic.gtf.gz` | 8.6 MB | `AnnotateSvWithGatk` |
 | Non-coding elements BED | `noncoding.sort.hg38.bed` | 64 MB | `AnnotateSvWithGatk` |
 | Reference FASTA | `ref.fa` | 3.0 GB | `CreateSequenceDictionary` |
-| Sequence dictionary | `ref.dict` (in `processed_annotations`) | 68 KB | `AnnotateSvWithGatk` |
+| Sequence dictionary | `ref.dict` (in `processed_annotations`) | 48 KB | `AnnotateSvWithGatk` |
 
 Sources:
 
