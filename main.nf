@@ -114,6 +114,7 @@ workflow {
     	html = TALOS.out.html
 		json = TALOS.out.json
 		labelled = TALOS.out.labelled
+		labelled_sv = TALOS.out.labelled_sv
 		panelapp = TALOS.out.panelapp
 		sv_annotated = ch_sv_annotated
 }
@@ -133,6 +134,9 @@ output {
 	}
 	labelled {
 		path { id, _labelled, _labelled_idx -> "${id}_outputs" }
+	}
+	labelled_sv {
+		path { id, _labelled_sv, _labelled_sv_idx -> "${id}_outputs" }
 	}
 	sv_annotated {
 		path { id, _vcf, _vcf_idx -> "${id}_outputs" }

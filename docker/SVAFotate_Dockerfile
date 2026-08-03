@@ -1,8 +1,7 @@
 # SVAFotate, used to annotate Structural Variants with gnomAD population frequencies.
 #
-# This is built as a standalone image rather than being added to the main Talos container.
-# SVAFotate requires a compatible pyranges and numpy build, so numpy has a version ceiling
-# (pandas >3 returns a str dtype for string columns, breaking pyranges 0.1.4)
+# This is built as a standalone image rather than being added to the main Talos container - SVAFotate's
+# upstream pins (cyvcf2==0.30.4, pandas==1.2.3, numpy==1.22.3) are irreconcilable with Talos's.
 #
 # build with "docker build -f docker/SVAFotate_Dockerfile -t svafotate:0.1.0 ."
 
@@ -27,8 +26,14 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/*
 
-# versions taken from the project's own requirements.txt, minus the conda-only entries
-# (htslib, zlib and python are provided by the base image and the apt layer above)
+# SVAFotate's own requirements.txt is deliberately NOT reproduced here. Its pins predate CPython 3.10, so
+# honouring them would hold this image to a Python 3.9 base; current releases work instead.
+#
+# pandas is the one exception, and the pin is required. pandas 3.x returns the new `str` dtype for string
+# columns, and pyranges 0.1.4 predates it - its null_types() helper accepts only `object` or a dtype whose
+# name contains "string", so every `svafotate annotate` run dies with
+# "Exception: Unknown dtype str in a column SVTYPE". The quotes matter too: unquoted, `<3` is a shell
+# redirect from a file named `3`.
 RUN pip install --upgrade pip setuptools && \
     pip install --no-cache-dir \
         numpy \
@@ -38,4 +43,29 @@ RUN pip install --upgrade pip setuptools && \
         cyvcf2 && \
     pip install --no-cache-dir "git+https://github.com/fakedrtom/SVAFotate.git@${SVAFOTATE_COMMIT}"
 
-RUN svafotate --version
+# Build-time smoke test. `svafotate --version` is NOT sufficient - the pandas/pyranges dtype failure
+# described above happens inside pyranges.join at annotation time, not at import, so a version check passes
+# on a completely broken image. This runs a real annotation instead, over a one-record reference BED.
+#
+# The reference needs Het, HomAlt and PopMax_AF alongside the eight documented mandatory columns, because
+# svafotate always writes Max_Het/Max_HomAlt/Max_PopMax_AF and raises KeyError without them. Contigs are
+# Ensembl-style against a chr-prefixed query, exactly as the shipped BED is used - see
+# docs/SvAnnotationPlan.md.
+RUN svafotate --version && \
+    mkdir /smoke && \
+    printf '#CHROM\tSTART\tEND\tSVLEN\tSVTYPE\tSOURCE\tSV_ID\tAF\tHet\tHomAlt\tPopMax_AF\n1\t63999\t74000\t10000\tDUP\tgnomAD\tsmoke_DUP\t0.25\t100\t10\t0.3\n' \
+        | gzip -c > /smoke/ref.bed.gz && \
+    printf '##fileformat=VCFv4.2\n##contig=<ID=chr1,length=248956422>\n##ALT=<ID=DUP,Description="Duplication">\n##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SV type">\n##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">\n##INFO=<ID=END,Number=1,Type=Integer,Description="End position">\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample\nchr1\t64000\tsmoke\tN\t<DUP>\t.\tPASS\tSVTYPE=DUP;END=74000;SVLEN=10000\tGT\t0/1\n' \
+        > /smoke/query.vcf && \
+    svafotate annotate \
+        -v /smoke/query.vcf \
+        -o /smoke/out.vcf \
+        -b /smoke/ref.bed.gz \
+        -s gnomAD \
+        -f 0.5 \
+        -a best \
+        --ins \
+        --cpu 1 && \
+    grep -q 'Max_AF=0.25;' /smoke/out.vcf && \
+    grep -q 'Best_gnomAD_ID=smoke_DUP' /smoke/out.vcf && \
+    rm -rf /smoke

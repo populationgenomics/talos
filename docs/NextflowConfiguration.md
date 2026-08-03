@@ -53,6 +53,21 @@ The joint-called SV VCF is supplied per cohort, as an `sv` column in the input T
 `mito` column. A bgzipped VCF with a matching `.tbi` is expected. Cohorts with no SV data can leave the column
 empty, or use `nextflow/assets/NO_SV`.
 
+The input VCF must already carry `AC`, `AF`, `AN`, `N_HET`, `N_HOMALT` and array-typed `MALE_AF`/`FEMALE_AF`
+(or `AF_MALE`/`AF_FEMALE`). None of these are written by the annotation chain, and `RunHailFilteringSv` reads
+them unconditionally — so a VCF missing them fails at the very end of the run, after both expensive annotation
+steps have completed. A full GATK-SV callset carries all of them; a bare gCNV or caller-native VCF may not.
+
+### Trying it out
+
+`nextflow/inputs/test_sv.tsv` is the SNV test input plus an `sv` column, pointing at a small adversarial SV
+VCF. `nextflow/inputs/test.tsv` deliberately has no `sv` column, so the default test run never requires the
+478 MB of SV reference data. Regenerate the test VCF with:
+
+```bash
+python nextflow/inputs/generate_sv_test_data.py
+```
+
 ### Re-runs are skipped automatically
 
 If `<outdir>/<cohort>_outputs/<cohort>_sv_annotated.vcf.bgz` already exists, that cohort's annotation is

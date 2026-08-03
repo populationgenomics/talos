@@ -10,7 +10,7 @@ written and expected field names from drifting apart.
 
 The original SVAFotate fields are left in place as provenance.
 
-Three details of SVAFotate's output are load-bearing here:
+Three details of SVAFotate's output matter here:
 
 - use `Max_AF`, not `Best_gnomAD_AF`. `Max_AF` is the maximum frequency across all qualifying matches, which
   is the conservative choice for rare-disease filtering - under-filtering a common variant is a worse outcome
