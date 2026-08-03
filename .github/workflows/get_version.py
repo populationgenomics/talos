@@ -54,7 +54,7 @@ def get_next_version_tag(folder: str, version: str) -> str:
 
 
 def main():
-    dockerfile_name = 'Dockerfile'
+    dockerfile_name = 'docker/Dockerfile'
     container_name = 'talos'
     current_version = extract_version_from_file(dockerfile_name)
     if current_version is None:
