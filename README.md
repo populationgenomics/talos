@@ -69,7 +69,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -t talos:11.1.1 .
+docker build -f docker/Dockerfile -t talos:11.1.1 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -99,7 +99,7 @@ The parameter `processed_annotations` should point to a static directory where t
 
 ### **4. Run Annotation & Talos Combined Workflow**
 
-> **NEW IN 10.0.0**
+> **NEW SINCE 10.0.0**
 > Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
 The inputs for the Talos workflow are:
