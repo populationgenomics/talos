@@ -159,6 +159,7 @@ start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.
 # Contigs are Ensembl-style (1, not chr1) and must stay that way: SVAFotate strips the `chr` prefix from the
 # query VCF but not from this file, so adding one here silently zeroes every frequency. See docs.
 SVA="SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz"
+SKINNY_SVAF="SVAFotate_reduced_gnomAD.bed.gz"
 start_download "https://zenodo.org/records/11642574/files/SVAFotate_core_SV_popAFs.GRCh38.v4.1.bed.gz?download=1" "${SVA}"
 
 # Non-coding elements BED, used by GATK SVAnnotate to add PREDICTED_NONCODING_* annotations.
@@ -179,8 +180,20 @@ variant_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_
 start_download $submission_summary "submissions_${THIS_MONTH}.txt.gz"
 start_download $variant_summary "variants_${THIS_MONTH}.txt.gz"
 
-
 await
+
+# if the reduced SVAFotate input doesn't exist, generate it
+# this is a reduction of the canonical SVAFotate reference BED file, removing:
+# * any non-gnomAD rows
+# * any ancestry-specific columns
+# Loading the whole file exhausts memory on most VMs, so reduction in advance to only the fields we care about is ideal.
+if [ ! -f "${SKINNY_SVAF}" ] && [ -f "${SVA}" ]; then
+    echo "Minimising SVAFotate reference BED"
+    zcat ${SVA} \
+      | awk -F'\\t' 'NR == 1 || \$6 == "gnomAD"' \
+      | cut -f1-21,176 \
+      | gzip -c > ${SKINNY_SVAF}
+fi
 
 #if compressed exists, but decompressed doesn't, gunzip it
 if [ ! -f "${GRCh38_decompressed}" ] && [ -f "${GRCh38}" ]; then
