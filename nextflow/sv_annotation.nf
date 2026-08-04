@@ -25,6 +25,7 @@ include { AnnotateSvWithGatk } from './modules/annotation/AnnotateSvWithGatk/mai
 include { AnnotateSvWithSvafotate } from './modules/annotation/AnnotateSvWithSvafotate/main'
 include { CreateSequenceDictionary } from './modules/prep/CreateSequenceDictionary/main'
 include { RenameSvAfFields } from './modules/annotation/RenameSvAfFields/main'
+include { SortCpxIntervals } from './modules/annotation/SortCpxIntervals/main'
 
 
 workflow SV_ANNOTATION {
@@ -87,9 +88,11 @@ workflow SV_ANNOTATION {
     } else {
         ch_ref_dict = channel.fromPath(params.ref_dict, checkIfExists: true).first()
     }
-
+    // SVAnnotate aborts the entire run on the first complex variant whose CPX_INTERVALS are not in
+    // coordinate order, which GATK-SV's delINVdel records never are - so sort them before GATK sees them
+    SortCpxIntervals(ch_pending_vcfs)
     AnnotateSvWithGatk(
-        ch_pending_vcfs,
+        SortCpxIntervals.out,
         ch_mane_gtf,
         ch_noncoding_bed,
         ch_ref_dict,
