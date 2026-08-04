@@ -39,44 +39,7 @@ run under Nextflow, but `nextflow run . --input_tsv nextflow/inputs/test_sv.tsv`
 to finish. `talos.nf`'s new joins — the inner join onto `ch_sv_annotated`, and the `remainder: true` re-attach
 of the `NO_SV` sentinel — are therefore unexercised by Nextflow itself.
 
-### 2. Resource sizing, and SVAFotate's memory floor
-
-!!! danger "SVAFotate needs more than 8 GB, and dies without a traceback"
-    Against the full 469 MB BED, `svafotate annotate` was **OOM-killed in an 8 GB container** — exit 137, no
-    output file, and nothing on stdout or stderr to say why. Dropping `--cpu` from 4 to 1 made no difference,
-    so the footprint is the reference BED itself, not per-worker copies.
-
-    Under `set -euo pipefail` a Nextflow task fails correctly, but the log shows an *empty* SVAFotate section
-    rather than an error, which reads like a plumbing bug. If `AnnotateSvWithSvafotate` produces no VCF and no
-    message, suspect memory first.
-
-The mitigation is to pre-trim the reference BED to gnomAD-only data rows before annotating, leaving columns
-untouched — see [the gnomAD pre-filter](#the-bed-is-pre-filtered-to-gnomad-rows). gnomAD is the only source
-this workflow consumes, so results are unaffected. Local runs succeed under this, and
-`AnnotateSvWithSvafotate` requests 20 GB.
-
-**The trim is a mitigation, not a fix.** The filtered BED is 325 MB against the shipped 469 MB — a ~30%
-reduction, not an order of magnitude — so the floor has moved but not collapsed. 8 GB against the full BED is
-confirmed insufficient; nothing between 8 and 20 GB has been tried against the filtered one. A single contig's
-worth of BED (280k rows, 37 MB gzipped) runs comfortably in 8 GB, so the requirement scales with reference
-size, not callset size, and a real callset may still need more than a toy VCF does. This remains one of the
-longest-running steps.
-
-**Next step:** bisect the real floor against the filtered BED on the target executor. The other three
-`withName` values are guesses taken against an eight-variant fixture.
-
-### 3. Whether real input VCFs satisfy the output contract
-
-`AC`, `AF`, `AN`, `N_HET`, `N_HOMALT`, `MALE_AF` and `FEMALE_AF` must already be in the input —
-[nothing in this workflow writes them](#the-chain-supplies-none-of-the-joint-call-fields) — and
-`MALE_AF`/`FEMALE_AF` must be array-typed.
-
-**Needs deciding:** what actually produces the cohort SV VCFs. Full GATK-SV is likely fine. gCNV or a
-caller-native VCF probably needs a `NormaliseSvVcf` step, and the failure currently surfaces at
-`rearrange_annotations()` — after both expensive annotation steps have run. A cheap conformance check on the
-input VCF header would turn that into a fast, clear failure.
-
-### 4. Breakend coverage
+### 2. Breakend coverage
 
 BNDs never receive `PREDICTED_LOF`, so they are dropped before frequency filtering is ever consulted — see
 [Breakends are dropped, not flooded](#breakends-are-dropped-not-flooded). This is a coverage gap, not a volume
@@ -86,15 +49,14 @@ risk.
 `--max-breakend-as-cnv-length` is the lever, but it changes which variants reach the report. Measure BND volume
 in a real callset first — this may be a non-issue.
 
-### 5. Overlap threshold and matching fidelity
+### 3. Overlap threshold and matching fidelity
 
 `sv_overlap_fraction = 0.5` is a convention, not a tuned value, and SVAFotate cannot express per-SVTYPE or
-per-size-band thresholds — see [Matching rules](#matching-rules). Small SVs are where reciprocal overlap is
-least stable.
+per-size-band thresholds — see [Matching rules](#matching-rules). Small SVs are where reciprocal overlap is least stable.
 
 **Needs deciding:** whether 0.5 holds across the size range. Requires a real callset to answer.
 
-### 6. Deferred and low-priority
+### 4. Deferred and low-priority
 
 - **Non-coding annotations are inert.** `PREDICTED_NONCODING_BREAKPOINT` and `PREDICTED_NONCODING_SPAN` are
   produced and published, but nothing reads them. `DNase` is 98.9% of the BED, so it is too common to filter on
@@ -110,22 +72,6 @@ least stable.
 
 Things that look wrong and are not, or look fine and are not. Each has cost real debugging time.
 
-### Do not rewrite the SVAFotate BED's contigs
-
-The BED uses Ensembl-style contigs (`1`), while Talos is UCSC-style (`chr1`) throughout. This looks like a
-silent-failure trap, and it is one — but **not** in the direction intuition suggests. SVAFotate normalises the
-*query VCF* by stripping the prefix (`svafotate_main.py:631`); the `-b` reference BED is never normalised.
-
-The shipped BED is therefore already correct. Prefixing it yields `Max_AF=0` for every variant with **no error
-raised**, making an entire callset look rare. Verified both directions against the real BED, and guarded by
-`test/test_sv_annotation_integration.py`.
-
-The optional `--target` BED *is* prefix-stripped on read (`svafotate_main.py:590`), so it tolerates either
-style.
-
-The [gnomAD pre-filter](#the-bed-is-pre-filtered-to-gnomad-rows) selects rows and rewrites nothing, so contigs
-pass through untouched. Any future preprocessing of this BED must keep that property.
-
 ### `Best_gnomAD_ID` is populated even when nothing matched
 
 `-a best` reports the highest-ranked *candidate* overlap regardless of whether it cleared `-f`. A naive rename
@@ -135,39 +81,10 @@ This is not an edge case: two of the eight variants in the test fixture hit it. 
 `Max_AF=0;gnomAD_Count=0` while still carrying `Best_gnomAD_ID` at OFP 0.003, and the PADI6 deletion did the
 same at OFP 0.13.
 
-### `-s gnomAD` is mandatory
-
-Without it, `Max_AF` becomes the maximum across all four callsets the BED merges (`gnomAD`, `CCDG`, `TOPMed`,
-`ThousG`), which would be mislabelled as a gnomAD frequency downstream.
-
-It also removes a matching hazard. SVAFotate requires an **identical** `SVTYPE` string, and the BED's vocabulary
-includes `MEI` — which would never match a query `INS`. gnomAD-sourced rows contain no `MEI` at all (gnomAD calls
-mobile elements as `INS`), so scoping to gnomAD removes that mismatch class entirely.
-
-Since the [pre-filter](#the-bed-is-pre-filtered-to-gnomad-rows) already drops every non-gnomAD row, `-s gnomAD`
-is now belt-and-braces rather than the only thing scoping the source. Keep both. They exist for different
-reasons — the flag for correctness, the pre-filter for memory — and dropping either as "redundant" silently
-changes what `Max_AF` means the moment the other is touched.
-
 ### Use `Max_AF`, not `Best_gnomAD_AF`
 
 `Max_AF` is the maximum across all qualifying matches — the conservative choice for rare disease filtering.
 Under-filtering a common variant is a worse outcome than losing a rare one.
-
-### The MANE GTF must be decompressed
-
-`SVAnnotate` has no codec for a gzipped GTF and fails with `Cannot read ... because no suitable codecs found`.
-`AnnotateSvWithGatk` runs `gzip -dc` into a scratch file first.
-
-### `pandas<3` is required in the SVAFotate image
-
-pandas 3.x returns the new `str` dtype, which `pyranges 0.1.4` rejects — every `svafotate annotate` run dies
-with `Exception: Unknown dtype str in a column SVTYPE`. The pin must be quoted in the Dockerfile; unquoted,
-`<3` is a shell redirect. Full reasoning lives in `docker/SVAFotate_Dockerfile`.
-
-`RUN svafotate --version` does **not** catch this — the failure is inside `pyranges.join` at annotation time,
-not at import, so the version check passes on a completely broken image. The Dockerfile therefore runs a real
-`svafotate annotate` over a baked-in one-record BED. Confirmed to fail on a deliberately pandas-3 image.
 
 ### `--max-breakend-as-cnv-length` cannot be passed its documented default
 
