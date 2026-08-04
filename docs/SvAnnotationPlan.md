@@ -5,10 +5,10 @@ A Nextflow workflow which annotates a joint-called Structural Variant VCF with:
 - **gene consequences**, using [GATK `SVAnnotate`](https://gatk.broadinstitute.org/hc/en-us/articles/13832752531611-SVAnnotate) against the MANE GTF
 - **population allele frequencies**, using [SVAFotate](https://github.com/fakedrtom/SVAFotate) against gnomAD-SV
 
-This is a re-implementation of the same core steps we (CPG) use internally. Our internal usage centres around the 
-GATK-SV workflow, and our CPG-Flow wrapped implementation of it. The terminal stage of this workflow is [Annotation](https://github.com/populationgenomics/cpg-flow-gatk-sv/blob/main/src/cpg_flow_gatk_sv/multisample_workflow.py#L701), 
+This is a re-implementation of the same core steps we (CPG) use internally. Our internal usage centres around the
+GATK-SV workflow, and our CPG-Flow wrapped implementation of it. The terminal stage of this workflow is [Annotation](https://github.com/populationgenomics/cpg-flow-gatk-sv/blob/main/src/cpg_flow_gatk_sv/multisample_workflow.py#L701),
 which is done using GATK's SvAnnotate tool for consequence prediction, and a complex interval-overlap-resolution step
-to match variants to gnomAD frequencies. 
+to match variants to gnomAD frequencies.
 
 Instead of re-implementing the exact process here, I've split the annotation into two phases:
 
@@ -19,9 +19,9 @@ These two steps, and pre-processing of relevant input files, are engaged only if
 TSV file, with the same core conceit as small variants and Mito data - a single joint-called VCF should contain the whole
 group of Samples being processed, which should also match the Pedigree and Small-variant data.
 
-A separate sub-workflow, `SV_ANNOTATION` has been created to handle these steps. `SV_ANNOTATION` publishes an annotated 
+A separate sub-workflow, `SV_ANNOTATION` has been created to handle these steps. `SV_ANNOTATION` publishes an annotated
 VCF per cohort, `RunHailFilteringSv` filters and labels it with `CategoryBooleanSV1`, and `ValidateMOI` folds the result
-into the report. **The code is complete and has been run against the real reference data.** 
+into the report. **The code is complete and has been run against the real reference data.**
 What remains is [open questions about real callsets](#whats-left), not missing modules.
 
 Existed before this work: `talos.run_hail_filtering_sv`, but wired only into the CPG-internal `cpg-flow` path,

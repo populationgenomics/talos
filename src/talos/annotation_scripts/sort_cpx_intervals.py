@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Sort each complex SV's `CPX_INTERVALS` into coordinate order, so GATK SVAnnotate can process it.
+Sort each complex SV's `CPX_INTERVALS` into coordinate order, so GATK SVAnnotate can process it. Required to overcome
+a strict linear parsing of potentially inverted real intervals.
 
 `SVAnnotateEngine.getSegmentForNearestTSS` builds the spanning interval of a complex event by folding its
 segments left to right with `SimpleInterval.mergeWithContiguous`, which throws unless each adjacent pair *in

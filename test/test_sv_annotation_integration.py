@@ -20,7 +20,6 @@ SVAFotate_SV_popAFs.GRCh38.v4.1 BED (one DUP, one DEL), kept Ensembl-style (cont
 """
 
 import gzip
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -28,9 +27,6 @@ import pytest
 from cyvcf2 import VCFReader
 
 from talos.annotation_scripts import rename_sv_af_fields
-
-SVAFOTATE = shutil.which('svafotate')
-pytestmark = pytest.mark.skipif(SVAFOTATE is None, reason='svafotate CLI not on PATH')
 
 BED_SLICE = Path(__file__).parent / 'input' / 'svafotate_slice.bed'
 OVERLAP_FRACTION = '0.5'
@@ -82,7 +78,7 @@ def _run_svafotate(tmp_path, bed: Path) -> Path:
     out = tmp_path / 'popaf.vcf'
     subprocess.run(  # noqa: S603
         [
-            SVAFOTATE,
+            '/usr/local/bin/svafotate',
             'annotate',
             '-v',
             str(_write_query_vcf(tmp_path)),
