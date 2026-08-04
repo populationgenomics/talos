@@ -189,8 +189,8 @@ await
 # Loading the whole file exhausts memory on most VMs, so reduction in advance to only the fields we care about is ideal.
 if [ ! -f "${SKINNY_SVAF}" ] && [ -f "${SVA}" ]; then
     echo "Minimising SVAFotate reference BED"
-    zcat ${SVA} \
-      | awk -F'\\t' 'NR == 1 || \$6 == "gnomAD"' \
+    gunzip -c ${SVA} \
+      | awk -F'\t' 'NR == 1 || $6 == "gnomAD"' \
       | cut -f1-21,176 \
       | gzip -c > ${SKINNY_SVAF}
 fi
