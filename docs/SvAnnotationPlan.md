@@ -450,7 +450,7 @@ To run the integration tests, put a shim on `PATH` that shells out to the contai
 ```bash
 printf '#!/bin/sh\nexec docker run --rm -v "$PWD":"$PWD" -w "$(pwd)" svafotate:0.1.0 svafotate "$@"\n' > /tmp/bin/svafotate
 chmod +x /tmp/bin/svafotate
-PATH=/tmp/bin:$PATH pytest test/test_sv_annotation_integration.py --basetemp=.pytest-tmp
+PATH=/tmp/bin:$PATH pytest test/containerised_test_sv_annotation_integration.py --basetemp=.pytest-tmp
 ```
 
 `--basetemp` inside the repo matters — pytest's default `tmp_path` is under `/var/folders` on macOS, which
