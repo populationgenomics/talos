@@ -196,11 +196,15 @@ def query_for_latest_analysis(
     analysis_by_date = {}
     for analysis in result['project']['analyses']:
         outputs_block = analysis['outputs']
+        output_path: str | None = None
         if isinstance(outputs_block, dict):
-            output_path = outputs_block['path']
+            if (opath := outputs_block.get('path')) and isinstance(opath, str):
+                output_path = opath
+            elif (opath := outputs_block.get('output')) and isinstance(opath, list):
+                output_path = opath[0]
         elif isinstance(outputs_block, str):
             output_path = outputs_block
-        else:
+        if output_path is None:
             loguru.logger.debug(f'Skipping {outputs_block} in dataset {query_dataset}, unexpected type.')
             continue
 
@@ -267,14 +271,15 @@ def query_for_latest_lrs_mt(
     analysis_by_date = {}
     for analysis in result['project']['analyses']:
         outputs_block = analysis['outputs']
+        output_path: str | None = None
         if isinstance(outputs_block, dict):
-            if 'path' in outputs_block and isinstance(outputs_block.get('path'), str):
-              output_path = outputs_block['path']
-            elif 'output' in outputs_block and isinstance(outputs_block.get('output'), list):
-              output_path = outputs_block['output'][0]
+            if (opath := outputs_block.get('path')) and isinstance(opath, str):
+                output_path = opath
+            elif (opath := outputs_block.get('output')) and isinstance(opath, list):
+                output_path = opath[0]
         elif isinstance(outputs_block, str):
             output_path = outputs_block
-        else:
+        if output_path is None:
             loguru.logger.debug(f'Skipping {outputs_block} in dataset {query_dataset}, unexpected type.')
             continue
 
