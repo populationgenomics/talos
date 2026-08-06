@@ -268,7 +268,10 @@ def query_for_latest_lrs_mt(
     for analysis in result['project']['analyses']:
         outputs_block = analysis['outputs']
         if isinstance(outputs_block, dict):
-            output_path = outputs_block['path']
+            if 'path' in outputs_block and isinstance(outputs_block.get('path'), str):
+              output_path = outputs_block['path']
+            elif 'output' in outputs_block and isinstance(outputs_block.get('output'), list):
+              output_path = outputs_block['output'][0]
         elif isinstance(outputs_block, str):
             output_path = outputs_block
         else:
