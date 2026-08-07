@@ -6,7 +6,7 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 
 ## Resource Configuration
 
-As a NextFlow workflow, the resourcing for the stages are set in the [nextflow.config](../nextflow.config) file. The default contents of this file
+As a NextFlow workflow, the resourcing for the stages are set in the `nextflow.config` file. The default contents of this file
 contain low levels of resourcing, sufficient for running the test cases locally, but impractical for large scale work. The resources required for
 each workflow will vary widely depending on sequencing type (exome/genome) and number of samples, so an element of this is trial and error. This
 block outlines some important steps to provide extra resources for.
