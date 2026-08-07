@@ -9,7 +9,8 @@ nextflow.enable.dsl=2
     This is the main entry point for the Talos pipeline. It orchestrates two distinct workflows:
 
     1. ANNOTATION: Annotates VCF file(s) with the prepared data.
-    2. TALOS: Runs the core Talos analysis/filtering/reporting.
+    2. SV_ANNOTATION: Annotates a joint-called SV VCF, if the input TSV carries an `sv` column.
+    3. TALOS: Runs the core Talos analysis/filtering/reporting.
 
     Usage:
     nextflow run nextflow/main.nf --input_tsv [path] [other params...]
@@ -17,6 +18,7 @@ nextflow.enable.dsl=2
 
 // Import specific workflows
 include { ANNOTATION } from './nextflow/annotation'
+include { SV_ANNOTATION } from './nextflow/sv_annotation'
 include { TALOS } from './nextflow/talos'
 
 
@@ -64,6 +66,30 @@ workflow {
 			file(row.mito ?: "${projectDir}/nextflow/assets/NO_MITO", checkIfExists: true),
 		) }
 
+	// the SV path is entirely optional, and only wired up if the input TSV declares an `sv` column.
+	// this is checked eagerly rather than per-row so that a cohort with no SV data never requires the
+	// SV reference files to be present at all
+	def sv_requested = file(params.input_tsv).withReader { handle -> handle.readLine() }.tokenize('\t').contains('sv')
+
+	ch_sv_annotated = channel.empty()
+
+	if (sv_requested) {
+		ch_sv_inputs = channel.fromPath(params.input_tsv)
+			.splitCsv(header: true, sep: '\t')
+			.map { row -> tuple(
+				row.cohort,
+				file(row.sv ?: "${projectDir}/nextflow/assets/NO_SV", checkIfExists: true),
+				file(row.config, checkIfExists: true),
+			) }
+
+		SV_ANNOTATION(
+			ch_ref_genome,
+			ch_sv_inputs,
+		)
+
+		ch_sv_annotated = SV_ANNOTATION.out.annotated
+	}
+
 	ANNOTATION(
 		ch_gff,
 		ch_mane,
@@ -80,6 +106,7 @@ workflow {
 		ch_gff,
 		ch_ref_genome,
 		ch_talos_combined,
+		ch_sv_annotated,
 	)
 
 	publish:
@@ -87,7 +114,9 @@ workflow {
     	html = TALOS.out.html
 		json = TALOS.out.json
 		labelled = TALOS.out.labelled
+		labelled_sv = TALOS.out.labelled_sv
 		panelapp = TALOS.out.panelapp
+		sv_annotated = ch_sv_annotated
 }
 
 output {
@@ -105,5 +134,11 @@ output {
 	}
 	labelled {
 		path { id, _labelled, _labelled_idx -> "${id}_outputs" }
+	}
+	labelled_sv {
+		path { id, _labelled_sv, _labelled_sv_idx -> "${id}_outputs" }
+	}
+	sv_annotated {
+		path { id, _vcf, _vcf_idx -> "${id}_outputs" }
 	}
 }

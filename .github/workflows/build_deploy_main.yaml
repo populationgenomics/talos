@@ -83,7 +83,7 @@ jobs:
 
       - name: 'build image'
         run: |
-          docker build . -f src/talos/cpg_internal_scripts/CPG_Dockerfile \
+          docker build . -f docker/CPG_Dockerfile \
           --tag ${{ env.IMAGES_PREFIX }}/talos:${{ env.TAG }}
 
       - name: 'push image'

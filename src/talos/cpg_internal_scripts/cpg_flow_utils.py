@@ -11,7 +11,7 @@ METAMIST_ANALYSIS_QUERY = graphql.gql(
     query MyQuery($dataset: String!, $type: String!, $meta: JSON) {
         project(name: $dataset) {
             analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED}, meta: $meta) {
-                output
+                outputs
                 timestampCompleted
                 meta
             }
@@ -25,7 +25,7 @@ LRS_ANALYSIS_QUERY = graphql.gql(
         project(name: $dataset) {
             analyses(active: {eq: true}, type: {eq: $type}, status: {eq: COMPLETED},  meta: $meta) {
                 meta
-                output
+                outputs
                 sequencingGroups {
                   id
                 }

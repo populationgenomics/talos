@@ -1,13 +1,18 @@
-FROM australia-southeast1-docker.pkg.dev/cpg-common/images/cpg_hail_gcloud:0.2.138.cpg1-1 AS base
+FROM python:3.11-slim-bullseye AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        bzip2 \
+        ca-certificates \
+        gnupg \
         libbz2-1.0 \
         libcurl4 \
         liblzma5 \
-        make \
+        openjdk-11-jdk-headless \
         procps \
+        wget \
+        zip \
         zlib1g && \
     rm -r /var/lib/apt/lists/* && \
     rm -r /var/cache/apt/*
@@ -38,20 +43,38 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 FROM base AS talos
 
-ARG ECHTVAR_VERSION=v0.2.2
-ENV VERSION=11.1.1
-
 COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
+
+ARG ECHTVAR_VERSION=v0.2.2
+ENV VERSION=11.2.0
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
     chmod +x /bin/echtvar
 
+COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
+
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
+
+# Copy from the cache instead of linking since it's a mounted volume
+ENV UV_LINK_MODE=copy
+
 WORKDIR /talos
 
-COPY LICENSE pyproject.toml README.md .
-COPY src src/
-COPY nextflow nextflow/
-COPY echtvar echtvar/
+# Install the project's dependencies using the lockfile and settings
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --all-extras --frozen --no-install-project --no-dev
 
-RUN pip install --no-cache-dir ".[cpg]"
+# Add in the additional requirements that are most likely to change.
+COPY LICENSE pyproject.toml uv.lock README.md ./
+COPY src src/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --all-extras --frozen --no-dev
+
+# Place executables in the environment at the front of the path
+ENV PATH="/talos/.venv/bin:$PATH"
+
+COPY echtvar echtvar/

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="11.1.1"
+version="11.2.0"
 requires-python = ">=3.10,<3.12"
 license-files = ["LICENSE"]
 classifiers=[
@@ -131,7 +131,7 @@ hail = ["hail", "hailtop"]
 "test/test_cpg_flow_utils.py" = ['ANN202', 'ARG001']
 
 [tool.bumpversion]
-current_version = "11.1.1"
+current_version = "11.2.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true
@@ -144,12 +144,12 @@ search = 'version="{current_version}"'
 replace = 'version="{new_version}"'
 
 [[tool.bumpversion.files]]
-filename = "src/talos/cpg_internal_scripts/CPG_Dockerfile"
+filename = "docker/CPG_Dockerfile"
 search = "{current_version}"
 replace = "{new_version}"
 
 [[tool.bumpversion.files]]
-filename = "Dockerfile"
+filename = "docker/Dockerfile"
 search = "{current_version}"
 replace = "{new_version}"
 

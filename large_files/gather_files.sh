@@ -154,6 +154,24 @@ start_download "https://mitimpact.mcb2lab.org/cdn/MitImpact_db_3.1.3.txt.zip"
 AM="AlphaMissense_hg38.tsv.gz"
 start_download "https://zenodo.org/records/8208688/files/AlphaMissense_hg38.tsv.gz?download=1" "${AM}"
 
+# Structural Variant annotation resources
+# SVAFotate population frequency BED - native GRCh38 gnomAD v4.1, merged with CCDG, TOPMed and 1000G.
+# Contigs are Ensembl-style (1, not chr1) and must stay that way: SVAFotate strips the `chr` prefix from the
+# query VCF but not from this file, so adding one here silently zeroes every frequency. See docs.
+SVA="SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz"
+SKINNY_SVAF="SVAFotate_reduced_gnomAD.bed.gz"
+start_download "https://zenodo.org/records/11642574/files/SVAFotate_core_SV_popAFs.GRCh38.v4.1.bed.gz?download=1" "${SVA}"
+
+# Non-coding elements BED, used by GATK SVAnnotate to add PREDICTED_NONCODING_* annotations.
+# 4 columns and no header, despite SVAnnotate's help describing 6 columns with a header - it reads it fine.
+# Contigs are UCSC-style, matching ref.fa. Left uncompressed, SVAnnotate has no gzip codec for it.
+start_download "https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/sv-resources/resources/v1/noncoding.sort.hg38.bed"
+
+# MANE GTF, used by GATK SVAnnotate for gene consequences.
+# SVAnnotate requires one transcript per gene, which MANE Select satisfies by construction.
+# This is the same MANE release as the summary file above, so the gene symbols agree with RunHailFilteringSv
+start_download "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/release_1.5/MANE.GRCh38.v1.5.ensembl_genomic.gtf.gz"
+
 THIS_MONTH=$(date '+%Y-%m')
 
 submission_summary="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/submission_summary.txt.gz"
@@ -163,6 +181,19 @@ start_download $submission_summary "submissions_${THIS_MONTH}.txt.gz"
 start_download $variant_summary "variants_${THIS_MONTH}.txt.gz"
 
 await
+
+# if the reduced SVAFotate input doesn't exist, generate it
+# this is a reduction of the canonical SVAFotate reference BED file, removing:
+# * any non-gnomAD rows
+# * any ancestry-specific columns
+# Loading the whole file exhausts memory on most VMs, so reduction in advance to only the fields we care about is ideal.
+if [ ! -f "${SKINNY_SVAF}" ] && [ -f "${SVA}" ]; then
+    echo "Minimising SVAFotate reference BED"
+    gunzip -c ${SVA} \
+      | awk -F'\t' 'NR == 1 || $6 == "gnomAD"' \
+      | cut -f1-21,176 \
+      | gzip -c > ${SKINNY_SVAF}
+fi
 
 #if compressed exists, but decompressed doesn't, gunzip it
 if [ ! -f "${GRCh38_decompressed}" ] && [ -f "${GRCh38}" ]; then
