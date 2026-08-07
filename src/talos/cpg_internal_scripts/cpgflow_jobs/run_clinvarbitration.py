@@ -59,7 +59,7 @@ def run_clinvarbitration_in_full(
             {blacklist_string} -o $BATCH_TMPDIR/clinvarbitration
     """)
     # copy up to GCP
-    job.command(f'gcloud storage cp -r $BATCH_TMPDIR/clinvarbitration.ht {decisions}')
+    job.command(f'gcloud storage cp --quiet -r $BATCH_TMPDIR/clinvarbitration.ht {decisions}')
     # endregion
 
     # region: annotate SNVs
