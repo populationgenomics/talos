@@ -591,7 +591,7 @@ wheels = [
 
 [[package]]
 name = "cpg-utils"
-version = "5.7.0"
+version = "5.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
@@ -608,7 +608,7 @@ dependencies = [
     { name = "tabulate" },
     { name = "toml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/9e/145494610bd318645f834a0d8f7e7b0f819f77337b334254bb9ccfa89bd3/cpg_utils-5.7.0.tar.gz", hash = "sha256:aba177361a73003836de4a8c310dadccf6e7bff16760bf51bbb263a133d2d421", size = 51003, upload-time = "2026-06-30T21:32:18.12Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/69/c8942c90ad472d574a69d193110e3f2f6f05e56aac4979f7fcbedbb4d2ee/cpg_utils-5.7.2.tar.gz", hash = "sha256:f50c66b2eb6278100cfa88622059a83c6569d932ef67cb387883e0a225e5c369", size = 50934, upload-time = "2026-08-04T00:00:20.406Z" }
 
 [[package]]
 name = "cryptography"
@@ -2750,7 +2750,7 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "11.1.0"
+version = "11.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "clinvarbitration" },
@@ -2801,7 +2801,7 @@ requires-dist = [
     { name = "clinvarbitration", specifier = "~=2.2.7" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
     { name = "cpg-flow", marker = "extra == 'cpg'", specifier = "~=1.3" },
-    { name = "cpg-utils", specifier = "~=5.7" },
+    { name = "cpg-utils", specifier = ">=5.7.1" },
     { name = "cyvcf2", specifier = ">=0.30.18" },
     { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },
     { name = "grpcio-status", specifier = ">=1.48,<1.50" },

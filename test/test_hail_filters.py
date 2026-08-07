@@ -6,10 +6,12 @@ import pytest
 
 import hail as hl
 
+from talos.models import PanelApp, PanelDetail
 from talos.run_hail_filtering import (
     filter_matrix_by_ac,
     filter_on_quality_flags,
     green_gene_intervals,
+    parse_gene_location,
     populate_callset_frequencies,
 )
 
@@ -117,46 +119,83 @@ def test_filter_on_quality_flags(
     assert filter_on_quality_flags(anno_matrix).count_rows() == length
 
 
-@pytest.fixture(name='gene_bed')
-def fixture_gene_bed(tmp_path):
-    """a per-gene BED file, in the format written by create_roi_from_gff3"""
-    bed = tmp_path / 'roi.bed'
-    bed.write_text(
-        # padding runs off the start of the contig, and this gene overlaps GENE2
-        'chr1\t-2000\t20000\tENSG01;GENE1\n'
-        'chr1\t15000\t30000\tENSG02;GENE2\n'
-        # abuts the end of GENE2 - 0-based 30000 is 1-based 30001
-        'chr1\t30000\t40000\tENSG03;GENE3\n'
-        # separated from the GENE1-3 block, and not a gene of interest
-        'chr1\t500000\t600000\tENSG99;NOT_GREEN\n'
-        'chr2\t1000\t2000\tENSG04;GENE4\n'
-        # padding runs off the end of the contig
-        'chrM\t1\t20000\tENSG05;GENE_MT\n'
-        # not a GRCh38 contig
-        'chrBANANA\t1\t100\tENSG06;GENE_BANANA\n',
-    )
-    return str(bed)
+@pytest.fixture(name='panelapp_from_locations')
+def fixture_panelapp_from_locations():
+    """build a minimal PanelApp object from a dict of ENSG: location"""
+
+    def _panelapp(locations: dict[str, str]) -> PanelApp:
+        return PanelApp(
+            genes={
+                ensg: PanelDetail(symbol=ensg, chrom=location.split(':')[0], location=location)
+                for ensg, location in locations.items()
+            },
+        )
+
+    return _panelapp
 
 
-def test_green_gene_intervals(gene_bed):
+@pytest.mark.parametrize(
+    ('location', 'expected'),
+    [
+        ('1:100-200', ('chr1', 100, 200)),
+        ('X:100-200', ('chrX', 100, 200)),
+        # Ensembl calls the mitochondrion MT, GRCh38 in Hail calls it chrM
+        ('MT:100-200', ('chrM', 100, 200)),
+        # already prefixed locations are left alone
+        ('chr1:100-200', ('chr1', 100, 200)),
+        # genes added through config have no coordinates
+        ('Unknown', None),
+        ('', None),
+        ('1:100', None),
+    ],
+)
+def test_parse_gene_location(location: str, expected: tuple[str, int, int] | None):
+    """PanelApp locations become GRCh38 contigs and coordinates, or None when unusable"""
+    assert parse_gene_location(location) == expected
+
+
+def test_green_gene_intervals(panelapp_from_locations):
     """overlapping and abutting regions merge, coordinates are clamped inside the contig"""
-    intervals = green_gene_intervals(gene_bed, {'ENSG01', 'ENSG02', 'ENSG03', 'ENSG04', 'ENSG05'})
+    panelapp = panelapp_from_locations(
+        {
+            # flanking runs off the start of the contig, and this gene overlaps GENE2
+            'ENSG01': '1:1-18000',
+            'ENSG02': '1:17001-28000',
+            # once flanked, this abuts the end of GENE2
+            'ENSG03': '1:32001-38000',
+            # separated from the ENSG01-03 block
+            'ENSG04': '1:500001-600000',
+            'ENSG05': '2:3001-4000',
+            # flanking runs off the end of the contig
+            'ENSG06': 'MT:1-16000',
+        },
+    )
+    intervals = green_gene_intervals(panelapp)
     assert [str(interval) for interval in intervals] == [
         '[chr1:1-40000]',
-        '[chr2:1001-2000]',
-        '[chrM:2-16569]',
+        '[chr1:498001-602000]',
+        '[chr2:1001-6000]',
+        '[chrM:1-16569]',
     ]
 
 
-def test_green_gene_intervals_skips_unusable_regions(gene_bed, caplog):
-    """genes missing from the BED, or on unknown contigs, are dropped with a warning"""
-    intervals = green_gene_intervals(gene_bed, {'ENSG04', 'ENSG06', 'ENSG07'})
-    assert [str(interval) for interval in intervals] == ['[chr2:1001-2000]']
+def test_green_gene_intervals_skips_unusable_regions(panelapp_from_locations, caplog):
+    """genes with no location, or on unknown contigs, are dropped with a warning"""
+    panelapp = panelapp_from_locations(
+        {
+            'ENSG01': '2:3001-4000',
+            'ENSG02': 'BANANA:1-100',
+            'ENSG03': 'Unknown',
+        },
+    )
+    intervals = green_gene_intervals(panelapp)
+    assert [str(interval) for interval in intervals] == ['[chr2:1001-6000]']
     assert 'contig chrBANANA is not in GRCh38' in caplog.text
-    assert '2 genes of interest had no region' in caplog.text
+    assert '2 genes of interest had no usable location' in caplog.text
 
 
-def test_green_gene_intervals_no_overlap(gene_bed):
-    """if none of the genes of interest are in the BED, that's fatal - we'd read an empty MT"""
-    with pytest.raises(ValueError, match='None of the 1 genes of interest were found'):
-        green_gene_intervals(gene_bed, {'ENSG_NOPE'})
+def test_green_gene_intervals_no_locations(panelapp_from_locations):
+    """if none of the genes of interest have a location, that's fatal - we'd read an empty MT"""
+    panelapp = panelapp_from_locations({'ENSG_NOPE': 'Unknown'})
+    with pytest.raises(ValueError, match='None of the 1 genes of interest had a usable location'):
+        green_gene_intervals(panelapp)

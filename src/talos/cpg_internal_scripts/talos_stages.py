@@ -435,9 +435,6 @@ class RunHailFiltering(stage.CohortStage):
 
         panelapp_json = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
 
-        # per-gene BED, used to only read the MT regions around the genes of interest
-        gene_bed = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'ensembl_bed']))
-
         # peds can't read cloud paths
         pedigree = hail_batch.get_batch().read_input(inputs.as_path(cohort, MakeHpoPedigree))
         expected_out = self.expected_outputs(cohort)
@@ -468,7 +465,6 @@ class RunHailFiltering(stage.CohortStage):
                 --output {job.output['vcf.bgz']} \\
                 --clinvar "$BATCH_TMPDIR/clinvar_decisions.ht" \\
                 --pm5 "$BATCH_TMPDIR/clinvar_decisions.pm5.ht" \\
-                --gene_bed {gene_bed} \\
                 --checkpoint "${{BATCH_TMPDIR}}/checkpoint.mt"
             """,
         )

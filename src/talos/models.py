@@ -22,6 +22,8 @@ from talos.liftover.lift_2_1_0_to_2_2_0 import dl_panelapp as dl_pa_210_to_220
 from talos.liftover.lift_2_1_0_to_2_2_0 import resultdata as rd_210_to_220
 from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
+from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
+from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -29,8 +31,21 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.3.0'
-ALL_VERSIONS = [None, '1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.1.0', '1.2.0', '2.0.0', '2.1.0', '2.2.0', '2.3.0']
+CURRENT_VERSION = '2.4.0'
+ALL_VERSIONS = [
+    None,
+    '1.0.0',
+    '1.0.1',
+    '1.0.2',
+    '1.0.3',
+    '1.1.0',
+    '1.2.0',
+    '2.0.0',
+    '2.1.0',
+    '2.2.0',
+    '2.3.0',
+    '2.4.0',
+]
 
 # ratios for use in AB testing
 MAX_WT = 0.15
@@ -419,6 +434,7 @@ class PanelDetail(BaseModel):
 
     symbol: str
     chrom: str = Field(default_factory=str)
+    location: str = Field(default_factory=str)
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
     panels: set[int] = Field(default_factory=set)
@@ -461,7 +477,7 @@ class DownloadedPanelAppGene(BaseModel):
 
     symbol: str
     chrom: str = Field(default_factory=str)
-    mane_symbol: str = Field(default_factory=str)
+    location: str = Field(default_factory=str)
     ensg: str = Field(default_factory=str)
     # for every panel this gene has featured in, when did it become Green, and what was the MOI
     panels: dict[int, DownloadedPanelAppGenePanelDetail] = Field(default_factory=dict)
@@ -573,11 +589,13 @@ LIFTOVER_METHODS: dict = {
     DownloadedPanelApp: {
         '2.1.0_2.2.0': dl_pa_210_to_220,
         '2.2.0_2.3.0': dl_pa_220_to_230,
+        '2.3.0_2.4.0': dl_pa_230_to_240,
     },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
         '2.2.0_2.3.0': pa_220_to_230,
+        '2.3.0_2.4.0': pa_230_to_240,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,

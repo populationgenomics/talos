@@ -14,7 +14,6 @@ Read, filter, annotate, classify, and write Genetic data
 from argparse import ArgumentParser
 from collections import defaultdict
 
-from cloudpathlib.anypath import to_anypath
 from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
 
@@ -45,6 +44,9 @@ CRITICAL_CSQ_DEFAULT = [
 MISSENSE = hl.str('missense')
 
 NUM_PED_COLS = 6
+
+# bases added either side of each gene when choosing which regions of the MT to read
+FLANKING_REGION = 2000
 
 
 def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -798,19 +800,49 @@ def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
     return hl.literal(green_genes)
 
 
-def green_gene_intervals(bed_path: str, gene_ids: set[str]) -> list[hl.Interval]:
+def parse_gene_location(location: str) -> tuple[str, int, int] | None:
+    """
+    Translate a PanelApp location String ("contig:start-end") into GRCh38 reference terms
+
+    PanelApp locations are Ensembl-style - 1-based inclusive, unprefixed contigs, and "MT" for the mitochondrion.
+    Genes added through config have no coordinates at all, so this returns None for anything unparseable.
+
+    Args:
+        location (str): the PanelDetail.location String
+
+    Returns:
+        a tuple of the prefixed contig, start, and end, or None if this isn't a usable location
+    """
+
+    contig, _sep, coordinates = location.partition(':')
+    start, _sep, end = coordinates.partition('-')
+
+    if not (start.isdigit() and end.isdigit()):
+        return None
+
+    if not contig.startswith('chr'):
+        contig = f'chr{contig}'
+
+    # Ensembl calls the mitochondrion MT, GRCh38 in Hail calls it chrM
+    if contig == 'chrMT':
+        contig = 'chrM'
+
+    return contig, int(start), int(end)
+
+
+def green_gene_intervals(panelapp: PanelApp, flanking: int = FLANKING_REGION) -> list[hl.Interval]:
     """
     Build a minimal set of Hail intervals covering the genes of interest
 
-    The BED file is the per-gene ROI file written by talos.annotation_scripts.create_roi_from_gff3:
-    contig, start, end, "ENSG;SYMBOL", where the regions already contain flanking sequence.
+    Coordinates are taken from the PanelApp data itself - each gene carries the location recorded by Ensembl at
+    PanelApp download time. Flanking sequence is added here, as the raw locations are the gene body alone.
 
     Overlapping and abutting regions are merged, and the intervals are returned in reference order -
     the MT reader requires sorted, disjoint intervals, and fewer intervals means less work per partition.
 
     Args:
-        bed_path (str): path to the per-gene BED file
-        gene_ids (set[str]): ENSG IDs to keep regions for
+        panelapp (PanelApp): the PanelApp object for this analysis
+        flanking (int): number of bases to add before and after each gene
 
     Returns:
         a sorted list of disjoint Intervals, covering every gene of interest
@@ -819,35 +851,32 @@ def green_gene_intervals(bed_path: str, gene_ids: set[str]) -> list[hl.Interval]
     reference = hl.get_reference('GRCh38')
     contig_lengths: dict[str, int] = reference.lengths
     regions: dict[str, list[tuple[int, int]]] = defaultdict(list)
-    genes_found: set[str] = set()
+    missing: set[str] = set()
 
-    with to_anypath(bed_path).open() as handle:
-        for line in handle:
-            if line.startswith('#'):
-                continue
+    for ensg, gene_data in panelapp.genes.items():
+        # genes added through config carry no coordinates, and PanelApp occasionally omits them
+        if (parsed_location := parse_gene_location(gene_data.location)) is None:
+            missing.add(ensg)
+            continue
 
-            contig, start, end, details = line.rstrip().split('\t')[:4]
+        contig, start, end = parsed_location
 
-            # the 4th column is "ENSG;SYMBOL"
-            ensg = details.split(';')[0]
-            if ensg not in gene_ids:
-                continue
+        if contig not in contig_lengths:
+            logger.warning(f'Skipping {ensg}, contig {contig} is not in GRCh38')
+            missing.add(ensg)
+            continue
 
-            if contig not in contig_lengths:
-                logger.warning(f'Skipping {ensg}, contig {contig} is not in GRCh38')
-                continue
+        # PanelApp coordinates are already 1-based inclusive, as Hail loci are
+        # the flanking region can spill off either end of the contig, so clamp it
+        regions[contig].append((max(start - flanking, 1), min(end + flanking, contig_lengths[contig])))
 
-            genes_found.add(ensg)
-
-            # BED coordinates are 0-based half-open, Hail loci are 1-based inclusive
-            # the flanking region added during BED generation can also spill off either end of the contig
-            regions[contig].append((max(int(start) + 1, 1), min(int(end), contig_lengths[contig])))
-
-    if missing := gene_ids - genes_found:
-        logger.warning(f'{len(missing)} genes of interest had no region in {bed_path}, e.g. {sorted(missing)[:5]}')
+    if missing:
+        logger.warning(
+            f'{len(missing)} genes of interest had no usable location in the PanelApp data, e.g. {sorted(missing)[:5]}',
+        )
 
     if not regions:
-        raise ValueError(f'None of the {len(gene_ids)} genes of interest were found in {bed_path}')
+        raise ValueError(f'None of the {len(panelapp.genes)} genes of interest had a usable location')
 
     intervals: list[hl.Interval] = []
 
@@ -874,7 +903,8 @@ def green_gene_intervals(bed_path: str, gene_ids: set[str]) -> list[hl.Interval]
 
         intervals.append(locus_interval(contig, merged_start, merged_end))
 
-    logger.info(f'{len(genes_found)} genes of interest cover {len(intervals)} regions in {len(regions)} contigs')
+    located = len(panelapp.genes) - len(missing)
+    logger.info(f'{located} genes of interest cover {len(intervals)} regions in {len(regions)} contigs')
     return intervals
 
 
@@ -986,11 +1016,6 @@ def cli_main():
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
     parser.add_argument('--exomiser', help='HT containing exomiser variant selections, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
-    parser.add_argument(
-        '--gene_bed',
-        help='BED file of gene regions (chrom, start, end, ENSG;SYMBOL), used to only read relevant MT regions',
-        default=None,
-    )
     args = parser.parse_args()
     main(
         mt_paths=args.input,
@@ -1001,11 +1026,10 @@ def cli_main():
         pm5=args.pm5,
         exomiser=args.exomiser,
         checkpoint=args.checkpoint,
-        gene_bed=args.gene_bed,
     )
 
 
-def main(  # noqa: PLR0915
+def main(
     mt_paths: list[str],
     panel_data: str,
     pedigree: str,
@@ -1014,7 +1038,6 @@ def main(  # noqa: PLR0915
     pm5: str | None = None,
     exomiser: str | None = None,
     checkpoint: str | None = None,
-    gene_bed: str | None = None,
 ):
     """
     Read MT, filter, and apply category annotation, export as a VCF
@@ -1028,7 +1051,6 @@ def main(  # noqa: PLR0915
         pm5 (str): path to a pm5 HT, or unspecified
         exomiser (str): path of an exomiser HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
-        gene_bed (str): path to a per-gene BED file, used to only read the regions around genes of interest
     """
     logger.info(
         r"""Welcome To
@@ -1048,16 +1070,12 @@ def main(  # noqa: PLR0915
 
     # pull green genes from the panelapp data
     green_expression = green_from_panelapp(panelapp)
+
     # pull genes marked as new in PanelApp
     new_green_genes_expression = new_green_genes_from_panelapp(panelapp)
 
-    # translate the genes of interest into genomic regions, so we only read the relevant parts of the MT
-    # without a BED file we fall back on reading everything, and filtering on the gene annotations alone
-    if gene_bed:
-        intervals = green_gene_intervals(bed_path=gene_bed, gene_ids=set(panelapp.genes))
-    else:
-        logger.warning('No --gene_bed was provided, the whole MatrixTable will be read')
-        intervals = None
+    # pull the regions of interest from the genes in this analysis, so we only read the relevant parts of the MT
+    intervals = green_gene_intervals(panelapp=panelapp)
 
     # read the pedigree data
     pedigree_data: PedigreeParser = PedigreeParser(pedigree)

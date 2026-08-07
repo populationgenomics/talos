@@ -26,13 +26,6 @@ workflow TALOS {
     ch_gen2phen = channel.fromPath(params.gen2phen, checkIfExists: true).first()
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
-    // per-gene region BED, used to only read the relevant regions of each MatrixTable
-    if (!file(params.ensembl_bed).exists()) {
-        println "Region-Of-Interest BED file has not been prepared, run the Talos Prep workflow (talos_preparation.nf)"
-        exit 1
-    }
-    ch_gene_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true).first()
-
     // current year-month as a String, used to prompt for up to date resource updates
     def current_month = new java.util.Date().format('yyyy-MM')
     def timestamp = new java.util.Date().format('yyyy-MM-dd')
@@ -88,7 +81,6 @@ workflow TALOS {
         ch_run_hail_inputs,
         ch_clinvar_all,
         ch_clinvar_pm5,
-        ch_gene_bed,
     )
 
     // filter & label any annotated SV VCFs. ch_sv_annotated only carries cohorts that had SV data, so this

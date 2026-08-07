@@ -5,6 +5,7 @@
     {
       "symbol": "ABCD",
       "chrom": "1",
+      "location": "1:2-3",
       "ensg": "ENSG00ABCD",
       "moi": "Biallelic",
       "confidence_level": 3
@@ -12,6 +13,7 @@
     {
       "symbol": "EFGH",
       "chrom": "1",
+      "location": "1:3-4",
       "ensg": "ENSG00EFGH",
       "moi": "Monoallelic",
       "confidence_level": 3
@@ -19,6 +21,7 @@
     {
       "symbol": "IJKL",
       "chrom": "1",
+      "location": "1:5-6",
       "ensg": "ENSG00IJKL",
       "moi": "BOTH",
       "confidence_level": 3
@@ -26,6 +29,7 @@
     {
       "symbol": "RNU12",
       "chrom": "1",
+      "location": "1:6-7",
       "ensg": null,
       "moi": "SPECIFIC",
       "confidence_level": 3
