@@ -56,8 +56,6 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'pm5': 'PM5',
     'sv1': 'LOF SV',
     'lofsv': 'LOF SV',
-    'svdb': 'SpliceVarDB',
-    'splicevardb': 'SpliceVarDB',
     'exomiser': 'Exomiser',
 }
 

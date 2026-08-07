@@ -5,6 +5,7 @@ process RunHailFiltering {
         tuple val(cohort), path(mts), path(panelapp_data), path(check_file), path(pedigree), path(talos_config)
         path clinvar_all
         path clinvar_pm5
+        path gene_bed
 
     output:
         tuple val(cohort), path("${cohort}_small_variants_labelled.vcf.bgz"), path("${cohort}_small_variants_labelled.vcf.bgz.tbi")
@@ -23,6 +24,7 @@ process RunHailFiltering {
             --output ${cohort}_small_variants_labelled.vcf.bgz \
             --clinvar ${clinvar_all} \
             --pm5 ${clinvar_pm5} \
+            --gene_bed ${gene_bed} \
             --checkpoint checkpoint
         """
 }
