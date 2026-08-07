@@ -92,12 +92,12 @@ def create_config(cohort: targets.Cohort, seqr_out: Path, config_out: Path):
     dataset = cohort.dataset.name
     # start off with a fresh config dictionary, including generic content
     new_config = {
-        'GeneratePanelData': copy.deepcopy(config.config_retrieve(['GeneratePanelData'])),
-        'RunHailFiltering': copy.deepcopy(config.config_retrieve(['RunHailFiltering'])),
-        'RunHailFilteringSv': copy.deepcopy(config.config_retrieve(['RunHailFilteringSv'])),
-        'ValidateMOI': copy.deepcopy(config.config_retrieve(['ValidateMOI'])),
-        'HPOFlagging': copy.deepcopy(config.config_retrieve(['HPOFlagging'])),
-        'CreateTalosHTML': {},  # populate from a separate part of config
+        'GeneratePanelData': copy.deepcopy(config.config_retrieve('GeneratePanelData')),
+        'RunHailFiltering': copy.deepcopy(config.config_retrieve('RunHailFiltering')),
+        'RunHailFilteringSv': copy.deepcopy(config.config_retrieve('RunHailFilteringSv')),
+        'ValidateMOI': copy.deepcopy(config.config_retrieve('ValidateMOI')),
+        'HPOFlagging': copy.deepcopy(config.config_retrieve('HPOFlagging')),
+        'CreateTalosHTML': copy.deepcopy(config.config_retrieve('CreateTalosHTML', {})),
         'splice_ai_ht': config.config_retrieve(['references', 'splice_ai_ht']),
         'dataset': dataset,
         'sequencing_type': config.config_retrieve(['workflow', 'sequencing_type']),
