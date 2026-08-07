@@ -6,7 +6,7 @@ Read, filter, annotate, classify, and write Genetic data
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 3, 4, 5, 6, pm5, exomiser, svdb
+- annotate with categories 1, 3, 4, 5, 6, pm5, exomiser
 - remove un-categorised variants
 - write as VCF
 """
@@ -284,57 +284,6 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     return mt.annotate_rows(
         info=mt.info.annotate(
             categorydetailspm5=hl.or_else(codon_variants[mt.row_key].clinvar_variations, MISSING_STRING),
-        ),
-    )
-
-
-def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None, ignored: bool = False):
-    """
-    Takes the locus,ref,alt indexed table of SpliceVarDB variants, and matches
-    them up against the variant data
-    Annotates with a boolean flag if the variant is Splice-altering according to SVDB
-
-    Args:
-        mt (): MT of all variants
-        svdb_path (str or None): path to a (localised) PM5 annotations Hail Table
-        ignored (bool): if True, don't annotate the MT with the SpliceVarDB data
-
-    Returns:
-        Same MT with an extra category label
-    """
-    if svdb_path is None or ignored:
-        logger.info(f'SVDB not required or requested, skipping annotation. (table path: {svdb_path})')
-        return mt.annotate_rows(
-            info=mt.info.annotate(
-                categorybooleansvdb=MISSING_INT,
-                svdb_location=MISSING_STRING,
-                svdb_method=MISSING_STRING,
-                svdb_doi=MISSING_STRING,
-            ),
-        )
-
-    # read in the codon table
-    logger.info(f'Reading SpliceVarDB data from {svdb_path}')
-    svdb_ht = hl.read_table(svdb_path)
-
-    # annotate relevant variants with the SVDB results
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
-            svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_STRING),
-            svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_STRING),
-            svdb_doi=hl.or_else(svdb_ht[mt.row_key].doi, MISSING_STRING),
-        ),
-    )
-
-    # annotate category if Splice-altering according to SVDB
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categorybooleansvdb=hl.if_else(
-                mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
-                ONE_INT,
-                MISSING_INT,
-            ),
         ),
     )
 
@@ -804,7 +753,6 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorybooleanavi == 1)
         | (mt.info.categorysampledenovo != MISSING_STRING)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
-        | (mt.info.categorybooleansvdb == 1)
         | (mt.info.categorydetailsexomiser != MISSING_STRING),
     )
 
@@ -938,7 +886,6 @@ def cli_main():
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
     parser.add_argument('--exomiser', help='HT containing exomiser variant selections, optional', default=None)
-    parser.add_argument('--svdb', help='HT containing SpliceVarDB annotations, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
@@ -949,7 +896,6 @@ def cli_main():
         clinvar=args.clinvar,
         pm5=args.pm5,
         exomiser=args.exomiser,
-        svdb=args.svdb,
         checkpoint=args.checkpoint,
     )
 
@@ -962,7 +908,6 @@ def main(  # noqa: PLR0915
     clinvar: str,
     pm5: str | None = None,
     exomiser: str | None = None,
-    svdb: str | None = None,
     checkpoint: str | None = None,
 ):
     """
@@ -976,7 +921,6 @@ def main(  # noqa: PLR0915
         clinvar (str): path to a ClinVar HT, or unspecified
         pm5 (str): path to a pm5 HT, or unspecified
         exomiser (str): path of an exomiser HT, or unspecified
-        svdb (str): path to a SpliceVarDB HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
     logger.info(
@@ -1064,11 +1008,8 @@ def main(  # noqa: PLR0915
     # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
     mt = annotate_exomiser(mt=mt, exomiser=exomiser, ignored=bool('exomiser' in ignored_categories))
 
-    # if a SVDB data is provided, use that to apply category annotations
-    mt = annotate_splicevardb(mt=mt, svdb_path=svdb, ignored=bool('svdb' in ignored_categories))
-
     # if we ignored both these categories, skip this checkpoint
-    if checkpoint and not all(cat in ignored_categories for cat in ['exomiser', 'svdb']):
+    if checkpoint and not all(cat in ignored_categories for cat in ['exomiser']):
         mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
 
     # current logic is to apply 1, 6, 3, then 4 (de novo)
