@@ -368,7 +368,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
-            gcloud storage cp --no-progress -r {clinvarbitration_ht} "$BATCH_TMPDIR"
+            gcloud storage cp --no-user-output-enabled -r {clinvarbitration_ht} "$BATCH_TMPDIR"
 
             python -m talos.reformat_and_label_mito_vcf \\
                 --input {localised_vcf} \\
@@ -446,11 +446,13 @@ class RunHailFiltering(stage.CohortStage):
 
         # find the clinvar tables from previous stage, read in
         clinvarbitration_hts = inputs.as_dict(target=workflow.get_multicohort(), stage=GenerateNewClinvArbitration)
-        job.command(f'gcloud storage cp --no-progress -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR"')
-        job.command(f'gcloud storage cp --no-progress -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR"')
+        job.command(
+            f'gcloud storage cp --no-user-output-enabled -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR"'
+        )
+        job.command(f'gcloud storage cp --no-user-output-enabled -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR"')
 
         # read in the MT using gcloud, directly into batch tmp
-        job.command(f'gcloud storage cp --no-progress -r {input_mt!s} $BATCH_TMPDIR')
+        job.command(f'gcloud storage cp --no-user-output-enabled -r {input_mt!s} $BATCH_TMPDIR')
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
