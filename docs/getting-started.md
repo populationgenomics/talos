@@ -7,11 +7,11 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 ## Resource Configuration
 
 As a NextFlow workflow, the resourcing for the stages are set in the [nextflow.config](../nextflow.config) file. The default contents of this file
-contain low levels of resourcing, sufficient for running the test cases locally, but impractical for large scale work. The resources required for 
-each workflow will vary widely depending on sequencing type (exome/genome) and number of samples, so an element of this is trial and error. This 
+contain low levels of resourcing, sufficient for running the test cases locally, but impractical for large scale work. The resources required for
+each workflow will vary widely depending on sequencing type (exome/genome) and number of samples, so an element of this is trial and error. This
 block outlines some important steps to provide extra resources for.
 
-| Stage                       | Workflow    | Suggestion             | Reasoning                                                                                                                                                                                                                                                                         | 
+| Stage                       | Workflow    | Suggestion             | Reasoning                                                                                                                                                                                                                                                                         |
 |:----------------------------|:------------|:-----------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | ResummariseRawSubmissions   | Preparation | 16.GB memory, 4 CPUs   | Reasonably resource intensive local-spark operation on a genome-wide ClinVar dataset. Will fail if under resourced, but has a fixed ceiling                                                                                                                                       |
 | AnnotatedVcfIntoMatrixTable | Annotation  | High memory, High CPU  | This step runs in parallel across each fragment of the input VCF, parsing the VCF, reformatting annotations, and writing out a full MatrixTable representation. This runs as a local Spark instance, so resources should scale with the width (sample count) of the input callset |
@@ -23,7 +23,7 @@ Honorable mentions:
 
 ---
 
-## Workflow 
+## Workflow
 
 There are two primary entry points:
 
