@@ -1005,7 +1005,7 @@ def main(  # noqa: PLR0915
 
     # read the matrix table from a localised directory
     mt = union_all_mts(mt_paths)
-    logger.info(f'Loaded annotated MT from {mt_paths}, size: {mt.count_rows()}, partitions: {mt.n_partitions()}')
+    logger.info(f'Loaded annotated MT from {mt_paths}, partitions: {mt.n_partitions()}')
 
     # Filter out star alleles, not currently capable of handling them
     # Will revisit once our internal experience with DRAGEN-generated variant data improves
