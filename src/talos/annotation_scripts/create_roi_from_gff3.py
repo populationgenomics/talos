@@ -79,10 +79,9 @@ def generate_bed_lines(
             line_as_list = line.rstrip().split('\t')
 
             # skip over non-genes (e.g. pseudogenes, ncRNA)
-            # only focus on Ensembl genes/transcripts
+            # 07-08-2026 - removed exclusive focus on Ensembl genes/transcripts
             if (
                 line_as_list[TYPE_INDEX] not in TYPES_TO_KEEP
-                or 'ensembl' not in line_as_list[RESOURCE_INDEX]
                 or f'chr{line_as_list[CHROM_INDEX]}' not in CANONICAL_CONTIGS
             ):
                 continue
