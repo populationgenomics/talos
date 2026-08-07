@@ -331,8 +331,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_t
 
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    run the rare filter, using Gnomad Exomes and Genomes
-    allow clinvar pathogenic to slip through this filter
+    run the rare filter, using Gnomad Exomes and Genomes; allow clinvar pathogenic to slip through this filter.
     """
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
@@ -347,13 +346,6 @@ def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpr
     """
     chunky filtering method - get rid of every variant without at least one green-gene annotation
     does not edit the field itself, that will come later (split_rows_by_gene_and_filter_to_green)
-
-    Args:
-        mt ():
-        green_genes ():
-
-    Returns:
-        the same MT, just reduced
     """
 
     # filter rows without a green gene (removes empty gene_ids)
@@ -1111,30 +1103,20 @@ def main(
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
 
-    if checkpoint:
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
-
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
 
     # filter variants by frequency
     mt = filter_matrix_by_ac(mt=mt)
 
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
+
     # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
-    if checkpoint:
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean')
-
     # these categories are ignored early, to prevent an expensive join
     ignored_categories = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
-
-    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
-    mt = annotate_exomiser(mt=mt, exomiser=exomiser, ignored=bool('exomiser' in ignored_categories))
-
-    # if we ignored both these categories, skip this checkpoint
-    if checkpoint and not all(cat in ignored_categories for cat in ['exomiser']):
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
 
     # current logic is to apply 1, 6, 3, then 4 (de novo)
     # 1 was applied earlier during the integration of clinvar data
