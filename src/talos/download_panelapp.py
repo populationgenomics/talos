@@ -40,10 +40,7 @@ from talos.models import (
     HpoTerm,
     PanelShort,
 )
-from talos.utils import (
-    get_json_response,
-    read_json_from_path,
-)
+from talos.utils import get_json_response
 
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
