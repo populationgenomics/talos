@@ -42,9 +42,6 @@ CRITICAL_CSQ_DEFAULT = [
 ]
 MISSENSE = hl.str('missense')
 
-# decide whether to repartition the data before processing starts
-MAX_PARTITIONS = 4000
-
 NUM_PED_COLS = 6
 
 
@@ -958,15 +955,6 @@ def main(  # noqa: PLR0915
 
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
-
-    # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
-    # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
-    if mt.n_partitions() > MAX_PARTITIONS:
-        logger.info('Shrinking partitions way down with an unshuffled repartition')
-        mt = mt.repartition(shuffle=False, n_partitions=200)
-        if checkpoint:
-            logger.info('Trying to write the result locally, might need more space on disk...')
-            mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
 
     # swap out the default clinvar annotations with private clinvar
     # include a flag for variants that are ClinVar P/LP AND in PanelApp "new" genes
