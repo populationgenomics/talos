@@ -6,7 +6,7 @@ Read, filter, annotate, classify, and write Genetic data
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 3, 4, 5, 6, pm5, exomiser
+- annotate with categories 1, 3, 4, 5, 6, pm5
 - remove un-categorised variants
 - write as VCF
 """
@@ -150,33 +150,6 @@ def annotate_clinvarbitration(
             ),
         )
     return mt
-
-
-def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None, ignored: bool = False) -> hl.MatrixTable:
-    """
-    Annotate this MT with top hits from Exomiser
-
-    The exomiser table must be indexed on [locus, alleles], with an extra column "proband_details"
-
-    Args:
-        mt (): the MatrixTable of all variants
-        exomiser (str | None): optional, path to HT of exomiser results
-        ignored (bool): if True, don't annotate the MT with the Exomiser data
-
-    Returns:
-        The same MatrixTable but with additional annotations
-    """
-    if not exomiser or ignored:
-        logger.info(f'Exomiser not required or requested, skipping annotation (table path: {exomiser})')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
-
-    logger.info(f'loading exomiser variants from {exomiser}')
-    exomiser_ht = hl.read_table(exomiser)
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].proband_details, MISSING_STRING),
-        ),
-    )
 
 
 def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
@@ -746,7 +719,6 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorybooleanavi == 1)
         | (mt.info.categorysampledenovo != MISSING_STRING)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
-        | (mt.info.categorydetailsexomiser != MISSING_STRING),
     )
 
 
@@ -1006,7 +978,6 @@ def cli_main():
     parser.add_argument('--output', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
-    parser.add_argument('--exomiser', help='HT containing exomiser variant selections, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
@@ -1016,7 +987,6 @@ def cli_main():
         vcf_out=args.output,
         clinvar=args.clinvar,
         pm5=args.pm5,
-        exomiser=args.exomiser,
         checkpoint=args.checkpoint,
     )
 
@@ -1028,7 +998,6 @@ def main(
     vcf_out: str,
     clinvar: str,
     pm5: str | None = None,
-    exomiser: str | None = None,
     checkpoint: str | None = None,
 ):
     """
@@ -1041,7 +1010,6 @@ def main(
         vcf_out (str): where to write VCF out
         clinvar (str): path to a ClinVar HT, or unspecified
         pm5 (str): path to a pm5 HT, or unspecified
-        exomiser (str): path of an exomiser HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
     logger.info(
