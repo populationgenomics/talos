@@ -7,13 +7,15 @@ This rearranges all the annotations into the format expected downstream.
 
 import json
 from argparse import ArgumentParser
-from collections import defaultdict
 
 from loguru import logger
 
 import hail as hl
 
 from cpg_utils.hail_batch import init_batch
+
+from talos.models import DownloadedPanelApp
+from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 MISSING_FLOAT = hl.float64(0)
 MISSING_INT = hl.int32(0)
@@ -108,27 +110,6 @@ def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) ->
     )
 
 
-def get_gene_id_dict(bed_file: str) -> hl.DictExpression:
-    """
-    Use the BED file to generate a lookup of Gene Symbols to Ensembl Gene IDs
-    """
-
-    # indexed on contig, then gene symbol: ID
-    id_dict: dict[str, dict[str, str]] = defaultdict(dict)
-
-    with open(bed_file) as handle:
-        for line in handle:
-            # skip over headers and dividing lines
-            if line.startswith('#'):
-                continue
-
-            chrom, _start, _end, details = line.rstrip().split('\t')
-            ensg, symbol = details.split(';')
-            id_dict[chrom][symbol] = ensg
-
-    return hl.literal(id_dict)
-
-
 def get_mane_annotations(mane_path: str) -> hl.DictExpression:
     """
     Parse the MANE file, and get a dict expression of annotations.
@@ -191,11 +172,7 @@ def annotate_all_transcript_consequences(
                     mane[x.transcript]['mane_id'],
                     MISSING_STRING,
                 ),
-                gene_id=hl.if_else(
-                    ensgs.contains(mt.locus.contig),
-                    ensgs[mt.locus.contig].get(x.gene, x.gene),
-                    x.gene,
-                ),
+                gene_id=ensgs.get(x.gene, x.gene),
             ),
             mt.transcript_consequences,
         ),
@@ -223,7 +200,7 @@ def cli_main():
     parser = ArgumentParser(description='Takes a BCSQ annotated VCF and makes it a HT')
     parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
-    parser.add_argument('--gene_bed', help='BED file containing gene mapping')
+    parser.add_argument('--panelapp', help='PanelApp download')
     parser.add_argument('--mane', help='Hail Table containing MANE annotations', default=None)
     parser.add_argument(
         '--checkpoint',
@@ -235,7 +212,7 @@ def cli_main():
     main(
         vcf_path=args.input,
         output_path=args.output,
-        gene_bed=args.gene_bed,
+        panelapp_path=args.panelapp,
         mane=args.mane,
         checkpoint=args.checkpoint,
     )
@@ -244,7 +221,7 @@ def cli_main():
 def main(
     vcf_path: str,
     output_path: str,
-    gene_bed: str,
+    panelapp_path: str,
     mane: str,
     checkpoint: str | None = None,
 ):
@@ -255,7 +232,7 @@ def main(
     Args:
         vcf_path (str): path to the annotated sites-only VCF
         output_path (str): path to write the resulting Hail Table to, must
-        gene_bed (str): path to a BED file containing gene IDs, derived from the Ensembl GFF3 file
+        panelapp_path (str): PanelApp contents
         mane (str): path to a MANE JSON file for enhanced annotation
         checkpoint (str): which hail backend to use. Defaults to
     """
@@ -284,8 +261,11 @@ def main(
     # re-shuffle the BCSQ elements
     mt = csq_strings_into_hail_structs(csq_fields, mt)
 
+    # read the PanelApp data from JSON
+    panelapp = read_json_from_path(panelapp_path, return_model=DownloadedPanelApp)
+
     # Convert JSON data sources into a hl.Dict object
-    ensg_dict = get_gene_id_dict(bed_file=gene_bed)
+    ensg_dict = get_symbol_to_ensg_mapping(panelapp, as_hail=True)
     mane_dict = get_mane_annotations(mane_path=mane)
 
     # in a single loop, update alphamissense annotations, ENSG gene IDs, and MANE status/matched transcripts

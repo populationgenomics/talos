@@ -41,6 +41,7 @@ from talos.cpg_internal_scripts.cpgflow_jobs import (
     generate_alphamissense_zip,
     vcf_into_matrixtable,
 )
+from talos.cpg_internal_scripts.talos_stages import DownloadPanelAppData
 
 SHARD_MANIFEST = 'shard-manifest.txt'
 
@@ -252,6 +253,7 @@ class AnnotatedVcfIntoMt(stage.CohortStage):
                 / f'{cohort.id}_{{part}}annotation_checkpoint',
             ),
             outputs=outputs,
+            panelapp=inputs.as_path(workflow.get_multicohort(), DownloadPanelAppData),
             job_attrs=self.get_job_attrs(cohort),
         )
 

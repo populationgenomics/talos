@@ -25,10 +25,13 @@ from mendelbrot.pedigree_parser import PedigreeParser
 from numpy import isnan
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
+import hail as hl
+
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
     Coordinates,
+    DownloadedPanelApp,
     PanelApp,
     ResultData,
     ShortTandemRepeat,
@@ -414,11 +417,11 @@ def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | t
         gene, moi, norm, inter, pathogenic = disease_block.split('__')
 
         # try and detect the normal and intermediate ranges
-        normal_range: None | tuple[int, int] = None
+        normal_range: tuple[int, int] | None = None
         if matchy := re.match(STR_RANGE, norm):
             normal_range = (int(matchy.group('min')), int(matchy.group('max')))
 
-        inter_range: None | tuple[int, int] = None
+        inter_range: tuple[int, int] | None = None
         if matchy := re.match(STR_RANGE, inter):
             inter_range = (int(matchy.group('min')), int(matchy.group('max')))
 
@@ -1043,3 +1046,13 @@ def generate_summary_stats(result_set: ResultData):
                 unused_ext_labels.append({'sample': sam, 'variant': var_id, 'labels': labels})
 
     result_set.metadata.unused_ext_labels = unused_ext_labels
+
+
+def get_symbol_to_ensg_mapping(
+    panelapp: PanelApp | DownloadedPanelApp, as_hail: bool = False
+) -> hl.DictExpression | dict[str, str]:
+    """Use the PanelApp data to generate a symbol mapping."""
+    symbol_to_ensg = {gene.symbol: ensg for ensg, gene in panelapp.genes.items()}
+    if as_hail:
+        return hl.literal(symbol_to_ensg)
+    return symbol_to_ensg

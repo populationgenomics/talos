@@ -17,7 +17,6 @@ process RunHailFilteringSv {
         python -m talos.run_hail_filtering_sv \
             --input ${sv_vcf} \
             --panelapp ${panelapp_data} \
-            --mane_json ${mane_json} \
             --pedigree ${pedigree} \
             --output ${cohort}_labelled_svs.vcf.bgz
         """

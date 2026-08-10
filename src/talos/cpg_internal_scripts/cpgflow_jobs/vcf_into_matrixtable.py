@@ -12,13 +12,14 @@ def create_mt_ingest_jobs(
     bcftools_template: str,
     checkpoint: str,
     outputs: dict[str, Path | str],
+    panelapp: Path,
     job_attrs: dict[str, str],
 ):
     """One job per fragment, read each as MT and run some additional annotation/reformatting."""
     batch = hail_batch.get_batch()
 
     mane_json = batch.read_input(config.config_retrieve(['references', 'mane_json']))
-    gene_roi = batch.read_input(config.config_retrieve(['references', 'ensembl_bed']))
+    panelapp_local = batch.read_input(panelapp)
 
     all_jobs: list['BashJob'] = []  # noqa: UP037
     for part in fragments:
@@ -39,7 +40,7 @@ def create_mt_ingest_jobs(
         python -m talos.annotation_scripts.annotated_vcf_into_matrixtable \\
             --input {vcf_path} \\
             --output {output_mt} \\
-            --gene_bed {gene_roi} \\
+            --panelapp {panelapp_local} \\
             --mane {mane_json} \\
             --checkpoint {checkpoint_filled}
         """)

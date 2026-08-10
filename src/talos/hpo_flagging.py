@@ -15,9 +15,9 @@ from collections import defaultdict
 from semsimian import Semsimian
 
 from talos.config import config_retrieve
-from talos.models import ResultData
+from talos.models import PanelApp, ResultData
 from talos.static_values import get_granular_date
-from talos.utils import parse_mane_json_to_dict, read_json_from_path
+from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
@@ -177,7 +177,7 @@ def remove_phenotype_required_variants(result_object: ResultData):
 def cli_main():
     parser = ArgumentParser(description='')
     parser.add_argument('--input', help='The Result data in JSON form')
-    parser.add_argument('--mane_json', help='A map of gene symbol to ENSG for all genes in this analysis')
+    parser.add_argument('--panelapp', help='JSON of PanelApp data')
     parser.add_argument('--gen2phen', help='path to the genotype-phenotype file')
     parser.add_argument('--phenio', help='A phenio DB file')
     parser.add_argument('--output', help='Annotated output')
@@ -185,7 +185,7 @@ def cli_main():
     args = parser.parse_args()
     main(
         result_file=args.input,
-        mane_json=args.mane_json,
+        panelapp_path=args.panelapp,
         gen2phen=args.gen2phen,
         phenio=args.phenio,
         out_path=args.output,
@@ -194,7 +194,7 @@ def cli_main():
 
 def main(
     result_file: str,
-    mane_json: str,
+    panelapp_path: str,
     gen2phen: str,
     phenio: str,
     out_path: str,
@@ -203,13 +203,15 @@ def main(
 
     Args:
         result_file (str): path to the ValidateMOI output JSON
-        mane_json (str): dictionary of all MANE genes we know about
+        panelapp_path (str): JSON of PanelApp data in this analysis
         gen2phen (str): path to a test file of known Phenotypes per gene
         phenio (str): path to a PhenoIO DB file
         out_path (str): path to write the annotated results
     """
 
-    gene_map = parse_mane_json_to_dict(mane_json)
+    panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)
+
+    gene_map = get_symbol_to_ensg_mapping(panelapp, as_hail=False)
 
     # read the results JSON into an object
     results = read_json_from_path(result_file, return_model=ResultData)

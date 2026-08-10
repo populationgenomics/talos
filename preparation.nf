@@ -145,7 +145,6 @@ workflow {
 
     if (!file(current_panelapp).exists()) {
         DownloadPanelApp(
-            ch_mane_json,
             timestamp,
         )
         panelapp_out = DownloadPanelApp.out

@@ -155,14 +155,14 @@ workflow TALOS {
 
     // Flag any relevant HPO terms
     ch_hpo_inputs = ValidateMOI.out
+        .join(UnifiedPanelAppParser.out)
         .join(ch_mts)
-        .map { cohort, talos_result_json, _mts, _pedigree, config, _history, _ext, _seqr, _mito ->
-            tuple(cohort, talos_result_json, config)
+        .map { cohort, talos_result_json, panelapp_data, _mts, _pedigree, config, _history, _ext, _seqr, _mito ->
+            tuple(cohort, talos_result_json, panelapp_data, config)
         }
 
     HPOFlagging(
         ch_hpo_inputs,
-        ch_mane,
         ch_gen2phen,
         ch_phenio,
         timestamp,
