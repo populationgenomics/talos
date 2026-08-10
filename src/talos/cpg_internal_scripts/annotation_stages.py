@@ -43,7 +43,6 @@ from talos.cpg_internal_scripts.cpgflow_jobs import (
 )
 from talos.cpg_internal_scripts.talos_stages import DownloadPanelAppData
 
-
 SHARD_MANIFEST = 'shard-manifest.txt'
 
 # use to record the number of fragments in each shard manifest

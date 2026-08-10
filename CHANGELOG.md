@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Important
 
-  * The latest changes, increasing reliance on PanelApp data for gene locations and IDs, requires any PanelApp download prior to this version to be deleted and regenerated. Usage of an earlier PanelApp download will liekly fail loudly (as the download does not contain 'Location' attributes). 
+  * The latest changes, increasing reliance on PanelApp data for gene locations and IDs, requires any PanelApp download prior to this version to be deleted and regenerated. Usage of an earlier PanelApp download will liekly fail loudly (as the download does not contain 'Location' attributes).
 
 ### Changed
 

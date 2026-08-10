@@ -17,7 +17,6 @@ from itertools import chain, combinations, combinations_with_replacement, islice
 from random import choices
 from typing import TYPE_CHECKING, Any
 
-import hail as hl
 import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
@@ -25,6 +24,8 @@ from mendelbrot.bcftools_interpreter import TYPES_RE, classify_change
 from mendelbrot.pedigree_parser import PedigreeParser
 from numpy import isnan
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
+
+import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import (
@@ -416,11 +417,11 @@ def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | t
         gene, moi, norm, inter, pathogenic = disease_block.split('__')
 
         # try and detect the normal and intermediate ranges
-        normal_range: None | tuple[int, int] = None
+        normal_range: tuple[int, int] | None = None
         if matchy := re.match(STR_RANGE, norm):
             normal_range = (int(matchy.group('min')), int(matchy.group('max')))
 
-        inter_range: None | tuple[int, int] = None
+        inter_range: tuple[int, int] | None = None
         if matchy := re.match(STR_RANGE, inter):
             inter_range = (int(matchy.group('min')), int(matchy.group('max')))
 

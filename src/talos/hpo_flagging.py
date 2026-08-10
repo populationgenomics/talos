@@ -15,9 +15,9 @@ from collections import defaultdict
 from semsimian import Semsimian
 
 from talos.config import config_retrieve
-from talos.models import ResultData, PanelApp
+from talos.models import PanelApp, ResultData
 from talos.static_values import get_granular_date
-from talos.utils import get_symbol_to_ensg_mapping, parse_mane_json_to_dict, read_json_from_path
+from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
 
