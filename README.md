@@ -69,7 +69,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:11.3.0 .
+docker build -f docker/Dockerfile -t talos:11.3.1 .
 ```
 
 ### **2. Download Annotation Resources**
