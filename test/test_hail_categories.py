@@ -210,18 +210,17 @@ def test_filter_to_green_genes_and_split__consequence(make_a_mt):
 
 
 @pytest.mark.parametrize(
-    'one,three,four,five,six,pm5,exomiser,zerostar,newgene,avi,length',
+    'one,three,four,five,six,pm5,zerostar,newgene,avi,length',
     [
-        (0, 0, 'missing', 0, 0, 'missing', 'missing', 0, 0, 0, 0),
-        (0, 0, 'missing', 0, 0, 'missing', 'missing', 0, 0, 1, 1),
-        (0, 0, 'missing', 0, 0, 'missing', 'present', 0, 0, 0, 1),
-        (1, 0, 'missing', 0, 0, 'missing', 'missing', 0, 0, 0, 1),
-        (0, 1, 'missing', 0, 0, 'missing', 'missing', 0, 0, 0, 1),
-        (0, 0, 'present', 0, 0, 'missing', 'missing', 0, 0, 0, 1),
-        (0, 0, 'missing', 0, 1, 'missing', 'missing', 0, 0, 0, 1),
-        (0, 0, 'missing', 0, 0, 'present', 'missing', 0, 0, 0, 1),
-        (0, 0, 'missing', 0, 0, 'missing', 'missing', 1, 0, 0, 1),
-        (0, 0, 'missing', 0, 0, 'missing', 'missing', 0, 1, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 0, 0, 0),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 0, 1, 1),
+        (1, 0, 'missing', 0, 0, 'missing', 0, 0, 0, 1),
+        (0, 1, 'missing', 0, 0, 'missing', 0, 0, 0, 1),
+        (0, 0, 'present', 0, 0, 'missing', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 1, 'missing', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'present', 0, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 1, 0, 0, 1),
+        (0, 0, 'missing', 0, 0, 'missing', 0, 1, 0, 1),
     ],
 )
 def test_filter_to_classified(
@@ -231,7 +230,6 @@ def test_filter_to_classified(
     five: int,
     six: int,
     pm5: str,
-    exomiser: str,
     zerostar: int,
     newgene: int,
     avi: int,
@@ -249,7 +247,6 @@ def test_filter_to_classified(
             categorybooleanspliceai=five,
             categorybooleanalphamissense=six,
             categorydetailspm5=pm5,
-            categorydetailsexomiser=exomiser,
             categorybooleanclinvar0star=zerostar,
             categorybooleanclinvar0starnewgene=newgene,
             categorybooleanavi=avi,
