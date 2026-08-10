@@ -92,8 +92,8 @@ clinvar_dominant_gnomad_max_af = 0.00005
 clinvar_callset_max_af = 0.05
 clinvar_dominant_callset_max_af = 0.05
 
-# any categories in this list will be ignored. For exomiser and svdb the annotations will never be annotated in
-ignore_categories = [ "exomiser", "svdb"]
+# any categories in this list will be ignored.
+ignore_categories = []
 
 # categories where a variant can 'support' another variant, e.g. Comp-Het, but a variant which only has categories in
 # this list will not feature as a homozygous variant or dominant single hit

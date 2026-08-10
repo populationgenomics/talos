@@ -166,11 +166,8 @@ class DownloadPanelAppData(stage.MultiCohortStage):
         inputs: stage.StageInput,
     ) -> stage.StageOutput:
         output = self.expected_outputs(multicohort)
-
-        # get the MANE json file - used to map gene Symbols <-> IDs
-        mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
         job = set_up_job_with_resources(name='DownloadPanelAppData', cpu=1)
-        job.command(f'python -m talos.download_panelapp --output {job.output} --mane {mane_json}')
+        job.command(f'python -m talos.download_panelapp --output {job.output}')
 
         hail_batch.get_batch().write_output(job.output, output)
 
@@ -371,7 +368,7 @@ class AnnotateAndLabelMito(stage.CohortStage):
         label_job.command(
             f"""
             export TALOS_CONFIG={runtime_config}
-            gcloud storage cp -r {clinvarbitration_ht} "$BATCH_TMPDIR"
+            gcloud storage cp --no-user-output-enabled -r {clinvarbitration_ht} "$BATCH_TMPDIR"
 
             python -m talos.reformat_and_label_mito_vcf \\
                 --input {localised_vcf} \\
@@ -449,11 +446,13 @@ class RunHailFiltering(stage.CohortStage):
 
         # find the clinvar tables from previous stage, read in
         clinvarbitration_hts = inputs.as_dict(target=workflow.get_multicohort(), stage=GenerateNewClinvArbitration)
-        job.command(f'gcloud storage cp -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR"')
-        job.command(f'gcloud storage cp -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR"')
+        job.command(
+            f'gcloud storage cp --no-user-output-enabled -r {clinvarbitration_hts["decisions"]} "$BATCH_TMPDIR"'
+        )
+        job.command(f'gcloud storage cp --no-user-output-enabled -r {clinvarbitration_hts["pm5"]} "$BATCH_TMPDIR"')
 
         # read in the MT using gcloud, directly into batch tmp
-        job.command(f'gcloud storage cp -r {input_mt!s} $BATCH_TMPDIR')
+        job.command(f'gcloud storage cp --no-user-output-enabled -r {input_mt!s} $BATCH_TMPDIR')
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
@@ -529,9 +528,6 @@ class RunHailFilteringSv(stage.CohortStage):
             },
         )
 
-        # get the MANE json file - used to map gene Symbols <-> IDs
-        mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
-
         # copy the VCF in
         annotated_vcf = hail_batch.get_batch().read_input_group(
             **{
@@ -546,7 +542,6 @@ class RunHailFilteringSv(stage.CohortStage):
                 --input {annotated_vcf} \\
                 --panelapp {panelapp_json} \\
                 --pedigree {pedigree} \\
-                --mane_json {mane_json} \\
                 --output {job.output['vcf.bgz']}
             """,
         )

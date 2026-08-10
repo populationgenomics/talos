@@ -2,6 +2,11 @@ name: CI_test
 
 on: [pull_request]
 
+# only run tests once in the event of multiple pushes in quick succession
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     if: github.event.pull_request.draft == false

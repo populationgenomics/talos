@@ -5,15 +5,12 @@ These exercise the pure Hail transforms, which need no external tools (unlike th
 They cover the field rearrangement, the two blanket frequency filters, and the hemizygous-call fix.
 """
 
-import json
-
 import hail as hl
 
 from talos.run_hail_filtering_sv import (
     filter_matrix_by_ac,
     filter_matrix_by_af,
     fix_hemi_calls,
-    read_and_filter_mane_json,
     rearrange_annotations,
 )
 
@@ -46,22 +43,6 @@ def _annotated_sv_mt(use_af_male_spelling: bool = False) -> hl.MatrixTable:
         info['MALE_AF'] = hl.array([hl.float64(0.03)])
         info['FEMALE_AF'] = hl.array([hl.float64(0.04)])
     return mt.annotate_rows(info=hl.struct(**info))
-
-
-def test_read_and_filter_mane_json(tmp_path):
-    """the MANE JSON is read into a symbol -> ENSG lookup"""
-    mane = tmp_path / 'mane.json'
-    mane.write_text(
-        json.dumps(
-            {
-                'ENST1': {'symbol': 'GENE1', 'ensg': 'ENSG1'},
-                'ENST2': {'symbol': 'GENE2', 'ensg': 'ENSG2'},
-            },
-        ),
-    )
-    mapping = read_and_filter_mane_json(str(mane))
-    assert hl.eval(mapping.get('GENE1')) == 'ENSG1'
-    assert hl.eval(mapping.get('GENE2')) == 'ENSG2'
 
 
 def test_rearrange_surfaces_gnomad_and_defaults():

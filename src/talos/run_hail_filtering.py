@@ -6,12 +6,13 @@ Read, filter, annotate, classify, and write Genetic data
 - extract generic fields
 - remove all rows and consequences not relevant to GREEN genes
 - extract vep data into CSQ string(s)
-- annotate with categories 1, 3, 4, 5, 6, pm5, exomiser, svdb
+- annotate with categories 1, 3, 4, 5, 6, pm5
 - remove un-categorised variants
 - write as VCF
 """
 
 from argparse import ArgumentParser
+from collections import defaultdict
 
 from loguru import logger
 from mendelbrot.pedigree_parser import PedigreeParser
@@ -42,10 +43,10 @@ CRITICAL_CSQ_DEFAULT = [
 ]
 MISSENSE = hl.str('missense')
 
-# decide whether to repartition the data before processing starts
-MAX_PARTITIONS = 4000
-
 NUM_PED_COLS = 6
+
+# bases added either side of each gene when choosing which regions of the MT to read
+FLANKING_REGION = 2000
 
 
 def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
@@ -149,33 +150,6 @@ def annotate_clinvarbitration(
             ),
         )
     return mt
-
-
-def annotate_exomiser(mt: hl.MatrixTable, exomiser: str | None = None, ignored: bool = False) -> hl.MatrixTable:
-    """
-    Annotate this MT with top hits from Exomiser
-
-    The exomiser table must be indexed on [locus, alleles], with an extra column "proband_details"
-
-    Args:
-        mt (): the MatrixTable of all variants
-        exomiser (str | None): optional, path to HT of exomiser results
-        ignored (bool): if True, don't annotate the MT with the Exomiser data
-
-    Returns:
-        The same MatrixTable but with additional annotations
-    """
-    if not exomiser or ignored:
-        logger.info(f'Exomiser not required or requested, skipping annotation (table path: {exomiser})')
-        return mt.annotate_rows(info=mt.info.annotate(categorydetailsexomiser=MISSING_STRING))
-
-    logger.info(f'loading exomiser variants from {exomiser}')
-    exomiser_ht = hl.read_table(exomiser)
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categorydetailsexomiser=hl.or_else(exomiser_ht[mt.row_key].proband_details, MISSING_STRING),
-        ),
-    )
 
 
 def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
@@ -288,57 +262,6 @@ def annotate_codon_clinvar(mt: hl.MatrixTable, pm5_path: str | None):
     )
 
 
-def annotate_splicevardb(mt: hl.MatrixTable, svdb_path: str | None, ignored: bool = False):
-    """
-    Takes the locus,ref,alt indexed table of SpliceVarDB variants, and matches
-    them up against the variant data
-    Annotates with a boolean flag if the variant is Splice-altering according to SVDB
-
-    Args:
-        mt (): MT of all variants
-        svdb_path (str or None): path to a (localised) PM5 annotations Hail Table
-        ignored (bool): if True, don't annotate the MT with the SpliceVarDB data
-
-    Returns:
-        Same MT with an extra category label
-    """
-    if svdb_path is None or ignored:
-        logger.info(f'SVDB not required or requested, skipping annotation. (table path: {svdb_path})')
-        return mt.annotate_rows(
-            info=mt.info.annotate(
-                categorybooleansvdb=MISSING_INT,
-                svdb_location=MISSING_STRING,
-                svdb_method=MISSING_STRING,
-                svdb_doi=MISSING_STRING,
-            ),
-        )
-
-    # read in the codon table
-    logger.info(f'Reading SpliceVarDB data from {svdb_path}')
-    svdb_ht = hl.read_table(svdb_path)
-
-    # annotate relevant variants with the SVDB results
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            svdb_classification=hl.or_else(svdb_ht[mt.row_key].classification, MISSING_STRING),
-            svdb_location=hl.or_else(svdb_ht[mt.row_key].location, MISSING_STRING),
-            svdb_method=hl.or_else(svdb_ht[mt.row_key].method, MISSING_STRING),
-            svdb_doi=hl.or_else(svdb_ht[mt.row_key].doi, MISSING_STRING),
-        ),
-    )
-
-    # annotate category if Splice-altering according to SVDB
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            categorybooleansvdb=hl.if_else(
-                mt.info.svdb_classification.lower().contains(SPLICE_ALTERING),
-                ONE_INT,
-                MISSING_INT,
-            ),
-        ),
-    )
-
-
 def filter_on_quality_flags(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
     filter MT to rows with 0 quality filters
@@ -381,8 +304,7 @@ def filter_matrix_by_ac(mt: hl.MatrixTable, af_threshold: float = 0.01, min_ac_t
 
 def filter_to_population_rare(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
-    run the rare filter, using Gnomad Exomes and Genomes
-    allow clinvar pathogenic to slip through this filter
+    run the rare filter, using Gnomad Exomes and Genomes; allow clinvar pathogenic to slip through this filter.
     """
     # gnomad exomes and genomes below threshold or missing
     # if missing they were previously replaced with 0.0
@@ -397,13 +319,6 @@ def remove_variants_outside_gene_roi(mt: hl.MatrixTable, green_genes: hl.SetExpr
     """
     chunky filtering method - get rid of every variant without at least one green-gene annotation
     does not edit the field itself, that will come later (split_rows_by_gene_and_filter_to_green)
-
-    Args:
-        mt ():
-        green_genes ():
-
-    Returns:
-        the same MT, just reduced
     """
 
     # filter rows without a green gene (removes empty gene_ids)
@@ -804,8 +719,6 @@ def filter_to_categorised(mt: hl.MatrixTable) -> hl.MatrixTable:
         | (mt.info.categorybooleanavi == 1)
         | (mt.info.categorysampledenovo != MISSING_STRING)
         | (mt.info.categorydetailspm5 != MISSING_STRING)
-        | (mt.info.categorybooleansvdb == 1)
-        | (mt.info.categorydetailsexomiser != MISSING_STRING),
     )
 
 
@@ -849,6 +762,125 @@ def green_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
     green_genes = set(panel_data.genes)
     logger.info(f'Extracted {len(green_genes)} green genes')
     return hl.literal(green_genes)
+
+
+def parse_gene_location(location: str) -> tuple[str, int, int] | None:
+    """
+    Translate a PanelApp location String ("contig:start-end") into GRCh38 reference terms
+
+    PanelApp locations are Ensembl-style - 1-based inclusive, unprefixed contigs, and "MT" for the mitochondrion.
+    Genes added through config have no coordinates at all, so this returns None for anything unparseable.
+
+    Args:
+        location (str): the PanelDetail.location String
+
+    Returns:
+        a tuple of the prefixed contig, start, and end, or None if this isn't a usable location
+    """
+
+    contig, _sep, coordinates = location.partition(':')
+    start, _sep, end = coordinates.partition('-')
+
+    if not (start.isdigit() and end.isdigit()):
+        return None
+
+    if not contig.startswith('chr'):
+        contig = f'chr{contig}'
+
+    # Ensembl calls the mitochondrion MT, GRCh38 in Hail calls it chrM
+    if contig == 'chrMT':
+        contig = 'chrM'
+
+    return contig, int(start), int(end)
+
+
+def green_gene_intervals(panelapp: PanelApp, flanking: int = FLANKING_REGION) -> list[hl.Interval]:
+    """
+    Build a minimal set of Hail intervals covering the genes of interest
+
+    Coordinates are taken from the PanelApp data itself - each gene carries the location recorded by Ensembl at
+    PanelApp download time. Flanking sequence is added here, as the raw locations are the gene body alone.
+
+    Overlapping and abutting regions are merged, and the intervals are returned in reference order -
+    the MT reader requires sorted, disjoint intervals, and fewer intervals means less work per partition.
+
+    Args:
+        panelapp (PanelApp): the PanelApp object for this analysis
+        flanking (int): number of bases to add before and after each gene
+
+    Returns:
+        a sorted list of disjoint Intervals, covering every gene of interest
+    """
+
+    reference = hl.get_reference('GRCh38')
+    contig_lengths: dict[str, int] = reference.lengths
+    regions: dict[str, list[tuple[int, int]]] = defaultdict(list)
+    missing: set[str] = set()
+
+    for ensg, gene_data in panelapp.genes.items():
+        # genes added through config carry no coordinates, and PanelApp occasionally omits them
+        if (parsed_location := parse_gene_location(gene_data.location)) is None:
+            missing.add(ensg)
+            continue
+
+        contig, start, end = parsed_location
+
+        if contig not in contig_lengths:
+            logger.warning(f'Skipping {ensg}, contig {contig} is not in GRCh38')
+            missing.add(ensg)
+            continue
+
+        # PanelApp coordinates are already 1-based inclusive, as Hail loci are
+        # the flanking region can spill off either end of the contig, so clamp it
+        regions[contig].append((max(start - flanking, 1), min(end + flanking, contig_lengths[contig])))
+
+    if missing:
+        logger.warning(
+            f'{len(missing)} genes of interest had no usable location in the PanelApp data, e.g. {sorted(missing)[:5]}',
+        )
+
+    if not regions:
+        raise ValueError(f'None of the {len(panelapp.genes)} genes of interest had a usable location')
+
+    intervals: list[hl.Interval] = []
+
+    # walk the contigs in reference order, so that the resulting intervals are sorted
+    for contig in sorted(regions, key=reference.contigs.index):
+        merged_start, merged_end = None, None
+        for start, end in sorted(regions[contig]):
+            if merged_start is None or merged_end is None:
+                merged_start, merged_end = start, end
+                continue
+
+            # overlapping or abutting the region being built up, absorb it
+            if start <= merged_end + 1:
+                merged_end = max(merged_end, end)
+
+            # a genuine gap, bank the previous region and start a new one
+            else:
+                intervals.append(locus_interval(contig, merged_start, merged_end))
+                merged_start, merged_end = start, end
+
+        # a quick gate here, prevents QA rule ignores for the `int | None` variable (which is not None here)
+        if merged_start is None or merged_end is None:
+            continue
+
+        intervals.append(locus_interval(contig, merged_start, merged_end))
+
+    located = len(panelapp.genes) - len(missing)
+    logger.info(f'{located} genes of interest cover {len(intervals)} regions in {len(regions)} contigs')
+    return intervals
+
+
+def locus_interval(contig: str, start: int, end: int) -> hl.Interval:
+    """Generate a closed GRCh38 locus Interval, both ends inclusive."""
+
+    return hl.Interval(
+        hl.Locus(contig, start, reference_genome='GRCh38'),
+        hl.Locus(contig, end, reference_genome='GRCh38'),
+        includes_start=True,
+        includes_end=True,
+    )
 
 
 def new_green_genes_from_panelapp(panel_data: PanelApp) -> hl.SetExpression:
@@ -916,11 +948,20 @@ def generate_a_checkpoint(mt: hl.MatrixTable, checkpoint_path: str) -> hl.Matrix
     return mt
 
 
-def union_all_mts(mt_paths: list[str]) -> hl.MatrixTable:
-    """Open and union all MatrixTables"""
+def union_all_mts(mt_paths: list[str], intervals: list[hl.Interval] | None = None) -> hl.MatrixTable:
+    """
+    Open and union all MatrixTables
+
+    Args:
+        mt_paths (list[str]): all MatrixTables to read
+        intervals (list[hl.Interval] | None): if supplied, only partitions overlapping these regions are read,
+            and rows outside the regions are dropped as the data is read
+    """
     all_mts: list[hl.MatrixTable] = []
     for mt_path in mt_paths:
-        all_mts.append(hl.read_matrix_table(mt_path))
+        # passing intervals to the reader prunes whole partitions before any of the data is opened
+        mt = hl.read_matrix_table(mt_path, _intervals=intervals, _filter_intervals=bool(intervals))
+        all_mts.append(mt)
 
     return hl.MatrixTable.union_rows(*all_mts)
 
@@ -937,8 +978,6 @@ def cli_main():
     parser.add_argument('--output', help='Where to write the VCF', required=True)
     parser.add_argument('--clinvar', help='HT containing ClinvArbitration annotations', required=True)
     parser.add_argument('--pm5', help='HT containing clinvar PM5 annotations, optional', default=None)
-    parser.add_argument('--exomiser', help='HT containing exomiser variant selections, optional', default=None)
-    parser.add_argument('--svdb', help='HT containing SpliceVarDB annotations, optional', default=None)
     parser.add_argument('--checkpoint', help='Where/whether to checkpoint, String path', default=None)
     args = parser.parse_args()
     main(
@@ -948,21 +987,17 @@ def cli_main():
         vcf_out=args.output,
         clinvar=args.clinvar,
         pm5=args.pm5,
-        exomiser=args.exomiser,
-        svdb=args.svdb,
         checkpoint=args.checkpoint,
     )
 
 
-def main(  # noqa: PLR0915
+def main(
     mt_paths: list[str],
     panel_data: str,
     pedigree: str,
     vcf_out: str,
     clinvar: str,
     pm5: str | None = None,
-    exomiser: str | None = None,
-    svdb: str | None = None,
     checkpoint: str | None = None,
 ):
     """
@@ -975,8 +1010,6 @@ def main(  # noqa: PLR0915
         vcf_out (str): where to write VCF out
         clinvar (str): path to a ClinVar HT, or unspecified
         pm5 (str): path to a pm5 HT, or unspecified
-        exomiser (str): path of an exomiser HT, or unspecified
-        svdb (str): path to a SpliceVarDB HT, or unspecified
         checkpoint (str): path to checkpoint data to - serves as checkpoint trigger
     """
     logger.info(
@@ -997,14 +1030,18 @@ def main(  # noqa: PLR0915
 
     # pull green genes from the panelapp data
     green_expression = green_from_panelapp(panelapp)
+
     # pull genes marked as new in PanelApp
     new_green_genes_expression = new_green_genes_from_panelapp(panelapp)
+
+    # pull the regions of interest from the genes in this analysis, so we only read the relevant parts of the MT
+    intervals = green_gene_intervals(panelapp=panelapp)
 
     # read the pedigree data
     pedigree_data: PedigreeParser = PedigreeParser(pedigree)
 
     # read the matrix table from a localised directory
-    mt = union_all_mts(mt_paths)
+    mt = union_all_mts(mt_paths, intervals=intervals)
     logger.info(f'Loaded annotated MT from {mt_paths}, partitions: {mt.n_partitions()}')
 
     # Filter out star alleles, not currently capable of handling them
@@ -1014,15 +1051,6 @@ def main(  # noqa: PLR0915
 
     # insert AC/AN/AF if missing
     mt = populate_callset_frequencies(mt)
-
-    # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
-    # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
-    if mt.n_partitions() > MAX_PARTITIONS:
-        logger.info('Shrinking partitions way down with an unshuffled repartition')
-        mt = mt.repartition(shuffle=False, n_partitions=200)
-        if checkpoint:
-            logger.info('Trying to write the result locally, might need more space on disk...')
-            mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
 
     # swap out the default clinvar annotations with private clinvar
     # include a flag for variants that are ClinVar P/LP AND in PanelApp "new" genes
@@ -1043,33 +1071,20 @@ def main(  # noqa: PLR0915
     # remove any rows which have no genes of interest
     mt = remove_variants_outside_gene_roi(mt=mt, green_genes=green_expression)
 
-    if checkpoint:
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
-
     # filter out quality failures
     mt = filter_on_quality_flags(mt=mt)
 
     # filter variants by frequency
     mt = filter_matrix_by_ac(mt=mt)
 
+    if checkpoint:
+        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_genes')
+
     # split each gene annotation onto separate rows, filter to green genes (PanelApp ROI)
     mt = split_rows_by_gene_and_filter_to_green(mt=mt, green_genes=green_expression)
 
-    if checkpoint:
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean')
-
     # these categories are ignored early, to prevent an expensive join
     ignored_categories = config_retrieve(['ValidateMOI', 'ignore_categories'], [])
-
-    # annotate this MT with exomiser variants - annotated as MISSING if the table is absent
-    mt = annotate_exomiser(mt=mt, exomiser=exomiser, ignored=bool('exomiser' in ignored_categories))
-
-    # if a SVDB data is provided, use that to apply category annotations
-    mt = annotate_splicevardb(mt=mt, svdb_path=svdb, ignored=bool('svdb' in ignored_categories))
-
-    # if we ignored both these categories, skip this checkpoint
-    if checkpoint and not all(cat in ignored_categories for cat in ['exomiser', 'svdb']):
-        mt = generate_a_checkpoint(mt, f'{checkpoint}_green_and_clean_w_external_tables')
 
     # current logic is to apply 1, 6, 3, then 4 (de novo)
     # 1 was applied earlier during the integration of clinvar data

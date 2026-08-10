@@ -293,6 +293,7 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
         panelapp_data.genes[gene_data.ensg] = PanelDetail(
             symbol=gene_data.symbol,
             chrom=gene_data.chrom,
+            location=gene_data.location,
             moi=moi,
             new=new_panels,
             panels=panel_intersection,
@@ -341,6 +342,7 @@ def update_moi_from_config(
                 moi=moi,
                 panels={CUSTOM_PANEL_ID},
                 chrom=gene_data.get('chrom', 'chrUnknown'),
+                location=gene_data.get('location', 'Unknown'),
             )
 
 

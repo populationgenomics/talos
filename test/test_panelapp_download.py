@@ -6,6 +6,8 @@ from talos.download_panelapp import (
     parse_panel_activity,
 )
 from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
+from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
+from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
 from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
@@ -59,7 +61,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
         'ENSG00ABCD': {
             'symbol': 'ABCD',
             'chrom': '1',
-            'mane_symbol': '',
+            'location': '1:2-3',
             'moi': 'Biallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
@@ -67,7 +69,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
         'ENSG00EFGH': {
             'symbol': 'EFGH',
             'chrom': '1',
-            'mane_symbol': '',
+            'location': '1:3-4',
             'moi': 'Monoallelic',
             'green_date': '1970-01-01',
             'confidence_level': 3,
@@ -75,7 +77,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
         'ENSG00IJKL': {
             'symbol': 'IJKL',
             'chrom': '1',
-            'mane_symbol': '',
+            'location': '1:5-6',
             'moi': 'BOTH',
             'green_date': '1970-01-01',
             'confidence_level': 3,
@@ -83,47 +85,7 @@ def test_parse_panel(latest_mendeliome, panel_activities):
     }
 
 
-def test_parse_panel_with_mane(latest_mendeliome, panel_activities):
-    """check that the default parsing delivers correct data"""
-    fake_mane_symbols = {'ABCD': 'EasyAs123D'}
-    result = parse_panel(panel_data=latest_mendeliome, panel_activities=panel_activities, symbol_dict=fake_mane_symbols)
-    assert result == {
-        'EasyAs123D': {
-            'symbol': 'ABCD',
-            'chrom': '1',
-            'mane_symbol': '',
-            'moi': 'Biallelic',
-            'green_date': '1970-01-01',
-            'confidence_level': 3,
-        },
-        'ENSG00ABCD': {
-            'symbol': 'ABCD',
-            'chrom': '1',
-            'mane_symbol': '',
-            'moi': 'Biallelic',
-            'green_date': '1970-01-01',
-            'confidence_level': 3,
-        },
-        'ENSG00EFGH': {
-            'symbol': 'EFGH',
-            'chrom': '1',
-            'mane_symbol': '',
-            'moi': 'Monoallelic',
-            'green_date': '1970-01-01',
-            'confidence_level': 3,
-        },
-        'ENSG00IJKL': {
-            'symbol': 'IJKL',
-            'chrom': '1',
-            'mane_symbol': '',
-            'moi': 'BOTH',
-            'green_date': '1970-01-01',
-            'confidence_level': 3,
-        },
-    }
-
-
-_GENE_TEMPLATE = {'chrom': '1', 'moi': 'Biallelic', 'confidence_level': 3}
+_GENE_TEMPLATE = {'chrom': '1', 'location': '1:2-3', 'moi': 'Biallelic', 'confidence_level': 3}
 
 
 def _make_gene(symbol: str, confidence: int) -> dict:
@@ -191,7 +153,6 @@ def test_liftover_downloaded_panelapp_via_model():
             'ENSG001': {
                 'symbol': 'GENE1',
                 'chrom': '1',
-                'mane_symbol': '',
                 'ensg': 'ENSG001',
                 'panels': {
                     137: {'moi': 'biallelic', 'date': '2023-01-01'},
@@ -205,6 +166,48 @@ def test_liftover_downloaded_panelapp_via_model():
     assert lifted['version'] == CURRENT_VERSION
     parsed = DownloadedPanelApp.model_validate(lifted)
     assert parsed.genes['ENSG001'].panels[137].confidence == 3
+    assert parsed.genes['ENSG001'].location == ''
+
+
+def test_liftover_dl_panelapp_230_to_240():
+    """liftover function must drop mane_symbol, add an empty location, and bump version"""
+    data = {
+        'version': '2.3.0',
+        'genes': {
+            'ENSG001': {
+                'symbol': 'GENE1',
+                'chrom': '1',
+                'mane_symbol': 'GENE1',
+                'ensg': 'ENSG001',
+            },
+            'ENSG002': {
+                'symbol': 'GENE2',
+                'chrom': 'X',
+                'mane_symbol': '',
+                'ensg': 'ENSG002',
+            },
+        },
+    }
+    result = dl_pa_230_to_240(data)
+    assert result['version'] == '2.4.0'
+    for gene_data in result['genes'].values():
+        assert 'mane_symbol' not in gene_data
+        assert gene_data['location'] == ''
+
+
+def test_liftover_panelapp_230_to_240():
+    """liftover function must add an empty location to every gene, and bump version"""
+    data = {
+        'version': '2.3.0',
+        'genes': {
+            'ENSG001': {'symbol': 'GENE1', 'chrom': '1'},
+            'ENSG002': {'symbol': 'GENE2', 'chrom': 'X'},
+        },
+    }
+    result = pa_230_to_240(data)
+    assert result['version'] == '2.4.0'
+    for gene_data in result['genes'].values():
+        assert gene_data['location'] == ''
 
 
 def test_latest_ensembl_none():
@@ -231,4 +234,4 @@ def test_latest_ensembl_populated():
             'location': '1:123-456',
         },
     }
-    assert get_latest_ensembl_data(data) == ('CHIPS', '1')
+    assert get_latest_ensembl_data(data) == ('CHIPS', '1:123-456')

@@ -388,31 +388,6 @@ def organise_pm5(info_dict: dict[str, Any]):
         info_dict['categorybooleanpm5'] = 0
 
 
-def organise_svdb_doi(info_dict: dict[str, Any]):
-    """
-    method dedicated to handling the SV DB DOI records
-    edits in place
-
-    Args:
-        info_dict ():
-    """
-    if 'svdb_doi' not in info_dict:
-        return
-
-    # pop off the value
-    doi_value = info_dict.pop('svdb_doi')
-
-    if doi_value == 'missing':
-        info_dict['svdb_doi'] = []
-        return
-
-    # split the value
-    doi_urls = []
-    for doi in doi_value.split(','):
-        doi_urls.append(DOI_URL + doi)
-    info_dict['svdb_doi'] = doi_urls
-
-
 def parse_str_disease_details(detail_string: str) -> dict[str, dict[str, str | tuple[int, int] | None]]:
     """
     Parse the pipe-delimited disease details for this sample & locus.
@@ -556,9 +531,6 @@ def create_small_variant(
     # organise PM5
     organise_pm5(info)
 
-    # organise SVDB DOIs
-    organise_svdb_doi(info)
-
     # organise the exomiser data, if present. By default, only retain the top 2 ranked results
     organise_exomiser(
         info,
@@ -615,7 +587,7 @@ def create_small_variant(
     # requires use of AB ratios and alt depths, may preclude the use of this variant if no categories remain
     organise_de_novo(info, alt_depths, ab_ratios)
 
-    # check for at least one remaining category after PM5/Exomiser/SVDB/DeNovo/other processing, else None
+    # check for at least one remaining category after PM5/Exomiser/DeNovo/other processing, else None
     # this isn't a sample-specific check, just a check that there's anything left worth classifying on
     if not (any(info[cat] for cat in boolean_categories) or any(info[cat] for cat in sample_categories)):
         return None

@@ -6,7 +6,14 @@ import pytest
 
 import hail as hl
 
-from talos.run_hail_filtering import filter_matrix_by_ac, filter_on_quality_flags, populate_callset_frequencies
+from talos.models import PanelApp, PanelDetail
+from talos.run_hail_filtering import (
+    filter_matrix_by_ac,
+    filter_on_quality_flags,
+    green_gene_intervals,
+    parse_gene_location,
+    populate_callset_frequencies,
+)
 
 
 def test_no_freq_replacement(make_a_mt, caplog):
@@ -110,3 +117,85 @@ def test_filter_on_quality_flags(
         info=anno_matrix.info.annotate(clinvar_talos=clinvar),
     )
     assert filter_on_quality_flags(anno_matrix).count_rows() == length
+
+
+@pytest.fixture(name='panelapp_from_locations')
+def fixture_panelapp_from_locations():
+    """build a minimal PanelApp object from a dict of ENSG: location"""
+
+    def _panelapp(locations: dict[str, str]) -> PanelApp:
+        return PanelApp(
+            genes={
+                ensg: PanelDetail(symbol=ensg, chrom=location.split(':')[0], location=location)
+                for ensg, location in locations.items()
+            },
+        )
+
+    return _panelapp
+
+
+@pytest.mark.parametrize(
+    ('location', 'expected'),
+    [
+        ('1:100-200', ('chr1', 100, 200)),
+        ('X:100-200', ('chrX', 100, 200)),
+        # Ensembl calls the mitochondrion MT, GRCh38 in Hail calls it chrM
+        ('MT:100-200', ('chrM', 100, 200)),
+        # already prefixed locations are left alone
+        ('chr1:100-200', ('chr1', 100, 200)),
+        # genes added through config have no coordinates
+        ('Unknown', None),
+        ('', None),
+        ('1:100', None),
+    ],
+)
+def test_parse_gene_location(location: str, expected: tuple[str, int, int] | None):
+    """PanelApp locations become GRCh38 contigs and coordinates, or None when unusable"""
+    assert parse_gene_location(location) == expected
+
+
+def test_green_gene_intervals(panelapp_from_locations):
+    """overlapping and abutting regions merge, coordinates are clamped inside the contig"""
+    panelapp = panelapp_from_locations(
+        {
+            # flanking runs off the start of the contig, and this gene overlaps GENE2
+            'ENSG01': '1:1-18000',
+            'ENSG02': '1:17001-28000',
+            # once flanked, this abuts the end of GENE2
+            'ENSG03': '1:32001-38000',
+            # separated from the ENSG01-03 block
+            'ENSG04': '1:500001-600000',
+            'ENSG05': '2:3001-4000',
+            # flanking runs off the end of the contig
+            'ENSG06': 'MT:1-16000',
+        },
+    )
+    intervals = green_gene_intervals(panelapp)
+    assert [str(interval) for interval in intervals] == [
+        '[chr1:1-40000]',
+        '[chr1:498001-602000]',
+        '[chr2:1001-6000]',
+        '[chrM:1-16569]',
+    ]
+
+
+def test_green_gene_intervals_skips_unusable_regions(panelapp_from_locations, caplog):
+    """genes with no location, or on unknown contigs, are dropped with a warning"""
+    panelapp = panelapp_from_locations(
+        {
+            'ENSG01': '2:3001-4000',
+            'ENSG02': 'BANANA:1-100',
+            'ENSG03': 'Unknown',
+        },
+    )
+    intervals = green_gene_intervals(panelapp)
+    assert [str(interval) for interval in intervals] == ['[chr2:1001-6000]']
+    assert 'contig chrBANANA is not in GRCh38' in caplog.text
+    assert '2 genes of interest had no usable location' in caplog.text
+
+
+def test_green_gene_intervals_no_locations(panelapp_from_locations):
+    """if none of the genes of interest have a location, that's fatal - we'd read an empty MT"""
+    panelapp = panelapp_from_locations({'ENSG_NOPE': 'Unknown'})
+    with pytest.raises(ValueError, match='None of the 1 genes of interest had a usable location'):
+        green_gene_intervals(panelapp)

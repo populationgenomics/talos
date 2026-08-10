@@ -23,21 +23,6 @@ from talos.utils import read_json_from_path
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
 
-def read_and_filter_mane_json(mane_json: str) -> hl.dict:
-    """
-    Read the MANE JSON and filter it to the relevant fields
-    Args:
-        mane_json ():
-
-    Returns:
-
-    """
-
-    json_dict = read_json_from_path(mane_json)
-
-    return hl.literal({entry['symbol']: entry['ensg'] for entry in json_dict.values()})
-
-
 def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.MatrixTable:
     """
     Rearrange the annotations in the MT to be more easily accessible
@@ -175,6 +160,11 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
+def get_symbol_to_ensg_mapping(panelapp: PanelApp) -> hl.dict:
+    """Use the PanelApp data to generate a symbol mapping."""
+    return hl.literal({gene.symbol: ensg for ensg, gene in panelapp.genes.items()})
+
+
 def cli_main():
     """
     main method wrapper for console script execution
@@ -191,11 +181,6 @@ def cli_main():
         help='GeneratePanelData JSON',
     )
     parser.add_argument(
-        '--mane_json',
-        required=True,
-        help='JSON for gene~symbol mapping',
-    )
-    parser.add_argument(
         '--pedigree',
         required=True,
         help='Cohort Pedigree',
@@ -209,21 +194,18 @@ def cli_main():
     main(
         vcf_path=args.input,
         panelapp_path=args.panelapp,
-        mane_json=args.mane_json,
         pedigree=args.pedigree,
         vcf_out=args.output,
     )
 
 
-def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_out: str):
+def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     """
-    Read MT, filter, and apply category annotation
-    Export as a VCF
+    Read MT, filter, and apply category annotation, export as a VCF.
 
     Args:
         vcf_path (str): where to find vcf output
         panelapp_path ():
-        mane_json ():
         pedigree ():
         vcf_out (str): where to write VCF out
     """
@@ -239,14 +221,13 @@ def main(vcf_path: str, panelapp_path: str, mane_json: str, pedigree: str, vcf_o
         """,
     )
 
-    # get the Gene-Symbol mapping dict
-    gene_id_mapping = read_and_filter_mane_json(mane_json)
-
     # read the parsed panelapp data
     logger.info(f'Reading PanelApp data from {panelapp_path!r}')
     panelapp = read_json_from_path(panelapp_path, return_model=PanelApp)
     if not isinstance(panelapp, PanelApp):
         raise TypeError(f'PanelApp was not a PanelApp object: {panelapp}')
+
+    gene_id_mapping = get_symbol_to_ensg_mapping(panelapp)
 
     # pull green and new genes from the panelapp data
     # new is not currently incorporated in this analysis

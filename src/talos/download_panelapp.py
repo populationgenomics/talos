@@ -21,11 +21,6 @@ Save ALL this data:
 - for each panel, collect the associated phenotypic terms
 - for each gene, collect the IDs of the panels it appears on, and the date it was first graded green
 
-Optionally takes a MANE JSON file, which is used to map Ensembl IDs to gene symbols, & vice versa. If supplied:
-- attempt to find alternative gene symbols for the ENSG ID
-- attempt to find alternative Ensembl IDs for the gene symbol
-- record all variations
-
 STR-specific feature - parses the PanelApp Repeat Disorders panel
 """
 
@@ -45,10 +40,7 @@ from talos.models import (
     HpoTerm,
     PanelShort,
 )
-from talos.utils import (
-    get_json_response,
-    read_json_from_path,
-)
+from talos.utils import get_json_response
 
 ENTITY_TYPE_CONSTANT = 'entity_type'
 GENE_CONSTANT = 'gene'
@@ -146,16 +138,12 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, str]:
 def parse_panel(
     panel_data: dict[str, str | list[dict]],
     panel_activities: list[dict],
-    ensg_dict: dict[str, str] | None = None,
-    symbol_dict: dict[str, str] | None = None,
 ) -> dict:
     """
 
     Args:
         panel_data ():
         panel_activities ():
-        ensg_dict (dict): mapping Ensembl IDs to gene symbols, based on MANE data
-        symbol_dict (dict): mapping gene symbols to Ensembl IDs, based on MANE data
     """
 
     # this will contain a range of bits, indexed on ENSG
@@ -171,38 +159,33 @@ def parse_panel(
 
         symbol: str = gene['symbol']
         ensg: str = gene['ensg']
-        mane_ensg = symbol_dict.get(symbol, '') if symbol_dict else ''
 
         # no ENSG at all, skip completely
-        if not (mane_ensg or ensg):
+        if not ensg:
             logger.info(f'Gene {symbol}/{ensg} removed for lack of chrom or ENSG annotation')
             continue
 
-        for each_ensg in [ensg, mane_ensg]:
-            if not each_ensg:
-                continue
-
-            panel_gene_content[each_ensg] = {
-                'symbol': symbol,
-                'chrom': gene['chrom'],
-                'mane_symbol': ensg_dict.get(each_ensg, '') if ensg_dict else '',
-                'moi': gene['moi'],
-                'green_date': green_dates.get(symbol, REALLY_OLD),
-                'confidence_level': gene['confidence_level'],
-            }
+        panel_gene_content[ensg] = {
+            'symbol': symbol,
+            'chrom': gene['chrom'],
+            'location': gene['location'],
+            'moi': gene['moi'],
+            'green_date': green_dates.get(symbol, REALLY_OLD),
+            'confidence_level': gene['confidence_level'],
+        }
 
     return panel_gene_content
 
 
 def get_latest_ensembl_data(grch38_versions) -> tuple[str, str] | None:
     """
-    Parsing method to choose the latest (highest version number) ensembl ID and contig
+    Parsing method to choose the latest (highest version number) ensembl ID and location
 
     Args:
         grch38_versions: the panel.gene_data.ensembl_genes data from the PanelApp API response
 
     Returns:
-        either a String pair, the ensembl gene ID and the contig, or None
+        either a String pair, the ensembl gene ID and the location, or None
     """
     if not grch38_versions:
         return None
@@ -212,7 +195,10 @@ def get_latest_ensembl_data(grch38_versions) -> tuple[str, str] | None:
 
     latest_key = max(grch38_versions.keys(), key=sort_key)
     if ensembl_id := grch38_versions[latest_key].get('ensembl_id'):
-        return ensembl_id, grch38_versions[latest_key]['location'].split(':')[0]
+        return (
+            ensembl_id,
+            grch38_versions[latest_key]['location'],
+        )
     return None
 
 
@@ -244,7 +230,8 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
 
             # find the latest available ensembl gene block
             if latest_content := get_latest_ensembl_data(gene['gene_data']['ensembl_genes'].get('GRch38', {})):
-                ensg, chrom = latest_content
+                ensg, location = latest_content
+                chrom = location.split(':')[0]
                 if chrom == MITO_BAD:
                     chrom = MITO_GOOD
 
@@ -256,6 +243,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
                 {
                     'symbol': gene['entity_name'],
                     'chrom': chrom,
+                    'location': location,
                     'ensg': ensg,
                     'moi': gene.get('mode_of_inheritance', 'unknown').lower(),
                     'confidence_level': int(gene['confidence_level']),
@@ -290,30 +278,6 @@ async def get_all_known_panels(panel_ids: set[int], activities: bool = False) ->
     return {int(pid): data for panel in all_panel_details for pid, data in panel.items()}
 
 
-def reorganise_mane_data(mane_path: str) -> tuple[dict[str, str], dict[str, str]]:
-    """
-    takes the dictionary of MANE data and reorganises into 2 dictionaries
-    - one indexed on the gene symbol
-    - one on the Ensembl ID
-    """
-
-    raw_mane_data = read_json_from_path(mane_path)
-    if not raw_mane_data:
-        raise ValueError(f'MANE data not found at {mane_path}')
-
-    ensg_as_primary: dict[str, str] = {}
-    symbol_as_primary: dict[str, str] = {}
-
-    for tx_data in raw_mane_data.values():
-        symbol = tx_data['symbol']
-        ensg = tx_data['ensg']
-
-        ensg_as_primary[ensg] = symbol
-        symbol_as_primary[symbol] = ensg
-
-    return ensg_as_primary, symbol_as_primary
-
-
 def parse_repeat_disorders() -> tuple[set[str], set[str]]:
     """Parse panel 3597 - find all genes with a green association to a STR disorder."""
     str_genes: set[str] = set()
@@ -336,18 +300,16 @@ def cli_main():
     logger.info('Starting PanelApp parsing')
     parser = ArgumentParser()
     parser.add_argument('--output', help='Where to write Panel data', required=True)
-    parser.add_argument('--mane', help='MANE JSON data', default=None)
     args = parser.parse_args()
-    main(output=args.output, mane_path=args.mane)
+    main(output=args.output)
 
 
-def main(output: str, mane_path: str | None = None):
+def main(output: str):
     """
     query PanelApp - get EVERYTHING
 
     Args:
         output (str): path to an output destination
-        mane_path (str): path to a MANE JSON file, optional
     """
 
     # set up a collection object - loaded method execution
@@ -362,11 +324,6 @@ def main(output: str, mane_path: str | None = None):
         )
 
     all_panel_data, all_panel_activities = asyncio.run(_fetch_all())
-
-    if mane_path:
-        ensg_dict, symbol_dict = reorganise_mane_data(mane_path)
-    else:
-        ensg_dict, symbol_dict = None, None
 
     zero_green_panels: list[int] = []
 
@@ -386,8 +343,6 @@ def main(output: str, mane_path: str | None = None):
         parsed_panel_data = parse_panel(
             panel_data=panel_data,
             panel_activities=panel_activities,
-            ensg_dict=ensg_dict,
-            symbol_dict=symbol_dict,
         )
 
         collected_panel_data.versions.append(
@@ -406,15 +361,13 @@ def main(output: str, mane_path: str | None = None):
                     date=gene_data['green_date'],
                     confidence=gene_data['confidence_level'],
                 )
-                # update if previous wasn't populated
-                prev_gene_data.mane_symbol = prev_gene_data.mane_symbol or gene_data['mane_symbol']
 
             else:
                 collected_panel_data.genes[gene] = DownloadedPanelAppGene(
                     chrom=gene_data['chrom'],
+                    location=gene_data['location'],
                     symbol=gene_data['symbol'],
                     ensg=gene,
-                    mane_symbol=gene_data['mane_symbol'],
                     panels={
                         panel_id: DownloadedPanelAppGenePanelDetail(
                             moi=gene_data['moi'],
