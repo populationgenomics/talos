@@ -1,7 +1,10 @@
 """
-A Hail filtering process for labelling analysis-relevant SVs
+A streaming filtering process for labelling analysis-relevant SVs
 Initially this will only contain a single category
 This expects data annotated by GATK's SVAnnotate tool
+
+This is a cyvcf2 process - no Hail, no Spark - despite the module name, which is retained
+so that existing invocation paths keep working until the Hail-era names are retired.
 
 CategoryBooleanSV1:
 - rare
@@ -9,155 +12,166 @@ CategoryBooleanSV1:
 """
 
 from argparse import ArgumentParser
+from typing import Any
 
+from cyvcf2 import VCF, Writer
 from loguru import logger
-from mendelbrot.pedigree_parser import PedigreeParser
-
-import hail as hl
 
 from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.run_hail_filtering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
 from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
+from talos.vcf_streaming import parse_pedigree, subset_reader_to_pedigree, variant_is_pass
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
+# INFO fields written to the labelled output, in order, as (ID, Number, Type)
+OUTPUT_INFO_FIELDS = [
+    ('AC', 'A', 'Integer'),
+    ('AF', 'A', 'Float'),
+    ('AN', '1', 'Integer'),
+    ('algorithms', '.', 'String'),
+    ('gnomad_sv_ID', '1', 'String'),
+    ('gnomad_sv_AF', '1', 'Float'),
+    ('lof', '.', 'String'),
+    ('n_het', '1', 'Integer'),
+    ('n_homalt', '1', 'Integer'),
+    ('svlen', '1', 'Integer'),
+    ('svtype', '1', 'String'),
+    ('status', '1', 'String'),
+    ('end', '1', 'Integer'),
+    ('chr2', '1', 'String'),
+    ('end2', '1', 'Integer'),
+    ('male_af', 'A', 'Float'),
+    ('female_af', 'A', 'Float'),
+    ('lof_ensg', '.', 'String'),
+    ('gene_id', '1', 'String'),
+    ('categorybooleansv1', '1', 'Integer'),
+]
 
-def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -> hl.MatrixTable:
+
+def rearrange_annotations(
+    info: dict[str, Any],
+    gene_mapping: dict[str, str],
+    uses_af_male_spelling: bool,
+) -> dict[str, Any]:
     """
-    Rearrange the annotations in the MT to be more easily accessible
+    Rearrange the INFO annotations into the curated set Talos reads downstream.
+
     Args:
-        mt ():
-        gene_mapping (): gene symbol to gene ID mapping
+        info (dict): the raw INFO fields for one variant
+        gene_mapping (dict): gene symbol to gene ID mapping
+        uses_af_male_spelling (bool): whether this callset spells the per-sex
+            frequencies AF_MALE/AF_FEMALE instead of MALE_AF/FEMALE_AF
 
     Returns:
-        same MT, with shifted annotations
+        a new dict of the curated annotations
     """
 
-    # accept, but don't force, this GATK-SV field
-    if 'ALGORITHMS' not in mt.info:
-        mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                ALGORITHMS=['gCNV'],
-            ),
-        )
-
-    # embed these attributes if missing, but give null values
-    for sv_attribute in ('STATUS', 'CHR2', 'END2'):
-        if sv_attribute not in mt.info:
-            mt = mt.annotate_rows(
-                info=mt.info.annotate(
-                    **{sv_attribute: hl.missing(hl.tstr)},
-                ),
-            )
+    predicted_lof = info['PREDICTED_LOF']
+    lof = set(predicted_lof.split(',')) if isinstance(predicted_lof, str) else set(predicted_lof)
 
     # trying to sustain backwards compatibility with a changing GATK-SV/gCNV pipeline combination
-    if 'AF_MALE' in mt.info:
-        mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                male_af=mt.info.AF_MALE,
-                female_af=mt.info.AF_FEMALE,
-            ),
-        )
+    if uses_af_male_spelling:
+        male_af, female_af = info.get('AF_MALE'), info.get('AF_FEMALE')
     else:
-        mt = mt.annotate_rows(
-            info=mt.info.annotate(
-                male_af=mt.info.MALE_AF,
-                female_af=mt.info.FEMALE_AF,
-            ),
-        )
+        male_af, female_af = info.get('MALE_AF'), info.get('FEMALE_AF')
 
-    mt = mt.annotate_rows(
-        info=hl.struct(
-            AC=mt.info.AC,
-            AF=mt.info.AF,
-            AN=mt.info.AN,
-            algorithms=mt.info.ALGORITHMS,
-            gnomad_sv_ID=mt.info[f'{GNOMAD_POP}_sv_SVID'],
-            gnomad_sv_AF=mt.info[f'{GNOMAD_POP}_sv_AF'],
-            lof=hl.set(mt.info['PREDICTED_LOF']),
-            n_het=mt.info.N_HET,
-            n_homalt=mt.info.N_HOMALT,
-            svlen=mt.info.SVLEN,
-            svtype=mt.info.SVTYPE,
-            status=mt.info.STATUS,
-            end=mt.info.END,
-            chr2=mt.info.CHR2,
-            end2=mt.info.END2,
-            male_af=mt.info.male_af,
-            female_af=mt.info.female_af,
-        ),
-    )
-
-    # match the symbols to gene IDs
-    return mt.annotate_rows(
-        info=mt.info.annotate(
-            lof_ensg=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
-            # this is so we can explode it out later, whilst keeping the full list
-            gene_id=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
-        ),
-    )
+    return {
+        'AC': info['AC'],
+        'AF': info['AF'],
+        'AN': info['AN'],
+        # accept, but don't force, this GATK-SV field
+        'algorithms': info.get('ALGORITHMS', 'gCNV'),
+        'gnomad_sv_ID': info[f'{GNOMAD_POP}_sv_SVID'],
+        'gnomad_sv_AF': info[f'{GNOMAD_POP}_sv_AF'],
+        'lof': lof,
+        'n_het': info['N_HET'],
+        'n_homalt': info['N_HOMALT'],
+        'svlen': info['SVLEN'],
+        'svtype': info['SVTYPE'],
+        'status': info.get('STATUS'),
+        'end': info.get('END'),
+        'chr2': info.get('CHR2'),
+        'end2': info.get('END2'),
+        'male_af': male_af,
+        'female_af': female_af,
+        # match the symbols to gene IDs; unmapped symbols pass through unchanged
+        'lof_ensg': {gene_mapping.get(gene, gene) for gene in lof},
+        'gene_id': {gene_mapping.get(gene, gene) for gene in lof},
+    }
 
 
-def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.MatrixTable:
+def first_value(value: Any) -> Any:
+    """cyvcf2 collapses single-element Number=A INFO fields to a scalar - undo that."""
+    return value[0] if isinstance(value, tuple | list) else value
+
+
+def passes_af_filter(info: dict[str, Any], af_threshold: float = 0.03) -> bool:
+    """gnomAD AF below threshold; a missing AF is treated as 0 and survives."""
+    return (first_value(info['gnomad_sv_AF']) or 0) < af_threshold
+
+
+def passes_callset_af_filter(info: dict[str, Any], ac_threshold: float = 0.03) -> bool:
     """
-    Filter a MatrixTable on AF, allow AF to be missing
-
-    Args:
-        mt (hl.MatrixTable): the input MT
-        af_threshold (float): filtering threshold in gnomad v4.1
-
-    Returns:
-        same MT, with common variants removed
+    Both per-sex callset frequencies at or below threshold.
+    We don't need to worry about minimum cohort size due to the minimum group size of GATK-SV.
+    A missing frequency fails, matching the Hail filter this replaces.
     """
-
-    return mt.filter_rows(
-        hl.or_else(
-            mt.info.gnomad_sv_AF,
-            MISSING_INT,
-        )
-        < af_threshold,
-    )
+    male_af = first_value(info['male_af'])
+    female_af = first_value(info['female_af'])
+    return male_af is not None and female_af is not None and male_af <= ac_threshold and female_af <= ac_threshold
 
 
-def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float | None = 0.03) -> hl.MatrixTable:
+def diploidise_genotypes(genotypes: list[list]) -> tuple[list[list], bool]:
     """
-    Remove variants with AC in joint-call over threshold
-    We don't need to worry about minimum cohort size
-    due to the minimum group size of GATK-SV
-
-    Args:
-        mt (hl.MatrixTable):
-        ac_threshold (float): remove variants more common than this in JointCall
-    Returns:
-        MT with all common-in-this-JC variants removed
-    """
-
-    return mt.filter_rows(
-        (mt.info.male_af[0] <= ac_threshold) & (mt.info.female_af[0] <= ac_threshold),
-    )
-
-
-def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Hail's MT -> VCF export doesn't handle hemizygous calls
-    adjust the relevant single allele calls to a biallelic representation
-    going with Hom-Alt/Hom-Ref
+    Recast haploid calls to a biallelic representation, going with Hom-Alt/Hom-Ref.
 
     if GT == 1, recast as [1, 1]
     if GT == 0, recast as [0, 0]
+    missing haploid calls are left untouched
 
     Args:
-        mt ():
+        genotypes: cyvcf2-style genotypes, each [allele, ..., phased]
+
+    Returns:
+        the (possibly modified) genotypes, and whether any modification was made
     """
 
-    return mt.annotate_entries(
-        GT=hl.if_else(
-            mt.GT.is_diploid(),
-            mt.GT,
-            hl.if_else(mt.GT.is_non_ref(), hl.call(1, 1), hl.call(0, 0)),
-        ),
-    )
+    modified = False
+    result = []
+    for gt in genotypes:
+        alleles, phased = gt[:-1], gt[-1]
+        if len(alleles) == 1 and alleles[0] >= 0:
+            result.append([alleles[0], alleles[0], phased])
+            modified = True
+        else:
+            result.append(gt)
+    return result, modified
+
+
+def header_has_field(reader: VCF, field_id: str) -> bool:
+    """Check whether the opened VCF declares a header entry with this ID."""
+    try:
+        reader.get_header_type(field_id)
+    except KeyError:
+        return False
+    return True
+
+
+def prepare_output_header(reader: VCF) -> bool:
+    """
+    Add the curated INFO field definitions to the reader's header, ahead of Writer creation.
+
+    Returns:
+        whether this callset spells the per-sex frequencies AF_MALE/AF_FEMALE
+        (a header-level property) instead of MALE_AF/FEMALE_AF
+    """
+    for field_id, number, field_type in OUTPUT_INFO_FIELDS:
+        if not header_has_field(reader, field_id):
+            reader.add_info_to_header(
+                {'ID': field_id, 'Number': number, 'Type': field_type, 'Description': 'Talos SV annotation'},
+            )
+    return header_has_field(reader, 'AF_MALE')
 
 
 def cli_main():
@@ -196,7 +210,7 @@ def cli_main():
 
 def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     """
-    Read MT, filter, and apply category annotation, export as a VCF.
+    Stream the annotated SV VCF, filter, apply category annotation, write as a VCF.
 
     Args:
         vcf_path (str): where to find vcf output
@@ -222,74 +236,79 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     if not isinstance(panelapp, PanelApp):
         raise TypeError(f'PanelApp was not a PanelApp object: {panelapp}')
 
-    gene_id_mapping = get_symbol_to_ensg_mapping(panelapp, as_hail=True)
+    gene_id_mapping = get_symbol_to_ensg_mapping(panelapp)
 
-    # pull green and new genes from the panelapp data
-    # new is not currently incorporated in this analysis
-    green_expression = green_from_panelapp(panelapp)
+    # pull green genes from the panelapp data - all genes in the model are green
+    green_genes = set(panelapp.genes)
+    logger.info(f'Extracted {len(green_genes)} green genes')
 
-    # initiate Hail in local cluster mode
-    logger.info('Starting Hail with reference genome GRCh38, as a local cluster')
-    hl.context.init_spark(master='local[*]')
-    hl.default_reference('GRCh38')
+    pedigree_data = parse_pedigree(pedigree)
 
-    # read the VCF in as a MatrixTable, and checkpoint it locally
-    mt = hl.import_vcf(
-        vcf_path,
-        reference_genome='GRCh38',
-        skip_invalid_loci=True,
-        force_bgz=True,
-    ).checkpoint(output='temporary.mt')
-
-    # parse the pedigree into an object
-    pedigree_data = PedigreeParser(pedigree)
-
-    # reduce cohort to singletons, if the config says so
-    if config_retrieve('singletons', False):
-        logger.info('Reducing pedigree to affected singletons only')
-        pedigree_data.set_participants(pedigree_data.as_singletons())
-        pedigree_data.set_participants(pedigree_data.get_affected_members())
+    reader = VCF(vcf_path)
 
     # subset to currently considered samples
-    mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
+    if not subset_reader_to_pedigree(reader, pedigree_data):
+        raise ValueError('No samples shared between pedigree and VCF')
 
-    # remove filtered variants
-    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+    uses_af_male_spelling = prepare_output_header(reader)
 
-    logger.info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
+    writer = Writer(vcf_out, reader, mode='wz')
 
-    # drop rows with no LOF consequences
-    mt = mt.filter_rows(hl.len(mt.info.PREDICTED_LOF) > 0)
-
-    # rearrange the annotations
-    mt = rearrange_annotations(mt, gene_id_mapping)
-
-    # apply blanket filters
     ac_threshold = config_retrieve(['RunHailFiltering', 'callset_af_sv_recessive'])
-    mt = filter_matrix_by_ac(mt, ac_threshold=ac_threshold)
-    mt = filter_matrix_by_af(mt, af_threshold=ac_threshold)
 
-    mt = mt.explode_rows(mt.info.gene_id)
+    kept = 0
+    for variant in reader:
+        # remove filtered variants
+        if not variant_is_pass(variant):
+            continue
 
-    # hard filter remaining rows to PanelApp green genes
-    mt = mt.filter_rows(green_expression.contains(mt.info.gene_id))
+        # drop rows with no LOF consequences
+        if not variant.INFO.get('PREDICTED_LOF'):
+            continue
 
-    # everything left is `SV1`
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            categorybooleansv1=ONE_INT,
-        ),
-    )
+        raw_info = dict(variant.INFO)
 
-    # Hail's MT -> VCF export doesn't handle hemizygous calls
-    mt = fix_hemi_calls(mt)
+        # rearrange the annotations
+        info = rearrange_annotations(raw_info, gene_id_mapping, uses_af_male_spelling)
 
-    # now write that badboi
-    hl.export_vcf(
-        mt,
-        vcf_out,
-        tabix=True,
-    )
+        # apply blanket filters
+        if not (
+            passes_callset_af_filter(info, ac_threshold=ac_threshold)
+            and passes_af_filter(info, af_threshold=ac_threshold)
+        ):
+            continue
+
+        # hard filter to PanelApp green genes; everything left is `SV1`
+        green_gene_ids = info['gene_id'] & green_genes
+        if not green_gene_ids:
+            continue
+
+        # replace the raw INFO fields with the curated set
+        for key in raw_info:
+            del variant.INFO[key]
+        for field_id, _number, _type in OUTPUT_INFO_FIELDS:
+            value = info.get(field_id)
+            if value is None:
+                continue
+            if isinstance(value, set):
+                value = ','.join(sorted(value))
+            variant.INFO[field_id] = value
+        variant.INFO['categorybooleansv1'] = 1
+
+        # VCF export doesn't handle hemizygous calls - recast haploid GTs as biallelic
+        new_genotypes, modified = diploidise_genotypes(variant.genotypes)
+        if modified:
+            variant.genotypes = new_genotypes
+
+        # one output row per green gene this SV ablates
+        for gene_id in sorted(green_gene_ids):
+            variant.INFO['gene_id'] = gene_id
+            writer.write_record(variant)
+            kept += 1
+
+    writer.close()
+    reader.close()
+    logger.info(f'Wrote {kept} labelled SV rows to {vcf_out}')
 
 
 if __name__ == '__main__':

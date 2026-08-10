@@ -19,5 +19,7 @@ process RunHailFilteringSv {
             --panelapp ${panelapp_data} \
             --pedigree ${pedigree} \
             --output ${cohort}_labelled_svs.vcf.bgz
+
+        tabix -p vcf ${cohort}_labelled_svs.vcf.bgz
         """
 }

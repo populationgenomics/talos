@@ -1,128 +1,68 @@
 #!/usr/bin/env python3
 
 """
-This is an adapter process to take a sites-only VCF annotated with gnomAD frequencies and BCFtools csq consequences, and
-re-arrange it into a HailTable for use with the Talos pipeline.
+Takes a mito VCF annotated with BCFtools csq and echtvar (MitImpact, MitoTip, nAPOGEE), applies fresh
+ClinvArbitration decisions, and writes a labelled VCF containing only ClinVar P/LP variants in green mito genes.
 
-This process combines the AF/CSQs already applied with the MANE transcript/protein names, and AlphaMissense annotations
+This is a streaming (cyvcf2) process - no Hail, no Spark. One variant is held in memory at a time.
+The ClinVar decisions are read from the ClinvArbitration TSV, restricted to mitochondrial contigs.
 """
 
 import sys
 from argparse import ArgumentParser
 
+from cyvcf2 import VCF, Writer
 from loguru import logger
-from mendelbrot.pedigree_parser import PedigreeParser
 
-import hail as hl
-
-from cpg_utils.hail_batch import init_batch
-
-from talos.annotation_scripts.annotated_vcf_into_matrixtable import (
-    MISSING_FLOAT,
-    MISSING_INT,
-    MISSING_STRING,
-    extract_and_split_csq_string,
-)
-from talos.config import config_retrieve
 from talos.models import PanelApp
-from talos.run_hail_filtering import (
-    annotate_clinvarbitration,
-    csq_struct_to_string,
-    filter_matrix_by_ac,
-    subselect_mt_to_pedigree,
-)
 from talos.utils import read_json_from_path
+from talos.vcf_streaming import (
+    PATHOGENIC,
+    consequences_to_csq_string,
+    normalise_chrom,
+    parse_bcsq_entries,
+    parse_pedigree,
+    read_clinvar_decisions_tsv,
+    split_csq_header,
+    subset_reader_to_pedigree,
+    variant_is_pass,
+)
+
+# mitochondrial contig names, in normalised (chr-less, MT-as-M) form
+MITO_CONTIGS = {'M'}
+
+# INFO fields added to the labelled output
+OUTPUT_INFO_HEADERS = [
+    {'ID': 'clinvar_significance', 'Number': '1', 'Type': 'String', 'Description': 'ClinvArbitration significance'},
+    {'ID': 'clinvar_stars', 'Number': '1', 'Type': 'Integer', 'Description': 'ClinvArbitration gold stars'},
+    {'ID': 'clinvar_allele', 'Number': '1', 'Type': 'Integer', 'Description': 'ClinvArbitration allele ID'},
+    {'ID': 'clinvar_talos', 'Number': '1', 'Type': 'Integer', 'Description': 'ClinvArbitration Pathogenic flag'},
+    {'ID': 'categorybooleanclinvarplp', 'Number': '1', 'Type': 'Integer', 'Description': 'ClinVar P/LP, 1+ stars'},
+    {'ID': 'gnomad_AC', 'Number': '1', 'Type': 'Integer', 'Description': 'gnomAD AC (unpopulated for mito)'},
+    {'ID': 'gnomad_AF', 'Number': '1', 'Type': 'Float', 'Description': 'gnomAD AF (unpopulated for mito)'},
+    {'ID': 'gnomad_AC_XY', 'Number': '1', 'Type': 'Integer', 'Description': 'gnomAD AC XY (unpopulated for mito)'},
+    {'ID': 'gnomad_HomAlt', 'Number': '1', 'Type': 'Integer', 'Description': 'gnomAD HomAlt (unpopulated for mito)'},
+    {'ID': 'gene_id', 'Number': '1', 'Type': 'String', 'Description': 'Green gene this row is labelled against'},
+    {'ID': 'csq', 'Number': '.', 'Type': 'String', 'Description': 'Talos-formatted transcript consequences'},
+]
 
 
-def csq_strings_into_hail_structs(csq_strings: list[str], mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    Take the list of BCSQ strings, split the CSQ annotation and re-organise as a hl struct
-
-    Args:
-        csq_strings (list[str]): a list of strings, each representing a CSQ entry
-        mt (hl.Table): the Table to annotate
-
-    Returns:
-        a Table with the BCSQ annotations re-arranged
-    """
-
-    # get the BCSQ contents as a list of lists of strings, per variant
-    split_csqs = mt.info.BCSQ.map(lambda csq_entry: csq_entry.split('\|'))  # noqa: W605
-
-    # this looks pretty hideous, bear with me
-    # if BCFtools csq doesn't have a consequence annotation, it will truncate the pipe-delimited string
-    # this is fine sometimes, but not when we're building a schema here
-    # when we find truncated BCSQ strings, we need to add dummy values to the end of the array
-    split_csqs = split_csqs.map(
-        lambda x: hl.if_else(
-            # if there were only 4 values, add 3 missing Strings
-            hl.len(x) == 4,
-            x.extend([MISSING_STRING, MISSING_STRING, MISSING_STRING]),
-            hl.if_else(
-                # 5 values... add 2 missing Strings
-                hl.len(x) == 5,
-                x.extend([MISSING_STRING, MISSING_STRING]),
-                hl.if_else(
-                    hl.len(x) == 6,
-                    x.extend([MISSING_STRING]),
-                    hl.if_else(
-                        hl.len(x) == 3,
-                        x.extend([MISSING_STRING, MISSING_STRING, MISSING_STRING, MISSING_STRING]),
-                        x,
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    # transform the CSQ string arrays into structs using the header names
-    # Consequence | gene | transcript | biotype | strand | amino_acid_change | dna_change
-    mt = mt.annotate_rows(
-        transcript_consequences=split_csqs.map(
-            lambda x: hl.struct(
-                **{csq_strings[n]: x[n] for n in range(len(csq_strings)) if csq_strings[n] != 'strand'},
-            ),
-        ),
-    )
-
-    return mt.annotate_rows(
-        # amino_acid_change can be absent, or in the form of "123P" or "123P-124F"
-        # we use this number when matching to the codons of missense variants, to find codon of the reference pos.
-        transcript_consequences=hl.map(
-            lambda x: x.annotate(
-                codon=hl.if_else(
-                    x.amino_acid_change == MISSING_STRING,
-                    hl.missing(hl.tint32),
-                    hl.if_else(
-                        x.amino_acid_change.matches('^([0-9]+).*$'),
-                        hl.int32(x.amino_acid_change.replace('^([0-9]+).+', '$1')),
-                        hl.missing(hl.tint32),
-                    ),
-                ),
-                am_class=MISSING_STRING,
-                am_pathogenicity=MISSING_FLOAT,
-                # MANE transcript selection has not been applied to mitochondrial data
-                mane_status=MISSING_STRING,
-                ensp=MISSING_STRING,
-                mane_id=MISSING_STRING,
-            ),
-            mt.transcript_consequences,
-        ),
-    )
+def write_empty_vcf(vcf_path: str, output_path: str):
+    """Write a zero-variant copy of the input VCF - used when there is no mito analysis to do."""
+    reader = VCF(vcf_path)
+    writer = Writer(output_path, reader, mode='wz')
+    writer.close()
+    reader.close()
+    logger.info(f'Wrote zero-variant VCF to {output_path}')
 
 
 def cli_main():
-    """
-    take an input VCF and an output MT path, apply the correct reformatting/schema to the annotations
-    """
-
-    parser = ArgumentParser(description='Takes a BCSQ annotated VCF and makes it a mt')
-    parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
-    parser.add_argument('--output', help='output Table path, must have a ".mt" extension', required=True)
+    parser = ArgumentParser(description='Labels a BCSQ-annotated mito VCF with fresh ClinVar decisions')
+    parser.add_argument('--input', help='Path to the annotated mito VCF', required=True)
+    parser.add_argument('--output', help='output VCF path, written bgzipped', required=True)
     parser.add_argument('--panelapp', help='Path to a PanelApp data file for the cohort', required=True)
     parser.add_argument('--pedigree', help='Path to the pedigree file for the cohort', required=True)
-    parser.add_argument('--clinvar', help='Path to a ClinvArbitration decisions HT', required=True)
-    parser.add_argument('--batch', help='flag to use the batch hail backend', action='store_true')
+    parser.add_argument('--clinvar', help='Path to a ClinvArbitration decisions TSV', required=True)
     args = parser.parse_args()
 
     main(
@@ -131,7 +71,6 @@ def cli_main():
         panelapp=args.panelapp,
         pedigree=args.pedigree,
         clinvar_path=args.clinvar,
-        batch=args.batch,
     )
 
 
@@ -141,18 +80,16 @@ def main(
     panelapp: str,
     pedigree: str,
     clinvar_path: str,
-    batch: bool,
 ):
     """
-    Takes a BCFtools-annotated Mito VCF, reorganises into a Talos-compatible MatrixTable
+    Stream the annotated mito VCF, labelling ClinVar P/LP variants in green mito genes.
 
     Args:
-        vcf_path (str): path to the annotated sites-only VCF
-        output_path (str): path to write the resulting Hail Table to
+        vcf_path (str): path to the annotated mito VCF
+        output_path (str): path to write the labelled VCF to
         panelapp (str): path to the panelapp data file
         pedigree: path to the pedigree file
-        clinvar_path (str): path to the clinvar data file
-        batch (bool): if we should use the Hail Batch backend
+        clinvar_path (str): path to the ClinvArbitration decisions TSV
     """
 
     panel_data = read_json_from_path(panelapp, return_model=PanelApp)
@@ -160,105 +97,84 @@ def main(
     # gets a lookup of all relevant genes from the PanelApp dump
     symbol_to_ensg = {gene.symbol: key for key, gene in panel_data.genes.items() if gene.chrom.startswith('M')}
 
-    if batch:
-        logger.info('Using Hail Batch backend')
-        init_batch(
-            driver_memory='highmem',
-            driver_cores=2,
-        )
-    else:
-        logger.info('Using Hail Local backend')
-        hl.context.init_spark(master='local[*]', default_reference='GRCh38', quiet=True)
-
-    # pull and split the CSQ header line
-    csq_fields = extract_and_split_csq_string(vcf_path=vcf_path)
-
-    # read the VCF into a MatrixTable
-    mt = hl.import_vcf(vcf_path, array_elements_required=False, force_bgz=True)
-
     # there's no mito analysis to do if there are no mito genes on the panel
-    # this will be resolved by an enhanced mendeliome at some point, but for now we need to quit out
-    # drop all the rows, and write a zero-variant VCF. It's a messy compromise, I'll fix it properly later
     if not symbol_to_ensg:
-        mt = mt.filter_rows(hl.is_defined(mt.filters), keep=False)
-        hl.export_vcf(mt, output_path, tabix=True)
+        logger.info('No mito genes on the panel, no analysis to do')
+        write_empty_vcf(vcf_path, output_path)
         sys.exit(0)
 
-    symbol_to_ensg_hl = hl.literal(symbol_to_ensg)
-    green_ensg_ids = hl.literal(set(symbol_to_ensg.values()))
+    green_ensg_ids = set(symbol_to_ensg.values())
 
-    # remove filtered variants
-    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+    pedigree_data = parse_pedigree(pedigree)
 
-    # parse the pedigree into an object
-    pedigree_data = PedigreeParser(pedigree)
-
-    # reduce cohort to singletons, if the config says so
-    if config_retrieve('singletons', False):
-        logger.info('Reducing pedigree to affected singletons only')
-        pedigree_data.set_participants(pedigree_data.as_singletons())
-        pedigree_data.set_participants(pedigree_data.get_affected_members())
+    reader = VCF(vcf_path)
 
     # subset to currently considered samples
-    try:
-        mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
-    except ValueError as ve:
-        logger.error(str(ve))
-        mt = mt.filter_rows(hl.is_defined(mt.filters), keep=False)
-        hl.export_vcf(mt, output_path, tabix=True)
+    if not subset_reader_to_pedigree(reader, pedigree_data):
+        logger.error('No samples shared between pedigree and VCF')
+        reader.close()
+        write_empty_vcf(vcf_path, output_path)
         sys.exit(0)
 
-    mt = annotate_clinvarbitration(mt=mt, clinvar=clinvar_path)
+    # load the fresh ClinVar decisions, restricted to mito contigs - a tiny lookup
+    clinvar_decisions = read_clinvar_decisions_tsv(clinvar_path, contigs=MITO_CONTIGS)
 
-    mt = filter_matrix_by_ac(mt)
+    # pull and split the CSQ header line
+    csq_fields = split_csq_header(reader)
 
-    # re-shuffle the BCSQ elements
-    mt = csq_strings_into_hail_structs(csq_fields, mt)
+    for header_entry in OUTPUT_INFO_HEADERS:
+        reader.add_info_to_header(header_entry)
 
-    mt = mt.annotate_rows(
-        # work backwards, use panelapp to get ENSGs. BCFtools isn't providing this, we get it from MANE (No MT MANE)
-        transcript_consequences=hl.map(
-            lambda x: x.annotate(
-                gene_id=symbol_to_ensg_hl.get(x.gene, x.gene),
-            ),
-            mt.transcript_consequences,
-        ),
+    writer = Writer(output_path, reader, mode='wz')
+
+    kept = 0
+    for variant in reader:
+        # remove filter-failed variants
+        if not variant_is_pass(variant):
+            continue
+
+        # only ClinVar Pathogenic with 1+ stars survives the mito process
+        decision = clinvar_decisions.get(
+            (normalise_chrom(variant.CHROM), variant.POS, variant.REF, variant.ALT[0]),
+        )
+        if decision is None or decision['clinical_significance'] != PATHOGENIC or decision['gold_stars'] < 1:
+            continue
+
+        bcsq = variant.INFO.get('BCSQ')
+        if not bcsq:
+            continue
+
+        consequences = parse_bcsq_entries(bcsq, csq_fields)
+        for csq in consequences:
+            # work backwards, use panelapp to get ENSGs. BCFtools isn't providing this (no MT MANE data)
+            csq['gene_id'] = symbol_to_ensg.get(csq['gene'], csq['gene'])
+
+        green_gene_ids = {csq['gene_id'] for csq in consequences} & green_ensg_ids
+        if not green_gene_ids:
+            continue
+
+        del variant.INFO['BCSQ']
+        variant.INFO['clinvar_significance'] = decision['clinical_significance']
+        variant.INFO['clinvar_stars'] = decision['gold_stars']
+        variant.INFO['clinvar_allele'] = decision['allele_id']
+        variant.INFO['clinvar_talos'] = 1
+        variant.INFO['categorybooleanclinvarplp'] = 1
         # todo generate gnomAD Mito annotations from some source
-        gnomad=hl.struct(
-            gnomad_AC=MISSING_INT,
-            gnomad_AF=MISSING_FLOAT,
-            gnomad_AC_XY=MISSING_INT,
-            gnomad_HomAlt=MISSING_INT,
-        ),
-    )
+        variant.INFO['gnomad_AC'] = 0
+        variant.INFO['gnomad_AF'] = 0.0
+        variant.INFO['gnomad_AC_XY'] = 0
+        variant.INFO['gnomad_HomAlt'] = 0
+        variant.INFO['csq'] = consequences_to_csq_string(consequences)
 
-    # get a hold of the geneIds - use some aggregation
-    mt = mt.annotate_rows(gene_ids=hl.set(mt.transcript_consequences.map(lambda c: c.gene_id)))
+        # one output row per green gene this variant sits in
+        for gene_id in sorted(green_gene_ids):
+            variant.INFO['gene_id'] = gene_id
+            writer.write_record(variant)
+            kept += 1
 
-    # drop the BCSQ field
-    mt = mt.annotate_rows(info=mt.info.drop('BCSQ'))
-
-    mt = mt.explode_rows(mt.gene_ids)
-
-    # hard filter remaining rows to PanelApp green genes
-    mt = mt.filter_rows(green_ensg_ids.contains(mt.gene_ids))
-
-    # filter everything else out
-    mt = mt.filter_rows(mt.info.categorybooleanclinvarplp == 1)
-
-    # obtain the massive CSQ string using method stolen from the Broad's Gnomad library
-    # also take the single gene_id (from the exploded attribute)
-    # and retrieves the gnomAD annotations
-    mt = mt.annotate_rows(
-        info=mt.info.annotate(
-            **mt.gnomad,
-            csq=csq_struct_to_string(mt.transcript_consequences),
-            gene_id=mt.gene_ids,
-        ),
-    )
-
-    # now write that badboi
-    hl.export_vcf(mt, output_path, tabix=True)
+    writer.close()
+    reader.close()
+    logger.info(f'Wrote {kept} labelled mito rows to {output_path}')
 
 
 if __name__ == '__main__':

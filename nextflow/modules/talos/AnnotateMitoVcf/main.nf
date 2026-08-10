@@ -5,7 +5,7 @@ process AnnotateMitoVcf {
         tuple val(cohort), path(vcf), path(panelapp_data), path(pedigree), path(talos_config), path(mitimpact), path(mitotip), path(napogee)
         path ref_fa
         path gff3
-        path clinvar
+        path clinvar_tsv
 
     output:
         tuple val(cohort), path("${cohort}_mito_labelled.vcf.bgz")
@@ -45,6 +45,6 @@ process AnnotateMitoVcf {
             --output "${cohort}_mito_labelled.vcf.bgz" \\
             --pedigree ${pedigree} \\
             --panelapp ${panelapp_data} \\
-            --clinvar ${clinvar}
+            --clinvar ${clinvar_tsv}
         """
 }

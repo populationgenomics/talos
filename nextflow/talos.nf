@@ -33,15 +33,17 @@ workflow TALOS {
     // check if clinvar and panelapp data exist using the timestamp
     String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
     String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.ht"
+    String current_clinvarbitration_tsv = "${params.processed_annotations}/clinvarbitration_${current_month}.tsv"
 
-    if (!file(current_clinvarbitration_pm5).exists()) {
-        println "ClinvArbitration data for this month (${current_clinvarbitration_pm5}) doesn't exist, run the Talos Prep workflow"
+    if (!file(current_clinvarbitration_pm5).exists() || !file(current_clinvarbitration_tsv).exists()) {
+        println "ClinvArbitration data for this month (${current_clinvarbitration_pm5}, ${current_clinvarbitration_tsv}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
 
     // read in each Clinvar input source as channel
     ch_clinvar_all = channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
     ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
+    ch_clinvar_tsv = channel.fromPath(current_clinvarbitration_tsv, checkIfExists: true).first()
 
     String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
 
@@ -132,7 +134,7 @@ workflow TALOS {
         ch_mito_for_annotation,
         ch_ref_genome,
         ch_gff,
-        ch_clinvar_all,
+        ch_clinvar_tsv,
     )
 
     ch_mito_resolved = AnnotateMitoVcf.out

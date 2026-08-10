@@ -72,10 +72,12 @@ workflow {
     // does this month's clinvarbitration data exist?
     String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${timestamp}.ht"
     String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.ht"
+    String current_clinvarbitration_tsv = "${params.processed_annotations}/clinvarbitration_${timestamp}.tsv"
 
-    if (file(current_clinvarbitration_pm5).exists()) {
+    if (file(current_clinvarbitration_pm5).exists() && file(current_clinvarbitration_tsv).exists()) {
         ch_clinvar_all = channel.fromPath(current_clinvarbitration_all)
         ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5)
+        ch_clinvar_tsv = channel.fromPath(current_clinvarbitration_tsv)
     } else {
         // new workflow elements to go and create it from raw data
         String subfile = "${params.large_files}/submissions_${timestamp}.txt.gz"
@@ -116,6 +118,7 @@ workflow {
 
         ch_clinvar_all = ResummariseRawSubmissions.out.ht
         ch_clinvar_pm5 = MakeClinvarbitrationPm5.out
+        ch_clinvar_tsv = ResummariseRawSubmissions.out.tsv
     }
 
     // generate the Region-of-interest BED file from Ensembl GFF3
@@ -160,6 +163,7 @@ workflow {
         symbol_lookup = ch_symbol_lookup
         clinvar_all = ch_clinvar_all
         clinvar_pm5 = ch_clinvar_pm5
+        clinvar_tsv = ch_clinvar_tsv
         mitimpact = ch_mitimpact_zip
         mitotip = ch_mitotip_zip
         mane_json = ch_mane_json
@@ -179,6 +183,8 @@ output {
     clinvar_all {
     }
     clinvar_pm5 {
+    }
+    clinvar_tsv {
     }
     mane_json {
     }
