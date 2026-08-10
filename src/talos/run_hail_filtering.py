@@ -1036,6 +1036,7 @@ def main(
 
     # pull the regions of interest from the genes in this analysis, so we only read the relevant parts of the MT
     intervals = green_gene_intervals(panelapp=panelapp)
+    print(intervals)
 
     # read the pedigree data
     pedigree_data: PedigreeParser = PedigreeParser(pedigree)

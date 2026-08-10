@@ -17,7 +17,7 @@ include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBc
 include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
 include { AnnotateWithEchtvar } from './modules/annotation/AnnotateWithEchtvar/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
-include { NormaliseAndRegionFilterVcf } from './modules/annotation/NormaliseAndRegionFilterVcf/main'
+include { NormaliseVcf } from './modules/annotation/NormaliseVcf/main'
 include { SplitVcf } from './modules/annotation/SplitVcf/main'
 
 
@@ -36,13 +36,14 @@ workflow ANNOTATION {
     }
     ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true).first()
 
-    // check the ensembl BED file has been generated
-    if (!file(params.ensembl_bed).exists()) {
-        println "Region-Of-Interest BED file has not been prepared, run the Talos Prep workflow (talos_preparation.nf)"
+    def current_month = new java.util.Date().format('yyyy-MM')
+    String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
+
+    if (!file(panelapp_path).exists()) {
+        println "PanelApp data for this month (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
-    ch_bed = channel.fromPath(params.ensembl_bed, checkIfExists: true).first()
-    ch_merged_bed = channel.fromPath(params.ensembl_merged_bed, checkIfExists: true).first()
+    ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
 
     ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true).first()
 
@@ -92,14 +93,13 @@ workflow ANNOTATION {
     // mix in shards
     ch_all_vcfs = ch_vcfs.mix(ch_from_shards)
 
-	NormaliseAndRegionFilterVcf(
+	NormaliseVcf(
         ch_all_vcfs,
-        ch_merged_bed,
         ch_ref_genome,
     )
 
 	AnnotateWithEchtvar(
-        NormaliseAndRegionFilterVcf.out,
+        NormaliseVcf.out,
         ch_gnomad_zip,
         ch_alphamissense_zip,
     )
@@ -114,7 +114,7 @@ workflow ANNOTATION {
     // reformat the annotations in the VCF, generate a Hail MatrixTable
     AnnotatedVcfIntoMatrixTable(
         AnnotateCsqWithBcftools.out,
-        ch_bed,
+        ch_panelapp,
         ch_mane,
     )
 

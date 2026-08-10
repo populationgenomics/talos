@@ -1,12 +1,10 @@
-process NormaliseAndRegionFilterVcf {
+process NormaliseVcf {
     container params.container
 
     // take the merged VCF and index
-    // also take a BED file of regions to focus analysis on/filter VCF to
     // ref_genome here is used to create parsimonious representations
     input:
         tuple val(cohort), path(vcf)
-        path bed_file
         path ref_genome
 
     output:
@@ -21,7 +19,6 @@ process NormaliseAndRegionFilterVcf {
     bcftools norm \
     	-m -any \
     	-f ${ref_genome} \
-        -R ${bed_file} \
         -Ou ${vcf} \
         --no-version | \
     bcftools +fill-tags \

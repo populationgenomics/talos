@@ -18,12 +18,12 @@ import hail as hl
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.run_hail_filtering import MISSING_INT, ONE_INT, green_from_panelapp, subselect_mt_to_pedigree
-from talos.utils import read_json_from_path
+from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
 
-def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.MatrixTable:
+def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -> hl.MatrixTable:
     """
     Rearrange the annotations in the MT to be more easily accessible
     Args:
@@ -160,11 +160,6 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def get_symbol_to_ensg_mapping(panelapp: PanelApp) -> hl.dict:
-    """Use the PanelApp data to generate a symbol mapping."""
-    return hl.literal({gene.symbol: ensg for ensg, gene in panelapp.genes.items()})
-
-
 def cli_main():
     """
     main method wrapper for console script execution
@@ -227,7 +222,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     if not isinstance(panelapp, PanelApp):
         raise TypeError(f'PanelApp was not a PanelApp object: {panelapp}')
 
-    gene_id_mapping = get_symbol_to_ensg_mapping(panelapp)
+    gene_id_mapping = get_symbol_to_ensg_mapping(panelapp, as_hail=True)
 
     # pull green and new genes from the panelapp data
     # new is not currently incorporated in this analysis

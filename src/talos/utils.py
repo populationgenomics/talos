@@ -17,6 +17,7 @@ from itertools import chain, combinations, combinations_with_replacement, islice
 from random import choices
 from typing import TYPE_CHECKING, Any
 
+import hail as hl
 import httpx
 from cloudpathlib.anypath import to_anypath
 from loguru import logger
@@ -29,6 +30,7 @@ from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
     Coordinates,
+    DownloadedPanelApp,
     PanelApp,
     ResultData,
     ShortTandemRepeat,
@@ -1043,3 +1045,13 @@ def generate_summary_stats(result_set: ResultData):
                 unused_ext_labels.append({'sample': sam, 'variant': var_id, 'labels': labels})
 
     result_set.metadata.unused_ext_labels = unused_ext_labels
+
+
+def get_symbol_to_ensg_mapping(
+    panelapp: PanelApp | DownloadedPanelApp, as_hail: bool = False
+) -> hl.DictExpression | dict[str, str]:
+    """Use the PanelApp data to generate a symbol mapping."""
+    symbol_to_ensg = {gene.symbol: ensg for ensg, gene in panelapp.genes.items()}
+    if as_hail:
+        return hl.literal(symbol_to_ensg)
+    return symbol_to_ensg

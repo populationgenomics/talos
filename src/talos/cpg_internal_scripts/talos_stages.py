@@ -719,14 +719,14 @@ class HpoFlagging(stage.CohortStage):
             inputs.as_path(cohort, ValidateVariantInheritance),
         )
 
-        mane_json = hail_batch.get_batch().read_input(config.config_retrieve(['references', 'mane_1.4', 'json']))
+        panelapp = hail_batch.get_batch().read_input(inputs.as_path(cohort, UnifiedPanelAppParser))
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
         job.command(
             f"""
             python -m talos.hpo_flagging \\
                 --input {results_json} \\
-                --mane_json {mane_json} \\
+                --panelapp {panelapp} \\
                 --gen2phen {gene_to_phenotype} \\
                 --phenio {phenio_db} \\
                 --output {job.output!s}
