@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[11.3.0] - 2026-08
+
+### Changed 
+
+  * RunHailFiltering has been changed to region-filter data on read, instead of parsing annotations, resulting in massive runtime improvements
+  * After the recent PanelApp updates, we're leaning more on the service to supply gene symbols, ENSG IDs, and chromosomal locations, instead of intersecting data from differen sources
+
+### Removed
+
+  * Removed support for Exomiser and SpliceVarDB as external annotation sources. If there is community demand for these features they could be re-introduced, but these weren't readily available outside CPG, and weren't used internally. 
+
 [11.1.1] - 2026-08
 
 ### Added
