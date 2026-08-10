@@ -20,7 +20,13 @@ from loguru import logger
 from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
-from talos.vcf_streaming import parse_pedigree, subset_reader_to_pedigree, variant_is_pass
+from talos.vcf_streaming import (
+    first_value,
+    header_has_field,
+    parse_pedigree,
+    subset_reader_to_pedigree,
+    variant_is_pass,
+)
 
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
@@ -101,11 +107,6 @@ def rearrange_annotations(
     }
 
 
-def first_value(value: Any) -> Any:
-    """cyvcf2 collapses single-element Number=A INFO fields to a scalar - undo that."""
-    return value[0] if isinstance(value, tuple | list) else value
-
-
 def passes_af_filter(info: dict[str, Any], af_threshold: float = 0.03) -> bool:
     """gnomAD AF below threshold; a missing AF is treated as 0 and survives."""
     return (first_value(info['gnomad_sv_AF']) or 0) < af_threshold
@@ -147,15 +148,6 @@ def diploidise_genotypes(genotypes: list[list]) -> tuple[list[list], bool]:
         else:
             result.append(gt)
     return result, modified
-
-
-def header_has_field(reader: VCF, field_id: str) -> bool:
-    """Check whether the opened VCF declares a header entry with this ID."""
-    try:
-        reader.get_header_type(field_id)
-    except KeyError:
-        return False
-    return True
 
 
 def prepare_output_header(reader: VCF) -> bool:
