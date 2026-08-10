@@ -23,22 +23,7 @@ from talos.utils import read_json_from_path
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
 
-def read_and_filter_mane_json(mane_json: str) -> hl.dict:
-    """
-    Read the MANE JSON and filter it to the relevant fields
-    Args:
-        mane_json ():
-
-    Returns:
-
-    """
-
-    json_dict = read_json_from_path(mane_json)
-
-    return hl.literal({entry['symbol']: entry['ensg'] for entry in json_dict.values()})
-
-
-def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict) -> hl.MatrixTable:
+def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.dict[str, str]) -> hl.MatrixTable:
     """
     Rearrange the annotations in the MT to be more easily accessible
     Args:
@@ -175,9 +160,9 @@ def fix_hemi_calls(mt: hl.MatrixTable) -> hl.MatrixTable:
     )
 
 
-def get_symbol_to_ensg_mapping(panelapp: PanelApp) -> dict[str, str]:
+def get_symbol_to_ensg_mapping(panelapp: PanelApp) -> hl.dict[str, str]:
     """Use the PanelApp data to generate a symbol mapping."""
-    return {gene.symbol: ensg for ensg, gene in panelapp.genes.items()}
+    return hl.literal({gene.symbol: ensg for ensg, gene in panelapp.genes.items()})
 
 
 def cli_main():
