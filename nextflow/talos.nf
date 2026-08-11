@@ -138,20 +138,18 @@ workflow TALOS {
     )
 
     // re-attach a NO_SV sentinel for every cohort without SV data, so ValidateMOI runs for all cohorts.
-    // `remainder: true` keeps the cohorts that produced no labelled SV VCF, but the emission shape varies
-    // and has to be normalised rather than destructured:
-    //   matched cohort            -> [cohort, vcf, tbi]
-    //   unmatched cohort          -> [cohort, null]
-    //   *no* cohort had SV data   -> the bare cohort key, because Nextflow cannot infer the arity of a
-    //                                right-hand channel which never emits. Indexing that String yields
-    //                                its first character, which silently empties every downstream join
-    ch_sv_resolved = ch_meta
-        .map { row -> [row[0]] }
-        .join(RunHailFilteringSv.out, remainder: true)
-        .map { items ->
-            def row = items instanceof List ? items : [items]
-            tuple(row[0], row.size() > 1 && row[1] ? row[1] : file("${projectDir}/nextflow/assets/NO_SV"))
-        }
+    // Deliberately not `join(..., remainder: true)`: the shape of a remainder emission depends on
+    // Nextflow inferring the right-hand channel's arity, which it cannot do when that channel never
+    // emits (no cohort had SV data). It then emits the bare cohort key instead of [cohort, null], and
+    // indexing that String yields its first character, silently emptying every downstream join.
+    // Offering a sentinel for every cohort and letting a real SV VCF displace it has one fixed shape
+    ch_sv_sentinel = ch_meta.map { row -> tuple(row[0], file("${projectDir}/nextflow/assets/NO_SV")) }
+
+    ch_sv_resolved = RunHailFilteringSv.out
+        .map { cohort, sv_vcf, _sv_idx -> tuple(cohort, sv_vcf) }
+        .mix(ch_sv_sentinel)
+        .groupTuple(by: 0)
+        .map { cohort, sv_vcfs -> tuple(cohort, sv_vcfs.find { it.name != 'NO_SV' } ?: sv_vcfs[0]) }
 
     // surprise! It's Mito data!
     ch_mito_joined = ch_meta
