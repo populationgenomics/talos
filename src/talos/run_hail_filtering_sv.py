@@ -88,8 +88,8 @@ def rearrange_annotations(
         'AN': info['AN'],
         # accept, but don't force, this GATK-SV field
         'algorithms': info.get('ALGORITHMS', 'gCNV'),
-        'gnomad_sv_ID': info[f'{GNOMAD_POP}_sv_SVID'],
-        'gnomad_sv_AF': info[f'{GNOMAD_POP}_sv_AF'],
+        'gnomad_sv_ID': info.get(f'{GNOMAD_POP}_sv_SVID', None),
+        'gnomad_sv_AF': info.get(f'{GNOMAD_POP}_sv_AF', 0.0),
         'lof': lof,
         'n_het': info['N_HET'],
         'n_homalt': info['N_HOMALT'],
