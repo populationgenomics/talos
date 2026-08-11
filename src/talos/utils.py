@@ -25,8 +25,6 @@ from mendelbrot.pedigree_parser import PedigreeParser
 from numpy import isnan
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
-import hail as hl
-
 from talos.config import config_retrieve
 from talos.models import (
     VARIANT_MODELS,
@@ -44,6 +42,8 @@ from talos.static_values import get_granular_date
 
 if TYPE_CHECKING:
     import cyvcf2
+
+    import hail as hl
 
 
 HOMREF: int = 0
@@ -1050,9 +1050,16 @@ def generate_summary_stats(result_set: ResultData):
 
 def get_symbol_to_ensg_mapping(
     panelapp: PanelApp | DownloadedPanelApp, as_hail: bool = False
-) -> hl.DictExpression | dict[str, str]:
-    """Use the PanelApp data to generate a symbol mapping."""
+) -> 'hl.DictExpression | dict[str, str]':
+    """
+    Use the PanelApp data to generate a symbol mapping.
+
+    hail is imported inside the as_hail branch, not at module scope - it is an optional extra now,
+    and every streaming consumer of this module calls this with as_hail=False.
+    """
     symbol_to_ensg = {gene.symbol: ensg for ensg, gene in panelapp.genes.items()}
     if as_hail:
+        import hail as hl  # noqa: PLC0415
+
         return hl.literal(symbol_to_ensg)
     return symbol_to_ensg

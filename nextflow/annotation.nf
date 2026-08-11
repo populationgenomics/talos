@@ -10,11 +10,12 @@ The specific annotations are:
 
 - gnomAD v4.1 frequencies and alphamissense annotations, applied to the joint VCF using echtvar
 - Transcript consequences, using BCFtools annotate
-- MANE trancript IDs and corresponding ENSP IDs, applied using Hail
+
+Everything here is cohort-agnostic and cacheable. Output is the annotated VCF shards themselves -
+MANE and ClinVar are applied in the per-run workflow, where the labelling happens.
 */
 
 include { AnnotateCsqWithBcftools } from './modules/annotation/AnnotateCsqWithBcftools/main'
-include { AnnotatedVcfIntoMatrixTable } from './modules/annotation/AnnotatedVcfIntoMatrixTable/main'
 include { AnnotateWithEchtvar } from './modules/annotation/AnnotateWithEchtvar/main'
 include { MergeVcfsWithBcftools } from './modules/annotation/MergeVcfsWithBcftools/main'
 include { NormaliseVcf } from './modules/annotation/NormaliseVcf/main'
@@ -24,7 +25,6 @@ include { SplitVcf } from './modules/annotation/SplitVcf/main'
 workflow ANNOTATION {
 	take:
 		ch_gff
-		ch_mane
 		ch_ref_genome
 		ch_inputs
 
@@ -35,15 +35,6 @@ workflow ANNOTATION {
         exit 1
     }
     ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true).first()
-
-    def current_month = new java.util.Date().format('yyyy-MM')
-    String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
-
-    if (!file(panelapp_path).exists()) {
-        println "PanelApp data for this month (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
-        exit 1
-    }
-    ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
 
     ch_gnomad_zip = channel.fromPath(params.gnomad_zip, checkIfExists: true).first()
 
@@ -111,13 +102,7 @@ workflow ANNOTATION {
         ch_ref_genome,
     )
 
-    // reformat the annotations in the VCF, generate a Hail MatrixTable
-    AnnotatedVcfIntoMatrixTable(
-        AnnotateCsqWithBcftools.out,
-        ch_panelapp,
-        ch_mane,
-    )
-
     emit:
-    	mts = AnnotatedVcfIntoMatrixTable.out.groupTuple(by: 0)
+        // one entry per shard, as [cohort, vcf] - the per-run workflow keeps the scatter open
+    	vcfs = AnnotateCsqWithBcftools.out
 }

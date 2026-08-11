@@ -5,9 +5,10 @@ This workflow takes ownership over all the input data preparation steps across b
 
 The data prepared in this workflow is:
 
-- AlphaMissense data, reformatted into a HailTable
+- AlphaMissense data, encoded for echtvar
 - PanelApp data, freshly downloaded
-- ClinVar data, freshly downloaded and reformatted into Hail Tables
+- ClinVar data, freshly downloaded and re-summarised into a VCF of all decisions, a TSV of the same,
+  and a JSON codon map for PM5
 - Mane data, downloaded and reformatted
 - BED file representing ROI for all Ensembl genes
 */
@@ -70,12 +71,17 @@ workflow {
     }
 
     // does this month's clinvarbitration data exist?
-    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${timestamp}.ht"
-    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.ht"
+    // the "all" VCF holds every decision and is the echtvar annotation source, the TSV is the same
+    // content read directly by the mito process, and the PM5 JSON is the codon map
+    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${timestamp}.all.vcf.bgz"
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.json"
     String current_clinvarbitration_tsv = "${params.processed_annotations}/clinvarbitration_${timestamp}.tsv"
 
-    if (file(current_clinvarbitration_pm5).exists() && file(current_clinvarbitration_tsv).exists()) {
-        ch_clinvar_all = channel.fromPath(current_clinvarbitration_all)
+    if (file(current_clinvarbitration_all).exists() && file(current_clinvarbitration_pm5).exists() && file(current_clinvarbitration_tsv).exists()) {
+        // same [vcf, index] shape the ResummariseRawSubmissions branch emits
+        ch_clinvar_all = channel.of(
+            tuple(file(current_clinvarbitration_all), file("${current_clinvarbitration_all}.tbi", checkIfExists: true)),
+        )
         ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5)
         ch_clinvar_tsv = channel.fromPath(current_clinvarbitration_tsv)
     } else {
@@ -116,7 +122,7 @@ workflow {
             timestamp,
         )
 
-        ch_clinvar_all = ResummariseRawSubmissions.out.ht
+        ch_clinvar_all = ResummariseRawSubmissions.out.all_vcf
         ch_clinvar_pm5 = MakeClinvarbitrationPm5.out
         ch_clinvar_tsv = ResummariseRawSubmissions.out.tsv
     }

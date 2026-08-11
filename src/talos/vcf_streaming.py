@@ -18,9 +18,12 @@ from talos.config import config_retrieve
 if TYPE_CHECKING:
     import cyvcf2
 
-# ClinvArbitration decision strings (see run_hail_filtering.py constants)
+# ClinvArbitration decision strings (see run_hail_filtering.py constants).
+# ClinvArbitration 3.0.0 shortened its P/LP rating from 'Pathogenic/Likely Pathogenic' to
+# 'Pathogenic', so is_pathogenic matches the shared word rather than comparing for equality -
+# an equality check silently stops labelling anything the next time the wording moves
 BENIGN = 'benign'
-PATHOGENIC = 'Pathogenic/Likely Pathogenic'
+PATHOGENIC = 'Pathogenic'
 
 # sentinel used across the labelled VCFs for absent String values
 MISSING_STRING = 'missing'
@@ -139,6 +142,17 @@ def read_clinvar_decisions_tsv(tsv_path: str, contigs: set[str] | None = None) -
 
     logger.info(f'Read {len(decisions)} ClinVar decisions from {tsv_path}')
     return decisions
+
+
+def is_pathogenic(significance: str) -> bool:
+    """
+    Is this ClinvArbitration rating a Pathogenic/Likely-Pathogenic one?
+
+    Matched as a substring so that both the 2.x rating ('Pathogenic/Likely Pathogenic') and the
+    3.0 rating ('Pathogenic') are recognised. No other rating - Benign, Conflicting, VUS,
+    Unknown - contains the word.
+    """
+    return PATHOGENIC.lower() in significance.lower()
 
 
 def variant_is_pass(variant: 'cyvcf2.Variant') -> bool:

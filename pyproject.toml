@@ -20,8 +20,7 @@ classifiers=[
 ]
 
 dependencies=[
-    'hail~=0.2.137',
-    'clinvarbitration~=2.2.7',
+    'clinvarbitration~=3.0',
     'cloudpathlib[all]>=0.16.0',
     'cpg-utils>=5.7.1',
     'cyvcf2>=0.30.18',
@@ -41,9 +40,12 @@ dependencies=[
 ]
 
 [project.optional-dependencies]
+# hail lives here, not in the core dependencies: nothing in the Nextflow pipeline uses it, only the
+# deprecated cpg_internal_scripts and the Hail-era tests still being retired alongside them
 cpg = [
     'cpg-flow~=1.3',
     'google-cloud-storage==2.14.0',
+    'hail~=0.2.137',
 ]
 test = [
     'bump-my-version',

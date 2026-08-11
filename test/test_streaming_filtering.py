@@ -359,7 +359,25 @@ def test_read_clinvar_fields_absent():
 def test_read_clinvar_fields_echtvar_sentinels():
     """echtvar fills unannotated integer fields with -1, and encodes spaces as underscores"""
     info = {'clinvar_significance': 'Pathogenic/Likely_Pathogenic', 'clinvar_stars': -1, 'clinvar_allele': -1}
-    assert read_clinvar_fields(info) == (PATHOGENIC, 0, 0)
+    assert read_clinvar_fields(info) == ('Pathogenic/Likely Pathogenic', 0, 0)
+
+
+@pytest.mark.parametrize('significance', ['Pathogenic/Likely Pathogenic', 'Pathogenic'])
+def test_both_clinvarbitration_pathogenic_ratings_are_recognised(significance):
+    """
+    ClinvArbitration 2.x rated P/LP as 'Pathogenic/Likely Pathogenic', 3.0 shortened it to
+    'Pathogenic'. Both must label, or a release bump silently switches ClinVar labelling off.
+    """
+    flags = clinvar_category_flags(significance, 1, {'ENSG_GREEN'}, set())
+    assert flags['clinvar_talos'] == 1
+    assert flags['categorybooleanclinvarplp'] == 1
+
+
+@pytest.mark.parametrize('significance', ['Benign', 'Conflicting', 'VUS', 'Unknown', MISSING_STRING])
+def test_other_ratings_are_not_pathogenic(significance):
+    flags = clinvar_category_flags(significance, 1, {'ENSG_GREEN'}, set())
+    assert flags['clinvar_talos'] == 0
+    assert flags['categorybooleanclinvarplp'] == 0
 
 
 def test_pm5_matches():
@@ -474,7 +492,7 @@ def test_clinvar_plp_is_labelled_and_de_novo(tmp_path, monkeypatch):
 
     assert info['categorybooleanclinvarplp'] == 1
     assert info['clinvar_talos'] == 1
-    assert info['clinvar_significance'] == PATHOGENIC
+    assert info['clinvar_significance'] == 'Pathogenic/Likely Pathogenic'
     assert info['clinvar_stars'] == 1
     assert info['clinvar_allele'] == 25
     assert info['gene_id'] == 'ENSG_GREEN'

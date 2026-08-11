@@ -31,11 +31,12 @@ from talos.config import config_retrieve
 from talos.models import PanelApp
 from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 from talos.vcf_streaming import (
+    BENIGN,
     MISSING_STRING,
-    PATHOGENIC,
     consequences_to_csq_string,
     first_value,
     header_has_field,
+    is_pathogenic,
     normalise_chrom,
     parse_bcsq_entries,
     parse_pedigree,
@@ -286,12 +287,12 @@ def read_clinvar_fields(info: Any) -> tuple[str, int, int]:
 
 def is_confident_benign(significance: str, stars: int) -> bool:
     """Confidently benign variants are removed outright (annotate_clinvarbitration)."""
-    return 'benign' in significance.lower() and stars > 0
+    return BENIGN in significance.lower() and stars > 0
 
 
 def clinvar_category_flags(significance: str, stars: int, gene_ids: set[str], new_genes: set[str]) -> dict[str, int]:
     """The ClinVar-derived flags: talos (P/LP any stars), plp (1+ stars), 0star, 0star-in-new-gene."""
-    pathogenic = significance == PATHOGENIC
+    pathogenic = is_pathogenic(significance)
     return {
         'clinvar_talos': int(pathogenic),
         'categorybooleanclinvarplp': int(pathogenic and stars > 0),
@@ -621,7 +622,7 @@ def label_variant(variant: Variant, ctx: StreamingContext) -> int:
     significance, stars, allele = read_clinvar_fields(variant.INFO)
     if is_confident_benign(significance, stars):
         return 0
-    clinvar_talos = int(significance == PATHOGENIC)
+    clinvar_talos = int(is_pathogenic(significance))
 
     gnomad_af = variant.INFO.get(GNOMAD_SOURCE_FIELDS['gnomad_AF'])
     if not (

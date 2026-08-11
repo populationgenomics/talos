@@ -6,7 +6,7 @@ process MakeClinvarbitrationPm5 {
         val timestamp
 
     output:
-        path "clinvarbitration_${timestamp}.pm5.ht"
+        path "clinvarbitration_${timestamp}.pm5.json"
 
     script:
         """

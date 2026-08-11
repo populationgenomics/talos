@@ -1,25 +1,25 @@
 process StartupChecks {
     container params.container
 
+    // check the config, pedigree, and the input contract of one annotated shard. Every shard is
+    // written by the same processes over the same samples, so one is representative of all
     input:
-        tuple val(cohort), path(mts), path(pedigree), path(talos_config), path(history), path(ext), path(seqr), path(mito)
-        path clinvar
+        tuple val(cohort), path(vcf), path(pedigree), path(talos_config)
+        path clinvar_vcf
 
     output:
         tuple val(cohort), path("${cohort}_checked")
 
     script:
-        def mt_string = (mts.collect().size() > 1) ? mts.sort{ it.name } : mts
-
         """
         set -euo pipefail
 
         export TALOS_CONFIG=${talos_config}
 
         python -m talos.startup_checks \\
-            --mt ${mt_string} \\
+            --vcf ${vcf} \\
             --pedigree ${pedigree} \\
-            --clinvar ${clinvar}
+            --clinvar ${clinvar_vcf}
 
         echo "success" > "${cohort}_checked"
         """

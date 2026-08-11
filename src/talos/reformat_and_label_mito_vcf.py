@@ -17,8 +17,8 @@ from loguru import logger
 from talos.models import PanelApp
 from talos.utils import read_json_from_path
 from talos.vcf_streaming import (
-    PATHOGENIC,
     consequences_to_csq_string,
+    is_pathogenic,
     normalise_chrom,
     parse_bcsq_entries,
     parse_pedigree,
@@ -137,7 +137,7 @@ def main(
         decision = clinvar_decisions.get(
             (normalise_chrom(variant.CHROM), variant.POS, variant.REF, variant.ALT[0]),
         )
-        if decision is None or decision['clinical_significance'] != PATHOGENIC or decision['gold_stars'] < 1:
+        if decision is None or not is_pathogenic(decision['clinical_significance']) or decision['gold_stars'] < 1:
             continue
 
         bcsq = variant.INFO.get('BCSQ')

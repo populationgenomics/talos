@@ -52,12 +52,11 @@ workflow {
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(row.cohort, row.path, row.type) }
 
-	ch_talos_inputs = channel.fromPath(params.input_tsv)
+	// per-cohort metadata, one row per cohort - the annotated shards are carried separately
+	ch_talos_meta = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,
-			row.path,
-			row.type,
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
 			file(row.history ?: "${projectDir}/nextflow/assets/NO_HISTORY", checkIfExists: true),
@@ -92,25 +91,21 @@ workflow {
 
 	ANNOTATION(
 		ch_gff,
-		ch_mane,
 		ch_ref_genome,
 		ch_inputs,
 	)
-
-	ch_talos_combined = ANNOTATION.out.mts
-		.join(ch_talos_inputs)
-		.map { cohort, mts, _inpath, _intype, pedigree, config, history, ext, seqr, mito -> tuple(cohort, mts, pedigree, config, history, ext, seqr, mito) }
 
 	TALOS(
 		ch_mane,
 		ch_gff,
 		ch_ref_genome,
-		ch_talos_combined,
+		ch_talos_meta,
+		ANNOTATION.out.vcfs,
 		ch_sv_annotated,
 	)
 
 	publish:
-		mts = ANNOTATION.out.mts
+		annotated = ANNOTATION.out.vcfs
     	html = TALOS.out.html
 		json = TALOS.out.json
 		labelled = TALOS.out.labelled
@@ -120,8 +115,8 @@ workflow {
 }
 
 output {
-	mts {
-		path { id, _mts -> "${id}_outputs" }
+	annotated {
+		path { id, _vcf -> "${id}_outputs" }
 	}
 	html {
 		path { id, _html -> "${id}_outputs" }

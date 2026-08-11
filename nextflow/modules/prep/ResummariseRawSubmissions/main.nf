@@ -8,13 +8,13 @@ process ResummariseRawSubmissions {
 
     output:
         tuple path("clinvarbitration_${timestamp}.vcf.bgz"), path("clinvarbitration_${timestamp}.vcf.bgz.tbi"), emit: "vcf"
-        path "clinvarbitration_${timestamp}.ht", emit: "ht"
+        tuple path("clinvarbitration_${timestamp}.all.vcf.bgz"), path("clinvarbitration_${timestamp}.all.vcf.bgz.tbi"), emit: "all_vcf"
         path "clinvarbitration_${timestamp}.tsv", emit: "tsv"
 
     // Generates
-    // clinvarbitration_XX.vcf.bgz + index - VCF containing only pathogenic SNV entries, feeds into annotation
-    // clinvarbitration_XX.ht - a Hail Table containing the summarised data entries
-    // clinvarbitration_XX.tsv - the same decisions as a TSV, consumed by the streaming (non-Hail) processes
+    // clinvarbitration_XX.vcf.bgz + index - VCF containing only pathogenic SNV entries, feeds into the PM5 codon map
+    // clinvarbitration_XX.all.vcf.bgz + index - every decision, Benign included. Encoded for echtvar at run time
+    // clinvarbitration_XX.tsv - the same decisions as a TSV, consumed by the mito labelling process
     script:
         """
         set -euo pipefail
@@ -23,6 +23,7 @@ process ResummariseRawSubmissions {
             -v "${variant_summary}" \
             -s "${submission_summary}" \
             -o "clinvarbitration_${timestamp}" \
-            -b "${params.clinvar_blacklist}"
+            -b "${params.clinvar_blacklist}" \
+            --all_vcf "clinvarbitration_${timestamp}.all.vcf.bgz"
         """
 }
