@@ -36,11 +36,36 @@ workflow {
 			file(row.mito ?: "${projectDir}/nextflow/assets/NO_MITO", checkIfExists: true),
 		) }
 
+	// the SV path is entirely optional, and only wired up if the input TSV declares an `sv` column.
+	// this is checked eagerly rather than per-row so that a cohort with no SV data never requires the
+	// SV reference files to be present at all
+	def sv_requested = file(params.input_tsv).withReader { handle -> handle.readLine() }.tokenize('\t').contains('sv')
+
+	ch_sv_annotated = channel.empty()
+
+	if (sv_requested) {
+		ch_sv_inputs = channel.fromPath(params.input_tsv)
+			.splitCsv(header: true, sep: '\t')
+			.map { row -> tuple(
+				row.cohort,
+				file(row.sv ?: "${projectDir}/nextflow/assets/NO_SV", checkIfExists: true),
+				file(row.config, checkIfExists: true),
+			) }
+
+		SV_ANNOTATION(
+			ch_ref_genome,
+			ch_sv_inputs,
+		)
+
+		ch_sv_annotated = SV_ANNOTATION.out.annotated
+	}
+
 	TALOS(
 		ch_mane,
 		ch_gff,
         ch_ref_genome,
 		ch_inputs,
+		ch_sv_annotated,
 	)
 
 	publish:
