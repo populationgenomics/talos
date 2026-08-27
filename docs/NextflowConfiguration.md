@@ -51,7 +51,7 @@ declares an `sv` column, so an SNV-only run does not need any of the reference d
 
 The joint-called SV VCF is supplied per cohort, as an `sv` column in the input TSV, alongside the existing
 `mito` column. A bgzipped VCF with a matching `.tbi` is expected. Cohorts with no SV data can leave the column
-empty, or use `nextflow/assets/NO_SV`.
+empty, or remove the column from the input file completely.
 
 The input VCF must already carry `AC`, `AF`, `AN`, `N_HET`, `N_HOMALT` and array-typed `MALE_AF`/`FEMALE_AF`
 (or `AF_MALE`/`AF_FEMALE`). None of these are written by the annotation chain, and `RunHailFilteringSv` reads
