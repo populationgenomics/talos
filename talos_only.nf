@@ -3,6 +3,7 @@
 nextflow.enable.dsl=2
 
 include { TALOS } from './nextflow/talos'
+include { SV_ANNOTATION } from './nextflow/sv_annotation'
 
 workflow {
 	main:
@@ -72,6 +73,8 @@ workflow {
     	html = TALOS.out.html
 		json = TALOS.out.json
 		panelapp = TALOS.out.panelapp
+		labelled_sv = TALOS.out.labelled_sv
+		sv_annotated = ch_sv_annotated
 }
 
 output {
@@ -83,5 +86,11 @@ output {
 	}
 	panelapp {
 		path { id, panelapp -> "${id}_outputs" }
+	}
+	labelled_sv {
+		path { id, _labelled_sv, _labelled_sv_idx -> "${id}_outputs" }
+	}
+	sv_annotated {
+		path { id, _vcf, _vcf_idx -> "${id}_outputs" }
 	}
 }
