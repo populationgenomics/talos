@@ -76,7 +76,7 @@ nav:
   - Reference:
       - Talos Configuration: Configuration.md
       - Nextflow Configuration: NextflowConfiguration.md
-      - SV Annotation Module: SvAnnotationPlan.md
+      - SV Annotation Module: SV.md
   - Contributing:
       - Adding New Categories: AddingNewCategories.md
   - Changelog: changelog.md

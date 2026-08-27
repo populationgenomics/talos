@@ -127,7 +127,7 @@ callset_af_sv_recessive = 0.03
 critical_csq = [ "frameshift", "splice_acceptor", "splice_donor", "start_lost", "stop_gained", "stop_lost",]
 spliceai = 0.5
 am_pathogenicity = 0.564
-
+minimum_depth = 10
 heteroplasmy_min = 0.2
 
 [RunHailFiltering.de_novo]

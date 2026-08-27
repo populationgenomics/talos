@@ -6,7 +6,7 @@ symbolic SV records carrying INFO fields Hail's VCF export would not round-trip,
 directly and compressed with bgzip.
 
 The variants are deliberately adversarial rather than nominal - see the Testing guidance section of
-docs/SvAnnotationPlan.md. Coordinates are taken from the real reference data:
+docs/SV.md. Coordinates are taken from the real reference data:
 
 - gene spans come from MANE.GRCh38.v1.5.ensembl_genomic.gtf.gz, the same GTF AnnotateSvWithGatk uses
 - gnomAD records come from SVAFotate_SV_popAFs.GRCh38.v4.1.bed.gz, the same BED AnnotateSvWithSvafotate uses.
@@ -142,7 +142,7 @@ VARIANTS = [
     SV('ins_end_eq_pos', 66340, 66340, 'INS', 161, ['0/1', '0/0', '0/1'], callset_af=0.001),
     # a breakend. SVAnnotate never assigns PREDICTED_LOF to a BND - this one lands intronic in PADI6 and
     # exonic in GJA9 - so it is dropped by run_hail_filtering_sv before any frequency filter is consulted.
-    # See the Risks section of docs/SvAnnotationPlan.md
+    # See the Risks section of docs/SV.md
     SV(
         'bnd_1',
         17390000,
