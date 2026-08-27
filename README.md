@@ -112,6 +112,7 @@ The inputs for the Talos workflow are:
 - **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
 - **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
 - **mito**: optional, path to mitochondrial variants joint-called VCF
+- **sv**: optional, path to a single SV VCF, overlapping with the small-variant data
 
 The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
 
