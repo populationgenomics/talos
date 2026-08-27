@@ -56,7 +56,7 @@ workflow SV_ANNOTATION {
     // split cohorts three ways - no SV data, already annotated, or work to do
     // row is tuple(cohort, sv_vcf, config)
     ch_branched = ch_sv_inputs.branch { row ->
-        sentinel: row[1].name == 'NO_SV'
+        no_sv:    !row[1]
         complete: file("${workflow.outputDir.toUriString()}/${row[0]}_outputs/${row[0]}_sv_annotated.vcf.bgz").exists()
         pending:  true
     }
@@ -108,5 +108,8 @@ workflow SV_ANNOTATION {
     )
 
     emit:
+        // every cohort with SV data, newly annotated and reused alike
         annotated = RenameSvAfFields.out.mix(ch_complete)
+        // newly annotated only - these need publishing, reused ones are already on disk
+        fresh = RenameSvAfFields.out
 }

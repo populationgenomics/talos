@@ -31,10 +31,11 @@ workflow {
 			files("${workflow.outputDir.toUriString()}/${row.cohort}_outputs/*.mt", type: 'dir'),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
-			file(row.history ?: "${projectDir}/nextflow/assets/NO_HISTORY", checkIfExists: true),
-			file(row.ext_ids ?: "${projectDir}/nextflow/assets/NO_FILE", checkIfExists: true),
-			file(row.seqr_map ?: "${projectDir}/nextflow/assets/NO_SEQR_FILE", checkIfExists: true),
-			file(row.mito ?: "${projectDir}/nextflow/assets/NO_MITO", checkIfExists: true),
+			// optional columns - an empty/absent cell becomes [], which stages nothing and is falsy in every downstream truthiness check
+			row.history ? file(row.history, checkIfExists: true) : [],
+			row.ext_ids ? file(row.ext_ids, checkIfExists: true) : [],
+			row.seqr_map ? file(row.seqr_map, checkIfExists: true) : [],
+			row.mito ? file(row.mito, checkIfExists: true) : [],
 		) }
 
 	// the SV path is entirely optional, and only wired up if the input TSV declares an `sv` column.
@@ -43,13 +44,14 @@ workflow {
 	def sv_requested = file(params.input_tsv).withReader { handle -> handle.readLine() }.tokenize('\t').contains('sv')
 
 	ch_sv_annotated = channel.empty()
+	ch_sv_fresh = channel.empty()
 
 	if (sv_requested) {
 		ch_sv_inputs = channel.fromPath(params.input_tsv)
 			.splitCsv(header: true, sep: '\t')
 			.map { row -> tuple(
 				row.cohort,
-				file(row.sv ?: "${projectDir}/nextflow/assets/NO_SV", checkIfExists: true),
+				row.sv ? file(row.sv, checkIfExists: true) : [],
 				file(row.config, checkIfExists: true),
 			) }
 
@@ -59,6 +61,7 @@ workflow {
 		)
 
 		ch_sv_annotated = SV_ANNOTATION.out.annotated
+		ch_sv_fresh = SV_ANNOTATION.out.fresh
 	}
 
 	TALOS(
@@ -74,7 +77,7 @@ workflow {
 		json = TALOS.out.json
 		panelapp = TALOS.out.panelapp
 		labelled_sv = TALOS.out.labelled_sv
-		sv_annotated = ch_sv_annotated
+		sv_annotated = ch_sv_fresh
 }
 
 output {

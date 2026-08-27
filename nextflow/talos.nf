@@ -97,18 +97,20 @@ workflow TALOS {
         ch_mane,
     )
 
-    // re-attach a NO_SV sentinel for every cohort without SV data, so ValidateMOI runs for all cohorts.
-    // `remainder: true` keeps the cohorts that produced no labelled SV VCF, but the emission shape varies:
-    // a matched cohort emits [cohort, vcf, index], an unmatched cohort emits [cohort, null], and when NO
-    // cohort has SV data (RunHailFilteringSv.out is empty) join unwraps the singleton and emits the bare
-    // cohort String - so re-wrap before indexing, or String subscripts would split the cohort name into chars
-    ch_sv_resolved = ch_mts
-        .map { row -> [row[0]] }
-        .join(RunHailFilteringSv.out, remainder: true)
-        .map { items ->
-            def list = items instanceof List ? items : [items]
-            tuple(list[0], list[1] ?: file("${projectDir}/nextflow/assets/NO_SV"))
-        }
+    // re-attach an empty placeholder for every cohort without SV data, so ValidateMOI runs for all cohorts.
+    // Deliberately not `join(..., remainder: true)`: the shape of a remainder emission depends on
+    // Nextflow inferring the right-hand channel's arity, which it cannot do when that channel never
+    // emits (no cohort had SV data). It then emits the bare cohort key instead of [cohort, null], and
+    // indexing that String yields its first character, silently emptying every downstream join.
+    // Offering [] for every cohort and letting a real SV VCF displace it has one fixed shape
+    // TL; DR: mixing SV-having and SV-absent cohorts in the same run killed all tasks downstream of here in old syntax
+    ch_sv_placeholder = ch_mts.map { row -> tuple(row[0], []) }
+
+    ch_sv_resolved = RunHailFilteringSv.out
+        .map { cohort, sv_vcf, _sv_idx -> tuple(cohort, sv_vcf) }
+        .mix(ch_sv_placeholder)
+        .groupTuple(by: 0)
+        .map { cohort, sv_vcfs -> tuple(cohort, sv_vcfs.find { it } ?: []) }
 
     // surprise! It's Mito data!
     ch_mito_joined = ch_mts
@@ -118,17 +120,18 @@ workflow TALOS {
           tuple(cohort, mito, panelapp_data, pedigree, config)
     }
 
+    // absent mito data is [] (falsy), a real VCF is a truthy Path
     ch_mito_branched = ch_mito_joined.branch {
-        real:     it[1].name != 'NO_MITO'
-        sentinel: it[1].name == 'NO_MITO'
+        real:  it[1]
+        empty: true
     }
 
     ch_mito_for_annotation = ch_mito_branched.real
         .map { cohort, mito, panelapp, ped, config ->
             tuple(cohort, mito, panelapp, ped, config,
-                  file(params.mitimpact_zip, checkIfExists: true),
-                  file(params.mitotip_zip, checkIfExists: true),
-                  file(params.napogee_zip, checkIfExists: true))
+                file(params.mitimpact_zip, checkIfExists: true),
+                file(params.mitotip_zip, checkIfExists: true),
+                file(params.napogee_zip, checkIfExists: true))
         }
 
     AnnotateMitoVcf(
@@ -139,7 +142,7 @@ workflow TALOS {
     )
 
     ch_mito_resolved = AnnotateMitoVcf.out
-        .mix(ch_mito_branched.sentinel.map { cohort, mito, _pa, _ped, _cfg -> tuple(cohort, mito) })
+        .mix(ch_mito_branched.empty.map { cohort, mito, _pa, _ped, _cfg -> tuple(cohort, mito) })
 
     // Validate MOI of all variants
     ch_validate_moi_inputs = RunHailFiltering.out

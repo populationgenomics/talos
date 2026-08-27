@@ -8,10 +8,9 @@ process CreateTalosHTML {
     output:
         tuple val(cohort), path("${cohort}_report_${timestamp}.html")
 
-    // add the external IDs file if provided
     script:
-        def ext_id_arg = ext_ids.name != 'NO_FILE' ? "--ext_ids $ext_ids" : ''
-        def seqr_arg = seqr_ids.name != 'NO_SEQR_FILE' ? "--seqr_ids $seqr_ids" : ''
+        def ext_id_arg = ext_ids ? "--ext_ids $ext_ids" : ''
+        def seqr_arg = seqr_ids ? "--seqr_ids $seqr_ids" : ''
 
         """
         set -euo pipefail
