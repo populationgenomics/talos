@@ -17,6 +17,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.0.0] - 2026-08
+
+### Breaking
+
+Input TSV parsing has been changed, and is now more fully described in the README. Instead of requiring specifically named asset files to represent absent inputs (e.g. `assets/NO_HISTORY` instead of not providing results from a prior analysis), the parsing now intelligently detects that either a completely missing column, or an empty value in that column, represent an absent input. Any input files which contain these asset files will break on versions >= 12, as the 0-Byte sentinel file will be parsed as a real input.
+
+Apologies for this breaking change, but the original solution was bad, and was a product of not finding a better solution in NextFlow. Flexible TSV parsing and empty-channel defaults should make this much simpler to manage.
+
+### Fixed
+
+A couple of workflow elements are now fixed:
+
+- file discovery in cloud environments was broken, i.e. the glob for previously generated MT files, or the glob for input VCFs and corresponding indices. Due to string handling these were stripping the `s3:// or gs://` prefix, leading to a pseudo-local path being checked, which would fail to find existing files.
+- channel mixing is now fixed - if SV columns were provided but empty, the Small variant and SV channel mixing would return an empty join, so ValidateMoi and downstream stages would never run.
+
+### Added
+
+SV inputs and how to provide them are discussed more in the documentation pages.
+
+<!--latest-end-->
+
 [11.3.0] - 2026-08
 
 ### Important
@@ -40,7 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * A separate Dockerfile to contain the new tool
   * Dockerfiles are all centralised into the `/docker` root folder
 
-<!--latest-end-->
 
 [11.1.0] - 2026-07
 
