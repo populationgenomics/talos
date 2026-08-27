@@ -125,7 +125,7 @@ The inputs for the Talos workflow are:
 
 The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
 
-The optional columns can be completely omitted if the corresponding input file isn't being provided, absence of a value is parsed as no-input. This is a deviation from previous versions where a check was made against a specific 0-Byte asset file.  
+The optional columns can be completely omitted if the corresponding input file isn't being provided, absence of a value is parsed as no-input. This is a deviation from previous versions where a check was made against a specific 0-Byte asset file.
 
 The [annotation workflow](nextflow/annotation.nf) pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) re-used with each iterative analysis.
 

@@ -27,9 +27,9 @@ into the report.
 
 ## Inputs
 
-To provide SV data, generate a VCF containing structural variant calls for the samples in the corresponding small-variant VCF & pedigree. This process has been tested with outputs from GATK's gCNV, and the GATK-SV multi-tool SV calling workflow, though it may barf on some other variant callers/VCF formats - please raise an issue if this affects you. 
+To provide SV data, generate a VCF containing structural variant calls for the samples in the corresponding small-variant VCF & pedigree. This process has been tested with outputs from GATK's gCNV, and the GATK-SV multi-tool SV calling workflow, though it may barf on some other variant callers/VCF formats - please raise an issue if this affects you.
 
-This VCF should be added to the input TSV file as a `sv` column. The sample sets do not have to overlap completely, i.e. SV results for only one member of a trio, or half of a cohort is perfectly fine. The samples in the SV and small variant VCFs will be compared against the same pedigree file, and any sample IDs not in that pedigree will be ignored.  
+This VCF should be added to the input TSV file as a `sv` column. The sample sets do not have to overlap completely, i.e. SV results for only one member of a trio, or half of a cohort is perfectly fine. The samples in the SV and small variant VCFs will be compared against the same pedigree file, and any sample IDs not in that pedigree will be ignored.
 
 Small-variants remain a core component of Talos, and it is not designed to run exclusively on SV data.
 
