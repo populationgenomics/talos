@@ -1,6 +1,6 @@
 # 🏗️ SV Annotation Module
 
-Since version 11.1.x Talos has been capable of processing SV data. This is done using a sub-workflow, [sv_annotation](nextflow/sv_annotation.nf), which first annotates with consequences and population frequncies, then runs a filter & labelling operation. Selected SVs are considered alongside the small variant data, i.e. a deletion and a stop-gained in a biallelic gene could be flagged for further investigation.
+Since version 11.1.x Talos has been capable of processing SV data. This is done using a sub-workflow, `nextflow/sv_annotation.nf`, which first annotates with consequences and population frequncies, then runs a filter & labelling operation. Selected SVs are considered alongside the small variant data, i.e. a deletion and a stop-gained in a biallelic gene could be flagged for further investigation.
 
 A Nextflow workflow which annotates a joint-called Structural Variant VCF with:
 
@@ -35,7 +35,7 @@ Small-variants remain a core component of Talos, and it is not designed to run e
 
 To use the SV workflow you will need to:
 
-1. run the latest version of [large_files/gather_files.sh](large_files/gather_files.sh) to download the SVAFotate resources
+1. run the latest version of `large_files/gather_files.sh` to download the SVAFotate resources
 2. build the svafotate docker file (`docker build -f docker/SVAFotate_Dockerfile -t svafotate:0.1.0 .`)
 3. add your SV data under the `sv` input column in the TSV file
 
