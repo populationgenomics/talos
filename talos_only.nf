@@ -28,7 +28,7 @@ workflow {
 		.splitCsv(header: true, sep: '\t')
 		.map { row -> tuple(
 			row.cohort,
-			files("${workflow.outputDir}/${row.cohort}_outputs/*.mt", type: 'dir'),
+			files("${workflow.outputDir.toUriString()}/${row.cohort}_outputs/*.mt", type: 'dir'),
 			file(row.pedigree, checkIfExists: true),
 			file(row.config, checkIfExists: true),
 			file(row.history ?: "${projectDir}/nextflow/assets/NO_HISTORY", checkIfExists: true),

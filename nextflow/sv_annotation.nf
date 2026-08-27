@@ -57,19 +57,19 @@ workflow SV_ANNOTATION {
     // row is tuple(cohort, sv_vcf, config)
     ch_branched = ch_sv_inputs.branch { row ->
         sentinel: row[1].name == 'NO_SV'
-        complete: file("${workflow.outputDir}/${row[0]}_outputs/${row[0]}_sv_annotated.vcf.bgz").exists()
+        complete: file("${workflow.outputDir.toUriString()}/${row[0]}_outputs/${row[0]}_sv_annotated.vcf.bgz").exists()
         pending:  true
     }
 
     // pick the previously annotated VCF up from the output directory instead of regenerating it
     ch_complete = ch_branched.complete.map { row ->
-        def annotated = "${workflow.outputDir}/${row[0]}_outputs/${row[0]}_sv_annotated.vcf.bgz"
+        def annotated = "${workflow.outputDir.toUriString()}/${row[0]}_outputs/${row[0]}_sv_annotated.vcf.bgz"
         println "Annotated SV VCF for ${row[0]} already exists (${annotated}), skipping SV annotation"
         tuple(row[0], file(annotated), file("${annotated}.tbi", checkIfExists: true))
     }
 
     ch_pending_vcfs = ch_branched.pending.map { row ->
-        tuple(row[0], row[1], file("${row[1]}.tbi", checkIfExists: true))
+        tuple(row[0], row[1], file("${row[1].toUriString()}.tbi", checkIfExists: true))
     }
 
     // the config travels with each cohort, and is only needed for the rename step
