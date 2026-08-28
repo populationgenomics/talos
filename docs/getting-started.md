@@ -46,7 +46,7 @@ You will need:
 Build the Talos Docker image locally:
 
 ```bash
-docker build -t talos:11.3.1 .
+docker build -t talos:12.0.0 .
 ```
 
 ---

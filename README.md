@@ -58,7 +58,7 @@ Talos is implemented using **Nextflow**, with all dependencies containerised via
 There are two primary workflows:
 
 * `preparation.nf`: downloads and formats data in preparation for Talos runs
-* `main.nf`: imports and executes the two sub-workflows which comprise the Talos runs
+* `main.nf`: imports and executes the sub-workflows which comprise the Talos runs
 
 ### **1. Install Requirements**
 
@@ -69,7 +69,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:11.3.1 .
+docker build -f docker/Dockerfile -t talos:12.0.0 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -102,18 +102,30 @@ The parameter `processed_annotations` should point to a static directory where t
 > **NEW SINCE 10.0.0**
 > Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
+> **NEW SINCE 12.0.0**
+> The README clarifies optional vs. mandatory columns. Input TSV parsing has been improved, so now columns can be completely omitted if not in use; the need for real `assets/NO_FILE` sentinels is removed - empty columns are parsed as no-input.
+
 The inputs for the Talos workflow are:
+
+#### Mandatory
 - **cohort**: a collective name to identify the input/results, used in output directory and file naming
 - **path**: path to the Cohort's input data (VCF)
 - **type**: type of the input data, see below
 - **pedigree**: path to a Pedigree for the cohort, See details [here](docs/Pedigree.md)
 - **config**: default available, path to the Talos config - see [example_config.toml](src/talos/example_config.toml) for an example, and the [Configuration README](docs/Configuration.md) for a full breakdown of all config parameters
-- **history**: optional, path to previous results
-- **ext_ids**: optional, path to ID mapping to present alternate IDs in the HTML report
-- **seqr_map**: optional, path to ID mapping to generate hyperlinks to Seqr in the HTML report
-- **mito**: optional, path to mitochondrial variants joint-called VCF
+
+#### Optional
+- **history**: path to a previous results JSON file, used to maintain first-seen dates
+- **ext_ids**: path to ID mapping to present alternate IDs in the HTML report
+- **seqr_map**: path to ID mapping to generate hyperlinks to Seqr in the HTML report
+- **mito**: path to mitochondrial variants joint-called VCF
+- **sv**: path to a single SV VCF, overlapping with the small-variant data
+
+---
 
 The TSV file can contain any number of rows, each representing a distinct Cohort. A parallel Annotation & Talos run will be triggered for each input row, writing to a distinct output folder. An example TSV file has been provided to demonstrate.
+
+The optional columns can be completely omitted if the corresponding input file isn't being provided, absence of a value is parsed as no-input. This is a deviation from previous versions where a check was made against a specific 0-Byte asset file.
 
 The [annotation workflow](nextflow/annotation.nf) pre-processes and annotates variants. This workflow only needs to be run once per dataset, with the resulting MatrixTable(s) re-used with each iterative analysis.
 
@@ -138,6 +150,7 @@ nextflow \
 ```
 
 >**For best results we advise repeating the Talos workflow on a regular cadence**
+
 ```bash
 nextflow \
   -c nextflow.config \
@@ -145,6 +158,12 @@ nextflow \
   --input_tsv nextflow/inputs/test.tsv \
   -output-dir <path_to_output_dir>
 ```
+
+---
+
+## **🏗️ SV Data**
+
+Since version 11.1.x Talos has been capable of processing SV data, see [SV.md](docs/SV.md) for more information.
 
 ---
 

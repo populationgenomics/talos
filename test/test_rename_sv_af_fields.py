@@ -1,7 +1,7 @@
 """
 Regression tests for talos.annotation_scripts.rename_sv_af_fields.
 
-These guard the two field-naming rules from docs/SvAnnotationPlan.md that are easy to get wrong:
+These guard the two field-naming rules from docs/SV.md that are easy to get wrong:
 - Max_AF (the conservative maximum across matches), not Best_gnomAD_AF, is copied into {prefix}_sv_AF
 - Best_gnomAD_ID is only carried through when gnomAD_Count > 0. SVAFotate populates it even for candidate
   overlaps that never cleared the -f threshold, so a naive rename stamps a spurious SVID onto nearly every

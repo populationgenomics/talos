@@ -9,11 +9,11 @@ process ValidateMOI {
         tuple val(cohort), path("${cohort}_results_${timestamp}.json")
 
 	script:
-		def history_arg = previous_results.name != 'NO_HISTORY' ? "--previous $previous_results" : ''
-		def mito_arg = mito.name != 'NO_MITO' ? "--labelled_mito $mito" : ''
-		def mito_idx = mito.name != 'NO_MITO' ? "tabix $mito" : ''
-		def sv_arg = sv.name != 'NO_SV' ? "--labelled_sv $sv" : ''
-		def sv_idx = sv.name != 'NO_SV' ? "tabix $sv" : ''
+		def history_arg = previous_results ? "--previous $previous_results" : ''
+		def mito_arg = mito ? "--labelled_mito $mito" : ''
+		def mito_idx = mito ? "tabix $mito" : ''
+		def sv_arg = sv ? "--labelled_sv $sv" : ''
+		def sv_idx = sv ? "tabix $sv" : ''
 
         """
         set -euo pipefail
