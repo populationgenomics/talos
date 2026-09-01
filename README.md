@@ -69,7 +69,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:12.0.0 .
+docker build -f docker/Dockerfile -t talos:12.0.1 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -102,7 +102,7 @@ The parameter `processed_annotations` should point to a static directory where t
 > **NEW SINCE 10.0.0**
 > Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
-> **NEW SINCE 12.0.0**
+> **NEW SINCE 12.0.1**
 > The README clarifies optional vs. mandatory columns. Input TSV parsing has been improved, so now columns can be completely omitted if not in use; the need for real `assets/NO_FILE` sentinels is removed - empty columns are parsed as no-input.
 
 The inputs for the Talos workflow are:
