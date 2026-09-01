@@ -79,8 +79,8 @@ docker build -f docker/Dockerfile -t talos:12.0.1 .
 ```bash
 docker build \
     -f docker/Dockerfile \
-    --build_arg PYTHON_BASE_TAG=3.11-slim-trixie \
-    --build_arg JDK_PACKAGE=openjdk-21-jre-headless \
+    --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
+    --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
     -t talos:12.0.1 .
 ```
 
