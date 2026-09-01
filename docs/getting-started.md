@@ -46,7 +46,20 @@ You will need:
 Build the Talos Docker image locally:
 
 ```bash
-docker build -t talos:12.0.1 .
+docker build -t talos:12.0.2 .
+```
+
+> **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
+>
+> To reduce container vulnerabilities, you can choose to build the Dockerfile on a more modern base, and with a later Java version. This is at your own risk, as the Hail version is not explicitly validated against this Java version.
+
+
+```bash
+docker build \
+    -f docker/Dockerfile \
+    --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
+    --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
+    -t talos:12.0.2 .
 ```
 
 ---

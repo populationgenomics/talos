@@ -10,7 +10,6 @@
 
 **Talos** is a scalable, open-source variant prioritisation tool designed to support automated reanalysis of genomic data in rare disease. It identifies **candidate causative variants in known disease genes** by integrating static annotations (e.g. population frequency, predicted consequence) with dynamic knowledge sources such as ClinVar and PanelApp Australia. Talos applies a set of configurable, rule-based logic modules aligned with ACMG/AMP criteria and prioritises variants consistent with expected mode of inheritance and, optionally, patient phenotype.
 
-
 While Talos can be used for one-off reanalysis of individual families or cohorts, its core design is optimised for **routine, cohort-scale reanalysis**. By comparing current annotations with prior results, Talos highlights **variants that have become reportable due to newly available evidence**—such as new gene–disease or variant–disease relationships—since the last analysis cycle. This enables timely identification of new diagnoses driven by emerging knowledge, while maintaining a low manual review burden.
 
 Talos is specifically intended to identify **variants in established disease genes that are likely to explain the participant’s condition**. It is not designed to detect novel candidate genes or to interpret variants of uncertain significance outside the context of existing clinical knowledge. This focus improves specificity and supports use in diagnostic and research reanalysis workflows.
@@ -69,7 +68,20 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:12.0.1 .
+docker build -f docker/Dockerfile -t talos:12.0.2 .
+```
+
+> **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
+>
+> To reduce container vulnerabilities, you can choose to build the Dockerfile on a more modern base, and with a later Java version. This is at your own risk, as the Hail version is not explicitly validated against this Java version.
+
+
+```bash
+docker build \
+    -f docker/Dockerfile \
+    --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
+    --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
+    -t talos:12.0.2 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -102,7 +114,7 @@ The parameter `processed_annotations` should point to a static directory where t
 > **NEW SINCE 10.0.0**
 > Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
-> **NEW SINCE 12.0.1**
+> **NEW SINCE 12.0.2**
 > The README clarifies optional vs. mandatory columns. Input TSV parsing has been improved, so now columns can be completely omitted if not in use; the need for real `assets/NO_FILE` sentinels is removed - empty columns are parsed as no-input.
 
 The inputs for the Talos workflow are:
