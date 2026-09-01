@@ -17,6 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.0.2] - 2026-09
+
+### Added
+
+  * Dockerfile can now take build arguments for base image and Java version. The default version is now approaching EOL, but due to Hail's dependency pinning, Bullseye is the latest Debian version with Java 11 available as standard
+  * Documented that Java >11 is not explicitly validated by Hail, but building on a more modern Java & base does seem to work in local testing
+
+[12.0.1] - 2026-08
+
+### Added
+
+  * New NF workflow output - each run creates a new file, suitable for use as input in the next round of analysis
+  * the new file contains the same verbatim content as the input file, except for the `history` column, updated to contain the cohort's output file from the current run
+
 [12.0.0] - 2026-08
 
 ### Breaking
