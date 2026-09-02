@@ -6,7 +6,6 @@ import datetime
 import functools
 from os.path import join
 from random import randint
-from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -15,17 +14,15 @@ from cpg_flow.targets import Cohort
 from cpg_utils import Path, config, hail_batch, to_path
 
 from talos.cpg_internal_scripts.annotation_stages import AnnotateSpliceAi
+from talos.cpg_internal_scripts.common_stages import DownloadPanelAppData
 from talos.cpg_internal_scripts.cpg_flow_utils import (
     check_for_dataset_centric_cohorts,
     generate_dataset_prefix,
     query_for_latest_analysis,
+    set_up_job_with_resources,
 )
 from talos.cpg_internal_scripts.cpgflow_jobs import annotate_mito, make_config, run_clinvarbitration
 from talos.static_values import get_granular_date
-
-if TYPE_CHECKING:
-    from hailtop.batch.job import BashJob
-
 
 SV_ANALYSIS_TYPES = {
     'exome': 'single_dataset_cnv_annotated',
@@ -48,45 +45,6 @@ def get_clinvarbitration_folder(temp_folder: bool = False) -> Path:
             THIS_MONTH,
         ),
     )
-
-
-def set_up_job_with_resources(
-    name: str,
-    memory: str | None = None,
-    cpu: float | None = None,
-    storage: str = '10Gi',
-    image: str | None = None,
-    attrs: dict | None = None,
-) -> 'BashJob':
-    """
-    Wrapper to create a job with all elements set up
-    Name is mandatory, the rest is optional
-
-    Args:
-        name (str): name of the Job
-        memory (str): optional, defaults to 'standard'. Can be exact ("12G") or a category ("highmem")
-        cpu (float): optional, defaults to 2.0
-        storage (str): optional, defaults to 10Gi
-        image (str): optional, full path to Docker image to use
-        attrs (dict): optional, attributes to add to the job
-
-    Returns:
-        A job in the current Batch with all resources allocated
-    """
-
-    job = hail_batch.get_batch().new_job(name=name, attributes=attrs)
-    if image:
-        job.image(image)
-    else:
-        job.image(config.config_retrieve(['workflow', 'driver_image']))
-    if cpu:
-        job.cpu(cpu)
-    if memory:
-        job.memory(memory)
-    if storage:
-        job.storage(storage)
-
-    return job
 
 
 def tshirt_mt_sizing(sequencing_type: str, cohort_size: int) -> str:
@@ -143,35 +101,6 @@ class GenerateNewClinvArbitration(stage.MultiCohortStage):
             pm5=outputs['pm5'],
         )
         return self.make_outputs(multicohort, data=outputs, jobs=job)
-
-
-@stage.stage(analysis_type='panelapp')
-class DownloadPanelAppData(stage.MultiCohortStage):
-    """
-    runs a single instance of the stage which downloads the whole of PanelApp into a cached file
-    """
-
-    def expected_outputs(self, multicohort: targets.MultiCohort) -> Path:
-        return to_path(
-            join(
-                config.config_retrieve(['storage', 'common', 'analysis']),
-                'panelapp_monthly',
-                f'panelapp_data_{THIS_MONTH}.json',
-            ),
-        )
-
-    def queue_jobs(
-        self,
-        multicohort: targets.MultiCohort,
-        inputs: stage.StageInput,
-    ) -> stage.StageOutput:
-        output = self.expected_outputs(multicohort)
-        job = set_up_job_with_resources(name='DownloadPanelAppData', cpu=1)
-        job.command(f'python -m talos.download_panelapp --output {job.output}')
-
-        hail_batch.get_batch().write_output(job.output, output)
-
-        return self.make_outputs(target=multicohort, data=output, jobs=job)
 
 
 @stage.stage

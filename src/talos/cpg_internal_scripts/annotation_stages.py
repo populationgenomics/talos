@@ -33,6 +33,7 @@ from cpg_flow.targets import MultiCohort
 from cpg_utils import Path, config, to_path
 
 from talos.cpg_internal_scripts import cpg_flow_utils
+from talos.cpg_internal_scripts.common_stages import DownloadPanelAppData
 from talos.cpg_internal_scripts.cpgflow_jobs import (
     annotate_csq_with_bcftools,
     annotate_splice_ai,
@@ -41,7 +42,6 @@ from talos.cpg_internal_scripts.cpgflow_jobs import (
     generate_alphamissense_zip,
     vcf_into_matrixtable,
 )
-from talos.cpg_internal_scripts.talos_stages import DownloadPanelAppData
 
 SHARD_MANIFEST = 'shard-manifest.txt'
 
