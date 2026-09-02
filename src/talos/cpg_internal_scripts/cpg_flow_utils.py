@@ -1,10 +1,15 @@
 from functools import cache
+from typing import TYPE_CHECKING
 
 import loguru
 
 from cpg_flow import targets, workflow
-from cpg_utils import Path, config, to_path
+from cpg_utils import Path, config, hail_batch, to_path
 from metamist import graphql
+
+if TYPE_CHECKING:
+    from hailtop.batch.job import BashJob
+
 
 METAMIST_ANALYSIS_QUERY = graphql.gql(
     """
@@ -300,3 +305,42 @@ def query_for_latest_lrs_mt(
     # return the latest, determined by a sort on timestamp
     # 2023-10-10... > 2023-10-09..., so sort on strings
     return analysis_by_date[sorted(analysis_by_date)[-1]]
+
+
+def set_up_job_with_resources(
+    name: str,
+    memory: str | None = None,
+    cpu: float | None = None,
+    storage: str = '10Gi',
+    image: str | None = None,
+    attrs: dict | None = None,
+) -> 'BashJob':
+    """
+    Wrapper to create a job with all elements set up
+    Name is mandatory, the rest is optional
+
+    Args:
+        name (str): name of the Job
+        memory (str): optional, defaults to 'standard'. Can be exact ("12G") or a category ("highmem")
+        cpu (float): optional, defaults to 2.0
+        storage (str): optional, defaults to 10Gi
+        image (str): optional, full path to Docker image to use
+        attrs (dict): optional, attributes to add to the job
+
+    Returns:
+        A job in the current Batch with all resources allocated
+    """
+
+    job = hail_batch.get_batch().new_job(name=name, attributes=attrs)
+    if image:
+        job.image(image)
+    else:
+        job.image(config.config_retrieve(['workflow', 'driver_image']))
+    if cpu:
+        job.cpu(cpu)
+    if memory:
+        job.memory(memory)
+    if storage:
+        job.storage(storage)
+
+    return job
