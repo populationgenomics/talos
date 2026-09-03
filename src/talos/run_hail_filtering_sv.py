@@ -91,12 +91,15 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
     )
 
     # match the symbols to gene IDs
+    bnd_ensg = hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.bnd))
+    lof_ensg = hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof))
+
     return mt.annotate_rows(
         info=mt.info.annotate(
-            lof_bnd=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.bnd)),
-            lof_ensg=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
+            lof_bnd=bnd_ensg,
+            lof_ensg=lof_ensg,
             # this is so we can explode it out later, whilst keeping the full list
-            gene_id=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.bnd, mt.info.lof)),
+            gene_id=bnd_ensg.union(lof_ensg),
         ),
     )
 
@@ -241,7 +244,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
         reference_genome='GRCh38',
         skip_invalid_loci=True,
         force_bgz=True,
-    ).checkpoint(output='temporary.mt')
+    ).checkpoint(output='temporary.mt', overwrite=True)
 
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)
@@ -263,6 +266,8 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # drop rows with no Exonic BND or LOF consequences
     mt = mt.filter_rows((hl.len(mt.info.PREDICTED_LOF) > 0) | (hl.len(mt.info.PREDICTED_BREAKEND_EXONIC) > 0))
 
+    mt.entries().show()
+
     # rearrange the annotations
     mt = rearrange_annotations(mt, gene_id_mapping)
 
@@ -279,8 +284,8 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # everything left is `SV1`
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleansv1=hl.or_else(hl.len(mt.info.lof) > 0, ONE_INT, MISSING_INT),
-            categorybooleanbnd=hl.or_else(hl.len(mt.info.bnd) > 0, ONE_INT, MISSING_INT),
+            categorybooleansv1=hl.if_else(hl.len(mt.info.lof) > 0, ONE_INT, MISSING_INT),
+            categorybooleanbnd=hl.if_else(hl.len(mt.info.bnd) > 0, ONE_INT, MISSING_INT),
         ),
     )
 
