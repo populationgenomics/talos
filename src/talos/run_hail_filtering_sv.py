@@ -23,6 +23,26 @@ from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
 
+def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
+    """
+    write the remaining MatrixTable content to file as a VCF
+    generate a custom header containing the CSQ contents which
+    were retained during this run
+
+    Args:
+        mt (): the whole MatrixTable
+        vcf_out (str): where to write the VCF
+    """
+
+    header_path = 'additional_header.txt'
+
+    # write this custom header locally
+    with open(header_path, 'w') as handle:
+        handle.write('##FILTER=<ID=UNRESOLVED,Description="Variant is unresolved">')
+    logger.info(f'Writing categorised variants out to {vcf_out}')
+    hl.export_vcf(mt, vcf_out, append_to_header=header_path, tabix=True)
+
+
 def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -> hl.MatrixTable:
     """
     Rearrange the annotations in the MT to be more easily accessible
@@ -125,7 +145,7 @@ def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.Ma
     )
 
 
-def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float | None = 0.03) -> hl.MatrixTable:
+def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.03) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
     We don't need to worry about minimum cohort size
@@ -294,11 +314,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     mt = fix_hemi_calls(mt)
 
     # now write that badboi
-    hl.export_vcf(
-        mt,
-        vcf_out,
-        tabix=True,
-    )
+    write_matrix_to_vcf(mt, vcf_out)
 
 
 if __name__ == '__main__':
