@@ -216,7 +216,7 @@ class AnnotateWithBcftoolsCsq(stage.CohortStage):
 
 
 # changes from here - parallel stages to create a range of MTs, then gather them in SpliceAi
-@stage.stage(required_stages=[ExtractVcfFromMt, AnnotateWithBcftoolsCsq])
+@stage.stage(required_stages=[ExtractVcfFromMt, AnnotateWithBcftoolsCsq, DownloadPanelAppData])
 class AnnotatedVcfIntoMt(stage.CohortStage):
     def expected_outputs(self, cohort: targets.Cohort) -> dict[str, Path | str]:
         temp_prefix = cpg_flow_utils.generate_dataset_prefix(

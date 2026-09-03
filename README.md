@@ -68,7 +68,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:12.0.2 .
+docker build -f docker/Dockerfile -t talos:12.0.3 .
 ```
 
 > **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
@@ -81,7 +81,7 @@ docker build \
     -f docker/Dockerfile \
     --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
     --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
-    -t talos:12.0.2 .
+    -t talos:12.0.3 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -114,7 +114,7 @@ The parameter `processed_annotations` should point to a static directory where t
 > **NEW SINCE 10.0.0**
 > Inputs for the Talos workflow are now provided in a single file, `--input_tsv`, instead of using several separate parameters.
 
-> **NEW SINCE 12.0.2**
+> **NEW SINCE 12.0.0**
 > The README clarifies optional vs. mandatory columns. Input TSV parsing has been improved, so now columns can be completely omitted if not in use; the need for real `assets/NO_FILE` sentinels is removed - empty columns are parsed as no-input.
 
 The inputs for the Talos workflow are:

@@ -21,6 +21,12 @@ include { ANNOTATION } from './nextflow/annotation'
 include { SV_ANNOTATION } from './nextflow/sv_annotation'
 include { TALOS } from './nextflow/talos'
 
+// analysis outputs are published to a per-run dated directory, ${cohort}_analysis_YYYYMMDD -
+// annotation products go to the undated ${cohort}_annotated, which is reused across cycles
+def runDate() {
+    workflow.start.format(java.time.format.DateTimeFormatter.ofPattern('yyyyMMdd'))
+}
+
 // build the content of a proposed input TSV for the next reanalysis cycle: this run's input TSV
 // verbatim, except each cohort's `history` cell now points at the results JSON this run produced.
 // resultsByCohort maps cohort -> published results JSON path; cohorts absent from it keep whatever
