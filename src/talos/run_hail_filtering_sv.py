@@ -76,6 +76,7 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
             gnomad_sv_ID=mt.info[f'{GNOMAD_POP}_sv_SVID'],
             gnomad_sv_AF=mt.info[f'{GNOMAD_POP}_sv_AF'],
             lof=hl.set(mt.info['PREDICTED_LOF']),
+            bnd=hl.set(mt.info['PREDICTED_BREAKEND_EXONIC']),
             n_het=mt.info.N_HET,
             n_homalt=mt.info.N_HOMALT,
             svlen=mt.info.SVLEN,
@@ -92,9 +93,10 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
     # match the symbols to gene IDs
     return mt.annotate_rows(
         info=mt.info.annotate(
+            lof_bnd=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.bnd)),
             lof_ensg=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
             # this is so we can explode it out later, whilst keeping the full list
-            gene_id=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
+            gene_id=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.bnd, mt.info.lof)),
         ),
     )
 
@@ -258,8 +260,8 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     logger.info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
 
-    # drop rows with no LOF consequences
-    mt = mt.filter_rows(hl.len(mt.info.PREDICTED_LOF) > 0)
+    # drop rows with no Exonic BND or LOF consequences
+    mt = mt.filter_rows((hl.len(mt.info.PREDICTED_LOF) > 0) | (hl.len(mt.info.PREDICTED_BREAKEND_EXONIC) > 0))
 
     # rearrange the annotations
     mt = rearrange_annotations(mt, gene_id_mapping)
@@ -277,7 +279,8 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # everything left is `SV1`
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleansv1=ONE_INT,
+            categorybooleansv1=hl.or_else(hl.len(mt.info.lof) > 0, ONE_INT, MISSING_INT),
+            categorybooleanbnd=hl.or_else(hl.len(mt.info.bnd) > 0, ONE_INT, MISSING_INT),
         ),
     )
 
