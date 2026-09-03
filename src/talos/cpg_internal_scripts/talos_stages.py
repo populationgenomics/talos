@@ -611,7 +611,7 @@ class ValidateVariantInheritance(stage.CohortStage):
 
 
 @stage.stage(
-    required_stages=[MakeRuntimeConfig, ValidateVariantInheritance],
+    required_stages=[MakeRuntimeConfig, UnifiedPanelAppParser, ValidateVariantInheritance],
     analysis_type='aip-results',
     analysis_keys=['report'],
 )
