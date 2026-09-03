@@ -259,7 +259,10 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove filtered variants
-    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+    # GATK-SV marks every single-ender breakend as UNRESOLVED, so for BNDs that filter alone is not disqualifying
+    no_filters = hl.is_missing(mt.filters) | (mt.filters.length() == 0)
+    unresolved_bnd = (mt.info.SVTYPE == 'BND') & (mt.filters == hl.set(['UNRESOLVED']))
+    mt = mt.filter_rows(no_filters | unresolved_bnd)
 
     logger.info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
 
@@ -279,7 +282,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # hard filter remaining rows to PanelApp green genes
     mt = mt.filter_rows(green_expression.contains(mt.info.gene_id))
 
-    # everything left is `SV1`
+    # everything left is categorised, depending on the annotations
     mt = mt.annotate_rows(
         info=mt.info.annotate(
             categorybooleansv1=hl.if_else(hl.len(mt.info.lof) > 0, ONE_INT, MISSING_INT),
