@@ -733,7 +733,10 @@ class CreateTalosHtml(stage.CohortStage):
 
         # copy the same output to both the static and date-specific locations
         hail_batch.get_batch().write_output(job.output, outputs['dated'])
-        hail_batch.get_batch().write_output(job.output, outputs['generic'])
+
+        # don't do this if metamist is disabled
+        if config.config_retrieve(['workflow', 'status_reporter'], 'not_metamist') == 'metamist':
+            hail_batch.get_batch().write_output(job.output, outputs['generic'])
 
         return self.make_outputs(cohort, data=outputs, jobs=job)
 

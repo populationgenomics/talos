@@ -23,6 +23,26 @@ from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
 
+def write_matrix_to_vcf(mt: hl.MatrixTable, vcf_out: str):
+    """
+    write the remaining MatrixTable content to file as a VCF
+    generate a custom header containing the CSQ contents which
+    were retained during this run
+
+    Args:
+        mt (): the whole MatrixTable
+        vcf_out (str): where to write the VCF
+    """
+
+    header_path = 'additional_header.txt'
+
+    # write this custom header locally
+    with open(header_path, 'w') as handle:
+        handle.write('##FILTER=<ID=UNRESOLVED,Description="Variant is unresolved">')
+    logger.info(f'Writing categorised variants out to {vcf_out}')
+    hl.export_vcf(mt, vcf_out, append_to_header=header_path, tabix=True)
+
+
 def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -> hl.MatrixTable:
     """
     Rearrange the annotations in the MT to be more easily accessible
@@ -76,6 +96,7 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
             gnomad_sv_ID=mt.info[f'{GNOMAD_POP}_sv_SVID'],
             gnomad_sv_AF=mt.info[f'{GNOMAD_POP}_sv_AF'],
             lof=hl.set(mt.info['PREDICTED_LOF']),
+            bnd=hl.set(mt.info['PREDICTED_BREAKEND_EXONIC']),
             n_het=mt.info.N_HET,
             n_homalt=mt.info.N_HOMALT,
             svlen=mt.info.SVLEN,
@@ -90,11 +111,15 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
     )
 
     # match the symbols to gene IDs
+    bnd_ensg = hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.bnd))
+    lof_ensg = hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof))
+
     return mt.annotate_rows(
         info=mt.info.annotate(
-            lof_ensg=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
+            bnd_ensg=bnd_ensg,
+            lof_ensg=lof_ensg,
             # this is so we can explode it out later, whilst keeping the full list
-            gene_id=hl.set(hl.map(lambda gene: gene_mapping.get(gene, gene), mt.info.lof)),
+            gene_id=bnd_ensg.union(lof_ensg),
         ),
     )
 
@@ -120,7 +145,7 @@ def filter_matrix_by_af(mt: hl.MatrixTable, af_threshold: float = 0.03) -> hl.Ma
     )
 
 
-def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float | None = 0.03) -> hl.MatrixTable:
+def filter_matrix_by_ac(mt: hl.MatrixTable, ac_threshold: float = 0.03) -> hl.MatrixTable:
     """
     Remove variants with AC in joint-call over threshold
     We don't need to worry about minimum cohort size
@@ -239,7 +264,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
         reference_genome='GRCh38',
         skip_invalid_loci=True,
         force_bgz=True,
-    ).checkpoint(output='temporary.mt')
+    ).checkpoint(output='temporary.mt', overwrite=True)
 
     # parse the pedigree into an object
     pedigree_data = PedigreeParser(pedigree)
@@ -254,12 +279,15 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     mt = subselect_mt_to_pedigree(mt, ped_samples=pedigree_data.get_all_sample_ids())
 
     # remove filtered variants
-    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0))
+    # GATK-SV marks every single-ender breakend as UNRESOLVED, so for BNDs that filter alone is not disqualifying
+    no_filters = hl.is_missing(mt.filters) | (mt.filters.length() == 0)
+    unresolved_bnd = (mt.info.SVTYPE == 'BND') & (mt.filters == hl.set(['UNRESOLVED']))
+    mt = mt.filter_rows(no_filters | unresolved_bnd)
 
     logger.info(f'Loaded {mt.count_rows()} rows and {mt.count_cols()} columns, in {mt.n_partitions()} partitions')
 
-    # drop rows with no LOF consequences
-    mt = mt.filter_rows(hl.len(mt.info.PREDICTED_LOF) > 0)
+    # drop rows with no Exonic BND or LOF consequences
+    mt = mt.filter_rows((hl.len(mt.info.PREDICTED_LOF) > 0) | (hl.len(mt.info.PREDICTED_BREAKEND_EXONIC) > 0))
 
     # rearrange the annotations
     mt = rearrange_annotations(mt, gene_id_mapping)
@@ -274,10 +302,11 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     # hard filter remaining rows to PanelApp green genes
     mt = mt.filter_rows(green_expression.contains(mt.info.gene_id))
 
-    # everything left is `SV1`
+    # everything left is categorised, depending on the annotations
     mt = mt.annotate_rows(
         info=mt.info.annotate(
-            categorybooleansv1=ONE_INT,
+            categorybooleansv1=hl.if_else(hl.len(mt.info.lof) > 0, ONE_INT, MISSING_INT),
+            categorybooleanbnd=hl.if_else(hl.len(mt.info.bnd) > 0, ONE_INT, MISSING_INT),
         ),
     )
 
@@ -285,11 +314,7 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
     mt = fix_hemi_calls(mt)
 
     # now write that badboi
-    hl.export_vcf(
-        mt,
-        vcf_out,
-        tabix=True,
-    )
+    write_matrix_to_vcf(mt, vcf_out)
 
 
 if __name__ == '__main__':
