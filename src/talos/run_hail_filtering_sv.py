@@ -96,7 +96,7 @@ def rearrange_annotations(mt: hl.MatrixTable, gene_mapping: hl.DictExpression) -
 
     return mt.annotate_rows(
         info=mt.info.annotate(
-            lof_bnd=bnd_ensg,
+            bnd_ensg=bnd_ensg,
             lof_ensg=lof_ensg,
             # this is so we can explode it out later, whilst keeping the full list
             gene_id=bnd_ensg.union(lof_ensg),
@@ -265,8 +265,6 @@ def main(vcf_path: str, panelapp_path: str, pedigree: str, vcf_out: str):
 
     # drop rows with no Exonic BND or LOF consequences
     mt = mt.filter_rows((hl.len(mt.info.PREDICTED_LOF) > 0) | (hl.len(mt.info.PREDICTED_BREAKEND_EXONIC) > 0))
-
-    mt.entries().show()
 
     # rearrange the annotations
     mt = rearrange_annotations(mt, gene_id_mapping)
