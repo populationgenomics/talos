@@ -68,7 +68,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:12.0.3 .
+docker build -f docker/Dockerfile -t talos:12.1.0 .
 ```
 
 > **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
@@ -81,7 +81,7 @@ docker build \
     -f docker/Dockerfile \
     --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
     --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
-    -t talos:12.0.3 .
+    -t talos:12.1.0 .
 ```
 
 ### **2. Download Annotation Resources**
