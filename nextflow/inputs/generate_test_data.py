@@ -77,4 +77,4 @@ hl.export_vcf(mt, 'test_1.vcf.bgz', tabix=True)
 for sample_id in ['mother', 'father', 'proband']:
     sample_mt = mt.filter_cols(mt.s == sample_id)
     # this will create a VCF with the sample IDs as the column names
-    hl.export_vcf(sample_mt, f'{sample_id}.vcf.bgz', tabix=True)
+    hl.export_vcf(sample_mt, f'individual_vcfs/{sample_id}.vcf.bgz', tabix=True)
