@@ -1,12 +1,10 @@
-ARG PYTHON_BASE_TAG=3.11-slim-bullseye
+ARG PYTHON_BASE_TAG=3.11-slim-trixie
 FROM python:${PYTHON_BASE_TAG} AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Openjdk 11 is strongly recommended for Hail
-# May also compile with newer Debian image: PYTHON_BASE_TAG=3.11-slim-trixie, JDK_PACKAGE=openjdk-21-jre-headless
-ARG JDK_PACKAGE=openjdk-11-jdk-headless
-
+# Openjdk 11 is strongly recommended for Hail, but since the expiry of Debian Bullseye, the Java 11 version is no
+# longer available from standard sources
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bzip2 \
         ca-certificates \
@@ -14,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libbz2-1.0 \
         libcurl4 \
         liblzma5 \
-        ${JDK_PACKAGE} \
+        openjdk-21-jre-headless \
         procps \
         wget \
         zip \
