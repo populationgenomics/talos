@@ -232,9 +232,14 @@ def filter_results_to_panels(
             forced={pid: panelapp.metadata[pid].name for pid in forced_panels_for_this_gene},
         )
 
-        # find the max confidence level for this result, given the participant's panels
-        max_confidence = max(panelapp_gene_data.panel_confidences[panel] for panel in all_matches_for_this_gene)
-        each_event.max_confidence = max_confidence
+        # find the max confidence level for this result, across every panel applied to this participant
+        # the custom panel (0) is never in a participant's panel list, so it arrives via the forced set
+        # a panel with no recorded confidence contributes 0; no matching panels at all also gives 0
+        applied_panels = all_matches_for_this_gene | forced_panels_for_this_gene
+        each_event.max_confidence = max(
+            (panelapp_gene_data.panel_confidences.get(panel, 0) for panel in applied_panels),
+            default=0,
+        )
 
         # add this event to the list for this participant
         results_holder.results[each_event.sample].variants.append(each_event)

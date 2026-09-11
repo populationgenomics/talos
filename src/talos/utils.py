@@ -932,13 +932,19 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
                 old_var.categories = {translate_category(key): val for key, val in old_var.categories.items()}
                 old_var.found_in_current_run = False
                 old_var.clinvar_increase = False
+                old_var.confidence_increase = False
                 content.variants.append(old_var)
                 continue
 
             # we found this variant again, but do we have any new categories to add?
             new_var = new_vars[old_coord]
 
-            # collect all the dates we have for first category assignment
+            # categories seen before keep their original date
+            for cat, date in old_var.categories.items():
+                new_var.categories[translate_category(cat)] = date
+
+            # collect all the dates we have for first category assignment - this must follow the merge above,
+            # or every re-found category would contribute today's date
             category_dates = list(new_var.categories.values())
 
             if new_var.clinvar_stars:
@@ -948,16 +954,10 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
                 if new_var.clinvar_increase:
                     category_dates.append(get_granular_date())
 
-            for cat, date in old_var.categories.items():
-                new_var.categories[translate_category(cat)] = date
-
             # if the latest event has an upgraded panel confidence, today's date drives the discovery date
             # we always want to recognise a jump, e.g. Amber -> Green, with an updated date
-            if new_var.max_confidence > old_var.max_confidence:
-                # this represents missing data, not a real value
-                # placeholder during the upgrade
-                if old_var.max_confidence == -1:
-                    continue
+            if (new_var.max_confidence > old_var.max_confidence) and (old_var.max_confidence != -1):
+                # this represents missing data, not a real value - placeholder during the upgrade
                 new_var.confidence_increase = True
                 category_dates.append(get_granular_date())
 
