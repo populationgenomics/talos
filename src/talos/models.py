@@ -406,6 +406,9 @@ class ReportVariant(BaseModel):
     exomiser_results: list[str] = Field(default_factory=list)
     found_in_current_run: bool = Field(default=True)
 
+    # this will be determined based on the specific panels applied to a participant
+    max_confidence: int = Field(default_factory=int)
+
     def __eq__(self, other):
         """
         makes reported variants comparable

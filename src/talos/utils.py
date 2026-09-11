@@ -948,6 +948,11 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
             # collect all the dates we have for first category assignment
             category_dates = list(new_var.categories.values())
 
+            # if the latest event has an upgraded panel confidence, today's date drives the discovery date
+            # we always want to recognise a jump, e.g. Amber -> Green, with an updated date
+            if new_var.max_confidence > old_var.max_confidence:
+                category_dates.append(get_granular_date())
+
             # we previously had a phenotype match date, carry it forward
             if old_pheno := old_var.date_of_phenotype_match:
                 new_var.date_of_phenotype_match = old_pheno

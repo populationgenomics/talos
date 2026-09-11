@@ -202,8 +202,10 @@ def filter_results_to_panels(
 
     # iterate over each separate reportable event
     for each_event in result_list:
+        panelapp_gene_data = panelapp.genes[each_event.gene]
+
         # find all panels featuring this gene
-        gene_panels = panelapp.genes[each_event.gene].panels
+        gene_panels = panelapp_gene_data.panels
 
         # get all forced panels this gene intersects with
         forced_panels_for_this_gene: set[int] = forced_panel_ids.intersection(gene_panels)
@@ -212,10 +214,13 @@ def filter_results_to_panels(
         if each_event.sample in panelapp.participants:
             participant_panel_ids = set(panelapp.participants[each_event.sample].panels)
             # get union of naturally and forcibly matched panels for this gene, ignoring the default panel
-            natural_matches_for_this_gene = participant_panel_ids.intersection(gene_panels) - {default_panel}
+            all_matches_for_this_gene = gene_panels.intersection(participant_panel_ids)
+            natural_matches_for_this_gene = all_matches_for_this_gene - {default_panel}
         else:
+            # this scenario shouldn't be possible, so pass duds
             logger.warning(f'Participant {each_event.sample} not found in panelapp participants')
             natural_matches_for_this_gene = set()
+            all_matches_for_this_gene = set()
 
         # if this gene is not on a forced or naturally matched panel for this participant, skip
         if not (forced_panels_for_this_gene or natural_matches_for_this_gene or (default_panel in gene_panels)):
@@ -226,6 +231,10 @@ def filter_results_to_panels(
             matched={pid: panelapp.metadata[pid].name for pid in natural_matches_for_this_gene},
             forced={pid: panelapp.metadata[pid].name for pid in forced_panels_for_this_gene},
         )
+
+        # find the max confidence level for this result, given the participant's panels
+        max_confidence = max(panelapp_gene_data.panel_confidences[panel] for panel in all_matches_for_this_gene)
+        each_event.max_confidence = max_confidence
 
         # add this event to the list for this participant
         results_holder.results[each_event.sample].variants.append(each_event)
