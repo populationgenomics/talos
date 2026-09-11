@@ -593,7 +593,7 @@ class Variant:
         self.alt = report_variant.var_data.coordinates.alt
         self.change = self.get_var_change()
         self.categories = report_variant.categories
-        self.first_tagged: str = report_variant.first_tagged
+        self.evidence_updated: str = report_variant.evidence_last_updated
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         # these are the panel IDs which are matched based on HPO matching in PanelApp
