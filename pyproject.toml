@@ -60,6 +60,9 @@ docs = [
 stripy = [
     'pysam'
 ]
+sv = [
+    'svafotate-cpg@git+https://github.com/MattWellie/svafotate#egg=main'
+]
 
 [project.urls]
 Repository = "https://github.com/populationgenomics/talos"
@@ -72,6 +75,9 @@ packages = ["src/talos"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [options]
 include_package_data = true

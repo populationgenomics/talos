@@ -15,7 +15,7 @@ to match variants to gnomAD frequencies.
 Instead of re-implementing the exact process here, I've split the annotation into two phases:
 
   - Consequence: handled using SVAnnotate, an exact replica of the GATK-SV process
-  - Pop.Freq: handled using [SVAFotate](https://github.com/fakedrtom/SVAFotate)
+  - Pop.Freq: handled using a fork of [SVAFotate](https://github.com/fakedrtom/SVAFotate)
 
 These two steps, and pre-processing of relevant input files, are engaged only if an SV file is included in the input
 TSV file, with the same core conceit as small variants and Mito data - a single joint-called VCF should contain the whole
@@ -36,7 +36,6 @@ Small-variants remain a core component of Talos, and it is not designed to run e
 To use the SV workflow you will need to:
 
 1. run the latest version of `large_files/gather_files.sh` to download the SVAFotate resources
-2. build the svafotate docker file (`docker build -f docker/SVAFotate_Dockerfile -t svafotate:0.1.0 .`)
 3. add your SV data under the `sv` input column in the TSV file
 
 The workflow will detect the presence of the SV input, and trigger the SV annotation workflow.

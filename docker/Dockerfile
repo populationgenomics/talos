@@ -82,4 +82,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"
 
+# both halves of the image have to survive each other's install - the Talos package and its cyvcf2,
+# and the SVAFotate CLI. Cheap, and the failure mode it catches is otherwise a runtime one
+RUN python -c "import talos, cyvcf2" && \
+    bcftools --version && \
+    tabix --version && \
+    echtvar --version && \
+    svafotate annotate -h
+
 COPY echtvar echtvar/

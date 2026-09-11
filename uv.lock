@@ -2740,6 +2740,16 @@ wheels = [
 ]
 
 [[package]]
+name = "svafotate-cpg"
+version = "0.2.0"
+source = { git = "https://github.com/MattWellie/svafotate#4c9c86c18405b413668f802f9d52cae2fab9debf" }
+dependencies = [
+    { name = "cyvcf2" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+
+[[package]]
 name = "tabulate"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2750,7 +2760,7 @@ wheels = [
 
 [[package]]
 name = "talos"
-version = "11.2.0"
+version = "12.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "clinvarbitration" },
@@ -2786,6 +2796,9 @@ docs = [
 ]
 stripy = [
     { name = "pysam" },
+]
+sv = [
+    { name = "svafotate-cpg" },
 ]
 test = [
     { name = "bump-my-version" },
@@ -2823,11 +2836,12 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.6.0" },
     { name = "python-dateutil", specifier = ">=2" },
     { name = "semsimian" },
+    { name = "svafotate-cpg", marker = "extra == 'sv'", git = "https://github.com/MattWellie/svafotate" },
     { name = "tabulate", specifier = ">=0.8.9" },
     { name = "tenacity", specifier = ">=9.0.0" },
     { name = "toml", specifier = "==0.10.2" },
 ]
-provides-extras = ["cpg", "test", "docs", "stripy"]
+provides-extras = ["cpg", "test", "docs", "stripy", "sv"]
 
 [[package]]
 name = "tenacity"
