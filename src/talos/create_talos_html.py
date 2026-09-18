@@ -33,6 +33,7 @@ from talos.models import (
     SmallVariant,
     StructuralVariant,
 )
+from talos.static_values import get_granular_date
 from talos.utils import read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -50,7 +51,14 @@ MEAN_SLASH_SAMPLE = 'Mean/sample'
 # reactive to different versions of gnomAD
 GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnomad_v4.1')
 
+# emoji source https://tools.picsart.com/text/emojis/
 CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
+REASON_EMOJIS = {
+    'new': '🆕',
+    'extra': '💫',
+    'pheno': '🎯',
+    'green': '🚦',
+}
 GNOMAD_SV_KEY = f'{GNOMAD_POP}_sv_svid'
 
 
@@ -594,6 +602,9 @@ class Variant:
         self.change = self.get_var_change()
         self.categories = report_variant.categories
         self.first_tagged: str = report_variant.first_tagged
+        self.evidence_updated: str = report_variant.evidence_last_updated
+        self.new_emojis: list[str] = self.assign_new_emojis(vardata=report_variant)
+        print(self.new_emojis)
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         # these are the panel IDs which are matched based on HPO matching in PanelApp
@@ -622,7 +633,8 @@ class Variant:
         # Panel IDs applied to this sample (base panel + HPO-matched + forced)
         applied_panel_ids = match_ids | {html_builder.base_panel}
 
-        self.max_confidence: int = 0
+        self.max_confidence: int = report_variant.max_confidence
+
         # List of (gene_id, symbol, panel_confidence_tooltip_html)
         self.genes: list[tuple[str, str, str]] = []
         for gene_id in report_variant.gene.split(','):
@@ -631,7 +643,6 @@ class Variant:
             for panel_id, confidence in sorted(gene_panelapp_entry.panel_confidences.items()):
                 if panel_id not in applied_panel_ids:
                     continue
-                self.max_confidence = max(self.max_confidence, confidence)
                 panel_name = html_builder.panelapp.metadata.get(panel_id, PanelShort(id=panel_id)).name or str(panel_id)
                 tooltip_parts.append(f'{CONFIDENCE_EMOJI.get(confidence, "⚪")} {panel_name}')
             self.genes.append((gene_id, gene_panelapp_entry.symbol, '<br>'.join(tooltip_parts)))
@@ -736,6 +747,22 @@ class Variant:
         mane_hgvsps = ', '.join(mane_hgvsps)
 
         return mane_consequences, mane_hgvsps
+
+    @staticmethod
+    def assign_new_emojis(vardata: ReportVariant) -> list[str]:
+        """Create the list of emojis to display, indicating a reason to review."""
+        display_emojis: list[str] = []
+
+        if vardata.confidence_increase:
+            display_emojis.append(REASON_EMOJIS['green'])
+        if vardata.date_of_phenotype_match == get_granular_date():
+            display_emojis.append(REASON_EMOJIS['pheno'])
+        if max(vardata.categories.values()) == get_granular_date():
+            display_emojis.append(REASON_EMOJIS['new'])
+        elif any(vardata.categories.values()) == get_granular_date():
+            display_emojis.append(REASON_EMOJIS['extra'])
+
+        return display_emojis
 
 
 def cli_main():
