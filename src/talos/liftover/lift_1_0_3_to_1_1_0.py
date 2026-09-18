@@ -13,6 +13,9 @@ def resultdata(data_dict: dict) -> dict:
     if not data_dict['version'] < '1.1.0':
         raise AssertionError(f'This method cannot upgrade from {data_dict["version"]}')
 
+    analysis_panels = data_dict['metadata']['panels']
+    reindexed = {pan['name']: pan['id'] for pan in analysis_panels}
+
     for _sample, content in data_dict['results'].items():
         sample_meta = content['metadata']
         assert all(key in sample_meta for key in ['panel_ids', 'panel_names'])
@@ -26,8 +29,10 @@ def resultdata(data_dict: dict) -> dict:
 
         for variant in content['variants']:
             panels = variant['panels']
-            panels['forced'] = dict.fromkeys(panels.get('forced', []), 'UNKNOWN')
-            panels['matched'] = dict.fromkeys(panels['matched'], 'UNKNOWN')
+            panels['forced'] = {reindexed[panelname]: panelname for panelname in panels.get('forced', [])}
+            panels['matched'] = {reindexed[panelname]: panelname for panelname in panels.get('matched', [])}
+            # panels['forced'] = dict.fromkeys(panels.get('forced', []), 'UNKNOWN')
+            # panels['matched'] = dict.fromkeys(panels['matched'], 'UNKNOWN')
 
     data_dict['version'] = '1.1.0'
     return data_dict

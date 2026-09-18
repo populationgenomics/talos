@@ -15,7 +15,8 @@ def resultdata(data_dict: dict) -> dict:
     for result in data_dict['results'].values():
         for variant in result['variants']:
             variant['reasons'] = variant['reasons'].pop()
-    _categories = data_dict['metadata'].pop('categories')
+    if 'categories' in data_dict['metadata']:
+        _categories = data_dict['metadata'].pop('categories')
     data_dict['metadata']['variant_breakdown'] = {}
     data_dict['version'] = '2.1.0'
     return data_dict
