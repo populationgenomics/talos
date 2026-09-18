@@ -31,8 +31,6 @@ def resultdata(data_dict: dict) -> dict:
             panels = variant['panels']
             panels['forced'] = {reindexed[panelname]: panelname for panelname in panels.get('forced', [])}
             panels['matched'] = {reindexed[panelname]: panelname for panelname in panels.get('matched', [])}
-            # panels['forced'] = dict.fromkeys(panels.get('forced', []), 'UNKNOWN')
-            # panels['matched'] = dict.fromkeys(panels['matched'], 'UNKNOWN')
 
     data_dict['version'] = '1.1.0'
     return data_dict
