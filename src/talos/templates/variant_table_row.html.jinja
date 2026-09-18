@@ -113,8 +113,10 @@
         {{variant.categories|join(", ")|replace("_", " ")|e}}
     </td>
     <td>
-        {# Evidence Updated #}
-        {{ variant.evidence_updated }}
+        {# First Tagged #}
+        {{ variant.first_tagged }} {% for emoji in variant.new_emojis %}
+            {{ emoji|e }}
+        {% endfor %}
     </td>
     <td>
         {# CSQ #}

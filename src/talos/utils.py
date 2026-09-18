@@ -84,6 +84,9 @@ BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_ge
 
 STR_RANGE = re.compile(r'min(?P<min>[0-9]+)max(?P<max>[0-9]+)$')
 
+# numerical confidence for a green Gene in PanelApp
+GREEN_CONFIDENCE = 3
+
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
@@ -947,17 +950,18 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
             # or every re-found category would contribute today's date
             category_dates = list(new_var.categories.values())
 
+            # record a ClinVar star update, but don't update the dates on this basis
+            # we already record 0-star as a distinct category from 1+ star
             if new_var.clinvar_stars:
                 new_var.clinvar_increase = bool(
                     old_var.clinvar_stars is None or new_var.clinvar_stars > old_var.clinvar_stars,
                 )
-                if new_var.clinvar_increase:
-                    category_dates.append(get_granular_date())
 
             # if the latest event has an upgraded panel confidence, today's date drives the discovery date
-            # we always want to recognise a jump, e.g. Amber -> Green, with an updated date
-            if (new_var.max_confidence > old_var.max_confidence) and (old_var.max_confidence != -1):
-                # this represents missing data, not a real value - placeholder during the upgrade
+            # we always want to recognise a jump to green, Amber/Red panel usage depends on local appetite, but it's
+            # easier to track non-Green/Green, rather than each increment.
+            if (new_var.max_confidence > old_var.max_confidence) and (new_var.max_confidence >= GREEN_CONFIDENCE):
+                # if the gene rating bump means this gene is now Green, bump confidence
                 new_var.confidence_increase = True
                 category_dates.append(get_granular_date())
 
@@ -966,9 +970,9 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
                 new_var.date_of_phenotype_match = old_pheno
                 category_dates.append(old_pheno)
 
-            # new supporting comp-het partners = new evidence change date
-            if new_var.support_vars - old_var.support_vars:
-                category_dates.append(get_granular_date())
+            # not recording this as an updated date - a new supporting variant is given
+            # today's date, so no need to change the date on both events. More useful to separate
+            # the date of the 'primary' and date of the new 'secondary'
             new_var.support_vars.update(old_var.support_vars)
 
             new_var.evidence_last_updated = max(category_dates)
