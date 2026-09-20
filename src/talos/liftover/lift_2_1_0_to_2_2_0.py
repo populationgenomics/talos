@@ -22,7 +22,10 @@ def dl_panelapp(data_dict: dict) -> dict:
 def resultdata(data_dict: dict) -> dict:
     for result in data_dict['results'].values():
         for variant in result['variants']:
-            variant['categories'] = dict.fromkeys(variant['categories'], variant['evidence_last_updated'])
-            _indi = variant.pop('independent')
+            vd = variant['var_data']
+            categories = variant['categories'] if 'categories' in variant else vd['categories']
+            variant['categories'] = dict.fromkeys(categories, variant['evidence_last_updated'])
+            if 'independent' in variant:
+                _indi = variant.pop('independent')
     data_dict['version'] = '2.2.0'
     return data_dict
