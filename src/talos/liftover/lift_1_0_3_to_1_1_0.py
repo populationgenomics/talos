@@ -32,5 +32,8 @@ def resultdata(data_dict: dict) -> dict:
             panels['forced'] = {reindexed[panelname]: panelname for panelname in panels.get('forced', [])}
             panels['matched'] = {reindexed[panelname]: panelname for panelname in panels.get('matched', [])}
 
+            if 'coords' in variant['var_data']:
+                variant['var_data']['coordinates'] = variant['var_data'].pop('coords')
+
     data_dict['version'] = '1.1.0'
     return data_dict
