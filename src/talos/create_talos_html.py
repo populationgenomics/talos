@@ -55,7 +55,7 @@ GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnoma
 CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
 REASON_EMOJIS = {
     'new': '🆕',
-    'extra': '💫',
+    'clinvar': '💫',
     'pheno': '🎯',
     'green': '🚦',
 }
@@ -604,7 +604,6 @@ class Variant:
         self.first_tagged: str = report_variant.first_tagged
         self.evidence_updated: str = report_variant.evidence_last_updated
         self.new_emojis: list[str] = self.assign_new_emojis(vardata=report_variant)
-        print(self.new_emojis)
         self.support_vars = report_variant.support_vars
         self.warning_flags = report_variant.flags
         # these are the panel IDs which are matched based on HPO matching in PanelApp
@@ -753,14 +752,22 @@ class Variant:
         """Create the list of emojis to display, indicating a reason to review."""
         display_emojis: list[str] = []
 
+        max_cat_date = max(vardata.categories.values())
+        min_cat_date = min(vardata.categories.values())
+        todays_date = get_granular_date()
+
+        # this is a new variant, no need for emojis
+        if max_cat_date == todays_date == min_cat_date:
+            return display_emojis
+
         if vardata.confidence_increase:
             display_emojis.append(REASON_EMOJIS['green'])
-        if vardata.date_of_phenotype_match == get_granular_date():
+        if vardata.date_of_phenotype_match == todays_date:
             display_emojis.append(REASON_EMOJIS['pheno'])
-        if max(vardata.categories.values()) == get_granular_date():
+        if max_cat_date == todays_date:
             display_emojis.append(REASON_EMOJIS['new'])
-        elif any(vardata.categories.values()) == get_granular_date():
-            display_emojis.append(REASON_EMOJIS['extra'])
+        if vardata.clinvar_increase:
+            display_emojis.append(REASON_EMOJIS['clinvar'])
 
         return display_emojis
 
