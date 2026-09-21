@@ -1,12 +1,10 @@
-ARG PYTHON_BASE_TAG=3.11-slim-bullseye
+ARG PYTHON_BASE_TAG=3.11-slim-trixie
 FROM python:${PYTHON_BASE_TAG} AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Openjdk 11 is strongly recommended for Hail
-# May also compile with newer Debian image: PYTHON_BASE_TAG=3.11-slim-trixie, JDK_PACKAGE=openjdk-21-jre-headless
-ARG JDK_PACKAGE=openjdk-11-jdk-headless
-
+# Openjdk 11 is strongly recommended for Hail, but since the expiry of Debian Bullseye, the Java 11 version is no
+# longer available from standard sources
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bzip2 \
         ca-certificates \
@@ -14,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libbz2-1.0 \
         libcurl4 \
         liblzma5 \
-        ${JDK_PACKAGE} \
+        openjdk-21-jre-headless \
         procps \
         wget \
         zip \
@@ -52,7 +50,7 @@ COPY --from=bcftools_compiler /bcftools_install/usr/local/bin/* /usr/local/bin/
 COPY --from=bcftools_compiler /bcftools_install/usr/local/libexec/bcftools/* /usr/local/libexec/bcftools/
 
 ARG ECHTVAR_VERSION=v0.2.2
-ENV VERSION=12.0.3
+ENV VERSION=12.1.0
 
 RUN wget -q -O /bin/echtvar "https://github.com/brentp/echtvar/releases/download/${ECHTVAR_VERSION}/echtvar" && \
     chmod +x /bin/echtvar
@@ -81,5 +79,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Place executables in the environment at the front of the path
 ENV PATH="/talos/.venv/bin:$PATH"
+
+# both halves of the image have to survive each other's install - the Talos package and its cyvcf2,
+# and the SVAFotate CLI. Cheap, and the failure mode it catches is otherwise a runtime one
+RUN python -c "import talos, cyvcf2" && \
+    bcftools --version && \
+    tabix --version && \
+    echtvar --version && \
+    svafotate annotate -h
 
 COPY echtvar echtvar/

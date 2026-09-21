@@ -1,5 +1,5 @@
 process AnnotateSvWithSvafotate {
-    container params.svafotate_container
+    container params.container
 
     input:
         tuple val(cohort), path(vcf), path(tbi)

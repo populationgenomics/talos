@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name='talos'
 description='Centre for Population Genomics Variant Prioritisation'
 readme = "README.md"
-version="12.0.3"
+version="12.1.0"
 requires-python = ">=3.10,<3.12"
 license-files = ["LICENSE"]
 classifiers=[
@@ -60,6 +60,9 @@ docs = [
 stripy = [
     'pysam'
 ]
+sv = [
+    'svafotate-cpg@git+https://github.com/MattWellie/svafotate#egg=main'
+]
 
 [project.urls]
 Repository = "https://github.com/populationgenomics/talos"
@@ -72,6 +75,9 @@ packages = ["src/talos"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [options]
 include_package_data = true
@@ -131,7 +137,7 @@ hail = ["hail", "hailtop"]
 "test/test_cpg_flow_utils.py" = ['ANN202', 'ARG001']
 
 [tool.bumpversion]
-current_version = "12.0.3"
+current_version = "12.1.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 commit = true

@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.1.0] - 2026-09
+
+### Added
+
+  * A new SV-specific category has been added - `PREDICTED_EXONIC_BND` annotations from SvAnnotate are now considered as an impactful category.
+  * BNDs were a blind spot for Talos, as the `PREDICTED_LOF` SV annotation was never applied to BNDs
+
 [12.0.2] - 2026-09
 
 ### Added

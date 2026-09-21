@@ -15,16 +15,23 @@ from talos.run_hail_filtering_sv import (
 )
 
 
-def _annotated_sv_mt(use_af_male_spelling: bool = False) -> hl.MatrixTable:
+def _annotated_sv_mt(
+    use_af_male_spelling: bool = False,
+    lof_genes: list[str] | None = None,
+    bnd_genes: list[str] | None = None,
+) -> hl.MatrixTable:
     """
     build a single-row SV MatrixTable carrying every INFO field rearrange_annotations reads unconditionally
 
     Args:
         use_af_male_spelling (bool): if True, provide AF_MALE/AF_FEMALE instead of MALE_AF/FEMALE_AF
     """
+    bnd_genes = hl.literal(bnd_genes) if bnd_genes else hl.empty_array(hl.tstr)
+    lof_genes = hl.literal(lof_genes) if lof_genes else hl.empty_array(hl.tstr)
     mt = hl.utils.range_matrix_table(n_rows=1, n_cols=1)
     info = {
-        'PREDICTED_LOF': hl.literal(['GENE1']),
+        'PREDICTED_LOF': hl.literal(lof_genes),
+        'PREDICTED_BREAKEND_EXONIC': hl.literal(bnd_genes),
         'SVTYPE': hl.literal('DEL'),
         'SVLEN': hl.int32(5000),
         'END': hl.int32(6000),
@@ -47,7 +54,7 @@ def _annotated_sv_mt(use_af_male_spelling: bool = False) -> hl.MatrixTable:
 
 def test_rearrange_surfaces_gnomad_and_defaults():
     """the population fields are surfaced under the names Talos reads, and absent SV fields are defaulted"""
-    mt = _annotated_sv_mt()
+    mt = _annotated_sv_mt(lof_genes=['GENE1'])
     out = rearrange_annotations(mt, hl.literal({'GENE1': 'ENSG1'}))
     row = out.rows().collect()[0]
 
@@ -64,7 +71,7 @@ def test_rearrange_surfaces_gnomad_and_defaults():
 
 def test_rearrange_maps_symbols_to_ensg():
     """PREDICTED_LOF symbols are mapped to gene IDs, and unknown symbols pass through unchanged"""
-    mt = _annotated_sv_mt()
+    mt = _annotated_sv_mt(lof_genes=['GENE1'])
     out = rearrange_annotations(mt, hl.literal({'GENE1': 'ENSG1'}))
     row = out.rows().collect()[0]
     assert set(row.info.lof) == {'GENE1'}
@@ -74,7 +81,7 @@ def test_rearrange_maps_symbols_to_ensg():
 
 def test_rearrange_symbol_without_mapping_is_kept():
     """a symbol missing from the MANE map is retained as itself, not dropped"""
-    mt = _annotated_sv_mt()
+    mt = _annotated_sv_mt(lof_genes=['GENE1'])
     out = rearrange_annotations(mt, hl.literal({'OTHER': 'ENSG9'}))
     row = out.rows().collect()[0]
     assert set(row.info.lof_ensg) == {'GENE1'}
@@ -82,7 +89,7 @@ def test_rearrange_symbol_without_mapping_is_kept():
 
 def test_rearrange_reads_male_af():
     """MALE_AF/FEMALE_AF are read through as the array-typed male_af/female_af"""
-    out = rearrange_annotations(_annotated_sv_mt(), hl.literal({'GENE1': 'ENSG1'}))
+    out = rearrange_annotations(_annotated_sv_mt(lof_genes=['GENE1']), hl.literal({'GENE1': 'ENSG1'}))
     row = out.rows().collect()[0]
     assert row.info.male_af == [0.03]
     assert row.info.female_af == [0.04]
@@ -90,7 +97,13 @@ def test_rearrange_reads_male_af():
 
 def test_rearrange_accepts_af_male_alternative():
     """the AF_MALE/AF_FEMALE spelling is accepted as an alternative to MALE_AF/FEMALE_AF"""
-    out = rearrange_annotations(_annotated_sv_mt(use_af_male_spelling=True), hl.literal({'GENE1': 'ENSG1'}))
+    out = rearrange_annotations(
+        _annotated_sv_mt(
+            use_af_male_spelling=True,
+            lof_genes=['GENE1'],
+        ),
+        hl.literal({'GENE1': 'ENSG1'}),
+    )
     row = out.rows().collect()[0]
     assert row.info.male_af == [0.03]
     assert row.info.female_af == [0.04]
