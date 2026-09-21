@@ -657,4 +657,5 @@ def lift_up_model_version(
         if liftover_key in LIFTOVER_METHODS[model]:
             data = LIFTOVER_METHODS[model][liftover_key](data)
         data['version'] = current
+
     return data
