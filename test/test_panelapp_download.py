@@ -11,7 +11,7 @@ from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
 from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
-    DownloadedPanelAppPanelDetail,
+    DownloadedPanelAppPanel,
     HpoTerm,
     lift_up_model_version,
 )
@@ -113,10 +113,10 @@ def test_parse_panel_includes_all_when_threshold_one(panel_activities):
 
 def test_downloaded_panel_app_gene_panel_detail_confidence():
     """DownloadedPanelAppGenePanelDetail must persist the confidence field"""
-    detail = DownloadedPanelAppPanelDetail(moi='biallelic', date='2024-01-01', confidence=2)
+    detail = DownloadedPanelAppPanel(moi='biallelic', date='2024-01-01', confidence=2)
     assert detail.confidence == 2
 
-    detail_default = DownloadedPanelAppPanelDetail(moi='monoallelic')
+    detail_default = DownloadedPanelAppPanel(moi='monoallelic')
     assert detail_default.confidence == 0
 
 

@@ -466,7 +466,7 @@ class PanelApp(BaseModel):
     str_symbols: set[str] = Field(default_factory=set)
 
 
-class DownloadedPanelAppPanelDetail(BaseModel):
+class DownloadedPanelAppPanel(BaseModel):
     """ """
 
     moi: str
@@ -482,7 +482,7 @@ class DownloadedPanelAppGene(BaseModel):
     location: str = Field(default_factory=str)
     ensg: str = Field(default_factory=str)
     # for every panel this gene has featured in, when did it become Green, and what was the MOI
-    panels: dict[int, DownloadedPanelAppPanelDetail] = Field(default_factory=dict)
+    panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
 
 
 class DownloadedPanelAppStr(BaseModel):
@@ -494,7 +494,7 @@ class DownloadedPanelAppStr(BaseModel):
     chrom: str = Field(default_factory=str)
     location: str = Field(default_factory=str)
     # for every panel this gene has featured in, when did it become Green, and what was the MOI
-    panels: dict[int, DownloadedPanelAppPanelDetail] = Field(default_factory=dict)
+    panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
     normal_repeats: int = Field(default_factory=int)
     pathogenic_repeats: int = Field(default_factory=int)
 

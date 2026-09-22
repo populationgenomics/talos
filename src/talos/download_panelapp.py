@@ -38,7 +38,7 @@ from talos.config import ConfigError, config_retrieve
 from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
-    DownloadedPanelAppPanelDetail,
+    DownloadedPanelAppPanel,
     DownloadedPanelAppStr,
     HpoTerm,
     PanelShort,
@@ -376,7 +376,7 @@ def main(output: str):
         for gene, gene_data in parsed_panel_data.items():
             # already seen - update some attributes
             if prev_gene_data := collected_panel_data.genes.get(gene):
-                prev_gene_data.panels[panel_id] = DownloadedPanelAppPanelDetail(
+                prev_gene_data.panels[panel_id] = DownloadedPanelAppPanel(
                     moi=gene_data['moi'],
                     date=gene_data['green_date'],
                     confidence=gene_data['confidence_level'],
@@ -389,7 +389,7 @@ def main(output: str):
                     symbol=gene_data['symbol'],
                     ensg=gene,
                     panels={
-                        panel_id: DownloadedPanelAppPanelDetail(
+                        panel_id: DownloadedPanelAppPanel(
                             moi=gene_data['moi'],
                             date=gene_data['green_date'],
                             confidence=gene_data['confidence_level'],
@@ -401,7 +401,7 @@ def main(output: str):
         for str_data in panel_data.get('strs', []):
             str_gene = str_data['ensg']
             if prev_str_data := collected_panel_data.strs.get(str_gene):
-                prev_str_data.panels[panel_id] = DownloadedPanelAppPanelDetail(
+                prev_str_data.panels[panel_id] = DownloadedPanelAppPanel(
                     moi=str_data['moi'],
                     confidence=str_data['confidence_level'],
                 )
@@ -415,7 +415,7 @@ def main(output: str):
                     normal_repeats=str_data['normal_repeats'],
                     pathogenic_repeats=str_data['pathogenic_repeats'],
                     panels={
-                        panel_id: DownloadedPanelAppPanelDetail(
+                        panel_id: DownloadedPanelAppPanel(
                             moi=str_data['moi'],
                             confidence=str_data['confidence_level'],
                         ),
