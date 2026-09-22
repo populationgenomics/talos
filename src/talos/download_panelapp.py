@@ -29,14 +29,17 @@ import re
 from argparse import ArgumentParser
 
 import aiohttp
+import httpx
 from dateutil.parser import parse
 from loguru import logger
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from talos.config import ConfigError, config_retrieve
 from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
-    DownloadedPanelAppGenePanelDetail,
+    DownloadedPanelAppPanelDetail,
+    DownloadedPanelAppStr,
     HpoTerm,
     PanelShort,
 )
@@ -60,7 +63,6 @@ except (ConfigError, KeyError):
 # if this is a massive result, it returns over a number of pages
 PANEL_TEMPLATE_URL = f'{PANELS_ENDPOINT}/{{id}}'
 ACTIVITY_TEMPLATE = f'{PANELS_ENDPOINT}/{{id}}/activities'
-STR_TEMPLATE = f'{PANELS_ENDPOINT}/3597/strs?confidence_level=3'
 MITO_BAD = 'MT'
 MITO_GOOD = 'M'
 
@@ -102,6 +104,8 @@ def parse_panel_activity(panel_activity: list[dict]) -> dict[str, str]:
     """
     reads in the panel activity dictionary, and for each green entity, finds the date at
     which the entity obtained a Green rating
+
+    I'm not currently parsing for STR activities.
 
     Args:
         panel_activity (list[dict]):
@@ -216,6 +220,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
     """
     panel_url = PANEL_TEMPLATE_URL.format(id=panel_id)
     gene_results: list[dict] = []
+    str_results: list[dict] = []
 
     async with session.get(panel_url) as resp:
         response = await resp.json()
@@ -223,11 +228,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
         # thin out the results, what do we need?
         panel_name = response['name']
         panel_version = response['version']
-        for gene in response['genes']:
-            # genes only here for now
-            if gene['entity_type'] != 'gene':
-                continue
-
+        for gene in response.get('genes', []):
             # find the latest available ensembl gene block
             if latest_content := get_latest_ensembl_data(gene['gene_data']['ensembl_genes'].get('GRch38', {})):
                 ensg, location = latest_content
@@ -250,7 +251,29 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
                 }
             )
 
-    return {panel_id: {'name': panel_name, 'version': panel_version, 'genes': gene_results}}
+        for short_tandem in response.get('strs', []):
+            # find the latest available ensembl gene block
+            if latest_content := get_latest_ensembl_data(short_tandem['gene_data']['ensembl_genes'].get('GRch38', {})):
+                ensg, location = latest_content
+                chrom = location.split(':')[0]
+            else:
+                continue
+
+            str_results.append(
+                {
+                    'ensg': ensg,
+                    'symbol': short_tandem['gene_data']['gene_symbol'],
+                    'name': short_tandem['entity_name'],
+                    'chrom': chrom,
+                    'location': location,
+                    'moi': short_tandem.get('mode_of_inheritance', 'unknown').lower(),
+                    'confidence_level': int(short_tandem['confidence_level']),
+                    'normal_repeats': int(short_tandem['normal_repeats']),
+                    'pathogenic_repeats': int(short_tandem['pathogenic_repeats']),
+                }
+            )
+
+    return {panel_id: {'name': panel_name, 'version': panel_version, 'genes': gene_results, 'strs': str_results}}
 
 
 async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: int) -> dict:
@@ -261,6 +284,21 @@ async def get_single_panel_activities(session: aiohttp.ClientSession, panel_id: 
         return {panel_id: reponse}
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=1, max=5, exp_base=2),
+    retry=retry_if_exception_type(
+        (
+            httpx.ReadTimeout,
+            httpx.ConnectError,
+            httpx.TooManyRedirects,
+            httpx.RequestError,
+            aiohttp.ClientOSError,
+            ConnectionResetError,
+        ),
+    ),
+    reraise=True,
+)
 async def get_all_known_panels(panel_ids: set[int], activities: bool = False) -> dict:
     """Take all the panel IDs, asynchronously query for them. If panelapp dies it dies."""
 
@@ -276,24 +314,6 @@ async def get_all_known_panels(panel_ids: set[int], activities: bool = False) ->
         all_panel_details = await asyncio.gather(*tasks)
 
     return {int(pid): data for panel in all_panel_details for pid, data in panel.items()}
-
-
-def parse_repeat_disorders() -> tuple[set[str], set[str]]:
-    """Parse panel 3597 - find all genes with a green association to a STR disorder."""
-    str_genes: set[str] = set()
-    str_symbols: set[str] = set()
-    for each_result in get_json_response(STR_TEMPLATE)['results']:
-        str_association = each_result['gene_data']
-        str_symbols.add(str_association['gene_symbol'])
-
-        for build, content in str_association['ensembl_genes'].items():
-            if build.lower() == 'grch38':
-                # the ensembl version may alter over time, but will be singular
-                ensembl_data = content[next(iter(content.keys()))]
-                ensg = ensembl_data['ensembl_id']
-                str_genes.add(ensg)
-
-    return str_genes, str_symbols
 
 
 def cli_main():
@@ -356,7 +376,7 @@ def main(output: str):
         for gene, gene_data in parsed_panel_data.items():
             # already seen - update some attributes
             if prev_gene_data := collected_panel_data.genes.get(gene):
-                prev_gene_data.panels[panel_id] = DownloadedPanelAppGenePanelDetail(
+                prev_gene_data.panels[panel_id] = DownloadedPanelAppPanelDetail(
                     moi=gene_data['moi'],
                     date=gene_data['green_date'],
                     confidence=gene_data['confidence_level'],
@@ -369,10 +389,35 @@ def main(output: str):
                     symbol=gene_data['symbol'],
                     ensg=gene,
                     panels={
-                        panel_id: DownloadedPanelAppGenePanelDetail(
+                        panel_id: DownloadedPanelAppPanelDetail(
                             moi=gene_data['moi'],
                             date=gene_data['green_date'],
                             confidence=gene_data['confidence_level'],
+                        ),
+                    },
+                )
+
+        # get the STR content from the raw data
+        for str_data in panel_data.get('strs', []):
+            str_gene = str_data['ensg']
+            if prev_str_data := collected_panel_data.strs.get(str_gene):
+                prev_str_data.panels[panel_id] = DownloadedPanelAppPanelDetail(
+                    moi=str_data['moi'],
+                    confidence=str_data['confidence_level'],
+                )
+            else:
+                collected_panel_data.strs[str_gene] = DownloadedPanelAppStr(
+                    ensg=str_gene,
+                    symbol=str_data['symbol'],
+                    name=str_data['name'],
+                    chrom=str_data['chrom'],
+                    location=str_data['location'],
+                    normal_repeats=str_data['normal_repeats'],
+                    pathogenic_repeats=str_data['pathogenic_repeats'],
+                    panels={
+                        panel_id: DownloadedPanelAppPanelDetail(
+                            moi=str_data['moi'],
+                            confidence=str_data['confidence_level'],
                         ),
                     },
                 )
@@ -381,13 +426,6 @@ def main(output: str):
     for panel_id in zero_green_panels:
         logger.info(f'Removing panel {panel_id} from hpo matching - no green genes')
         del collected_panel_data.hpos[panel_id]
-
-    # query panelapp for the repeat disorders panel
-    str_genes, str_symbols = parse_repeat_disorders()
-
-    # populate the panelapp object
-    collected_panel_data.str_genes = str_genes
-    collected_panel_data.str_symbols = str_symbols
 
     with open(output, 'w') as output_file:
         output_file.write(collected_panel_data.model_dump_json(indent=4))
