@@ -472,7 +472,7 @@ class PanelApp(BaseModel):
     str_symbols: set[str] = Field(default_factory=set)
 
 
-class DownloadedPanelAppGenePanelDetail(BaseModel):
+class DownloadedPanelAppPanelDetail(BaseModel):
     """ """
 
     moi: str
@@ -488,7 +488,21 @@ class DownloadedPanelAppGene(BaseModel):
     location: str = Field(default_factory=str)
     ensg: str = Field(default_factory=str)
     # for every panel this gene has featured in, when did it become Green, and what was the MOI
-    panels: dict[int, DownloadedPanelAppGenePanelDetail] = Field(default_factory=dict)
+    panels: dict[int, DownloadedPanelAppPanelDetail] = Field(default_factory=dict)
+
+
+class DownloadedPanelAppStr(BaseModel):
+    """ """
+
+    ensg: str = Field(default_factory=str)
+    symbol: str = Field(default_factory=str)
+    name: str = Field(default_factory=str)
+    chrom: str = Field(default_factory=str)
+    location: str = Field(default_factory=str)
+    # for every panel this gene has featured in, when did it become Green, and what was the MOI
+    panels: dict[int, DownloadedPanelAppPanelDetail] = Field(default_factory=dict)
+    normal_repeats: int = Field(default_factory=int)
+    pathogenic_repeats: int = Field(default_factory=int)
 
 
 class DownloadedPanelApp(BaseModel):
@@ -497,11 +511,10 @@ class DownloadedPanelApp(BaseModel):
     # all panels and versions
     versions: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
+    strs: dict[str, DownloadedPanelAppStr] = Field(default_factory=dict)
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     date: str = Field(default=get_granular_date())
-    str_genes: set[str] = Field(default_factory=set)
-    str_symbols: set[str] = Field(default_factory=set)
 
 
 class ResultMeta(BaseModel):
