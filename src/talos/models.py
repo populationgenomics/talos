@@ -503,6 +503,7 @@ class DownloadedPanelAppStr(BaseModel):
     panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
     normal_repeats: int = Field(default_factory=int)
     pathogenic_repeats: int = Field(default_factory=int)
+    repeat_unit: str = Field(default_factory=str)
 
 
 class DownloadedPanelApp(BaseModel):

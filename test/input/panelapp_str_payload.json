@@ -1,0 +1,44 @@
+{
+    "name": "STR_Mendeliome",
+    "version": 1,
+    "genes": [
+        {
+          "gene_data": {
+            "ensembl_genes": {
+              "GRch38": {
+                "90": {
+                  "ensembl_id": "ENSG00ABCD",
+                  "location": "1:"
+                }
+              }
+            }
+          },
+          "entity_type": "gene",
+          "entity_name": "ABCD",
+          "confidence_level": "3",
+          "mode_of_inheritance": "Biallelic"
+        }
+    ],
+    "strs": [
+        {
+            "gene_data": {
+                "gene_symbol": "ABCD3",
+                "ensembl_genes": {
+                    "GRch38": {
+                        "115": {
+                            "location": "1:94418242-94518666",
+                            "ensembl_id": "ENSG00000117528"
+                        }
+                    }
+                }
+            },
+            "entity_name": "ABCD3_OPDM_GCC",
+            "confidence_level": "3",
+            "mode_of_inheritance": "MONOALLELIC, autosomal or pseudoautosomal, NOT imprinted",
+            "repeated_sequence": "GCC",
+            "chromosome": "1",
+            "normal_repeats": 50,
+            "pathogenic_repeats": 118
+        }
+    ]
+}
