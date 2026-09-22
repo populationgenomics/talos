@@ -7,7 +7,7 @@ from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
     DownloadedPanelAppGene,
-    DownloadedPanelAppGenePanelDetail,
+    DownloadedPanelAppPanelDetail,
     HpoTerm,
     PanelApp,
     PanelDetail,
@@ -195,7 +195,7 @@ def _make_downloaded_gene(ensg: str, panel_id: int, confidence: int, moi: str = 
         symbol=ensg,
         chrom='1',
         ensg=ensg,
-        panels={panel_id: DownloadedPanelAppGenePanelDetail(moi=moi, date='2020-01-01', confidence=confidence)},
+        panels={panel_id: DownloadedPanelAppPanelDetail(moi=moi, date='2020-01-01', confidence=confidence)},
     )
 
 
