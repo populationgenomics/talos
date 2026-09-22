@@ -270,6 +270,7 @@ async def get_single_panel(session: aiohttp.ClientSession, panel_id: int) -> dic
                     'confidence_level': int(short_tandem['confidence_level']),
                     'normal_repeats': int(short_tandem['normal_repeats']),
                     'pathogenic_repeats': int(short_tandem['pathogenic_repeats']),
+                    'repeat_unit': short_tandem['repeated_sequence'],
                 }
             )
 
@@ -414,6 +415,7 @@ def main(output: str):
                     location=str_data['location'],
                     normal_repeats=str_data['normal_repeats'],
                     pathogenic_repeats=str_data['pathogenic_repeats'],
+                    repeat_unit=str_data['repeat_unit'],
                     panels={
                         panel_id: DownloadedPanelAppPanel(
                             moi=str_data['moi'],
