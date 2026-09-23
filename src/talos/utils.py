@@ -995,6 +995,10 @@ def generate_summary_stats(result_set: ResultData):
 
         # iterate over all identified variants
         for each_var in sample_results.variants:
+            # stats for the current run should only show variants found in this round
+            if not each_var.found_in_current_run:
+                continue
+
             var_string = each_var.var_data.coordinates.string_format
 
             # catch all comp-het pairs as a single variant - we are electing to count comp-het events as a single
