@@ -691,6 +691,7 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_sources (): dict mapping each variant type to a VCF reader instance
                             known types: small, sv, mito (chrM only), str
+        panelapp (PanelApp): PanelApp details parsed for this run
 
     Returns:
         A lookup in the form
@@ -735,6 +736,7 @@ def gather_gene_dict_from_contig(
             contig_dict[structural_variant.info['gene_id']].append(structural_variant)
         logger.info(f'Contig {contig} contained {structural_variants} SVs')
 
+    # todo re-work this with new structure
     # parse STR VCF if provided
     if variant_sources.get('str'):
         # limit STRs to PanelApp green-evidence accepted repeat disorder genes
@@ -744,7 +746,7 @@ def gather_gene_dict_from_contig(
         for variant in variant_sources['str'](contig):
             if str_var := create_str_variant(var=variant, samples=str_samples):
                 # skip any which aren't accepted in PanelApp's repeat disorders panel
-                if str_var.info['gene_id'] not in repeat_disorder_genes:
+                if str_var.info['gene_id'] not in panelapp.str:
                     continue
 
                 str_variants += 1
