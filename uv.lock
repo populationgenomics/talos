@@ -274,23 +274,23 @@ wheels = [
 
 [[package]]
 name = "bokeh"
-version = "3.4.3"
+version = "3.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "contourpy" },
     { name = "jinja2" },
+    { name = "narwhals" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "packaging" },
-    { name = "pandas" },
     { name = "pillow" },
     { name = "pyyaml" },
-    { name = "tornado" },
+    { name = "tornado", marker = "sys_platform != 'emscripten'" },
     { name = "xyzservices" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/a8/4f750e1febe3b8d448794a7b85cd0efd2eb649eb915c990bcdd3650a5f3b/bokeh-3.4.3.tar.gz", hash = "sha256:b7c22fb0f7004b04f12e1b7b26ee0269a26737a08ded848fb58f6a34ec1eb155", size = 6410715, upload-time = "2024-07-25T10:44:33.237Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/dd/6f/262b649ad2fdd5ed23341452eebfa669a73b0e0c739a369204d02ee2e201/bokeh-3.9.2.tar.gz", hash = "sha256:5be30d105b329d7d2ab1cb92f51e6bd44e23f0fe21ab8d49594b220b2ab11632", size = 5751825, upload-time = "2026-07-25T16:57:56.207Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/5d/e96520996607c9b894a4716ddedc447a68351b0a8729f26ac012c8e7041b/bokeh-3.4.3-py3-none-any.whl", hash = "sha256:c6f33817f866fc67fbeb5df79cd13a8bb592c05c591f3fd7f4f22b824f7afa01", size = 7017720, upload-time = "2024-07-25T10:44:29.542Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/0c/06a99ee998b1babf95074376cbf6ede5a86af726b12cbf47c4b84fa2803a/bokeh-3.9.2-py3-none-any.whl", hash = "sha256:448e07d5ee78231f5bdece3be020024bb98696c0d6b127e0e2df0b8ba8fa9765", size = 6409477, upload-time = "2026-07-25T16:57:54.62Z" },
 ]
 
 [[package]]
@@ -567,7 +567,7 @@ wheels = [
 
 [[package]]
 name = "cpg-flow"
-version = "1.3.1"
+version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cpg-utils" },
@@ -580,13 +580,12 @@ dependencies = [
     { name = "metamist" },
     { name = "networkx" },
     { name = "plotly" },
-    { name = "pre-commit" },
     { name = "pyyaml" },
     { name = "tornado" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/cc/60df84c96823ad998d84d56612d8b1bccc1e508c1511bfb1a3c246c39436/cpg_flow-1.3.1.tar.gz", hash = "sha256:7fdcefb0c2f35f62e8620f55393d1a2f2fe5ae4144b1ed0afffe5190401e1b19", size = 100549, upload-time = "2026-01-29T00:52:55.476Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/3e/417b69133beee3363d4db649cee25237f6062d7d941fcf7aac59b7551178/cpg_flow-1.4.1.tar.gz", hash = "sha256:8b5db01c5e1dce474ca821b863c80413eab1d2269d21ed227f83e8df13fb1d15", size = 100812, upload-time = "2026-09-08T04:43:38.867Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/b5/e606e482adee54c8e8f6123820aafaddfe5b2b582286b62355a8d344cf8c/cpg_flow-1.3.1-py3-none-any.whl", hash = "sha256:9f24dd95659ff6d54a60af8a0fcb5be7f76bb14cec9ad3b246fe8f63fada5b6d", size = 74792, upload-time = "2026-01-29T00:52:54.299Z" },
+    { url = "https://files.pythonhosted.org/packages/63/0b/1c2ad88c2ca6d184442b1981d0817790d1bc2fa1411d248e35bee896890d/cpg_flow-1.4.1-py3-none-any.whl", hash = "sha256:1adc04f3e89da3949f47eab9247a696cc534e11f09bfaee61615559d8190c48e", size = 75757, upload-time = "2026-09-08T04:43:37.634Z" },
 ]
 
 [[package]]
@@ -687,11 +686,11 @@ wheels = [
 
 [[package]]
 name = "decorator"
-version = "4.4.2"
+version = "5.3.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/da/93/84fa12f2dc341f8cf5f022ee09e109961055749df2d0c75c5f98746cfe6c/decorator-4.4.2.tar.gz", hash = "sha256:e3a62f0520172440ca0dcc823749319382e377f37f140a0b99ef45fecb84bfe7", size = 33629, upload-time = "2020-02-29T05:24:43.312Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/8b/32f9823da46cde7df2087faa08cd98d01b908f8dcab982cdba9c84e85355/decorator-5.3.1.tar.gz", hash = "sha256:4cbcdd55a6efadb9dbea26b858f4fb3264567b52d69ca0d25b721b553f60ea82", size = 58084, upload-time = "2026-05-18T06:03:28.057Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/1b/72a1821152d07cf1d8b6fce298aeb06a7eb90f4d6d41acec9861e7cc6df0/decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760", size = 9239, upload-time = "2020-02-29T05:24:45.993Z" },
+    { url = "https://files.pythonhosted.org/packages/05/7f/798705f5296a58ca505d600456748d1be48078eac8a7050d8a98bc9edb89/decorator-5.3.1-py3-none-any.whl", hash = "sha256:f47fe6fdbd2edd623ecfe36875d37aba411624e2670dd395dddae1358689bb3c", size = 10365, upload-time = "2026-05-18T06:03:26.517Z" },
 ]
 
 [[package]]
@@ -1124,7 +1123,7 @@ wheels = [
 
 [[package]]
 name = "hail"
-version = "0.2.137"
+version = "0.2.139"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiodns" },
@@ -1136,6 +1135,7 @@ dependencies = [
     { name = "bokeh" },
     { name = "boto3" },
     { name = "botocore" },
+    { name = "contourpy" },
     { name = "decorator" },
     { name = "deprecated" },
     { name = "dill" },
@@ -1159,13 +1159,14 @@ dependencies = [
     { name = "rich" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "setuptools" },
     { name = "sortedcontainers" },
     { name = "tabulate" },
     { name = "typer" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/8a/5b1a62458e862c86a66bafaa63f5e27268bbf47a726b9161be16c25605c0/hail-0.2.137-py3-none-any.whl", hash = "sha256:b93b8bc2ef9280258d5e4782fea61f7a1c7eea8977fb88a20ad534b5d5611868", size = 133302687, upload-time = "2025-11-24T20:28:47.878Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/dd/bf39df87c5333fed6b0cf555bb840ffb6b960e7c7635680eb95ca04d59fd/hail-0.2.139-py3-none-any.whl", hash = "sha256:77068dcda0dfa027a01c1127cc30f9d18714c09050728d5baf75d82e3c756137", size = 133044178, upload-time = "2026-08-10T20:12:57.16Z" },
 ]
 
 [[package]]
@@ -1629,6 +1630,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/74/7d/36b045c23a1ab98507aefd44fd8b264ee1dd5e5010543c6fccf82141ccef/multidict-6.6.4-cp311-cp311-win_amd64.whl", hash = "sha256:d8c112f7a90d8ca5d20213aa41eac690bb50a76da153e3afb3886418e61cb22e", size = 46029, upload-time = "2025-08-11T12:06:51.082Z" },
     { url = "https://files.pythonhosted.org/packages/0f/5e/553d67d24432c5cd52b49047f2d248821843743ee6d29a704594f656d182/multidict-6.6.4-cp311-cp311-win_arm64.whl", hash = "sha256:3bb0eae408fa1996d87247ca0d6a57b7fc1dcf83e8a5c47ab82c558c250d4adf", size = 43017, upload-time = "2025-08-11T12:06:52.243Z" },
     { url = "https://files.pythonhosted.org/packages/fd/69/b547032297c7e63ba2af494edba695d781af8a0c6e89e4d06cf848b21d80/multidict-6.6.4-py3-none-any.whl", hash = "sha256:27d8f8e125c07cb954e54d75d04905a9bba8a439c1d84aca94949d4d03d8601c", size = 12313, upload-time = "2025-08-11T12:08:46.891Z" },
+]
+
+[[package]]
+name = "narwhals"
+version = "2.26.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/68/5351e34623d253423240ea7de3f8fc74fa8ab14b1ab3c0ec4ac8997413c9/narwhals-2.26.0.tar.gz", hash = "sha256:6b9cadca82f375c7e4cf584fdc86ca25da54827307a9c58f94547ee6104b82dd", size = 686970, upload-time = "2026-09-08T13:32:08.964Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/b5/1b84b2c784db76d69442334bc8b8748c840f13ca53be086f4f250ad4a0bc/narwhals-2.26.0-py3-none-any.whl", hash = "sha256:29326d74f107c347fd1009bd58e38d9f7c7c5b51e6de97bc93dbc325d9038b54", size = 474034, upload-time = "2026-09-08T13:32:07.159Z" },
 ]
 
 [[package]]
@@ -2690,6 +2700,15 @@ wheels = [
 ]
 
 [[package]]
+name = "setuptools"
+version = "81.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/1c/73e719955c59b8e424d015ab450f51c0af856ae46ea2da83eba51cc88de1/setuptools-81.0.0.tar.gz", hash = "sha256:487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a", size = 1198299, upload-time = "2026-02-06T21:10:39.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl", hash = "sha256:fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6", size = 1062021, upload-time = "2026-02-06T21:10:37.175Z" },
+]
+
+[[package]]
 name = "shellingham"
 version = "1.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2763,6 +2782,7 @@ name = "talos"
 version = "12.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "clinvarbitration" },
     { name = "cloudpathlib", extra = ["all"] },
     { name = "cpg-utils" },
@@ -2810,6 +2830,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = "<3.13" },
     { name = "bump-my-version", marker = "extra == 'test'" },
     { name = "clinvarbitration", specifier = "~=2.2.7" },
     { name = "cloudpathlib", extras = ["all"], specifier = ">=0.16.0" },
@@ -2818,7 +2839,7 @@ requires-dist = [
     { name = "cyvcf2", specifier = ">=0.30.18" },
     { name = "google-cloud-storage", marker = "extra == 'cpg'", specifier = "==2.14.0" },
     { name = "grpcio-status", specifier = ">=1.48,<1.50" },
-    { name = "hail", specifier = "~=0.2.137" },
+    { name = "hail", specifier = "~=0.2.138" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.3" },
     { name = "mendelbrot", specifier = ">=0.0.3" },
