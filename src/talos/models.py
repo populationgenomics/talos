@@ -32,7 +32,7 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.4.0'
+CURRENT_VERSION = '2.5.0'
 ALL_VERSIONS = [
     None,
     '1.0.0',

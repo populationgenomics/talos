@@ -959,7 +959,12 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
 
             # if the latest event has an upgraded panel confidence, today's date drives the discovery date.
             # we always want to recognise a jump to green, Amber/Red panel usage depends on local appetite
-            if (new_var.max_confidence > old_var.max_confidence) and (new_var.max_confidence >= GREEN_CONFIDENCE):
+
+            # this is a placeholder applied during liftover, we replace this value with the current confidence level
+            if old_var.max_confidence == -1:
+                pass
+
+            elif (new_var.max_confidence > old_var.max_confidence) and (new_var.max_confidence >= GREEN_CONFIDENCE):
                 # if the gene rating bump means this gene is now Green, bump confidence
                 new_var.confidence_increase = True
                 evidence_dates.append(get_granular_date())
@@ -967,8 +972,9 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
                 # the first time a panel is rated Green - first tagged is moved up
                 new_var.first_tagged = get_granular_date()
 
-            elif old_var.max_confidence > new_var.max_confidence:
-                new_var.max_confidence = old_var.max_confidence
+            # take the highest confidence when building the history
+            # outside chance a gene going green->amber would be presented as Green due to this...
+            new_var.max_confidence = max(old_var.max_confidence, new_var.max_confidence)
 
             # we previously had a phenotype match date, carry it forward
             if old_pheno := old_var.date_of_phenotype_match:
