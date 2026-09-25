@@ -25,6 +25,7 @@ from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
 from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
 from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
 from talos.liftover.lift_2_4_0_to_2_5_0 import resultdata as rd_240_to_250
+from talos.liftover.lift_2_4_0_to_2_5_0 import panelapp as pa_240_to_250
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -640,12 +641,14 @@ LIFTOVER_METHODS: dict = {
         '2.1.0_2.2.0': dl_pa_210_to_220,
         '2.2.0_2.3.0': dl_pa_220_to_230,
         '2.3.0_2.4.0': dl_pa_230_to_240,
+        '2.4.0_2.5.0': pa_240_to_250,
     },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
         '2.2.0_2.3.0': pa_220_to_230,
         '2.3.0_2.4.0': pa_230_to_240,
+        '2.4.0_2.5.0': pa_240_to_250,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,
