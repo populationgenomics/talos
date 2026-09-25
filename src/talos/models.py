@@ -24,6 +24,7 @@ from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
 from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
 from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
+from talos.liftover.lift_2_4_0_to_2_5_0 import resultdata as rd_240_to_250
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -31,7 +32,7 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.4.0'
+CURRENT_VERSION = '2.5.0'
 ALL_VERSIONS = [
     None,
     '1.0.0',
@@ -45,6 +46,7 @@ ALL_VERSIONS = [
     '2.2.0',
     '2.3.0',
     '2.4.0',
+    '2.5.0',
 ]
 
 # ratios for use in AB testing
@@ -406,6 +408,11 @@ class ReportVariant(BaseModel):
     exomiser_results: list[str] = Field(default_factory=list)
     found_in_current_run: bool = Field(default=True)
 
+    # this will be determined based on the specific panels applied to a participant
+    max_confidence: int = Field(default_factory=int)
+    # log whether there was an increase in panel confidence since the last run
+    confidence_increase: bool = Field(default=False)
+
     def __eq__(self, other):
         """
         makes reported variants comparable
@@ -607,6 +614,7 @@ LIFTOVER_METHODS: dict = {
         '1.2.0_2.0.0': rd_120_to_200,
         '2.0.0_2.1.0': rd_200_to_210,
         '2.1.0_2.2.0': rd_210_to_220,
+        '2.4.0_2.5.0': rd_240_to_250,
     },
 }
 
