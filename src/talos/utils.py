@@ -747,7 +747,7 @@ def gather_gene_dict_from_contig(
         for variant in variant_sources['str'](contig):
             if str_var := create_str_variant(var=variant, samples=str_samples):
                 # skip any which aren't accepted in PanelApp's repeat disorders panel
-                if str_var.info['gene_id'] not in panelapp.str:
+                if str_var.info['gene_id'] not in panelapp.strs:
                     continue
 
                 str_variants += 1
