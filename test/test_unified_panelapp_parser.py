@@ -8,9 +8,9 @@ from talos.models import (
     DownloadedPanelApp,
     DownloadedPanelAppGene,
     DownloadedPanelAppPanel,
+    GeneDetail,
     HpoTerm,
     PanelApp,
-    PanelDetail,
     PanelShort,
     ParticipantHPOPanels,
 )
@@ -116,8 +116,7 @@ def test_match_participants_to_panels():
             ),
         },
         'version': CURRENT_VERSION,
-        'str_genes': set(),
-        'str_symbols': set(),
+        'strs': {},
     }
 
 
@@ -176,7 +175,7 @@ def test_update_moi_from_config_add_new_gene():
 
 def test_update_moi_from_config_update_existing_gene():
     panelapp_data = PanelApp()
-    panelapp_data.genes['ENSG2'] = PanelDetail(symbol='GENE2', moi=ORDERED_MOIS[1], panels={1}, chrom='2')
+    panelapp_data.genes['ENSG2'] = GeneDetail(symbol='GENE2', moi=ORDERED_MOIS[1], panels={1}, chrom='2')
     add_genes = [{'ensg': 'ENSG2', 'moi': ORDERED_MOIS[2]}]
     update_moi_from_config(panelapp_data, add_genes)
     assert panelapp_data.genes['ENSG2'].moi == ORDERED_MOIS[2]
@@ -185,7 +184,7 @@ def test_update_moi_from_config_update_existing_gene():
 
 def test_remove_blacklisted_genes():
     panelapp_data = PanelApp()
-    panelapp_data.genes = {'ENSG1': PanelDetail(symbol='GENE1', moi='Monoallelic', panels={1}, chrom='1')}
+    panelapp_data.genes = {'ENSG1': GeneDetail(symbol='GENE1', moi='Monoallelic', panels={1}, chrom='1')}
     remove_blacklisted_genes(panelapp_data, {'ENSG1'})
     assert 'ENSG1' not in panelapp_data.genes
 

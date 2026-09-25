@@ -24,8 +24,8 @@ from loguru import logger
 
 from talos.config import config_retrieve
 from talos.models import (
+    GeneDetail,
     PanelApp,
-    PanelDetail,
     PanelShort,
     ReportVariant,
     ResultData,
@@ -637,7 +637,7 @@ class Variant:
         # List of (gene_id, symbol, panel_confidence_tooltip_html)
         self.genes: list[tuple[str, str, str]] = []
         for gene_id in report_variant.gene.split(','):
-            gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, PanelDetail(symbol=gene_id))
+            gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, GeneDetail(symbol=gene_id))
             tooltip_parts = []
             for panel_id, confidence in sorted(gene_panelapp_entry.panel_confidences.items()):
                 if panel_id not in applied_panel_ids:

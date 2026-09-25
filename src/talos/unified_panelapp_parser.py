@@ -23,11 +23,14 @@ from obonet import read_obo
 from talos.config import config_retrieve
 from talos.models import (
     DownloadedPanelApp,
+    DownloadedPanelAppGene,
+    DownloadedPanelAppStr,
+    GeneDetail,
     HpoTerm,
     PanelApp,
-    PanelDetail,
     PanelShort,
     ParticipantHPOPanels,
+    StrDetail,
 )
 from talos.utils import read_json_from_path
 
@@ -264,41 +267,60 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
     for participant_details in panelapp_data.participants.values():
         full_set_of_panels.update(participant_details.panels)
 
-    # now iterate over the genes we know about, and pull them into the panel details object
-    for gene_data in cached_panelapp.genes.values():
-        # check if this gene is in any of the panels we are interested in - retain the overlap
+    # now iterate over the entities we know about, and pull them into the panel details object
+    # this iteration is partially shared between genes and STRs
+    for obj_type, obj_data in [('gene', cached_panelapp.genes.values()), ('str', cached_panelapp.strs.values())]:
+        assert isinstance(obj_data, (DownloadedPanelAppStr, DownloadedPanelAppGene))
+        # check if this entity is in any of the panels we are interested in - retain the overlap
         # also enforce the confidence threshold: skip panel associations below the configured level
         eligible_panels = {
             panel_id
-            for panel_id, panel_detail in gene_data.panels.items()
+            for panel_id, panel_detail in obj_data.panels.items()
             if panel_detail.confidence >= MIN_GENE_CONFIDENCE
         }
         if not (panel_intersection := eligible_panels.intersection(full_set_of_panels)):
             continue
 
         # collect all the relevant MOIs based on the panels we're using
-        gene_mois = {gene_data.panels[panel_id].moi for panel_id in panel_intersection}
+        gene_mois = {obj_data.panels[panel_id].moi for panel_id in panel_intersection}
 
-        # get the consensus MOI for this gene
-        moi = get_simple_moi(gene_mois, gene_data.chrom)
+        # get the consensus MOI for this entity
+        moi = get_simple_moi(gene_mois, obj_data.chrom)
 
-        # find any panels where this gene is new
-        new_panels = {
-            panel_id
-            for panel_id in panel_intersection
-            if pendulum.from_format(gene_data.panels[panel_id].date, 'YYYY-MM-DD') > NEW_THRESHOLD
-        }
+        if obj_type == 'gene':
+            # find any panels where this gene is new
+            new_panels = {
+                panel_id
+                for panel_id in panel_intersection
+                if pendulum.from_format(obj_data.panels[panel_id].date, 'YYYY-MM-DD') > NEW_THRESHOLD
+            }
 
-        # add the gene to the panel details object
-        panelapp_data.genes[gene_data.ensg] = PanelDetail(
-            symbol=gene_data.symbol,
-            chrom=gene_data.chrom,
-            location=gene_data.location,
-            moi=moi,
-            new=new_panels,
-            panels=panel_intersection,
-            panel_confidences={pid: gene_data.panels[pid].confidence for pid in panel_intersection},
-        )
+            # add the gene to the panel details object
+            panelapp_data.genes[obj_data.ensg] = GeneDetail(
+                symbol=obj_data.symbol,
+                chrom=obj_data.chrom,
+                location=obj_data.location,
+                moi=moi,
+                new=new_panels,
+                panels=panel_intersection,
+                panel_confidences={pid: obj_data.panels[pid].confidence for pid in panel_intersection},
+            )
+        else:
+            assert isinstance(obj_data, DownloadedPanelAppStr)
+            # add the STR to the panel details object
+            panelapp_data.strs[obj_data.ensg] = StrDetail(
+                symbol=obj_data.symbol,
+                chrom=obj_data.chrom,
+                location=obj_data.location,
+                name=obj_data.name,
+                moi=moi,
+                panels=panel_intersection,
+                panel_confidences={pid: obj_data.panels[pid].confidence for pid in panel_intersection},
+                normal_repeats=obj_data.normal_repeats,
+                pathogenic_repeats=obj_data.pathogenic_repeats,
+                expansion=obj_data.expansion,
+                repeat_unit=obj_data.repeat_unit,
+            )
 
 
 def update_moi_from_config(
@@ -337,7 +359,7 @@ def update_moi_from_config(
         else:
             # if this is a new gene, add it to the dictionary
             # if we have a symbol use it, if it wasn't provided, use ENSG
-            panelapp_data.genes[ensg] = PanelDetail(
+            panelapp_data.genes[ensg] = GeneDetail(
                 symbol=gene_data.get('symbol', f'Custom: {ensg}'),
                 moi=moi,
                 panels={CUSTOM_PANEL_ID},
@@ -355,6 +377,33 @@ def remove_blacklisted_genes(panelapp_data: PanelApp, forbidden_genes: set[str] 
     genes_to_remove = set(forbidden_genes).intersection(set(panelapp_data.genes.keys()))
     for gene in genes_to_remove:
         del panelapp_data.genes[gene]
+
+
+def remove_pheno_match_only(panelapp_data: PanelApp, pheno_match: list[str]):
+    genes_to_remove = set()
+    strs_to_remove = set()
+    for ensg, gene_details in panelapp_data.genes.items():
+        # check for a match to either the ENSG ID or the gene symbol in the list from config
+        if (ensg in pheno_match or gene_details.symbol in pheno_match) and gene_details.panels == {DEFAULT_PANEL}:
+            genes_to_remove.add(ensg)
+
+    for ensg, str_details in panelapp_data.strs.items():
+        if (
+            any(
+                name_value in pheno_match
+                for name_value in [
+                    ensg,
+                    str_details.symbol,
+                    str_details.name,
+                ]
+            )
+            # initially only analyse STRs with a phenotype match
+            or (config_retrieve(['GeneratePanelData', 'pheno_match_strs']))
+        ) and str_details.panels == {DEFAULT_PANEL}:
+            strs_to_remove.add(ensg)
+
+    panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}
+    panelapp_data.strs = {key: value for key, value in panelapp_data.strs.items() if key not in strs_to_remove}
 
 
 def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | None = None):
@@ -423,18 +472,10 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
         remove_blacklisted_genes(panelapp_data, forbidden_genes)
 
     # if any genes require a phenotype match, but didn't find one (only on base panel), remove them from consideration
-    if pheno_match := config_retrieve(['GeneratePanelData', 'require_pheno_match'], []):
-        genes_to_remove = set()
-        for ensg, gene_details in panelapp_data.genes.items():
-            # check for a match to either the ENSG ID or the gene symbol in the list from config
-            if (ensg in pheno_match or gene_details.symbol in pheno_match) and gene_details.panels == {DEFAULT_PANEL}:
-                genes_to_remove.add(ensg)
-
-        panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}
-
-    # add in the STR content
-    panelapp_data.str_genes = cached_panelapp.str_genes
-    panelapp_data.str_symbols = cached_panelapp.str_symbols
+    if (pheno_match := config_retrieve(['GeneratePanelData', 'require_pheno_match'], [])) or config_retrieve(
+        ['GeneratePanelData', 'pheno_match_strs'], False
+    ):
+        remove_pheno_match_only(panelapp_data, pheno_match)
 
     # validate and write using pydantic
     valid_cohort_details = PanelApp.model_validate(panelapp_data)

@@ -22,9 +22,9 @@ from talos.config import config_retrieve
 from talos.exclusion_log import get_exclusion_logger
 from talos.models import (
     FamilyMembers,
+    GeneDetail,
     MemberSex,
     PanelApp,
-    PanelDetail,
     ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
@@ -103,7 +103,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
-    panelapp_data: dict[str, PanelDetail],
+    panelapp_data: dict[str, GeneDetail],
     pedigree: PedigreeParser,
 ) -> list[ReportVariant]:
     """

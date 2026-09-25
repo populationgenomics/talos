@@ -6,7 +6,7 @@ import pytest
 
 import hail as hl
 
-from talos.models import PanelApp, PanelDetail
+from talos.models import GeneDetail, PanelApp
 from talos.run_hail_filtering import (
     filter_matrix_by_ac,
     filter_on_quality_flags,
@@ -126,7 +126,7 @@ def fixture_panelapp_from_locations():
     def _panelapp(locations: dict[str, str]) -> PanelApp:
         return PanelApp(
             genes={
-                ensg: PanelDetail(symbol=ensg, chrom=location.split(':')[0], location=location)
+                ensg: GeneDetail(symbol=ensg, chrom=location.split(':')[0], location=location)
                 for ensg, location in locations.items()
             },
         )
