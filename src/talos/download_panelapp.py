@@ -415,6 +415,7 @@ def main(output: str):
                     location=str_data['location'],
                     normal_repeats=str_data['normal_repeats'],
                     pathogenic_repeats=str_data['pathogenic_repeats'],
+                    expansion=str_data['normal_repeats'] < str_data['pathogenic_repeats'],
                     repeat_unit=str_data['repeat_unit'],
                     panels={
                         panel_id: DownloadedPanelAppPanel(

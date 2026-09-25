@@ -736,11 +736,9 @@ def gather_gene_dict_from_contig(
             contig_dict[structural_variant.info['gene_id']].append(structural_variant)
         logger.info(f'Contig {contig} contained {structural_variants} SVs')
 
-    # todo re-work this with new structure
     # parse STR VCF if provided
     if variant_sources.get('str'):
         # limit STRs to PanelApp green-evidence accepted repeat disorder genes
-        repeat_disorder_genes = panelapp.str_genes
         str_samples = variant_sources['str'].samples
         str_variants = 0
         for variant in variant_sources['str'](contig):

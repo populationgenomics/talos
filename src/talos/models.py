@@ -428,7 +428,7 @@ class ParticipantHPOPanels(BaseModel):
     matched_phenotypes: set[str] = Field(default_factory=set)
 
 
-class PanelDetail(BaseModel):
+class GeneDetail(BaseModel):
     """
     A gene from PanelApp, combining all MOI and panel IDs
     where the gene features on multiple panels
@@ -439,6 +439,34 @@ class PanelDetail(BaseModel):
     location: str = Field(default_factory=str)
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
+    panels: set[int] = Field(default_factory=set)
+    panel_confidences: dict[int, int] = Field(default_factory=dict)
+
+
+class StrDetail(BaseModel):
+    """
+    An STR from PanelApp, combining all MOI and panel IDs
+    """
+
+    symbol: str
+    ensg: str = Field(default_factory=str)
+    chrom: str = Field(default_factory=str)
+    location: str = Field(default_factory=str)
+
+    # locus name, usually including the expansion
+    name: str = Field(default_factory=str)
+    moi: str = Field(default_factory=str)
+
+    # details of the expansion/contraction
+    normal_repeats: int = Field(default_factory=int)
+    pathogenic_repeats: int = Field(default_factory=int)
+
+    # bool, if this represents a contraction or expansion
+    expansion: bool = Field(default_factory=bool)
+
+    repeat_unit: str = Field(default_factory=str)
+
+    # and where does it appear?
     panels: set[int] = Field(default_factory=set)
     panel_confidences: dict[int, int] = Field(default_factory=dict)
 
@@ -458,12 +486,11 @@ class PanelApp(BaseModel):
     # the PanelShort object contains id, but we use this in a few places to search for the name/version of a panel by id
     # having this as a dictionary of {id: {id: X, name: Y}} looks a bit wasteful, but simplifies code in a few places
     metadata: dict[int, PanelShort] = Field(default_factory=dict)
-    genes: dict[str, PanelDetail] = Field(default_factory=dict)
+    genes: dict[str, GeneDetail] = Field(default_factory=dict)
+    strs: dict[str, StrDetail] = Field(default_factory=dict)
     participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     creation_date: str = Field(default=get_granular_date())
-    str_genes: set[str] = Field(default_factory=set)
-    str_symbols: set[str] = Field(default_factory=set)
 
 
 class DownloadedPanelAppPanel(BaseModel):
@@ -498,6 +525,7 @@ class DownloadedPanelAppStr(BaseModel):
     normal_repeats: int = Field(default_factory=int)
     pathogenic_repeats: int = Field(default_factory=int)
     repeat_unit: str = Field(default_factory=str)
+    expansion: bool = Field(default_factory=bool)
 
 
 class DownloadedPanelApp(BaseModel):

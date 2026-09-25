@@ -30,10 +30,10 @@ class _FakeResponse:
     async def json(self) -> dict:
         return self.payload
 
-    async def __aenter__(self) -> '_FakeResponse':
+    async def __aenter__(self) -> '_FakeResponse':  # noqa: PYI034
         return self
 
-    async def __aexit__(self, *_args) -> None:
+    async def __aexit__(self, *_args) -> None:  # noqa: ANN002
         return None
 
 
