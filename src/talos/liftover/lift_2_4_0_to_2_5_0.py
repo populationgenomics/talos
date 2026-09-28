@@ -9,6 +9,8 @@ def resultdata(data_dict: dict) -> dict:
             # placeholder to represent that the last run did not record this stat
             var['max_confidence'] = -1
             var['confidence_increase'] = False
+            # empty placeholder
+            var['newly_green'] = ''
     data_dict['version'] = '2.5.0'
     return data_dict
 
