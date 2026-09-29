@@ -24,8 +24,8 @@ from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
 from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
 from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
-from talos.liftover.lift_2_4_0_to_2_5_0 import resultdata as rd_240_to_250
 from talos.liftover.lift_2_4_0_to_2_5_0 import panelapp as pa_240_to_250
+from talos.liftover.lift_2_4_0_to_2_5_0 import resultdata as rd_240_to_250
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
