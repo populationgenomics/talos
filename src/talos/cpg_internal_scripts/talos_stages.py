@@ -564,12 +564,7 @@ class ValidateVariantInheritance(stage.CohortStage):
                 stage_name='MakeStripyJointCall',
             )
         ):
-            stripy_vcf = hail_batch.get_batch().read_input_group(
-                **{
-                    'vcf.bgz': str_vcf,
-                    'vcf.bgz.tbi': f'{str_vcf}.tbi',
-                },
-            )['vcf.bgz']
+            stripy_vcf = hail_batch.get_batch().read_input(str_vcf)
             str_vcf_arg = f'--str {stripy_vcf} '
 
         labelled_vcf = hail_batch.get_batch().read_input_group(
