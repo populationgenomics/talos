@@ -76,6 +76,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'lofsv': 'LOF SV',
     'bnd': 'Exonic BND',
     'exomiser': 'Exomiser',
+    'str': 'ShortTandemRepeat',
 }
 
 CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
