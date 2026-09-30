@@ -1,7 +1,11 @@
+import asyncio
+
 from talos.download_panelapp import (
+    PANEL_TEMPLATE_URL,
     PANELS_ENDPOINT,
     get_latest_ensembl_data,
     get_panels_and_hpo_terms,
+    get_single_panel,
     parse_panel,
     parse_panel_activity,
 )
@@ -11,10 +15,71 @@ from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
 from talos.models import (
     CURRENT_VERSION,
     DownloadedPanelApp,
-    DownloadedPanelAppGenePanelDetail,
+    DownloadedPanelAppPanel,
     HpoTerm,
     lift_up_model_version,
 )
+
+
+class _FakeResponse:
+    """stands in for an aiohttp response: usable as an async context manager, with an awaitable .json()"""
+
+    def __init__(self, payload: dict):
+        self.payload = payload
+
+    async def json(self) -> dict:
+        return self.payload
+
+    async def __aenter__(self) -> '_FakeResponse':  # noqa: PYI034
+        return self
+
+    async def __aexit__(self, *_args) -> None:  # noqa: ANN002
+        return None
+
+
+class FakeSession:
+    """stands in for aiohttp.ClientSession, serving one canned payload and recording requested URLs"""
+
+    def __init__(self, payload: dict):
+        self.payload = payload
+        self.urls: list[str] = []
+
+    def get(self, url: str) -> _FakeResponse:
+        self.urls.append(url)
+        return _FakeResponse(self.payload)
+
+
+def run_get_single_panel(payload: dict, panel_id: int = 137) -> tuple[dict, FakeSession]:
+    """drive the async get_single_panel synchronously against a canned payload"""
+    session = FakeSession(payload)
+    result = asyncio.run(get_single_panel(session, panel_id))  # type: ignore[arg-type]
+    return result, session
+
+
+def test_str_panel(str_payload):
+
+    result, session = run_get_single_panel(str_payload, panel_id=137)
+    assert session.urls == [PANEL_TEMPLATE_URL.format(id=137)]
+    assert list(result) == [137]
+
+    panel = result[137]
+    assert panel['name'] == 'STR_Mendeliome'
+    assert panel['version'] == 1
+
+    assert panel['strs'] == [
+        {
+            'ensg': 'ENSG00000117528',
+            'symbol': 'ABCD3',
+            'name': 'ABCD3_OPDM_GCC',
+            'chrom': '1',
+            'location': '1:94418242-94518666',
+            'moi': 'monoallelic, autosomal or pseudoautosomal, not imprinted',
+            'confidence_level': 3,
+            'normal_repeats': 50,
+            'pathogenic_repeats': 118,
+            'repeat_unit': 'GCC',
+        },
+    ]
 
 
 def test_panel_hpo_query(httpx_mock, panels_and_hpos):
@@ -113,10 +178,10 @@ def test_parse_panel_includes_all_when_threshold_one(panel_activities):
 
 def test_downloaded_panel_app_gene_panel_detail_confidence():
     """DownloadedPanelAppGenePanelDetail must persist the confidence field"""
-    detail = DownloadedPanelAppGenePanelDetail(moi='biallelic', date='2024-01-01', confidence=2)
+    detail = DownloadedPanelAppPanel(moi='biallelic', date='2024-01-01', confidence=2)
     assert detail.confidence == 2
 
-    detail_default = DownloadedPanelAppGenePanelDetail(moi='monoallelic')
+    detail_default = DownloadedPanelAppPanel(moi='monoallelic')
     assert detail_default.confidence == 0
 
 

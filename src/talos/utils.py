@@ -84,6 +84,9 @@ BORING_CONSEQUENCES = ['downstream_gene_variant', 'intron_variant', 'upstream_ge
 
 STR_RANGE = re.compile(r'min(?P<min>[0-9]+)max(?P<max>[0-9]+)$')
 
+# numerical confidence for a green Gene in PanelApp
+GREEN_CONFIDENCE = 3
+
 
 def parse_mane_json_to_dict(mane_json: str) -> dict:
     """
@@ -691,6 +694,7 @@ def gather_gene_dict_from_contig(
         contig (): contig name from VCF header
         variant_sources (): dict mapping each variant type to a VCF reader instance
                             known types: small, sv, mito (chrM only), str
+        panelapp (PanelApp): PanelApp details parsed for this run
 
     Returns:
         A lookup in the form
@@ -738,13 +742,12 @@ def gather_gene_dict_from_contig(
     # parse STR VCF if provided
     if variant_sources.get('str'):
         # limit STRs to PanelApp green-evidence accepted repeat disorder genes
-        repeat_disorder_genes = panelapp.str_genes
         str_samples = variant_sources['str'].samples
         str_variants = 0
         for variant in variant_sources['str'](contig):
             if str_var := create_str_variant(var=variant, samples=str_samples):
                 # skip any which aren't accepted in PanelApp's repeat disorders panel
-                if str_var.info['gene_id'] not in repeat_disorder_genes:
+                if str_var.info['gene_id'] not in panelapp.strs:
                     continue
 
                 str_variants += 1
@@ -932,34 +935,73 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
                 old_var.categories = {translate_category(key): val for key, val in old_var.categories.items()}
                 old_var.found_in_current_run = False
                 old_var.clinvar_increase = False
+                old_var.confidence_increase = False
                 content.variants.append(old_var)
                 continue
 
             # we found this variant again, but do we have any new categories to add?
             new_var = new_vars[old_coord]
+
+            # categories seen before keep their original date
+            for cat, date in old_var.categories.items():
+                new_var.categories[translate_category(cat)] = date
+
+            # collect all the dates we have for first category assignment - this must follow the merge above,
+            # or every re-found category would contribute today's date
+            evidence_dates = list(new_var.categories.values())
+
+            # set the provisional first-tagged date based on categories or the date this variant became green
+            # date of becoming green, implying previous amber/red rating during a Talos run, is preserved
+            if old_var.newly_green_date:
+                # preserve the date this became green
+                new_var.newly_green_date = old_var.newly_green_date
+                evidence_dates.append(old_var.newly_green_date)
+
+                # pick the latter of (first categorised) | (newly green but previously seen)
+                new_var.first_tagged = max(min(new_var.categories.values()), old_var.newly_green_date)
+
+            else:
+                new_var.first_tagged = min(new_var.categories.values())
+
+            # record a ClinVar star update, but don't update the dates on this basis
+            # we already record 0-star as a distinct category from 1+ star
             if new_var.clinvar_stars:
                 new_var.clinvar_increase = bool(
                     old_var.clinvar_stars is None or new_var.clinvar_stars > old_var.clinvar_stars,
                 )
 
-            for cat, date in old_var.categories.items():
-                new_var.categories[translate_category(cat)] = date
+            # if the latest event has an upgraded panel confidence, today's date drives the discovery date.
+            # we always want to recognise a jump to green, Amber/Red panel usage depends on local appetite
 
-            # collect all the dates we have for first category assignment
-            category_dates = list(new_var.categories.values())
+            # this is a placeholder applied during liftover, we replace this value with the current confidence level
+            if old_var.max_confidence == -1:
+                pass
+
+            elif (new_var.max_confidence > old_var.max_confidence) and (new_var.max_confidence >= GREEN_CONFIDENCE):
+                # if the gene rating bump means this gene is now Green, bump confidence
+                new_var.confidence_increase = True
+                evidence_dates.append(get_granular_date())
+
+                # the first time a panel is rated Green - first tagged is moved up
+                new_var.first_tagged = get_granular_date()
+
+                new_var.newly_green_date = get_granular_date()
+
+            # take the highest confidence when building the history
+            # outside chance a gene going green->amber would be presented as Green due to this...
+            new_var.max_confidence = max(old_var.max_confidence, new_var.max_confidence)
 
             # we previously had a phenotype match date, carry it forward
             if old_pheno := old_var.date_of_phenotype_match:
                 new_var.date_of_phenotype_match = old_pheno
-                category_dates.append(old_pheno)
+                evidence_dates.append(old_pheno)
 
-            # new supporting comp-het partners = new evidence change date
-            if new_var.support_vars - old_var.support_vars:
-                category_dates.append(get_granular_date())
+            # not recording this as an updated date - a new supporting variant is given
+            # today's date, so no need to change the date on both events. More useful to separate
+            # the date of the 'primary' and date of the new 'secondary'
             new_var.support_vars.update(old_var.support_vars)
 
-            new_var.evidence_last_updated = max(category_dates)
-            new_var.first_tagged = min(new_var.categories.values())
+            new_var.evidence_last_updated = max(evidence_dates)
 
 
 def generate_summary_stats(result_set: ResultData):

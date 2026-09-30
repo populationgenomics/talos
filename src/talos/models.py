@@ -24,6 +24,8 @@ from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_2_2_0_to_2_3_0 import panelapp as pa_220_to_230
 from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
 from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
+from talos.liftover.lift_2_4_0_to_2_5_0 import panelapp as pa_240_to_250
+from talos.liftover.lift_2_4_0_to_2_5_0 import resultdata as rd_240_to_250
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
 from talos.static_values import get_granular_date
 
@@ -31,7 +33,7 @@ NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
 
 # some kind of version tracking
-CURRENT_VERSION = '2.4.0'
+CURRENT_VERSION = '2.5.0'
 ALL_VERSIONS = [
     None,
     '1.0.0',
@@ -45,6 +47,7 @@ ALL_VERSIONS = [
     '2.2.0',
     '2.3.0',
     '2.4.0',
+    '2.5.0',
 ]
 
 # ratios for use in AB testing
@@ -73,6 +76,7 @@ CATEGORY_TRANSLATOR: dict[str, str] = {
     'lofsv': 'LOF SV',
     'bnd': 'Exonic BND',
     'exomiser': 'Exomiser',
+    'str': 'ShortTandemRepeat',
 }
 
 CATEGORY_FLATTENER = re.compile(r'[\W_]+', re.ASCII)
@@ -406,6 +410,16 @@ class ReportVariant(BaseModel):
     exomiser_results: list[str] = Field(default_factory=list)
     found_in_current_run: bool = Field(default=True)
 
+    # this will be determined based on the specific panels applied to a participant
+    max_confidence: int = Field(default_factory=int)
+    # log whether there was an increase in panel confidence since the last run
+    confidence_increase: bool = Field(default=False)
+
+    # this needs to be an empty placeholder for the purposes of a liftover
+    # defaulting to a specific date means any non-green classifications in results until now won't be flagged as
+    # newly-green correctly
+    newly_green_date: str = Field(default_factory=str)
+
     def __eq__(self, other):
         """
         makes reported variants comparable
@@ -427,7 +441,7 @@ class ParticipantHPOPanels(BaseModel):
     matched_phenotypes: set[str] = Field(default_factory=set)
 
 
-class PanelDetail(BaseModel):
+class GeneDetail(BaseModel):
     """
     A gene from PanelApp, combining all MOI and panel IDs
     where the gene features on multiple panels
@@ -438,6 +452,34 @@ class PanelDetail(BaseModel):
     location: str = Field(default_factory=str)
     moi: str = Field(default_factory=str)
     new: set[int] = Field(default_factory=set)
+    panels: set[int] = Field(default_factory=set)
+    panel_confidences: dict[int, int] = Field(default_factory=dict)
+
+
+class StrDetail(BaseModel):
+    """
+    An STR from PanelApp, combining all MOI and panel IDs
+    """
+
+    symbol: str
+    ensg: str = Field(default_factory=str)
+    chrom: str = Field(default_factory=str)
+    location: str = Field(default_factory=str)
+
+    # locus name, usually including the expansion
+    name: str = Field(default_factory=str)
+    moi: str = Field(default_factory=str)
+
+    # details of the expansion/contraction
+    normal_repeats: int = Field(default_factory=int)
+    pathogenic_repeats: int = Field(default_factory=int)
+
+    # bool, if this represents a contraction or expansion
+    expansion: bool = Field(default_factory=bool)
+
+    repeat_unit: str = Field(default_factory=str)
+
+    # and where does it appear?
     panels: set[int] = Field(default_factory=set)
     panel_confidences: dict[int, int] = Field(default_factory=dict)
 
@@ -457,15 +499,14 @@ class PanelApp(BaseModel):
     # the PanelShort object contains id, but we use this in a few places to search for the name/version of a panel by id
     # having this as a dictionary of {id: {id: X, name: Y}} looks a bit wasteful, but simplifies code in a few places
     metadata: dict[int, PanelShort] = Field(default_factory=dict)
-    genes: dict[str, PanelDetail] = Field(default_factory=dict)
+    genes: dict[str, GeneDetail] = Field(default_factory=dict)
+    strs: dict[str, StrDetail] = Field(default_factory=dict)
     participants: dict[str, ParticipantHPOPanels] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     creation_date: str = Field(default=get_granular_date())
-    str_genes: set[str] = Field(default_factory=set)
-    str_symbols: set[str] = Field(default_factory=set)
 
 
-class DownloadedPanelAppGenePanelDetail(BaseModel):
+class DownloadedPanelAppPanel(BaseModel):
     """ """
 
     moi: str
@@ -481,7 +522,23 @@ class DownloadedPanelAppGene(BaseModel):
     location: str = Field(default_factory=str)
     ensg: str = Field(default_factory=str)
     # for every panel this gene has featured in, when did it become Green, and what was the MOI
-    panels: dict[int, DownloadedPanelAppGenePanelDetail] = Field(default_factory=dict)
+    panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
+
+
+class DownloadedPanelAppStr(BaseModel):
+    """ """
+
+    ensg: str = Field(default_factory=str)
+    symbol: str = Field(default_factory=str)
+    name: str = Field(default_factory=str)
+    chrom: str = Field(default_factory=str)
+    location: str = Field(default_factory=str)
+    # for every panel this gene has featured in, when did it become Green, and what was the MOI
+    panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
+    normal_repeats: int = Field(default_factory=int)
+    pathogenic_repeats: int = Field(default_factory=int)
+    repeat_unit: str = Field(default_factory=str)
+    expansion: bool = Field(default_factory=bool)
 
 
 class DownloadedPanelApp(BaseModel):
@@ -490,11 +547,10 @@ class DownloadedPanelApp(BaseModel):
     # all panels and versions
     versions: list[PanelShort] = Field(default_factory=list)
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
+    strs: dict[str, DownloadedPanelAppStr] = Field(default_factory=dict)
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
     version: str = CURRENT_VERSION
     date: str = Field(default=get_granular_date())
-    str_genes: set[str] = Field(default_factory=set)
-    str_symbols: set[str] = Field(default_factory=set)
 
 
 class ResultMeta(BaseModel):
@@ -591,12 +647,14 @@ LIFTOVER_METHODS: dict = {
         '2.1.0_2.2.0': dl_pa_210_to_220,
         '2.2.0_2.3.0': dl_pa_220_to_230,
         '2.3.0_2.4.0': dl_pa_230_to_240,
+        '2.4.0_2.5.0': pa_240_to_250,
     },
     PanelApp: {
         '1.2.0_2.0.0': pa_120_to_200,
         '2.0.0_2.1.0': pa_200_to_210,
         '2.2.0_2.3.0': pa_220_to_230,
         '2.3.0_2.4.0': pa_230_to_240,
+        '2.4.0_2.5.0': pa_240_to_250,
     },
     ResultData: {
         'None_1.0.0': rd_none_to_1_0_0,
@@ -607,6 +665,7 @@ LIFTOVER_METHODS: dict = {
         '1.2.0_2.0.0': rd_120_to_200,
         '2.0.0_2.1.0': rd_200_to_210,
         '2.1.0_2.2.0': rd_210_to_220,
+        '2.4.0_2.5.0': rd_240_to_250,
     },
 }
 

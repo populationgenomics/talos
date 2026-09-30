@@ -114,7 +114,9 @@
     </td>
     <td>
         {# First Tagged #}
-        {{ variant.first_tagged }}
+        {{ variant.first_tagged }} {% for emoji in variant.new_emojis %}
+            {{ emoji|e }}
+        {% endfor %}
     </td>
     <td>
         {# CSQ #}

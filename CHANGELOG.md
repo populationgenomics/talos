@@ -17,12 +17,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.2.0] - 2026-09
+
+### Added
+
+* Panel confidence (Red/Amber/Green) is now recorded in the history, and if a variant is newly promoted to Green, this is identified in the report
+* The Report has Emojis next to the date if variant evidence changes:
+    🆕 - Seen previously, but has additional categories in this round
+    💫 - ClinVar star count has increased
+    🎯 - Newly phenotype-matched
+    🚦 - Newly Green in PanelApp
+* STRs are now accessible via the Nextflow implementation. This requires a STRipy JSON -> VCF conversion using `src/talos/scripts/stripy_json_to_vcf.py`
+* By default, STRs are only analysed on panels phenotypically-matched to the participant to suppress incidental findings.
+
 [12.1.0] - 2026-09
 
 ### Added
 
   * A new SV-specific category has been added - `PREDICTED_EXONIC_BND` annotations from SvAnnotate are now considered as an impactful category.
   * BNDs were a blind spot for Talos, as the `PREDICTED_LOF` SV annotation was never applied to BNDs
+
+### Changed
+
+  * Debian Bullseye has reached EOL, so the default image builds have moved up to Trixie/Java 21
+  * Java 21 is not officially validated by Hail, but has worked in local testing. As far as we are aware the only risk of incompatibility with Hail/Java is relevant to Google Dataproc, which will not apply to most users.
+
+<!--latest-end-->
 
 [12.0.2] - 2026-09
 
@@ -56,8 +76,6 @@ A couple of workflow elements are now fixed:
 ### Added
 
 SV inputs and how to provide them are discussed more in the documentation pages.
-
-<!--latest-end-->
 
 [11.3.0] - 2026-08
 

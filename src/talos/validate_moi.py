@@ -22,9 +22,9 @@ from talos.config import config_retrieve
 from talos.exclusion_log import get_exclusion_logger
 from talos.models import (
     FamilyMembers,
+    GeneDetail,
     MemberSex,
     PanelApp,
-    PanelDetail,
     ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
@@ -32,6 +32,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
+    ShortTandemRepeat,
     translate_category,
 )
 from talos.moi_tests import MOIRunner
@@ -103,7 +104,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
-    panelapp_data: dict[str, PanelDetail],
+    panelapp_data: dict[str, GeneDetail],
     pedigree: PedigreeParser,
 ) -> list[ReportVariant]:
     """
@@ -202,8 +203,14 @@ def filter_results_to_panels(
 
     # iterate over each separate reportable event
     for each_event in result_list:
+        # pick panels appropriately depending on the entity type.
+        if isinstance(each_event.var_data, ShortTandemRepeat):
+            panelapp_content = panelapp.strs[each_event.gene]
+        else:
+            panelapp_content = panelapp.genes[each_event.gene]
+
         # find all panels featuring this gene
-        gene_panels = panelapp.genes[each_event.gene].panels
+        gene_panels = panelapp_content.panels
 
         # get all forced panels this gene intersects with
         forced_panels_for_this_gene: set[int] = forced_panel_ids.intersection(gene_panels)
@@ -212,10 +219,13 @@ def filter_results_to_panels(
         if each_event.sample in panelapp.participants:
             participant_panel_ids = set(panelapp.participants[each_event.sample].panels)
             # get union of naturally and forcibly matched panels for this gene, ignoring the default panel
-            natural_matches_for_this_gene = participant_panel_ids.intersection(gene_panels) - {default_panel}
+            all_matches_for_this_gene = gene_panels.intersection(participant_panel_ids)
+            natural_matches_for_this_gene = all_matches_for_this_gene - {default_panel}
         else:
+            # this scenario shouldn't be possible, so pass duds
             logger.warning(f'Participant {each_event.sample} not found in panelapp participants')
             natural_matches_for_this_gene = set()
+            all_matches_for_this_gene = set()
 
         # if this gene is not on a forced or naturally matched panel for this participant, skip
         if not (forced_panels_for_this_gene or natural_matches_for_this_gene or (default_panel in gene_panels)):
@@ -225,6 +235,15 @@ def filter_results_to_panels(
         each_event.panels = ReportPanel(
             matched={pid: panelapp.metadata[pid].name for pid in natural_matches_for_this_gene},
             forced={pid: panelapp.metadata[pid].name for pid in forced_panels_for_this_gene},
+        )
+
+        # find the max confidence level for this result, across every panel applied to this participant
+        # the custom panel (0) is never in a participant's panel list, so it arrives via the forced set
+        # a panel with no recorded confidence contributes 0; no matching panels at all also gives 0
+        applied_panels = all_matches_for_this_gene | forced_panels_for_this_gene
+        each_event.max_confidence = max(
+            (panelapp_content.panel_confidences.get(panel, 0) for panel in applied_panels),
+            default=0,
         )
 
         # add this event to the list for this participant

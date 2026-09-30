@@ -46,7 +46,7 @@ You will need:
 Build the Talos Docker image locally:
 
 ```bash
-docker build -t talos:12.1.0 .
+docker build -t talos:12.2.0 .
 ```
 
 > **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
@@ -59,7 +59,7 @@ docker build \
     -f docker/Dockerfile \
     --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
     --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
-    -t talos:12.1.0 .
+    -t talos:12.2.0 .
 ```
 
 ---
@@ -116,7 +116,6 @@ The optional columns (history, ext_ids, seqr_map, mito) can be omitted completel
 | `mito`     | optional | Path to a joint-called mitochondrial VCF.                                      |
 
 STR can be handled by Talos, but only data called by STRipy, and aggregated into a joint VCF format by the script `talos/scripts/stripy_json_to_vcf.py`.
-This is not yet exposed in the nextflow implementation, but may be in future.
 
 ### Small-variant VCF input types
 

@@ -554,6 +554,7 @@ class ValidateVariantInheritance(stage.CohortStage):
 
         # is this run going to include STR data?
         str_vcf_arg = ''
+        stripy_vcf = None
         # screen out cohorts/datasets which we don't want to run STRs for
         str_cohort = cohort.dataset.name in config.config_retrieve(['workflow', 'str_cohorts'], [])
         if str_cohort and (
@@ -564,12 +565,8 @@ class ValidateVariantInheritance(stage.CohortStage):
                 stage_name='MakeStripyJointCall',
             )
         ):
-            stripy_vcf = hail_batch.get_batch().read_input_group(
-                **{
-                    'vcf.bgz': str_vcf,
-                    'vcf.bgz.tbi': f'{str_vcf}.tbi',
-                },
-            )['vcf.bgz']
+            stripy_vcf = hail_batch.get_batch().read_input(str_vcf)
+            job.command(f'tabix {stripy_vcf}')
             str_vcf_arg = f'--str {stripy_vcf} '
 
         labelled_vcf = hail_batch.get_batch().read_input_group(
@@ -595,6 +592,7 @@ class ValidateVariantInheritance(stage.CohortStage):
             history_string = f'--previous {hail_batch.get_batch().read_input(latest_results)}'
 
         job.command(f'export TALOS_CONFIG={runtime_config}')
+
         job.command(
             f"""
             python -m talos.validate_moi \\

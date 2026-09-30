@@ -34,6 +34,8 @@ def resultdata(data_dict: dict) -> dict:
 
             if 'coords' in variant['var_data']:
                 variant['var_data']['coordinates'] = variant['var_data'].pop('coords')
+            if isinstance(variant['var_data']['coordinates']['alt'], int):
+                variant['var_data']['coordinates']['alt'] = str(variant['var_data']['coordinates']['alt'])
 
     data_dict['version'] = '1.1.0'
     return data_dict

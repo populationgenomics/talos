@@ -68,7 +68,7 @@ There are two primary workflows:
 To build the Docker image:
 
 ```
-docker build -f docker/Dockerfile -t talos:12.1.0 .
+docker build -f docker/Dockerfile -t talos:12.2.0 .
 ```
 
 > **Note:** Talos utilises [Hail](https://github.com/hail-is/hail), which at time of writing has only been validated on Java 11 and Python 3.10 & 3.11. To install these older versions easily, the base OS image used is Bullseye, which has now reached end of life.
@@ -81,7 +81,7 @@ docker build \
     -f docker/Dockerfile \
     --build-arg PYTHON_BASE_TAG=3.11-slim-trixie \
     --build-arg JDK_PACKAGE=openjdk-21-jre-headless \
-    -t talos:12.1.0 .
+    -t talos:12.2.0 .
 ```
 
 ### **2. Download Annotation Resources**
@@ -226,7 +226,7 @@ Only variants passing configured thresholds and logic modules are returned.
 ## **🔁 Reanalysis Mode**
 
 
-Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the config setting `params.previous_results`. See [History](docs/Reanalysis.md) for more information.
+Talos is designed to support **automated, iterative reanalysis** of undiagnosed cohorts. To do this it reads the results of previous analyses, and integrates them into the latest report. This is currently done by reading in prior analysis results, and incorporating the previous observations with each run. To use this behaviour, use the `history` column in the input TSV - see [History](docs/Reanalysis.md) for more information.
 
 ### **How it works:**
 
