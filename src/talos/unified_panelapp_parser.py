@@ -407,7 +407,7 @@ def remove_pheno_match_only(panelapp_data: PanelApp, pheno_match: list[str]):
         ):
             if gene_details.panels == {DEFAULT_PANEL}:
                 genes_to_remove.add(ensg)
-            else:
+            elif DEFAULT_PANEL in gene_details.panels:
                 gene_details.panels.remove(DEFAULT_PANEL)
 
     for ensg, str_details in panelapp_data.strs.items():
@@ -425,7 +425,7 @@ def remove_pheno_match_only(panelapp_data: PanelApp, pheno_match: list[str]):
         ):
             if str_details.panels == {DEFAULT_PANEL}:
                 strs_to_remove.add(ensg)
-            else:
+            elif DEFAULT_PANEL in str_details.panels:
                 str_details.panels.remove(DEFAULT_PANEL)
 
     panelapp_data.genes = {key: value for key, value in panelapp_data.genes.items() if key not in genes_to_remove}
