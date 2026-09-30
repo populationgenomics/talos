@@ -32,6 +32,7 @@ from talos.models import (
     ReportVariant,
     ResultData,
     ResultMeta,
+    ShortTandemRepeat,
     translate_category,
 )
 from talos.moi_tests import MOIRunner
@@ -202,10 +203,14 @@ def filter_results_to_panels(
 
     # iterate over each separate reportable event
     for each_event in result_list:
-        panelapp_gene_data = panelapp.genes[each_event.gene]
+        # pick panels appropriately depending on the entity type.
+        if isinstance(each_event.var_data, ShortTandemRepeat):
+            panelapp_content = panelapp.strs[each_event.gene]
+        else:
+            panelapp_content = panelapp.genes[each_event.gene]
 
         # find all panels featuring this gene
-        gene_panels = panelapp_gene_data.panels
+        gene_panels = panelapp_content.panels
 
         # get all forced panels this gene intersects with
         forced_panels_for_this_gene: set[int] = forced_panel_ids.intersection(gene_panels)
@@ -237,7 +242,7 @@ def filter_results_to_panels(
         # a panel with no recorded confidence contributes 0; no matching panels at all also gives 0
         applied_panels = all_matches_for_this_gene | forced_panels_for_this_gene
         each_event.max_confidence = max(
-            (panelapp_gene_data.panel_confidences.get(panel, 0) for panel in applied_panels),
+            (panelapp_content.panel_confidences.get(panel, 0) for panel in applied_panels),
             default=0,
         )
 
