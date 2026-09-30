@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     💫 - ClinVar star count has increased
     🎯 - Newly phenotype-matched
     🚦 - Newly Green in PanelApp
-* STRs are now accessible via the Nextflow implementation. This requires a STRipy JSON -> VCF conversion using [this script](src/talos/scripts/stripy_json_to_vcf.py)
+* STRs are now accessible via the Nextflow implementation. This requires a STRipy JSON -> VCF conversion using `src/talos/scripts/stripy_json_to_vcf.py`
 * By default, STRs are only analysed on panels phenotypically-matched to the participant to suppress incidental findings.
 
 [12.1.0] - 2026-09
