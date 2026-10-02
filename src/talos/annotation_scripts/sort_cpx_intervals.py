@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 """
-Sort each complex SV's `CPX_INTERVALS` into coordinate order, so GATK SVAnnotate can process it. Required to overcome
-a strict linear parsing of potentially inverted real intervals.
+Prepare an SV VCF for GATK SVAnnotate. Two separate GATK limitations are worked around in a single pass:
+
+- records with a non-symbolic ALT are removed, as SVAnnotate only works with symbolic alleles
+- each complex SV's `CPX_INTERVALS` is sorted into coordinate order, to overcome a strict linear parsing of
+  potentially inverted real intervals
 
 `SVAnnotateEngine.getSegmentForNearestTSS` builds the spanning interval of a complex event by folding its
 segments left to right with `SimpleInterval.mergeWithContiguous`, which throws unless each adjacent pair *in
@@ -33,6 +36,12 @@ missing a subtype is another aborted cohort.
 
 Sorting cannot rescue a complex event whose segments are genuinely disjoint; SVAnnotate will still reject
 those. It only removes the failures caused by the ordering assumption.
+
+Records with a non-symbolic ALT are removed because SVAnnotate only works with symbolic alleles
+(`<DEL>`, `<INS:ME:ALU>`, breakends), so a sequence-resolved record in the callset breaks the cohort's
+annotation. "Symbolic" follows htsjdk's `Allele.wouldBeSymbolicAllele`, the check GATK applies, so nothing
+GATK would accept is dropped. A record is removed if any of its ALTs fails that test, or if it has no ALT at
+all. Each removed record is logged individually, so the losses can be checked against the callset.
 """
 
 from argparse import ArgumentParser
@@ -42,6 +51,25 @@ from loguru import logger
 
 # a CPX_INTERVALS entry is `SVTYPE_contig:start-end`, e.g. `DEL_chr1:1416597-16725244`
 CPX_INTERVALS = 'CPX_INTERVALS'
+
+
+def is_symbolic(allele: str) -> bool:
+    """
+    Is this ALT allele symbolic, by htsjdk's definition (`Allele.wouldBeSymbolicAllele`)?
+
+    That covers bracketed symbolic alleles (`<DEL>`, `<INS:ME:ALU>`), breakpoint breakends (`N[chr2:123[`) and
+    single breakends (`N.`, `.N`). A single base is never symbolic.
+
+    Args:
+        allele (str): one ALT allele
+
+    Returns:
+        bool: True if GATK would treat this allele as symbolic
+    """
+
+    if len(allele) <= 1:
+        return False
+    return allele.startswith(('<', '.')) or allele.endswith(('>', '.')) or '[' in allele or ']' in allele
 
 
 def interval_sort_key(entry: str, contig_order: dict[str, int]) -> tuple[int, int, int]:
@@ -120,31 +148,42 @@ def cli_main():
     main method wrapper for console script execution
     """
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--input', required=True, help='SV VCF to sort CPX_INTERVALS in')
-    parser.add_argument('--output', required=True, help='Where to write the sorted VCF')
+    parser.add_argument('--input', required=True, help='SV VCF to prepare for SVAnnotate')
+    parser.add_argument('--output', required=True, help='Where to write the sorted, symbolic-only VCF')
     args = parser.parse_args()
     main(vcf_in=args.input, vcf_out=args.output)
 
 
 def main(vcf_in: str, vcf_out: str):
     """
-    Coordinate-sort CPX_INTERVALS on every record that carries it, and write the VCF back out.
+    Remove records with a non-symbolic ALT, coordinate-sort CPX_INTERVALS on every remaining record that carries
+    it, and write the VCF back out.
 
     Args:
         vcf_in (str): path to the SV VCF
-        vcf_out (str): path to write the sorted VCF to
+        vcf_out (str): path to write the sorted, symbolic-only VCF to
     """
 
     vcf = VCF(vcf_in)
     writer = Writer(vcf_out, vcf)
 
     variants = 0
+    non_symbolic = 0
     complex_variants = 0
     reordered = 0
     unparseable = 0
 
     for variant in vcf:
         variants += 1
+
+        # SVAnnotate only works with symbolic alleles. An absent ALT ('.') comes back as an empty list
+        if not (variant.ALT and all(is_symbolic(alt) for alt in variant.ALT)):
+            non_symbolic += 1
+            logger.warning(
+                f'Removing non-symbolic record: {variant.CHROM}\t{variant.POS}\t{variant.ID}\t{variant.REF}\t'
+                f'{",".join(variant.ALT) or "."}',
+            )
+            continue
 
         # cyvcf2 hands back the raw comma-joined string for this Number=. String field
         if intervals := variant.INFO.get(CPX_INTERVALS):
@@ -164,7 +203,8 @@ def main(vcf_in: str, vcf_out: str):
     writer.close()
     vcf.close()
 
-    logger.info(f'Checked {complex_variants} complex variants across {variants} records')
+    logger.info(f'Removed {non_symbolic} of {variants} records with a non-symbolic ALT')
+    logger.info(f'Checked {complex_variants} complex variants across {variants - non_symbolic} records')
     logger.info(f'Coordinate-sorted {CPX_INTERVALS} on {reordered} of them')
 
     if unparseable:

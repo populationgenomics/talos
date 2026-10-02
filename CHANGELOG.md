@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--changelog-start-->
 <!--latest-start-->
 
+[12.2.1] - 2026-10
+
+### Changed
+
+* SVs with non-symbolic ALT alleles are skipped prior to running GATK SvAnnotate
+
 [12.2.0] - 2026-09
 
 ### Added
