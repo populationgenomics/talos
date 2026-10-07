@@ -29,7 +29,16 @@ include { ParseManeIntoJson } from './nextflow/modules/prep/ParseManeIntoJson/ma
 
 workflow {
     main:
-    def timestamp = new java.util.Date().format('yyyy-MM')
+    def evidence_date = params.evidence_date ? params.evidence_date.toString() : null
+    if (evidence_date) {
+        try {
+            java.time.LocalDate.parse(evidence_date)
+        } catch (java.time.format.DateTimeParseException ignored) {
+            error "--evidence_date must be a real date in YYYY-MM-DD format; received '${evidence_date}'"
+        }
+    }
+    def evidence_month = evidence_date ? evidence_date.substring(0, 7) : new java.util.Date().format('yyyy-MM')
+    def panelapp_key = evidence_date ?: evidence_month
 
     ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true)
 
@@ -70,16 +79,16 @@ workflow {
     }
 
     // does this month's clinvarbitration data exist?
-    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${timestamp}.ht"
-    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${timestamp}.pm5.ht"
+    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${evidence_month}.ht"
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${evidence_month}.pm5.ht"
 
     if (file(current_clinvarbitration_pm5).exists()) {
         ch_clinvar_all = channel.fromPath(current_clinvarbitration_all)
         ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5)
     } else {
         // new workflow elements to go and create it from raw data
-        String subfile = "${params.large_files}/submissions_${timestamp}.txt.gz"
-        String varfile = "${params.large_files}/variants_${timestamp}.txt.gz"
+        String subfile = "${params.large_files}/submissions_${evidence_month}.txt.gz"
+        String varfile = "${params.large_files}/variants_${evidence_month}.txt.gz"
 
         if (file(subfile).exists() && file(varfile).exists()) {
             ch_clinvar_sub = channel.fromPath(subfile)
@@ -88,7 +97,7 @@ workflow {
             println "Attempting to download ClinVar raw data, requires internet connection."
             println "If this step fails, try re-running gather_files.sh in the `large_files` directory."
             // this step requires an internet connection, which may be problematic at some sites
-            DownloadClinVarFiles(timestamp)
+            DownloadClinVarFiles(evidence_month, evidence_date ?: '')
             ch_clinvar_sub = DownloadClinVarFiles.out.submissions
             ch_clinvar_var = DownloadClinVarFiles.out.variants
         }
@@ -97,7 +106,7 @@ workflow {
         ResummariseRawSubmissions(
             ch_clinvar_var,
             ch_clinvar_sub,
-            timestamp,
+            evidence_month,
         )
 
         ch_ref_fa = channel.fromPath(params.ref_genome, checkIfExists: true)
@@ -111,7 +120,7 @@ workflow {
 
         MakeClinvarbitrationPm5(
             AnnotateClinvarWithBcftools.out,
-            timestamp,
+            evidence_month,
         )
 
         ch_clinvar_all = ResummariseRawSubmissions.out.ht
@@ -141,11 +150,12 @@ workflow {
         ch_mane_json = channel.fromPath(params.mane_json, checkIfExists: true)
     }
 
-    String current_panelapp = "${params.processed_annotations}/panelapp_${timestamp}.json"
+    String current_panelapp = "${params.processed_annotations}/panelapp_${panelapp_key}.json"
 
     if (!file(current_panelapp).exists()) {
         DownloadPanelApp(
-            timestamp,
+            panelapp_key,
+            evidence_date ?: '',
         )
         panelapp_out = DownloadPanelApp.out
     } else {

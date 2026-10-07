@@ -270,7 +270,7 @@ def check_config():
     LOG_ERRORS.extend(CONFIG_ERRORS)
 
 
-def check_clinvar(clinvar_paths: list[str] | None):
+def check_clinvar(clinvar_paths: list[str] | None, evidence_date: str | None = None):
     """
     Check that the ClinVar HailTable exists and is readable.
     """
@@ -292,7 +292,11 @@ def check_clinvar(clinvar_paths: list[str] | None):
             LOG_ERRORS.append('ClinVar HailTable lacks a creation date')
             continue
         created = pendulum.from_format(hl.eval(clinvar_ht.globals.creation_date), 'YYYY-MM-DD')
-        if created < pendulum.now().subtract(months=2) and config_retrieve(['clinvar_check_age'], True):
+        if (
+            not evidence_date
+            and created < pendulum.now().subtract(months=2)
+            and config_retrieve(['clinvar_check_age'], True)
+        ):
             LOG_ERRORS.append(
                 f'ClinVar HailTable {clinvar_path} is > 2 months old: {created.to_date_string()}, get a new one.'
                 f'Alternatively, disable this check by setting the config key "clinvar_check_age" to False.',
@@ -303,6 +307,7 @@ def main(
     pedigree_path: str | None,
     mt_paths: list[str],
     clinvar_paths: list[str] | None,
+    evidence_date: str | None = None,
 ) -> None:
     """
     Main function to run all startup checks.
@@ -316,7 +321,7 @@ def main(
     check_config()
 
     check_mt(mt_paths)
-    check_clinvar(clinvar_paths)
+    check_clinvar(clinvar_paths, evidence_date=evidence_date)
 
     if LOG_ERRORS:
         logger.error('One or more startup checks failed:')
@@ -331,5 +336,11 @@ if __name__ == '__main__':
     parser.add_argument('--pedigree', help='Path to the pedigree file.', default=None)
     parser.add_argument('--mt', help='Path to the MatrixTable.', nargs='+', required=True)
     parser.add_argument('--clinvar', help='Path to the ClinVar HailTable.', default=None, nargs='+')
+    parser.add_argument('--evidence-date', help='Optional retrospective evidence cutoff in YYYY-MM-DD format')
     args = parser.parse_args()
-    main(pedigree_path=args.pedigree, mt_paths=args.mt, clinvar_paths=args.clinvar)
+    main(
+        pedigree_path=args.pedigree,
+        mt_paths=args.mt,
+        clinvar_paths=args.clinvar,
+        evidence_date=args.evidence_date,
+    )

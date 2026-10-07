@@ -15,7 +15,7 @@ from mendelbrot.pedigree_parser import PedigreeParser
 from talos.config import config_retrieve
 from talos.exclusion_log import get_exclusion_logger
 from talos.models import VARIANT_MODELS, ReportVariant, ShortTandemRepeat, SmallVariant, StructuralVariant
-from talos.static_values import get_granular_date
+from talos.static_values import get_evidence_date
 from talos.utils import X_CHROMOSOME, CompHetDict
 
 HEMI_CHROMS = {'chrX, chrY'}
@@ -836,7 +836,7 @@ class DominantAutosomal(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
@@ -911,7 +911,7 @@ class RecessiveAutosomalCH(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=get_str_var_data(principal, sample_id),
-                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                        categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         # SVs may not have a var_link
@@ -986,7 +986,7 @@ class RecessiveAutosomalHomo(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
                     flags=principal.get_sample_flags(sample_id),
@@ -1051,7 +1051,7 @@ class XDominant(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),
@@ -1139,7 +1139,7 @@ class XPseudoDominantFemale(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id)
@@ -1206,7 +1206,7 @@ class XRecessiveMale(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
                     flags=principal.get_sample_flags(sample_id),
@@ -1272,7 +1272,7 @@ class XRecessiveFemaleHom(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     reasons=self.applied_moi,
                     flags=principal.get_sample_flags(sample_id),
@@ -1349,7 +1349,7 @@ class XRecessiveFemaleCH(BaseMoi):
                         family=self.pedigree.participants[sample_id].family_id,
                         gene=principal.info.get('gene_id'),
                         var_data=get_str_var_data(principal, sample_id),
-                        categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                        categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                         reasons=self.applied_moi,
                         genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                         support_vars={
@@ -1421,7 +1421,7 @@ class Mitochondrial(BaseMoi):
                     family=self.pedigree.participants[sample_id].family_id,
                     gene=principal.info.get('gene_id'),
                     var_data=get_str_var_data(principal, sample_id),
-                    categories={key: get_granular_date() for key in principal.category_values(sample_id)},
+                    categories={key: get_evidence_date() for key in principal.category_values(sample_id)},
                     reasons=self.applied_moi,
                     genotypes=self.get_family_genotypes(variant=principal, sample_id=sample_id),
                     flags=principal.get_sample_flags(sample_id),

@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import pendulum
 import pytest
 from obonet import read_obo
 
@@ -234,3 +235,32 @@ def test_fetch_genes_for_panels_includes_amber_when_threshold_lowered():
     assert 'GREEN' in papp.genes
     assert 'AMBER' in papp.genes
     assert 'RED' not in papp.genes
+
+
+def test_fetch_genes_uses_supplied_historical_new_threshold():
+    panel_id = 137
+    cached = DownloadedPanelApp(
+        genes={
+            'RECENT_AT_CUTOFF': DownloadedPanelAppGene(
+                symbol='RECENT_AT_CUTOFF',
+                chrom='1',
+                ensg='RECENT_AT_CUTOFF',
+                panels={
+                    panel_id: DownloadedPanelAppPanel(
+                        moi='biallelic',
+                        date='2025-06-01',
+                        confidence=3,
+                    ),
+                },
+            ),
+        },
+    )
+    papp = PanelApp(participants={'S1': ParticipantHPOPanels(panels={panel_id})})
+
+    fetch_genes_for_panels(
+        panelapp_data=papp,
+        cached_panelapp=cached,
+        new_threshold=pendulum.datetime(2025, 4, 7),
+    )
+
+    assert papp.genes['RECENT_AT_CUTOFF'].new == {panel_id}

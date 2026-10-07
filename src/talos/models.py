@@ -27,7 +27,7 @@ from talos.liftover.lift_2_3_0_to_2_4_0 import panelapp as pa_230_to_240
 from talos.liftover.lift_2_4_0_to_2_5_0 import panelapp as pa_240_to_250
 from talos.liftover.lift_2_4_0_to_2_5_0 import resultdata as rd_240_to_250
 from talos.liftover.lift_none_to_1_0_0 import resultdata as rd_none_to_1_0_0
-from talos.static_values import get_granular_date
+from talos.static_values import get_evidence_date, get_granular_date
 
 NON_HOM_CHROM = ['X', 'Y', 'MT', 'M']
 CHROM_ORDER = list(map(str, range(1, 23))) + NON_HOM_CHROM
@@ -386,11 +386,11 @@ class ReportVariant(BaseModel):
 
     phenotype_labels: set[str] = Field(default_factory=set)
 
-    evidence_last_updated: str = Field(default=get_granular_date())
+    evidence_last_updated: str = Field(default=get_evidence_date())
 
     family: str = Field(default_factory=str)
     # 'tagged' is seqr-compliant language
-    first_tagged: str = Field(default=get_granular_date())
+    first_tagged: str = Field(default=get_evidence_date())
     flags: set[str] = Field(default_factory=set)
     gene: str = Field(default_factory=str)
     genotypes: dict[str, str] = Field(default_factory=dict)
@@ -549,6 +549,9 @@ class DownloadedPanelApp(BaseModel):
     genes: dict[str, DownloadedPanelAppGene] = Field(default_factory=dict)
     strs: dict[str, DownloadedPanelAppStr] = Field(default_factory=dict)
     hpos: dict[int, list[HpoTerm]] = Field(default_factory=dict)
+    # Historical cutoff represented by this cache. None means a current-data download.
+    evidence_date: str | None = None
+    source: str = Field(default_factory=str)
     version: str = CURRENT_VERSION
     date: str = Field(default=get_granular_date())
 
@@ -562,6 +565,7 @@ class ResultMeta(BaseModel):
     family_breakdown: dict[str, int] = Field(default_factory=dict)
     input_file: str = Field(default_factory=str)
     panels: dict[int, PanelShort] = Field(default_factory=dict)
+    evidence_date: str = Field(default=get_evidence_date())
     run_datetime: str = Field(default=get_granular_date())
 
     # a count of variants per category, used for the report

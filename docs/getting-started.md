@@ -92,6 +92,38 @@ nextflow \
 
 The `processed_annotations` parameter should point to a static directory where Talos-generated files will be stored. Files written here are reusable across all future Talos runs; they are not tied to any individual cohort or callset.
 
+### Retrospective evidence preparation
+
+For a backtest, pass an evidence cutoff to both preparation and analysis:
+
+```bash
+nextflow -c nextflow.config run preparation.nf \
+    --evidence_date 2025-10-07 \
+    --processed_annotations <path> \
+    --large_files <path>
+```
+
+This mode downloads the `2025-10` monthly ClinVar archive and reconstructs every currently discoverable
+PanelApp Australia panel at its latest version on or before `2025-10-07`. Panel activities after the cutoff
+are excluded. ClinVar is only archived monthly, so its effective resolution is a month; PanelApp is resolved
+to the exact calendar day.
+
+The prepared files are named independently of current evidence:
+
+```text
+clinvarbitration_2025-10.ht
+clinvarbitration_2025-10.pm5.ht
+panelapp_2025-10-07.json
+```
+
+Use the same `--evidence_date` on `main.nf` or `talos_only.nf`. Omitting the parameter preserves the normal
+current-data behaviour. Static sources such as gnomAD, MANE, AlphaMissense, HPO and the reference genome are
+not time-travelled, allowing a comparison focused on ClinVar and PanelApp changes.
+
+PanelApp's current API does not list panels deleted before the download is performed. Historical reconstruction
+therefore includes all panels that remain discoverable through the current public panel list; the Mendeliome and
+each retained panel's historical contents are versioned exactly.
+
 !!! info "Recommended cadence"
     Re-run `preparation.nf` on a regular schedule (e.g. monthly) so that ClinVar and PanelApp evidence stays current between Talos analyses. Talos is set up to complain and exit if ClinVar and PanelApp data wasn't prepared this month, as determined by the date built into the file names.
 

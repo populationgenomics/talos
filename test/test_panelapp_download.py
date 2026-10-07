@@ -1,13 +1,18 @@
 import asyncio
 
+import pytest
+
 from talos.download_panelapp import (
     PANEL_TEMPLATE_URL,
     PANELS_ENDPOINT,
+    activities_as_of,
     get_latest_ensembl_data,
     get_panels_and_hpo_terms,
     get_single_panel,
+    panel_version_as_of,
     parse_panel,
     parse_panel_activity,
+    validate_evidence_date,
 )
 from talos.liftover.lift_2_2_0_to_2_3_0 import dl_panelapp as dl_pa_220_to_230
 from talos.liftover.lift_2_3_0_to_2_4_0 import dl_panelapp as dl_pa_230_to_240
@@ -49,10 +54,14 @@ class FakeSession:
         return _FakeResponse(self.payload)
 
 
-def run_get_single_panel(payload: dict, panel_id: int = 137) -> tuple[dict, FakeSession]:
+def run_get_single_panel(
+    payload: dict,
+    panel_id: int = 137,
+    panel_version: str | None = None,
+) -> tuple[dict, FakeSession]:
     """drive the async get_single_panel synchronously against a canned payload"""
     session = FakeSession(payload)
-    result = asyncio.run(get_single_panel(session, panel_id))  # type: ignore[arg-type]
+    result = asyncio.run(get_single_panel(session, panel_id, panel_version=panel_version))  # type: ignore[arg-type]
     return result, session
 
 
@@ -118,6 +127,32 @@ def test_activity_parser(panel_activities):
 
     assert 'GENE3' in activity_dict
     assert activity_dict['GENE3'] == '2023-08-15'
+
+
+def test_panel_version_and_activities_as_of():
+    activities = [
+        {'created': '2025-10-08T01:00:00+11:00', 'panel_version': '1.3'},
+        {'created': '2025-10-07T20:00:00+11:00', 'panel_version': '1.2'},
+        {'created': '2025-09-30T20:00:00+10:00', 'panel_version': '1.1'},
+    ]
+
+    filtered = activities_as_of(activities, '2025-10-07')
+    assert [entry['panel_version'] for entry in filtered] == ['1.2', '1.1']
+    assert panel_version_as_of(activities, '2025-10-07') == '1.2'
+    assert panel_version_as_of(activities, '2025-09-01') is None
+
+
+def test_historical_panel_query(str_payload):
+    result, session = run_get_single_panel(str_payload, panel_id=137, panel_version='1.3305')
+    assert session.urls == [f'{PANEL_TEMPLATE_URL.format(id=137)}?version=1.3305']
+    assert result[137]['version'] == 1
+
+
+def test_validate_evidence_date():
+    assert validate_evidence_date('2025-10-07') == '2025-10-07'
+
+    with pytest.raises(ValueError, match='expected a real date'):
+        validate_evidence_date('2025-02-30')
 
 
 def test_parse_panel(latest_mendeliome, panel_activities):

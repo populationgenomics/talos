@@ -4,6 +4,7 @@ process AnnotatedVcfIntoMatrixTable {
     input:
         tuple val(cohort), path(vcf)
         path panelapp
+        path symbol_lookup
         path mane
 
     output:
@@ -16,6 +17,7 @@ process AnnotatedVcfIntoMatrixTable {
         python -m talos.annotation_scripts.annotated_vcf_into_matrixtable \
             --input ${vcf} \
             --panelapp ${panelapp} \
+            --symbol-lookup ${symbol_lookup} \
             --output ${vcf.simpleName}_annotations.mt \
             --mane ${mane}
 

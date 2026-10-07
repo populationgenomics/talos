@@ -26,6 +26,7 @@ workflow ANNOTATION {
 		ch_gff
 		ch_mane
 		ch_ref_genome
+		ch_symbol_lookup
 		ch_inputs
 
     main:
@@ -36,11 +37,12 @@ workflow ANNOTATION {
     }
     ch_alphamissense_zip = channel.fromPath(params.alphamissense_zip, checkIfExists: true).first()
 
-    def current_month = new java.util.Date().format('yyyy-MM')
-    String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
+    def evidence_date = params.evidence_date ? params.evidence_date.toString() : null
+    def panelapp_key = evidence_date ?: new java.util.Date().format('yyyy-MM')
+    String panelapp_path = "${params.processed_annotations}/panelapp_${panelapp_key}.json"
 
     if (!file(panelapp_path).exists()) {
-        println "PanelApp data for this month (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
+        println "PanelApp data for this evidence date (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
         exit 1
     }
     ch_panelapp = channel.fromPath(panelapp_path, checkIfExists: true).first()
@@ -115,6 +117,7 @@ workflow ANNOTATION {
     AnnotatedVcfIntoMatrixTable(
         AnnotateCsqWithBcftools.out,
         ch_panelapp,
+        ch_symbol_lookup,
         ch_mane,
     )
 

@@ -200,7 +200,8 @@ def cli_main():
     parser = ArgumentParser(description='Takes a BCSQ annotated VCF and makes it a HT')
     parser.add_argument('--input', help='Path to the annotated sites-only VCF', required=True)
     parser.add_argument('--output', help='output Table path, must have a ".ht" extension', required=True)
-    parser.add_argument('--panelapp', help='PanelApp download')
+    parser.add_argument('--panelapp', help='PanelApp download', required=True)
+    parser.add_argument('--symbol-lookup', help='JSON mapping gene symbols to Ensembl gene IDs', required=True)
     parser.add_argument('--mane', help='Hail Table containing MANE annotations', default=None)
     parser.add_argument(
         '--checkpoint',
@@ -213,6 +214,7 @@ def cli_main():
         vcf_path=args.input,
         output_path=args.output,
         panelapp_path=args.panelapp,
+        symbol_lookup_path=args.symbol_lookup,
         mane=args.mane,
         checkpoint=args.checkpoint,
     )
@@ -221,7 +223,9 @@ def cli_main():
 def main(
     vcf_path: str,
     output_path: str,
+    *,
     panelapp_path: str,
+    symbol_lookup_path: str,
     mane: str,
     checkpoint: str | None = None,
 ):
@@ -232,7 +236,8 @@ def main(
     Args:
         vcf_path (str): path to the annotated sites-only VCF
         output_path (str): path to write the resulting Hail Table to, must
-        panelapp_path (str): PanelApp contents
+        panelapp_path (str): PanelApp contents, retained as a symbol-mapping fallback
+        symbol_lookup_path (str): JSON mapping gene symbols to Ensembl gene IDs
         mane (str): path to a MANE JSON file for enhanced annotation
         checkpoint (str): which hail backend to use. Defaults to
     """
@@ -261,11 +266,15 @@ def main(
     # re-shuffle the BCSQ elements
     mt = csq_strings_into_hail_structs(csq_fields, mt)
 
-    # read the PanelApp data from JSON
-    panelapp = read_json_from_path(panelapp_path, return_model=DownloadedPanelApp)
+    # Start from the complete Ensembl GFF-derived mapping so that genes absent from a
+    # historical PanelApp cache are not permanently lost from a MatrixTable reused later.
+    with open(symbol_lookup_path, encoding='utf-8') as handle:
+        symbol_to_ensg = json.load(handle)
 
-    # Convert JSON data sources into a hl.Dict object
-    ensg_dict = get_symbol_to_ensg_mapping(panelapp, as_hail=True)
+    # Retain PanelApp's mapping for symbols it knows, preserving existing Talos behaviour.
+    panelapp = read_json_from_path(panelapp_path, return_model=DownloadedPanelApp)
+    symbol_to_ensg.update(get_symbol_to_ensg_mapping(panelapp))
+    ensg_dict = hl.literal(symbol_to_ensg)
     mane_dict = get_mane_annotations(mane_path=mane)
 
     # in a single loop, update alphamissense annotations, ENSG gene IDs, and MANE status/matched transcripts

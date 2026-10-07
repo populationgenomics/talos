@@ -33,7 +33,7 @@ from talos.models import (
     SmallVariant,
     StructuralVariant,
 )
-from talos.static_values import get_granular_date
+from talos.static_values import get_evidence_date
 from talos.utils import read_json_from_path
 
 JINJA_TEMPLATE_DIR = Path(__file__).absolute().parent / 'templates'
@@ -754,7 +754,7 @@ class Variant:
 
         max_cat_date = max(vardata.categories.values())
         min_cat_date = min(vardata.categories.values())
-        todays_date = get_granular_date()
+        todays_date = get_evidence_date()
 
         # this is a new variant, no need for emojis
         if max_cat_date == todays_date == min_cat_date:

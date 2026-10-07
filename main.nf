@@ -81,6 +81,7 @@ workflow {
 	ch_gff = channel.fromPath(params.ensembl_gff, checkIfExists: true).first()
 	ch_ref_genome = channel.fromPath(params.ref_genome, checkIfExists: true).first()
 	ch_mane = channel.fromPath(params.mane_json, checkIfExists: true).first()
+	ch_symbol_lookup = channel.fromPath(params.ensembl_symbol_lookup, checkIfExists: true).first()
 
 	ch_inputs = channel.fromPath(params.input_tsv)
 		.splitCsv(header: true, sep: '\t')
@@ -131,6 +132,7 @@ workflow {
 		ch_gff,
 		ch_mane,
 		ch_ref_genome,
+		ch_symbol_lookup,
 		ch_inputs,
 	)
 

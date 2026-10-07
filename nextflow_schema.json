@@ -27,6 +27,11 @@
           "type": "string",
           "description": "Large files directory"
         },
+        "evidence_date": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Optional retrospective evidence cutoff in YYYY-MM-DD format. Omit to use current evidence."
+        },
         "ref_genome": {
           "type": "string",
           "description": "Reference genome, default is in large_files."
@@ -73,6 +78,11 @@
           "type": "string",
           "default": "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz",
           "description": "ClinVar download URL for variant summary."
+        },
+        "clinvar_archive": {
+          "type": "string",
+          "default": "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive",
+          "description": "ClinVar monthly archive base URL used for retrospective evidence downloads."
         },
         "clinvar_blacklist": {
           "type": "string",

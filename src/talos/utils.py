@@ -40,7 +40,7 @@ from talos.models import (
     lift_up_model_version,
     translate_category,
 )
-from talos.static_values import get_granular_date
+from talos.static_values import get_evidence_date
 
 if TYPE_CHECKING:
     import cyvcf2
@@ -980,12 +980,12 @@ def annotate_variant_dates_using_prior_results(results: ResultData, previous_res
             elif (new_var.max_confidence > old_var.max_confidence) and (new_var.max_confidence >= GREEN_CONFIDENCE):
                 # if the gene rating bump means this gene is now Green, bump confidence
                 new_var.confidence_increase = True
-                evidence_dates.append(get_granular_date())
+                evidence_dates.append(get_evidence_date())
 
                 # the first time a panel is rated Green - first tagged is moved up
-                new_var.first_tagged = get_granular_date()
+                new_var.first_tagged = get_evidence_date()
 
-                new_var.newly_green_date = get_granular_date()
+                new_var.newly_green_date = get_evidence_date()
 
             # take the highest confidence when building the history
             # outside chance a gene going green->amber would be presented as Green due to this...

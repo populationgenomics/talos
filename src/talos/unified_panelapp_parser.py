@@ -60,9 +60,6 @@ except KeyError:
     logger.warning('Config environment variable TALOS_CONFIG not set, falling back to Aussie PanelApp')
     DEFAULT_PANEL = PANELAPP_BASE_PANEL
 
-# create a datetime threshold
-NEW_THRESHOLD = pendulum.now().subtract(months=WITHIN_X_MONTHS)
-
 # expired data check - raise errors when the downloaded PanelApp data is 2+ months old, request a refresh
 EXPIRED_DOWNLOAD = pendulum.now().subtract(months=2)
 MOI_FOR_CUSTOM_GENES = 'Mono_And_Biallelic'
@@ -76,8 +73,15 @@ def cli_main():
     parser.add_argument('--output', help='Path to write JSON output to', required=True)
     parser.add_argument('--pedigree', help='Pedigree file, optionally including HPO terms', required=True)
     parser.add_argument('--hpo', help='Localised copy of HPO obo file', required=False)
+    parser.add_argument('--evidence-date', help='Optional retrospective cutoff in YYYY-MM-DD format')
     args = parser.parse_args()
-    main(panel_data=args.input, output_file=args.output, pedigree_path=args.pedigree, hpo_file=args.hpo)
+    main(
+        panel_data=args.input,
+        output_file=args.output,
+        pedigree_path=args.pedigree,
+        hpo_file=args.hpo,
+        evidence_date=args.evidence_date,
+    )
 
 
 def extract_participant_data_from_pedigree(
@@ -256,10 +260,17 @@ def get_simple_moi(input_mois: set[str], chrom: str) -> str:
     return sorted(simplified_mois, key=ORDERED_MOIS.index)[0]
 
 
-def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedPanelApp):
+def fetch_genes_for_panels(
+    panelapp_data: PanelApp,
+    cached_panelapp: DownloadedPanelApp,
+    new_threshold: pendulum.DateTime | None = None,
+):
     """
     Now that we know which panels will be in the analysis, get the corresponding genes and consensus MOI for each
     """
+
+    if new_threshold is None:
+        new_threshold = pendulum.now().subtract(months=WITHIN_X_MONTHS)
 
     full_set_of_panels: set[int] = set()
 
@@ -293,7 +304,7 @@ def fetch_genes_for_panels(panelapp_data: PanelApp, cached_panelapp: DownloadedP
                 new_panels = {
                     panel_id
                     for panel_id in panel_intersection
-                    if pendulum.from_format(obj_data.panels[panel_id].date, 'YYYY-MM-DD') > NEW_THRESHOLD
+                    if pendulum.from_format(obj_data.panels[panel_id].date, 'YYYY-MM-DD') > new_threshold
                 }
 
                 # add the gene to the panel details object
@@ -432,7 +443,13 @@ def remove_pheno_match_only(panelapp_data: PanelApp, pheno_match: list[str]):
     panelapp_data.strs = {key: value for key, value in panelapp_data.strs.items() if key not in strs_to_remove}
 
 
-def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | None = None):
+def main(
+    panel_data: str,
+    output_file: str,
+    pedigree_path: str,
+    hpo_file: str | None = None,
+    evidence_date: str | None = None,
+):
     """
     Loads the pre-downloaded PanelApp content
 
@@ -451,8 +468,22 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
 
     pedigree = PedigreeParser(pedigree_path)
 
-    # I think we're happy being hard here, we want to force consistent updates of the PanelApp data
-    if pendulum.from_format(cached_panelapp.date, 'YYYY-MM-DD') < EXPIRED_DOWNLOAD:
+    if evidence_date:
+        try:
+            reference_date = pendulum.from_format(evidence_date, 'YYYY-MM-DD')
+        except ValueError as error:
+            raise ValueError(f'Invalid evidence date {evidence_date!r}; expected YYYY-MM-DD') from error
+        if cached_panelapp.evidence_date != evidence_date:
+            raise ValueError(
+                f'PanelApp cache represents {cached_panelapp.evidence_date!r}, '
+                f'but this run requested {evidence_date!r}',
+            )
+    else:
+        reference_date = pendulum.now()
+
+    # Current evidence should be refreshed regularly. A historical cache is immutable and is instead
+    # checked against its requested evidence date above.
+    if not evidence_date and pendulum.from_format(cached_panelapp.date, 'YYYY-MM-DD') < EXPIRED_DOWNLOAD:
         raise ValueError(
             f'PanelApp data was downloaded on {cached_panelapp.date}, which is over 2 months ago. '
             f'Please refresh the data using the `talos_preparation.nf` sub-workflow, then re-running the Talos WF',
@@ -487,7 +518,11 @@ def main(panel_data: str, output_file: str, pedigree_path: str, hpo_file: str | 
         match_participants_to_panels(panelapp_data, hpo_to_panels, cached_panelapp)
 
     # now that we have the panels to use, go get them, and assign a single MOI to each gene
-    fetch_genes_for_panels(panelapp_data=panelapp_data, cached_panelapp=cached_panelapp)
+    fetch_genes_for_panels(
+        panelapp_data=panelapp_data,
+        cached_panelapp=cached_panelapp,
+        new_threshold=reference_date.subtract(months=WITHIN_X_MONTHS),
+    )
 
     # optionally shove in some extra gene content from configuration as a custom panel
     if custom_content := config_retrieve(['PanelApp', 'manual_overrides'], []):

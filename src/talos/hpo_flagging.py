@@ -16,7 +16,7 @@ from semsimian import Semsimian
 
 from talos.config import config_retrieve
 from talos.models import PanelApp, ResultData
-from talos.static_values import get_granular_date
+from talos.static_values import get_evidence_date
 from talos.utils import get_symbol_to_ensg_mapping, read_json_from_path
 
 _SEMSIM_CLIENT: Semsimian | None = None
@@ -136,7 +136,7 @@ def annotate_phenotype_matches(result_object: ResultData, gen_phen: dict[str, se
                     continue
 
                 if variant.date_of_phenotype_match is None:
-                    variant.date_of_phenotype_match = get_granular_date()
+                    variant.date_of_phenotype_match = get_evidence_date()
 
                 variant.phenotype_labels = pheno_matches
 

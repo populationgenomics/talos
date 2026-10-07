@@ -27,12 +27,21 @@ workflow TALOS {
     ch_phenio = channel.fromPath(params.phenio_db, checkIfExists: true).first()
 
     // current year-month as a String, used to prompt for up to date resource updates
-    def current_month = new java.util.Date().format('yyyy-MM')
+    def evidence_date = params.evidence_date ? params.evidence_date.toString() : null
+    if (evidence_date) {
+        try {
+            java.time.LocalDate.parse(evidence_date)
+        } catch (java.time.format.DateTimeParseException ignored) {
+            error "--evidence_date must be a real date in YYYY-MM-DD format; received '${evidence_date}'"
+        }
+    }
+    def evidence_month = evidence_date ? evidence_date.substring(0, 7) : new java.util.Date().format('yyyy-MM')
+    def panelapp_key = evidence_date ?: evidence_month
     def timestamp = new java.util.Date().format('yyyy-MM-dd')
 
     // check if clinvar and panelapp data exist using the timestamp
-    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${current_month}.ht"
-    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${current_month}.pm5.ht"
+    String current_clinvarbitration_all = "${params.processed_annotations}/clinvarbitration_${evidence_month}.ht"
+    String current_clinvarbitration_pm5 = "${params.processed_annotations}/clinvarbitration_${evidence_month}.pm5.ht"
 
     if (!file(current_clinvarbitration_pm5).exists()) {
         println "ClinvArbitration data for this month (${current_clinvarbitration_pm5}) doesn't exist, run the Talos Prep workflow"
@@ -43,7 +52,7 @@ workflow TALOS {
     ch_clinvar_all = channel.fromPath(current_clinvarbitration_all, checkIfExists: true).first()
     ch_clinvar_pm5 = channel.fromPath(current_clinvarbitration_pm5, checkIfExists: true).first()
 
-    String panelapp_path = "${params.processed_annotations}/panelapp_${current_month}.json"
+    String panelapp_path = "${params.processed_annotations}/panelapp_${panelapp_key}.json"
 
     if (!file(panelapp_path).exists()) {
         println "PanelApp data for this month (${panelapp_path}) doesn't exist, run the Talos Prep workflow"
@@ -55,6 +64,7 @@ workflow TALOS {
     StartupChecks(
         ch_mts,
         ch_clinvar_all,
+        evidence_date ?: '',
     )
 
     // UnifiedPanelAppParser
@@ -68,6 +78,7 @@ workflow TALOS {
         ch_panel_app_inputs,
     	ch_panelapp,
     	ch_hpo_file,
+        evidence_date ?: '',
     )
 
     ch_run_hail_inputs = ch_mts
