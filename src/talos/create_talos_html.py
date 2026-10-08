@@ -55,7 +55,7 @@ GNOMAD_POP = config_retrieve(['RunHailFilteringSv', 'gnomad_population'], 'gnoma
 # emoji source https://tools.picsart.com/text/emojis/
 CONFIDENCE_EMOJI: dict[int, str] = {3: '🟢', 2: '🟡', 1: '🔴'}
 REASON_EMOJIS = {
-    'new': '➕',
+    'new': '➕',  # noqa: RUF001
     'clinvar': '💫',
     'pheno': '🎯',
     'green': '🚦',
