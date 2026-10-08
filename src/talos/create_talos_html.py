@@ -31,6 +31,7 @@ from talos.models import (
     ResultData,
     ShortTandemRepeat,
     SmallVariant,
+    StrDetail,
     StructuralVariant,
 )
 from talos.static_values import get_granular_date
@@ -636,8 +637,14 @@ class Variant:
 
         # List of (gene_id, symbol, panel_confidence_tooltip_html)
         self.genes: list[tuple[str, str, str]] = []
+        # STRs are rated separately to their gene in PanelApp, so use the STR-specific panel confidences
+        is_str = isinstance(self.var_data, ShortTandemRepeat)
         for gene_id in report_variant.gene.split(','):
-            gene_panelapp_entry = html_builder.panelapp.genes.get(gene_id, GeneDetail(symbol=gene_id))
+            gene_panelapp_entry: GeneDetail | StrDetail = (
+                html_builder.panelapp.strs.get(gene_id, StrDetail(symbol=gene_id))
+                if is_str
+                else html_builder.panelapp.genes.get(gene_id, GeneDetail(symbol=gene_id))
+            )
             tooltip_parts = []
             for panel_id, confidence in sorted(gene_panelapp_entry.panel_confidences.items()):
                 if panel_id not in applied_panel_ids:
@@ -646,8 +653,8 @@ class Variant:
                 tooltip_parts.append(f'{CONFIDENCE_EMOJI.get(confidence, "⚪")} {panel_name}')
             self.genes.append((gene_id, gene_panelapp_entry.symbol, '<br>'.join(tooltip_parts)))
 
-            # is this a new gene?
-            new_panels = gene_panelapp_entry.new
+            # is this a new gene? STR green dates aren't currently parsed from PanelApp activity
+            new_panels = set() if isinstance(gene_panelapp_entry, StrDetail) else gene_panelapp_entry.new
 
             if html_builder.base_panel in new_panels:
                 self.new_in_base_panel = True

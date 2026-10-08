@@ -48,6 +48,9 @@ NUM_PED_COLS = 6
 # bases added either side of each gene when choosing which regions of the MT to read
 FLANKING_REGION = 2000
 
+# decide whether to repartition the data before processing starts
+MAX_PARTITIONS = 4000
+
 
 def populate_callset_frequencies(mt: hl.MatrixTable) -> hl.MatrixTable:
     """
@@ -1043,6 +1046,15 @@ def main(
     # read the matrix table from a localised directory
     mt = union_all_mts(mt_paths, intervals=intervals)
     logger.info(f'Loaded annotated MT from {mt_paths}, partitions: {mt.n_partitions()}')
+
+    # repartition if required - local Hail with finite resources has struggled with some really high (~120k) partitions
+    # this creates a local duplicate of the input data with far smaller partition counts, for less processing overhead
+    if mt.n_partitions() > MAX_PARTITIONS:
+        logger.info('Shrinking partitions way down with an unshuffled repartition')
+        mt = mt.repartition(shuffle=False, n_partitions=400)
+        if checkpoint:
+            logger.info('Trying to write the result locally, might need more space on disk...')
+            mt = generate_a_checkpoint(mt, f'{checkpoint}_repartitioned')
 
     # Filter out star alleles, not currently capable of handling them
     # Will revisit once our internal experience with DRAGEN-generated variant data improves
