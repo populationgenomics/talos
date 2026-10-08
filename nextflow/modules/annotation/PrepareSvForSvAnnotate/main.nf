@@ -1,4 +1,4 @@
-process SortCpxIntervals {
+process PrepareSvForSvAnnotate {
     container params.container
 
     input:
