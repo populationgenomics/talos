@@ -24,8 +24,8 @@ inputs stable enough, that re-running them on an unchanged callset is pure waste
 include { AnnotateSvWithGatk } from './modules/annotation/AnnotateSvWithGatk/main'
 include { AnnotateSvWithSvafotate } from './modules/annotation/AnnotateSvWithSvafotate/main'
 include { CreateSequenceDictionary } from './modules/prep/CreateSequenceDictionary/main'
+include { PrepareSvForSvAnnotate } from './modules/annotation/PrepareSvForSvAnnotate/main'
 include { RenameSvAfFields } from './modules/annotation/RenameSvAfFields/main'
-include { SortCpxIntervals } from './modules/annotation/SortCpxIntervals/main'
 
 
 workflow SV_ANNOTATION {
@@ -90,9 +90,10 @@ workflow SV_ANNOTATION {
     }
     // SVAnnotate aborts the entire run on the first complex variant whose CPX_INTERVALS are not in
     // coordinate order, which GATK-SV's delINVdel records never are - so sort them before GATK sees them
-    SortCpxIntervals(ch_pending_vcfs)
+    // SVAnnotate only tolerates symbolic alt alleles, so skip any non-symbolic in the input VCF
+    PrepareSvForSvAnnotate(ch_pending_vcfs)
     AnnotateSvWithGatk(
-        SortCpxIntervals.out,
+        PrepareSvForSvAnnotate.out,
         ch_mane_gtf,
         ch_noncoding_bed,
         ch_ref_dict,
