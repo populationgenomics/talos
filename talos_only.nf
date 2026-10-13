@@ -111,7 +111,7 @@ workflow {
 	// the published destinations, which don't exist until the run completes, so this is a proposal
 	// to be reviewed, not an output consumed by anything in this run
 	ch_next_input_tsv = TALOS.out.json
-		.map { cohort, results_json -> tuple(cohort, "${workflow.outputDir}/${cohort}_analysis_${runDate()}/${results_json.name}".toString()) }
+		.map { cohort, results_json -> tuple(cohort, "${workflow.outputDir}/${cohort}/${results_json.name}".toString()) }
 		.collect(flat: false)
 		.map { pairs -> nextInputTsv(file(params.input_tsv), pairs.collectEntries { pair -> pair }) }
 		.collectFile(name: "talos_input_${runDate()}.tsv")
