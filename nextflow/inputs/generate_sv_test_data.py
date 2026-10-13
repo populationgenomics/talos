@@ -117,6 +117,18 @@ VARIANTS = [
     # the one variant expected to survive to the report as CategoryBooleanSV1
     # --- this was correctly detected as Cat. SV1, but the gene is Biallelic.
     SV('lof_del_padi6', 17372196, 17401699, 'DEL', 29503, ['1/1', '0/0', '0/0'], callset_af=0.001),
+    # the PanelApp CNV region positive control. PanelApp region ISCA-37493-Loss (1q43q44 microdeletion syndrome,
+    # chr1:243124428-245154985, cnv_loss, 80% required overlap, monoallelic) is on panel 3443, forced in
+    # nextflow/inputs/config.toml. This de novo DEL covers 97.5% of the region and the region covers 100% of it,
+    # clearing the 80% reciprocal overlap, so it is expected in the report as CategoryDetailsRegulatoryCNV under
+    # Autosomal Dominant. In gnomAD it matches GD_1q43-q44__DEL (BED 1:243124427-245154985) at AF 8e-06, and must
+    # NOT inherit AF 0.5 from gnomAD-SV_v3_DEL_chr1_7548ba6e (7.4Mb, reciprocal overlap ~0.27, below -f 0.5)
+    SV('region_del_1q43q44', 243150001, 245130000, 'DEL', 1979999, ['0/1', '0/0', '0/0'], callset_af=0.001),
+    # the region negative control: identical coordinates, genotypes and frequency, but a DUP. ISCA-37493 is only
+    # listed as a Loss, so the type check must reject it despite the 97.5%/100% overlap. Every gnomAD DUP here is
+    # rare (max AF 1.9e-04), and a whole-gene DUP gets no PREDICTED_LOF, so the type check is the only thing
+    # standing between this and the report - it should be dropped by run_hail_filtering_sv's LOF/BND/region filter
+    SV('region_dup_1q43q44', 243150001, 245130000, 'DUP', 1979999, ['0/1', '0/0', '0/0'], callset_af=0.001),
     # matches gnomAD-SV_v3_DEL_chr1_143f6519 (BED 1:509967-690000) exactly, AF 0.2238. It carries
     # PREDICTED_LOF=OR4F16, so it survives the LoF filter and has to be dropped on gnomAD frequency by
     # filter_matrix_by_af - it is rare in the callset, so nothing else can catch it

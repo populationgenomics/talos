@@ -11,9 +11,10 @@ from talos.models import (
     ResultData,
     ResultMeta,
     SmallVariant,
+    StructuralVariant,
 )
 from talos.static_values import get_granular_date
-from talos.validate_moi import count_families, filter_results_to_panels, prepare_results_shell
+from talos.validate_moi import count_families, filter_results_to_panels, prepare_results_shell, set_up_moi_filters
 from test.test_utils import ONE_EXPECTED, THREE_EXPECTED, TWO_EXPECTED, ZERO_EXPECTED
 
 TEST_COORDS = Coordinates(chrom='1', pos=1, ref='A', alt='C')
@@ -225,3 +226,27 @@ def test_count_families_quad(quad_ped: str):
     ped = PedigreeParser(quad_ped)
     ped.set_participants(ped.strip_pedigree_to_samples(ped_samples))
     assert count_families(pedigree=ped) == {'affected': 1, 'male': 3, 'female': 1, 'trios': 1}
+
+
+def test_regions_in_moi_filters_and_panel_filtering(pedigree_path: str):
+    """region MOIs get a MOI runner, and region events are matched to panels via the region entry"""
+    panelapp = PanelApp(
+        metadata={137: {'id': 137, 'name': 'Mendeliome'}},
+        genes={'ENSG1': {'symbol': 'G1', 'moi': 'Biallelic'}},
+        regions={'REGION': {'name': 'REGION', 'moi': 'Monoallelic', 'panels': {137}, 'panel_confidences': {137: 3}}},
+        participants={'sam1': {'panels': {137}}},
+    )
+    assert set(set_up_moi_filters(panelapp, PedigreeParser(pedigree_path=pedigree_path))) == {
+        'Biallelic',
+        'Monoallelic',
+    }
+
+    sv = StructuralVariant(coordinates=TEST_COORDS, info={'gene_id': 'REGION'})
+    results_holder = ResultData(results={'sam1': {'metadata': {'family_id': 'family_1'}}})
+    filter_results_to_panels(
+        results_holder=results_holder,
+        result_list=[ReportVariant(sample='sam1', var_data=sv, gene='REGION')],
+        panelapp=panelapp,
+    )
+    assert len(results_holder.results['sam1'].variants) == ONE_EXPECTED
+    assert results_holder.results['sam1'].variants[0].max_confidence == 3

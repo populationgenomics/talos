@@ -28,6 +28,7 @@ from talos.models import (
     ParticipantHPOPanels,
     ParticipantMeta,
     ParticipantResults,
+    RegionDetail,
     ReportPanel,
     ReportVariant,
     ResultData,
@@ -88,8 +89,8 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 
     moi_dictionary = {}
 
-    # iterate over all genes
-    for gene_data in panelapp_data.genes.values():
+    # iterate over all genes and regions
+    for gene_data in [*panelapp_data.genes.values(), *panelapp_data.regions.values()]:
         # extract the per-gene MOI, don't re-simplify
         gene_moi = gene_data.moi
 
@@ -104,7 +105,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 def apply_moi_to_variants(
     variant_dict: GeneDict,
     moi_lookup: dict[str, MOIRunner],
-    panelapp_data: dict[str, GeneDetail],
+    panelapp_data: dict[str, GeneDetail | RegionDetail],
     pedigree: PedigreeParser,
 ) -> list[ReportVariant]:
     """
@@ -114,7 +115,7 @@ def apply_moi_to_variants(
     Args:
         variant_dict (dict): all possible variants, lists indexed by gene
         moi_lookup (dict): the MOI model runner per MOI string
-        panelapp_data (dict): all genes and relevant details
+        panelapp_data (dict): all genes and regions, and relevant details
         pedigree (PedigreeParser): the pedigree for this cohort
     """
 
@@ -206,6 +207,8 @@ def filter_results_to_panels(
         # pick panels appropriately depending on the entity type.
         if isinstance(each_event.var_data, ShortTandemRepeat):
             panelapp_content = panelapp.strs[each_event.gene]
+        elif each_event.gene in panelapp.regions:
+            panelapp_content = panelapp.regions[each_event.gene]
         else:
             panelapp_content = panelapp.genes[each_event.gene]
 
@@ -489,7 +492,7 @@ def main(
                 apply_moi_to_variants(
                     variant_dict=contig_dict,
                     moi_lookup=moi_lookup,
-                    panelapp_data=panelapp.genes,
+                    panelapp_data=panelapp.genes | panelapp.regions,
                     pedigree=ped,
                 ),
             )

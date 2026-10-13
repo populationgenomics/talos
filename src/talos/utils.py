@@ -638,6 +638,10 @@ def create_structural_variant(var: 'cyvcf2.Variant', samples: list[str]) -> Stru
 
     het_samples, hom_samples = get_non_ref_samples(variant=var, samples=samples)
 
+    # region matches are recorded on every exploded row, only apply the category to the row for that region
+    if info['gene_id'] in info.get('categorydetailsregulatorycnv', 'missing').split('+'):
+        info['categorybooleanregulatorycnv'] = 1
+
     # set the class attributes
     boolean_categories = [key for key in info if key.startswith('categoryboolean')]
 
