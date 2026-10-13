@@ -573,6 +573,7 @@ class DownloadedPanelAppRegion(BaseModel):
     variant_type: str = Field(default_factory=str)
     required_overlap: int = Field(default_factory=int)
     panels: dict[int, DownloadedPanelAppPanel] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
 
 
 class DownloadedPanelApp(BaseModel):
