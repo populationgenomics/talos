@@ -91,6 +91,7 @@ def set_up_moi_filters(panelapp_data: PanelApp, pedigree: PedigreeParser) -> dic
 
     # iterate over all genes and regions
     for gene_data in [*panelapp_data.genes.values(), *panelapp_data.regions.values()]:
+        assert isinstance(gene_data, (RegionDetail, GeneDetail))
         # extract the per-gene MOI, don't re-simplify
         gene_moi = gene_data.moi
 
